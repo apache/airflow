@@ -46,7 +46,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     Wrap the spark-submit binary to kick off a spark-submit job; requires "spark-submit" binary in the PATH.
 
     :param conf: Arbitrary Spark configuration properties
-    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark-submit>` as configured
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
         in Airflow administration. When an invalid connection_id is supplied, it will default
         to yarn.
     :param files: Upload additional files to the executor running the job, separated by a

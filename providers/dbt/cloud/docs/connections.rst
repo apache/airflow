@@ -20,7 +20,7 @@
     getdbt
 
 
-.. _howto/connection:dbt-cloud:
+.. _howto/connection:dbt_cloud:
 
 Connecting to dbt Cloud
 =======================

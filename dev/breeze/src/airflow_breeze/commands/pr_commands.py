@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Thread
 from typing import TYPE_CHECKING
@@ -69,6 +70,181 @@ _BOT_ACCOUNT_LOGINS = {"dependabot", "dependabot[bot]", "renovate[bot]", "github
 
 # Marker used to identify comments posted by the auto-triage process
 _TRIAGE_COMMENT_MARKER = "Pull Request quality criteria"
+
+# Proximity threshold for showing "nearby" existing comments (lines)
+_NEARBY_LINE_THRESHOLD = 5
+
+
+def _get_review_cache_dir(github_repository: str) -> Path:
+    """Return the directory for storing cached LLM review results."""
+    from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
+
+    safe_name = github_repository.replace("/", "_")
+    cache_dir = Path(BUILD_CACHE_PATH) / "review_cache" / safe_name
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+def _get_cached_review(github_repository: str, pr_number: int, head_sha: str) -> dict | None:
+    """Load a cached LLM review result if it exists and matches the current commit hash."""
+    cache_file = _get_review_cache_dir(github_repository) / f"pr_{pr_number}.json"
+    if not cache_file.exists():
+        return None
+    try:
+        data = json.loads(cache_file.read_text())
+        if data.get("head_sha") == head_sha:
+            return data.get("review")
+        return None
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
+def _save_review_cache(github_repository: str, pr_number: int, head_sha: str, review: dict) -> None:
+    """Save an LLM review result to the cache."""
+    cache_file = _get_review_cache_dir(github_repository) / f"pr_{pr_number}.json"
+    cache_file.write_text(json.dumps({"head_sha": head_sha, "review": review}, indent=2))
+
+
+def _get_triage_cache_dir(github_repository: str) -> Path:
+    """Return the directory for storing cached LLM triage assessment results."""
+    from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
+
+    safe_name = github_repository.replace("/", "_")
+    cache_dir = Path(BUILD_CACHE_PATH) / "triage_cache" / safe_name
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+def _get_cached_assessment(github_repository: str, pr_number: int, head_sha: str) -> dict | None:
+    """Load a cached LLM triage assessment if it exists and matches the current commit hash."""
+    cache_file = _get_triage_cache_dir(github_repository) / f"pr_{pr_number}.json"
+    if not cache_file.exists():
+        return None
+    try:
+        data = json.loads(cache_file.read_text())
+        if data.get("head_sha") == head_sha:
+            return data.get("assessment")
+        return None
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
+def _save_assessment_cache(github_repository: str, pr_number: int, head_sha: str, assessment: dict) -> None:
+    """Save an LLM triage assessment result to the cache."""
+    cache_file = _get_triage_cache_dir(github_repository) / f"pr_{pr_number}.json"
+    cache_file.write_text(json.dumps({"head_sha": head_sha, "assessment": assessment}, indent=2))
+
+
+def _cached_assess_pr(
+    github_repository: str,
+    head_sha: str,
+    pr_number: int,
+    pr_title: str,
+    pr_body: str,
+    check_status_summary: str,
+    llm_model: str,
+) -> PRAssessment:
+    """Run assess_pr with caching keyed by PR number + commit hash.
+
+    Returns cached PRAssessment when the commit hash matches, avoiding redundant LLM calls.
+    """
+    from airflow_breeze.utils.github import PRAssessment, Violation
+    from airflow_breeze.utils.llm_utils import assess_pr
+
+    cached = _get_cached_assessment(github_repository, pr_number, head_sha)
+    if cached is not None:
+        violations = [
+            Violation(
+                category=v.get("category", "unknown"),
+                explanation=v.get("explanation", ""),
+                severity=v.get("severity", "warning"),
+                details=v.get("details", ""),
+            )
+            for v in cached.get("violations", [])
+        ]
+        result = PRAssessment(
+            should_flag=cached.get("should_flag", False),
+            should_report=cached.get("should_report", False),
+            violations=violations,
+            summary=cached.get("summary", ""),
+            error=cached.get("error", False),
+            error_debug_file=cached.get("error_debug_file", ""),
+        )
+        result._from_cache = True  # type: ignore[attr-defined]
+        return result
+
+    result = assess_pr(
+        pr_number=pr_number,
+        pr_title=pr_title,
+        pr_body=pr_body,
+        check_status_summary=check_status_summary,
+        llm_model=llm_model,
+    )
+
+    # Cache successful results (not errors)
+    if not result.error:
+        assessment_dict = {
+            "should_flag": result.should_flag,
+            "should_report": result.should_report,
+            "violations": [
+                {
+                    "category": v.category,
+                    "explanation": v.explanation,
+                    "severity": v.severity,
+                    "details": v.details,
+                }
+                for v in result.violations
+            ],
+            "summary": result.summary,
+        }
+        _save_assessment_cache(github_repository, pr_number, head_sha, assessment_dict)
+
+    return result
+
+
+@dataclass
+class ExistingComment:
+    """An existing review comment already posted on a PR."""
+
+    path: str
+    line: int | None
+    body: str
+    user_login: str
+
+
+def _fetch_existing_review_comments(
+    token: str, github_repository: str, pr_number: int
+) -> list[ExistingComment]:
+    """Fetch all existing review comments on a PR via REST API."""
+    import requests
+
+    comments: list[ExistingComment] = []
+    url = f"https://api.github.com/repos/{github_repository}/pulls/{pr_number}/comments"
+    page = 1
+    while True:
+        response = requests.get(
+            url,
+            params={"per_page": 100, "page": page},
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+            timeout=30,
+        )
+        if response.status_code != 200:
+            break
+        items = response.json()
+        if not items:
+            break
+        for item in items:
+            comments.append(
+                ExistingComment(
+                    path=item.get("path", ""),
+                    line=item.get("line") or item.get("original_line"),
+                    body=item.get("body", ""),
+                    user_login=item.get("user", {}).get("login", ""),
+                )
+            )
+        page += 1
+    return comments
+
 
 _SEARCH_PRS_QUERY = """
 query($query: String!, $first: Int!, $after: String) {
@@ -241,6 +417,14 @@ mutation($labelableId: ID!, $labelIds: [ID!]!) {
 }
 """
 
+_REMOVE_LABELS_MUTATION = """
+mutation($labelableId: ID!, $labelIds: [ID!]!) {
+  removeLabelsFromLabelable(input: {labelableId: $labelableId, labelIds: $labelIds}) {
+    labelable { ... on PullRequest { id } }
+  }
+}
+"""
+
 _GET_LABEL_ID_QUERY = """
 query($owner: String!, $repo: String!, $name: String!) {
   repository(owner: $owner, name: $repo) {
@@ -256,6 +440,54 @@ mutation($prId: ID!) {
   }
 }
 """
+
+
+@dataclass
+class UnresolvedThread:
+    """Detail about a single unresolved review thread from a maintainer."""
+
+    reviewer_login: str
+    reviewer_association: str  # COLLABORATOR, MEMBER, OWNER
+    comment_body: str  # the reviewer's original comment (first in thread)
+    comment_url: str  # permalink to the thread
+    author_last_reply: str  # the PR author's most recent reply in that thread (empty if none)
+
+    @property
+    def reviewer_display(self) -> str:
+        """Human-readable reviewer identifier like 'login (MEMBER)'."""
+        return f"{self.reviewer_login} ({self.reviewer_association})"
+
+
+@dataclass
+class RecentPRFailureInfo:
+    """Preloaded information about CI failures in recently merged PRs.
+
+    Used to detect consistent failure patterns: when a PR's failures also
+    appear in other recently merged PRs targeting the same branch, this
+    suggests the failures are systemic rather than caused by the PR's changes.
+    """
+
+    # Map from failing check name -> list of PR dicts (with number, title, url, html_url, etc.)
+    failing_checks: dict[str, list[dict]]
+    # Set of check names failing across recent PRs
+    failing_check_names: set[str]
+    # How many recent PRs were examined
+    prs_examined: int
+
+    def find_matching_failures(self, pr_failed_checks: list[str]) -> list[str]:
+        """Return PR check names that also fail in recent PRs (case-insensitive substring match)."""
+        matched = []
+        for check in pr_failed_checks:
+            lower = check.lower()
+            for recent_check in self.failing_check_names:
+                if (
+                    lower == recent_check.lower()
+                    or lower in recent_check.lower()
+                    or recent_check.lower() in lower
+                ):
+                    matched.append(check)
+                    break
+        return matched
 
 
 @dataclass
@@ -280,7 +512,20 @@ class PRData:
     is_draft: bool  # whether the PR is currently a draft
     mergeable: str  # MERGEABLE, CONFLICTING, or UNKNOWN
     labels: list[str]  # label names attached to this PR
-    unresolved_review_comments: int  # count of unresolved review threads from maintainers
+    unresolved_threads: list[UnresolvedThread]  # detailed unresolved review threads from maintainers
+    has_collaborator_review: bool = False  # whether a collaborator/member/owner has reviewed or commented
+
+    @property
+    def unresolved_review_comments(self) -> int:
+        """Count of unresolved review threads from maintainers."""
+        return len(self.unresolved_threads)
+
+    @property
+    def ci_grace_period_hours(self) -> int:
+        """Return the appropriate CI failure grace period based on collaborator engagement."""
+        if self.has_collaborator_review:
+            return _CHECK_FAILURE_GRACE_PERIOD_WITH_ENGAGEMENT_HOURS
+        return _CHECK_FAILURE_GRACE_PERIOD_HOURS
 
 
 @dataclass
@@ -290,6 +535,28 @@ class StaleReviewInfo:
     reviewer_login: str
     review_date: str  # ISO 8601
     author_pinged_reviewer: bool  # whether the author mentioned the reviewer after the review
+
+
+@dataclass
+class ReviewComment:
+    """A single line-level review comment proposed by the LLM."""
+
+    path: str
+    line: int
+    body: str
+    category: str  # bug, style, performance, security, suggestion, etc.
+
+
+@dataclass
+class CodeReview:
+    """Full code review result from an LLM."""
+
+    summary: str
+    overall_assessment: str  # APPROVE, REQUEST_CHANGES, COMMENT
+    overall_comment: str  # body text for the overall review
+    comments: list[ReviewComment]
+    error: bool = False
+    error_message: str = ""
 
 
 @click.group(cls=BreezeGroup, name="pr", help="Tools for managing GitHub pull requests.")
@@ -447,6 +714,14 @@ def _graphql_request(token: str, query: str, variables: dict) -> dict:
 _CHECK_FAILURE_CONCLUSIONS = {"FAILURE", "TIMED_OUT", "ACTION_REQUIRED"}
 _STATUS_FAILURE_STATES = {"FAILURE", "ERROR"}
 
+# Number of hours after which a CI failure is considered "stale" and should be flagged.
+# Default grace period for new PRs without collaborator engagement.
+_CHECK_FAILURE_GRACE_PERIOD_HOURS = 24
+
+# Extended grace period (in hours) when a collaborator/member/owner has left
+# a review or comment on the PR — gives contributors more time to respond.
+_CHECK_FAILURE_GRACE_PERIOD_WITH_ENGAGEMENT_HOURS = 96
+
 # Batch sizes for chunked GraphQL queries to avoid GitHub timeout errors
 _CHECK_DETAIL_BATCH_SIZE = 10
 _COMMITS_BEHIND_BATCH_SIZE = 20
@@ -468,6 +743,47 @@ _TEST_WORKFLOW_PATTERNS = [
     "pre-commit",
     "docs",
 ]
+
+
+def _are_failures_recent(
+    token: str,
+    github_repository: str,
+    head_sha: str,
+    grace_hours: int = _CHECK_FAILURE_GRACE_PERIOD_HOURS,
+) -> bool:
+    """Check if all completed failed workflow runs for a commit finished within the grace period.
+
+    Returns True if ALL failures are recent (within *grace_hours*),
+    meaning we should NOT nag the author yet. Returns False if any failure is older
+    or if we can't determine the age.
+
+    The default grace period is _CHECK_FAILURE_GRACE_PERIOD_HOURS (24 h).  When a
+    collaborator has already reviewed or commented on the PR, callers should pass
+    _CHECK_FAILURE_GRACE_PERIOD_WITH_ENGAGEMENT_HOURS (96 h) instead.
+    """
+    from datetime import datetime, timezone
+
+    runs = _find_workflow_runs_by_status(token, github_repository, head_sha, "completed")
+    if not runs:
+        return False
+
+    now = datetime.now(timezone.utc)
+    failed_runs = [r for r in runs if r.get("conclusion") == "failure"]
+    if not failed_runs:
+        return False
+
+    for run in failed_runs:
+        completed_at = run.get("completed_at", "")
+        if not completed_at:
+            return False  # Can't determine age — be safe and flag it
+        try:
+            completed_dt = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+            age_hours = (now - completed_dt).total_seconds() / 3600
+            if age_hours > grace_hours:
+                return False  # At least one failure is old enough to flag
+        except (ValueError, TypeError):
+            return False
+    return True  # All failures are recent
 
 
 def _is_test_check(name: str) -> bool:
@@ -733,10 +1049,12 @@ _REVIEW_THREADS_BATCH_SIZE = 10
 
 
 def _fetch_unresolved_comments_batch(token: str, github_repository: str, prs: list[PRData]) -> None:
-    """Fetch unresolved review thread counts for PRs in chunked GraphQL queries.
+    """Fetch unresolved review thread details for PRs in chunked GraphQL queries.
 
-    Counts only threads started by collaborators/members/owners (i.e. maintainers).
-    Updates each PR's unresolved_review_comments in-place.
+    Fetches only threads started by collaborators/members/owners (maintainers).
+    For each thread, captures the reviewer info, their comment body, permalink,
+    and the PR author's most recent reply.
+    Updates each PR's unresolved_threads list in-place.
     """
     owner, repo = github_repository.split("/", 1)
     if not prs:
@@ -748,17 +1066,28 @@ def _fetch_unresolved_comments_batch(token: str, github_repository: str, prs: li
         pr_fields = []
         for pr in chunk:
             alias = f"pr{pr.number}"
+            # Fetch review threads (for unresolved comments) and latestReviews
+            # (to detect collaborator engagement for extended grace period).
             pr_fields.append(
                 f"    {alias}: pullRequest(number: {pr.number}) {{\n"
                 f"      reviewThreads(first: 100) {{\n"
                 f"        nodes {{\n"
                 f"          isResolved\n"
-                f"          comments(first: 1) {{\n"
+                f"          comments(first: 20) {{\n"
                 f"            nodes {{\n"
                 f"              author {{ login }}\n"
                 f"              authorAssociation\n"
+                f"              body\n"
+                f"              url\n"
                 f"            }}\n"
                 f"          }}\n"
+                f"        }}\n"
+                f"      }}\n"
+                f"      latestReviews(first: 20) {{\n"
+                f"        nodes {{\n"
+                f"          author {{ login }}\n"
+                f"          authorAssociation\n"
+                f"          state\n"
                 f"        }}\n"
                 f"      }}\n"
                 f"    }}"
@@ -780,17 +1109,50 @@ def _fetch_unresolved_comments_batch(token: str, github_repository: str, prs: li
             alias = f"pr{pr.number}"
             pr_data = repo_data.get(alias) or {}
             threads = pr_data.get("reviewThreads", {}).get("nodes", [])
-            unresolved = 0
+            unresolved: list[UnresolvedThread] = []
             for thread in threads:
                 if thread.get("isResolved"):
                     continue
-                # Only count threads started by maintainers (collaborators/members/owners)
                 comments = thread.get("comments", {}).get("nodes", [])
-                if comments:
-                    assoc = comments[0].get("authorAssociation", "NONE")
-                    if assoc in _COLLABORATOR_ASSOCIATIONS:
-                        unresolved += 1
-            pr.unresolved_review_comments = unresolved
+                if not comments:
+                    continue
+                first = comments[0]
+                assoc = first.get("authorAssociation", "NONE")
+                if assoc not in _COLLABORATOR_ASSOCIATIONS:
+                    continue
+                reviewer_login = (first.get("author") or {}).get("login", "unknown")
+                comment_body = first.get("body", "")
+                comment_url = first.get("url", "")
+
+                # Find the PR author's most recent reply in this thread
+                author_last_reply = ""
+                for c in reversed(comments[1:]):
+                    c_login = (c.get("author") or {}).get("login", "")
+                    if c_login == pr.author_login:
+                        author_last_reply = c.get("body", "")
+                        break
+
+                unresolved.append(
+                    UnresolvedThread(
+                        reviewer_login=reviewer_login,
+                        reviewer_association=assoc,
+                        comment_body=comment_body,
+                        comment_url=comment_url,
+                        author_last_reply=author_last_reply,
+                    )
+                )
+            pr.unresolved_threads = unresolved
+
+            # Detect collaborator engagement from reviews
+            reviews = pr_data.get("latestReviews", {}).get("nodes", [])
+            for review in reviews:
+                assoc = review.get("authorAssociation", "NONE")
+                if assoc in _COLLABORATOR_ASSOCIATIONS:
+                    pr.has_collaborator_review = True
+                    break
+            # Also count unresolved threads from collaborators as engagement
+            if unresolved:
+                pr.has_collaborator_review = True
 
 
 def _fetch_commits_behind_batch(token: str, github_repository: str, prs: list[PRData]) -> dict[int, int]:
@@ -1123,6 +1485,7 @@ def _fetch_prs_graphql(
     updated_after: str | None = None,
     updated_before: str | None = None,
     review_requested: str | None = None,
+    reviewed_by: str | None = None,
     after_cursor: str | None = None,
 ) -> tuple[list[PRData], bool, str | None]:
     """Fetch a single batch of matching PRs via GraphQL.
@@ -1134,6 +1497,8 @@ def _fetch_prs_graphql(
         query_parts.append(f"author:{filter_user}")
     if review_requested:
         query_parts.append(f"review-requested:{review_requested}")
+    if reviewed_by:
+        query_parts.append(f"reviewed-by:{reviewed_by}")
     for label in labels:
         query_parts.append(f'label:"{label}"')
     for label in exclude_labels:
@@ -1202,7 +1567,7 @@ def _fetch_prs_graphql(
                 is_draft=bool(node.get("isDraft", False)),
                 mergeable=node.get("mergeable", "UNKNOWN"),
                 labels=[lbl["name"] for lbl in (node.get("labels") or {}).get("nodes", []) if lbl],
-                unresolved_review_comments=0,
+                unresolved_threads=[],
             )
         )
 
@@ -1241,7 +1606,7 @@ def _fetch_single_pr_graphql(token: str, github_repository: str, pr_number: int)
         is_draft=bool(node.get("isDraft", False)),
         mergeable=node.get("mergeable", "UNKNOWN"),
         labels=[lbl["name"] for lbl in (node.get("labels") or {}).get("nodes", []) if lbl],
-        unresolved_review_comments=0,
+        unresolved_threads=[],
     )
 
 
@@ -1393,6 +1758,91 @@ def _post_comment(token: str, node_id: str, body: str) -> bool:
         return False
 
 
+def _post_review_comment(
+    token: str,
+    github_repository: str,
+    pr_number: int,
+    commit_id: str,
+    path: str,
+    line: int,
+    body: str,
+) -> bool:
+    """Post a single review comment on a specific line of a PR via REST API."""
+    import requests
+
+    owner, repo = github_repository.split("/", 1)
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/comments"
+    payload = {
+        "commit_id": commit_id,
+        "path": path,
+        "line": line,
+        "side": "RIGHT",
+        "body": body,
+    }
+    response = requests.post(
+        url,
+        json=payload,
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+        timeout=30,
+    )
+    if response.status_code in (200, 201):
+        return True
+    get_console().print(
+        f"[warning]Failed to post review comment on {path}:{line}: "
+        f"{response.status_code} {response.text[:200]}[/]"
+    )
+    return False
+
+
+def _submit_pr_review(
+    token: str,
+    github_repository: str,
+    pr_number: int,
+    commit_id: str,
+    body: str,
+    event: str = "COMMENT",
+) -> bool:
+    """Submit an overall PR review (APPROVE, REQUEST_CHANGES, or COMMENT) via REST API."""
+    import requests
+
+    owner, repo = github_repository.split("/", 1)
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/reviews"
+    payload = {
+        "commit_id": commit_id,
+        "body": body,
+        "event": event,
+    }
+    response = requests.post(
+        url,
+        json=payload,
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+        timeout=30,
+    )
+    if response.status_code in (200, 201):
+        return True
+    get_console().print(f"[warning]Failed to submit review: {response.status_code} {response.text[:200]}[/]")
+    return False
+
+
+def _update_pr_branch(token: str, github_repository: str, pr_number: int) -> bool:
+    """Update (rebase) a PR branch to the latest base branch via GitHub REST API."""
+    import requests
+
+    owner, repo = github_repository.split("/", 1)
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/update-branch"
+    response = requests.put(
+        url,
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+        timeout=30,
+    )
+    if response.status_code in (200, 202):
+        return True
+    get_console().print(
+        f"[warning]Failed to update PR branch: {response.status_code} {response.text[:200]}[/]"
+    )
+    return False
+
+
 _label_id_cache: dict[str, str | None] = {}
 
 
@@ -1421,6 +1871,21 @@ def _add_label(token: str, github_repository: str, pr_node_id: str, label_name: 
         return False
     try:
         _graphql_request(token, _ADD_LABELS_MUTATION, {"labelableId": pr_node_id, "labelIds": [label_id]})
+        return True
+    except SystemExit:
+        return False
+
+
+def _remove_label(token: str, github_repository: str, pr_node_id: str, label_name: str) -> bool:
+    """Remove a label from a PR. Returns True on success."""
+    label_id = _resolve_label_id(token, github_repository, label_name)
+    if not label_id:
+        get_console().print(
+            f"[warning]Label '{label_name}' not found in {github_repository}. Skipping label removal.[/]"
+        )
+        return False
+    try:
+        _graphql_request(token, _REMOVE_LABELS_MUTATION, {"labelableId": pr_node_id, "labelIds": [label_id]})
         return True
     except SystemExit:
         return False
@@ -1550,13 +2015,18 @@ def _build_comment(
             "Please rebase your branch and push again to get up-to-date CI results."
         )
 
+    no_rush = (
+        "There is no rush — take your time and work at your own pace. "
+        "We appreciate your contribution and are happy to wait for updates."
+    )
+
     if comment_only:
         return (
             f"@{pr_author} This PR has a few issues that need to be addressed before it can be "
             f"reviewed — please see our {QUALITY_CRITERIA_LINK}.\n\n"
             f"**Issues found:**\n{violations_text}{rebase_note}\n\n"
             f"**What to do next:**\n{what_to_do}\n\n"
-            "Please address the issues above and push again. "
+            f"{no_rush} "
             "If you have questions, feel free to ask on the "
             "[Airflow Slack](https://s.apache.org/airflow-slack)."
         )
@@ -1568,6 +2038,7 @@ def _build_comment(
         f"**What to do next:**\n{what_to_do}\n\n"
         "Converting a PR to draft is **not** a rejection — it is an invitation to bring the PR up to "
         "the project's standards so that maintainer review time is spent productively. "
+        f"{no_rush} "
         "If you have questions, feel free to ask on the "
         "[Airflow Slack](https://s.apache.org/airflow-slack)."
     )
@@ -1612,13 +2083,17 @@ def _build_close_comment(
         f"— it does not meet our {QUALITY_CRITERIA_LINK}.\n\n"
         f"**Issues found:**\n{violations_text}\n\n"
         "You are welcome to open a new PR that addresses the issues listed above. "
+        "There is no rush — take your time and work at your own pace. "
         "If you have questions, feel free to ask on the "
         "[Airflow Slack](https://s.apache.org/airflow-slack)."
     )
 
 
 def _compute_default_action(
-    pr: PRData, assessment, author_flagged_count: dict[str, int]
+    pr: PRData,
+    assessment,
+    author_flagged_count: dict[str, int],
+    main_failures: RecentPRFailureInfo | None = None,
 ) -> tuple[TriageAction, str]:
     """Compute the suggested default triage action and reason for a flagged PR."""
     # If LLM potentially flagged for reporting, default to skip
@@ -1640,11 +2115,26 @@ def _compute_default_action(
     if has_ci_failures:
         reason_parts.append(f"{failed_count} CI failure{'s' if failed_count != 1 else ''}")
 
+    # Check if failures match main branch failures
+    main_matching: list[str] = []
+    if has_ci_failures and main_failures:
+        main_matching = main_failures.find_matching_failures(pr.failed_checks)
+
     has_unresolved_comments = pr.unresolved_review_comments > 0
     if has_unresolved_comments and not any("unresolved" in p for p in reason_parts):
-        reason_parts.append(
-            f"{pr.unresolved_review_comments} unresolved review comment{'s' if pr.unresolved_review_comments != 1 else ''}"
-        )
+        reviewer_logins = sorted({t.reviewer_login for t in pr.unresolved_threads})
+        if reviewer_logins:
+            names = ", ".join(f"@{r}" for r in reviewer_logins)
+            reason_parts.append(
+                f"{pr.unresolved_review_comments} unresolved review "
+                f"comment{'s' if pr.unresolved_review_comments != 1 else ''} "
+                f"from {names}"
+            )
+        else:
+            reason_parts.append(
+                f"{pr.unresolved_review_comments} unresolved review "
+                f"comment{'s' if pr.unresolved_review_comments != 1 else ''}"
+            )
 
     if assessment.summary:
         reason_parts.append(assessment.summary.lower())
@@ -1657,6 +2147,16 @@ def _compute_default_action(
         # No checks at all — suggest rebase so CI workflows get triggered
         reason_parts.append("no CI checks found — needs rebase")
         action = TriageAction.DRAFT
+    elif main_matching and len(main_matching) == failed_count:
+        # ALL failures match recent PRs — consistent pattern, suggest rerun not draft
+        reason_parts.append("all CI failures also appear in other recent PRs — likely systemic")
+        action = TriageAction.RERUN
+    elif main_matching:
+        # Some failures match recent PRs — consistent pattern
+        reason_parts.append(
+            f"{len(main_matching)}/{failed_count} CI failures also appear in other recent PRs — likely systemic"
+        )
+        action = TriageAction.RERUN
     elif (
         not has_conflicts
         and has_ci_failures
@@ -1679,6 +2179,7 @@ def _compute_default_action(
         TriageAction.COMMENT: "comment",
         TriageAction.CLOSE: "close",
         TriageAction.RERUN: "rerun checks",
+        TriageAction.REBASE: "rebase",
     }.get(action, str(action))
     return action, f"{reason} — suggesting {action_label}"
 
@@ -1729,13 +2230,52 @@ def _select_violations(violations: list) -> list | None:
     return selected if selected else violations
 
 
+def _linkify_commit_hashes(text: str, github_repository: str = "apache/airflow") -> str:
+    """Convert commit hashes in text to inline GitHub links.
+
+    Replaces full 40-char and abbreviated 7+ char hex hashes with clickable
+    Markdown-style links pointing to the commit on GitHub.  Hashes that are
+    already part of a URL are left untouched.
+    """
+    repo_url = f"https://github.com/{github_repository}"
+
+    def _replace(m: re.Match) -> str:
+        sha = m.group(0)
+        # Skip if the hash is already inside a URL (preceded by '/').
+        start = m.start()
+        if start > 0 and text[start - 1] == "/":
+            return sha
+        short = sha[:10]
+        return f"[{short}]({repo_url}/commit/{sha})"
+
+    # Match 7-40 hex-char sequences on word boundaries
+    return re.sub(r"\b[0-9a-f]{7,40}\b", _replace, text)
+
+
 def _pr_link(pr: PRData) -> str:
     """Return a Rich-markup clickable link for a PR: [link=url]#number[/link]."""
     return f"[link={pr.url}]#{pr.number}[/link]"
 
 
-def _display_pr_info_panels(pr: PRData, author_profile: dict | None):
+def _print_pr_header(pr: PRData, index: int | None = None, total: int | None = None) -> None:
+    """Print a highly visible separator and header for a PR section."""
+    console = get_console()
+    console.print()
+    console.print()
+    counter = f" ({index}/{total})" if index is not None and total is not None else ""
+    console.rule(
+        f"[bold cyan]PR #{pr.number}[/] — {pr.title[:70]} — by [bold]{pr.author_login}[/]{counter}",
+        style="cyan",
+    )
+    console.print()
+
+
+def _display_pr_info_panels(pr: PRData, author_profile: dict | None, *, open_in_browser: bool = False):
     """Display PR info and author panels (shared by flagged-PR and workflow-approval flows)."""
+    import webbrowser
+
+    from rich.markdown import Markdown
+
     console = get_console()
     console.print()
     console.rule(style="dim")
@@ -1759,6 +2299,21 @@ def _display_pr_info_panels(pr: PRData, author_profile: dict | None):
         f"{status_info}"
     )
     console.print(Panel(pr_info, title="Pull Request", border_style="cyan"))
+
+    # Display PR description as rendered markdown
+    if pr.body and pr.body.strip():
+        # Truncate very long descriptions
+        body_text = pr.body.strip()
+        if len(body_text) > 3000:
+            body_text = body_text[:3000] + "\n\n*... (truncated)*"
+        body_text = _linkify_commit_hashes(body_text)
+        console.print(Panel(Markdown(body_text), title="PR Description", border_style="dim"))
+
+    # Auto-open PR "Files changed" view in browser when requested
+    if open_in_browser:
+        files_url = f"{pr.url}/files"
+        webbrowser.open(files_url)
+        console.print(f"  [info]Opened {files_url} in browser.[/]")
 
     if author_profile:
         login = author_profile["login"]
@@ -1826,6 +2381,39 @@ def _display_pr_info_panels(pr: PRData, author_profile: dict | None):
         console.print(Panel("\n".join(lines), title=f"Author: {author_link}", border_style="yellow"))
 
 
+def _display_unresolved_threads_panel(pr: PRData) -> None:
+    """Display a panel showing unresolved review thread details with reviewer and author replies."""
+    if not pr.unresolved_threads:
+        return
+    console = get_console()
+    lines = []
+    for i, t in enumerate(pr.unresolved_threads, 1):
+        reviewer_body = t.comment_body[:300]
+        if len(t.comment_body) > 300:
+            reviewer_body += "..."
+        reviewer_body = _linkify_commit_hashes(reviewer_body)
+        url_link = f"[link={t.comment_url}]view[/link]" if t.comment_url else ""
+        lines.append(
+            f"  [bold]{i}. @{t.reviewer_login}[/] ({t.reviewer_association}) {url_link}\n"
+            f"     [dim]Comment:[/] {reviewer_body}"
+        )
+        if t.author_last_reply:
+            reply = t.author_last_reply[:200]
+            if len(t.author_last_reply) > 200:
+                reply += "..."
+            reply = _linkify_commit_hashes(reply)
+            lines.append(f"     [dim]Author reply:[/] {reply}")
+        else:
+            lines.append("     [dim]Author reply:[/] [yellow]— no reply —[/]")
+    console.print(
+        Panel(
+            "\n".join(lines),
+            title=f"Unresolved Review Threads ({len(pr.unresolved_threads)})",
+            border_style="yellow",
+        )
+    )
+
+
 def _display_pr_panel(pr: PRData, author_profile: dict | None, assessment):
     """Display Rich panels with PR details, author info, and violations."""
     console = get_console()
@@ -1847,6 +2435,70 @@ def _display_pr_panel(pr: PRData, author_profile: dict | None, assessment):
             "\n".join(violation_lines), title=f"Assessment: {assessment.summary}", border_style=border_style
         )
     )
+
+    # Show cache indicator if assessment came from cache
+    if getattr(assessment, "_from_cache", False):
+        console.print("[dim]Using cached LLM assessment (same commit hash as previous run).[/]")
+
+    # Show deferred JSON parse-fix info if present
+    fix_info = getattr(assessment, "json_fix_info", None)
+    if fix_info:
+        _display_json_fix_info(fix_info)
+
+    # Show unresolved thread details when relevant
+    _display_unresolved_threads_panel(pr)
+
+
+def _display_log_snippets_panel(log_snippets: dict[str, str]) -> None:
+    """Display Rich panel(s) with log snippets from failed CI checks."""
+    console = get_console()
+    for check_name, snippet in log_snippets.items():
+        # Truncate very long snippets for display
+        display_snippet = snippet
+        if len(display_snippet) > 2000:
+            display_snippet = display_snippet[:2000] + "\n... (truncated)"
+        console.print(
+            Panel(
+                display_snippet,
+                title=f"Failed check logs: {check_name}",
+                border_style="red",
+                expand=False,
+            )
+        )
+
+
+def _launch_background_log_fetching(
+    token: str,
+    github_repository: str,
+    prs: list,
+    llm_concurrency: int,
+) -> dict[int, Future[dict[str, str]]]:
+    """Launch background CI log fetching for all PRs with failed checks.
+
+    Returns a dict mapping PR number -> Future[dict[str, str]].
+    Uses the same concurrency level as LLM assessments.
+    """
+    log_futures: dict[int, Future[dict[str, str]]] = {}
+    prs_with_failures = [pr for pr in prs if pr.failed_checks and pr.head_sha]
+    if not prs_with_failures:
+        return log_futures
+
+    log_executor = ThreadPoolExecutor(max_workers=llm_concurrency)
+    for pr in prs_with_failures:
+        log_futures[pr.number] = log_executor.submit(
+            _fetch_failed_job_log_snippets,
+            token,
+            github_repository,
+            pr.head_sha,
+            pr.failed_checks,
+        )
+
+    pr_word = "PRs" if len(prs_with_failures) != 1 else "PR"
+    get_console().print(
+        f"[info]Launched CI log fetching for {len(prs_with_failures)} {pr_word} "
+        f"with failures in background (concurrency: {llm_concurrency}).[/]"
+    )
+    return log_futures
 
 
 def _display_workflow_approval_panel(
@@ -2019,8 +2671,11 @@ class TriageStats:
     total_commented: int = 0
     total_closed: int = 0
     total_ready: int = 0
+    total_rebased: int = 0
     total_rerun: int = 0
     total_review_nudges: int = 0
+    total_reviews_submitted: int = 0
+    total_review_comments: int = 0
     total_skipped_action: int = 0
     total_workflows_approved: int = 0
     quit_early: bool = False
@@ -2042,6 +2697,10 @@ class TriageContext:
     llm_completed: list
     llm_errors: list[int]
     llm_passing: list
+    # Main branch failure info (optional)
+    main_failures: RecentPRFailureInfo | None = None
+    # Background CI log fetching: PR number -> Future[dict[str, str]]
+    log_futures: dict[int, Future[dict[str, str]]] = field(default_factory=dict)
 
     def collect_llm_progress(self) -> None:
         """Collect completed LLM results and print progress status."""
@@ -2171,6 +2830,19 @@ def _execute_triage_action(
             console_print(f"  [warning]No failed checks to rerun for PR {_pr_link(pr)}.[/]")
         return
 
+    if action == TriageAction.REBASE:
+        if not _confirm_action(pr, "Update (rebase) PR branch", ctx.answer_triage):
+            stats.total_skipped_action += 1
+            return
+
+        get_console().print(f"  Updating branch for PR {_pr_link(pr)}...")
+        if _update_pr_branch(ctx.token, ctx.github_repository, pr.number):
+            get_console().print(f"  [success]Branch updated for PR {_pr_link(pr)}.[/]")
+            stats.total_rebased += 1
+        else:
+            get_console().print(f"  [error]Failed to update branch for PR {_pr_link(pr)}.[/]")
+        return
+
     if action == TriageAction.COMMENT:
         if not _confirm_action(pr, "Post comment", ctx.answer_triage):
             stats.total_skipped_action += 1
@@ -2200,6 +2872,31 @@ def _execute_triage_action(
             stats.total_converted += 1
         else:
             console_print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
+        return
+
+    if action == TriageAction.PING:
+        if not pr.unresolved_threads:
+            get_console().print(
+                f"  [warning]No unresolved threads to ping reviewers about on PR {_pr_link(pr)}.[/]"
+            )
+            return
+        reviewer_logins = sorted({t.reviewer_login for t in pr.unresolved_threads})
+        mentions = ", ".join(f"@{login}" for login in reviewer_logins)
+        ping_body = (
+            f"{mentions} — Could you please check whether your review feedback on this PR "
+            f"has been addressed? @{pr.author_login} appears to have responded to your comments. "
+            f"@{pr.author_login}, do you believe the reviewer's concerns have been resolved?\n\n"
+            f"If the concerns are resolved, please resolve the conversation threads. Thank you!"
+        )
+        if not _confirm_action(pr, f"Ping reviewer(s): {mentions}", ctx.answer_triage):
+            stats.total_skipped_action += 1
+            return
+        get_console().print(f"  Pinging reviewer(s) on PR {_pr_link(pr)}...")
+        if _post_comment(ctx.token, pr.node_id, ping_body):
+            get_console().print(f"  [success]Ping comment posted on PR {_pr_link(pr)}.[/]")
+            stats.total_commented += 1
+        else:
+            get_console().print(f"  [error]Failed to post ping comment on PR {_pr_link(pr)}.[/]")
         return
 
     if action == TriageAction.CLOSE:
@@ -2236,15 +2933,70 @@ def _prompt_and_execute_flagged_pr(
 
     _display_pr_panel(pr, author_profile, assessment)
 
-    default_action, reason = _compute_default_action(pr, assessment, ctx.author_flagged_count)
+    # Display log snippets from failed CI checks (fetched in background)
+    if pr.failed_checks and pr.head_sha:
+        log_future = ctx.log_futures.get(pr.number)
+        if log_future is not None:
+            if log_future.done():
+                log_snippets = log_future.result()
+                if log_snippets:
+                    _display_log_snippets_panel(log_snippets)
+            else:
+                # Logs are still being fetched — offer user to wait or cancel
+                from airflow_breeze.utils.confirm import _read_char
+
+                get_console().print("  [dim]CI failure logs are still being fetched in the background...[/]")
+                get_console().print(
+                    "  Press any key to [bold]wait[/] or [bold]\\[c]ancel[/] log retrieval for this PR: ",
+                    end="",
+                )
+                try:
+                    ch = _read_char()
+                except (KeyboardInterrupt, EOFError):
+                    ch = "c"
+                get_console().print(ch if len(ch) == 1 else "")
+
+                if ch.lower() != "c":
+                    get_console().print("  [dim]Waiting for CI logs...[/]")
+                    try:
+                        log_snippets = log_future.result(timeout=120)
+                        if log_snippets:
+                            _display_log_snippets_panel(log_snippets)
+                    except TimeoutError:
+                        get_console().print("  [warning]CI log retrieval timed out.[/]")
+                    except Exception:
+                        get_console().print("  [warning]CI log retrieval failed.[/]")
+                else:
+                    get_console().print("  [dim]Skipping CI log display for this PR.[/]")
+        else:
+            # No background future — fetch inline as fallback
+            log_snippets = _fetch_failed_job_log_snippets(
+                ctx.token, ctx.github_repository, pr.head_sha, pr.failed_checks
+            )
+            if log_snippets:
+                _display_log_snippets_panel(log_snippets)
+
+    # Check if PR failures match main branch failures
+    main_matching: list[str] = []
+    if ctx.main_failures and pr.failed_checks:
+        main_matching = ctx.main_failures.find_matching_failures(pr.failed_checks)
+        if main_matching:
+            _display_recent_pr_failure_panel(pr, ctx.main_failures, main_matching)
+
+    default_action, reason = _compute_default_action(
+        pr, assessment, ctx.author_flagged_count, ctx.main_failures
+    )
     # If PR is already a draft, don't offer converting to draft — use comment instead
-    exclude_actions: set[TriageAction] | None = None
+    exclude_actions: set[TriageAction] = set()
     if pr.is_draft and default_action == TriageAction.DRAFT:
         default_action = TriageAction.COMMENT
         reason = reason.replace("draft", "comment (already draft)")
-        exclude_actions = {TriageAction.DRAFT}
+        exclude_actions.add(TriageAction.DRAFT)
     elif pr.is_draft:
-        exclude_actions = {TriageAction.DRAFT}
+        exclude_actions.add(TriageAction.DRAFT)
+    # Only offer PING when there are unresolved review threads
+    if not pr.unresolved_threads:
+        exclude_actions.add(TriageAction.PING)
 
     console_print(f"  [bold]{reason}[/]")
 
@@ -2254,6 +3006,8 @@ def _prompt_and_execute_flagged_pr(
             TriageAction.COMMENT: "comment",
             TriageAction.CLOSE: "close",
             TriageAction.RERUN: "rerun checks",
+            TriageAction.REBASE: "rebase",
+            TriageAction.PING: "ping reviewer",
             TriageAction.READY: "mark as ready",
             TriageAction.SKIP: "skip",
         }.get(default_action, str(default_action))
@@ -2266,6 +3020,9 @@ def _prompt_and_execute_flagged_pr(
         forced_answer=ctx.answer_triage,
         exclude=exclude_actions,
         pr_url=pr.url,
+        token=ctx.token,
+        github_repository=ctx.github_repository,
+        pr_number=pr.number,
     )
 
     if action == TriageAction.QUIT:
@@ -2429,8 +3186,12 @@ def _filter_candidate_prs(
     checks_state: str,
     min_commits_behind: int,
     max_num: int,
+    also_accepted: set[int] | None = None,
 ) -> tuple[list[PRData], list[PRData], int, int, int]:
-    """Filter PRs to candidates. Returns (candidates, accepted_prs, skipped_collaborator, skipped_bot, skipped_accepted)."""
+    """Filter PRs to candidates. Returns (candidates, accepted_prs, skipped_collaborator, skipped_bot, skipped_accepted).
+
+    :param also_accepted: additional PR numbers to treat as accepted (e.g. PRs reviewed by the user).
+    """
     candidate_prs: list[PRData] = []
     accepted_prs: list[PRData] = []
     total_skipped_collaborator = 0
@@ -2456,13 +3217,16 @@ def _filter_candidate_prs(
             total_skipped_bot += 1
             if verbose:
                 console_print(f"  [dim]Skipping PR {_pr_link(pr)} — bot account {pr.author_login}[/]")
-        elif _READY_FOR_REVIEW_LABEL in pr.labels:
+        elif _READY_FOR_REVIEW_LABEL in pr.labels or (also_accepted and pr.number in also_accepted):
             total_skipped_accepted += 1
             accepted_prs.append(pr)
             if verbose:
-                console_print(
-                    f"  [dim]Skipping PR {_pr_link(pr)} — already has '{_READY_FOR_REVIEW_LABEL}' label[/]"
+                reason = (
+                    f"already has '{_READY_FOR_REVIEW_LABEL}' label"
+                    if _READY_FOR_REVIEW_LABEL in pr.labels
+                    else "previously reviewed by reviewer"
                 )
+                console_print(f"  [dim]Skipping PR {_pr_link(pr)} — {reason}[/]")
         elif (
             checks_state != "any"
             and pr.checks_state not in ("NOT_RUN",)
@@ -2619,6 +3383,9 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                 forced_answer=ctx.answer_triage,
                 exclude={TriageAction.DRAFT} if pr.is_draft else None,
                 pr_url=pr.url,
+                token=ctx.token,
+                github_repository=ctx.github_repository,
+                pr_number=pr.number,
             )
             if action == TriageAction.QUIT:
                 console_print("[warning]Quitting.[/]")
@@ -2654,6 +3421,9 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                 forced_answer=ctx.answer_triage,
                 exclude={TriageAction.DRAFT} if pr.is_draft else None,
                 pr_url=pr.url,
+                token=ctx.token,
+                github_repository=ctx.github_repository,
+                pr_number=pr.number,
             )
             if action == TriageAction.QUIT:
                 console_print("[warning]Quitting.[/]")
@@ -2724,6 +3494,9 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                         forced_answer=ctx.answer_triage,
                         exclude={TriageAction.DRAFT} if pr.is_draft else None,
                         pr_url=pr.url,
+                        token=ctx.token,
+                        github_repository=ctx.github_repository,
+                        pr_number=pr.number,
                     )
                     if fallback == TriageAction.QUIT:
                         console_print("[warning]Quitting.[/]")
@@ -2958,6 +3731,9 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                 forced_answer=ctx.answer_triage,
                 exclude=exclude_actions,
                 pr_url=pr.url,
+                token=ctx.token,
+                github_repository=ctx.github_repository,
+                pr_number=pr.number,
             )
             if action == TriageAction.QUIT:
                 console_print("[warning]Quitting.[/]")
@@ -3125,6 +3901,9 @@ def _review_passing_prs(ctx: TriageContext, passing_prs: list[PRData]) -> None:
             forced_answer=ctx.answer_triage,
             exclude={TriageAction.DRAFT} if pr.is_draft else None,
             pr_url=pr.url,
+            token=ctx.token,
+            github_repository=ctx.github_repository,
+            pr_number=pr.number,
         )
 
         if action == TriageAction.QUIT:
@@ -3250,6 +4029,9 @@ def _review_stale_review_requests(
             forced_answer=ctx.answer_triage,
             exclude={TriageAction.DRAFT, TriageAction.CLOSE, TriageAction.RERUN},
             pr_url=pr.url,
+            token=ctx.token,
+            github_repository=ctx.github_repository,
+            pr_number=pr.number,
         )
 
         if action == TriageAction.QUIT:
@@ -3282,6 +4064,766 @@ def _review_stale_review_requests(
             ctx.stats.total_skipped_action += 1
 
 
+def _display_json_fix_info(fix_info: dict) -> None:
+    """Display deferred LLM JSON parse-fix debug info."""
+    console = get_console()
+    if fix_info.get("fixed"):
+        console.print(
+            Panel(
+                f"[yellow]Original parse error:[/] {fix_info['error']}\n"
+                f"[green]LLM successfully repaired the JSON.[/]\n\n"
+                f"[dim]Original response: {fix_info['before_file']}[/]\n"
+                f"[dim]Extracted JSON: {fix_info['extracted_json_file']}[/]",
+                title="JSON Parse Recovery",
+                border_style="yellow",
+            )
+        )
+    else:
+        console.print(
+            Panel(
+                f"[red]Original parse error:[/] {fix_info['error']}\n"
+                f"[red]LLM fix also failed:[/] {fix_info.get('fix_error', 'unknown')}\n\n"
+                f"[dim]Original response: {fix_info['before_file']}[/]\n"
+                f"[dim]Extracted JSON: {fix_info['extracted_json_file']}[/]\n"
+                f"[dim]Fix attempt: {fix_info.get('after_file', 'N/A')}[/]",
+                title="JSON Parse Failure",
+                border_style="red",
+            )
+        )
+
+
+def _prompt_review_comment_action(comment_summary: str, *, with_open: bool = False) -> str:
+    """Prompt user for action on a single review comment: [p]ost, [e]dit, [o]pen, [s]kip.
+
+    Returns 'p' for post, 'e' for edit, 'o' for open, 's' for skip, 'q' for quit.
+    """
+    from airflow_breeze.utils.confirm import _read_char
+
+    get_console().print(f"\n  {comment_summary}")
+    if with_open:
+        get_console().print("  \\[P]ost / \\[e]dit / \\[o]pen / \\[s]kip / \\[q]uit: ", end="")
+    else:
+        get_console().print("  \\[P]ost / \\[e]dit / \\[s]kip / \\[q]uit: ", end="")
+    try:
+        ch = _read_char()
+    except (KeyboardInterrupt, EOFError):
+        get_console().print()
+        return "q"
+    if len(ch) > 1:
+        get_console().print()
+        return "p"  # default: post
+    get_console().print(ch)
+    valid = ("p", "e", "o", "s", "q") if with_open else ("p", "e", "s", "q")
+    return ch.lower() if ch.lower() in valid else "p"
+
+
+def _edit_comment_body(original: str) -> str:
+    """Let the user edit a comment body in their $EDITOR. Returns the edited text."""
+    import click
+
+    edited = click.edit(original, extension=".md")
+    if edited is not None:
+        edited = edited.strip()
+        if edited:
+            return edited
+    get_console().print("  [dim]No changes made — keeping original.[/]")
+    return original
+
+
+def _interactive_review_comments(
+    ctx: TriageContext,
+    pr: PRData,
+    review: CodeReview,
+    *,
+    json_fix_info: dict | None = None,
+    from_cache: bool = False,
+) -> None:
+    """Walk through LLM-proposed review comments one-by-one and post/skip/edit each.
+
+    Then propose the overall review comment at the end.
+    """
+    import webbrowser
+
+    from rich.markdown import Markdown
+
+    console = get_console()
+
+    # Show deferred JSON parse-fix info if present
+    if json_fix_info:
+        _display_json_fix_info(json_fix_info)
+
+    if from_cache:
+        console.print("[dim]Using cached LLM review (same commit hash as previous run).[/]")
+
+    # Display summary and overall assessment
+    assessment_colors = {
+        "APPROVE": "green",
+        "REQUEST_CHANGES": "red",
+        "COMMENT": "yellow",
+    }
+    color = assessment_colors.get(review.overall_assessment, "yellow")
+    console.print(
+        Panel(
+            Markdown(f"**Assessment:** {review.overall_assessment}\n\n{review.summary}"),
+            title="Code Review Summary",
+            border_style=color,
+        )
+    )
+
+    # Fetch existing review comments to check for duplicates and nearby comments
+    existing_comments = _fetch_existing_review_comments(ctx.token, ctx.github_repository, pr.number)
+
+    # List summary of all comments
+    if review.comments:
+        console.print(
+            f"\n  [bold]{len(review.comments)} review comment{'s' if len(review.comments) != 1 else ''}:[/]"
+        )
+        for i, c in enumerate(review.comments, 1):
+            cat_color = "red" if c.category in ("bug", "security") else "yellow"
+            # Strip markdown for the one-line summary
+            plain_preview = c.body.replace("`", "").replace("*", "")[:80]
+            console.print(
+                f"    {i}. [{cat_color}]{c.category}[/{cat_color}] "
+                f"[dim]{c.path}:{c.line}[/] — {plain_preview}{'...' if len(c.body) > 80 else ''}"
+            )
+    else:
+        console.print("\n  [dim]No line-level comments proposed.[/]")
+
+    if ctx.dry_run:
+        console.print("[warning]Dry run — skipping comment submission.[/]")
+        return
+
+    # Build URL base for opening files in browser
+    # PR files URL: https://github.com/owner/repo/pull/N/files
+    pr_files_base = f"{pr.url}/files"
+
+    # Go through comments one-by-one
+    submitted_count = 0
+    skipped_count = 0
+    duplicate_count = 0
+    for i, comment in enumerate(review.comments, 1):
+        if ctx.stats.quit_early:
+            break
+
+        # Check if this comment was already posted (duplicate detection)
+        is_duplicate = any(
+            ec.path == comment.path and ec.line == comment.line and ec.body.strip() == comment.body.strip()
+            for ec in existing_comments
+        )
+        if is_duplicate:
+            console.print(
+                f"  [dim]Comment {i}/{len(review.comments)} on {comment.path}:{comment.line} "
+                f"already posted — skipping.[/]"
+            )
+            duplicate_count += 1
+            continue
+
+        # Show nearby existing comments on the same file
+        nearby = [
+            ec
+            for ec in existing_comments
+            if ec.path == comment.path
+            and ec.line is not None
+            and abs(ec.line - comment.line) <= _NEARBY_LINE_THRESHOLD
+        ]
+        if nearby:
+            nearby_lines = []
+            for ec in nearby:
+                preview = _linkify_commit_hashes(ec.body.replace("\n", " ")[:100])
+                nearby_lines.append(f"  [dim]@{ec.user_login} on line {ec.line}: {preview}[/]")
+            console.print(
+                Panel(
+                    "\n".join(nearby_lines),
+                    title=f"Existing comments near {comment.path}:{comment.line}",
+                    border_style="dim",
+                )
+            )
+
+        console.print(
+            Panel(
+                Markdown(comment.body),
+                title=f"Comment {i}/{len(review.comments)} — {comment.path}:{comment.line} [{comment.category}]",
+                border_style="cyan",
+                subtitle=f"[dim]{comment.path}:{comment.line}[/]",
+            )
+        )
+
+        while True:
+            action = _prompt_review_comment_action(
+                f"[bold]Comment {i}/{len(review.comments)}[/] on [dim]{comment.path}:{comment.line}[/]",
+                with_open=True,
+            )
+
+            if action == "o":
+                file_url = f"{pr_files_base}#diff-{comment.path.replace('/', '-')}"
+                webbrowser.open(file_url)
+                console.print(f"  [info]Opened {pr_files_base} in browser.[/]")
+                continue  # re-prompt after opening
+            if action == "e":
+                comment.body = _edit_comment_body(comment.body)
+                console.print(Panel(Markdown(comment.body), title="Edited comment", border_style="green"))
+                continue  # re-prompt so user can submit, edit again, or skip
+            break
+
+        if action == "q":
+            console.print("[warning]Quitting review.[/]")
+            ctx.stats.quit_early = True
+            return
+        if action == "s":
+            console.print("  [dim]Skipped.[/]")
+            skipped_count += 1
+            continue
+
+        # Post the comment
+        if _post_review_comment(
+            ctx.token,
+            ctx.github_repository,
+            pr.number,
+            pr.head_sha,
+            comment.path,
+            comment.line,
+            comment.body,
+        ):
+            console.print(f"  [success]Comment posted on {comment.path}:{comment.line}.[/]")
+            submitted_count += 1
+            ctx.stats.total_review_comments += 1
+            # Track the newly posted comment to avoid duplicates within this session
+            existing_comments.append(
+                ExistingComment(path=comment.path, line=comment.line, body=comment.body, user_login="(self)")
+            )
+        else:
+            console.print(f"  [error]Failed to post comment on {comment.path}:{comment.line}.[/]")
+
+    if not ctx.stats.quit_early:
+        parts = [f"{submitted_count} posted", f"{skipped_count} skipped"]
+        if duplicate_count:
+            parts.append(f"{duplicate_count} already posted")
+        console.print(f"\n  [info]Comments: {', '.join(parts)}.[/]")
+
+    # Overall review comment
+    if ctx.stats.quit_early or not review.overall_comment:
+        return
+
+    console.print(
+        Panel(
+            Markdown(f"**Assessment: {review.overall_assessment}**\n\n{review.overall_comment}"),
+            title="Overall Review Comment",
+            border_style=color,
+        )
+    )
+
+    while True:
+        action = _prompt_review_comment_action("[bold]Overall review comment[/]")
+
+        if action == "q":
+            console.print("[warning]Quitting review.[/]")
+            ctx.stats.quit_early = True
+            return
+        if action == "s":
+            console.print("  [dim]Skipped overall review.[/]")
+            return
+        if action == "e":
+            review.overall_comment = _edit_comment_body(review.overall_comment)
+            console.print(
+                Panel(
+                    Markdown(f"**Assessment: {review.overall_assessment}**\n\n{review.overall_comment}"),
+                    title="Edited overall comment",
+                    border_style="green",
+                )
+            )
+            # Also let user change the assessment event
+            console.print("  Assessment: \\[A]pprovE / \\[R]equest changes / \\[C]omment: ", end="")
+            from airflow_breeze.utils.confirm import _read_char
+
+            try:
+                ch = _read_char()
+            except (KeyboardInterrupt, EOFError):
+                ch = "c"
+            if len(ch) > 1:
+                ch = "c"
+            console.print(ch)
+            event_map = {"a": "APPROVE", "r": "REQUEST_CHANGES", "c": "COMMENT"}
+            review.overall_assessment = event_map.get(ch.lower(), review.overall_assessment)
+            continue  # re-prompt so user can submit, edit again, or skip
+        break  # action == "s" — proceed to submit
+
+    if _submit_pr_review(
+        ctx.token,
+        ctx.github_repository,
+        pr.number,
+        pr.head_sha,
+        review.overall_comment,
+        event=review.overall_assessment,
+    ):
+        console.print(f"  [success]Review submitted: {review.overall_assessment} on PR {_pr_link(pr)}.[/]")
+        ctx.stats.total_reviews_submitted += 1
+    else:
+        console.print(f"  [error]Failed to submit review on PR {_pr_link(pr)}.[/]")
+
+
+def _fetch_diff_and_review_pr(
+    token: str,
+    github_repository: str,
+    pr_number: int,
+    pr_title: str,
+    pr_body: str,
+    head_sha: str,
+    llm_model: str,
+) -> dict:
+    """Background task: fetch diff and run LLM code review for a single PR.
+
+    Uses a cache keyed by PR number + commit hash to avoid redundant LLM calls.
+    Returns the review_pr() result dict (with added 'error' key on diff failure).
+    """
+    from airflow_breeze.utils.llm_utils import review_pr as _review_pr_llm
+
+    # Check cache first
+    cached = _get_cached_review(github_repository, pr_number, head_sha)
+    if cached is not None:
+        cached["_from_cache"] = True
+        return cached
+
+    diff_text = _fetch_pr_diff(token, github_repository, pr_number)
+    if not diff_text:
+        return {
+            "summary": "",
+            "overall_assessment": "COMMENT",
+            "overall_comment": "",
+            "comments": [],
+            "error": True,
+            "error_message": f"Could not fetch diff for PR #{pr_number}",
+        }
+    result = _review_pr_llm(
+        pr_number=pr_number,
+        pr_title=pr_title,
+        pr_body=pr_body,
+        diff_text=diff_text,
+        llm_model=llm_model,
+    )
+
+    # Cache the result if it's not an error
+    if not result.get("error"):
+        _save_review_cache(github_repository, pr_number, head_sha, result)
+
+    return result
+
+
+def _review_ready_prs_review_mode(
+    ctx: TriageContext,
+    accepted_prs: list[PRData],
+    *,
+    run_api: bool,
+    run_llm: bool,
+    llm_model: str,
+    llm_concurrency: int,
+) -> tuple[dict[int, float], dict[int, str]]:
+    """Review mode: assess PRs with 'ready for maintainer review' label.
+
+    1. Launch LLM code reviews for ALL accepted PRs in the background immediately.
+    2. Run deterministic checks; PRs with in-progress CI are treated as passing.
+    3. Present deterministic failures first (while LLM runs in background).
+    4. Present LLM review results as they complete for PRs that passed deterministic checks.
+
+    Returns (pr_timings, pr_actions) where:
+      - pr_timings: PR number -> time spent (seconds) on that PR during interactive review
+      - pr_actions: PR number -> action taken (e.g. 'reviewed', 'drafted', 'skipped', 'llm-error')
+    """
+    from airflow_breeze.utils.github import (
+        PRAssessment,
+        assess_pr_checks,
+        assess_pr_conflicts,
+        assess_pr_unresolved_comments,
+    )
+
+    pr_timings: dict[int, float] = {}
+    pr_actions: dict[int, str] = {}
+
+    if ctx.stats.quit_early or not accepted_prs:
+        return pr_timings, pr_actions
+
+    console = get_console()
+    accepted_prs.sort(key=lambda p: (p.author_login.lower(), p.number))
+
+    console.print(
+        f"\n[info]Review mode: assessing {len(accepted_prs)} "
+        f"{'PRs' if len(accepted_prs) != 1 else 'PR'} "
+        f"with '{_READY_FOR_REVIEW_LABEL}' label...[/]\n"
+    )
+
+    # --- Launch LLM reviews for ALL PRs in background immediately ---
+    # Start before enrichment so LLM fetches diffs concurrently with check/merge details.
+    llm_executor = None
+    llm_future_to_pr: dict = {}
+    if run_llm:
+        llm_executor = ThreadPoolExecutor(max_workers=llm_concurrency)
+        llm_future_to_pr = {
+            llm_executor.submit(
+                _fetch_diff_and_review_pr,
+                token=ctx.token,
+                github_repository=ctx.github_repository,
+                pr_number=pr.number,
+                pr_title=pr.title,
+                pr_body=pr.body,
+                head_sha=pr.head_sha,
+                llm_model=llm_model,
+            ): pr
+            for pr in accepted_prs
+        }
+        pr_word = "PRs" if len(accepted_prs) != 1 else "PR"
+        console.print(
+            f"[info]Launched LLM code reviews for {len(accepted_prs)} {pr_word} "
+            f"in background (concurrency: {llm_concurrency}).[/]"
+        )
+
+    # Enrich candidates with check details (runs while LLM reviews are in progress)
+    _enrich_candidate_details(ctx.token, ctx.github_repository, accepted_prs, run_api=run_api)
+
+    # Launch background CI log fetching for PRs with failed checks
+    ctx.log_futures = _launch_background_log_fetching(
+        ctx.token, ctx.github_repository, accepted_prs, llm_concurrency
+    )
+
+    if llm_future_to_pr:
+        done_count = sum(1 for f in llm_future_to_pr if f.done())
+        total = len(llm_future_to_pr)
+        console.print(f"[info]LLM progress: {done_count}/{total} reviews completed so far.[/]\n")
+
+    try:
+        # --- Phase 1: Deterministic checks — present failures first ---
+        det_flagged: list[tuple[PRData, PRAssessment]] = []
+        det_passing: list[PRData] = []
+        recent_failures_skipped: list[PRData] = []
+
+        for pr in accepted_prs:
+            if not run_api:
+                det_passing.append(pr)
+                continue
+
+            ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
+
+            # In review mode, PRs with in-progress CI are treated as passing
+            # (the checks are still running — don't penalise).
+            if (
+                ci_assessment
+                and pr.head_sha
+                and _has_in_progress_workflows(ctx.token, ctx.github_repository, pr.head_sha)
+            ):
+                ci_assessment = None
+
+            # Grace period: don't flag CI failures within the grace window.
+            # Default 24 h; extended to 96 h when a collaborator has already engaged.
+            if (
+                ci_assessment
+                and pr.head_sha
+                and _are_failures_recent(
+                    ctx.token, ctx.github_repository, pr.head_sha, pr.ci_grace_period_hours
+                )
+            ):
+                ci_assessment = None
+                # If CI is the only issue, skip this PR entirely
+                conflict_check = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
+                comments_check = assess_pr_unresolved_comments(
+                    pr.number, pr.unresolved_review_comments, pr.unresolved_threads
+                )
+                if not conflict_check and not comments_check:
+                    recent_failures_skipped.append(pr)
+                    continue
+
+            conflict_assessment = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
+            comments_assessment = assess_pr_unresolved_comments(
+                pr.number, pr.unresolved_review_comments, pr.unresolved_threads
+            )
+
+            if ci_assessment or conflict_assessment or comments_assessment:
+                violations = []
+                summaries = []
+                if conflict_assessment:
+                    violations.extend(conflict_assessment.violations)
+                    summaries.append(conflict_assessment.summary)
+                if ci_assessment:
+                    violations.extend(ci_assessment.violations)
+                    summaries.append(ci_assessment.summary)
+                if comments_assessment:
+                    violations.extend(comments_assessment.violations)
+                    summaries.append(comments_assessment.summary)
+
+                assessment = PRAssessment(
+                    should_flag=True,
+                    violations=violations,
+                    summary=" ".join(summaries),
+                )
+                det_flagged.append((pr, assessment))
+            else:
+                det_passing.append(pr)
+
+        # Display PRs skipped due to recent CI failures
+        if recent_failures_skipped:
+            pr_word = "PRs" if len(recent_failures_skipped) != 1 else "PR"
+            console.print(
+                f"\n[info]Skipped {len(recent_failures_skipped)} {pr_word} with recent CI failures "
+                f"(within grace period — giving authors time to address at their own pace):[/]"
+            )
+            for pr in recent_failures_skipped:
+                console.print(f"  [dim]{_pr_link(pr)} — {pr.title[:70]}[/]")
+
+        # Track det_flagged PRs that also got LLM review, so Phase 3 skips them
+        det_flagged_with_llm: set[int] = set()
+
+        # Present deterministic failures (while LLM runs in background)
+        if det_flagged:
+            console.print(
+                f"\n[info]{len(det_flagged)} "
+                f"{'PRs have' if len(det_flagged) != 1 else 'PR has'} quality issues"
+                f"{' (LLM reviews running in background)' if llm_future_to_pr else ''}:[/]\n"
+            )
+            for det_i, (pr, assessment) in enumerate(det_flagged, 1):
+                if ctx.stats.quit_early:
+                    break
+
+                t_pr_start = time.monotonic()
+                _print_pr_header(pr, index=det_i, total=len(det_flagged))
+
+                ctx.author_flagged_count[pr.author_login] = (
+                    ctx.author_flagged_count.get(pr.author_login, 0) + 1
+                )
+                console.print(
+                    f"[yellow]Quality issues detected despite '{_READY_FOR_REVIEW_LABEL}' label:[/]"
+                )
+
+                before_converted = ctx.stats.total_converted
+                before_closed = ctx.stats.total_closed
+                before_commented = ctx.stats.total_commented
+
+                _prompt_and_execute_flagged_pr(ctx, pr, assessment)
+
+                # Determine what action was taken
+                if ctx.stats.total_converted > before_converted:
+                    pr_actions[pr.number] = "drafted"
+                elif ctx.stats.total_closed > before_closed:
+                    pr_actions[pr.number] = "closed"
+                elif ctx.stats.total_commented > before_commented:
+                    pr_actions[pr.number] = "commented"
+                else:
+                    pr_actions[pr.number] = "skipped"
+
+                action_taken = (
+                    ctx.stats.total_converted > before_converted
+                    or ctx.stats.total_closed > before_closed
+                    or ctx.stats.total_commented > before_commented
+                )
+                if not ctx.stats.quit_early and action_taken:
+                    if _remove_label(ctx.token, ctx.github_repository, pr.node_id, _READY_FOR_REVIEW_LABEL):
+                        console.print(
+                            f"  [info]Removed '{_READY_FOR_REVIEW_LABEL}' label from PR {_pr_link(pr)}.[/]"
+                        )
+
+                # Also present LLM review if available for this PR
+                if not ctx.stats.quit_early and run_llm:
+                    llm_future = next((f for f, p in llm_future_to_pr.items() if p.number == pr.number), None)
+                    if llm_future is not None:
+                        if not llm_future.done():
+                            console.print(f"  [dim]Waiting for LLM review of PR {_pr_link(pr)}...[/]")
+                        try:
+                            review_result = llm_future.result(timeout=300)
+                        except Exception as e:
+                            console.print(f"  [warning]LLM review failed for PR {_pr_link(pr)}: {e}[/]")
+                            review_result = None
+
+                        if review_result and not review_result.get("error") and review_result.get("summary"):
+                            review = CodeReview(
+                                summary=review_result.get("summary", ""),
+                                overall_assessment=review_result.get("overall_assessment", "COMMENT"),
+                                overall_comment=review_result.get("overall_comment", ""),
+                                comments=[
+                                    ReviewComment(
+                                        path=c.get("path", ""),
+                                        line=c.get("line", 0),
+                                        body=c.get("body", ""),
+                                        category=c.get("category", "suggestion"),
+                                    )
+                                    for c in review_result.get("comments", [])
+                                    if c.get("path") and c.get("line") and c.get("body")
+                                ],
+                            )
+                            _interactive_review_comments(
+                                ctx,
+                                pr,
+                                review,
+                                json_fix_info=review_result.get("json_fix_info"),
+                                from_cache=bool(review_result.get("_from_cache")),
+                            )
+                            pr_actions[pr.number] = "reviewed"
+                        elif review_result and (
+                            review_result.get("error") or not review_result.get("summary")
+                        ):
+                            error_msg = review_result.get("error_message", "empty response")
+                            console.print(
+                                f"  [warning]LLM review error for PR {_pr_link(pr)}: {error_msg}[/]"
+                            )
+                        # Mark as presented so Phase 3 skips it
+                        det_flagged_with_llm.add(pr.number)
+
+                pr_timings[pr.number] = time.monotonic() - t_pr_start
+
+        # --- Phase 2: PRs that passed deterministic checks ---
+        if ctx.stats.quit_early or not det_passing:
+            return pr_timings, pr_actions
+
+        if not run_llm:
+            # No LLM — show passing PRs for manual review
+            console.print(
+                f"\n[info]{len(det_passing)} "
+                f"{'PRs pass' if len(det_passing) != 1 else 'PR passes'} "
+                f"deterministic checks. No LLM review configured.[/]\n"
+            )
+            for pass_i, pr in enumerate(det_passing, 1):
+                if ctx.stats.quit_early:
+                    break
+                t_pr_start = time.monotonic()
+                _print_pr_header(pr, index=pass_i, total=len(det_passing))
+                author_profile = _fetch_author_profile(ctx.token, pr.author_login, ctx.github_repository)
+                _display_pr_info_panels(pr, author_profile, open_in_browser=True)
+                console.print("[success]Deterministic checks pass.[/]")
+
+                action = prompt_triage_action(
+                    f"Action for PR {_pr_link(pr)}?",
+                    default=TriageAction.SKIP,
+                    forced_answer=ctx.answer_triage,
+                    exclude={TriageAction.RERUN},
+                    pr_url=pr.url,
+                    token=ctx.token,
+                    github_repository=ctx.github_repository,
+                    pr_number=pr.number,
+                )
+                pr_timings[pr.number] = time.monotonic() - t_pr_start
+                if action == TriageAction.QUIT:
+                    ctx.stats.quit_early = True
+                    pr_actions[pr.number] = "quit"
+                    return pr_timings, pr_actions
+                if action == TriageAction.SKIP:
+                    ctx.stats.total_skipped_action += 1
+                    pr_actions[pr.number] = "skipped"
+                else:
+                    pr_actions[pr.number] = action.value
+            return pr_timings, pr_actions
+
+        # --- Phase 3: Present LLM review results as they complete ---
+        det_flagged_nums = {pr.number for pr, _ in det_flagged}
+        # Exclude PRs already presented with LLM review in Phase 1
+        already_reviewed = det_flagged_nums | det_flagged_with_llm
+        review_prs = [pr for pr in det_passing if pr.number not in already_reviewed]
+
+        if not review_prs:
+            return pr_timings, pr_actions
+
+        console.print(
+            f"\n[info]Waiting for LLM code reviews for {len(review_prs)} "
+            f"{'PRs' if len(review_prs) != 1 else 'PR'} that passed deterministic checks...[/]\n"
+        )
+
+        # Build a lookup from PR number to future
+        pr_to_future: dict[int, Future] = {}
+        for future, pr in llm_future_to_pr.items():
+            pr_to_future[pr.number] = future
+
+        presented: set[int] = set()
+        review_pr_map = {pr.number: pr for pr in review_prs}
+
+        while not ctx.stats.quit_early:
+            # Check for newly completed futures
+            newly_done = []
+            for pr_num, future in pr_to_future.items():
+                if pr_num in presented or pr_num not in review_pr_map:
+                    continue
+                if future.done():
+                    newly_done.append(pr_num)
+
+            for pr_num in newly_done:
+                if ctx.stats.quit_early:
+                    break
+
+                t_pr_start = time.monotonic()
+
+                pr = review_pr_map[pr_num]
+                future = pr_to_future[pr_num]
+                presented.add(pr_num)
+
+                llm_idx = len(presented)
+                _print_pr_header(pr, index=llm_idx, total=len(review_prs))
+
+                try:
+                    review_result = future.result()
+                except Exception as e:
+                    console.print(f"[warning]LLM review failed for PR {_pr_link(pr)}: {e}[/]")
+                    ctx.stats.total_skipped_action += 1
+                    pr_timings[pr.number] = time.monotonic() - t_pr_start
+                    pr_actions[pr.number] = "llm-error"
+                    continue
+
+                if review_result.get("error") or not review_result.get("summary"):
+                    error_msg = review_result.get("error_message", "empty LLM response")
+                    console.print(f"[warning]LLM review failed for PR {_pr_link(pr)}: {error_msg}[/]")
+                    ctx.stats.total_skipped_action += 1
+                    pr_timings[pr.number] = time.monotonic() - t_pr_start
+                    pr_actions[pr.number] = "llm-error"
+                    continue
+
+                author_profile = _fetch_author_profile(ctx.token, pr.author_login, ctx.github_repository)
+                _display_pr_info_panels(pr, author_profile, open_in_browser=True)
+
+                remaining = len(review_prs) - len(presented)
+                if remaining:
+                    console.print(
+                        f"[dim]{remaining} LLM "
+                        f"{'reviews' if remaining != 1 else 'review'} still running...[/]"
+                    )
+
+                review = CodeReview(
+                    summary=review_result.get("summary", ""),
+                    overall_assessment=review_result.get("overall_assessment", "COMMENT"),
+                    overall_comment=review_result.get("overall_comment", ""),
+                    comments=[
+                        ReviewComment(
+                            path=c.get("path", ""),
+                            line=c.get("line", 0),
+                            body=c.get("body", ""),
+                            category=c.get("category", "suggestion"),
+                        )
+                        for c in review_result.get("comments", [])
+                        if c.get("path") and c.get("line") and c.get("body")
+                    ],
+                )
+
+                _interactive_review_comments(
+                    ctx,
+                    pr,
+                    review,
+                    json_fix_info=review_result.get("json_fix_info"),
+                    from_cache=bool(review_result.get("_from_cache")),
+                )
+
+                pr_timings[pr.number] = time.monotonic() - t_pr_start
+                pr_actions[pr.number] = "reviewed"
+
+            # All done?
+            if len(presented) >= len(review_prs):
+                break
+
+            # Wait briefly for more results
+            time.sleep(2)
+            remaining = len(review_prs) - len(presented)
+            console.print(
+                f"[dim]Waiting for {remaining} remaining LLM "
+                f"{'reviews' if remaining != 1 else 'review'}...[/]"
+            )
+
+    finally:
+        if llm_executor is not None:
+            llm_executor.shutdown(wait=False, cancel_futures=True)
+
+    return pr_timings, pr_actions
+
+
 def _display_triage_summary(
     all_prs: list[PRData],
     candidate_prs: list[PRData],
@@ -3289,6 +4831,7 @@ def _display_triage_summary(
     pending_approval: list[PRData],
     workflows_in_progress: list[PRData],
     skipped_drafts: list[PRData],
+    recent_failures_skipped: list[PRData],
     already_triaged: list[PRData],
     stats: TriageStats,
     *,
@@ -3314,6 +4857,7 @@ def _display_triage_summary(
         f"{f', {len(pending_approval)} awaiting workflow approval' if pending_approval else ''}"
         f"{f', {len(workflows_in_progress)} workflows in progress' if workflows_in_progress else ''}"
         f"{f', {len(skipped_drafts)} drafts with issues skipped' if skipped_drafts else ''}"
+        f"{f', {len(recent_failures_skipped)} recent CI failures skipped' if recent_failures_skipped else ''}"
         f"{f', {len(already_triaged)} already triaged' if already_triaged else ''}"
         f").[/]\n"
     )
@@ -3341,10 +4885,15 @@ def _display_triage_summary(
     summary_table.add_row("Total flagged", str(total_flagged))
     summary_table.add_row("PRs passing all checks", str(len(passing_prs)))
     summary_table.add_row("Drafts with issues (skipped)", str(len(skipped_drafts)))
+    summary_table.add_row(
+        "Recent CI failures within grace period (skipped)",
+        str(len(recent_failures_skipped)),
+    )
     summary_table.add_row("PRs converted to draft", str(stats.total_converted))
     summary_table.add_row("PRs commented (not drafted)", str(stats.total_commented))
     summary_table.add_row("PRs closed", str(stats.total_closed))
     summary_table.add_row("PRs with checks rerun", str(stats.total_rerun))
+    summary_table.add_row("PRs rebased", str(stats.total_rebased))
     summary_table.add_row("Review follow-up nudges", str(stats.total_review_nudges))
     summary_table.add_row("PRs marked ready for review", str(stats.total_ready))
     summary_table.add_row("PRs skipped (no action)", str(stats.total_skipped_action))
@@ -3557,6 +5106,255 @@ def _rerun_failed_workflow_runs(
     return rerun_count
 
 
+# Maximum number of log lines to extract per failed job
+_LOG_SNIPPET_MAX_LINES = 30
+# Maximum total log size to download (in bytes) before giving up
+_LOG_DOWNLOAD_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+def _fetch_failed_job_log_snippets(
+    token: str, github_repository: str, head_sha: str, failed_check_names: list[str]
+) -> dict[str, str]:
+    """Fetch short log snippets from failed GitHub Actions jobs for a commit.
+
+    Returns a dict mapping failed check name -> log snippet (last N lines of the failed step).
+    Only fetches logs for checks in ``failed_check_names`` to limit API calls.
+    """
+    import io
+    import zipfile
+
+    import requests
+
+    if not failed_check_names:
+        return {}
+
+    # Find completed (failed) workflow runs for this SHA
+    runs = _find_workflow_runs_by_status(token, github_repository, head_sha, "completed")
+    if not runs:
+        return {}
+
+    failed_runs = [r for r in runs if r.get("conclusion") == "failure"]
+    if not failed_runs:
+        return {}
+
+    snippets: dict[str, str] = {}
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+
+    for run in failed_runs:
+        run_id = run["id"]
+
+        # List jobs for this workflow run
+        jobs_url = f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/jobs"
+        try:
+            jobs_resp = requests.get(jobs_url, headers=headers, params={"per_page": 100}, timeout=30)
+        except requests.RequestException:
+            continue
+        if jobs_resp.status_code != 200:
+            continue
+
+        jobs = jobs_resp.json().get("jobs", [])
+        failed_jobs = [j for j in jobs if j.get("conclusion") == "failure"]
+        if not failed_jobs:
+            continue
+
+        # Match failed jobs to the check names we care about
+        matched_jobs = []
+        for job in failed_jobs:
+            job_name = job.get("name", "")
+            for check_name in failed_check_names:
+                if check_name in snippets:
+                    continue
+                # Match by exact name or substring (job names often include matrix info)
+                if job_name == check_name or check_name.lower() in job_name.lower():
+                    matched_jobs.append((job, check_name))
+                    break
+
+        if not matched_jobs:
+            # If no specific match, try to get the first failed job from this run
+            run_name = run.get("name", "")
+            for check_name in failed_check_names:
+                if check_name in snippets:
+                    continue
+                if run_name == check_name or check_name.lower() in run_name.lower():
+                    matched_jobs.append((failed_jobs[0], check_name))
+                    break
+
+        if not matched_jobs:
+            continue
+
+        # Download logs for this workflow run (zip archive)
+        logs_url = f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/logs"
+        try:
+            logs_resp = requests.get(
+                logs_url,
+                headers=headers,
+                timeout=60,
+                stream=True,
+            )
+        except requests.RequestException:
+            continue
+        if logs_resp.status_code != 200:
+            continue
+
+        # Read the zip content with a size limit
+        content = b""
+        for chunk in logs_resp.iter_content(chunk_size=64 * 1024):
+            content += chunk
+            if len(content) > _LOG_DOWNLOAD_MAX_BYTES:
+                break
+
+        try:
+            zf = zipfile.ZipFile(io.BytesIO(content))
+        except (zipfile.BadZipFile, OSError):
+            continue
+
+        for job, check_name in matched_jobs:
+            if check_name in snippets:
+                continue
+            job_name = job.get("name", "")
+            snippet = _extract_failed_step_snippet(zf, job_name, job)
+            if snippet:
+                snippets[check_name] = snippet
+
+        zf.close()
+
+        # Stop if we have snippets for all checks
+        if all(name in snippets for name in failed_check_names):
+            break
+
+    return snippets
+
+
+def _extract_failed_step_snippet(zf, job_name: str, job: dict) -> str:
+    """Extract a log snippet from the failed step of a job within a zip log archive.
+
+    The zip archive has files named like ``<job_name>/<step_number>_<step_name>.txt``.
+    We find the failed step and extract the last N error lines.
+    """
+    # Find the failed step(s) from job metadata
+    failed_steps = []
+    for step in job.get("steps", []):
+        if step.get("conclusion") == "failure":
+            failed_steps.append(step)
+
+    # Try to find the log file for the failed step
+    # Log files in the zip are named: "<job_name>/<step_number>_<step_name>.txt"
+    zip_names = zf.namelist()
+
+    for step in failed_steps:
+        step_number = step.get("number", 0)
+        step_name = step.get("name", "")
+
+        # Try to find matching log file
+        candidate_files = []
+        for zname in zip_names:
+            # Match by job name prefix and step number
+            if f"{step_number}_" in zname and (
+                zname.startswith(f"{job_name}/") or job_name.lower() in zname.lower()
+            ):
+                candidate_files.append(zname)
+
+        if not candidate_files:
+            # Fallback: try any file containing the step name
+            for zname in zip_names:
+                if step_name and step_name.lower() in zname.lower():
+                    candidate_files.append(zname)
+
+        for log_file in candidate_files:
+            try:
+                log_content = zf.read(log_file).decode("utf-8", errors="replace")
+            except (KeyError, OSError):
+                continue
+
+            snippet = _extract_error_lines(log_content, step_name)
+            if snippet:
+                return snippet
+
+    # Fallback: try to find any log file for this job and extract errors
+    for zname in zip_names:
+        if job_name in zname or job_name.replace("/", "_") in zname:
+            try:
+                log_content = zf.read(zname).decode("utf-8", errors="replace")
+            except (KeyError, OSError):
+                continue
+            snippet = _extract_error_lines(log_content, "")
+            if snippet:
+                return snippet
+
+    return ""
+
+
+def _extract_error_lines(log_content: str, step_name: str) -> str:
+    """Extract relevant error lines from a log file.
+
+    Looks for error markers, then takes surrounding context.
+    Falls back to the last N lines if no error markers are found.
+    """
+    lines = log_content.splitlines()
+    if not lines:
+        return ""
+
+    # Look for error markers in the log
+    error_markers = [
+        "error:",
+        "Error:",
+        "ERROR:",
+        "FAILED",
+        "FAILURE",
+        "fatal:",
+        "Fatal:",
+        "AssertionError",
+        "Exception:",
+        "Traceback (most recent call last)",
+        "✗",
+        "❌",
+    ]
+
+    # Find lines with errors and collect context
+    error_indices: list[int] = []
+    for i, line in enumerate(lines):
+        # Strip GitHub Actions timestamp prefix (e.g. "2024-01-01T00:00:00.0000000Z ")
+        stripped = line.lstrip()
+        if any(marker in stripped for marker in error_markers):
+            error_indices.append(i)
+
+    if error_indices:
+        # Take a window around the first error cluster
+        first_error = error_indices[0]
+        last_error = error_indices[-1]
+
+        # If errors are spread across the file, focus on the first cluster
+        for i in range(1, len(error_indices)):
+            if error_indices[i] - error_indices[i - 1] > 20:
+                last_error = error_indices[i - 1]
+                break
+
+        start = max(0, first_error - 3)
+        end = min(len(lines), last_error + _LOG_SNIPPET_MAX_LINES - (last_error - first_error))
+        snippet_lines = lines[start:end]
+    else:
+        # No error markers found — take the last N lines
+        snippet_lines = lines[-_LOG_SNIPPET_MAX_LINES:]
+
+    # Clean up GitHub Actions timestamp prefixes for readability
+    cleaned = []
+    for raw_line in snippet_lines:
+        # Remove ISO timestamp prefix that GitHub Actions adds
+        if len(raw_line) > 28 and raw_line[4] == "-" and raw_line[7] == "-" and raw_line[10] == "T":
+            cleaned.append(raw_line[28:].lstrip())
+        else:
+            cleaned.append(raw_line)
+
+    header = f"[Failed step: {step_name}]" if step_name else ""
+    snippet = "\n".join(cleaned).strip()
+    if len(snippet) > 3000:
+        snippet = snippet[:3000] + "\n... (truncated)"
+
+    if header:
+        return f"{header}\n{snippet}"
+    return snippet
+
+
 def _cancel_and_rerun_in_progress_workflows(token: str, github_repository: str, head_sha: str) -> int:
     """Cancel in-progress/queued workflow runs and rerun them. Returns number rerun."""
     import time as time_mod
@@ -3594,6 +5392,312 @@ def _cancel_and_rerun_in_progress_workflows(token: str, github_repository: str, 
         else:
             console_print(f"  [warning]Failed to rerun: {name}[/]")
     return rerun_count
+
+
+def _fetch_main_canary_builds(
+    token: str, github_repository: str, *, branch: str = "main", count: int = 4
+) -> list[dict]:
+    """Fetch the most recent scheduled Tests workflow runs on the main branch.
+
+    Only returns runs from the "Tests" workflow.
+    Returns a list of workflow run dicts (most recent first), up to ``count`` entries.
+    Each dict contains keys like ``id``, ``name``, ``status``, ``conclusion``,
+    ``created_at``, ``updated_at``, ``html_url``, ``run_started_at``, etc.
+    """
+    import requests
+
+    url = f"https://api.github.com/repos/{github_repository}/actions/runs"
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+    # Fetch more than needed since we filter by name
+    try:
+        response = requests.get(
+            url,
+            params={"branch": branch, "event": "schedule", "per_page": str(count * 3)},
+            headers=headers,
+            timeout=30,
+        )
+    except requests.RequestException:
+        return []
+    if response.status_code != 200:
+        return []
+    runs = response.json().get("workflow_runs", [])
+    return [r for r in runs if r.get("name") == "Tests"][:count]
+
+
+def _platform_from_labels(labels: list[str]) -> str:
+    """Determine platform (ARM/AMD) from GitHub Actions job runner labels."""
+    for label in labels:
+        if "arm" in label.lower() or "aarch64" in label.lower():
+            return "ARM"
+    return "AMD"
+
+
+def _fetch_failed_jobs_for_run(token: str, github_repository: str, run_id: int) -> list[dict]:
+    """Fetch failed jobs for a workflow run, returning job name, platform, and URL."""
+    import requests
+
+    url = f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/jobs"
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+    all_jobs: list[dict] = []
+    page = 1
+    while True:
+        try:
+            response = requests.get(
+                url,
+                headers=headers,
+                params={"per_page": "100", "filter": "latest", "page": str(page)},
+                timeout=30,
+            )
+        except requests.RequestException:
+            break
+        if response.status_code != 200:
+            break
+        jobs = response.json().get("jobs", [])
+        if not jobs:
+            break
+        all_jobs.extend(jobs)
+        if len(jobs) < 100:
+            break
+        page += 1
+    failed = []
+    for job in all_jobs:
+        if job.get("conclusion") == "failure":
+            failed.append(
+                {
+                    "name": job.get("name", "unknown"),
+                    "platform": _platform_from_labels(job.get("labels") or []),
+                    "html_url": job.get("html_url", ""),
+                }
+            )
+    return failed
+
+
+def _display_canary_builds_status(builds: list[dict], token: str, github_repository: str) -> None:
+    """Display a Rich table showing the status of recent scheduled Tests builds."""
+    from rich.table import Table
+
+    console = get_console()
+
+    if not builds:
+        console.print("[dim]No scheduled Tests builds found on main branch.[/]")
+        return
+
+    table = Table(title="Main Branch Tests Builds (scheduled)", expand=False)
+    table.add_column("Status", justify="center")
+    table.add_column("Started", justify="right")
+    table.add_column("Failed Jobs", style="red")
+    table.add_column("Link", style="dim")
+
+    for build in builds:
+        status = build.get("status", "unknown")
+        conclusion = build.get("conclusion")
+        started = build.get("run_started_at") or build.get("created_at", "")
+        html_url = build.get("html_url", "")
+        run_id = build.get("id", "")
+
+        # Format status with colour
+        if status == "completed":
+            if conclusion == "success":
+                status_display = "[green]success[/]"
+            elif conclusion == "failure":
+                status_display = "[red]failure[/]"
+            elif conclusion == "cancelled":
+                status_display = "[yellow]cancelled[/]"
+            elif conclusion == "timed_out":
+                status_display = "[red]timed_out[/]"
+            else:
+                status_display = f"[yellow]{conclusion or status}[/]"
+        elif status in ("in_progress", "queued"):
+            status_display = f"[cyan]{status}[/]"
+        else:
+            status_display = f"[dim]{status}[/]"
+
+        # Format age
+        age = _human_readable_age(started) if started else "unknown"
+
+        # Clickable link to the workflow run page
+        link = f"[link={html_url}]checks[/link]" if html_url else str(run_id)
+
+        # Fetch failed jobs for failed builds
+        failed_jobs_display = ""
+        if conclusion == "failure" and run_id:
+            failed_jobs = _fetch_failed_jobs_for_run(token, github_repository, run_id)
+            if failed_jobs:
+                parts = []
+                for fj in failed_jobs:
+                    parts.append(f"{fj['name']} ({fj['platform']})")
+                failed_jobs_display = "\n".join(parts)
+
+        table.add_row(status_display, age, failed_jobs_display, link)
+
+    console.print(table)
+    console.print()
+
+
+def _fetch_recent_pr_failures(
+    token: str, github_repository: str, *, branch: str = "main", hours: int = 4, max_prs: int = 10
+) -> RecentPRFailureInfo:
+    """Fetch CI failures from recently updated PRs targeting the same branch.
+
+    Looks at PRs updated in the last ``hours`` hours to detect consistent
+    failure patterns. When the same check fails across multiple PRs, the
+    failure is likely systemic rather than caused by any individual PR.
+    """
+    from datetime import datetime, timezone
+
+    import requests
+
+    console = get_console()
+    console.print(f"[info]Checking recent PRs to {branch} for consistent CI failure patterns...[/]")
+
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+    now = datetime.now(timezone.utc)
+    cutoff = now.timestamp() - hours * 3600
+
+    # Search for recently updated PRs targeting this branch
+    owner, repo = github_repository.split("/", 1)
+    failing_checks: dict[str, list[dict]] = {}
+    prs_examined = 0
+
+    try:
+        url = f"https://api.github.com/repos/{github_repository}/pulls"
+        response = requests.get(
+            url,
+            params={
+                "base": branch,
+                "state": "all",
+                "sort": "updated",
+                "direction": "desc",
+                "per_page": str(max_prs),
+            },
+            headers=headers,
+            timeout=30,
+        )
+        if response.status_code != 200:
+            console.print("  [dim]Could not fetch recent PRs.[/]")
+            return RecentPRFailureInfo(failing_checks={}, failing_check_names=set(), prs_examined=0)
+
+        prs = response.json()
+
+        for pr_data in prs:
+            updated_at = pr_data.get("updated_at", "")
+            if not updated_at:
+                continue
+            try:
+                updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                if updated_dt.timestamp() < cutoff:
+                    continue
+            except (ValueError, TypeError):
+                continue
+
+            pr_number = pr_data.get("number", 0)
+            pr_title = pr_data.get("title", "")
+            pr_url = pr_data.get("html_url", "")
+            head_sha = pr_data.get("head", {}).get("sha", "")
+            if not head_sha:
+                continue
+
+            prs_examined += 1
+
+            # Fetch check runs for this PR's head commit
+            checks_url = f"https://api.github.com/repos/{github_repository}/commits/{head_sha}/check-runs"
+            try:
+                checks_resp = requests.get(
+                    checks_url,
+                    params={"per_page": "100"},
+                    headers=headers,
+                    timeout=30,
+                )
+            except requests.RequestException:
+                continue
+            if checks_resp.status_code != 200:
+                continue
+
+            for check_run in checks_resp.json().get("check_runs", []):
+                conclusion = check_run.get("conclusion", "")
+                if conclusion in ("failure", "timed_out"):
+                    name = check_run.get("name", "unknown")
+                    if name not in failing_checks:
+                        failing_checks[name] = []
+                    failing_checks[name].append(
+                        {
+                            "pr_number": pr_number,
+                            "pr_title": pr_title,
+                            "pr_url": pr_url,
+                            "check_name": name,
+                            "check_url": check_run.get("html_url", ""),
+                            "completed_at": check_run.get("completed_at", ""),
+                        }
+                    )
+    except (requests.RequestException, ValueError):
+        console.print("  [dim]Could not fetch recent PR failures.[/]")
+
+    # Only keep checks that fail in at least 2 PRs — that's the "consistent pattern" signal
+    consistent_failures: dict[str, list[dict]] = {
+        name: prs_list for name, prs_list in failing_checks.items() if len(prs_list) >= 2
+    }
+
+    failing_check_names = set(consistent_failures.keys())
+    if failing_check_names:
+        console.print(
+            f"  [warning]{len(failing_check_names)} "
+            f"{'checks' if len(failing_check_names) != 1 else 'check'} "
+            f"failing consistently across recent PRs: "
+            f"{', '.join(sorted(failing_check_names)[:5])}"
+            f"{'...' if len(failing_check_names) > 5 else ''}[/]"
+        )
+    else:
+        console.print(f"  [success]No consistent failure patterns in recent PRs to {branch}.[/]")
+
+    return RecentPRFailureInfo(
+        failing_checks=consistent_failures,
+        failing_check_names=failing_check_names,
+        prs_examined=prs_examined,
+    )
+
+
+def _display_recent_pr_failure_panel(
+    pr: PRData,
+    recent_failures: RecentPRFailureInfo,
+    matching_checks: list[str],
+) -> None:
+    """Display a Rich panel explaining that PR failures are a consistent pattern across recent PRs."""
+    console = get_console()
+
+    lines = [
+        "[yellow]Some failing checks in this PR also fail in other recent PRs — "
+        "likely a systemic issue, not caused by this PR.[/]",
+        "",
+        f"[bold]Consistent failures (across {recent_failures.prs_examined} recent PRs):[/]",
+    ]
+    for check in matching_checks[:10]:
+        pr_entries = recent_failures.failing_checks.get(check, [])
+        if pr_entries:
+            # Show which other PRs have the same failure — link to their checks tab
+            other_prs = [e for e in pr_entries if e.get("pr_number") != pr.number][:3]
+            pr_refs = ", ".join(
+                f"[link={e['pr_url']}/checks]#{e['pr_number']}[/link]"
+                if e.get("pr_url")
+                else f"#{e['pr_number']}"
+                for e in other_prs
+            )
+            lines.append(f"  - {check} (also fails in {pr_refs})")
+        else:
+            lines.append(f"  - {check}")
+
+    lines.append("")
+    lines.append(
+        "[dim]These failures are likely not caused by this PR's changes. "
+        "Consider skipping or rerunning checks.[/]"
+    )
+
+    console.print(
+        Panel(
+            "\n".join(lines),
+            title="Consistent CI Failure Pattern Detected",
+            border_style="yellow",
+        )
+    )
 
 
 @pr_group.command(
@@ -3686,6 +5790,16 @@ def _cancel_and_rerun_in_progress_workflows(token: str, github_repository: str, 
     help="Only show PRs with workflow runs awaiting approval.",
 )
 @click.option(
+    "--mode",
+    "triage_mode",
+    type=click.Choice(["triage", "review"]),
+    default="triage",
+    show_default=True,
+    help="Operating mode. 'triage': assess PRs for quality issues (default). "
+    "'review': only select PRs with 'ready for maintainer review' label, "
+    "run deterministic checks first, then LLM code review with line-level comments.",
+)
+@click.option(
     "--checks-state",
     type=click.Choice(["failure", "success", "pending", "any"]),
     default="any",
@@ -3737,6 +5851,12 @@ def _cancel_and_rerun_in_progress_workflows(token: str, github_repository: str, 
     help="Number of concurrent LLM assessment calls.",
 )
 @option_llm_model
+@click.option(
+    "--clear-llm-cache",
+    is_flag=True,
+    default=False,
+    help="Clear the LLM review and triage caches before running.",
+)
 # --- Action options ---
 @click.option(
     "--answer-triage",
@@ -3763,6 +5883,7 @@ def auto_triage(
     include_collaborators: bool,
     include_drafts: bool,
     pending_approval_only: bool,
+    triage_mode: str,
     checks_state: str,
     min_commits_behind: int,
     my_reviews: bool,
@@ -3770,6 +5891,7 @@ def auto_triage(
     check_mode: str,
     llm_concurrency: int,
     llm_model: str,
+    clear_llm_cache: bool,
     answer_triage: str | None,
 ):
     from airflow_breeze.utils.github import (
@@ -3781,7 +5903,6 @@ def auto_triage(
     from airflow_breeze.utils.llm_utils import (
         _check_cli_available,
         _resolve_cli_provider,
-        assess_pr,
         check_llm_cli_safety,
     )
 
@@ -3797,11 +5918,33 @@ def auto_triage(
     run_llm = check_mode in ("both", "llm")
 
     console = get_console()
+
+    if clear_llm_cache:
+        import shutil
+
+        for label, get_dir in [
+            ("review", _get_review_cache_dir),
+            ("triage", _get_triage_cache_dir),
+        ]:
+            cache_dir = get_dir(github_repository)
+            if cache_dir.exists():
+                count = len(list(cache_dir.glob("*.json")))
+                shutil.rmtree(cache_dir)
+                console.print(f"[info]Cleared LLM {label} cache ({count} entries) at {cache_dir}.[/]")
+            else:
+                console.print(f"[info]LLM {label} cache is already empty.[/]")
     mode_desc = {"both": "API + LLM", "api": "API only", "llm": "LLM only"}
     console.print(
         f"[info]Check mode: [bold]{check_mode}[/bold] ({mode_desc.get(check_mode, check_mode)}). "
         f"Change with --check-mode (api|llm|both).[/]"
     )
+    review_mode = triage_mode == "review"
+    if review_mode:
+        console.print(
+            f"[info]Mode: [bold]review[/bold] — selecting PRs with '{_READY_FOR_REVIEW_LABEL}' label"
+            f"{' and PRs with your previous reviews' if my_reviews or reviewers else ''}. "
+            f"Deterministic checks run first; passing PRs get LLM code review if enabled.[/]"
+        )
 
     # Validate CLI tool is available and safe early (only when LLM checks are enabled)
     if run_llm:
@@ -3825,6 +5968,13 @@ def auto_triage(
     # Refresh collaborators cache in the background on every run
     _refresh_collaborators_cache_in_background(token, github_repository)
 
+    # Preload main branch CI failure information
+    main_failures = _fetch_recent_pr_failures(token, github_repository)
+
+    # Show status of recent scheduled (canary) builds on main branch
+    canary_builds = _fetch_main_canary_builds(token, github_repository)
+    _display_canary_builds_status(canary_builds, token, github_repository)
+
     # Resolve review-requested filter: --reviews-for-me uses authenticated user, --reviews-for uses specified users
     review_requested_user: str | None = None
     review_requested_users: list[str] = []
@@ -3840,8 +5990,14 @@ def auto_triage(
     # Phase 1: Fetch PRs via GraphQL
     from fnmatch import fnmatch
 
-    exact_labels = tuple(lbl for lbl in labels if "*" not in lbl and "?" not in lbl)
-    wildcard_labels = [lbl for lbl in labels if "*" in lbl or "?" in lbl]
+    # In review mode, force-include the "ready for maintainer review" label in the search
+    # (unless we also fetch reviewed-by PRs below, in which case the label search is one of two queries)
+    effective_labels = labels
+    if review_mode and _READY_FOR_REVIEW_LABEL not in labels:
+        effective_labels = (*labels, _READY_FOR_REVIEW_LABEL)
+
+    exact_labels = tuple(lbl for lbl in effective_labels if "*" not in lbl and "?" not in lbl)
+    wildcard_labels = [lbl for lbl in effective_labels if "*" in lbl or "?" in lbl]
     exact_exclude_labels = tuple(lbl for lbl in exclude_labels if "*" not in lbl and "?" not in lbl)
     wildcard_exclude_labels = [lbl for lbl in exclude_labels if "*" in lbl or "?" in lbl]
 
@@ -3909,6 +6065,41 @@ def auto_triage(
             if not any(fnmatch(lbl, pat) for pat in wildcard_exclude_labels for lbl in pr.labels)
         ]
 
+    # In review mode with a reviewer filter, also fetch PRs where the reviewer has already
+    # submitted a review (e.g. CHANGES_REQUESTED). These won't have the "ready for maintainer
+    # review" label but should still appear in review mode so the reviewer can follow up.
+    reviewed_by_prs: set[int] = set()
+    if review_mode and review_requested_users:
+        seen_numbers = {pr.number for pr in all_prs}
+        # Use base labels (without the ready-for-review label) for the reviewed-by query
+        base_exact_labels = tuple(lbl for lbl in labels if "*" not in lbl and "?" not in lbl)
+        for reviewer in review_requested_users:
+            batch_prs, _, _ = _fetch_prs_graphql(
+                token,
+                github_repository,
+                labels=base_exact_labels,
+                exclude_labels=exact_exclude_labels,
+                filter_user=filter_user,
+                sort=sort,
+                batch_size=batch_size,
+                created_after=created_after,
+                created_before=created_before,
+                updated_after=updated_after,
+                updated_before=updated_before,
+                reviewed_by=reviewer,
+            )
+            for pr in batch_prs:
+                if pr.number not in seen_numbers:
+                    seen_numbers.add(pr.number)
+                    all_prs.append(pr)
+                    reviewed_by_prs.add(pr.number)
+        if reviewed_by_prs:
+            console.print(
+                f"[info]Also found {len(reviewed_by_prs)} "
+                f"{'PRs' if len(reviewed_by_prs) != 1 else 'PR'} "
+                f"previously reviewed by {', '.join(review_requested_users)}.[/]"
+            )
+
     # Resolve how far behind base branch each PR is
     console_print("[info]Checking how far behind base branch each PR is...[/]")
     behind_map = _fetch_commits_behind_batch(token, github_repository, all_prs)
@@ -3964,6 +6155,7 @@ def auto_triage(
             checks_state=checks_state,
             min_commits_behind=min_commits_behind,
             max_num=max_num,
+            also_accepted=reviewed_by_prs if review_mode else None,
         )
     )
 
@@ -3997,6 +6189,138 @@ def auto_triage(
 
     t_phase1_end = time.monotonic()
 
+    # --- Review mode: early exit into review flow for accepted PRs ---
+    if review_mode:
+        stats = TriageStats()
+        ctx = TriageContext(
+            token=token,
+            github_repository=github_repository,
+            dry_run=dry_run,
+            answer_triage=answer_triage,
+            stats=stats,
+            author_flagged_count={},
+            main_failures=main_failures,
+            llm_future_to_pr={},
+            llm_assessments={},
+            llm_completed=[],
+            llm_errors=[],
+            llm_passing=[],
+        )
+
+        pr_timings: dict[int, float] = {}
+        pr_actions: dict[int, str] = {}
+        if not accepted_prs:
+            get_console().print(
+                f"[info]No PRs with '{_READY_FOR_REVIEW_LABEL}' label found matching the filters.[/]"
+            )
+        else:
+            try:
+                pr_timings, pr_actions = _review_ready_prs_review_mode(
+                    ctx,
+                    accepted_prs,
+                    run_api=run_api,
+                    run_llm=run_llm,
+                    llm_model=llm_model,
+                    llm_concurrency=llm_concurrency,
+                )
+            except KeyboardInterrupt:
+                get_console().print("\n[warning]Interrupted — shutting down.[/]")
+                stats.quit_early = True
+
+        t_total_end = time.monotonic()
+        total_elapsed = t_total_end - t_total_start
+        console.print(f"\n[info]Review mode complete in {_fmt_duration(total_elapsed)}.[/]")
+
+        # Simple summary for review mode
+        summary_table = Table(title="Review Mode Summary")
+        summary_table.add_column("Metric", style="bold")
+        summary_table.add_column("Count", justify="right")
+        summary_table.add_row("PRs assessed", str(len(accepted_prs)))
+        summary_table.add_row("PRs converted to draft", str(stats.total_converted))
+        summary_table.add_row("PRs commented (triage)", str(stats.total_commented))
+        summary_table.add_row("PRs closed", str(stats.total_closed))
+        summary_table.add_row("PRs rebased", str(stats.total_rebased))
+        summary_table.add_row("Review comments posted", str(stats.total_review_comments))
+        summary_table.add_row("Overall reviews submitted", str(stats.total_reviews_submitted))
+        summary_table.add_row("PRs skipped", str(stats.total_skipped_action))
+        console.print(summary_table)
+
+        # Timing summary
+        timing_table = Table(title="Timing Summary")
+        timing_table.add_column("Phase", style="bold")
+        timing_table.add_column("Total", justify="right")
+        timing_table.add_column("PRs", justify="right")
+        timing_table.add_column("Avg/PR", justify="right")
+        timing_table.add_column("Min/PR", justify="right")
+        timing_table.add_column("Max/PR", justify="right")
+
+        phase1_total = t_phase1_end - t_total_start
+        num_all = len(all_prs) or 1
+        timing_table.add_row(
+            "Fetch PRs + overview",
+            _fmt_duration(phase1_total),
+            str(len(all_prs)),
+            _fmt_duration(phase1_total / num_all),
+            "[dim]—[/]",
+            "[dim]—[/]",
+        )
+
+        interactive_total = t_total_end - t_phase1_end
+        timing_table.add_row(
+            "Interactive review",
+            _fmt_duration(interactive_total),
+            str(len(accepted_prs)),
+            _fmt_duration(interactive_total / len(accepted_prs)) if accepted_prs else "[dim]—[/]",
+            "[dim]—[/]",
+            "[dim]—[/]",
+        )
+
+        timing_table.add_row("", "", "", "", "", "")
+        prs_with_timing = len(pr_timings)
+        avg_per_pr = _fmt_duration(total_elapsed / prs_with_timing) if prs_with_timing else "[dim]—[/]"
+        timing_table.add_row(
+            "[bold]Total[/]",
+            f"[bold]{_fmt_duration(total_elapsed)}[/]",
+            str(prs_with_timing) if prs_with_timing else "",
+            f"[bold]{avg_per_pr}[/]" if prs_with_timing else "",
+            "",
+            "",
+        )
+        console.print(timing_table)
+
+        # Per-PR timing table
+        if pr_timings:
+            action_styles = {
+                "reviewed": "[success]reviewed[/]",
+                "drafted": "[yellow]drafted[/]",
+                "commented": "[yellow]commented[/]",
+                "closed": "[red]closed[/]",
+                "skipped": "[dim]skipped[/]",
+                "llm-error": "[red]llm-error[/]",
+                "quit": "[dim]quit[/]",
+            }
+            pr_map = {pr.number: pr for pr in accepted_prs}
+            pr_timing_table = Table(title="Per-PR Timing")
+            pr_timing_table.add_column("PR", style="bold")
+            pr_timing_table.add_column("Title")
+            pr_timing_table.add_column("Action")
+            pr_timing_table.add_column("Time", justify="right")
+
+            for pr_num in sorted(pr_timings, key=lambda n: pr_timings[n], reverse=True):
+                pr_entry = pr_map.get(pr_num)
+                title = (pr_entry.title[:60] if pr_entry else "") or ""
+                action_raw = pr_actions.get(pr_num, "")
+                action_display = action_styles.get(action_raw, f"[dim]{action_raw or '—'}[/]")
+                pr_timing_table.add_row(
+                    f"#{pr_num}",
+                    title,
+                    action_display,
+                    _fmt_duration(pr_timings[pr_num]),
+                )
+            console.print(pr_timing_table)
+
+        return
+
     # Enrich candidate PRs with check details, mergeable status, and review comments
     t_enrich_start = time.monotonic()
     _enrich_candidate_details(token, github_repository, candidate_prs, run_api=run_api)
@@ -4009,6 +6333,7 @@ def auto_triage(
     pending_approval: list[PRData] = []
     workflows_in_progress: list[PRData] = []
     skipped_drafts: list[PRData] = []  # Draft PRs skipped because they have other issues
+    recent_failures_skipped: list[PRData] = []  # PRs skipped because CI failures are < 24h old
     total_deterministic_flags = 0
     deterministic_timings: dict[int, float] = {}  # PR number -> deterministic triage duration
 
@@ -4046,8 +6371,28 @@ def auto_triage(
                 deterministic_timings[pr.number] = time.monotonic() - t_det_start
                 continue
 
+            # Grace period: don't flag CI failures within the grace window.
+            # Default 24 h; extended to 96 h when a collaborator has already engaged.
+            if (
+                ci_assessment
+                and pr.head_sha
+                and _are_failures_recent(token, github_repository, pr.head_sha, pr.ci_grace_period_hours)
+            ):
+                ci_assessment = None
+                # If CI is the only issue, skip this PR entirely
+                conflict_check = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
+                comments_check = assess_pr_unresolved_comments(
+                    pr.number, pr.unresolved_review_comments, pr.unresolved_threads
+                )
+                if not conflict_check and not comments_check:
+                    recent_failures_skipped.append(pr)
+                    deterministic_timings[pr.number] = time.monotonic() - t_det_start
+                    continue
+
             conflict_assessment = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
-            comments_assessment = assess_pr_unresolved_comments(pr.number, pr.unresolved_review_comments)
+            comments_assessment = assess_pr_unresolved_comments(
+                pr.number, pr.unresolved_review_comments, pr.unresolved_threads
+            )
 
             if ci_assessment or conflict_assessment or comments_assessment:
                 if pr.is_draft:
@@ -4090,6 +6435,17 @@ def auto_triage(
             f"{'PRs' if len(workflows_in_progress) != 1 else 'PR'} "
             f"with workflows already in progress.[/]"
         )
+    if recent_failures_skipped:
+        get_console().print(
+            f"[info]Skipped {len(recent_failures_skipped)} "
+            f"{'PRs' if len(recent_failures_skipped) != 1 else 'PR'} "
+            f"with recent CI failures within grace period "
+            f"(giving authors time to address at their own pace):[/]"
+        )
+        for pr in recent_failures_skipped:
+            grace = pr.ci_grace_period_hours
+            engaged = " (collaborator engaged)" if pr.has_collaborator_review else ""
+            get_console().print(f"  [dim]{_pr_link(pr)} — {pr.title[:70]} [<{grace}h{engaged}][/]")
 
     # Filter out pending_approval PRs that already have a comment from the viewer
     # (triage or rebase comment) with no new commits since — no point re-approving
@@ -4138,6 +6494,8 @@ def auto_triage(
         skipped_detail = f"{total_deterministic_flags} CI/conflicts/comments"
         if skipped_drafts:
             skipped_detail += f", {len(skipped_drafts)} drafts with issues"
+        if recent_failures_skipped:
+            skipped_detail += f", {len(recent_failures_skipped)} recent CI failures"
         if already_triaged:
             skipped_detail += f", {len(already_triaged)} already triaged"
         if pending_approval:
@@ -4152,7 +6510,9 @@ def auto_triage(
         llm_executor = ThreadPoolExecutor(max_workers=llm_concurrency)
         llm_future_to_pr = {
             llm_executor.submit(
-                assess_pr,
+                _cached_assess_pr,
+                github_repository=github_repository,
+                head_sha=pr.head_sha,
                 pr_number=pr.number,
                 pr_title=pr.title,
                 pr_body=pr.body,
@@ -4162,8 +6522,11 @@ def auto_triage(
             for pr in llm_candidates
         }
 
+    # Launch background CI log fetching for PRs with failed checks
+    log_futures = _launch_background_log_fetching(token, github_repository, candidate_prs, llm_concurrency)
+
     # Build shared triage context and stats
-    pr_actions: dict[int, str] = {}  # PR number -> action taken by user
+    pr_actions = {}  # PR number -> action taken by user
 
     author_flagged_count: dict[str, int] = dict(
         Counter(pr.author_login for pr in candidate_prs if pr.number in assessments)
@@ -4176,11 +6539,13 @@ def auto_triage(
         answer_triage=answer_triage,
         stats=stats,
         author_flagged_count=author_flagged_count,
+        main_failures=main_failures,
         llm_future_to_pr=llm_future_to_pr,
         llm_assessments=llm_assessments,
         llm_completed=llm_completed,
         llm_errors=llm_errors,
         llm_passing=llm_passing,
+        log_futures=log_futures,
     )
 
     try:
@@ -4333,10 +6698,34 @@ def auto_triage(
                     and _has_in_progress_workflows(token, github_repository, pr.head_sha)
                 ):
                     continue
+                # Grace period: don't flag CI failures within the grace window.
+                # Default 24 h; extended to 96 h when a collaborator has already engaged.
+                if (
+                    ci_assessment
+                    and pr.head_sha
+                    and _are_failures_recent(token, github_repository, pr.head_sha, pr.ci_grace_period_hours)
+                ):
+                    ci_assessment = None
+                    # If CI is the only issue, skip this PR entirely
+                    conflict_check = assess_pr_conflicts(
+                        pr.number, pr.mergeable, pr.base_ref, pr.commits_behind
+                    )
+                    comments_check = assess_pr_unresolved_comments(
+                        pr.number, pr.unresolved_review_comments, pr.unresolved_threads
+                    )
+                    if not conflict_check and not comments_check:
+                        get_console().print(
+                            f"  [dim]Skipped {_pr_link(pr)} — CI failures less than "
+                            f"{pr.ci_grace_period_hours}h old"
+                            f"{' (collaborator engaged)' if pr.has_collaborator_review else ''}[/]"
+                        )
+                        continue
                 conflict_assessment = assess_pr_conflicts(
                     pr.number, pr.mergeable, pr.base_ref, pr.commits_behind
                 )
-                comments_assessment = assess_pr_unresolved_comments(pr.number, pr.unresolved_review_comments)
+                comments_assessment = assess_pr_unresolved_comments(
+                    pr.number, pr.unresolved_review_comments, pr.unresolved_threads
+                )
                 if ci_assessment or conflict_assessment or comments_assessment:
                     if pr.is_draft:
                         continue
@@ -4381,7 +6770,9 @@ def auto_triage(
             batch_executor = ThreadPoolExecutor(max_workers=llm_concurrency)
             batch_llm_future_to_pr = {
                 batch_executor.submit(
-                    assess_pr,
+                    _cached_assess_pr,
+                    github_repository=github_repository,
+                    head_sha=pr.head_sha,
                     pr_number=pr.number,
                     pr_title=pr.title,
                     pr_body=pr.body,
@@ -4390,6 +6781,11 @@ def auto_triage(
                 ): pr
                 for pr in batch_llm_candidates
             }
+
+        # Launch background CI log fetching for this batch
+        batch_log_futures = _launch_background_log_fetching(
+            token, github_repository, candidate_prs, llm_concurrency
+        )
 
         batch_author_flagged_count: dict[str, int] = dict(
             Counter(pr.author_login for pr in candidate_prs if pr.number in batch_assessments)
@@ -4401,11 +6797,13 @@ def auto_triage(
             answer_triage=answer_triage,
             stats=stats,
             author_flagged_count=batch_author_flagged_count,
+            main_failures=main_failures,
             llm_future_to_pr=batch_llm_future_to_pr,
             llm_assessments=batch_llm_assessments,
             llm_completed=batch_llm_completed,
             llm_errors=batch_llm_errors,
             llm_passing=batch_llm_passing,
+            log_futures=batch_log_futures,
         )
 
         try:
@@ -4437,6 +6835,7 @@ def auto_triage(
         pending_approval,
         workflows_in_progress,
         skipped_drafts,
+        recent_failures_skipped,
         already_triaged,
         stats,
         total_deterministic_flags=total_deterministic_flags,
@@ -4538,6 +6937,7 @@ def auto_triage(
 
     if deterministic_timings:
         pr_titles = {pr.number: pr.title for pr in candidate_prs}
+        pr_urls = {pr.number: pr.url for pr in candidate_prs}
         # Amortize batch fetch time evenly across candidate PRs
         num_candidates = len(candidate_prs) or 1
         fetch_per_pr = enrich_total / num_candidates
@@ -4590,7 +6990,7 @@ def auto_triage(
             action_display = action_styles.get(action_raw, f"[dim]{action_raw or '—'}[/]")
 
             pr_timing_table.add_row(
-                f"#{pr_num}",
+                f"[link={pr_urls.get(pr_num, '')}]#{pr_num}[/link]",
                 title,
                 result,
                 action_display,
