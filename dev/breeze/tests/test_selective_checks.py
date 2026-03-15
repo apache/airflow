@@ -1329,6 +1329,7 @@ def test_excluded_providers():
                     "3.14": [
                         "amazon",  # Depends on lxml<6
                         "apache.cassandra",  # Enable when the next release after 3.29.3 is available
+                        "google",  # Depends on ray, which does not yet support python 3.14 (due to pydantic v1)
                     ],
                 }
             ),
