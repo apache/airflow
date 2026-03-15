@@ -959,6 +959,16 @@ repos:
           ^generated/provider_dependencies\.json$
         require_serial: true
         pass_filenames: false
+      - id: check-agent-skills-drift
+        name: Check agent skills are in sync with SKILL.md
+        description: Fails if skills.json has drifted from agent-skill-sync markers in SKILL.md
+        entry: ./scripts/ci/prek/extract_agent_skills.py --check
+        language: python
+        files: >
+          (?x)
+          ^\.github/skills/breeze-contribution/SKILL\.md$|
+          ^\.github/skills/breeze-contribution/skills\.json$
+        pass_filenames: false
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/prek/update_example_dags_paths.py
