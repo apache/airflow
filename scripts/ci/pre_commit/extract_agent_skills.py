@@ -75,14 +75,92 @@ def validate_skill(skill: dict, index: int) -> None:
         raise ValueError(f"Skill '{sid}': missing or empty required field 'command'")
 
 
+def _skill_key_set(skill: dict) -> set[str]:
+    """Return set of keys that define skill identity and content for comparison."""
+    return {"id", "context", "category", "prereqs", "validates", "description", "command", "expected_output"}
+
+
+def _normalize_skill_for_compare(skill: dict) -> dict:
+    """Return a comparable dict with only the fields we care about, sorted keys."""
+    keys = _skill_key_set(skill)
+    return {k: skill.get(k, "") for k in sorted(keys) if k in skill or k in keys}
+
+
+def check_drift(docs_path: Path, out_path: Path, docs_file: str) -> int:
+    """
+    Compare re-extracted skills from AGENTS.md with skills.json on disk.
+    Print diff (added/removed/modified) and return 0 if in sync, 1 if drifted.
+    """
+    text = docs_path.read_text(encoding="utf-8")
+    try:
+        extracted = parse_skills(text)
+    except Exception as e:
+        print(f"Failed to parse AGENTS.md: {e}", file=sys.stderr)
+        return 1
+    for i, skill in enumerate(extracted):
+        try:
+            validate_skill(skill, i)
+        except ValueError as e:
+            print(f"Validation error in source: {e}", file=sys.stderr)
+            return 1
+
+    if not out_path.exists():
+        print("Skills added (in source but not in json):")
+        for s in extracted:
+            print(f"  - {s.get('id', '?')}")
+        print("DRIFT DETECTED: run extract_agent_skills.py to regenerate")
+        return 1
+
+    on_disk = json.loads(out_path.read_text(encoding="utf-8"))
+    disk_skills = {s["id"]: s for s in on_disk.get("skills", []) if isinstance(s, dict) and s.get("id")}
+    extracted_by_id = {s["id"]: _normalize_skill_for_compare(s) for s in extracted}
+
+    added = [sid for sid in extracted_by_id if sid not in disk_skills]
+    removed = [sid for sid in disk_skills if sid not in extracted_by_id]
+    modified = []
+    for sid in extracted_by_id:
+        if sid in disk_skills:
+            disk_norm = _normalize_skill_for_compare(disk_skills[sid])
+            if disk_norm != extracted_by_id[sid]:
+                modified.append(sid)
+
+    if not added and not removed and not modified:
+        print("OK: skills.json is in sync with AGENTS.md")
+        return 0
+
+    if added:
+        print("Skills added (in source but not in json):")
+        for sid in added:
+            print(f"  - {sid}")
+    if removed:
+        print("Skills removed (in json but not in source):")
+        for sid in removed:
+            print(f"  - {sid}")
+    if modified:
+        print("Skills modified (fields changed):")
+        for sid in modified:
+            print(f"  - {sid}")
+    print("DRIFT DETECTED: run extract_agent_skills.py to regenerate")
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Extract agent-skill blocks into skills.json")
     parser.add_argument("--docs-file", default="AGENTS.md", help="Path to AGENTS.md")
     parser.add_argument("--output", default="contributing-docs/agent_skills/skills.json", help="Output JSON path")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Check if skills.json is in sync with source. Exit 1 if drifted.",
+    )
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     docs_path = root / args.docs_file
     out_path = root / args.output
+
+    if args.check:
+        return check_drift(docs_path, out_path, args.docs_file)
+
     text = docs_path.read_text(encoding="utf-8")
     skills = parse_skills(text)
     for i, skill in enumerate(skills):

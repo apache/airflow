@@ -18,6 +18,7 @@
 """Tests for extract_agent_skills.py."""
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -170,6 +171,152 @@ def test_missing_description_fails(tmp_path):
     )
     assert result.returncode == 1
     assert "description" in result.stderr
+
+
+def test_check_mode_passes_when_in_sync(tmp_path):
+    """Given skills.json matches extracted skills, assert exit code 0."""
+    rst = """
+.. agent-skill::
+   :id: in-sync-skill
+   :context: host
+   :category: environment
+   :description: In sync skill
+
+   .. code-block:: bash
+
+      echo ok
+
+   .. agent-skill-expected-output::
+
+      ok
+"""
+    docs_file = tmp_path / "AGENTS.md"
+    docs_file.write_text(rst)
+    out_file = tmp_path / "skills.json"
+    # Generate first
+    subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "extract_agent_skills.py"),
+            "--docs-file",
+            str(docs_file),
+            "--output",
+            str(out_file),
+        ],
+        capture_output=True,
+        check=True,
+    )
+    # Then check
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "extract_agent_skills.py"),
+            "--check",
+            "--docs-file",
+            str(docs_file),
+            "--output",
+            str(out_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "OK: skills.json is in sync" in result.stdout
+
+
+def test_check_mode_fails_when_drifted(tmp_path):
+    """Given skills.json has a skill with wrong context, assert exit code 1."""
+    rst = """
+.. agent-skill::
+   :id: drift-skill
+   :context: host
+   :category: environment
+   :description: Drift skill
+
+   .. code-block:: bash
+
+      echo ok
+
+   .. agent-skill-expected-output::
+
+      ok
+"""
+    docs_file = tmp_path / "AGENTS.md"
+    docs_file.write_text(rst)
+    out_file = tmp_path / "skills.json"
+    # Generate once
+    subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "extract_agent_skills.py"),
+            "--docs-file",
+            str(docs_file),
+            "--output",
+            str(out_file),
+        ],
+        capture_output=True,
+        check=True,
+    )
+    # Tamper: change context in JSON
+    data = json.loads(out_file.read_text())
+    data["skills"][0]["context"] = "breeze"
+    out_file.write_text(json.dumps(data, indent=2))
+    # Check should detect drift
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "extract_agent_skills.py"),
+            "--check",
+            "--docs-file",
+            str(docs_file),
+            "--output",
+            str(out_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "Skills modified" in result.stdout or "DRIFT DETECTED" in result.stdout
+
+
+def test_check_mode_prints_diff(tmp_path):
+    """Given a skill is missing from skills.json, assert output contains DRIFT DETECTED."""
+    rst = """
+.. agent-skill::
+   :id: only-in-source
+   :context: host
+   :category: environment
+   :description: Only in source
+
+   .. code-block:: bash
+
+      echo ok
+
+   .. agent-skill-expected-output::
+
+      ok
+"""
+    docs_file = tmp_path / "AGENTS.md"
+    docs_file.write_text(rst)
+    out_file = tmp_path / "skills.json"
+    # Write a minimal skills.json that has no skills (or different skill)
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out_file.write_text(json.dumps({"version": "1.0", "skills": []}, indent=2))
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "extract_agent_skills.py"),
+            "--check",
+            "--docs-file",
+            str(docs_file),
+            "--output",
+            str(out_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "DRIFT DETECTED" in result.stdout
 
 
 def test_multiple_skills_extracted():

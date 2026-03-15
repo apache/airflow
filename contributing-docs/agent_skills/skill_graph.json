@@ -1,0 +1,51 @@
+{
+  "nodes": [
+    {
+      "id": "setup-breeze-environment",
+      "category": "environment",
+      "context": "host"
+    },
+    {
+      "id": "run-single-test",
+      "category": "testing",
+      "context": "host"
+    },
+    {
+      "id": "run-static-checks",
+      "category": "linting",
+      "context": "host"
+    },
+    {
+      "id": "run-manual-checks",
+      "category": "linting",
+      "context": "host"
+    },
+    {
+      "id": "build-docs",
+      "category": "documentation",
+      "context": "host"
+    }
+  ],
+  "edges": [
+    {
+      "from": "run-single-test",
+      "to": "setup-breeze-environment",
+      "type": "requires"
+    },
+    {
+      "from": "run-static-checks",
+      "to": "setup-breeze-environment",
+      "type": "requires"
+    },
+    {
+      "from": "run-manual-checks",
+      "to": "run-static-checks",
+      "type": "requires"
+    },
+    {
+      "from": "build-docs",
+      "to": "setup-breeze-environment",
+      "type": "requires"
+    }
+  ]
+}

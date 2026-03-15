@@ -925,6 +925,18 @@ repos:
         entry: python scripts/ci/pre_commit/extract_agent_skills.py
         files: ^AGENTS\.md$
         pass_filenames: false
+      - id: check-agent-skills-drift
+        name: Check Agent Skills manifest is in sync
+        language: python
+        entry: python scripts/ci/pre_commit/extract_agent_skills.py --check
+        files: ^AGENTS\.md$|^contributing-docs/agent_skills/skills\.json$
+        pass_filenames: false
+      - id: generate-skill-graph
+        name: Generate Agent Skills dependency graph
+        language: python
+        entry: python scripts/ci/pre_commit/skill_graph.py
+        files: ^contributing-docs/agent_skills/skills\.json$
+        pass_filenames: false
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/prek/update_example_dags_paths.py
