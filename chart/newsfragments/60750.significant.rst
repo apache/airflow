@@ -1,6 +1,6 @@
-Automatic ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` prefix addition removed from ``container_extra_envs`` and ``custom_airflow_environment``
+Automatic ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` and ``AIRFLOW__KUBERNETES_SECRETS__`` prefix addition removed from ``container_extra_envs`` and ``custom_airflow_environment``
 
-The automatic prefix addition for Kubernetes Executor environment variables has been removed from both the ``container_extra_envs`` and ``custom_airflow_environment`` helper functions.
+The automatic prefix addition for Kubernetes Executor environment variables and secrets has been removed from both the ``container_extra_envs`` and ``custom_airflow_environment`` helper functions.
 
 **What changed:**
 
@@ -53,3 +53,5 @@ Environment variables in ``.Values.env`` are now passed as-is without the automa
    config:
      kubernetes_environment_variables:
        my_var: "my_value"
+
+**Secrets (``.Values.secret``):** The ``AIRFLOW__KUBERNETES_SECRETS__`` prefix is no longer automatically added. Secrets are now passed as-is via ``secretKeyRef`` without the prefixed copy for worker pods.
