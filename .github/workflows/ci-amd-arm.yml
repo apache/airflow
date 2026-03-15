@@ -34,6 +34,7 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
+  actions: read
   contents: read
 env:
   GITHUB_REPOSITORY: ${{ github.repository }}
