@@ -52,6 +52,7 @@ from airflow.utils import yaml
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
 
+    from aiohttp import ClientResponse
     from kubernetes.client import V1JobList
     from kubernetes.client.models import CoreV1Event, CoreV1EventList, V1Job, V1Pod
 
@@ -1036,7 +1037,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 # (e.g. binary data, truncated multi-byte sequences).
                 # kubernetes_asyncio's default decoding uses strict UTF-8 which
                 # crashes the task in those cases.
-                raw_resp = await v1_api.read_namespaced_pod_log(
+                raw_resp: ClientResponse = await v1_api.read_namespaced_pod_log(
                     name=name,
                     namespace=namespace,
                     container=container_name,
@@ -1044,7 +1045,7 @@ class AsyncKubernetesHook(KubernetesHook):
                     timestamps=True,
                     since_seconds=since_seconds,
                     _preload_content=False,
-                )
+                )  # type: ignore  # _preload_content=False makes returning ClientResponse instead of str!
                 raw_bytes = await raw_resp.read()
                 logs = raw_bytes.decode("utf-8", errors="replace")
                 logs_list: list[str] = logs.splitlines()
