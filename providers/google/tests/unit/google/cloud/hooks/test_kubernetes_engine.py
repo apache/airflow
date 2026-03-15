@@ -538,6 +538,7 @@ class TestGKEKubernetesAsyncHook:
 
         get_conn_mock.assert_called_once_with()
         read_namespaced_pod_log.assert_called_with(
+            _preload_content=False,
             name=POD_NAME,
             namespace=POD_NAMESPACE,
             follow=False,
