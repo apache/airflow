@@ -1327,6 +1327,7 @@ def test_excluded_providers():
             "excluded-providers-as-string": json.dumps(
                 {
                     "3.14": [
+                        "amazon",  # Depends on lxml<6
                         "apache.cassandra",  # Enable when the next release after 3.29.3 is available
                     ],
                 }
