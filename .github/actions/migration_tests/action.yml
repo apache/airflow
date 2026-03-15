@@ -31,9 +31,13 @@ runs:
         MIN_AIRFLOW_VERSION="$(
           python ./scripts/ci/testing/get_min_airflow_version_for_python.py "${PYTHON_VERSION}"
         )"
+        AIRFLOW_EXTRAS=""
+        if [[ "${MIN_AIRFLOW_VERSION}" =~ ^2\. ]]; then
+          AIRFLOW_EXTRAS="--airflow-extras pydantic"
+        fi
         breeze shell "${AIRFLOW_2_CMD}" \
           --use-airflow-version "${MIN_AIRFLOW_VERSION}" \
-          --airflow-extras pydantic \
+          ${AIRFLOW_EXTRAS} \
           --answer y &&
         breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${DB_MANGERS}
                     ${AIRFLOW_3_CMD}" --no-db-cleanup
@@ -61,9 +65,13 @@ runs:
         MIN_AIRFLOW_VERSION="$(
           python ./scripts/ci/testing/get_min_airflow_version_for_python.py "${PYTHON_VERSION}"
         )"
+        AIRFLOW_EXTRAS=""
+        if [[ "${MIN_AIRFLOW_VERSION}" =~ ^2\. ]]; then
+          AIRFLOW_EXTRAS="--airflow-extras pydantic"
+        fi
         breeze shell "${AIRFLOW_2_CMD}" \
           --use-airflow-version "${MIN_AIRFLOW_VERSION}" \
-          --airflow-extras pydantic \
+          ${AIRFLOW_EXTRAS} \
           --answer y &&
         breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${DB_MANGERS}
              ${AIRFLOW_3_CMD}" --no-db-cleanup
