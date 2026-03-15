@@ -27,7 +27,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
-
+from sqlalchemy.orm import load_only
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
     set_dag_run_state_to_queued,
@@ -387,7 +387,19 @@ def get_dag_runs(
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
-    query = select(DagRun).options(*eager_load_dag_run_for_validation())
+    query = select(DagRun).options(
+    load_only(
+        DagRun.id,
+        DagRun.dag_id,
+        DagRun.run_id,
+        DagRun.state,
+        DagRun.logical_date,
+        DagRun.start_date,
+        DagRun.end_date,
+        DagRun.updated_at,
+    	),
+    *eager_load_dag_run_for_validation(),
+	)
 
     if dag_id != "~":
         get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
