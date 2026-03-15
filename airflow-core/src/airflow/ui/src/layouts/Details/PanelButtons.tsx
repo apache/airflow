@@ -310,7 +310,14 @@ export const PanelButtons = ({
               <Popover.Positioner>
                 <Popover.Content>
                   <Popover.Arrow />
-                  <Popover.Body display="flex" flexDirection="column" gap={4} p={2}>
+                  <Popover.Body
+                    display="flex"
+                    flexDirection="column"
+                    gap={4}
+                    maxH="70vh"
+                    overflowY="auto"
+                    p={2}
+                  >
                     {dagView === "graph" ? (
                       <>
                         <DagVersionSelect />
@@ -508,7 +515,7 @@ export const PanelButtons = ({
                         </VStack>
                         <VStack alignItems="flex-start">
                           <Text fontSize="xs" mb={1}>
-                            {translate("dag:panel.runAfterRange")}
+                            {translate("common:dagRun.runAfter")}
                           </Text>
                           <DateRangeInputs
                             editingState={editingState}
