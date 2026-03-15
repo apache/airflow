@@ -745,14 +745,25 @@ def start_airflow(
 @click.option(
     "--clean-build",
     is_flag=True,
-    help="Cleans the build directory before building the documentation and removes all inventory "
-    "cache (including external inventories).",
+    help="Cleans the build directory before building the documentation. "
+    "Does not delete inventory cache (use --clean-inventory-cache for that).",
+)
+@click.option(
+    "--clean-inventory-cache",
+    is_flag=True,
+    help="Cleans the inventory cache before fetching inventories.",
 )
 @click.option(
     "--refresh-airflow-inventories",
     is_flag=True,
     help="When set, only airflow package inventories will be refreshed, regardless "
     "if they are already downloaded. With `--clean-build` - everything is cleaned..",
+)
+@click.option(
+    "--fail-on-missing-third-party-inventories",
+    is_flag=True,
+    help="Fail the build if any third-party inventory cannot be downloaded. "
+    "By default, missing third-party inventories are warned about but do not fail the build.",
 )
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option(
@@ -790,7 +801,9 @@ def start_airflow(
 def build_docs(
     builder: str,
     clean_build: bool,
+    clean_inventory_cache: bool,
     refresh_airflow_inventories: bool,
+    fail_on_missing_third_party_inventories: bool,
     docs_only: bool,
     github_repository: str,
     include_not_ready_providers: bool,
@@ -815,7 +828,7 @@ def build_docs(
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
-        directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "apis"]
+        directories_to_clean = ["_build", "_doctrees", "apis"]
     else:
         directories_to_clean = ["apis"]
     generated_path = AIRFLOW_ROOT_PATH / "generated"
@@ -824,6 +837,11 @@ def build_docs(
         for directory in generated_path.rglob(dir_name):
             console_print(f"[info]Removing {directory}")
             shutil.rmtree(directory, ignore_errors=True)
+    if clean_inventory_cache:
+        inventory_cache_dir = generated_path / "_inventory_cache"
+        if inventory_cache_dir.exists():
+            console_print(f"[info]Removing inventory cache: {inventory_cache_dir}")
+            shutil.rmtree(inventory_cache_dir, ignore_errors=True)
     if refresh_airflow_inventories and not clean_build:
         console_print("Removing airflow inventories.")
         package_globs = ["helm-chart", "docker-stack", "apache-airflow*"]
@@ -849,6 +867,8 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         include_commits=include_commits,
+        fail_on_missing_third_party_inventories=fail_on_missing_third_party_inventories,
+        clean_inventory_cache=clean_inventory_cache,
         short_doc_packages=expand_all_provider_distributions(
             short_doc_packages=doc_packages,
             include_removed=include_removed_providers,
