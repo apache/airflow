@@ -1402,7 +1402,10 @@ option_e2e_test_mode = click.option(
     default="basic",
     show_default=True,
     envvar="E2E_TEST_MODE",
-    type=click.Choice(["basic", "remote_log", "xcom_object_storage"], case_sensitive=False),
+    type=click.Choice(
+        ["basic", "remote_log", "remote_log_elasticsearch", "xcom_object_storage"],
+        case_sensitive=False,
+    ),
 )
 
 
