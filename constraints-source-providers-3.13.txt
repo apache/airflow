@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-15T14:36:13.471137
+# This constraints file was automatically generated on 2026-03-15T15:04:45.139031
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -60,13 +60,16 @@ aiosqlite==0.21.0
 airbyte-api==0.53.0
 alabaster==1.0.0
 alembic==1.18.4
-alibabacloud-adb20211201==3.7.1
+alibabacloud-adb20211201==3.7.0
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.8
-alibabacloud-tea-openapi==0.4.3
+alibabacloud-openapi-util==0.2.4
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
+alibabacloud_endpoint_util==0.0.4
 alibabacloud_gateway_spi==0.0.3
+alibabacloud_tea_openapi==0.3.16
+alibabacloud_tea_xml==0.0.3
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
@@ -157,9 +160,8 @@ coverage==7.13.4
 crcmod==1.7
 cron_descriptor==2.0.6
 croniter==6.0.0
-cryptography==44.0.3
+cryptography==46.0.5
 curlify==3.0.0
-darabonba-core==1.0.5
 databricks-sql-connector==4.2.5
 databricks-sqlalchemy==2.0.9
 dataclasses-json==0.6.7
@@ -491,7 +493,7 @@ pure_eval==0.2.3
 py-partiql-parser==0.6.3
 py-spy==0.4.1
 py4j==0.10.9.9
-pyOpenSSL==25.1.0
+pyOpenSSL==25.3.0
 pyarrow==23.0.1
 pyasn1==0.6.2
 pyasn1_modules==0.4.2
@@ -630,7 +632,6 @@ spython==0.3.14
 sqlalchemy-bigquery==1.16.0
 sqlalchemy-spanner==1.17.2
 sqlalchemy_drill==1.1.10
-sqlean.py==3.50.4.5
 sqlglot==29.0.1
 sqlparse==0.5.5
 sse-starlette==3.3.2
