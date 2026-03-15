@@ -129,6 +129,9 @@ ENV/
 .idea/
 *.iml
 
+# Claude Code
+.claude/
+
 # Cursor
 .cursor/
 
