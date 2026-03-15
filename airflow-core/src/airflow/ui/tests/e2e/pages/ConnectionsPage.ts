@@ -127,7 +127,7 @@ export class ConnectionsPage extends BasePage {
     const backdrop = this.page.locator('[data-scope="dialog"][data-part="backdrop"]');
 
     if (await backdrop.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await expect(backdrop).toBeHidden({ timeout: 5000 });
+      await backdrop.waitFor({ state: "detached", timeout: 5000 });
     }
 
     const row = await this.findConnectionRow(connectionId);
