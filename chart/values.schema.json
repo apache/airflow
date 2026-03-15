@@ -10655,6 +10655,11 @@
                             "type": "boolean",
                             "default": false
                         },
+                        "syncToApiServer": {
+                            "description": "Enable git sync and dags mount for API server pods (Airflow 3+).",
+                            "type": "boolean",
+                            "default": false
+                        },
                         "repo": {
                             "description": "Git repository.",
                             "type": "string",

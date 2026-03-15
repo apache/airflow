@@ -30,6 +30,8 @@
 {{- $containerSecurityContext := include "containerSecurityContext" (list .Values.apiServer .Values) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.apiServer.waitForMigrations .Values) }}
 {{- $containerLifecycleHooks := or .Values.apiServer.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $syncGitToApiServer := and .Values.dags.gitSync.enabled .Values.dags.gitSync.syncToApiServer (not .Values.dags.persistence.enabled) }}
+{{- $mountDagsToApiServer := and .Values.dags.gitSync.syncToApiServer (or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -152,6 +154,9 @@ spec:
               {{- tpl (toYaml .Values.apiServer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
         {{- end }}
+        {{- if $syncGitToApiServer }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
+        {{- end }}
         {{- if .Values.apiServer.extraInitContainers }}
           {{- tpl (toYaml .Values.apiServer.extraInitContainers) . | nindent 8 }}
         {{- end }}
@@ -181,6 +186,9 @@ spec:
               {{- if .Values.logs.persistence.subPath }}
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
+            {{- end }}
+            {{- if $mountDagsToApiServer }}
+              {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
@@ -223,6 +231,9 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" true) .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.apiServer.env) | indent 10 }}
+        {{- if $syncGitToApiServer }}
+          {{- include "git_sync_container" . | indent 8 }}
+        {{- end }}
         {{- if .Values.apiServer.extraContainers }}
           {{- tpl (toYaml .Values.apiServer.extraContainers) . | nindent 8 }}
         {{- end }}
@@ -239,6 +250,17 @@ spec:
         - name: logs
           persistentVolumeClaim:
             claimName: {{ template "airflow_logs_volume_claim" . }}
+        {{- end }}
+        {{- if and .Values.dags.persistence.enabled .Values.dags.gitSync.syncToApiServer }}
+        - name: dags
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_dags_volume_claim" . }}
+        {{- else if and .Values.dags.gitSync.enabled .Values.dags.gitSync.syncToApiServer }}
+        - name: dags
+          emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
+        {{- end }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.syncToApiServer (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) }}
+          {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}

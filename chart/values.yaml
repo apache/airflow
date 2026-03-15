@@ -3589,6 +3589,9 @@ dags:
   gitSync:
     enabled: false
 
+    # enable git sync and dags mount for the api-server pods (Airflow 3+)
+    syncToApiServer: false
+
     # git repo clone url
     # ssh example: git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git

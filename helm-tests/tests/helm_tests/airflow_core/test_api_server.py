@@ -622,6 +622,70 @@ class TestAPIServerDeployment:
         assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.1"
         assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "foo.local"
 
+    def test_dags_gitsync_not_added_by_default(self):
+        docs = render_chart(
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+
+        container_names = [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        init_container_names = [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+        ]
+        volume_mount_names = [
+            vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        ]
+        volume_names = [v["name"] for v in jmespath.search("spec.template.spec.volumes", docs[0])]
+
+        assert "git-sync" not in container_names
+        assert "git-sync-init" not in init_container_names
+        assert "dags" not in volume_mount_names
+        assert "dags" not in volume_names
+
+    def test_dags_gitsync_sidecar_and_init_container_when_enabled(self):
+        docs = render_chart(
+            values={"dags": {"gitSync": {"enabled": True, "syncToApiServer": True}}},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+
+        container_names = [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        init_container_names = [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+        ]
+        volume_mount_names = [
+            vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        ]
+        volume_names = [v["name"] for v in jmespath.search("spec.template.spec.volumes", docs[0])]
+
+        assert "git-sync" in container_names
+        assert "git-sync-init" in init_container_names
+        assert "dags" in volume_mount_names
+        assert "dags" in volume_names
+
+    def test_dags_gitsync_with_persistence_no_sidecar_or_init_container(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {"enabled": True, "syncToApiServer": True},
+                    "persistence": {"enabled": True},
+                }
+            },
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+
+        container_names = [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
+        init_container_names = [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+        ]
+        volume_mount_names = [
+            vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        ]
+        volume_names = [v["name"] for v in jmespath.search("spec.template.spec.volumes", docs[0])]
+
+        assert "git-sync" not in container_names
+        assert "git-sync-init" not in init_container_names
+        assert "dags" in volume_mount_names
+        assert "dags" in volume_names
+
     def test_can_be_disabled(self):
         """
         API server can be disabled by configuration.
