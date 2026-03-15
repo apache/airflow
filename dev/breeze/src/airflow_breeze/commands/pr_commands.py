@@ -4538,6 +4538,7 @@ def auto_triage(
 
     if deterministic_timings:
         pr_titles = {pr.number: pr.title for pr in candidate_prs}
+        pr_urls = {pr.number: pr.url for pr in candidate_prs}
         # Amortize batch fetch time evenly across candidate PRs
         num_candidates = len(candidate_prs) or 1
         fetch_per_pr = enrich_total / num_candidates
@@ -4590,7 +4591,7 @@ def auto_triage(
             action_display = action_styles.get(action_raw, f"[dim]{action_raw or '—'}[/]")
 
             pr_timing_table.add_row(
-                f"#{pr_num}",
+                f"[link={pr_urls.get(pr_num, '')}]#{pr_num}[/link]",
                 title,
                 result,
                 action_display,
