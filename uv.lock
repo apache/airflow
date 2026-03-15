@@ -1722,7 +1722,7 @@ requires-dist = [
     { name = "argcomplete", specifier = ">=1.10" },
     { name = "asgiref", specifier = ">=2.3.0" },
     { name = "attrs", specifier = ">=22.1.0,!=25.2.0" },
-    { name = "cadwyn", specifier = ">=6.0.3" },
+    { name = "cadwyn", specifier = ">=6.0.4" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "cron-descriptor", specifier = ">=1.2.24" },
     { name = "croniter", specifier = ">=2.0.2" },
@@ -3236,7 +3236,6 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-http" },
-    { name = "asgiref" },
 ]
 
 [package.dev-dependencies]
@@ -3258,7 +3257,6 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-http", editable = "providers/http" },
-    { name = "asgiref", specifier = ">=2.3.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -3357,7 +3355,7 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "grpcio-status" },
-    { name = "pyspark" },
+    { name = "pyspark-client" },
 ]
 
 [package.optional-dependencies]
@@ -3366,6 +3364,9 @@ cncf-kubernetes = [
 ]
 openlineage = [
     { name = "apache-airflow-providers-openlineage" },
+]
+pyspark = [
+    { name = "pyspark" },
 ]
 
 [package.dev-dependencies]
@@ -3376,6 +3377,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
+    { name = "pyspark" },
 ]
 docs = [
     { name = "apache-airflow-devel-common", extra = ["docs"] },
@@ -3387,10 +3389,11 @@ requires-dist = [
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'cncf-kubernetes'", editable = "providers/cncf/kubernetes" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
-    { name = "grpcio-status", specifier = ">=1.59.0" },
-    { name = "pyspark", specifier = ">=3.5.2" },
+    { name = "grpcio-status", specifier = ">=1.67.0" },
+    { name = "pyspark", marker = "extra == 'pyspark'", specifier = ">=4.0.0" },
+    { name = "pyspark-client", specifier = ">=4.0.0" },
 ]
-provides-extras = ["cncf-kubernetes", "openlineage"]
+provides-extras = ["cncf-kubernetes", "openlineage", "pyspark"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3400,6 +3403,7 @@ dev = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "pyspark" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
@@ -9210,7 +9214,7 @@ wheels = [
 
 [[package]]
 name = "cadwyn"
-version = "6.0.3"
+version = "6.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
@@ -9221,9 +9225,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/89/45/05ae2f2f0314443b39f8acb6aad5504d101b905bee6d9e44a405a5914234/cadwyn-6.0.3.tar.gz", hash = "sha256:bf9b7228a5f809ab19daac569a9877218e2356975a0a4908273b6b56bd7820ef", size = 689124, upload-time = "2026-02-15T17:34:00.884Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/95/7e/b93c6d530baac55774203469ef216cd5f25186a68f1942d9305fc8af826e/cadwyn-6.0.4.tar.gz", hash = "sha256:5f698f6e01045f09c5980bc375e86855d09d5f338060bc0345e08e15229b266a", size = 654030, upload-time = "2026-03-14T17:41:57.234Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/88/a4461e3e0cf269cf62321870948c0d3bac6cdf5dd310fc654d5275362bb4/cadwyn-6.0.3-py3-none-any.whl", hash = "sha256:9cf6582a54611bc6aaa20d01e9674b41cf6c124ae9979ae5bb55a7840bb47a2e", size = 60768, upload-time = "2026-02-15T17:33:59.379Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/5a/c02d7c3cbe1394d893c46d74b220113628d8c21f400d26f904d6cd9d5e8c/cadwyn-6.0.4-py3-none-any.whl", hash = "sha256:3d59baa4a1285aeed13da3d61b9060a257c39de36bd14a722467b95e338f0b0c", size = 60273, upload-time = "2026-03-14T17:41:58.656Z" },
 ]
 
 [[package]]
@@ -18029,6 +18033,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/19/bf/58ee13add151469c25825b7125bbf62c3bdcec05eec4d458fcb5c5516066/pyspark-4.1.1.tar.gz", hash = "sha256:77f78984aa84fbe865c717dd37b49913b4e5c97d76ef6824f932f1aefa6621ec", size = 455359625, upload-time = "2026-01-09T09:38:38.28Z" }
 
 [[package]]
+name = "pyspark-client"
+version = "4.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "googleapis-common-protos" },
+    { name = "grpcio" },
+    { name = "grpcio-status" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pandas" },
+    { name = "pyarrow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2b/5b/4984eae14b38106f15228da2ff584ba199e2d916c36e45d98cdbea14f4da/pyspark_client-4.0.2.tar.gz", hash = "sha256:55b4f0f7248ddfa53a4c732336470c04832ad9c9ef57ce79fd6c8c58b49dcd65", size = 1499184, upload-time = "2026-02-05T19:31:26.833Z" }
+
+[[package]]
 name = "pyspnego"
 version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
@@ -20089,7 +20108,7 @@ dependencies = [
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 wheels = [
-    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.0-py3-none-any.whl", hash = "sha256:bced1d0a2e5365330f8121bfc55cada8d21c1d8a2500f42b63e6fa192b63fa8a" },
+    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.0-py3-none-any.whl", hash = "sha256:4e78c493d17a24fc6bc2af338d4a8a318e67d6bb25cd0bc85e3d74e281b1b494" },
 ]
 
 [package.metadata]
