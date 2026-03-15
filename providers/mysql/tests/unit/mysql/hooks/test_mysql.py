@@ -506,7 +506,12 @@ class TestMySqlHook:
             IGNORE 1 LINES""",
         )
         self.cur.execute.assert_called_once_with(
-            f"LOAD DATA LOCAL INFILE %s IGNORE INTO TABLE `{table}` FIELDS TERMINATED BY ';'\n            OPTIONALLY ENCLOSED BY '\"'\n            IGNORE 1 LINES",
+            (
+                f"LOAD DATA LOCAL INFILE %s IGNORE INTO TABLE `{table}` "
+                "FIELDS TERMINATED BY ';'\n"
+                "            OPTIONALLY ENCLOSED BY '\"'\n"
+                "            IGNORE 1 LINES"
+            ),
             ("/tmp/file",),
         )
 
@@ -521,7 +526,9 @@ class TestMySqlHook:
         mock_send_lineage.assert_called_once()
         call_kw = mock_send_lineage.call_args.kwargs
         assert call_kw["context"] is self.db_hook
-        assert call_kw["sql"] == "LOAD DATA LOCAL INFILE %s IGNORE INTO TABLE `table` FIELDS TERMINATED BY ';'"
+        assert (
+            call_kw["sql"] == "LOAD DATA LOCAL INFILE %s IGNORE INTO TABLE `table` FIELDS TERMINATED BY ';'"
+        )
         assert call_kw["sql_parameters"] == ("/tmp/file",)
         assert call_kw["cur"] is self.cur
 
@@ -536,9 +543,7 @@ class TestMySqlHook:
             ("REPLACE", "FIELDS TERMINATED BY '\\t'"),
         ],
     )
-    def test_bulk_load_custom_duplicate_key_not_parameterized(
-        self, duplicate_key_handling, extra_options
-    ):
+    def test_bulk_load_custom_duplicate_key_not_parameterized(self, duplicate_key_handling, extra_options):
         """Test that duplicate_key_handling and extra_options appear as SQL keywords, not parameterized values."""
         self.db_hook.bulk_load_custom(
             "test_table",
