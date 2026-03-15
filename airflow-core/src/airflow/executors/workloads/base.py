@@ -27,6 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
+    from airflow.executors.workloads.types import WorkloadKey
 
 
 class WorkloadType(str, Enum):
@@ -94,7 +95,7 @@ class BaseWorkloadSchema(BaseModel):
         return generator.generate({"sub": sub_id}) if generator else ""
 
     @property
-    def queue_key(self):
+    def queue_key(self) -> WorkloadKey:
         """Return a unique key used to store/lookup this workload in the executor queue."""
         raise NotImplementedError
 

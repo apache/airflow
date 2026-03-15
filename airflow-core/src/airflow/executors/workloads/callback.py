@@ -76,7 +76,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
     type: Literal[WorkloadType.EXECUTE_CALLBACK] = Field(init=False, default=WorkloadType.EXECUTE_CALLBACK)
 
     @property
-    def queue_key(self):
+    def queue_key(self) -> CallbackKey:
         """Return the callback ID as the queue key."""
         return self.callback.id
 

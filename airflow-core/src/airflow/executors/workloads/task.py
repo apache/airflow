@@ -74,7 +74,7 @@ class ExecuteTask(BaseDagBundleWorkload):
     type: Literal[WorkloadType.EXECUTE_TASK] = Field(init=False, default=WorkloadType.EXECUTE_TASK)
 
     @property
-    def queue_key(self):
+    def queue_key(self) -> TaskInstanceKey:
         """Return the task instance key as the queue key."""
         return self.ti.key
 
