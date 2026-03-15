@@ -61,6 +61,9 @@ def _get_nested_value(obj: Any, path: str) -> Any:
     for key in keys:
         if isinstance(current, dict):
             current = current.get(key)
+        elif isinstance(current, (list, tuple)) and key.isdigit():
+            idx = int(key)
+            current = current[idx] if idx < len(current) else None
         elif hasattr(current, key):
             current = getattr(current, key)
         else:
