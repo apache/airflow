@@ -78,7 +78,6 @@ dependencies = [
     # Do not change sagemaker-studio versions without approval from AWS.
     "sagemaker-studio>=1.0.9",
     # Sagemaker studio in Python 3.13 requires version >=1.1.0 and Pydynamodb >=0.7.5
-    # Pydynamodb >=0.8.1 removed the sqlean.py dependency that was problematic on 3.13
     "pydynamodb>=0.8.1; python_version >= '3.13'",
     "marshmallow>=3",
 ]
