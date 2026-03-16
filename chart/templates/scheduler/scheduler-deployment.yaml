@@ -109,10 +109,10 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
         {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.airflowPodAnnotations) . | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.podAnnotations }}
-          {{- toYaml .Values.scheduler.podAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.scheduler.podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.scheduler.priorityClassName }}
@@ -175,7 +175,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- if .Values.scheduler.waitForMigrations.env }}
               {{- tpl (toYaml .Values.scheduler.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -204,7 +204,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" true) .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.scheduler.env) | indent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.scheduler.livenessProbe.initialDelaySeconds }}
@@ -238,12 +238,10 @@ spec:
           {{- end }}
           resources: {{- toYaml .Values.scheduler.resources | nindent 12 }}
           volumeMounts:
-            {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
             - name: config
               mountPath: {{ include "airflow_pod_template_file" . }}/pod_template_file.yaml
               subPath: pod_template_file.yaml
               readOnly: true
-            {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
               {{- if .Values.logs.persistence.subPath }}
@@ -289,6 +287,10 @@ spec:
           {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.scheduler.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.scheduler.logGroomerSidecar.retentionMinutes }}"
           {{- end }}
           {{- if .Values.scheduler.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES

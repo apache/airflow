@@ -427,3 +427,27 @@ def remove_worker_queues(args) -> None:
     except TypeError as e:
         logger.error(str(e))
         raise SystemExit
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def set_remote_worker_concurrency(args) -> None:
+    """Set the concurrency of a remote edge worker."""
+    _check_valid_db_connection()
+    _check_if_registered_edge_host(hostname=args.edge_hostname)
+    from airflow.providers.edge3.models.edge_worker import set_worker_concurrency
+
+    if args.concurrency <= 0:
+        raise SystemExit("Error: Concurrency must be a positive integer.")
+
+    try:
+        set_worker_concurrency(args.edge_hostname, args.concurrency)
+        logger.info(
+            "Concurrency set to %d for Edge Worker host %s by %s.",
+            args.concurrency,
+            args.edge_hostname,
+            getuser(),
+        )
+    except TypeError as e:
+        logger.error(str(e))
+        raise SystemExit

@@ -26,7 +26,7 @@ import shutil
 import signal
 import textwrap
 import time
-from collections import deque
+from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socket, socketpair
@@ -642,6 +642,12 @@ class TestDagFileProcessorManager:
         manager._last_stale_bundle_cleanup_time = time.monotonic()
         manager._cleanup_stale_bundle_versions()
         mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_not_called()
+
+    @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
+    def test_cleanup_stale_bundle_versions(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.cleanup_stale_bundle_versions()
+        mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once_with()
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
@@ -1357,6 +1363,47 @@ class TestDagFileProcessorManager:
             manager._refresh_dag_bundles({})
             assert bundleone.refresh.call_count == 1  # didn't fresh the second time
 
+    @pytest.mark.parametrize(
+        (
+            "elapsed_time_since_refresh",
+            "current_version_matches_db",
+            "previously_seen",
+            "force_refresh",
+            "expected",
+        ),
+        [
+            (10, True, True, False, True),
+            (400, True, True, False, False),
+            (10, False, True, False, False),
+            (10, True, False, False, False),
+            (10, True, True, True, False),
+        ],
+    )
+    def test_should_skip_bundle_refresh(
+        self,
+        elapsed_time_since_refresh,
+        current_version_matches_db,
+        previously_seen,
+        force_refresh,
+        expected,
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock()
+        bundle.name = "bundleone"
+        bundle.refresh_interval = 300
+
+        if force_refresh:
+            manager._force_refresh_bundles = {"bundleone"}
+
+        should_skip_refresh = manager.should_skip_refresh(
+            bundle=bundle,
+            elapsed_time_since_refresh=elapsed_time_since_refresh,
+            current_version_matches_db=current_version_matches_db,
+            previously_seen=previously_seen,
+        )
+
+        assert should_skip_refresh is expected
+
     def test_bundle_force_refresh(self):
         """Ensure the dag processor honors force refreshing a bundle."""
         config = [
@@ -1590,6 +1637,33 @@ class TestDagFileProcessorManager:
         # Verify Stats.initialize was called with the expected configuration parameters
         stats_init_mock.assert_called_once()
         call_kwargs = stats_init_mock.call_args.kwargs
-        assert "is_statsd_datadog_enabled" in call_kwargs
-        assert "is_statsd_on" in call_kwargs
-        assert "is_otel_on" in call_kwargs
+        assert "factory" in call_kwargs
+
+    @mock.patch("airflow.dag_processing.manager.Stats.gauge")
+    def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):
+        key = "dag_processing.total_parse_time"
+        gauge_values = defaultdict(list)
+        statsd_gauge_mock.side_effect = lambda name, value: gauge_values[name].append(value)
+
+        dag_path = tmp_path / "temp_dag.py"
+        dag_code = textwrap.dedent(
+            """
+            from airflow import DAG
+            dag = DAG(dag_id='temp_dag')
+            """
+        )
+        dag_path.write_text(dag_code)
+
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=0)
+
+            for _ in range(3):
+                manager.max_runs += 1
+                manager.run()
+
+                assert key in gauge_values
+                assert len(gauge_values[key]) == 1
+                assert gauge_values[key][0] >= 1e-4
+
+                dag_path.touch()  # make the loop run faster
+                gauge_values.clear()

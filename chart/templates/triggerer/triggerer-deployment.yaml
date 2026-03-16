@@ -20,10 +20,8 @@
 ################################
 ## Airflow Triggerer Deployment
 #################################
-{{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
 {{- if .Values.triggerer.enabled }}
-{{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
-{{- $persistence := and .Values.triggerer.persistence.enabled (semverCompare ">=2.6.0" .Values.airflowVersion) }}
+{{- $persistence := .Values.triggerer.persistence.enabled }}
 {{- $keda := .Values.triggerer.keda.enabled }}
 {{- $nodeSelector := or .Values.triggerer.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
@@ -95,10 +93,10 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
         {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.airflowPodAnnotations) . | nindent 8 }}
         {{- end }}
         {{- if .Values.triggerer.podAnnotations }}
-          {{- toYaml .Values.triggerer.podAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.triggerer.podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.triggerer.priorityClassName }}
@@ -159,7 +157,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- if .Values.triggerer.waitForMigrations.env }}
               {{- tpl (toYaml .Values.triggerer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -207,7 +205,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.triggerer.env) | nindent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.triggerer.livenessProbe.initialDelaySeconds }}
@@ -221,12 +219,9 @@ spec:
                 {{- else }}
                   {{- include "triggerer_liveness_check_command" . | indent 14 }}
                 {{- end }}
-        {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
-          {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
           ports:
             - name: triggerer-logs
               containerPort: {{ .Values.ports.triggererLogs }}
-          {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
@@ -249,6 +244,10 @@ spec:
           {{- if .Values.triggerer.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.triggerer.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.triggerer.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.triggerer.logGroomerSidecar.retentionMinutes }}"
           {{- end }}
           {{- if .Values.triggerer.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
@@ -337,5 +336,4 @@ spec:
           requests:
             storage: {{ .Values.triggerer.persistence.size }}
   {{- end }}
-{{- end }}
 {{- end }}

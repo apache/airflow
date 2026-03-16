@@ -20,7 +20,6 @@
 ################################
 ## Airflow Dag Processor Deployment
 #################################
-{{- if semverCompare ">=2.3.0" .Values.airflowVersion }}
 {{- $enabled := .Values.dagProcessor.enabled }}
 {{- if eq $enabled nil}}
   {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
@@ -84,10 +83,10 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
         {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.airflowPodAnnotations) . | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.podAnnotations }}
-          {{- toYaml .Values.dagProcessor.podAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.dagProcessor.podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.dagProcessor.priorityClassName }}
@@ -136,7 +135,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- if .Values.dagProcessor.waitForMigrations.env }}
               {{- tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -181,7 +180,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.dagProcessor.env) | indent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.dagProcessor.livenessProbe.initialDelaySeconds }}
@@ -214,6 +213,10 @@ spec:
           {{- if .Values.dagProcessor.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionMinutes }}"
           {{- end }}
           {{- if .Values.dagProcessor.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
@@ -284,6 +287,5 @@ spec:
         {{- else }}
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
-{{- end }}
 {{- end }}
 {{- end }}

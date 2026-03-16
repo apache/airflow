@@ -47,7 +47,7 @@ Add to your ``airflow.cfg``:
 
     [informatica]
     # Disable sending events without uninstalling the Informatica Provider
-    disabled = False
+    listener_disabled = False
     # The connection ID to use when no connection ID is provided
     default_conn_id = informatica_edc_default
 
@@ -56,7 +56,7 @@ Provider Configuration
 
 The provider configuration is defined in ``get_provider_info.py`` and includes:
 
-- ``disabled``: Boolean flag to disable the provider without uninstalling
+- ``listener_disabled``: Boolean flag to disable sending events without uninstalling the provider
 - ``default_conn_id``: Default connection ID for Informatica EDC
 
 SSL and Security

@@ -41,13 +41,24 @@ dagruns_select_with_state_count = (
 
 
 def eager_load_dag_run_for_validation() -> tuple[LoaderOption, ...]:
-    """Construct the eager loading options necessary for a DagRunResponse object."""
+    """
+    Construct the eager loading options necessary for a DagRunResponse object.
+
+    For the list endpoint (get_dag_runs), loading all task instance columns is
+    wasteful because we only need the dag_version_id FK to traverse to DagVersion.
+    Using load_only() on TaskInstance and TaskInstanceHistory restricts the SELECT
+    to just the identity columns and dag_version_id, avoiding large intermediate
+    result sets caused by loading heavyweight columns (executor_config, etc.) for
+    every task instance across every DAG run returned by the query.
+    """
     return (
         joinedload(DagRun.dag_model),
         selectinload(DagRun.task_instances)
+        .load_only(TaskInstance.dag_version_id)
         .joinedload(TaskInstance.dag_version)
         .joinedload(DagVersion.bundle),
         selectinload(DagRun.task_instances_histories)
+        .load_only(TaskInstanceHistory.dag_version_id)
         .joinedload(TaskInstanceHistory.dag_version)
         .joinedload(DagVersion.bundle),
         joinedload(DagRun.dag_run_note),

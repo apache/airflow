@@ -25,6 +25,7 @@ import json
 import os
 import pathlib
 import platform
+import subprocess
 import sys
 import textwrap
 import warnings
@@ -36,6 +37,11 @@ from typing import Any
 
 import jsonschema
 import yaml
+from in_container_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_PROVIDERS_PATH,
+    AIRFLOW_ROOT_PATH,
+)
 from jsonpath_ng.ext import parse
 from rich.console import Console
 from tabulate import tabulate
@@ -43,13 +49,6 @@ from tabulate import tabulate
 from airflow.cli.commands.info_command import Architecture
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
-
-sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
-from in_container_utils import (
-    AIRFLOW_CORE_SOURCES_PATH,
-    AIRFLOW_PROVIDERS_PATH,
-    AIRFLOW_ROOT_PATH,
-)
 
 # Those are deprecated modules that contain removed Hooks/Sensors/Operators that we left in the code
 # so that users can get a very specific error message when they try to use them.
@@ -60,9 +59,6 @@ DEPRECATED_MODULES = [
     "airflow.providers.tabular.hooks.tabular",
     "airflow.providers.yandex.hooks.yandexcloud_dataproc",
     "airflow.providers.yandex.operators.yandexcloud_dataproc",
-    "airflow.providers.google.cloud.hooks.datacatalog",
-    "airflow.providers.google.cloud.operators.datacatalog",
-    "airflow.providers.google.cloud.links.datacatalog",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [
@@ -99,6 +95,31 @@ if os.environ.get("PYTHONWARNINGS") != "default":
 suspended_providers: set[str] = set()
 suspended_logos: set[str] = set()
 suspended_integrations: set[str] = set()
+
+
+def sync_dependencies_without_dev() -> None:
+    """
+    Run uv sync --no-dev to strip development dependencies.
+
+    This ensures validation runs in an environment closer to production,
+    which helps detect cases where providers have unhandled optional
+    cross-provider dependencies.
+    """
+    console.print("[magenta]Running uv sync --no-dev to strip development dependencies...[/]")
+    result = subprocess.run(
+        ["uv", "sync", "--no-dev", "--all-packages", "--no-python-downloads", "--no-managed-python"],
+        capture_output=True,
+        text=True,
+        cwd=AIRFLOW_ROOT_PATH,
+        check=False,
+    )
+    if result.returncode != 0:
+        console.print(f"[red]Failed to remove dev dependencies: {result.stderr}[/]")
+        sys.exit(1)
+
+    console.print("[green]Successfully synchronized without dev dependencies[/]")
+    if result.stdout:
+        console.print(result.stdout)
 
 
 def _filepath_to_module(filepath: pathlib.Path | str) -> str:
@@ -608,6 +629,14 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
         for f in expected_relative_doc_files
         if f.name != "index.rst" and "_partials" not in f.parts and f.parts[2] == "docs"
     }
+
+    expected_doc_urls = {
+        doc_url
+        for doc_url in expected_doc_urls
+        for suspend_provider in suspended_providers
+        if suspend_provider not in doc_url
+    }
+
     if suspended_logos:
         console.print("[yellow]Suspended logos:[/]")
         console.print(suspended_logos)
@@ -718,6 +747,7 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
 
 
 if __name__ == "__main__":
+    sync_dependencies_without_dev()
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
@@ -759,6 +789,16 @@ if __name__ == "__main__":
         check_doc_files(all_parsed_yaml_files)
         check_invalid_integration(all_parsed_yaml_files)
         check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
+
+    # remove errors related to suspended module imports.
+    print("suspended_providers ", suspended_providers)
+    if suspended_providers and errors:
+        errors = [
+            error
+            for error in errors
+            for module in suspended_providers
+            if f"No module named '{module.replace('apache-', '', 1).replace('-', '.')}'" not in error
+        ]
 
     if errors:
         error_num = len(errors)

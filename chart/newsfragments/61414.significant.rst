@@ -1,0 +1,1 @@
+``workers.podDisruptionBudget`` section is now deprecated in favor of ``workers.celery.podDisruptionBudget``. Please update your configuration accordingly.

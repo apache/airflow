@@ -129,6 +129,15 @@
     "graphDirection": {
       "label": "Kierunek grafu"
     },
+    "showVersionIndicator": {
+      "label": "Pokaż wskaźnik wersji",
+      "options": {
+        "hideAll": "Ukryj wszystkie",
+        "showAll": "Pokaż wszystkie",
+        "showBundleVersion": "Pokaż wersję pakietu",
+        "showDagVersion": "Pokaż wersję Daga"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "Aktywny filtr",
       "clearFilter": "Wyczyść filtr",

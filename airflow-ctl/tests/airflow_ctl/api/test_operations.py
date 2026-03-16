@@ -199,6 +199,38 @@ class TestBaseOperations:
 
         assert expected_response == response
 
+    def test_execute_list_sends_limit_to_server(self):
+        """``limit`` must be included in request params so the server returns
+        the expected page size.  Without it the server uses its own default
+        (e.g. 100) which causes duplicate entries when ``limit`` differs."""
+        mock_client = Mock()
+        mock_client.get.return_value = Mock(
+            content=json.dumps({"hellos": [{"name": "hello"}] * 3, "total_entries": 3})
+        )
+        base_operation = BaseOperations(client=mock_client)
+
+        base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=50)
+
+        call_params = mock_client.get.call_args_list[0]
+        assert call_params.kwargs["params"]["limit"] == 50
+
+    def test_execute_list_sends_limit_on_subsequent_pages(self):
+        """Every paginated request must include ``limit`` so that offset
+        arithmetic stays consistent with the actual page size returned."""
+        mock_client = Mock()
+        mock_client.get.side_effect = [
+            Mock(content=json.dumps({"hellos": [{"name": "a"}, {"name": "b"}], "total_entries": 3})),
+            Mock(content=json.dumps({"hellos": [{"name": "c"}], "total_entries": 3})),
+        ]
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=2)
+
+        assert len(response.hellos) == 3
+        # Verify limit is sent on both the first and second request
+        for call in mock_client.get.call_args_list:
+            assert call.kwargs["params"]["limit"] == 2
+
 
 class TestAssetsOperations:
     asset_id: int = 1
@@ -689,6 +721,7 @@ class TestDagOperations:
         description="description",
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
+        timetable_partitioned=False,
         tags=[],
         max_active_tasks=1,
         max_active_runs=1,
@@ -716,6 +749,7 @@ class TestDagOperations:
         description="description",
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
+        timetable_partitioned=False,
         tags=[],
         max_active_tasks=1,
         max_active_runs=1,
@@ -1033,6 +1067,44 @@ class TestDagRunOperations:
             state=DagRunState.RUNNING,
             limit=1,
         )
+        assert response == self.dag_run_collection_response
+
+    def test_list_all_dags(self):
+        """Test listing dag runs for all DAGs using default dag_id='~'."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            # When dag_id is "~", it should query all DAGs
+            assert request.url.path == "/api/v2/dags/~/dagRuns"
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        # Call without specifying dag_id - should use default "~"
+        response = client.dag_runs.list(
+            start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            state="running",
+            limit=1,
+        )
+        assert response == self.dag_run_collection_response
+
+    def test_list_with_optional_parameters(self):
+        """Test listing dag runs with only some optional parameters."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag1/dagRuns"
+            # Verify that only state and limit are in query params
+            params = dict(request.url.params)
+            assert "state" in params
+            assert params["state"] == "queued"
+            assert "limit" in params
+            assert params["limit"] == "5"
+            # start_date and end_date should not be present
+            assert "start_date" not in params
+            assert "end_date" not in params
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(state="queued", limit=5, dag_id="dag1")
         assert response == self.dag_run_collection_response
 
 

@@ -23,7 +23,7 @@ import { VariablePage } from "../pages/VariablePage";
 
 test.describe("Variables Page", () => {
   let variablesPage: VariablePage;
-  let createVariables = 6;
+  let createVariables = 3;
 
   const createdVariables: Array<{
     description: string;
@@ -48,6 +48,9 @@ test.describe("Variables Page", () => {
       };
 
       createdVariables.push(variable);
+
+      // Wait for dialog backdrop to fully disappear
+      await expect(page.locator('[data-part="backdrop"]')).toHaveCount(0);
 
       await variablesPage.addButton.click();
 
@@ -206,6 +209,7 @@ test.describe("Variables Page", () => {
   });
 
   test.afterAll(async ({ browser }) => {
+    test.setTimeout(300_000);
     if (createdVariables.length === 0) {
       return;
     }

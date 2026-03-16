@@ -112,8 +112,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
     "3.1.0": "cc92b33c6709",
-    "3.1.8": "82dbd68e6171",
-    "3.2.0": "f8c9d7e6b5a4",
+    "3.1.8": "509b94a1042d",
+    "3.2.0": "6222ce48e289",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -947,8 +947,9 @@ def check_and_run_migrations():
     if sys.stdout.isatty() and verb:
         print()
         question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure? [y/N]"
+        print_fn = log.info if conf.getboolean("logging", "json_logs", fallback=False) else print
         try:
-            answer = helpers.prompt_with_timeout(question, timeout=4, default=False)
+            answer = helpers.prompt_with_timeout(question, timeout=4, default=False, output_fn=print_fn)
             if answer:
                 try:
                     db_command()
@@ -969,10 +970,11 @@ def check_and_run_migrations():
     elif source_heads != db_heads:
         from airflow.version import version
 
-        print(
-            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}`. "
-            f"Make sure the command is run using Airflow version {version}.",
-            file=sys.stderr,
+        log.error(
+            "Database migration required. Please run `airflow db %s`. "
+            "Make sure the command is run using Airflow version %s.",
+            command_name,
+            version,
         )
         sys.exit(1)
 

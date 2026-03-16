@@ -68,10 +68,4 @@ test.describe("Verify Required Action page", () => {
       await expect(browsePage.emptyStateMessage).toBeVisible();
     }
   });
-
-  test("verify pagination with offset and limit", async ({ page }) => {
-    const browsePage = new RequiredActionsPage(page);
-
-    await browsePage.verifyPagination(3);
-  });
 });

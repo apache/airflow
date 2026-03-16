@@ -22,6 +22,7 @@ description: |
     `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768335469
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -81,6 +82,14 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.opsgenie.hooks.opsgenie.OpsgenieAlertHook
     connection-type: opsgenie
+    ui-field-behaviour:
+      hidden-fields:
+        - port
+        - schema
+        - login
+        - extra
+      relabeling:
+        password: Opsgenie API Key
 
 notifications:
   - airflow.providers.opsgenie.notifications.opsgenie.OpsgenieNotifier

@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, HStack, Link, List, Table, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Box, Code, HStack, Link as ChakraLink, List, Table, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useState, useCallback } from "react";
 import { useUiServiceWorker } from "openapi/queries";
+import { Link } from "react-router-dom";
 import { LuExternalLink } from "react-icons/lu";
 import TimeAgo from "react-timeago";
 
@@ -161,7 +162,9 @@ export const WorkerPage = () => {
                     {worker.queues ? (
                       <List.Root>
                         {worker.queues.map((queue) => (
-                          <List.Item key={queue}>{queue}</List.Item>
+                          <List.Item key={queue}>
+                            <Link to={`../jobs?queue=${encodeURIComponent(queue)}`}>{queue}</Link>
+                          </List.Item>
                         ))}
                       </List.Root>
                     ) : (
@@ -174,7 +177,15 @@ export const WorkerPage = () => {
                   <Table.Cell>
                     {worker.last_heartbeat ? <TimeAgo date={worker.last_heartbeat} live={false} /> : undefined}
                   </Table.Cell>
-                  <Table.Cell>{worker.jobs_active}</Table.Cell>
+                  <Table.Cell>
+                    {worker.jobs_active !== undefined && worker.jobs_active > 0 ? (
+                      <Link to={`../jobs?worker=${encodeURIComponent(worker.worker_name)}`}>
+                        {worker.jobs_active}
+                      </Link>
+                    ) : (
+                      worker.jobs_active ?? 0
+                    )}
+                  </Table.Cell>
                   <Table.Cell>
                     {worker.sysinfo ? (
                       <List.Root>
@@ -200,14 +211,14 @@ export const WorkerPage = () => {
       ) : (
         <Text as="div" pl={2} pt={1}>
           No known workers. Start one via <Code>airflow edge worker [...]</Code>. See{" "}
-          <Link
+          <ChakraLink
             target="_blank"
             variant="underline"
             color="fg.info"
             href="https://airflow.apache.org/docs/apache-airflow-providers-edge3/stable/deployment.html"
           >
             Edge Worker Deployment docs <LuExternalLink />
-          </Link>{" "}
+          </ChakraLink>{" "}
           how to deploy a new worker.
         </Text>
       )}

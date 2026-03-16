@@ -80,10 +80,63 @@ def get_provider_info():
             },
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.slack.hooks.slack.SlackHook", "connection-type": "slack"},
+            {
+                "hook-class-name": "airflow.providers.slack.hooks.slack.SlackHook",
+                "connection-type": "slack",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "port", "host", "schema", "extra"],
+                    "relabeling": {"password": "Slack API Token"},
+                    "placeholders": {
+                        "password": "REPLACE ME WITH A SLACK ACCESS TOKEN",
+                        "timeout": "30",
+                        "base_url": "https://www.slack.com/api/",
+                        "proxy": "http://localhost:9000",
+                    },
+                },
+                "conn-fields": {
+                    "timeout": {
+                        "label": "Timeout",
+                        "schema": {"type": ["integer", "null"]},
+                        "description": "Optional. Max seconds to wait for Slack API response.",
+                    },
+                    "base_url": {
+                        "label": "Base URL",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "Optional. A string representing the Slack API base URL.",
+                    },
+                    "proxy": {
+                        "label": "Proxy",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "Optional. Proxy to make the Slack API call.",
+                    },
+                },
+            },
             {
                 "hook-class-name": "airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook",
                 "connection-type": "slackwebhook",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["login", "port", "extra"],
+                    "relabeling": {"host": "Slack Webhook Endpoint", "password": "Webhook Token"},
+                    "placeholders": {
+                        "schema": "https",
+                        "host": "hooks.slack.com/services",
+                        "password": "T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+                        "timeout": "30",
+                        "proxy": "http://localhost:9000",
+                    },
+                },
+                "conn-fields": {
+                    "timeout": {
+                        "label": "Timeout",
+                        "schema": {"type": ["integer", "null"]},
+                        "description": "Optional. Max seconds to wait for Slack Incoming Webhook response.",
+                    },
+                    "proxy": {
+                        "label": "Proxy",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "Optional. Proxy to make the Slack Incoming Webhook call.",
+                    },
+                },
             },
         ],
         "notifications": [

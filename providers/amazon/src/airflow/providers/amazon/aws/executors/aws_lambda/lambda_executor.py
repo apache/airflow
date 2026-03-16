@@ -41,7 +41,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, Stats, conf, timezone
+from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -61,6 +61,8 @@ class AwsLambdaExecutor(BaseExecutor):
     to update task state in Airflow.
     """
 
+    supports_multi_team: bool = True
+
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
         # In the v3 path, we store workloads, not commands as strings.
         # TODO: TaskSDK: move this type change into BaseExecutor
@@ -70,12 +72,23 @@ class AwsLambdaExecutor(BaseExecutor):
         super().__init__(*args, **kwargs)
         self.pending_tasks: deque = deque()
         self.running_tasks: dict[str, TaskInstanceKey] = {}
-        self.lambda_function_name = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.FUNCTION_NAME)
-        self.sqs_queue_url = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUEUE_URL)
-        self.dlq_url = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.DLQ_URL)
-        self.qualifier = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUALIFIER, fallback=None)
+
+        # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
+        # configuration object. This allows the changes to be backwards compatible with older versions of
+        # Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration.
+        if not hasattr(self, "conf"):
+            from airflow.providers.common.compat.sdk import conf
+
+            self.conf = conf
+
+        self.lambda_function_name = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.FUNCTION_NAME)
+        self.sqs_queue_url = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUEUE_URL)
+        self.dlq_url = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.DLQ_URL)
+        self.qualifier = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUALIFIER, fallback=None)
         # Maximum number of retries to invoke Lambda.
-        self.max_invoke_attempts = conf.get(
+        self.max_invoke_attempts = self.conf.get(
             CONFIG_GROUP_NAME,
             AllLambdaConfigKeys.MAX_INVOKE_ATTEMPTS,
         )
@@ -86,7 +99,7 @@ class AwsLambdaExecutor(BaseExecutor):
 
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
-        check_health = conf.getboolean(CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP)
+        check_health = self.conf.getboolean(CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP)
 
         if not check_health:
             return
@@ -152,8 +165,8 @@ class AwsLambdaExecutor(BaseExecutor):
         :param check_connection: If True, check the health of the connection after loading it.
         """
         self.log.info("Loading Connections")
-        aws_conn_id = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.AWS_CONN_ID)
-        region_name = conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.REGION_NAME, fallback=None)
+        aws_conn_id = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.AWS_CONN_ID)
+        region_name = self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.REGION_NAME, fallback=None)
         self.sqs_client = SqsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.lambda_client = LambdaHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
 
@@ -492,7 +505,9 @@ class AwsLambdaExecutor(BaseExecutor):
         :param heartbeat_interval: The interval in seconds to wait between checks for task completion.
         """
         self.log.info("Received signal to end, waiting for outstanding tasks to finish.")
-        time_to_wait = int(conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT, fallback="0"))
+        time_to_wait = int(
+            self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT, fallback="0")
+        )
         start_time = timezone.utcnow()
         while True:
             if time_to_wait:

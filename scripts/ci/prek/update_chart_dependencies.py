@@ -27,12 +27,9 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
 import requests
 import yaml
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_ROOT_PATH, console
 
 VALUES_YAML_FILE = AIRFLOW_ROOT_PATH / "chart" / "values.yaml"
@@ -42,8 +39,13 @@ VALUES_SCHEMA_FILE = AIRFLOW_ROOT_PATH / "chart" / "values.schema.json"
 def get_latest_prometheus_statsd_exporter_version() -> str:
     quay_data = requests.get("https://quay.io/api/v1/repository/prometheus/statsd-exporter/tag/").json()
     for version in quay_data["tags"]:
-        if version["name"].startswith("v"):
-            return version["name"]
+        name = version["name"]
+        if not name.startswith("v"):
+            continue
+        # Skip "v0"
+        if name == "v0":
+            continue
+        return name
     raise RuntimeError("ERROR! No version found")
 
 

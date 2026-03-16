@@ -22,6 +22,7 @@ description: |
     `OpenFaaS <https://www.openfaas.com/>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768335388
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -69,3 +70,10 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.openfaas.hooks.openfaas.OpenFaasHook
     connection-type: openfaas
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+        - password
+        - extra

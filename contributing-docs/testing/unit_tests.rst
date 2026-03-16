@@ -20,7 +20,9 @@ Airflow Unit Tests
 
 All unit tests for Apache Airflow are run using `pytest <http://doc.pytest.org/en/latest/>`_.
 
-**The outline for this document in GitHub is available via the button in the top-right corner (icon with 3 dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Writing Unit Tests
 ------------------

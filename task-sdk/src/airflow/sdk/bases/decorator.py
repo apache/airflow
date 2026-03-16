@@ -20,7 +20,6 @@ import inspect
 import itertools
 import re
 import textwrap
-import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from contextlib import suppress
 from functools import cached_property, partial, update_wrapper
@@ -192,6 +191,67 @@ def is_async_callable(func):
     return False
 
 
+class KeywordParameters:
+    """
+    Wrapper representing ``**kwargs`` to a callable.
+
+    The actual ``kwargs`` can be obtained by calling ``unpacking()``, which
+    returns the mapping suitable for unpacking with ``**`` in a function call.
+    """
+
+    def __init__(self, kwargs: Mapping[str, Any]) -> None:
+        self._kwargs = kwargs
+
+    @classmethod
+    def determine(
+        cls,
+        func: Callable[..., Any],
+        args: Collection[Any],
+        kwargs: Mapping[str, Any],
+    ) -> KeywordParameters:
+        signature = inspect.signature(func)
+        has_wildcard_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.parameters.values())
+
+        for name, param in itertools.islice(signature.parameters.items(), len(args)):
+            # Keyword-only arguments can't be passed positionally and are not checked.
+            if param.kind == inspect.Parameter.KEYWORD_ONLY:
+                continue
+            if param.kind == inspect.Parameter.VAR_KEYWORD:
+                continue
+
+            # Check if args conflict with names in kwargs.
+            if name in kwargs:
+                raise ValueError(f"The key {name!r} in args is a part of kwargs and therefore reserved.")
+
+        if has_wildcard_kwargs:
+            # If the callable has a **kwargs argument, it's ready to accept all the kwargs.
+            return cls(kwargs)
+
+        # If the callable has no **kwargs argument, it only wants the arguments it requested.
+        filtered_kwargs = {key: kwargs[key] for key in signature.parameters if key in kwargs}
+        return cls(filtered_kwargs)
+
+    def unpacking(self) -> Mapping[str, Any]:
+        """Dump the kwargs mapping to unpack with ``**`` in a function call."""
+        return self._kwargs
+
+
+def determine_kwargs(
+    func: Callable[..., Any],
+    args: Collection[Any],
+    kwargs: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """
+    Inspect the signature of a callable to determine which kwargs need to be passed to the callable.
+
+    :param func: The callable that you want to invoke
+    :param args: The positional arguments that need to be passed to the callable, so we know how many to skip.
+    :param kwargs: The keyword arguments that need to be filtered before passing to the callable.
+    :return: A dictionary which contains the keyword arguments that are compatible with the callable.
+    """
+    return KeywordParameters.determine(func, args, kwargs).unpacking()
+
+
 class DecoratedOperator(BaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
@@ -331,6 +391,9 @@ class DecoratedOperator(BaseOperator):
         kwargs["op_kwargs"] = op_kwargs
         return args, kwargs
 
+    def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
+
     def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
         raw_source_lines = [line for line in raw_source.splitlines() if not line.strip().startswith("#")]
@@ -384,12 +447,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             fake.__annotations__ = {"return": self.function.__annotations__["return"]}
 
             return_type = typing_extensions.get_type_hints(fake, self.function.__globals__).get("return", Any)
-        except NameError as e:
-            warnings.warn(
-                f"Cannot infer multiple_outputs for TaskFlow function {self.function.__name__!r} with forward"
-                f" type references that are not imported. (Error was {e})",
-                stacklevel=4,
-            )
+        except NameError:
+            # Forward references using TYPE_CHECKING-only imports are valid Python patterns.
+            # We cannot infer multiple_outputs when the type is not available at runtime.
             return False
         except TypeError:  # Can't evaluate return type.
             return False

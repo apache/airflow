@@ -22,6 +22,7 @@ description: |
     `Discord <https://discord.com/>`__
 
 state: ready
+lifecycle: production
 source-date-epoch: 1768334804
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
@@ -80,6 +81,13 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook
     connection-type: discord
+    conn-fields:
+      webhook_endpoint:
+        label: Webhook Endpoint
+        schema:
+          type:
+            - string
+            - 'null'
 
 notifications:
   - airflow.providers.discord.notifications.discord.DiscordNotifier

@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 
 from flask import session
+from flask_appbuilder import expose
 from flask_appbuilder.security.views import AuthOAuthView
 
 from airflow.configuration import conf
@@ -37,6 +38,7 @@ class CustomAuthOAuthView(AuthOAuthView):
     the Flask session is not yet committed when the redirect response is sent.
     """
 
+    @expose("/oauth-authorized/<provider>")
     def oauth_authorized(self, provider):
         """
         OAuth callback handler that explicitly commits session before redirect.
