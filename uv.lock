@@ -4031,6 +4031,12 @@ apache-iceberg = [
 datafusion = [
     { name = "datafusion" },
 ]
+google = [
+    { name = "apache-airflow-providers-google" },
+]
+microsoft-azure = [
+    { name = "apache-airflow-providers-microsoft-azure" },
+]
 openlineage = [
     { name = "apache-airflow-providers-openlineage" },
 ]
@@ -4056,6 +4062,8 @@ dev = [
     { name = "apache-airflow-providers-apache-iceberg" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars", "sqlalchemy"] },
+    { name = "apache-airflow-providers-google" },
+    { name = "apache-airflow-providers-microsoft-azure" },
     { name = "apache-airflow-providers-mysql" },
     { name = "apache-airflow-providers-odbc" },
     { name = "apache-airflow-providers-openlineage" },
@@ -4075,6 +4083,8 @@ requires-dist = [
     { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-apache-iceberg", marker = "extra == 'apache-iceberg'", editable = "providers/apache/iceberg" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
+    { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "datafusion", marker = "extra == 'datafusion'", specifier = ">=50.0.0,<52.0.0" },
     { name = "methodtools", specifier = ">=0.4.7" },
@@ -4086,7 +4096,7 @@ requires-dist = [
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
     { name = "sqlparse", specifier = ">=0.5.1" },
 ]
-provides-extras = ["pandas", "openlineage", "polars", "sqlalchemy", "amazon", "datafusion", "pyiceberg-core", "apache-iceberg"]
+provides-extras = ["pandas", "openlineage", "polars", "sqlalchemy", "amazon", "google", "datafusion", "pyiceberg-core", "apache-iceberg", "microsoft-azure"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4098,6 +4108,8 @@ dev = [
     { name = "apache-airflow-providers-common-sql", extras = ["pandas"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["polars"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["sqlalchemy"], editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-google", editable = "providers/google" },
+    { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-mysql", editable = "providers/mysql" },
     { name = "apache-airflow-providers-odbc", editable = "providers/odbc" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
