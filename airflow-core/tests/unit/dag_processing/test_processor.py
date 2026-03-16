@@ -1930,6 +1930,7 @@ class TestDagProcessingMessageTypes:
             "CreateHITLDetailPayload",
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
+            "SetExecutionTimeout",
             "SetRenderedMapIndex",
         }
 
