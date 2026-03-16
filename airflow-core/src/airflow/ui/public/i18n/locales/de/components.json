@@ -46,7 +46,6 @@
   },
   "dagWarnings": {
     "error_one": "1 Fehler",
-    "error_other": "{{count}} Fehler",
     "errorAndWarning": "1 Fehler und {{warningText}}",
     "warning_one": "1 Warnung",
     "warning_other": "{{count}} Warnungen"

@@ -66,7 +66,7 @@ Limitations:
 Typically you can connect your local virtualenv environments easily with your IDE
 and use it for development:
 
-- `PyCharm/IntelliJ <quick-start-ide/contributors_quick_start_pycharm.rst>`__ quick start instructions
+- `PyCharm/IntelliJ <quick-start-ide/contributors_quick_start_pycharm_intellij.rst>`__ quick start instructions
 - `VSCode <quick-start-ide/contributors_quick_start_vscode.rst>`__ quick start instructions
 
 Breeze Development Environment

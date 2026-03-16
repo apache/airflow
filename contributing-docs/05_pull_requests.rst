@@ -189,10 +189,14 @@ tooling, with a comment explaining what needs to be fixed.
 
 -  The comment informs you what you need to do.
 -  Fix each issue, then mark the PR as "Ready for review" in the GitHub UI - but only after making sure that all the issues are fixed.
+-  There is no rush — take your time and work at your own pace. We appreciate your contribution and are happy to wait for updates.
 -  Maintainers will then proceed with a normal review.
 
 Converting a PR to draft is **not** a rejection — it is an invitation to bring the PR up to
 the project's standards so that maintainer review time is spent productively.
+
+For details on how maintainers use tooling to triage and review PRs, see
+`Maintainer PR Triage and Review <25_maintainer_pr_triage.md>`__.
 
 **What happens when a PR is closed for quality violations?**
 

@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 from airflow_breeze import NAME
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 
 
 def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
@@ -36,7 +36,7 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
     # Note that we cannot use `pipx upgrade` here because we sometimes install
     # Breeze from different sources than originally installed (i.e. when we reinstall airflow
     # From the current directory.
-    get_console().print(f"\n[info]Reinstalling Breeze from {breeze_sources}\n")
+    console_print(f"\n[info]Reinstalling Breeze from {breeze_sources}\n")
     breeze_installed_with_uv = False
     breeze_installed_with_pipx = False
     try:
@@ -54,17 +54,15 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
     except FileNotFoundError:
         pass
     if breeze_installed_with_uv and breeze_installed_with_pipx:
-        get_console().print(
-            "[error]Breeze is installed both with `uv` and `pipx`. This is not supported.[/]\n"
-        )
-        get_console().print(
+        console_print("[error]Breeze is installed both with `uv` and `pipx`. This is not supported.[/]\n")
+        console_print(
             "[info]Please uninstall Breeze and install it only with one of the methods[/]\n"
             "[info]The `uv` installation method is recommended as it is much faster[/]\n"
         )
-        get_console().print(
+        console_print(
             "To uninstall Breeze installed with pipx run:\n     pipx uninstall apache-airflow-breeze\n"
         )
-        get_console().print(
+        console_print(
             "To uninstall Breeze installed with uv run:\n     uv tool uninstall apache-airflow-breeze\n"
         )
         sys.exit(1)
@@ -83,12 +81,12 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
         # run prek checks via breeze!)
         os.environ["SKIP_BREEZE_SELF_UPGRADE_CHECK"] = "true"
         os.execl(sys.executable, sys.executable, *sys.argv)
-    get_console().print(f"\n[info]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n")
+    console_print(f"\n[info]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n")
     sys.exit(0)
 
 
 def warn_non_editable():
-    get_console().print(
+    console_print(
         "\n[error]Breeze is installed in a wrong way.[/]\n"
         "\n[error]It should only be installed in editable mode[/]\n\n"
         "[info]Please go to Airflow sources and run[/]\n\n"
@@ -100,7 +98,7 @@ def warn_non_editable():
 
 
 def inform_about_self_upgrade():
-    get_console().print(
+    console_print(
         "\n[info]Breeze dependencies changed since the installation. Reinstalling them!\n\n[/]"
         "You might need to rerun the command in case it fails\n\n"
     )

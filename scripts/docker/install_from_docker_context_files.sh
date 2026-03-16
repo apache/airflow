@@ -43,7 +43,11 @@ function install_airflow_and_providers_from_docker_context_files(){
     fi
 
     # This is needed to get distribution names for local context distributions
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
+    if [[ -f "${HOME}/constraints.txt" ]]; then
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
+    else
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} packaging
+    fi
 
     if [[ -n ${AIRFLOW_EXTRAS=} ]]; then
         AIRFLOW_EXTRAS_TO_INSTALL="[${AIRFLOW_EXTRAS}]"

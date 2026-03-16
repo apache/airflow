@@ -30,7 +30,7 @@ import tempfile
 from pathlib import Path
 
 from airflow_breeze import NAME
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.reinstall import inform_about_self_upgrade, reinstall_breeze, warn_non_editable
 from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
@@ -210,7 +210,7 @@ def find_airflow_root_path_to_operate_on() -> Path:
         return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources is None and not skip_breeze_self_upgrade_check():
-        get_console().print(
+        console_print(
             "\n[error]Breeze should only be installed with --editable flag[/]\n\n"
             "[warning]Please go to Airflow sources and run[/]\n\n"
             f"     {NAME} setup self-upgrade --use-current-airflow-sources\n"
@@ -227,13 +227,13 @@ def find_airflow_root_path_to_operate_on() -> Path:
     os.chdir(airflow_sources.as_posix())
     airflow_home_dir = Path(os.environ.get("AIRFLOW_HOME", (Path.home() / "airflow").resolve().as_posix()))
     if airflow_sources.resolve() == airflow_home_dir.resolve():
-        get_console().print(
+        console_print(
             f"\n[error]Your Airflow sources are checked out in {airflow_home_dir} which "
             f"is your also your AIRFLOW_HOME where airflow writes logs and database. \n"
             f"This is a bad idea because Airflow might override and cleanup your checked out "
             f"sources and .git repository.[/]\n"
         )
-        get_console().print("\nPlease check out your Airflow code elsewhere.\n")
+        console_print("\nPlease check out your Airflow code elsewhere.\n")
         sys.exit(1)
     return airflow_sources
 
@@ -386,7 +386,7 @@ def create_volume_if_missing(volume_name: str):
             capture_output=True,
         )
         if result.returncode != 0:
-            get_console().print(
+            console_print(
                 "[warning]\nMypy Cache volume could not be created. Continuing, but you "
                 "should make sure your docker works.\n\n"
                 f"Error: {result.stdout}\n"
@@ -416,7 +416,7 @@ def create_directories_and_files() -> None:
 
 def cleanup_python_generated_files():
     if get_verbose():
-        get_console().print("[info]Cleaning .pyc and __pycache__")
+        console_print("[info]Cleaning .pyc and __pycache__")
     permission_errors = []
     for path in AIRFLOW_ROOT_PATH.rglob("*.pyc"):
         try:
@@ -436,9 +436,9 @@ def cleanup_python_generated_files():
             permission_errors.append(path)
     if permission_errors:
         if platform.uname().system.lower() == "linux":
-            get_console().print("[warning]There were files that you could not clean-up:\n")
-            get_console().print(permission_errors)
-            get_console().print(
+            console_print("[warning]There were files that you could not clean-up:\n")
+            console_print(permission_errors)
+            console_print(
                 "Please run at earliest convenience:\n"
                 "[warning]breeze ci fix-ownership[/]\n\n"
                 "If you have sudo you can use:\n"
@@ -447,11 +447,11 @@ def cleanup_python_generated_files():
                 "You can also remove those files manually using sudo."
             )
         else:
-            get_console().print("[warnings]There were files that you could not clean-up:\n")
-            get_console().print(permission_errors)
-            get_console().print("You can also remove those files manually using sudo.")
+            console_print("[warnings]There were files that you could not clean-up:\n")
+            console_print(permission_errors)
+            console_print("You can also remove those files manually using sudo.")
     if get_verbose():
-        get_console().print("[info]Cleaned")
+        console_print("[info]Cleaned")
 
 
 def get_main_git_dir_for_worktree() -> Path | None:

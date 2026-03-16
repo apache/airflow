@@ -51,6 +51,7 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--updated-before",
                 "--include-drafts",
                 "--pending-approval-only",
+                "--mode",
                 "--checks-state",
                 "--min-commits-behind",
             ],
@@ -65,6 +66,7 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--check-mode",
                 "--llm-model",
                 "--llm-concurrency",
+                "--clear-llm-cache",
             ],
         },
         {
