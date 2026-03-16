@@ -21,6 +21,17 @@ import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { getDuration, renderDuration, getRelativeTime } from "./datetimeUtils";
 
 describe("getDuration", () => {
+  const fixedNow = new Date("2024-03-14T10:00:30.000Z");
+
+  beforeAll(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(fixedNow);
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
   it("handles durations less than 60 seconds", () => {
     const start = "2024-03-14T10:00:00.000Z";
     const end = "2024-03-14T10:00:05.5111111Z";
@@ -56,11 +67,22 @@ describe("getDuration", () => {
     expect(getDuration(start, end, false)).toBe("00:00:05");
   });
 
-  it("handles small, null or undefined values", () => {
+  it("returns undefined when startDate is null or undefined", () => {
     // eslint-disable-next-line unicorn/no-null
     expect(getDuration(null, null)).toBe(undefined);
     expect(getDuration(undefined, undefined)).toBe(undefined);
+    // eslint-disable-next-line unicorn/no-null
+    expect(getDuration(null, "2024-03-14T10:00:30.000Z")).toBe(undefined);
     expect(renderDuration(0.000_01)).toBe(undefined);
+  });
+
+  it("uses current time when endDate is null or undefined (running task/DAG run)", () => {
+    const start = "2024-03-14T10:00:00.000Z";
+
+    // fixedNow is 30 seconds after start, so duration should be ~30s
+    // eslint-disable-next-line unicorn/no-null
+    expect(getDuration(start, null)).toBe("00:00:30.000");
+    expect(getDuration(start, undefined)).toBe("00:00:30.000");
   });
 });
 
