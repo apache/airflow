@@ -885,7 +885,7 @@ If you are familiar with Python development and use your favourite editors, Airf
 similarly to other projects of yours. However, if you need specific instructions for your IDE you
 will find more detailed instructions here:
 
-* `Pycharm/IntelliJ <quick-start-ide/contributors_quick_start_pycharm.rst>`_
+* `Pycharm/IntelliJ <quick-start-ide/contributors_quick_start_pycharm_intellij.rst>`_
 * `Visual Studio Code <quick-start-ide/contributors_quick_start_vscode.rst>`_
 
 

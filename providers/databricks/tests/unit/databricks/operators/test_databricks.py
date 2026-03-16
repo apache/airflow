@@ -2561,6 +2561,63 @@ class TestDatabricksNotebookOperator:
 
         assert task_json == expected_json
 
+    @pytest.mark.parametrize(
+        ("trigger_rule", "expected_run_if"),
+        [
+            ("all_failed", "ALL_FAILED"),
+            ("all_done", "ALL_DONE"),
+            ("one_success", "AT_LEAST_ONE_SUCCESS"),
+            ("one_failed", "AT_LEAST_ONE_FAILED"),
+            ("none_failed", "NONE_FAILED"),
+            ("none_failed_min_one_success", "NONE_FAILED"),
+            ("always", "ALL_DONE"),
+        ],
+    )
+    def test_convert_to_databricks_workflow_task_with_trigger_rule(self, trigger_rule, expected_run_if):
+        """Test that trigger_rule is mapped to Databricks run_if in the workflow task JSON."""
+        dag = DAG(dag_id="example_dag", schedule=None, start_date=datetime.now())
+        operator = DatabricksNotebookOperator(
+            notebook_path="/path/to/notebook",
+            source="WORKSPACE",
+            task_id="test_task",
+            trigger_rule=trigger_rule,
+            dag=dag,
+        )
+
+        databricks_workflow_task_group = MagicMock()
+        databricks_workflow_task_group.notebook_packages = []
+        databricks_workflow_task_group.notebook_params = {}
+
+        operator.task_group = databricks_workflow_task_group
+        relevant_upstreams = []
+        task_dict = {}
+
+        task_json = operator._convert_to_databricks_workflow_task(relevant_upstreams, task_dict)
+
+        assert task_json["run_if"] == expected_run_if
+
+    def test_convert_to_databricks_workflow_task_default_trigger_rule_no_run_if(self):
+        """Test that the default trigger_rule (all_success) does not add run_if to the task JSON."""
+        dag = DAG(dag_id="example_dag", schedule=None, start_date=datetime.now())
+        operator = DatabricksNotebookOperator(
+            notebook_path="/path/to/notebook",
+            source="WORKSPACE",
+            task_id="test_task",
+            dag=dag,
+        )
+
+        databricks_workflow_task_group = MagicMock()
+        databricks_workflow_task_group.notebook_packages = []
+        databricks_workflow_task_group.notebook_params = {}
+
+        operator.task_group = databricks_workflow_task_group
+        relevant_upstreams = []
+        task_dict = {}
+
+        task_json = operator._convert_to_databricks_workflow_task(relevant_upstreams, task_dict)
+
+        assert "run_if" not in task_json
+
     def test_convert_to_databricks_workflow_task_no_task_group(self):
         """Test that an error is raised if the operator is not in a TaskGroup."""
         operator = DatabricksNotebookOperator(
