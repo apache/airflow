@@ -321,8 +321,8 @@ def downgrade():
         # Make callback_id nullable so the associated callbacks can be cleared during migration
         batch_op.alter_column("callback_id", existing_type=sa.Uuid(), nullable=True)
 
-        batch_op.drop_index("deadline_callback_id_idx")
         batch_op.drop_constraint(batch_op.f("deadline_callback_id_fkey"), type_="foreignkey")
+        batch_op.drop_index("deadline_callback_id_idx")
 
     migrate_all_data()
 
