@@ -545,7 +545,7 @@ click.rich_click.OPTION_GROUPS = {
     "--refresh-airflow-inventories",
     is_flag=True,
     help="When set, only airflow package inventories will be refreshed, regardless "
-    "if they are already downloaded. With `--clean-build` - everything is cleaned..",
+    "if they are already downloaded. With `--clean-build` - everything is cleaned.",
 )
 @click.option(
     "--fail-on-missing-third-party-inventories",
