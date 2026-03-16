@@ -33,6 +33,7 @@
 !dev
 !chart
 !licenses
+!agent_skills_poc
 
 # Add all "production" distributions
 !providers/
