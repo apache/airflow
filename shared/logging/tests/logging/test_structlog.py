@@ -254,6 +254,73 @@ def test_json(structlog_config, get_logger, config_kwargs, log_kwargs, expected_
     }
 
 
+def test_json_non_serializable_object(structlog_config):
+    """Non-serializable objects in log context fall back to str() instead of crashing."""
+
+    class BadStructlog:
+        def __structlog__(self):
+            raise TypeError("unsupported")
+
+        def __str__(self):
+            return "<BadStructlog>"
+
+    with structlog_config(json_output=True) as bio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello", obj=BadStructlog())
+
+    written = json.load(bio)
+    assert written["obj"] == "<BadStructlog>"
+    assert written["event"] == "Hello"
+
+
+def test_json_custom_object_uses_repr(structlog_config):
+    """Custom objects without __structlog__ serialize via repr() through the normal enc_hook path."""
+
+    class CustomObj:
+        pass
+
+    with structlog_config(json_output=True) as bio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello", obj=CustomObj())
+
+    written = json.load(bio)
+    assert written["event"] == "Hello"
+    assert "CustomObj" in written["obj"]
+
+
+def test_safe_enc_hook_with_none_default():
+    """When default is None, _make_safe_enc_hook falls back to str() directly."""
+    from airflow_shared.logging.structlog import _make_safe_enc_hook
+
+    hook = _make_safe_enc_hook(None)
+    assert hook(42) == "42"
+    assert hook(object()).startswith("<object object at")
+
+
+def test_safe_enc_hook_catches_value_error():
+    """ValueError (including UnicodeEncodeError) from enc_hook falls back to str()."""
+    from airflow_shared.logging.structlog import _make_safe_enc_hook
+
+    def bad_default(obj):
+        raise ValueError("surrogates not allowed")
+
+    hook = _make_safe_enc_hook(bad_default)
+    assert hook(42) == "42"
+
+
+def test_json_unicode_surrogate_in_value(structlog_config):
+    """Surrogate characters in log values don't crash JSON serialization."""
+    with structlog_config(json_output=True) as bio:
+        logger = structlog.get_logger("my.logger")
+        logger.info("Hello", text="before \udce2 after")
+
+    written = json.load(bio)
+    assert written["event"] == "Hello"
+    # Surrogates are replaced with the Unicode replacement character
+    assert "\udce2" not in written["text"]
+    assert "before" in written["text"]
+
+
 @pytest.mark.parametrize(
     ("get_logger"),
     [
