@@ -48,11 +48,11 @@ test.describe("Verify Required Action page", () => {
     await expect(browsePage.actionsTable.or(browsePage.emptyStateMessage)).toBeVisible();
 
     if (await browsePage.actionsTable.isVisible()) {
-      await expect(page.locator('th').filter({ hasText: "Dag ID" })).toBeVisible();
-      await expect(page.locator('th').filter({ hasText: "Task ID" })).toBeVisible();
-      await expect(page.locator('th').filter({ hasText: "Dag Run ID" })).toBeVisible();
-      await expect(page.locator('th').filter({ hasText: "Response created at" })).toBeVisible();
-      await expect(page.locator('th').filter({ hasText: "Response received at" })).toBeVisible();
+      await expect(page.locator("th").filter({ hasText: "Dag ID" })).toBeVisible();
+      await expect(page.locator("th").filter({ hasText: "Task ID" })).toBeVisible();
+      await expect(page.locator("th").filter({ hasText: "Dag Run ID" })).toBeVisible();
+      await expect(page.locator("th").filter({ hasText: "Response created at" })).toBeVisible();
+      await expect(page.locator("th").filter({ hasText: "Response received at" })).toBeVisible();
     } else {
       await expect(browsePage.emptyStateMessage).toBeVisible();
     }
