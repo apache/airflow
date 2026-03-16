@@ -65,7 +65,8 @@ dependencies = [
     # can be set to sendgrid>=6.12.3 when we upgrade to fab 5 and remove Werkzeug dependency
     "sendgrid>=6.12.3; python_version < '3.12'",
     "sendgrid>=6.0.0,<6.12.3; python_version >= '3.12'",
-    "werkzeug>=2.2,<4; python_version >= '3.12'",
+    "werkzeug>=2.2,<4; python_version >= '3.12' and python_version <= '3.13'",
+    "werkzeug>=3.1.6,<4; python_version >= '3.14'",
 ]
 
 [dependency-groups]
