@@ -426,7 +426,6 @@ class TestLocalExecutorCallbackSupport:
 
     @mock.patch("airflow.sdk.execution_time.callback_supervisor.supervise_callback", return_value=0)
     def test_execute_workload_calls_supervise_callback(self, mock_supervise_callback):
-
         callback_data = CallbackDTO(
             id=self.CALLBACK_UUID,
             fetch_method=CallbackFetchMethod.IMPORT_PATH,
@@ -447,6 +446,7 @@ class TestLocalExecutorCallbackSupport:
             callback_path="test.module.my_callback",
             callback_kwargs={"arg1": "val1"},
             log_path="test.log",
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
         )
 
     @mock.patch(

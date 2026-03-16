@@ -147,6 +147,7 @@ def _execute_workload(log: Logger, workload: ExecutorWorkload, team_conf) -> Non
             callback_path=workload.callback.data.get("path", ""),
             callback_kwargs=workload.callback.data.get("kwargs", {}),
             log_path=workload.log_path,
+            bundle_info=workload.bundle_info,
         )
     else:
         raise ValueError(f"LocalExecutor does not know how to execute {type(workload).__name__!r}")
@@ -197,6 +198,7 @@ class LocalExecutor(BaseExecutor):
 
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
+
         self._unread_messages = multiprocessing.Value(ctypes.c_uint)
 
         if self.is_mp_using_fork:
