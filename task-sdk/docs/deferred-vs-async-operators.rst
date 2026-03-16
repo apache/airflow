@@ -209,9 +209,9 @@ Another example using the :class:`~airflow.providers.microsoft.azure.hooks.msgra
 which is async-only, to fetch all users from the `Microsoft Graph API <https://learn.microsoft.com/en-us/graph/azuread-users-concept-overview/>`__.
 
 In this example, multiple paginated requests are expected in order to retrieve all users.
-Using an async Python task is appropriate here because the
-:class:`~airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook`
+Using an async Python task is appropriate here because the :class:`~airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook`
 handles pagination internally and performs the requests asynchronously.
+This allows multiple paginated requests to be performed efficiently within a single task instance and worker slot.
 
 .. code-block:: python
 
