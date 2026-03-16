@@ -311,9 +311,13 @@ class InProcessExecutionAPI:
     @cached_property
     def app(self):
         if not self._app:
+            import svcs
+
+            from airflow.api_fastapi.auth.tokens import JWTGenerator, get_signing_args
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+            from airflow.api_fastapi.execution_api.deps import _container
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
@@ -332,10 +336,26 @@ class InProcessExecutionAPI:
                 )
                 return TIToken(id=ti_id, claims={"scope": "execution"})
 
+            # Override DepContainer (the svcs service locator) for in-process use.
+            # Cadwyn's versioned sub-apps don't share the main app's
+            # state.svcs_registry, so the default _container dependency fails.
+            # Any service resolved via DepContainer in routes called during
+            # dag.test() must be registered here.
+            registry = svcs.Registry()
+            registry.register_value(
+                JWTGenerator,
+                JWTGenerator(valid_for=600, audience="urn:airflow.apache.org:task", **get_signing_args()),
+            )
+
+            async def _test_container(request: Request):
+                async with svcs.Container(registry) as cont:
+                    yield cont
+
             self._app.dependency_overrides[_jwt_bearer] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow
+            self._app.dependency_overrides[_container] = _test_container
 
         return self._app
 
