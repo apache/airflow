@@ -299,8 +299,8 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     #   keep Task SDK as a separate package than execution time mods.
     import json
 
-    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time import task_runner
+    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
     from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
@@ -360,8 +360,8 @@ def _delete_variable(key: str) -> None:
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
-    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time import task_runner
+    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.comms import DeleteVariable, ErrorResponse
 
     if not hasattr(task_runner, "SUPERVISOR_COMMS"):
