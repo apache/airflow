@@ -26,11 +26,8 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import yaml
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import AIRFLOW_ROOT_PATH, console
 
 CHART_YAML_FILE = AIRFLOW_ROOT_PATH / "chart" / "Chart.yaml"

@@ -29,16 +29,13 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from rich.console import Console
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common utils are importable
-
 from common_prek_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
     get_all_provider_info_dicts,
 )
+from rich.console import Console
 
 sys.path.insert(0, str(AIRFLOW_CORE_SOURCES_PATH))  # make sure setup is imported from Airflow
 

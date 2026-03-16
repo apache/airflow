@@ -125,6 +125,15 @@ extraction:
    types, defaults, and docstrings. Writes
    `versions/{provider_id}/{version}/parameters.json`.
 
+**`registry_contract_models.py`** defines Pydantic models that validate the shape of
+every JSON payload the registry produces. Each extraction script calls
+`_validate(ModelType, payload)` before writing JSON — this catches schema drift at
+generation time without a separate jsonschema layer. The same models generate the
+OpenAPI 3.1 spec served at `/api/openapi.json`.
+
+**`export_registry_schemas.py`** generates `registry/schemas/openapi.json` from the
+contract models. It runs automatically via `pnpm prebuild` before Eleventy builds.
+
 **`extract_connections.py`** (runs inside breeze) reads `connection-types` from
 `provider.yaml`, falling back to runtime inspection of hook
 `get_connection_form_widgets()` and `get_ui_field_behaviour()`. Writes
@@ -177,6 +186,8 @@ the same Sphinx build that generates the docs.
 | `statsData.js` | Checked-in | Computed statistics (lifecycle counts, top providers, etc.) |
 | `providerVersions.js` | Checked-in | Builds the provider × version page collection |
 | `latestVersionData.js` | Checked-in | Latest version parameters/connections lookup |
+| `openapiSpec.js` | Checked-in | Builds OpenAPI 3.1 spec from Pydantic contract models |
+| `providerVersionPayloads.js` | Checked-in | Generates `/api/providers/{id}/versions.json` payloads |
 
 ### Pages
 
@@ -188,6 +199,7 @@ the same Sphinx build that generates the docs.
 | Statistics | `src/stats.njk` | `/stats/` |
 | Provider Detail | `src/provider-detail.njk` | `/providers/{id}/` (redirects to latest) |
 | Provider Version | `src/provider-version.njk` | `/providers/{id}/{version}/` |
+| API Explorer | `src/api-explorer.njk` | `/api-explorer/` |
 
 ### Client-Side JavaScript
 
@@ -272,6 +284,10 @@ providing programmatic access to provider and module data:
 - `/api/providers/{id}/{version}/modules.json` — Version-specific modules
 - `/api/providers/{id}/{version}/parameters.json` — Version-specific parameters
 - `/api/providers/{id}/{version}/connections.json` — Version-specific connections
+- `/api/openapi.json` — OpenAPI 3.1 spec (generated at build time from Pydantic contracts)
+
+An interactive **API Explorer** at `/api-explorer/` renders the OpenAPI spec using
+swagger-ui (vendored from `node_modules/swagger-ui-dist`).
 
 ## Incremental Builds
 
