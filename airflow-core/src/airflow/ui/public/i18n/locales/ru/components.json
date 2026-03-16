@@ -14,7 +14,7 @@
     "permissionDenied": "Не удалось выполнить пробный запуск: У пользователя нет разрешения на создание заполнения.",
     "reprocessBehavior": "Поведение повторной обработки",
     "run": "Запуск заполнения",
-    "selectDescription": "Запуск этого Дага для диапазона дат",
+    "selectDescription": "Запуск этого ДАГа для диапазона дат",
     "selectLabel": "Заполнение",
     "title": "Запуск заполнения",
     "toaster": {
@@ -61,9 +61,9 @@
   },
   "durationChart": {
     "duration": "Продолжительность (секунды)",
-    "lastDagRun_few": "Последние {{count}} запуска Дага",
-    "lastDagRun_one": "Последний запуск Дага",
-    "lastDagRun_other": "Последние {{count}} запусков Дага",
+    "lastDagRun_few": "Последние {{count}} запуска ДАГа",
+    "lastDagRun_one": "Последний запуск ДАГа",
+    "lastDagRun_other": "Последние {{count}} запусков ДАГа",
     "lastTaskInstance_few": "Последние {{count}} экземпляра задачи",
     "lastTaskInstance_one": "Последний экземпляр задачи",
     "lastTaskInstance_other": "Последние {{count}} экземпляров задачи",
@@ -94,7 +94,7 @@
     "downloadImage": "Скачать изображение графа",
     "downloadImageError": "Не удалось скачать изображение графа.",
     "downloadImageErrorTitle": "Ошибка загрузки",
-    "otherDagRuns": "+Другие запуски Дага",
+    "otherDagRuns": "+Другие запуски ДАГа",
     "taskCount_few": "{{count}} задачи",
     "taskCount_one": "{{count}} задача",
     "taskCount_other": "{{count}} задач",
@@ -105,7 +105,7 @@
   "limitedList.allTags_few": "Все теги ({{count}})",
   "limitedList.allTags_one": "Все теги (1)",
   "limitedList.allTags_other": "Все теги ({{count}})",
-  "limitedList.clickToInteract": "Нажмите на тег, чтобы фильтровать Даги",
+  "limitedList.clickToInteract": "Нажмите на тег, чтобы фильтровать ДАГи",
   "limitedList.clickToOpenFull": "Нажмите \"+{{count}} ещё\", чтобы открыть полный вид",
   "limitedList.copyPasteText": "Вы можете скопировать и вставить текст выше",
   "limitedList.showingItems_few": "Показано {{count}} элемента",
@@ -115,7 +115,7 @@
     "file": "Файл",
     "location": "строка {{line}} в {{name}}"
   },
-  "reparseDag": "Повторный разбор Дага",
+  "reparseDag": "Повторный разбор ДАГа",
   "sortedAscending": "сортировано по возрастанию",
   "sortedDescending": "сортировано по убыванию",
   "sortedUnsorted": "несортировано",
@@ -137,20 +137,20 @@
     "dataIntervalManual": "Указать вручную",
     "intervalEnd": "Конец",
     "intervalStart": "Начало",
-    "loading": "Загрузка информации о Даге...",
-    "loadingFailed": "Не удалось загрузить информацию о Даге. Пожалуйста, попробуйте снова.",
-    "manualRunDenied": "Ручные запуски не разрешены для этого Дага",
+    "loading": "Загрузка информации о ДАГе...",
+    "loadingFailed": "Не удалось загрузить информацию о ДАГе. Пожалуйста, попробуйте снова.",
+    "manualRunDenied": "Ручные запуски не разрешены для этого ДАГа",
     "runIdHelp": "Необязательно - будет сгенерирован, если не предоставлен",
-    "selectDescription": "Запустить один процесс этого Дага",
+    "selectDescription": "Запустить один процесс этого ДАГа",
     "selectLabel": "Единичный запуск",
-    "title": "Запуск Дага",
+    "title": "Запуск ДАГа",
     "toaster": {
       "error": {
-        "title": "Не удалось запустить Даг"
+        "title": "Не удалось запустить ДАГ"
       },
       "success": {
-        "description": "Запуск Дага успешно инициирован.",
-        "title": "Запуск Дага инициирован"
+        "description": "Запуск ДАГа успешно инициирован.",
+        "title": "Запуск ДАГа инициирован"
       }
     },
     "triggerAgainWithConfig": "Запустить снова с этой конфигурацией",
@@ -170,7 +170,7 @@
   },
   "versionSelect": {
     "allVersions": "Все версии",
-    "dagVersion": "Версия Дага",
+    "dagVersion": "Версия ДАГа",
     "versionCode": "v{{versionCode}}"
   }
 }
