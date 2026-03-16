@@ -67,8 +67,8 @@ export class DagsPage extends BasePage {
     this.triggerRuleFilter = page.getByRole("combobox").filter({ hasText: /trigger/i });
     this.retriesFilter = page.getByRole("combobox").filter({ hasText: /retr/i });
     // View toggle buttons
-    this.cardViewButton = page.locator('button[aria-label="Show card view"]');
-    this.tableViewButton = page.locator('button[aria-label="Show table view"]');
+    this.cardViewButton = page.getByRole("button", { name: "Show card view" });
+    this.tableViewButton = page.getByRole("button", { name: "Show table view" });
     // Status filter buttons
     this.successFilter = page.getByRole("button", { name: "Success" });
     this.failedFilter = page.getByRole("button", { name: "Failed" });
