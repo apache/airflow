@@ -55,9 +55,25 @@ jobs:
           workflow_branch: ${{ matrix.branch }}
           workflow_id: ${{ matrix.workflow-id }}
 
-      - name: "Send Slack notification"
-        if: steps.find-workflow-run-status.outputs.conclusion == 'failure'
-        id: slack
+      - name: "Determine notification action"
+        id: notification
+        shell: bash
+        run: python3 scripts/ci/slack_notification_state.py
+        env:
+          ARTIFACT_NAME: "slack-state-ci-${{ matrix.branch }}-${{ matrix.workflow-id }}"
+          CURRENT_FAILURES: "${{ steps.find-workflow-run-status.outputs.failed-jobs }}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Upload notification state"
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        with:
+          name: "slack-state-ci-${{ matrix.branch }}-${{ matrix.workflow-id }}"
+          path: ./slack-state/
+          retention-days: 7
+          overwrite: true
+
+      - name: "Send Slack notification (new/changed failures)"
+        if: steps.notification.outputs.action == 'notify_new'
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
         with:
           method: chat.postMessage
@@ -65,12 +81,55 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "🚨🕒 Failure Alert: ${{ env.workflow_id }} on branch *${{ env.branch }}* 🕒🚨\n\n*Details:* <${{ env.run_url }}|View the failure log>"
+            text: "🚨 Failure Alert: ${{ env.workflow_id }} on branch *${{ env.branch }}*\n\nFailing jobs:\n${{ steps.find-workflow-run-status.outputs.failed-jobs }}\n\n*Details:* <${{ env.run_url }}|View the failure log>"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨🕒 Failure Alert: ${{ env.workflow_id }} ${{ env.branch }} 🕒🚨\n\n*Details:* <${{ env.run_url }}|View the failure log>"
+                  text: "🚨 Failure Alert: ${{ env.workflow_id }} on *${{ env.branch }}*\n\nFailing jobs:\n${{ steps.find-workflow-run-status.outputs.failed-jobs }}\n\n*Details:* <${{ env.run_url }}|View the failure log>"
+          # yamllint enable rule:line-length
+        env:
+          run_url: ${{ steps.find-workflow-run-status.outputs.run-url }}
+          branch: ${{ matrix.branch }}
+          workflow_id: ${{ matrix.workflow-id }}
+
+      - name: "Send Slack notification (still not fixed)"
+        if: steps.notification.outputs.action == 'notify_reminder'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "🚨🔁 Still not fixed: ${{ env.workflow_id }} on branch *${{ env.branch }}*\n\nFailing jobs:\n${{ steps.find-workflow-run-status.outputs.failed-jobs }}\n\n*Details:* <${{ env.run_url }}|View the failure log>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "🚨🔁 Still not fixed: ${{ env.workflow_id }} on *${{ env.branch }}*\n\nFailing jobs:\n${{ steps.find-workflow-run-status.outputs.failed-jobs }}\n\n*Details:* <${{ env.run_url }}|View the failure log>"
+          # yamllint enable rule:line-length
+        env:
+          run_url: ${{ steps.find-workflow-run-status.outputs.run-url }}
+          branch: ${{ matrix.branch }}
+          workflow_id: ${{ matrix.workflow-id }}
+
+      - name: "Send Slack notification (all passing)"
+        if: steps.notification.outputs.action == 'notify_recovery'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "✅ All passing: ${{ env.workflow_id }} on branch *${{ env.branch }}*\n\n*Details:* <${{ env.run_url }}|View the run log>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "✅ All passing: ${{ env.workflow_id }} on *${{ env.branch }}*\n\n*Details:* <${{ env.run_url }}|View the run log>"
+          # yamllint enable rule:line-length
         env:
           run_url: ${{ steps.find-workflow-run-status.outputs.run-url }}
           branch: ${{ matrix.branch }}
