@@ -215,6 +215,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     self.location,
                     self.job_id,
                 )
+            raise
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
             yield TriggerEvent({"status": "error", "message": str(e)})
