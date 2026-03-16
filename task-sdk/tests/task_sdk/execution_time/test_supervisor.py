@@ -3167,9 +3167,10 @@ def test_nondumpable_blocks_sibling_proc_read():
     """A sibling process (same non-root UID) cannot read /proc/<pid>/environ or /proc/<pid>/mem of a nondumpable process."""
     import multiprocessing
 
-    ready = multiprocessing.Event()
-    done = multiprocessing.Event()
-    result_queue = multiprocessing.Queue()
+    ctx = multiprocessing.get_context("fork")
+    ready = ctx.Event()
+    done = ctx.Event()
+    result_queue = ctx.Queue()
 
     def target_fn():
         _drop_root_if_needed()
@@ -3187,11 +3188,11 @@ def test_nondumpable_blocks_sibling_proc_read():
                 blocked.append(proc_file)
         result_queue.put(blocked)
 
-    target = multiprocessing.Process(target=target_fn)
+    target = ctx.Process(target=target_fn)
     target.start()
     try:
         assert ready.wait(timeout=5), "target process did not become ready"
-        reader = multiprocessing.Process(target=reader_fn, args=(target.pid,))
+        reader = ctx.Process(target=reader_fn, args=(target.pid,))
         reader.start()
         reader.join(timeout=5)
         blocked = result_queue.get(timeout=5)
@@ -3209,7 +3210,8 @@ def test_nondumpable_blocks_child_memory_read():
     """A forked child (same non-root UID) cannot read its nondumpable parent's /proc/<pid>/mem."""
     import multiprocessing
 
-    result_queue = multiprocessing.Queue()
+    ctx = multiprocessing.get_context("fork")
+    result_queue = ctx.Queue()
 
     def parent_fn():
         _drop_root_if_needed()
@@ -3226,7 +3228,7 @@ def test_nondumpable_blocks_child_memory_read():
         _, status = os.waitpid(child_pid, 0)
         result_queue.put(os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1)
 
-    proc = multiprocessing.Process(target=parent_fn)
+    proc = ctx.Process(target=parent_fn)
     proc.start()
     proc.join(timeout=10)
     exit_code = result_queue.get(timeout=5)

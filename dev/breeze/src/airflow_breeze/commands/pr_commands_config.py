@@ -32,20 +32,28 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": ["--pr"],
         },
         {
+            "name": "Select people",
+            "options": [
+                "--author",
+                "--include-collaborators",
+                "--reviews-for-me",
+                "--reviews-for",
+            ],
+        },
+        {
             "name": "Filter options",
             "options": [
                 "--label",
                 "--exclude-label",
-                "--author",
                 "--created-after",
                 "--created-before",
                 "--updated-after",
                 "--updated-before",
-                "--include-collaborators",
+                "--include-drafts",
                 "--pending-approval-only",
+                "--mode",
                 "--checks-state",
                 "--min-commits-behind",
-                "--review-requested",
             ],
         },
         {
@@ -58,6 +66,7 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--check-mode",
                 "--llm-model",
                 "--llm-concurrency",
+                "--clear-llm-cache",
             ],
         },
         {

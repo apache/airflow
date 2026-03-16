@@ -68,14 +68,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.1.7"
+defaultAirflowTag: "3.1.8"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 2.11.0 and above is supported.
-airflowVersion: "3.1.7"
+airflowVersion: "3.1.8"
 
 # Images
 images:
@@ -909,6 +909,8 @@ workers:
 
   # Grace period for tasks to finish after SIGTERM is sent from kubernetes.
   # It is used by Airflow Celery workers and pod-template-file.
+  # Use workers.celery.terminationGracePeriodSeconds and/or workers.kubernetes.terminationGracePeriodSeconds
+  # to separate value between Celery workers and pod-template-file
   terminationGracePeriodSeconds: 600
 
   # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
@@ -945,7 +947,10 @@ workers:
   extraPorts: []
 
   # Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file
+  # Use workers.celery.nodeSelector and/or workers.kubernetes.nodeSelector to separate value
+  # between Celery workers and pod-template-file
   nodeSelector: {}
+
   runtimeClassName: ~
   priorityClassName: ~
   affinity: {}
@@ -1262,6 +1267,12 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
+    # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+    terminationGracePeriodSeconds: ~
+
+    # Select certain nodes for Airflow Celery worker pods
+    nodeSelector: {}
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1325,6 +1336,12 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+
+    # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+    terminationGracePeriodSeconds: ~
+
+    # Select certain nodes for pods created with pod-template-file
+    nodeSelector: {}
 
 # Airflow scheduler settings
 scheduler:
@@ -1748,9 +1765,8 @@ migrateDatabaseJob:
 
 apiServer:
   enabled: true
-  # Number of Airflow API servers in the deployment
-  # This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled,
-  # as HPA will automatically manage the number of replicas based on the configured metrics.
+  # Number of Airflow API servers in the deployment.
+  # Omitted from the Deployment, when HPA is enabled.
   replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~

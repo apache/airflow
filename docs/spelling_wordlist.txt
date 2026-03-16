@@ -563,6 +563,7 @@ EnvVar
 envvar
 eof
 EOL
+equest
 errno
 errored
 eslint
