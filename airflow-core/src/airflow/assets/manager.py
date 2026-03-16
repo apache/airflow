@@ -384,15 +384,22 @@ class AssetManager(LoggingMixin):
         session: Session,
     ) -> None:
         if partition_dags and not partition_key:
+            prefix = "Listening Dags are partition-aware but the run has no partition key"
+            log.warning(
+                prefix,
+                listening_dags=[x.dag_id for x in partition_dags],
+                asset_id=asset_id,
+                run_id=event.source_run_id,
+                dag_id=event.source_dag_id,
+                task_id=event.source_task_id,
+            )
             msg = (
-                f"Listening Dags are partition-aware but the run has no partition key "
-                f"(listening_dags={[x.dag_id for x in partition_dags]}, "
+                f"{prefix} (listening_dags={[x.dag_id for x in partition_dags]}, "
                 f"asset_id={asset_id}, "
                 f"run_id={event.source_run_id}, "
                 f"dag_id={event.source_dag_id}, "
                 f"task_id={event.source_task_id})"
             )
-            log.warning(msg)
             session.add(
                 Log(
                     event="missing partition key",
