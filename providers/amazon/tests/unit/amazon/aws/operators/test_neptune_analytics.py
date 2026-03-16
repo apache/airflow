@@ -25,6 +25,7 @@ from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.neptune_analytics import NeptuneAnalyticsHook
 from airflow.providers.amazon.aws.operators.neptune_analytics import (
+    NeptuneCancelImportTaskOperator,
     NeptuneCreateGraphOperator,
     NeptuneCreateGraphWithImportOperator,
     NeptuneCreatePrivateGraphEndpointOperator,
@@ -936,3 +937,105 @@ class TestNeptuneStartImportTaskOperator:
         result = operator.execute_complete(None, None)
 
         assert result == {"graph_id": GRAPH_ID, "task_id": ""}
+
+
+class TestNeptuneCancelImportTaskOperator:
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_init_defaults(self, mock_conn):
+        mock_conn.cancel_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "CANCELLING",
+        }
+
+        operator = NeptuneCancelImportTaskOperator(
+            task_id="test_task",
+            task_identifier=TASK_ID,
+        )
+
+        assert operator.import_task_id == TASK_ID
+        assert operator.wait_for_completion is True
+        assert operator.waiter_delay == 30
+        assert operator.waiter_max_attempts == 60
+
+        operator.execute(None)
+
+        mock_conn.cancel_import_task.assert_called_once_with(taskIdentifier=TASK_ID)
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_init_custom_args(self, mock_conn):
+        mock_conn.cancel_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "CANCELLING",
+        }
+
+        operator = NeptuneCancelImportTaskOperator(
+            task_id="test_task",
+            task_identifier=TASK_ID,
+            waiter_delay=60,
+            waiter_max_attempts=100,
+        )
+
+        assert operator.import_task_id == TASK_ID
+        assert operator.waiter_delay == 60
+        assert operator.waiter_max_attempts == 100
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
+    def test_cancel_no_wait(self, mock_get_waiter, mock_conn):
+        mock_conn.cancel_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "CANCELLING",
+        }
+
+        operator = NeptuneCancelImportTaskOperator(
+            task_id="test_task",
+            task_identifier=TASK_ID,
+            wait_for_completion=False,
+        )
+        result = operator.execute(None)
+
+        mock_get_waiter.assert_not_called()
+        assert result == {"task_identifier": TASK_ID}
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
+    def test_cancel_wait_for_completion(self, mock_get_waiter, mock_conn):
+        mock_conn.cancel_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "CANCELLING",
+        }
+
+        operator = NeptuneCancelImportTaskOperator(
+            task_id="test_task",
+            task_identifier=TASK_ID,
+            wait_for_completion=True,
+        )
+        result = operator.execute(None)
+
+        mock_get_waiter.assert_called_once_with("import_task_cancelled")
+        assert result == {"task_identifier": TASK_ID}
+
+    def test_execute_complete_success(self):
+        operator = NeptuneCancelImportTaskOperator(
+            task_id="test_task",
+            task_identifier=TASK_ID,
+        )
+
+        event = {"status": "success", "task_identifier": TASK_ID}
+        result = operator.execute_complete(None, event)
+
+        assert result == {"task_identifier": TASK_ID}
+
+    def test_execute_complete_no_event(self):
+        operator = NeptuneCancelImportTaskOperator(
+            task_id="test_task",
+            task_identifier=TASK_ID,
+        )
+
+        result = operator.execute_complete(None, None)
+
+        assert result == {"task_identifier": ""}
