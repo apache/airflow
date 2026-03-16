@@ -23,6 +23,144 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.20.0 (2026-03-16)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Support for old versions of Apache Airflow <2.11 has been dropped (#61018)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Minimum supported version of Apache Airflow is now 2.11.0. If you want to deploy an
+old version of Apache Airflow, please use the last released version of the chart 1.19.0.
+
+Parameters moved to related workers section
+"""""""""""""""""""""""""""""""""""""""""""
+
+* ``workers.podDisruptionBudget`` section is now deprecated in favor of ``workers.celery.podDisruptionBudget``. Please update your configuration accordingly. (#61414)
+* ``workers.keda`` section is now deprecated in favor of ``workers.celery.keda``. Please update your configuration accordingly. (#61820)
+* ``workers.resources`` section is now deprecated in favor of ``workers.celery.resources`` and ``workers.kubernetes.resources``. Please update your configuration accordingly. (#61890)
+
+
+As Git-Sync is not service-type object, the readiness probe will be removed. (#62334)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+To enable feature behaviour set ``dags.gitSync.recommendedProbeSetting`` to ``true``. Section itself will be removed in future release as to not break setups during upgrades.
+
+As Git-Sync has dedicated liveness service, the liveness probe behaviour will be changed. To enable feature behaviour set ``dags.gitSync.recommendedProbeSetting`` to ``true``.
+
+Please update your configuration accordingly.
+
+
+Automatic ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` and ``AIRFLOW__KUBERNETES_SECRETS__`` prefix addition removed from ``container_extra_envs`` and ``custom_airflow_environment`` (#60750)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The automatic prefix addition for Kubernetes Executor environment variables and secrets has been removed from both the ``container_extra_envs`` and ``custom_airflow_environment`` helper functions.
+
+**What changed:**
+
+Previously, when you added environment variables to component-specific configurations (e.g., ``.Values.scheduler.env``, ``.Values.workers.env``, ``.Values.apiServer.env``, ``.Values.dagProcessor.env``), the chart automatically created an additional environment variable with the ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` prefix for Kubernetes Executor worker pods.
+
+**Example - Before:**
+.. code-block:: yaml
+
+    apiServer:
+      env:
+        - name: MY_VAR
+          value: "my_value"
+
+This would automatically create both:
+* ``MY_VAR=my_value`` (for the apiServer)
+* ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_VAR=my_value`` (for worker pods)
+
+**Example - After:**
+.. code-block:: yaml
+
+    apiServer:
+      env:
+        - name: MY_VAR
+          value: "my_value"
+
+Now only ``MY_VAR=my_value`` is created for the apiServer. The ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_VAR`` is **no longer automatically created**.
+
+**Why this change:**
+
+* **Prevent Unintended Exposure of Sensitive Data**: Sensitive information (e.g., ``client_secret``) that should be securely handled via ``secretKeyRef`` for specific components was being automatically prefixed with ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__``. This prefixing causes these variables to be recognized as part of Airflow's internal configuration, leading to their unintended exposure in the Airflow Web UI (under Admin -> Configuration), even when ``AIRFLOW__API__EXPOSE_CONFIG`` is set to ``non-sensitive-only``.
+
+* **Avoid Unintended Environment Propagation to Workers**: Component-specific env configurations are intended strictly for specific components. However, the previous behavior caused these variables to be inadvertently passed to worker pods, which may result in unintended configuration conflicts and unexpected side effects.
+
+**Migration Required:**
+
+If you need to pass environment variables specifically to Kubernetes Executor worker pods, use one of the following approaches:
+
+**Option 1: Use ``.Values.env``**
+.. code-block:: yaml
+
+    env:
+      - name: my_var
+        value: "my_value"
+
+Environment variables in ``.Values.env`` are now passed as-is without the automatic prefix (same behavior as component-specific env).
+
+**Option 2: Use ``.Values.config.kubernetes_environment_variables``**
+.. code-block:: yaml
+
+    config:
+      kubernetes_environment_variables:
+        my_var: "my_value"
+
+**Secrets (``.Values.secret``):** The ``AIRFLOW__KUBERNETES_SECRETS__`` prefix is no longer automatically added. Secrets are now passed as-is via ``secretKeyRef`` without the prefixed copy for worker pods.
+
+Default Airflow image is updated to ``3.1.8`` (#63392)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``3.1.8``, previously it was ``3.1.7``.
+
+
+Features
+^^^^^^^^
+
+- Support Helm template expressions in ``podAnnotations`` and ``airflowPodAnnotations`` values. (#63019)
+- Add minute-level log retention to clean-logs script (#61855)
+- Add LOG_MAX_SIZE environment variables to log groomer (#61559)
+
+Improvements
+^^^^^^^^^^^^
+
+- Remove automatic ``KUBERNETES_ENVIRONMENT_VARIABLES`` and ``KUBERNETES_SECRETS`` prefixes from chart helpers (#60750)
+- Remove JWT secrets from triggerer, worker and dag-processor (#63204)
+- Add workers.celery.nodeSelector & workers.kubernetes.nodeSelector (#61957)
+- Add workers.celery.terminationGracePeriodSeconds & workers.kubernetes.terminationGracePeriodSeconds (#61892)
+- Add workers.celery.resources & workers.kubernetes.resources (#61890)
+- Add workers.celery.keda section (#61820)
+- Add workers.celery.podDisruptionBudget (#61414)
+- Add workers.celery.containerLifecycleHooks & workers.kubernetes.containerLifecycleHooks (#61369)
+- Refactor Git-Sync livenessProbe & deprecate readinessProbe & add startupProbe (#62334)
+- Default airflow version to 3.1.8 (#63392)
+- Drop support for all Airflow versions below 2.11 in Helm Chart (#61018)
+- Support Helm template expressions in podAnnotations (#63019)
+- Warn on deprecated per-component securityContext values (#62729)
+
+Bug Fixes
+^^^^^^^^^
+
+- Add ``*.iml`` to .gitignore in all distributions (#63636)
+- More restrictive chart rendering logic (#63464)
+- Omit api-server spec.replicas when HPA is enabled (#63187)
+- Add workers.celery.kerberosSidecar & workers.kubernetes.kerberosSidecar sections (#61881)
+- Cleanup Helm Chart documentation (#62544)
+- Upgrade important CI environment (#62792)
+- Fix chart NOTES.txt showing deprecation warnings only without secret key (#62722)
+- Fix tpl rendering for TLS hosts in ingress templates #62358 (#62548)
+- Upgrade important CI environment (#62610)
+- Fix all build-system/requires including transitive dependencies (#62570)
+- Add ingress deprecation warnings for apiServer, statsd, and pgbouncer (#62490)
+- Add missing support for:  securityContexts and containerLifecycleHooks (#60677)
+- Fix webserver.defaultUser.enabled=false not honored (#62143)
+- Allow to use short SPDX licence identifier for selected files (#62073)
+
+
 Airflow Helm Chart 1.19.0 (2026-02-17)
 --------------------------------------
 
