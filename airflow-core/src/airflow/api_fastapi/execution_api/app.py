@@ -336,15 +336,15 @@ class InProcessExecutionAPI:
                 )
                 return TIToken(id=ti_id, claims={"scope": "execution"})
 
-            # Override DepContainer (the svcs service locator) for in-process use.
-            # Cadwyn's versioned sub-apps don't share the main app's
-            # state.svcs_registry, so the default _container dependency fails.
-            # Any service resolved via DepContainer in routes called during
-            # dag.test() must be registered here.
+            # Override _container (the svcs service locator behind DepContainer).
+            # The default _container reads request.app.state.svcs_registry, but
+            # Cadwyn's versioned sub-apps don't inherit the main app's state,
+            # so lookups raise ServiceNotFoundError. This registry provides
+            # services needed by routes called during dag.test().
             registry = svcs.Registry()
             registry.register_factory(JWTGenerator, _jwt_generator)
 
-            async def _test_container(request: Request):
+            async def _in_process_container(request: Request):
                 async with svcs.Container(registry) as cont:
                     yield cont
 
@@ -352,7 +352,7 @@ class InProcessExecutionAPI:
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow
-            self._app.dependency_overrides[_container] = _test_container
+            self._app.dependency_overrides[_container] = _in_process_container
 
         return self._app
 
