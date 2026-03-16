@@ -4495,6 +4495,21 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/connections/hook_meta/{connection_type}': {
+        get: {
+            req: HookMetaDataForTypeData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ConnectionHookMetaData;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/ui/connections/hook_meta': {
         get: {
             res: {
