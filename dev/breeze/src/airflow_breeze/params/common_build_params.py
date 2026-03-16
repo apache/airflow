@@ -30,7 +30,7 @@ from airflow_breeze.global_constants import (
     DOCKER_DEFAULT_PLATFORM,
     get_airflow_version,
 )
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.platforms import get_normalized_platform
 
 
@@ -131,7 +131,7 @@ class CommonBuildParams:
 
     def get_cache(self, single_platform: str) -> str:
         if "," in single_platform:
-            get_console().print(
+            console_print(
                 "[error]Cache can only be retrieved for single platform and you "
                 f"tried for {single_platform}[/]"
             )

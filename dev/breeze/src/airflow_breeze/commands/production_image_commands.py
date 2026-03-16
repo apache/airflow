@@ -89,7 +89,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
@@ -346,47 +346,47 @@ def build(
             prod_image_params=prod_image_params,
         )
         if return_code != 0:
-            get_console().print(f"[error]Error when building image! {info}")
+            console_print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
 
     if not install_airflow_version and not airflow_constraints_location:
-        get_console().print(f"[yellow]Using {CONSTRAINTS_SOURCE_PROVIDERS} constraints mode[/]")
+        console_print(f"[yellow]Using {CONSTRAINTS_SOURCE_PROVIDERS} constraints mode[/]")
         airflow_constraints_mode = CONSTRAINTS_SOURCE_PROVIDERS
 
     airflow_wheel_found_in_dist = len([AIRFLOW_DIST_PATH.glob("apache_airflow-*.whl")]) > 0
     if installation_method == ".":
         if install_distributions_from_context and airflow_wheel_found_in_dist:
-            get_console().print("[info]Installing Airflow from local distributions in docker context[/]")
+            console_print("[info]Installing Airflow from local distributions in docker context[/]")
         else:
-            get_console().print("[info]Installing Airflow from sources[/]")
+            console_print("[info]Installing Airflow from sources[/]")
             if skip_asset_compiled_check:
-                get_console().print(
+                console_print(
                     "[info]Skipping asset compilation check as requested.[/]\n\n"
                     "You can still build the assets manually with\n\n   [info]breeze compile-assets[/]\n"
                 )
             else:
                 if not UI_VITE_MANIFEST_PATH.exists():
-                    get_console().print(
+                    console_print(
                         f"\n[error]UI Vite manifest file {UI_VITE_MANIFEST_PATH} does not exist.[/]\n\n"
                         f"You should build the UI assets with\n\n   [info]breeze ui compile-assets[/]\n"
                     )
                     sys.exit(1)
                 if not FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH.exists():
-                    get_console().print(
+                    console_print(
                         f"\n[error]UI Vite manifest file {FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH} "
                         f"does not exist.[/]\n\n"
                         f"You should build the UI assets with\n\n   [info]breeze ui compile-assets[/]\n"
                     )
                     sys.exit(1)
     else:
-        get_console().print("[info]Installing Airflow from packages[/]")
+        console_print("[info]Installing Airflow from packages[/]")
 
     if use_uv is None:
         if installation_method == ".":
-            get_console().print("[warning]Since we are installing from sources - UV is used by default[/]")
+            console_print("[warning]Since we are installing from sources - UV is used by default[/]")
             use_uv = True
         else:
-            get_console().print("[warning]Since we are installing from sources - PIP is used by default[/]")
+            console_print("[warning]Since we are installing from sources - PIP is used by default[/]")
             use_uv = False
 
     perform_environment_checks()
@@ -540,7 +540,7 @@ def pull_prod_image(
             poll_time_seconds=10.0,
         )
         if return_code != 0:
-            get_console().print(f"[error]There was an error when pulling PROD image: {info}[/]")
+            console_print(f"[error]There was an error when pulling PROD image: {info}[/]")
             sys.exit(return_code)
 
 
@@ -634,12 +634,10 @@ def verify(
     perform_environment_checks()
     check_remote_ghcr_io_commands()
     if image_name and manifest_file:
-        get_console().print(
-            "[error]You cannot use --image-name and --manifest-file at the same time. Exiting[/"
-        )
+        console_print("[error]You cannot use --image-name and --manifest-file at the same time. Exiting[/")
         sys.exit(1)
     if (pull or image_name or manifest_file) and run_in_parallel:
-        get_console().print(
+        console_print(
             "[error]You cannot use --pull,--image-name,--manifest-file and "
             "--run-in-parallel at the same time. Exiting[/]"
         )
@@ -684,7 +682,7 @@ def verify(
             check_remote_ghcr_io_commands()
             command_to_run = ["docker", "pull", image_name]
             run_command(command_to_run, check=True)
-        get_console().print(f"[info]Verifying PROD image: {image_name}[/]")
+        console_print(f"[info]Verifying PROD image: {image_name}[/]")
         return_code, info = verify_an_image(
             image_name=image_name,
             output=None,
@@ -725,12 +723,12 @@ def save(
         image_file_to_store = image_file
     else:
         image_file_to_store = image_file_dir / image_file
-    get_console().print(f"[info]Saving Python PROD image {image_name} to {image_file_to_store}[/]")
+    console_print(f"[info]Saving Python PROD image {image_name} to {image_file_to_store}[/]")
     result = run_command(
         ["docker", "image", "save", "-o", image_file_to_store.as_posix(), image_name], check=False
     )
     if result.returncode != 0:
-        get_console().print(f"[error]Error when saving image: {result.stdout}[/]")
+        console_print(f"[error]Error when saving image: {result.stdout}[/]")
         sys.exit(result.returncode)
 
 
@@ -762,7 +760,7 @@ def load(
     escaped_platform = platform.replace("/", "_")
 
     if from_run or from_pr and not github_token:
-        get_console().print(
+        console_print(
             "[error]The parameter `--github-token` must be provided if `--from-run` or `--from-pr` is "
             "provided. Exiting.[/]"
         )
@@ -780,26 +778,26 @@ def load(
         download_artifact_from_pr(from_pr, image_file_to_load, github_repository, github_token)
 
     if not image_file_to_load.exists():
-        get_console().print(f"[error]The image {image_file_to_load} does not exist.[/]")
+        console_print(f"[error]The image {image_file_to_load} does not exist.[/]")
         sys.exit(1)
     if not image_file_to_load.name.endswith(f"-{python}.tar"):
-        get_console().print(
+        console_print(
             f"[error]The image file {image_file_to_load} does not end with '-{python}.tar'. Exiting.[/]"
         )
         sys.exit(1)
     if not image_file_to_load.name.startswith(f"prod-image-save-{escaped_platform}"):
-        get_console().print(
+        console_print(
             f"[error]The image file {image_file_to_load} does not start with 'prod-image-save-{escaped_platform}'"
             f". Exiting.[/]"
         )
         sys.exit(1)
-    get_console().print(f"[info]Loading Python PROD image from {image_file_to_load}[/]")
+    console_print(f"[info]Loading Python PROD image from {image_file_to_load}[/]")
     result = run_command(["docker", "image", "load", "-i", image_file_to_load.as_posix()], check=False)
     if result.returncode != 0:
-        get_console().print(f"[error]Error when loading image: {result.stdout}[/]")
+        console_print(f"[error]Error when loading image: {result.stdout}[/]")
         sys.exit(result.returncode)
     if not skip_image_file_deletion:
-        get_console().print(f"[info]Deleting image file {image_file_to_load}[/]")
+        console_print(f"[info]Deleting image file {image_file_to_load}[/]")
         image_file_to_load.unlink()
     if get_verbose():
         run_command(["docker", "images", "-a"])
@@ -810,7 +808,7 @@ def clean_docker_context_files():
     Cleans up docker context files folder - leaving only .README.md there.
     """
     if get_verbose() or get_dry_run():
-        get_console().print("[info]Cleaning docker-context-files[/]")
+        console_print("[info]Cleaning docker-context-files[/]")
     if get_dry_run():
         return
     context_files_to_delete = DOCKER_CONTEXT_PATH.rglob("*")
@@ -836,18 +834,16 @@ def check_docker_context_files(install_distributions_from_context: bool):
         for context in context_file
     )
     if not any_context_files and install_distributions_from_context:
-        get_console().print("[warning]\nERROR! You want to install packages from docker-context-files")
-        get_console().print("[warning]\n but there are no packages to install in this folder.")
+        console_print("[warning]\nERROR! You want to install packages from docker-context-files")
+        console_print("[warning]\n but there are no packages to install in this folder.")
         sys.exit(1)
     elif any_context_files and not install_distributions_from_context:
-        get_console().print(
+        console_print(
             "[warning]\n ERROR! There are some extra files in docker-context-files except README.md"
         )
-        get_console().print("[warning]\nAnd you did not choose --install-distributions-from-context flag")
-        get_console().print(
-            "[warning]\nThis might result in unnecessary cache invalidation and long build times"
-        )
-        get_console().print("[warning]Please restart the command with --cleanup-context switch\n")
+        console_print("[warning]\nAnd you did not choose --install-distributions-from-context flag")
+        console_print("[warning]\nThis might result in unnecessary cache invalidation and long build times")
+        console_print("[warning]Please restart the command with --cleanup-context switch\n")
         sys.exit(1)
 
 
