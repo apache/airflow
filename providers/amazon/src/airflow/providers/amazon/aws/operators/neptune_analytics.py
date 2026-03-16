@@ -434,7 +434,7 @@ class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
 
-    def execute(self, context: Context) -> dict:
+    def execute(self, context: Context):
         self.log.info("Deleting graph %s", self.graph_id)
 
         try:
@@ -465,7 +465,7 @@ class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None):
         if event:
             graph_id = event.get("graph_id", "Unknown")
 
