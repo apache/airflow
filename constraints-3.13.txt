@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-15T14:02:08.957322
+# This constraints file was automatically generated on 2026-03-16T00:46:58.948778
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -244,7 +244,7 @@ celery==5.6.2
 certifi==2026.2.25
 cffi==2.0.0
 chardet==6.0.0.post1
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
 ciso8601==2.3.3
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
