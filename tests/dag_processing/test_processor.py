@@ -534,6 +534,50 @@ class TestDagFileProcessor:
         )
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
+    @patch.object(DagFileProcessor, "logger")
+    @patch.object(TaskInstance, "handle_failure")
+    def test_execute_on_failure_callbacks_skips_stale_try_number(self, mock_ti_handle_failure, mock_logger):
+        dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
+        dag_file_processor = DagFileProcessor(
+            dag_ids=[], dag_directory=TEST_DAGS_FOLDER, log=mock.MagicMock()
+        )
+        with create_session() as session:
+            session.query(TaskInstance).delete()
+            dag = dagbag.get_dag("example_branch_operator")
+            dagrun = dag.create_dagrun(
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
+                session=session,
+            )
+            task = dag.get_task(task_id="run_this_first")
+            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
+            session.add(ti)
+            session.flush()
+
+            simple_ti = SimpleTaskInstance.from_ti(ti)
+            ti.try_number += 1
+            session.flush()
+
+            requests = [
+                TaskCallbackRequest(
+                    full_filepath="A",
+                    simple_task_instance=simple_ti,
+                    msg="Message",
+                )
+            ]
+            dag_file_processor.execute_callbacks(dagbag, requests, dag_file_processor.UNIT_TEST_MODE, session)
+
+        mock_ti_handle_failure.assert_not_called()
+        mock_logger.return_value.warning.assert_called_once_with(
+            "Skipping stale failure callback for %s: callback try_number=%s, current try_number=%s",
+            ti,
+            simple_ti.try_number,
+            ti.try_number,
+        )
+
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
         ["has_serialized_dag"],
         [pytest.param(True, id="dag_in_db"), pytest.param(False, id="no_dag_found")],
