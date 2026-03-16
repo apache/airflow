@@ -25,7 +25,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Thread
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import click
 from rich.panel import Panel
@@ -148,7 +148,7 @@ def _get_status_cache_dir(github_repository: str) -> Path:
     return cache_dir
 
 
-def _get_cached_status(github_repository: str, cache_key: str) -> dict | None:
+def _get_cached_status(github_repository: str, cache_key: str) -> Any:
     """Load a cached status result if it exists and is within the TTL.
 
     Uses wall-clock time (``time.time()``) because this cache persists across process restarts.
@@ -2551,7 +2551,7 @@ def _display_log_snippets_panel(log_snippets: dict[str, LogSnippetInfo], pr: PRD
             display_snippet = display_snippet[:2000] + "\n... (truncated)"
 
         # Build content: clickable links header + pre-formatted log text
-        renderables = []
+        renderables: list[Any] = []
         link_parts: list[str] = []
         if pr:
             link_parts.append(f"PR: [link={pr.url}]#{pr.number}[/link]")
