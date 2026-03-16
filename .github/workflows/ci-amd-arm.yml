@@ -138,6 +138,7 @@ jobs:
       testable-providers-integrations: ${{ steps.selective-checks.outputs.testable-providers-integrations }}
       use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
+      is-uv-lock-update: ${{ steps.selective-checks.outputs.is-uv-lock-update }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -328,6 +329,7 @@ jobs:
     secrets:
       DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
       DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
   providers:
     name: "provider distributions tests"
@@ -923,16 +925,57 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
-  notify-slack-failure:
-    name: "Notify Slack on Failure"
+  notify-slack:
+    name: "Notify Slack"
     needs:
       - build-info
       - finalize-tests
-    if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
+    if: >-
+      always() &&
+      !cancelled() &&
+      github.event_name == 'schedule' &&
+      github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]
     steps:
-      - name: Notify Slack
-        id: slack
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: "Get failing jobs"
+        id: get-failures
+        shell: bash
+        run: |
+          FAILED_JOBS=$(gh run view "${{ github.run_id }}" \
+            --repo "${{ github.repository }}" \
+            --json jobs \
+            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | sort | .[]')
+          echo "failed-jobs<<EOF" >> "${GITHUB_OUTPUT}"
+          echo "${FAILED_JOBS}" >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
+          if [[ -n "${FAILED_JOBS}" ]]; then
+            echo "has-failures=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "has-failures=false" >> "${GITHUB_OUTPUT}"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: "Determine notification action"
+        id: notification
+        shell: bash
+        run: python3 scripts/ci/slack_notification_state.py
+        env:
+          ARTIFACT_NAME: "slack-state-tests-${{ github.ref_name }}"
+          CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: "Upload notification state"
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        with:
+          name: "slack-state-tests-${{ github.ref_name }}"
+          path: ./slack-state/
+          retention-days: 7
+          overwrite: true
+      - name: "Notify Slack (new/changed failures)"
+        if: steps.notification.outputs.action == 'notify_new'
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
         with:
           method: chat.postMessage
@@ -940,12 +983,44 @@ jobs:
           # yamllint disable rule:line-length
           payload: |
             channel: "internal-airflow-ci-cd"
-            text: "🚨🕒 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) on branch *${{ github.ref_name }}* 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            text: "🚨 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) on branch *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
             blocks:
               - type: "section"
                 text:
                   type: "mrkdwn"
-                  text: "🚨🕒 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  text: "🚨 Failure Alert: Scheduled CI (${{ needs.build-info.outputs.platform }}) on *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+          # yamllint enable rule:line-length
+      - name: "Notify Slack (still not fixed)"
+        if: steps.notification.outputs.action == 'notify_reminder'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "🚨🔁 Still not fixed: Scheduled CI (${{ needs.build-info.outputs.platform }}) on branch *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "🚨🔁 Still not fixed: Scheduled CI (${{ needs.build-info.outputs.platform }}) on *${{ github.ref_name }}*\n\nFailing jobs:\n${{ steps.get-failures.outputs.failed-jobs }}\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+          # yamllint enable rule:line-length
+      - name: "Notify Slack (all tests passing)"
+        if: steps.notification.outputs.action == 'notify_recovery'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "✅ All tests passing: Scheduled CI (${{ needs.build-info.outputs.platform }}) on branch *${{ github.ref_name }}*\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the run log>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "✅ All tests passing: Scheduled CI (${{ needs.build-info.outputs.platform }}) on *${{ github.ref_name }}*\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the run log>"
           # yamllint enable rule:line-length
 
   summarize-warnings:
