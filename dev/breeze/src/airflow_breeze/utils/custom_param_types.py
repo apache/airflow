@@ -33,7 +33,7 @@ from airflow_breeze.utils.cache import (
     write_to_cache_file,
 )
 from airflow_breeze.utils.coertions import coerce_bool_value
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.shared_options import set_dry_run, set_forced_answer, set_verbose
 
@@ -168,7 +168,7 @@ class CacheableChoice(click.Choice):
         if isinstance(value, CacheableDefault):
             is_cached, new_value = read_and_validate_value_from_cache(param_name, value.value)
             if not is_cached:
-                get_console().print(f"\n[info]Default value of {param.name} parameter {new_value} used.[/]\n")
+                console_print(f"\n[info]Default value of {param.name} parameter {new_value} used.[/]\n")
         else:
             allowed, allowed_values = check_if_values_allowed(param_name, value)
             if allowed:
@@ -177,7 +177,7 @@ class CacheableChoice(click.Choice):
                     write_to_cache_file(param_name, new_value, check_allowed_values=False)
             else:
                 new_value = allowed_values[0]
-                get_console().print(
+                console_print(
                     f"\n[warning]The value {value} is not allowed for parameter {param.name}. "
                     f"Setting default value to {new_value}"
                 )
@@ -238,7 +238,7 @@ class MySQLBackendVersionChoice(BackendVersionChoice):
             mysql_version = read_from_cache_file(param_name)
             if mysql_version == "8":
                 value = "8.0"
-                get_console().print(
+                console_print(
                     f"\n[warning]Found outdated cached value {mysql_version} for parameter {param.name}. "
                     f"Replaced by {value}"
                 )
@@ -246,7 +246,7 @@ class MySQLBackendVersionChoice(BackendVersionChoice):
         else:
             if value == "8":
                 value = "8.0"
-                get_console().print(
+                console_print(
                     f"\n[warning]Provided outdated value {8} for parameter {param.name}. "
                     f"Will use {value} instead"
                 )

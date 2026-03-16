@@ -31,7 +31,7 @@ from airflow_breeze.global_constants import (
     all_helm_test_packages,
 )
 from airflow_breeze.utils.confirm import Answer, confirm_action
-from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT_PATH,
@@ -115,10 +115,10 @@ def run_docker_compose_tests(
             ["docker", "inspect", image_name], check=False, capture_output=True, text=True
         )
         if command_result.returncode != 0:
-            get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
-            get_console().print(command_result.stderr or "", highlight=False)
+            console_print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
+            console_print(command_result.stderr or "", highlight=False)
             if "no such object" in command_result.stderr:
-                get_console().print(
+                console_print(
                     f"The image {image_name} does not exist locally. "
                     f"It should be build before running docker-compose tests."
                 )
@@ -129,14 +129,14 @@ def run_docker_compose_tests(
                     timeout=20,
                 )
                 if answer:
-                    get_console().print(f"[info]Building image {image_name}[/]")
+                    console_print(f"[info]Building image {image_name}[/]")
                     run_command(["breeze", "prod-image", "build", "--python", python_version], check=True)
 
                 else:
-                    get_console().print(
+                    console_print(
                         f"[error]Cannot run docker-compose tests without the image {image_name} present locally.[/]"
                     )
-                    get_console().print(
+                    console_print(
                         f"\nPlease build the image, using\n\n"
                         f"[special]breeze prod-image build --python {python_version}[/]\n\n"
                         f"and try again.\n"
@@ -343,11 +343,11 @@ def convert_test_type_to_pytest_args(
         return all_paths
 
     if test_group == GroupOfTests.SYSTEM and test_type != NONE_TEST_TYPE:
-        get_console().print(f"[error]Only {NONE_TEST_TYPE} should be allowed as test type[/]")
+        console_print(f"[error]Only {NONE_TEST_TYPE} should be allowed as test type[/]")
         sys.exit(1)
     if test_group == GroupOfTests.HELM:
         if test_type not in all_helm_test_packages():
-            get_console().print(f"[error]Unknown helm test type: {test_type}[/]")
+            console_print(f"[error]Unknown helm test type: {test_type}[/]")
             sys.exit(1)
         helm_folder = TEST_GROUP_TO_TEST_FOLDERS[test_group][0]
         if test_type and test_type != ALL_TEST_TYPE:
@@ -360,7 +360,7 @@ def convert_test_type_to_pytest_args(
         GroupOfTests.INTEGRATION_PROVIDERS,
     ]:
         if test_type != ALL_TEST_TYPE:
-            get_console().print(f"[error]Unknown test type for {test_group}: {test_type}[/]")
+            console_print(f"[error]Unknown test type for {test_group}: {test_type}[/]")
             sys.exit(1)
     if test_group == GroupOfTests.PROVIDERS:
         if test_type.startswith(PROVIDERS_LIST_EXCLUDE_PREFIX):
@@ -369,7 +369,7 @@ def convert_test_type_to_pytest_args(
             for excluded_provider in excluded_provider_list:
                 provider_test_to_exclude = f"providers/{excluded_provider.replace('.', '/')}/tests"
                 if provider_test_to_exclude in providers_with_exclusions:
-                    get_console().print(
+                    console_print(
                         f"[info]Removing {provider_test_to_exclude} from {providers_with_exclusions}[/]"
                     )
                     providers_with_exclusions.remove(provider_test_to_exclude)
@@ -387,7 +387,7 @@ def convert_test_type_to_pytest_args(
                 if provider_path.is_dir():
                     providers_to_test.append(provider_path.as_posix())
                 else:
-                    get_console().print(
+                    console_print(
                         f"[error] {provider_path} does not exist for {provider} "
                         "- which means that this provider has no tests. This is bad idea. "
                         "Please add it (all providers should have at least a package in tests)."
@@ -395,17 +395,17 @@ def convert_test_type_to_pytest_args(
                     sys.exit(1)
             return providers_to_test
         if not test_type.startswith(PROVIDERS_PREFIX):
-            get_console().print(f"[error]Unknown test type for {GroupOfTests.PROVIDERS}: {test_type}[/]")
+            console_print(f"[error]Unknown test type for {GroupOfTests.PROVIDERS}: {test_type}[/]")
             sys.exit(1)
         return TEST_GROUP_TO_TEST_FOLDERS[test_group]
     if test_group == GroupOfTests.PYTHON_API_CLIENT:
         return TEST_GROUP_TO_TEST_FOLDERS[test_group]
     if test_group != GroupOfTests.CORE:
-        get_console().print(f"[error]Only {GroupOfTests.CORE} should be allowed here[/]")
+        console_print(f"[error]Only {GroupOfTests.CORE} should be allowed here[/]")
     test_dirs = TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS.get(test_type)
     if test_dirs:
         return test_dirs.copy()
-    get_console().print(f"[error]Unknown test type: {test_type}[/]")
+    console_print(f"[error]Unknown test type: {test_type}[/]")
     sys.exit(1)
 
 
@@ -494,17 +494,17 @@ def generate_args_for_pytest(
     args.extend(get_excluded_provider_ignore_args(python_version))
     suspended_test_folders = get_suspended_test_provider_folders()
     if suspended_test_folders:
-        get_console().print(f"[info]Suspended test folders to remove: {suspended_test_folders}[/]")
+        console_print(f"[info]Suspended test folders to remove: {suspended_test_folders}[/]")
         for suspended_test_folder in suspended_test_folders:
             if suspended_test_folder in args:
-                get_console().print(f"[warning]Removing {suspended_test_folder}[/]")
+                console_print(f"[warning]Removing {suspended_test_folder}[/]")
                 args.remove(suspended_test_folder)
     excluded_test_folders = get_excluded_test_provider_folders(python_version)
     if excluded_test_folders:
-        get_console().print(f"[info]Excluded test folders to remove: {excluded_test_folders}[/]")
+        console_print(f"[info]Excluded test folders to remove: {excluded_test_folders}[/]")
         for excluded_test_folder in excluded_test_folders:
             if excluded_test_folder in args:
-                get_console().print(f"[warning]Removing {excluded_test_folder}[/]")
+                console_print(f"[warning]Removing {excluded_test_folder}[/]")
                 args.remove(excluded_test_folder)
     if use_xdist:
         args.extend(["-n", str(parallelism) if parallelism else "auto"])

@@ -23,7 +23,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import console, get_provider_base_dir_from_path, get_provider_id_from_path
 
 

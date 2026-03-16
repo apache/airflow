@@ -974,6 +974,10 @@ These are all available flags of ``workflow-run`` command:
 ``--site-env`` specifies the environment to use for the site (e.g., auto, live, staging). the default is auto, based on the ref it decides live or staging.
 ``--refresh-site`` specifies whether to refresh the site after publishing the documentation. This triggers workflow on apache/airflow-site repository to refresh the site.
 ``--skip-write-to-stable-folder`` specifies the documentation packages to skip writing to the stable folder.
+``--ignore-missing-inventories`` when set, the publish workflow will not fail if third-party intersphinx
+inventories cannot be downloaded. By default, the publish workflow fails on missing inventories to ensure
+complete cross-references in published documentation. Use this flag only when you need to publish despite
+temporary third-party inventory outages.
 
 
 These are all available flags of ``workflow-run publish-docs`` command:

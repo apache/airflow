@@ -45,7 +45,7 @@ class SalesforceBulkOperator(BaseOperator):
     :param external_id_field: unique identifier field for upsert operations
     :param batch_size: number of records to assign for each batch in the job
     :param use_serial: Process batches in serial mode
-    :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:SalesforceHook>`.
+    :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:salesforce>`.
     """
 
     available_operations = ("insert", "update", "upsert", "delete", "hard_delete")

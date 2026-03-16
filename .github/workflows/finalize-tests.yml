@@ -120,16 +120,9 @@ jobs:
           path: ./files
       - name: "Diff in constraints for Python: ${{ inputs.python-versions-list-as-string }}"
         run: ./scripts/ci/constraints/ci_diff_constraints.sh
-      # only commit and push constraints in canary runs (main)
-      - name: "Commit changed constraint files for Python: ${{ inputs.python-versions-list-as-string }}"
-        run: ./scripts/ci/constraints/ci_commit_constraints.sh
-        if: inputs.canary-run == 'true'
-      - name: "Push changes"
-        if: inputs.canary-run == 'true' && github.event_name != 'pull_request'
-        working-directory: "constraints"
-        run:
-          git push
 
+  # Constraint commits are now handled by the dedicated update-constraints-on-push workflow
+  # triggered when uv.lock changes are pushed to main/test branches.
   dependency-upgrade-summary:
     runs-on: ${{ fromJSON(inputs.runners) }}
     needs: [update-constraints]

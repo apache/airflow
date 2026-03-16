@@ -64,7 +64,7 @@ depends_on = None
 airflow_version = "3.2.0"
 
 
-CALLBACK_KEY = "callback_def"
+CALLBACK_KEY = "callback"
 DAG_KEY = "dag"
 DEADLINE_KEY = "deadline"
 INTERVAL_KEY = "interval"

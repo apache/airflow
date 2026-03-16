@@ -3238,7 +3238,7 @@ class TestDagRunTracing:
         from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
         from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-        from airflow.observability.traces import OverrideableRandomIdGenerator
+        from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 
         in_mem_exporter = InMemorySpanExporter()
         provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
@@ -3279,7 +3279,7 @@ class TestDagRunTracing:
         from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
         from opentelemetry.trace import StatusCode
 
-        from airflow.observability.traces import OverrideableRandomIdGenerator
+        from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 
         in_mem_exporter = InMemorySpanExporter()
         provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())

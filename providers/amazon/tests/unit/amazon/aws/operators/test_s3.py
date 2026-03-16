@@ -98,7 +98,25 @@ class TestS3CreateBucketOperator:
         # execute s3 bucket create operator
         self.create_bucket_operator.execute({})
         mock_check_for_bucket.assert_called_once_with(BUCKET_NAME)
-        mock_create_bucket.assert_called_once_with(bucket_name=BUCKET_NAME, region_name=None)
+        mock_create_bucket.assert_called_once_with(
+            bucket_name=BUCKET_NAME, region_name=None, bucket_namespace=None
+        )
+
+    @mock_aws
+    @mock.patch.object(S3Hook, "create_bucket")
+    @mock.patch.object(S3Hook, "check_for_bucket")
+    def test_execute_with_bucket_namespace(self, mock_check_for_bucket, mock_create_bucket):
+        mock_check_for_bucket.return_value = False
+        operator = S3CreateBucketOperator(
+            task_id="test-s3-create-bucket-with-namespace",
+            bucket_name=BUCKET_NAME,
+            bucket_namespace="account-regional",
+        )
+        operator.execute({})
+        mock_check_for_bucket.assert_called_once_with(BUCKET_NAME)
+        mock_create_bucket.assert_called_once_with(
+            bucket_name=BUCKET_NAME, region_name=None, bucket_namespace="account-regional"
+        )
 
     def test_template_fields(self):
         validate_template_fields(self.create_bucket_operator)
