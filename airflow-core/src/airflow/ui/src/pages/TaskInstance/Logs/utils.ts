@@ -18,6 +18,36 @@
  */
 import type { Virtualizer } from "@tanstack/react-virtual";
 
+export type HighlightOptions = {
+  currentMatchIndex?: number;
+  hash: string;
+  index: number;
+  searchMatchIndices?: Set<number>;
+};
+
+/**
+ * Returns the background color token for a virtualized log row.
+ * Priority: current search match > any search match > URL hash line > transparent.
+ */
+export const getHighlightColor = ({
+  currentMatchIndex,
+  hash,
+  index,
+  searchMatchIndices,
+}: HighlightOptions): string => {
+  if (currentMatchIndex !== undefined && index === currentMatchIndex) {
+    return "orange.emphasized";
+  }
+  if (searchMatchIndices?.has(index)) {
+    return "yellow.emphasized";
+  }
+  if (Boolean(hash) && index === Number(hash) - 1) {
+    return "brand.emphasized";
+  }
+
+  return "transparent";
+};
+
 type VirtualizerInstance = Virtualizer<HTMLDivElement, Element>;
 
 type ScrollToTopOptions = {

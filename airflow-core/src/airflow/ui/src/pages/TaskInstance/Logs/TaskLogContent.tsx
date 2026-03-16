@@ -27,7 +27,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar, Tooltip } from "src/components/ui";
 import { getMetaKey } from "src/utils";
 
-import { scrollToBottom, scrollToTop } from "./utils";
+import { getHighlightColor, scrollToBottom, scrollToTop } from "./utils";
 
 export type TaskLogContentProps = {
   readonly currentMatchIndex?: number;
@@ -79,32 +79,6 @@ const ScrollToButton = ({
       </IconButton>
     </Tooltip>
   );
-};
-
-type HighlightOptions = {
-  currentMatchIndex?: number;
-  hash: string;
-  index: number;
-  searchMatchIndices?: Set<number>;
-};
-
-const getHighlightColor = ({
-  currentMatchIndex,
-  hash,
-  index,
-  searchMatchIndices,
-}: HighlightOptions): string => {
-  if (currentMatchIndex !== undefined && index === currentMatchIndex) {
-    return "orange.emphasized";
-  }
-  if (searchMatchIndices?.has(index)) {
-    return "yellow.emphasized";
-  }
-  if (Boolean(hash) && index === Number(hash) - 1) {
-    return "brand.emphasized";
-  }
-
-  return "transparent";
 };
 
 export const TaskLogContent = ({
