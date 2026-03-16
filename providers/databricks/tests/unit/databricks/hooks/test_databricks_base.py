@@ -1383,7 +1383,7 @@ class TestBaseDatabricksHook:
     @mock.patch("aiohttp.ClientSession.post")
     @time_machine.travel("2025-07-12 12:00:00")
     @mock.patch("ssl.create_default_context")
-    async def test_a_get_federated_token(self, mock_ssl_ctx, mock_post):
+    async def test_a_get_federated_token(self, _mock_ssl_ctx, mock_post):
         """Test async version of federated token exchange."""
         expiry_date = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
 
@@ -1504,7 +1504,7 @@ class TestBaseDatabricksHook:
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
     @mock.patch("ssl.create_default_context")
-    async def test_a_get_federated_token_databricks_error(self, mock_ssl_ctx, mock_post):
+    async def test_a_get_federated_token_databricks_error(self, _mock_ssl_ctx, mock_post):
         """Test async error handling when Databricks token exchange fails."""
         # Mock aiofiles.open for reading K8s token and namespace
         mock_token_file = mock.AsyncMock()
@@ -1783,7 +1783,7 @@ class TestBaseDatabricksHook:
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
     @mock.patch("ssl.create_default_context")
-    async def test_a_get_token_with_federated_k8s_login(self, mock_ssl_ctx, mock_post):
+    async def test_a_get_token_with_federated_k8s_login(self, _mock_ssl_ctx, mock_post):
         """Test async _a_get_token with login='federated_k8s'."""
         # Mock aiofiles.open for reading K8s token and namespace
         mock_token_file = mock.AsyncMock()
@@ -1837,7 +1837,7 @@ class TestBaseDatabricksHook:
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
     @mock.patch("ssl.create_default_context")
-    async def test_a_get_token_with_federated_k8s_extra(self, mock_ssl_ctx, mock_post):
+    async def test_a_get_token_with_federated_k8s_extra(self, _mock_ssl_ctx, mock_post):
         """Test async _a_get_token with federated_k8s in extras."""
         # Mock aiofiles.open for reading K8s token and namespace
         mock_token_file = mock.AsyncMock()
