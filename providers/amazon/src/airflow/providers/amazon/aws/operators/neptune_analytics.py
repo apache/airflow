@@ -20,13 +20,17 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from botocore.exceptions import ClientError
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.neptune_analytics import NeptuneAnalyticsHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.neptune_analytics import (
     NeptuneGraphAvailableTrigger,
+    NeptuneGraphDeletedTrigger,
     NeptuneGraphPrivateEndpointAvailableTrigger,
     NeptuneGraphPrivateEndpointDeletedTrigger,
+    NeptuneImportTaskCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import conf
@@ -69,7 +73,7 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
 
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-    :return: dictionary with Neptune graph id
+    :return: dictionary with Neptune graph id and vpc id
     """
 
     aws_hook_class = NeptuneAnalyticsHook
@@ -127,7 +131,7 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         }
 
         response = self.hook.conn.create_graph(**create_params)
-
+        # TODO: need to return vpc id from response in case it wasn't supplied earlier.
         self.log.info("Graph %s in status %s", self.graph_name, response.get("status", "Unknown"))
         self.graph_id = response.get("id", None)
 
@@ -155,14 +159,9 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         return {"graph_id": self.graph_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        graph_id = ""
+        self.log.info("Neptune graph % complete", self.graph_id)
 
-        if event:
-            graph_id = event.get("graph_id", "Unknown")
-
-            self.log.info("Neptune graph % complete", graph_id)
-
-        return {"graph_id": graph_id}
+        return {"graph_id": self.graph_id}
 
 
 class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
@@ -171,7 +170,7 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:NeptuneCreateGraphOperator`
+        :ref:`howto/operator:NeptuneCreatePrivateGraphEndpointOperator`
 
     :param graph_identifier: Neptune Graph id
     :param vpc_id: VPC to create endpoint in
@@ -382,3 +381,384 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
             vpc_endpoint_id = event.get("endpoint_id", "Unknown")
 
             self.log.info("Endpoint id %s deleted", vpc_endpoint_id)
+
+
+class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
+    """
+    Deletes an Amazon Neptune Graph database.
+
+    Neptune Analytics is a memory-optimized graph database engine for analytics. With Neptune Analytics, you can get insights and find trends by processing large amounts of graph data in seconds.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:NeptuneCreateGraphOperator`
+
+    :param graph_id: Name of Neptune graph to create
+    :param skip_snapshot: Determines whether a final graph snapshot is created before the graph is deleted. If true is specified, no graph snapshot is created. If false is specified, a graph snapshot is created before the graph is deleted.
+    :param wait_for_completion: Whether to wait for the graph to delete. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the graph to be deleted.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param waiter_delay: Time in seconds to wait between status checks.
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    :return: dictionary with Neptune graph id
+    """
+
+    aws_hook_class = NeptuneAnalyticsHook
+    template_fields: Sequence[str] = aws_template_fields("graph_id", "skip_snapshot")
+
+    def __init__(
+        self,
+        graph_id: str,
+        skip_snapshot: bool,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.graph_id = graph_id
+        self.skip_snapshot = skip_snapshot
+        self.wait_for_completion = wait_for_completion
+        self.deferrable = deferrable
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+
+    def execute(self, context: Context) -> dict:
+        self.log.info("Deleting graph %s", self.graph_id)
+
+        try:
+            self.hook.conn.delete_graph(graphIdentifier=self.graph_id, skipSnapshot=self.skip_snapshot)
+        except ClientError as e:
+            # if not found, just exit because there is nothing to delete
+            if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                self.log.info("Graph %s not found. Nothing to delete", self.graph_id)
+            else:
+                raise AirflowException(e.response["Error"])
+
+        if self.deferrable:
+            self.log.info("Deferring until graph %s is deleted", self.graph_id)
+            self.defer(
+                trigger=NeptuneGraphDeletedTrigger(
+                    aws_conn_id=self.aws_conn_id,
+                    graph_id=self.graph_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+            )
+        if self.wait_for_completion:
+            self.log.info("Waiting to delete %s", self.graph_id)
+
+            self.hook.conn.get_waiter("graph_deleted").wait(
+                graphIdentifier=self.graph_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
+        if event:
+            graph_id = event.get("graph_id", "Unknown")
+
+            self.log.info("Neptune graph % deleted", graph_id)
+
+
+class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
+    """
+    Creates a Neptune Graph and imports data into it.
+
+    Neptune Analytics is a memory-optimized graph database engine for analytics. With Neptune Analytics,
+    you can get insights and find trends by processing large amounts of graph data in seconds.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:NeptuneCreateGraphWithImportOperator`
+
+    :param graph_name: Name of Neptune graph to create
+    :param vector_search_config: Specifies the number of dimensions for vector embeddings that will be loaded into the graph.
+    :param source: The source from which to import data. Can be an S3 URI or Neptune database snapshot.
+    :param role_arn: The ARN of the IAM role that Neptune Analytics can assume to access the data source.
+    :param blank_node_handling: The method to handle blank nodes in the dataset. Options include 'convertToIri' or other handling strategies.
+    :param parquet_type: The type of Parquet files in the data source (if applicable).
+    :param format: The format of the data to be imported (e.g., 'csv', 'opencypher', 'ntriples', 'nquads', 'rdfxml', 'turtle').
+    :param min_provisioned_memory: The minimum provisioned memory for the graph in GBs.
+    :param max_provisioned_memory: The maximum provisioned memory for the graph in GBs.
+    :param fail_on_error: If True, the import will fail if any errors are encountered. If False, the import will continue despite errors.
+    :param public_connectivity: Specifies whether or not the graph can be reachable over the internet.
+    :param replica_count: The number of replicas in other AZs.
+    :param deletion_protection: Indicates whether or not to enable deletion protection on the graph.
+        The graph can't be deleted when deletion protection is enabled. (default: False)
+    :param kms_key_id: Specifies a KMS key to use to encrypt data in the new graph.
+    :param tags: Specifies metadata tags to add to the graph.
+    :param import_options: Contains options for controlling the import process.
+    :param wait_for_completion: Whether to wait for the graph to be created and data imported. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 30)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 60)
+    :param deferrable: If True, the operator will wait asynchronously for the graph to be created and data imported.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    :return: dictionary with Neptune graph id and vpc id
+    """
+
+    aws_hook_class = NeptuneAnalyticsHook
+    template_fields: Sequence[str] = aws_template_fields()
+
+    def __init__(
+        self,
+        graph_name: str,
+        vector_search_config: dict,
+        source: str,
+        role_arn: str,
+        blank_node_handling: str | None = None,
+        parquet_type: str | None = None,
+        format: str | None = None,
+        min_provisioned_memory: int | None = None,
+        max_provisioned_memory: int | None = None,
+        fail_on_error: bool | None = None,
+        public_connectivity: bool | None = None,
+        replica_count: int | None = None,
+        deletion_protection: bool | None = None,
+        kms_key_id: str | None = None,
+        tags: dict | None = None,
+        import_options: dict | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.graph_name = graph_name
+        self.vector_search_config = vector_search_config
+        self.source = source
+        self.role_arn = role_arn
+        self.blank_node_handling = blank_node_handling
+        self.parquet_type = parquet_type
+        self.format = format
+        self.min_provisioned_memory = min_provisioned_memory
+        self.max_provisioned_memory = max_provisioned_memory
+        self.fail_on_error = fail_on_error
+        self.public_connectivity = public_connectivity
+        self.replica_count = replica_count
+        self.deletion_protect = deletion_protection
+        self.kms_key = kms_key_id
+        self.tags = tags
+        self.import_options = import_options
+        self.wait_for_completion = wait_for_completion
+        self.deferrable = deferrable
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+
+    def execute(self, context: Context) -> dict:
+        self.log.info("Creating graph %s with import", self.graph_name)
+
+        # Build the import options
+        import_options = {
+            "neptune-analytics:blank-node-handling": self.blank_node_handling,
+            "neptune-analytics:parquet-type": self.parquet_type,
+        }
+
+        # Remove None values from import_options
+        import_options = {k: v for k, v in import_options.items() if v is not None}
+
+        # Merge with user-provided import_options
+        if self.import_options:
+            import_options.update(self.import_options)
+
+        create_params = {
+            "graphName": self.graph_name,
+            "vectorSearchConfiguration": self.vector_search_config,
+            "source": self.source,
+            "roleArn": self.role_arn,
+            **{
+                k: v
+                for k, v in {
+                    "format": self.format,
+                    "minProvisionedMemory": self.min_provisioned_memory,
+                    "maxProvisionedMemory": self.max_provisioned_memory,
+                    "failOnError": self.fail_on_error,
+                    "replicaCount": self.replica_count,
+                    "publicConnectivity": self.public_connectivity,
+                    "deletionProtection": self.deletion_protect,
+                    "kmsKeyIdentifier": self.kms_key,
+                    "tags": self.tags,
+                    "importOptions": import_options if import_options else None,
+                }.items()
+                if v is not None
+            },
+        }
+
+        response = self.hook.conn.create_graph_using_import_task(**create_params)
+
+        self.log.info("Graph %s import task in status %s", self.graph_name, response.get("status", "Unknown"))
+        self.graph_id = response.get("graphId", None)
+
+        # TODO build extra link to console
+
+        if self.deferrable:
+            self.log.info("Deferring until graph %s is available", self.graph_id)
+            self.defer(
+                trigger=NeptuneGraphAvailableTrigger(
+                    aws_conn_id=self.aws_conn_id,
+                    graph_id=self.graph_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+            )
+
+        if self.wait_for_completion:
+            self.log.info("Waiting until graph %s is available", self.graph_id)
+            self.hook.get_waiter("graph_available").wait(
+                graphIdentifier=self.graph_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return {"graph_id": self.graph_id}
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
+        self.log.info("Trigger complete for graph %s", self.graph_id)
+        return {"graph_id": self.graph_id}
+
+
+class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
+    """
+    Starts a bulk data import task to load data into an empty Neptune graph.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:NeptuneStartImportTaskOperator`
+
+    :param graph_identifier: Graph Id of target Neptune Graph
+    :param role_arn: IAM role ARN granting access to source data
+    :param source: URL identifying the source data location.
+    :param blank_node_handling: Method to handle blank nodes in dataset.
+    :param fail_on_error: If set to true, the task halts when an import error is encountered. If set to false, the task skips the data that caused the error and continues if possible.
+    :param format: Specifies the format of the Amazon S3 data to be ipmorted.
+    :param import_options: Options on how to perform an import
+    :param parquet_type: Parquet type of import task
+    :param wait_for_completion: Whether to wait for the endpoint to be available. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the endpoint to become available.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param waiter_delay: Time in seconds to wait between status checks.
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    :return: dictionary with Neptune graph id
+    """
+
+    aws_hook_class = NeptuneAnalyticsHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "graph_identifier", "role_arn", "source", "import_options"
+    )
+    template_fields_renderers = {
+        "import_options": "json",
+    }
+
+    def __init__(
+        self,
+        graph_identifier: str,
+        role_arn: str,
+        source: str,
+        blank_node_handling: str | None = "convertToIri",
+        fail_on_error: bool = True,
+        format: str | None = None,
+        import_options: dict | None = None,
+        parquet_type: str | None = "COLUMNAR",
+        wait_for_completion: bool = True,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.graph_identifier = graph_identifier
+        self.role_arn = role_arn
+        self.source = source
+        self.blank_node_handling = blank_node_handling
+        self.fail_on_error = fail_on_error
+        self.format = format
+        self.import_options = import_options
+        self.parquet_type = parquet_type
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute(self, context: Context) -> dict:
+        self.log.info("Starting data import to graph %s", self.graph_identifier)
+
+        create_params = {
+            "graphIdentifier": self.graph_identifier,
+            "roleArn": self.role_arn,
+            "source": self.source,
+            **{
+                k: v
+                for k, v in {
+                    "blankNodeHandling": self.blank_node_handling,
+                    "failOnError": self.fail_on_error,
+                    "format": self.format,
+                    "importOptions": self.import_options,
+                    "parquetType": self.parquet_type,
+                }.items()
+                if v is not None
+            },
+        }
+
+        response = self.hook.conn.start_import_task(**create_params)
+
+        self.log.info("Import task %s started for graph %s", response.get("taskId"), self.graph_identifier)
+        task_id = response.get("taskId")
+
+        if self.deferrable:
+            self.log.info("Deferring until import task %s completes", task_id)
+            self.defer(
+                trigger=NeptuneImportTaskCompleteTrigger(
+                    task_id=task_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for import task %s to complete", task_id)
+            self.hook.get_waiter("import_task_completed").wait(
+                taskIdentifier=task_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return {"task_id": task_id, "graph_id": self.graph_identifier}
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
+        task_id = ""
+        if event:
+            task_id = event.get("task_id", "")
+
+        return {"graph_id": self.graph_identifier, "task_id": task_id}

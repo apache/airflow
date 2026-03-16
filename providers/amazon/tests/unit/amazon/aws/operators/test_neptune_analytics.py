@@ -26,8 +26,11 @@ from moto import mock_aws
 from airflow.providers.amazon.aws.hooks.neptune_analytics import NeptuneAnalyticsHook
 from airflow.providers.amazon.aws.operators.neptune_analytics import (
     NeptuneCreateGraphOperator,
+    NeptuneCreateGraphWithImportOperator,
     NeptuneCreatePrivateGraphEndpointOperator,
+    NeptuneDeleteGraphOperator,
     NeptuneDeletePrivateGraphEndpointOperator,
+    NeptuneStartImportTaskOperator,
 )
 
 GRAPH_NAME = "test_graph"
@@ -36,6 +39,8 @@ VPC_ID = "vpc-12345"
 SUBNET_IDS = ["subnet-1", "subnet-2"]
 SECURITY_GROUP_IDS = ["sg-1", "sg-2"]
 ENDPOINT_ID = "vpce-12345"
+SOURCE_S3_URI = "s3://my-bucket/my-data/"
+ROLE_ARN = "arn:aws:iam::123456789012:role/NeptuneImportRole"
 
 
 @pytest.fixture
@@ -418,3 +423,516 @@ class TestNeptuneDeletePrivateGraphEndpointOperator:
         operator.execute_complete(None, event)
 
         # Verify the method completes without error and logs the endpoint_id
+
+
+class TestNeptuneDeleteGraphOperator:
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_init_defaults(self, mock_conn):
+        mock_conn.delete_graph.return_value = {
+            "id": GRAPH_ID,
+            "name": GRAPH_NAME,
+            "status": "DELETING",
+        }
+
+        operator = NeptuneDeleteGraphOperator(
+            task_id="test_task",
+            graph_id=GRAPH_ID,
+            skip_snapshot=True,
+        )
+
+        assert operator.graph_id == GRAPH_ID
+        assert operator.skip_snapshot is True
+        assert operator.wait_for_completion is True
+        assert operator.waiter_delay == 30
+        assert operator.waiter_max_attempts == 60
+
+        operator.execute(None)
+
+        mock_conn.delete_graph.assert_called_once_with(
+            graphIdentifier=GRAPH_ID,
+            skipSnapshot=True,
+        )
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_init_custom_args(self, mock_conn):
+        mock_conn.delete_graph.return_value = {
+            "id": GRAPH_ID,
+            "name": GRAPH_NAME,
+            "status": "DELETING",
+        }
+
+        operator = NeptuneDeleteGraphOperator(
+            task_id="test_task",
+            graph_id=GRAPH_ID,
+            skip_snapshot=False,
+            waiter_delay=60,
+            waiter_max_attempts=100,
+        )
+
+        assert operator.graph_id == GRAPH_ID
+        assert operator.skip_snapshot is False
+        assert operator.waiter_delay == 60
+        assert operator.waiter_max_attempts == 100
+
+        operator.execute(None)
+
+        mock_conn.delete_graph.assert_called_once_with(
+            graphIdentifier=GRAPH_ID,
+            skipSnapshot=False,
+        )
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_delete_graph_no_wait(self, mock_conn):
+        mock_conn.delete_graph.return_value = {
+            "id": GRAPH_ID,
+            "name": GRAPH_NAME,
+            "status": "DELETING",
+        }
+
+        operator = NeptuneDeleteGraphOperator(
+            task_id="test_task",
+            graph_id=GRAPH_ID,
+            skip_snapshot=True,
+            wait_for_completion=False,
+        )
+        operator.execute(None)
+
+        mock_conn.delete_graph.assert_called_once()
+        mock_conn.get_waiter.assert_not_called()
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_delete_graph_wait_for_completion(self, mock_conn):
+        mock_conn.delete_graph.return_value = {
+            "id": GRAPH_ID,
+            "name": GRAPH_NAME,
+            "status": "DELETING",
+        }
+        mock_waiter = mock.MagicMock()
+        mock_conn.get_waiter.return_value = mock_waiter
+
+        operator = NeptuneDeleteGraphOperator(
+            task_id="test_task",
+            graph_id=GRAPH_ID,
+            skip_snapshot=True,
+            wait_for_completion=True,
+        )
+        operator.execute(None)
+
+        mock_conn.get_waiter.assert_called_once_with("graph_deleted")
+        mock_waiter.wait.assert_called_once_with(
+            graphIdentifier=GRAPH_ID,
+            WaiterConfig={"Delay": 30, "MaxAttempts": 60},
+        )
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_delete_graph_resource_not_found(self, mock_conn):
+        from botocore.exceptions import ClientError
+
+        # Simulate ResourceNotFoundException
+        error_response = {
+            "Error": {
+                "Code": "ResourceNotFoundException",
+                "Message": "Graph not found",
+            },
+            "ResponseMetadata": {
+                "HTTPStatusCode": 404,
+            },
+        }
+        mock_conn.delete_graph.side_effect = ClientError(error_response, "delete_graph")
+
+        operator = NeptuneDeleteGraphOperator(
+            task_id="test_task",
+            graph_id=GRAPH_ID,
+            skip_snapshot=True,
+        )
+
+        # Should not raise an exception, just log that graph not found
+        operator.execute(None)
+
+        mock_conn.delete_graph.assert_called_once_with(
+            graphIdentifier=GRAPH_ID,
+            skipSnapshot=True,
+        )
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_delete_graph_other_client_error(self, mock_conn):
+        from botocore.exceptions import ClientError
+
+        from airflow.providers.common.compat.sdk import AirflowException
+
+        # Simulate other ClientError
+        error_response = {
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "Invalid parameter",
+            },
+            "ResponseMetadata": {
+                "HTTPStatusCode": 400,
+            },
+        }
+        mock_conn.delete_graph.side_effect = ClientError(error_response, "delete_graph")
+
+        operator = NeptuneDeleteGraphOperator(
+            task_id="test_task",
+            graph_id=GRAPH_ID,
+            skip_snapshot=True,
+        )
+
+        # Should raise AirflowException for non-ResourceNotFoundException errors
+        with pytest.raises(AirflowException):
+            operator.execute(None)
+
+
+class TestNeptuneCreateGraphWithImportOperator:
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_init_defaults(self, mock_conn):
+        mock_conn.create_graph_using_import_task.return_value = {
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"dimension": 128},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+        )
+
+        assert operator.graph_name == GRAPH_NAME
+        assert operator.vector_search_config == {"dimension": 128}
+        assert operator.source == SOURCE_S3_URI
+        assert operator.role_arn == ROLE_ARN
+        assert operator.blank_node_handling is None
+        assert operator.parquet_type is None
+        assert operator.format is None
+        assert operator.min_provisioned_memory is None
+        assert operator.max_provisioned_memory is None
+        assert operator.fail_on_error is None
+        assert operator.public_connectivity is None
+        assert operator.replica_count is None
+        assert operator.deletion_protect is None
+        assert operator.kms_key is None
+        assert operator.tags is None
+        assert operator.import_options is None
+        assert operator.wait_for_completion is True
+        assert operator.waiter_delay == 30
+        assert operator.waiter_max_attempts == 60
+
+        operator.execute(None)
+
+        mock_conn.create_graph_using_import_task.assert_called_once_with(
+            graphName=GRAPH_NAME,
+            vectorSearchConfiguration={"dimension": 128},
+            source=SOURCE_S3_URI,
+            roleArn=ROLE_ARN,
+        )
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_init_with_all_optional_params(self, mock_conn):
+        mock_conn.create_graph_using_import_task.return_value = {
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"dimension": 128},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+            blank_node_handling="convertToIri",
+            parquet_type="COLUMNAR",
+            format="csv",
+            min_provisioned_memory=16,
+            max_provisioned_memory=32,
+            fail_on_error=True,
+            public_connectivity=True,
+            replica_count=2,
+            deletion_protection=True,
+            kms_key_id="test-kms-key",
+            tags={"env": "test"},
+            import_options={"custom-option": "value"},
+            waiter_delay=60,
+            waiter_max_attempts=100,
+        )
+
+        assert operator.blank_node_handling == "convertToIri"
+        assert operator.parquet_type == "COLUMNAR"
+        assert operator.format == "csv"
+        assert operator.min_provisioned_memory == 16
+        assert operator.max_provisioned_memory == 32
+        assert operator.fail_on_error is True
+        assert operator.public_connectivity is True
+        assert operator.replica_count == 2
+        assert operator.deletion_protect is True
+        assert operator.kms_key == "test-kms-key"
+        assert operator.tags == {"env": "test"}
+        assert operator.import_options == {"custom-option": "value"}
+        assert operator.waiter_delay == 60
+        assert operator.waiter_max_attempts == 100
+
+        operator.execute(None)
+
+        # Verify the call includes all parameters
+        call_args = mock_conn.create_graph_using_import_task.call_args[1]
+        assert call_args["graphName"] == GRAPH_NAME
+        assert call_args["vectorSearchConfiguration"] == {"dimension": 128}
+        assert call_args["source"] == SOURCE_S3_URI
+        assert call_args["roleArn"] == ROLE_ARN
+        assert call_args["format"] == "csv"
+        assert call_args["minProvisionedMemory"] == 16
+        assert call_args["maxProvisionedMemory"] == 32
+        assert call_args["failOnError"] is True
+        assert call_args["replicaCount"] == 2
+        assert call_args["publicConnectivity"] is True
+        assert call_args["deletionProtection"] is True
+        assert call_args["kmsKeyIdentifier"] == "test-kms-key"
+        assert call_args["tags"] == {"env": "test"}
+        # Check import options were merged
+        assert "neptune-analytics:blank-node-handling" in call_args["importOptions"]
+        assert call_args["importOptions"]["neptune-analytics:blank-node-handling"] == "convertToIri"
+        assert "neptune-analytics:parquet-type" in call_args["importOptions"]
+        assert call_args["importOptions"]["neptune-analytics:parquet-type"] == "COLUMNAR"
+        assert call_args["importOptions"]["custom-option"] == "value"
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_import_options_handling(self, mock_conn):
+        mock_conn.create_graph_using_import_task.return_value = {
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"dimension": 128},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+            blank_node_handling="convertToIri",
+            import_options={"another-option": "test"},
+        )
+
+        operator.execute(None)
+
+        call_args = mock_conn.create_graph_using_import_task.call_args[1]
+        # Verify import options were properly merged
+        assert call_args["importOptions"]["neptune-analytics:blank-node-handling"] == "convertToIri"
+        assert call_args["importOptions"]["another-option"] == "test"
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
+    def test_create_graph_with_import_no_wait(self, mock_hook_get_waiter, mock_conn):
+        mock_conn.create_graph_using_import_task.return_value = {
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"dimension": 128},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+            wait_for_completion=False,
+        )
+        result = operator.execute(None)
+
+        mock_hook_get_waiter.assert_not_called()
+        assert result == {"graph_id": GRAPH_ID}
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
+    def test_create_graph_with_import_wait_for_completion(self, mock_hook_get_waiter, mock_conn):
+        mock_conn.create_graph_using_import_task.return_value = {
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"dimension": 128},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+            wait_for_completion=True,
+        )
+        result = operator.execute(None)
+
+        mock_hook_get_waiter.assert_called_once_with("graph_available")
+        assert result == {"graph_id": GRAPH_ID}
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_import_options_none_values_filtered(self, mock_conn):
+        mock_conn.create_graph_using_import_task.return_value = {
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        # Test that None values in blank_node_handling and parquet_type are filtered out
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"dimension": 128},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+            blank_node_handling=None,
+            parquet_type=None,
+        )
+
+        operator.execute(None)
+
+        call_args = mock_conn.create_graph_using_import_task.call_args[1]
+        # importOptions should not be in call_args if all values are None
+        assert "importOptions" not in call_args
+
+
+TASK_ID = "import-task-id-12345"
+
+
+class TestNeptuneStartImportTaskOperator:
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_init_defaults(self, mock_conn):
+        mock_conn.start_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneStartImportTaskOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            role_arn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+        )
+
+        assert operator.graph_identifier == GRAPH_ID
+        assert operator.role_arn == ROLE_ARN
+        assert operator.source == SOURCE_S3_URI
+        assert operator.blank_node_handling == "convertToIri"
+        assert operator.fail_on_error is True
+        assert operator.format is None
+        assert operator.import_options is None
+        assert operator.parquet_type == "COLUMNAR"
+        assert operator.wait_for_completion is True
+        assert operator.waiter_delay == 30
+        assert operator.waiter_max_attempts == 60
+
+        operator.execute(None)
+
+        mock_conn.start_import_task.assert_called_once_with(
+            graphIdentifier=GRAPH_ID,
+            roleArn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+            blankNodeHandling="convertToIri",
+            failOnError=True,
+            parquetType="COLUMNAR",
+        )
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_init_custom_args(self, mock_conn):
+        mock_conn.start_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneStartImportTaskOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            role_arn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+            blank_node_handling=None,
+            fail_on_error=False,
+            format="CSV",
+            import_options={"neptune.csv.allowEmptyStrings": True},
+            parquet_type=None,
+            waiter_delay=60,
+            waiter_max_attempts=100,
+        )
+
+        assert operator.blank_node_handling is None
+        assert operator.fail_on_error is False
+        assert operator.format == "CSV"
+        assert operator.import_options == {"neptune.csv.allowEmptyStrings": True}
+        assert operator.parquet_type is None
+        assert operator.waiter_delay == 60
+        assert operator.waiter_max_attempts == 100
+
+        operator.execute(None)
+
+        mock_conn.start_import_task.assert_called_once_with(
+            graphIdentifier=GRAPH_ID,
+            roleArn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+            failOnError=False,
+            format="CSV",
+            importOptions={"neptune.csv.allowEmptyStrings": True},
+        )
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
+    def test_start_import_no_wait(self, mock_get_waiter, mock_conn):
+        mock_conn.start_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneStartImportTaskOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            role_arn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+            wait_for_completion=False,
+        )
+        result = operator.execute(None)
+
+        mock_get_waiter.assert_not_called()
+        assert result == {"task_id": TASK_ID, "graph_id": GRAPH_ID}
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
+    def test_start_import_wait_for_completion(self, mock_get_waiter, mock_conn):
+        mock_conn.start_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneStartImportTaskOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            role_arn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+            wait_for_completion=True,
+        )
+        result = operator.execute(None)
+
+        mock_get_waiter.assert_called_once_with("import_task_completed")
+        assert result == {"task_id": TASK_ID, "graph_id": GRAPH_ID}
+
+    def test_execute_complete_success(self):
+        operator = NeptuneStartImportTaskOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            role_arn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+        )
+
+        event = {"status": "success", "task_id": TASK_ID}
+        result = operator.execute_complete(None, event)
+
+        assert result == {"graph_id": GRAPH_ID, "task_id": TASK_ID}
+
+    def test_execute_complete_no_event(self):
+        operator = NeptuneStartImportTaskOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            role_arn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+        )
+
+        result = operator.execute_complete(None, None)
+
+        assert result == {"graph_id": GRAPH_ID, "task_id": ""}
