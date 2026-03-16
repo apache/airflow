@@ -42,4 +42,4 @@ Pagerduty Routing key (Integration key)
 
 .. note::
     The Pagerduty Routing key is deprecated.
-    Please use the :ref:`PagerDutyEvents connection <howto/connection:pagerduty-events>` instead.
+    Please use the :ref:`PagerDutyEvents connection <howto/connection:pagerduty_events>` instead.

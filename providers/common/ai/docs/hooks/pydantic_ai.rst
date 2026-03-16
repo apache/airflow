@@ -27,7 +27,7 @@ The hook manages API credentials from an Airflow connection and creates pydantic
 ``Model`` and ``Agent`` objects. It supports any provider that pydantic-ai supports.
 
 .. seealso::
-    :ref:`Connection configuration <howto/connection:pydantic_ai>`
+    :ref:`Connection configuration <howto/connection:pydanticai>`
 
 Basic Usage
 -----------
