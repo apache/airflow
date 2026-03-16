@@ -488,7 +488,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
             "message": expected_event_message,
         }
         operator = S3ToGCSOperator(task_id=TASK_ID, bucket=S3_BUCKET)
-        result = operator.execute_complete(context=mock.MagicMock(), event=event)
+        result = operator.execute_complete(context={}, event=event)
 
         mock_log.return_value.info.assert_called_once_with(
             "%s completed with response %s ", TASK_ID, event["message"]
@@ -507,7 +507,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
             "files": expected_files,
         }
         operator = S3ToGCSOperator(task_id=TASK_ID, bucket=S3_BUCKET)
-        result = operator.execute_complete(context=mock.MagicMock(), event=event)
+        result = operator.execute_complete(context={}, event=event)
 
         assert result == expected_files
 
