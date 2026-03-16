@@ -144,8 +144,8 @@ class BaseDatabricksHook(BaseHook):
         self._metadata_ttl: int = 300
 
         # Cache for lack of an async @cached_property
-        self._async_databricks_conn: Connection | None = None
-        self._async_host: str | None = None
+        self._a_databricks_conn: Connection | None = None
+        self._a_host: str | None = None
 
         def my_after_func(retry_state):
             self._log_request_error(retry_state.attempt_number, retry_state.outcome)
@@ -166,15 +166,13 @@ class BaseDatabricksHook(BaseHook):
     def databricks_conn(self) -> Connection:
         return self.get_connection(self.databricks_conn_id)  # type: ignore[return-value]
 
-    async def adatabricks_conn(self) -> Connection:
-        if self._async_databricks_conn is None:
+    async def a_databricks_conn(self) -> Connection:
+        if self._a_databricks_conn is None:
             if hasattr(self, "aget_connection"):
-                self._async_databricks_conn = await self.aget_connection(self.databricks_conn_id)
+                self._a_databricks_conn = await self.aget_connection(self.databricks_conn_id)
             else:
-                self._async_databricks_conn = await sync_to_async(self.get_connection)(
-                    self.databricks_conn_id
-                )
-        return self._async_databricks_conn  # type: ignore[return-value]
+                self._a_databricks_conn = await sync_to_async(self.get_connection)(self.databricks_conn_id)
+        return self._a_databricks_conn  # type: ignore[return-value]
 
     def get_conn(self) -> Connection:
         return self.databricks_conn
@@ -206,15 +204,15 @@ class BaseDatabricksHook(BaseHook):
             host = self._parse_host(self.databricks_conn.host)
         return host
 
-    async def ahost(self) -> str | None:
+    async def a_host(self) -> str | None:
         """Async version of `host` property."""
-        if self._async_host is None:
-            conn = await self.adatabricks_conn()
+        if self._a_host is None:
+            conn = await self.a_databricks_conn()
             if "host" in conn.extra_dejson:
-                self._async_host = self._parse_host(conn.extra_dejson["host"])
+                self._a_host = self._parse_host(conn.extra_dejson["host"])
             elif conn.host:
-                self._async_host = self._parse_host(conn.host)
-        return self._async_host
+                self._a_host = self._parse_host(conn.host)
+        return self._a_host
 
     async def __aenter__(self):
         self._session = aiohttp.ClientSession()
@@ -257,7 +255,7 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_connection_attr(self, attr_name: str) -> str:
         """Async version of `_get_connection_attr`."""
-        conn = await self.adatabricks_conn()
+        conn = await self.a_databricks_conn()
         if not (attr := getattr(conn, attr_name)):
             raise ValueError(f"`{attr_name}` must be present in Connection")
         return attr
@@ -324,7 +322,7 @@ class BaseDatabricksHook(BaseHook):
         try:
             async for attempt in self._a_get_retry_object():
                 with attempt:
-                    conn = await self.adatabricks_conn()
+                    conn = await self.a_databricks_conn()
                     async with self._session.post(
                         resource,
                         auth=aiohttp.BasicAuth(await self._a_get_connection_attr("login"), conn.password),
@@ -413,7 +411,7 @@ class BaseDatabricksHook(BaseHook):
                 ManagedIdentityCredential as AsyncManagedIdentityCredential,
             )
 
-            conn = await self.adatabricks_conn()
+            conn = await self.a_databricks_conn()
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     if conn.extra_dejson.get("use_azure_managed_identity", False):
@@ -553,7 +551,7 @@ class BaseDatabricksHook(BaseHook):
         :return: dictionary with filled AAD headers
         """
         headers = {}
-        conn = await self.adatabricks_conn()
+        conn = await self.a_databricks_conn()
         if "azure_resource_id" in conn.extra_dejson:
             mgmt_token = await self._a_get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
             headers["X-Databricks-Azure-Workspace-Resource-Id"] = conn.extra_dejson["azure_resource_id"]
@@ -1046,7 +1044,7 @@ class BaseDatabricksHook(BaseHook):
         return None
 
     async def _a_get_token(self, raise_error: bool = False) -> str | None:
-        conn = await self.adatabricks_conn()
+        conn = await self.a_databricks_conn()
         if "token" in conn.extra_dejson:
             self.log.info(
                 "Using token auth. For security reasons, please set token in Password field instead of extra"
@@ -1098,7 +1096,7 @@ class BaseDatabricksHook(BaseHook):
 
         :return: Full URL to the OIDC token service endpoint
         """
-        return OIDC_TOKEN_SERVICE_URL.format(f"https://{await self.ahost()}")
+        return OIDC_TOKEN_SERVICE_URL.format(f"https://{await self.a_host()}")
 
     def _endpoint_url(self, endpoint):
         port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
@@ -1106,10 +1104,10 @@ class BaseDatabricksHook(BaseHook):
         return f"{schema}://{self.host}{port}/{endpoint}"
 
     async def _a_endpoint_url(self, endpoint):
-        conn = await self.adatabricks_conn()
+        conn = await self.a_databricks_conn()
         port = f":{conn.port}" if conn.port else ""
         schema = conn.schema or "https"
-        return f"{schema}://{await self.ahost()}{port}/{endpoint}"
+        return f"{schema}://{await self.a_host()}{port}/{endpoint}"
 
     def _do_api_call(
         self,
@@ -1208,7 +1206,7 @@ class BaseDatabricksHook(BaseHook):
             auth = BearerAuth(token)
         else:
             self.log.info("Using basic auth.")
-            conn = await self.adatabricks_conn()
+            conn = await self.a_databricks_conn()
             auth = aiohttp.BasicAuth(await self._a_get_connection_attr("login"), conn.password)
 
         request_func: Any
