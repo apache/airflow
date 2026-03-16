@@ -34,18 +34,18 @@ Examples include the HttpOperator in deferrable mode, sensors or operators integ
 
 Key characteristics:
 
-  - Execution is paused while waiting for external events or resources.
-  - Worker slots are freed during the wait, improving resource efficiency.
-  - Ideal for scenarios where a single external event or a small number of events dictate task completion.
-  - Typically simpler to use, as the deferred operator handles all async logic.
+- Execution is paused while waiting for external events or resources.
+- Worker slots are freed during the wait, improving resource efficiency.
+- Ideal for scenarios where a single external event or a small number of events dictate task completion.
+- Typically simpler to use, as the deferred operator handles all async logic.
 
 Async Python Operators
 ----------------------
 
 Python native async operators allow you to write tasks that leverage Python's asyncio:
 
-  - Tasks can perform many concurrent I/O operations efficiently within a single worker slot sharing the same event loop.
-  - Task code uses async/await syntax with async-compatible hooks, such as HttpAsyncHook or the SFTPHookAsync.
+- Tasks can perform many concurrent I/O operations efficiently within a single worker slot sharing the same event loop.
+- Task code uses async/await syntax with async-compatible hooks, such as HttpAsyncHook or the SFTPHookAsync.
 
 Ideal when you need to perform high-throughput operations (e.g., many HTTP requests, database calls, or API interactions) within a single task instance,
 or when there is no deferred operator available but there is an async hook available.
@@ -55,10 +55,10 @@ When to Use Deferred Operators
 
 Prefer a deferred operator when:
 
-  - There is an existing deferrable operator that covers your use case (e.g., HttpOperator deferrable mode).
-  - The task waits for a single or limited external events.
-  - You want to free worker resources while waiting for triggers.
-  - You don't need to loop over the same operator multiple times (e.g. multiplexing).
+- There is an existing deferrable operator that covers your use case (e.g., HttpOperator deferrable mode).
+- The task waits for a single or limited external events.
+- You want to free worker resources while waiting for triggers.
+- You don't need to loop over the same operator multiple times (e.g. multiplexing).
 
 .. code-block:: python
 
@@ -86,10 +86,10 @@ When to Use Async Python Operators
 
 Use async Python operators when:
 
-  - The task needs to perform many concurrent requests or operations within a single task.
-  - You want to take advantage of the shared event loop to improve throughput.
-  - There is simply no deferred operator available.
-  - The logic depends on custom Python code (e.g. callables or lambdas) that cannot easily be implemented in a trigger, since triggers must be serializable and do not have access to DAG code at runtime.
+- The task needs to perform many concurrent requests or operations within a single task.
+- You want to take advantage of the shared event loop to improve throughput.
+- There is simply no deferred operator available.
+- The logic depends on custom Python code (e.g. callables or lambdas) that cannot easily be implemented in a trigger, since triggers must be serializable and do not have access to DAG code at runtime.
 
 .. note::
 
