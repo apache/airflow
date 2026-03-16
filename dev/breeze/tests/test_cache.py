@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow_breeze.global_constants import ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS
 from airflow_breeze.utils.cache import (
     check_if_cache_exists,
     check_if_values_allowed,
@@ -36,7 +37,7 @@ AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
     [
         ("backend", "mysql", (True, ["sqlite", "mysql", "postgres", "none", "custom"]), None),
         ("backend", "xxx", (False, ["sqlite", "mysql", "postgres", "none", "custom"]), None),
-        ("python_major_minor_version", "3.10", (True, ["3.10", "3.11", "3.12", "3.13"]), None),
+        ("python_major_minor_version", "3.10", (True, ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS), None),
         ("missing", "value", None, AttributeError),
     ],
 )
