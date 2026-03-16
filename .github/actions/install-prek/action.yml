@@ -67,26 +67,27 @@ runs:
         key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ inputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
         path: /tmp/
       id: restore-prek-cache
-    - name: "Check if prek cache tarball exists"
-      shell: bash
-      run: |
-        if [ -f /tmp/cache-prek.tar.gz ]; then
-          echo "✅ Cache tarball found: /tmp/cache-prek.tar.gz"
-        else
-          echo "❌ Cache tarball missing. Expected /tmp/cache-prek.tar.gz"
-          exit 1
-        fi
-      if: steps.restore-prek-cache.outputs.stash-hit == 'true'
     - name: "Restore .cache from the tar file"
-      run: tar -C ~ -xzf /tmp/cache-prek.tar.gz
+      id: restore-prek-tar
       shell: bash
-      if: steps.restore-prek-cache.outputs.stash-hit == 'true'
-    - name: "Show restored files"
       run: |
-        echo "Restored files"
-        du ~/ --max-depth=2
-        echo
-      shell: bash
+        if [ ! -f /tmp/cache-prek.tar.gz ]; then
+          echo "❌ Cache tarball missing. Expected /tmp/cache-prek.tar.gz"
+          echo "tar-restored=false" >> "${GITHUB_OUTPUT}"
+          exit 0
+        fi
+        echo "✅ Cache tarball found: /tmp/cache-prek.tar.gz"
+        if tar -C ~ -xzf /tmp/cache-prek.tar.gz; then
+          echo "✅ Cache tarball extracted successfully"
+          echo "tar-restored=true" >> "${GITHUB_OUTPUT}"
+          echo "Restored files"
+          du ~/ --max-depth=2
+          echo
+        else
+          echo "⚠️ Cache tarball extraction failed — treating as cache miss"
+          echo "tar-restored=false" >> "${GITHUB_OUTPUT}"
+          rm -rf ~/.cache/prek
+        fi
       if: steps.restore-prek-cache.outputs.stash-hit == 'true'
     - name: "Make sure cache is cleared on cache miss"
       run: |
@@ -94,7 +95,7 @@ runs:
         ls -la ~/.cache/prek || true
         rm -rf ~/.cache/prek
       shell: bash
-      if: steps.restore-prek-cache.outputs.stash-hit != 'true'
+      if: steps.restore-prek-cache.outputs.stash-hit != 'true' || steps.restore-prek-tar.outputs.tar-restored != 'true'
     - name: Install prek hooks
       shell: bash
       run: prek install-hooks
