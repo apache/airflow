@@ -396,6 +396,7 @@ def _build_ti_summaries(
 @grid_router.get(
     "/ti_summaries/{dag_id}",
     response_class=StreamingResponse,
+    response_model=GridTISummaries,
     responses={
         **create_openapi_http_exception_doc(
             [
@@ -426,7 +427,7 @@ def _build_ti_summaries(
 def get_grid_ti_summaries_stream(
     dag_id: str,
     session: SessionDep,
-    run_ids: Annotated[list[str], Query()] = [],
+    run_ids: Annotated[list[str] | None, Query()] = None,
 ) -> StreamingResponse:
     """
     Stream TI summaries for multiple Dag runs as NDJSON (one JSON line per run).
@@ -441,7 +442,7 @@ def get_grid_ti_summaries_stream(
 
     def _generate() -> Generator[str, None, None]:
         serdag_cache: dict = {}
-        for run_id in run_ids:
+        for run_id in run_ids or []:
             tis = session.execute(
                 select(
                     TaskInstance.task_id,

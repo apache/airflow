@@ -3655,7 +3655,7 @@ export type GetGridRunsResponse = Array<GridRunsResponse>;
 
 export type GetGridTiSummariesStreamData = {
     dagId: string;
-    runIds?: Array<(string)>;
+    runIds?: Array<(string)> | null;
 };
 
 export type GetGridTiSummariesStreamResponse = string;

@@ -1143,7 +1143,9 @@ class TestGetGridDataEndpoint:
         """Streaming endpoint silently skips run_ids that have no task instances."""
         session.commit()
 
-        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": ["run_1", "nonexistent_run"]})
+        response = test_client.get(
+            f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": ["run_1", "nonexistent_run"]}
+        )
         assert response.status_code == 200
         summaries = self._parse_ndjson(response)
         assert len(summaries) == 1

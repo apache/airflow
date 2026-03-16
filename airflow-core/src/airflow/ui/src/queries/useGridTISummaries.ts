@@ -46,17 +46,19 @@ export const useGridTiSummariesStream = ({
   const [refreshTick, setRefreshTick] = useState(0);
 
   const baseRefetchInterval = useAutoRefresh({ dagId });
-  const hasActiveRuns = states?.some((s) => s !== undefined && isStatePending(s)) ?? false;
+  const hasActiveRuns = states?.some((state) => state !== undefined && isStatePending(state)) ?? false;
 
   // Stable key so the effect only re-fires when the run list actually changes.
   const runIdsKey = runIds.join(",");
 
   // Stream (or re-stream) whenever the run list or refresh tick changes.
   useEffect(() => {
-    if (!dagId || runIds.length === 0) {return;}
+    if (!dagId || runIds.length === 0) {
+      return undefined;
+    }
 
     const abortController = new AbortController();
-    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
     const fetchStream = async () => {
       setIsStreaming(true);
@@ -68,33 +70,33 @@ export const useGridTiSummariesStream = ({
           signal: abortController.signal,
         });
 
-        if (!response.ok || !response.body) {return;}
+        if (!response.ok || !response.body) {
+          return;
+        }
 
         reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
 
-        while (true) {
-          const { done, value } = await reader.read();
+        // eslint-disable-next-line no-await-in-loop -- sequential reads required; each chunk depends on the previous buffer state
+        for (let result = await reader.read(); !result.done; result = await reader.read()) {
+          const { value } = result;
 
-          if (done) {break;}
           buffer += decoder.decode(value, { stream: true });
 
-          // Each complete line is one serialised GridTISummaries object.
           const lines = buffer.split("\n");
 
           buffer = lines.pop() ?? "";
 
-          for (const line of lines) {
-            if (line.trim()) {
-              const summary = JSON.parse(line) as GridTISummaries;
+          for (const line of lines.filter((ln) => ln.trim())) {
+            const summary = JSON.parse(line) as GridTISummaries;
 
-              setSummariesByRunId((prev) => new Map(prev).set(summary.run_id, summary));
-            }
+            setSummariesByRunId((prev) => new Map(prev).set(summary.run_id, summary));
           }
         }
       } catch (error) {
         if ((error as Error).name !== "AbortError") {
+          // eslint-disable-next-line no-console
           console.error("TI summaries stream error:", error);
         }
       } finally {
@@ -102,21 +104,23 @@ export const useGridTiSummariesStream = ({
       }
     };
 
-    fetchStream();
+    void fetchStream();
 
     return () => {
       abortController.abort();
-      reader?.cancel();
+      void reader?.cancel();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runIdsKey (stable join) intentionally replaces runIds array to avoid spurious re-streams
   }, [dagId, runIdsKey, refreshTick]);
 
   // Trigger a re-stream periodically while active runs are in flight.
   useEffect(() => {
-    if (!hasActiveRuns || typeof baseRefetchInterval !== "number") {return;}
+    if (!hasActiveRuns || typeof baseRefetchInterval !== "number") {
+      return undefined;
+    }
 
     const timer = setInterval(() => {
-      setRefreshTick((t) => t + 1);
+      setRefreshTick((tick) => tick + 1);
     }, baseRefetchInterval);
 
     return () => clearInterval(timer);
