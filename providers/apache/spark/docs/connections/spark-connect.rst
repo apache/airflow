@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:spark-connect:
+.. _howto/connection:spark_connect:
 
 Apache Spark Connect Connection
 ===============================

@@ -28,13 +28,20 @@ runs:
     - name: "Test migration file 2 to 3 migration: ${{env.BACKEND}}"
       shell: bash
       run: |
-        breeze shell "${AIRFLOW_2_CMD}" --use-airflow-version 2.11.0  --airflow-extras pydantic --answer y &&
+        MIN_AIRFLOW_VERSION="$(
+          python ./scripts/ci/testing/get_min_airflow_version_for_python.py "${PYTHON_VERSION}"
+        )"
+        breeze shell "${AIRFLOW_2_CMD}" \
+          --use-airflow-version "${MIN_AIRFLOW_VERSION}" \
+          --airflow-extras pydantic \
+          --answer y &&
         breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${DB_MANGERS}
                     ${AIRFLOW_3_CMD}" --no-db-cleanup
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
         DB_RESET: "false"
         DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+        PYTHON_VERSION: "${{ inputs.python-version }}"
         AIRFLOW_2_CMD: >-
           airflow db reset --skip-init -y &&
           airflow db migrate --to-revision heads
@@ -50,14 +57,21 @@ runs:
         COMPOSE_PROJECT_NAME: "docker-compose"
     - name: "Test ORM migration 2 to 3: ${{env.BACKEND}}"
       shell: bash
-      run: >
-        breeze shell "${AIRFLOW_2_CMD}" --use-airflow-version 2.11.0 --airflow-extras pydantic --answer y &&
+      run: |
+        MIN_AIRFLOW_VERSION="$(
+          python ./scripts/ci/testing/get_min_airflow_version_for_python.py "${PYTHON_VERSION}"
+        )"
+        breeze shell "${AIRFLOW_2_CMD}" \
+          --use-airflow-version "${MIN_AIRFLOW_VERSION}" \
+          --airflow-extras pydantic \
+          --answer y &&
         breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${DB_MANGERS}
              ${AIRFLOW_3_CMD}" --no-db-cleanup
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
         DB_RESET: "false"
         DB_MANAGERS: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+        PYTHON_VERSION: "${{ inputs.python-version }}"
         AIRFLOW_2_CMD: >-
           airflow db reset -y
         AIRFLOW_3_CMD: >-

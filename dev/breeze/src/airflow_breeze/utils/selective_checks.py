@@ -136,6 +136,7 @@ class FileGroupForCi(Enum):
     DEVEL_TOML_FILES = auto()
     UI_ENGLISH_TRANSLATION_FILES = auto()
     SCRIPTS_FILES = auto()
+    UV_LOCK_FILE = auto()
 
 
 class AllProvidersSentinel:
@@ -339,6 +340,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^scripts/cov/.*\.py$",
             r"^scripts/tools/.*\.py$",
             r"^scripts/tests/.*\.py$",
+        ],
+        FileGroupForCi.UV_LOCK_FILE: [
+            r"^uv\.lock$",
         ],
     }
 )
@@ -1311,12 +1315,20 @@ class SelectiveChecks:
         return True
 
     @cached_property
+    def is_uv_lock_update(self) -> bool:
+        """True when uv.lock changed — used to gate constraint branch commits on push."""
+        if len(self._matching_files(FileGroupForCi.UV_LOCK_FILE, CI_FILE_GROUP_MATCHES)) > 0:
+            console_print("[warning]uv.lock file changed[/]")
+            return True
+        return False
+
+    @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
         if len(self._matching_files(FileGroupForCi.ALL_PYPROJECT_TOML_FILES, CI_FILE_GROUP_MATCHES)) > 0:
             console_print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True
-        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]:
-            console_print("[warning]Upgrade to newer dependencies: Push or Schedule event[/]")
+        if self._github_event == GithubEvents.SCHEDULE:
+            console_print("[warning]Upgrade to newer dependencies: Schedule event[/]")
             return True
         if UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels:
             console_print(
