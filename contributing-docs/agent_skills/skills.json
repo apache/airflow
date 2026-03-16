@@ -2,7 +2,7 @@
   "version": "1.0",
   "generated_by": "extract_agent_skills.py",
   "generated_from": "AGENTS.md",
-  "skill_count": 5,
+  "skill_count": 7,
   "skills": [
     {
       "id": "setup-breeze-environment",
@@ -53,6 +53,26 @@
       "description": "Build Airflow documentation locally",
       "command": "breeze build-docs",
       "expected_output": "Build finished. The HTML pages are in _build/html."
+    },
+    {
+      "id": "run-provider-tests",
+      "context": "host",
+      "category": "testing",
+      "prereqs": "setup-breeze-environment",
+      "validates": "provider-tests-pass",
+      "description": "Run complete test suite for a specific provider",
+      "command": "breeze testing providers-tests\n  --test-type \"Providers[{provider}]\"",
+      "expected_output": "All tests passed."
+    },
+    {
+      "id": "run-type-check",
+      "context": "host",
+      "category": "linting",
+      "prereqs": "setup-breeze-environment",
+      "validates": "type-check-pass",
+      "description": "Run mypy type checking on changed files",
+      "command": "breeze run mypy {path}",
+      "expected_output": "Success: no issues found"
     }
   ]
 }

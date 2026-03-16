@@ -287,3 +287,38 @@ generated manifest.
    .. agent-skill-expected-output::
 
       Build finished. The HTML pages are in _build/html.
+
+.. agent-skill::
+   :id: run-provider-tests
+   :context: host
+   :category: testing
+   :prereqs: setup-breeze-environment
+   :validates: provider-tests-pass
+   :description: Run complete test suite for a
+                 specific provider
+
+   .. code-block:: bash
+
+      breeze testing providers-tests
+        --test-type "Providers[{provider}]"
+
+   .. agent-skill-expected-output::
+
+      All tests passed.
+
+.. agent-skill::
+   :id: run-type-check
+   :context: host
+   :category: linting
+   :prereqs: setup-breeze-environment
+   :validates: type-check-pass
+   :description: Run mypy type checking on
+                 changed files
+
+   .. code-block:: bash
+
+      breeze run mypy {path}
+
+   .. agent-skill-expected-output::
+
+      Success: no issues found

@@ -24,6 +24,16 @@
       "id": "build-docs",
       "category": "documentation",
       "context": "host"
+    },
+    {
+      "id": "run-provider-tests",
+      "category": "testing",
+      "context": "host"
+    },
+    {
+      "id": "run-type-check",
+      "category": "linting",
+      "context": "host"
     }
   ],
   "edges": [
@@ -44,6 +54,16 @@
     },
     {
       "from": "build-docs",
+      "to": "setup-breeze-environment",
+      "type": "requires"
+    },
+    {
+      "from": "run-provider-tests",
+      "to": "setup-breeze-environment",
+      "type": "requires"
+    },
+    {
+      "from": "run-type-check",
       "to": "setup-breeze-environment",
       "type": "requires"
     }
