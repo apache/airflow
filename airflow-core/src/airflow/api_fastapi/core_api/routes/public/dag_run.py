@@ -412,6 +412,19 @@ def get_dag_runs(
     dag_run_select, total_entries = paginated_select(
         statement=query,
         filters=[
+query = select(DagRun).options(
+    load_only(
+        DagRun.id,
+        DagRun.dag_id,
+        DagRun.run_id,
+        DagRun.state,
+        DagRun.logical_date,
+        DagRun.start_date,
+        DagRun.end_date,
+        DagRun.updated_at,
+    ),
+    *eager_load_dag_run_for_validation(),
+)
             run_after,
             logical_date,
             start_date_range,
