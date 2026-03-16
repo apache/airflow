@@ -144,7 +144,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Run experimental workers",
             "options": [
-                "--worker-types",
+                "--worker-type",
             ],
         },
         {
@@ -264,7 +264,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Run experimental workers",
             "options": [
-                "--worker-types",
+                "--worker-type",
             ],
         },
         {

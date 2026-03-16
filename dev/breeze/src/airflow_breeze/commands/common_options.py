@@ -604,7 +604,7 @@ option_platform_single = click.option(
 )
 
 option_worker_types = click.option(
-    "--worker-types",
+    "--worker-type",
     help="Start a specific worker",
     type=BetterChoice(ALLOWED_WORKER_TYPES),
     multiple=True,

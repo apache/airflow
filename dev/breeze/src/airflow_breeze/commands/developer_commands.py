@@ -387,7 +387,7 @@ def shell(
     force_lowest_dependencies: bool,
     forward_credentials: bool,
     github_repository: str,
-    worker_types: tuple[str, ...],
+    worker_type: tuple[str, ...],
     include_mypy_volume: bool,
     install_selected_providers: str,
     install_airflow_with_constraints: bool,
@@ -464,7 +464,7 @@ def shell(
         force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
-        worker_types=worker_types,
+        worker_type=worker_type,
         include_mypy_volume=include_mypy_volume,
         install_airflow_with_constraints=install_airflow_with_constraints,
         install_airflow_python_client=install_airflow_python_client,
@@ -612,7 +612,7 @@ def start_airflow(
     force_build: bool,
     forward_credentials: bool,
     github_repository: str,
-    worker_types: tuple[str, ...],
+    worker_type: tuple[str, ...],
     integration: tuple[str, ...],
     install_selected_providers: str,
     load_default_connections: bool,
@@ -689,8 +689,8 @@ def start_airflow(
 
     get_console().print(f"[info]Airflow will be using: {executor} to execute the tasks.")
 
-    if worker_types != () and executor != EDGE_EXECUTOR:
-        get_console().print(f"[error]Worker type {worker_types} requires executor: {EDGE_EXECUTOR}")
+    if worker_type != () and executor != EDGE_EXECUTOR:
+        get_console().print(f"[error]Worker type {worker_type} requires executor: {EDGE_EXECUTOR}")
         sys.exit(1)
 
     platform = get_normalized_platform(platform)
@@ -718,7 +718,7 @@ def start_airflow(
         force_build=force_build,
         forward_credentials=forward_credentials,
         github_repository=github_repository,
-        worker_types=worker_types,
+        worker_type=worker_type,
         integration=integration,
         install_selected_providers=install_selected_providers,
         install_airflow_with_constraints=install_airflow_with_constraints,
