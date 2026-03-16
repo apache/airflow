@@ -40,7 +40,7 @@ Changelog
    automatically mounted at the standard path by the Kubernetes API server as part of service account
    token projection — no action is required.
 
-   **Potentially impacted:** Non-conformant or highly customised Kubernetes distributions that do not
+   **Potentially impacted:** Non-conformant or highly customized Kubernetes distributions that do not
    mount ``ca.crt`` at ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. If you are affected,
    please open an issue so support for a configurable CA path can be added.
 
