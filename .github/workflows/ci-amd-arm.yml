@@ -259,6 +259,7 @@ jobs:
     needs: [build-info]
     uses: ./.github/workflows/ci-image-build.yml
     permissions:
+      actions: read
       contents: read
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
