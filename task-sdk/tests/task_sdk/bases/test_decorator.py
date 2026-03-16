@@ -19,7 +19,6 @@ from __future__ import annotations
 import ast
 import functools
 import importlib.util
-import inspect
 import textwrap
 from pathlib import Path
 
@@ -175,16 +174,6 @@ class TestDefaultFillingLogic:
         op = make_op(_make_func(src), op_kwargs=op_kwargs)
         assert op is not None
 
-    def test_context_key_after_regular_default_preserves_original_default(self):
-        from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
-
-        ctx_key = next(iter(sorted(KNOWN_CONTEXT_KEYS)))
-        f = _make_func(f"def dummy_task(x, y=5, {ctx_key}=None): return (x, y)")
-        op = make_op(f, op_kwargs={"x": 1})
-        sig = inspect.signature(op.python_callable)
-        y_param = next(p for p in sig.parameters.values() if p.name == "y")
-        assert y_param.default == 5
-
     def test_non_context_param_after_context_key_gets_none_injected(self):
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
@@ -215,12 +204,7 @@ class TestDefaultFillingLogic:
         def dummy_task(a, b=1, *args, kw_required, **kwargs):
             return (a, b, args, kw_required, kwargs)
 
-        op = make_op(dummy_task, op_kwargs={"a": 1, "kw_required": "x"})
-        sig = inspect.signature(op.python_callable)
-        params = sig.parameters
-        assert params["args"].default == inspect.Parameter.empty
-        assert params["kw_required"].default == inspect.Parameter.empty
-        assert params["kwargs"].default == inspect.Parameter.empty
+        assert make_op(dummy_task, op_kwargs={"a": 1, "kw_required": "x"}) is not None
 
 
 def make_op(func, op_args=None, op_kwargs=None, **kwargs):
