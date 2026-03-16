@@ -134,6 +134,7 @@ def create_index_if_not_exists(op, index_name, table_name, columns, unique=False
         col_list = ", ".join(f"`{c}`" for c in columns)
         op.execute(
             text(f"""
+            DROP PROCEDURE IF EXISTS CreateIndexIfNotExists;
             CREATE PROCEDURE CreateIndexIfNotExists()
             BEGIN
                 IF NOT EXISTS (
@@ -148,7 +149,7 @@ def create_index_if_not_exists(op, index_name, table_name, columns, unique=False
                 END IF;
             END;
             CALL CreateIndexIfNotExists();
-            DROP PROCEDURE CreateIndexIfNotExists;
+            DROP PROCEDURE IF EXISTS CreateIndexIfNotExists;
             """)
         )
     else:

@@ -20,6 +20,7 @@ import re
 from unittest import mock
 
 import pytest
+import sqlalchemy as sa
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
@@ -172,6 +173,26 @@ try:
                 mock_initdb.assert_not_called()
             else:
                 mock_initdb.assert_called_once()
+
+        @pytest.mark.backend("mysql")
+        def test_upgradedb_mysql_keeps_permission_view_role_indexes_after_fk_recreation(self, session):
+            manager = FABDBManager(session=session)
+            original_revision = manager.get_current_revision()
+
+            try:
+                manager.downgrade(to_revision="6709f7a774b9")
+                manager.upgradedb(to_revision="02ca36b0235b")
+
+                index_names = {
+                    index["name"] for index in sa.inspect(engine).get_indexes("ab_permission_view_role")
+                }
+
+                assert "idx_permission_view_id" in index_names
+                assert "idx_role_id" in index_names
+            finally:
+                current_revision = manager.get_current_revision()
+                if original_revision and current_revision != original_revision:
+                    manager.upgradedb(to_revision=original_revision)
 
 except ModuleNotFoundError:
     pass
