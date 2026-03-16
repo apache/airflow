@@ -52,6 +52,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    association_table,
 )
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
@@ -793,13 +794,26 @@ class _ConsumingAssetFilter(BaseParam[str | None]):
         if self.value is None and self.skip_none:
             return select
 
-        from airflow.models.asset import AssetModel
-
         return (
             select.distinct()
-            .join(DagRun.consumed_asset_events)  # DagRun → AssetEvent
-            .join(AssetModel, AssetEvent.asset_id == AssetModel.id)  # AssetEvent → AssetModel (explicit join)
-            .where(or_(AssetModel.name.ilike(f"%{self.value}%"), AssetModel.uri.ilike(f"%{self.value}%")))
+            .join(
+                association_table,
+                DagRun.id == association_table.c.dag_run_id,
+            )
+            .join(
+                AssetEvent,
+                association_table.c.event_id == AssetEvent.id,
+            )
+            .join(
+                AssetModel,
+                AssetEvent.asset_id == AssetModel.id,
+            )
+            .where(
+                or_(
+                    AssetModel.name.ilike(f"%{self.value}%"),
+                    AssetModel.uri.ilike(f"%{self.value}%"),
+                )
+            )
         )
 
     @classmethod

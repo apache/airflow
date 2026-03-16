@@ -215,10 +215,16 @@ def setup(request, dag_maker, session=None):
     # Set conf for testing conf_contains filter
     dag_run4.conf = {"env": "testing", "mode": "ci"}
 
+    dag_maker.sync_dagbag_to_db()
+    dag_maker.dag_model.has_task_concurrency_limits = True
+    session.merge(ti1)
+    session.merge(ti2)
+    session.merge(dag_maker.dag_model)
+    session.commit()
+
     asset1 = AssetModel(name="sales", uri="s3://bucket/sales")
     asset2 = AssetModel(name="customer", uri="s3://bucket/customer")
-    session.add(asset1)
-    session.add(asset2)
+    session.add_all([asset1, asset2])
     session.flush()
 
     event1 = AssetEvent(
@@ -233,22 +239,15 @@ def setup(request, dag_maker, session=None):
         source_run_id="source_run",
         source_task_id="source_task",
     )
-    session.add(event1)
-    session.add(event2)
+    session.add_all([event1, event2])
     session.flush()
+
+    dag_run1 = session.scalar(select(DagRun).filter(DagRun.id == dag_run1.id))
+    dag_run2 = session.scalar(select(DagRun).filter(DagRun.id == dag_run2.id))
 
     dag_run1.consumed_asset_events.append(event1)
     dag_run2.consumed_asset_events.append(event2)
 
-    session.merge(dag_run1)
-    session.merge(dag_run2)
-    session.flush()
-
-    dag_maker.sync_dagbag_to_db()
-    dag_maker.dag_model.has_task_concurrency_limits = True
-    session.merge(ti1)
-    session.merge(ti2)
-    session.merge(dag_maker.dag_model)
     session.commit()
 
 
