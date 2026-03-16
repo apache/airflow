@@ -23,6 +23,37 @@ from typing import IO, Any
 
 from airflow.providers.apache.beam.hooks.beam import BeamAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.log.secrets_masker import mask_secret
+
+# Keys in pipeline variables that may contain sensitive values and should
+# be masked in log output.  This list covers the most common Beam pipeline
+# options that carry credentials.
+_SENSITIVE_VARIABLE_KEYS = frozenset(
+    {
+        "password",
+        "secret",
+        "token",
+        "api_key",
+        "apikey",
+        "api_token",
+        "access_token",
+        "refresh_token",
+        "credentials",
+        "private_key",
+        "service_account_key",
+    }
+)
+
+
+def _register_sensitive_variables(variables: dict) -> None:
+    """Register values of sensitive keys with Airflow's SecretsMasker.
+
+    This ensures that any log line that contains these values will have them
+    automatically replaced with ``***``.
+    """
+    for key, value in variables.items():
+        if value and any(sensitive in key.lower() for sensitive in _SENSITIVE_VARIABLE_KEYS):
+            mask_secret(value)
 
 
 class BeamPipelineBaseTrigger(BaseTrigger):
@@ -50,9 +81,7 @@ class BeamPipelineBaseTrigger(BaseTrigger):
 
         async_gcs_hook = GCSAsyncHook(gcp_conn_id=gcp_conn_id)
         sync_gcs_hook = await async_gcs_hook.get_sync_hook()
-
         loop = asyncio.get_running_loop()
-
         # Running synchronous `enter_context()` method in a separate
         # thread using the default executor `None`. The `run_in_executor()` function returns the
         # file object, which is created using gcs function `provide_file()`, asynchronously.
@@ -73,16 +102,18 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
     :param variables: Variables passed to the pipeline.
     :param py_file: Path to the python file to execute.
     :param py_options: Additional options.
-    :param py_interpreter: Python version of the Apache Beam pipeline. If `None`, this defaults to the
-        python3. To track python versions supported by beam and related issues
-        check: https://issues.apache.org/jira/browse/BEAM-1251
+    :param py_interpreter: Python version of the Apache Beam pipeline.
+        If ``None``, this defaults to the python3.
+        To track python versions supported by beam and related
+        issues check: https://issues.apache.org/jira/browse/BEAM-1251
     :param py_requirements: Additional python package(s) to install.
         If a value is passed to this parameter, a new virtual environment has been created with
         additional packages installed.
+
         You could also install the apache-beam package if it is not installed on your system, or you want
         to use a different version.
-    :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
-        See virtualenv documentation for more information.
+    :param py_system_site_packages: Whether to include system_site_packages in
+        your virtualenv. See virtualenv documentation for more information.
         This option is only relevant if the ``py_requirements`` parameter is not None.
     :param runner: Runner on which pipeline will be run. By default, "DirectRunner" is being used.
         Other possible options: DataflowRunner, SparkRunner, FlinkRunner, PortableRunner.
@@ -111,6 +142,9 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
         self.py_system_site_packages = py_system_site_packages
         self.runner = runner
         self.gcp_conn_id = gcp_conn_id
+        # Register any sensitive values from pipeline variables so that
+        # Airflow's SecretsMasker will redact them in log output.
+        _register_sensitive_variables(self.variables)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize BeamPythonPipelineTrigger arguments and classpath."""
@@ -131,7 +165,6 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current pipeline status and yields a TriggerEvent."""
         hook = self._get_async_hook(runner=self.runner)
-
         try:
             if self.file_has_gcs_path(self.py_file):
                 tmp_gcs_file = await self.provide_gcs_tempfile(self.py_file, self.gcp_conn_id)
@@ -189,6 +222,9 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
         self.job_class = job_class
         self.runner = runner
         self.gcp_conn_id = gcp_conn_id
+        # Register any sensitive values from pipeline variables so that
+        # Airflow's SecretsMasker will redact them in log output.
+        _register_sensitive_variables(self.variables)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize BeamJavaPipelineTrigger arguments and classpath."""
