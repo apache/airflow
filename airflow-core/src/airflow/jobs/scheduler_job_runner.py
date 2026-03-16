@@ -1838,7 +1838,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
                 dag_models=[d for d in asset_triggered_dags if d.dag_id not in partition_dag_ids],
-                triggered_date_by_dag=triggered_date_by_dag,
                 session=session,
             )
 
@@ -2005,14 +2004,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dag_runs_asset_triggered(
         self,
+        *,
         dag_models: Collection[DagModel],
-        triggered_date_by_dag: dict[str, datetime],
         session: Session,
     ) -> None:
         """For Dags that are triggered by assets, create Dag runs."""
         for dag_model in dag_models:
-            if dag_model.dag_id not in triggered_date_by_dag:
-                continue
             dag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not dag:
                 self.log.error("Dag '%s' not found in serialized_dag table", dag_model.dag_id)
