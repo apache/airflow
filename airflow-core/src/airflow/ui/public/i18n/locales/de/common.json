@@ -128,6 +128,7 @@
     "selectDateRange": "Zeitraum auswählen",
     "startTime": "Startzeitpunkt"
   },
+  "generateToken": "Zugriffstoken erzeugen",
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
@@ -312,6 +313,10 @@
         "title": "Löschung von {{resourceName}} gestartet"
       }
     },
+    "forbidden": {
+      "description": "Keine Berechtigung für diese Aktion.",
+      "title": "Zugriff verweigert"
+    },
     "import": {
       "error": "Import von {{resourceName}} fehlgeschlagen",
       "success": {
@@ -326,6 +331,18 @@
         "title": "Aktualisierung von {{resourceName}} gestartet"
       }
     }
+  },
+  "tokenGeneration": {
+    "apiToken": "API-Token",
+    "cliToken": "CLI-Token",
+    "errorDescription": "Beim Erzeugen des Tokens ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+    "errorTitle": "Token-Erzeugung fehlgeschlagen",
+    "generate": "Erzeugen",
+    "selectType": "Wählen Sie den Typ des zu erzeugenden Tokens.",
+    "title": "Zugriffstoken erzeugen",
+    "tokenExpiresIn": "Dieser Token läuft in {{duration}} ab.",
+    "tokenGenerated": "Ihr Token wurde erzeugt.",
+    "tokenShownOnce": "Dieser Token wird nur einmal angezeigt. Kopieren Sie ihn jetzt."
   },
   "total": "Gesamt {{state}}",
   "triggered": "Ausgelöst",

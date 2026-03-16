@@ -28,17 +28,11 @@ from __future__ import annotations
 import ast
 import re
 import sys
-from pathlib import Path
 
 try:
     import tomllib
 except ImportError:
     import tomli as tomllib
-
-from packaging.specifiers import SpecifierSet
-from packaging.version import Version
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 from common_prek_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
@@ -46,6 +40,8 @@ from common_prek_utils import (
     AIRFLOW_TASK_SDK_SOURCES_PATH,
     console,
 )
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 
 
 def read_airflow_version() -> str:
