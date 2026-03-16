@@ -39,6 +39,7 @@
     Hooks <hooks/pydantic_ai>
     Toolsets <toolsets>
     Operators <operators/index>
+    HITL Review <hitl_review>
 
 .. toctree::
     :hidden:

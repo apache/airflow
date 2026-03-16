@@ -342,8 +342,6 @@ class TestAirflowGunicornApp:
     def test_load_config_gunicorn_cmd_args_overrides_options(self, monkeypatch):
         """Test that GUNICORN_CMD_ARGS takes precedence over programmatic options."""
         monkeypatch.setenv("GUNICORN_CMD_ARGS", "--workers 8")
-        from gunicorn.config import Config
-
         from airflow.api_fastapi.gunicorn_app import AirflowGunicornApp
 
         def mock_init(self, options):
@@ -416,8 +414,9 @@ class TestCreateGunicornApp:
             assert options["bind"] == "0.0.0.0:8080"
             assert options["workers"] == 4
             assert options["timeout"] == 120
-            assert options["worker_class"] == "uvicorn.workers.UvicornWorker"
+            assert options["worker_class"] == "airflow.api_fastapi.gunicorn_app.AirflowUvicornWorker"
             assert options["preload_app"] is True
+            assert "accesslog" not in options
 
     def test_create_app_with_ssl(self):
         """Test creating an app with SSL settings."""
@@ -455,8 +454,8 @@ class TestCreateGunicornApp:
 
             assert options["forwarded_allow_ips"] == "*"
 
-    def test_create_app_with_access_log(self):
-        """Test creating an app with access logging enabled."""
+    def test_create_app_never_sets_accesslog(self):
+        """accesslog is never set; HttpAccessLogMiddleware handles HTTP access logging."""
         from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
 
         with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
@@ -465,26 +464,18 @@ class TestCreateGunicornApp:
                 port=8080,
                 num_workers=4,
                 worker_timeout=120,
-                access_log=True,
-            )
-
-            options = mock_app_class.call_args[0][0]
-
-            assert options["accesslog"] == "-"
-
-    def test_create_app_without_access_log(self):
-        """Test creating an app with access logging disabled."""
-        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
-
-        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
-            create_gunicorn_app(
-                host="0.0.0.0",
-                port=8080,
-                num_workers=4,
-                worker_timeout=120,
-                access_log=False,
             )
 
             options = mock_app_class.call_args[0][0]
 
             assert "accesslog" not in options
+
+    def test_airflow_uvicorn_worker_config(self):
+        """AirflowUvicornWorker disables uvicorn's access log and log_config override."""
+        from uvicorn.workers import UvicornWorker
+
+        from airflow.api_fastapi.gunicorn_app import AirflowUvicornWorker
+
+        assert AirflowUvicornWorker.CONFIG_KWARGS["log_config"] is None
+        assert AirflowUvicornWorker.CONFIG_KWARGS["access_log"] is False
+        assert issubclass(AirflowUvicornWorker, UvicornWorker)

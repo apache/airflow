@@ -21,7 +21,7 @@ from pathlib import Path
 from rich.syntax import Syntax
 
 from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.console import MessageType, get_console
+from airflow_breeze.utils.console import MessageType, console_print
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 
@@ -31,4 +31,4 @@ def debug_pyproject_tomls(pyproject_toml_paths: list[Path]) -> None:
             with ci_group(f"Updated {pyproject_toml_path} content", MessageType.INFO):
                 # Format the content to make it more readable with rich
                 syntax = Syntax(pyproject_toml_path.read_text(), "toml", theme="ansi_dark", line_numbers=True)
-                get_console().print(syntax)
+                console_print(syntax)

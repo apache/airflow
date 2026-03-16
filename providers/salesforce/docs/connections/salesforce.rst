@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:SalesforceHook:
+.. _howto/connection:salesforce:
 
 Salesforce Connection
 =====================

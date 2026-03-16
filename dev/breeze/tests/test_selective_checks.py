@@ -1809,7 +1809,7 @@ def test_expected_output_pull_request_v2_7(
                 "docs-build": "true",
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
-                "upgrade-to-newer-dependencies": "true",
+                "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS,
@@ -1830,7 +1830,7 @@ def test_expected_output_pull_request_v2_7(
                 "docs-build": "true",
                 "skip-prek-hooks": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
                 "docs-list-as-string": "apache-airflow docker-stack",
-                "upgrade-to-newer-dependencies": "true",
+                "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS_EXCEPT_PROVIDERS,
@@ -1853,7 +1853,7 @@ def test_expected_output_pull_request_v2_7(
                 "docs-build": "true",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
-                "upgrade-to-newer-dependencies": "true",
+                "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS,
@@ -2122,9 +2122,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(mock_get, gith
             "run-unit-tests": "true",
             "docs-build": "true",
             "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
-            "upgrade-to-newer-dependencies": (
-                "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
-            ),
+            "upgrade-to-newer-dependencies": ("true" if github_event == GithubEvents.SCHEDULE else "false"),
             "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
             "run-mypy": "true",
             "mypy-checks": ALL_MYPY_CHECKS,
@@ -2174,9 +2172,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(mock_get, github_e
             "run-unit-tests": "true",
             "docs-build": "true",
             "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
-            "upgrade-to-newer-dependencies": (
-                "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
-            ),
+            "upgrade-to-newer-dependencies": ("true" if github_event == GithubEvents.SCHEDULE else "false"),
             "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
             "run-mypy": "true",
             "mypy-checks": ALL_MYPY_CHECKS,

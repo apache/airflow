@@ -83,6 +83,7 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
       <TaskInstanceTooltip openDelay={500} positioning={{ placement: "bottom" }} taskInstance={instance}>
         <Box as="span" display="inline-block">
           <Link
+            data-testid={`grid-${runId}-${taskId}`}
             id={`grid-${runId}-${taskId}`}
             onClick={onClick}
             replace

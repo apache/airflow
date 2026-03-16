@@ -6,6 +6,9 @@ node_modules/
 _site/
 dist/
 
+# Generated OpenAPI spec (produced by dev/registry/export_registry_schemas.py at build time)
+schemas/
+
 # Provider logos (copied from providers/*/docs/integration-logos/ at build time)
 public/logos/
 
