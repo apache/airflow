@@ -1061,6 +1061,14 @@ class ProvidersManager(LoggingMixin):
                 # inherited from parent hook. This way we add form fields only once for the whole
                 # hierarchy and we add it only from the parent hook that provides those!
                 if "get_connection_form_widgets" in hook_class.__dict__:
+                    warnings.warn(
+                        f"Hook '{hook_class_name}' defines get_connection_form_widgets(). "
+                        "This method is deprecated. Define connection fields declaratively in "
+                        "provider.yaml under 'conn-fields' instead. See "
+                        "https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                     widgets = hook_class.get_connection_form_widgets()
                     if widgets:
                         for widget in widgets.values():
@@ -1075,6 +1083,14 @@ class ProvidersManager(LoggingMixin):
                                 return None
                         self._add_widgets_from_hook(package_name, hook_class, widgets)
                 if "get_ui_field_behaviour" in hook_class.__dict__:
+                    warnings.warn(
+                        f"Hook '{hook_class_name}' defines get_ui_field_behaviour(). "
+                        "This method is deprecated. Define field behaviour declaratively in "
+                        "provider.yaml under 'ui-field-behaviour' instead. See "
+                        "https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                     field_behaviours = hook_class.get_ui_field_behaviour()
                     if field_behaviours:
                         self._add_customized_fields_from_hook(package_name, hook_class, field_behaviours)
