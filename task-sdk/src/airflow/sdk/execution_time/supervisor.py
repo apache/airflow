@@ -101,6 +101,7 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetXCom,
@@ -983,6 +984,9 @@ class ActivitySubprocess(WatchedSubprocess):
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
     _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
+    _execution_timeout_seconds: float | None = attrs.field(default=None, init=False)
+    _execution_start_monotonic: float | None = attrs.field(default=None, init=False)
+
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     ti: RuntimeTI | None = None
@@ -1144,6 +1148,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._send_heartbeat_if_needed()
 
                 self._handle_process_overtime_if_needed()
+                self._handle_execution_timeout_if_needed()
 
     def _handle_process_overtime_if_needed(self):
         """Handle termination of auxiliary processes if the task exceeds the configured overtime."""
@@ -1159,6 +1164,27 @@ class ActivitySubprocess(WatchedSubprocess):
                 "Modify `task_success_overtime` setting in [core] section of "
                 "Airflow configuration to change this limit.",
                 ti_id=self.id,
+            )
+            self.kill(signal.SIGTERM, force=True)
+
+    def _handle_execution_timeout_if_needed(self):
+        """
+        Enforce execution_timeout from the supervisor as a safety net.
+
+        The primary timeout mechanism is SIGALRM in the task runner. This method
+        acts as a backup in case the child process loses its signal handler (e.g.,
+        after receiving SIGSEGV during DAG processing).
+        """
+        if self._execution_timeout_seconds is None or self._execution_start_monotonic is None:
+            return
+        if self._terminal_state:
+            return
+        elapsed = time.monotonic() - self._execution_start_monotonic
+        if elapsed > self._execution_timeout_seconds:
+            self.process_log.error(
+                "Execution timeout reached; supervisor terminating task process.",
+                timeout_seconds=self._execution_timeout_seconds,
+                elapsed_seconds=elapsed,
             )
             self.kill(signal.SIGTERM, force=True)
 
@@ -1347,6 +1373,10 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         elif isinstance(msg, SetRenderedMapIndex):
             self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
+        elif isinstance(msg, SetExecutionTimeout):
+            self._execution_timeout_seconds = msg.execution_timeout
+            self._execution_start_monotonic = time.monotonic()
+            log.info("Execution timeout set by task", timeout_seconds=msg.execution_timeout, ti_id=self.id)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
             if isinstance(asset_resp, AssetResponse):
