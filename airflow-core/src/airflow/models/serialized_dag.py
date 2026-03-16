@@ -505,6 +505,31 @@ class SerializedDagModel(Base):
             serialized_dag.deadline_alerts.append(alert)
 
     @classmethod
+    def _backfill_missing_task_instances_for_new_version(
+        cls, dag_id: str, dag_version_id: UUID, current_dag: SerializedDAG, *, session: Session
+    ) -> None:
+        if not conf.getboolean("dag_processor", "auto_backfill_missing_task_instances", fallback=False):
+            return
+
+        dag_runs = session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == dag_id,
+                ~exists().where(
+                    TaskInstance.dag_id == dag_id,
+                    TaskInstance.run_id == DagRun.run_id,
+                    TaskInstance.dag_version_id == dag_version_id,
+                ),
+            )
+        ).all()
+
+        if not dag_runs:
+            return
+
+        for dag_run in dag_runs:
+            dag_run.dag = current_dag
+            dag_run.verify_integrity(dag_version_id=dag_version_id, session=session)
+
+    @classmethod
     @provide_session
     def write_dag(
         cls,
@@ -660,6 +685,9 @@ class SerializedDagModel(Base):
         new_serialized_dag.dag_version = dagv
         session.add(new_serialized_dag)
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
+        cls._backfill_missing_task_instances_for_new_version(
+            dag.dag_id, dagv.id, new_serialized_dag.dag, session=session
+        )
         log.debug("DAG: %s written to the DB", dag.dag_id)
         DagCode.write_code(dagv, dag.fileloc, session=session)
         return True

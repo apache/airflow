@@ -34,6 +34,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.deadline_alert import DeadlineAlert as DAM
 from airflow.models.serialized_dag import SerializedDagModel as SDM
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -200,6 +201,59 @@ class TestSerializedDagModel:
         assert s_dag.dag_hash != s_dag_2.dag_hash
         assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
         assert dag_updated is True
+
+    @pytest.mark.parametrize(
+        ("auto_backfill_missing_task_instances", "expected_backfilled_task_instances"),
+        [(True, 1), (False, 0)],
+    )
+    def test_write_dag_can_backfill_missing_task_instances_for_existing_dagruns(
+        self, auto_backfill_missing_task_instances, expected_backfilled_task_instances, dag_maker, session
+    ):
+        logical_date = pendulum.datetime(2026, 3, 1, tz="UTC")
+        dag_id = f"backfill_missing_ti_{auto_backfill_missing_task_instances}"
+
+        with dag_maker(
+            dag_id=dag_id, start_date=DEFAULT_DATE, schedule="@daily", bundle_name="testing"
+        ) as dag_v1:
+            EmptyOperator(task_id="existing_task")
+
+        dag_maker.create_dagrun(
+            run_id=f"manual__{logical_date.to_date_string()}",
+            logical_date=logical_date,
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+        )
+
+        with DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule="@daily") as dag_v2:
+            EmptyOperator(task_id="existing_task")
+            EmptyOperator(task_id="test1")
+        dag_v2.fileloc = dag_v1.fileloc
+        dag_v2.relative_fileloc = dag_v1.relative_fileloc
+
+        with conf_vars(
+            {
+                (
+                    "dag_processor",
+                    "auto_backfill_missing_task_instances",
+                ): str(auto_backfill_missing_task_instances)
+            }
+        ):
+            SDM.write_dag(
+                dag=LazyDeserializedDAG.from_dag(dag_v2),
+                bundle_name="testing",
+                session=session,
+            )
+
+        backfilled_ti_count = session.scalar(
+            select(func.count())
+            .select_from(TaskInstance)
+            .where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == f"manual__{logical_date.to_date_string()}",
+                TaskInstance.task_id == "test1",
+            )
+        )
+        assert backfilled_ti_count == expected_backfilled_task_instances
 
     def test_read_dags(self):
         """DAGs can be read from database."""
