@@ -142,37 +142,6 @@ using ``async``/``await``.
 
    async_http_operator_dag()
 
-MS Graph Async Example
-~~~~~~~~~~~~~~~~~~~~~~
-
-Another example uses the :class:`~airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook`,
-which is async-only, to fetch all users from the `Microsoft Graph API <https://learn.microsoft.com/en-us/graph/azuread-users-concept-overview/>`__.
-
-In this example, multiple paginated requests are expected in order to retrieve all users.
-Using an async Python task is appropriate here because the
-:class:`~airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook`
-handles pagination internally and performs the requests asynchronously.
-
-.. code-block:: python
-
-   from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-   from airflow.sdk import dag, task
-
-
-   @dag(schedule=None)
-   def async_msgraph_dag():
-
-       @task
-       async def get_users():
-           hook = KiotaRequestAdapterHook.get_hook(conn_id="msgraph_default")
-
-           return await hook.paginated_run(url="users")
-
-       get_users()
-
-
-   async_msgraph_dag()
-
 Async Multiplexing Example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -232,6 +201,37 @@ concurrently using ``asyncio.gather`` while limiting concurrency with a semaphor
    over asynchronous results directly in downstream tasks while still benefiting
    from a shared event loop. This will make high-throughput patterns such as
    pagination or request multiplexing easier to implement.
+
+MS Graph Async Example
+~~~~~~~~~~~~~~~~~~~~~~
+
+Another example using the :class:`~airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook`,
+which is async-only, to fetch all users from the `Microsoft Graph API <https://learn.microsoft.com/en-us/graph/azuread-users-concept-overview/>`__.
+
+In this example, multiple paginated requests are expected in order to retrieve all users.
+Using an async Python task is appropriate here because the
+:class:`~airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook`
+handles pagination internally and performs the requests asynchronously.
+
+.. code-block:: python
+
+   from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+   from airflow.sdk import dag, task
+
+
+   @dag(schedule=None)
+   def async_msgraph_dag():
+
+       @task
+       async def get_users():
+           hook = KiotaRequestAdapterHook.get_hook(conn_id="msgraph_default")
+
+           return await hook.paginated_run(url="users")
+
+       get_users()
+
+
+   async_msgraph_dag()
 
 When **not** to use Deferred vs Async Operators
 -----------------------------------------------
