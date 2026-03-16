@@ -43,8 +43,6 @@ env/
 build/
 develop-eggs/
 dist/
-!providers/fab/**/www/static/dist
-!providers/edge3/**/www/dist
 downloads/
 eggs/
 .eggs/
@@ -132,6 +130,9 @@ ENV/
 # PyCharm
 .idea/
 *.iml
+
+# Claude Code
+.claude/
 
 # Cursor
 .cursor/

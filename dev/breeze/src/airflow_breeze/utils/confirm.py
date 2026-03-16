@@ -20,7 +20,7 @@ import os
 import sys
 from enum import Enum
 
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.shared_options import get_forced_answer
 
 STANDARD_TIMEOUT = 10
@@ -88,24 +88,24 @@ def user_confirm(
         allowed_answers = allowed_answers.replace(default_answer.value, default_answer.value.upper())
 
     prompt = f"\n{message} \nPress {allowed_answers}: "
-    get_console().print(prompt, end="")
+    console_print(prompt, end="")
 
     try:
         ch = _read_char()
     except (KeyboardInterrupt, EOFError):
-        get_console().print()
+        console_print()
         if quit_allowed:
             return Answer.QUIT
         sys.exit(1)
 
     # Ignore multi-byte escape sequences (arrow keys, etc.)
     if len(ch) > 1:
-        get_console().print()
+        console_print()
         if default_answer:
             return default_answer
         return Answer.NO
 
-    get_console().print(ch)
+    console_print(ch)
 
     if ch.upper() == "Y":
         return Answer.YES
@@ -214,21 +214,21 @@ def prompt_triage_action(
                 choices.append(f"\\[{letter}]{label}")
         choices_str = " / ".join(choices)
 
-        get_console().print(f"\n{message}")
-        get_console().print(choices_str + ": ", end="")
+        console_print(f"\n{message}")
+        console_print(choices_str + ": ", end="")
 
         try:
             ch = _read_char()
         except (KeyboardInterrupt, EOFError):
-            get_console().print()
+            console_print()
             return TriageAction.QUIT
 
         # Ignore multi-byte escape sequences (arrow keys, etc.)
         if len(ch) > 1:
-            get_console().print()
+            console_print()
             continue
 
-        get_console().print(ch)
+        console_print(ch)
 
         # Enter/Return or empty string (line-buffered) selects the default
         if ch in ("\r", "\n", ""):
@@ -239,11 +239,11 @@ def prompt_triage_action(
             if matched == TriageAction.OPEN:
                 if pr_url:
                     webbrowser.open(pr_url)
-                    get_console().print(f"  [info]Opened {pr_url} in browser.[/]")
+                    console_print(f"  [info]Opened {pr_url} in browser.[/]")
                 else:
-                    get_console().print("  [warning]No PR URL available to open.[/]")
+                    console_print("  [warning]No PR URL available to open.[/]")
                 continue  # re-prompt after opening browser
             return matched
 
         valid = "/".join(a.value for a in available_actions)
-        get_console().print(f"  [warning]Invalid key. Press one of: {valid}[/]")
+        console_print(f"  [warning]Invalid key. Press one of: {valid}[/]")
