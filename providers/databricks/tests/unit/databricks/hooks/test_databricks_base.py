@@ -33,6 +33,7 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import (
     DEFAULT_AZURE_CREDENTIAL_SETTING_KEY,
     DEFAULT_DATABRICKS_SCOPE,
+    K8S_CA_CERT_PATH,
     TOKEN_REFRESH_LEAD_TIME,
     BaseDatabricksHook,
 )
@@ -1137,6 +1138,29 @@ class TestBaseDatabricksHook:
         # Verify Authorization header uses custom token
         assert call_args[1]["headers"]["Authorization"] == "Bearer custom_in_cluster_token"
 
+    @mock.patch("builtins.open")
+    @mock.patch("requests.post")
+    def test_get_k8s_token_request_api_uses_ca_cert_for_tls(self, mock_post, mock_open):
+        """Verify TokenRequest API call uses the in-cluster CA bundle for TLS verification."""
+        mock_open.side_effect = [
+            mock.mock_open(read_data="in_cluster_token").return_value,
+            mock.mock_open(read_data="default").return_value,
+        ]
+        mock_response = mock.Mock()
+        mock_response.json.return_value = {"status": {"token": "jwt_token"}}
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        mock_conn = mock.Mock()
+        mock_conn.extra_dejson = {}
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = mock_conn
+
+        hook._get_k8s_token_request_api()
+
+        call_kwargs = mock_post.call_args[1]
+        assert call_kwargs["verify"] == K8S_CA_CERT_PATH
+
     @mock.patch("builtins.open", mock.mock_open(read_data="projected_token_content"))
     def test_get_k8s_projected_volume_token_success(self):
         """Test successfully reading token from Kubernetes projected volume."""
@@ -1652,6 +1676,46 @@ class TestBaseDatabricksHook:
                 assert token == "token_request_api_token"
                 mock_projected.assert_not_called()
                 mock_token_request.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch("ssl.create_default_context")
+    async def test_a_get_k8s_token_request_api_uses_ca_cert_for_tls(self, mock_ssl_ctx):
+        """Verify async TokenRequest API call uses the in-cluster CA bundle for TLS verification."""
+        import ssl
+
+        fake_ctx = mock.MagicMock(spec=ssl.SSLContext)
+        mock_ssl_ctx.return_value = fake_ctx
+
+        mock_conn = mock.Mock()
+        mock_conn.extra_dejson = {}
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = mock_conn
+
+        mock_response = mock.AsyncMock()
+        mock_response.json = mock.AsyncMock(return_value={"status": {"token": "jwt_token"}})
+        mock_response.raise_for_status = mock.Mock()
+        mock_session = mock.MagicMock()
+        mock_session.post.return_value.__aenter__ = mock.AsyncMock(return_value=mock_response)
+        mock_session.post.return_value.__aexit__ = mock.AsyncMock(return_value=None)
+
+        mock_token_file = mock.AsyncMock()
+        mock_token_file.read = mock.AsyncMock(return_value="in_cluster_token")
+        mock_namespace_file = mock.AsyncMock()
+        mock_namespace_file.read = mock.AsyncMock(return_value="default")
+
+        hook._session = mock_session
+        with mock.patch(
+            "aiofiles.open",
+            side_effect=[
+                mock.MagicMock(__aenter__=mock.AsyncMock(return_value=mock_token_file)),
+                mock.MagicMock(__aenter__=mock.AsyncMock(return_value=mock_namespace_file)),
+            ],
+        ):
+            await hook._a_get_k8s_token_request_api()
+
+        mock_ssl_ctx.assert_called_once_with(cafile=K8S_CA_CERT_PATH)
+        call_kwargs = mock_session.post.call_args[1]
+        assert call_kwargs["ssl"] is fake_ctx
 
     @pytest.mark.asyncio
     @time_machine.travel("2025-07-12 12:00:00")
