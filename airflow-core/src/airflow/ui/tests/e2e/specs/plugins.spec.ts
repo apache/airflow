@@ -42,18 +42,18 @@ test.describe("Plugins Page", () => {
   });
 
   test("verify each plugin has a name", async () => {
+    await expect(pluginsPage.rows).not.toHaveCount(0);
     const count = await pluginsPage.rows.count();
 
-    expect(count).toBeGreaterThan(0);
     for (let i = 0; i < count; i++) {
       await expect(pluginsPage.nameColumn.nth(i)).not.toBeEmpty();
     }
   });
 
   test("verify each plugin has a source", async () => {
+    await expect(pluginsPage.rows).not.toHaveCount(0);
     const count = await pluginsPage.rows.count();
 
-    expect(count).toBeGreaterThan(0);
     for (let i = 0; i < count; i++) {
       await expect(pluginsPage.sourceColumn.nth(i)).not.toBeEmpty();
     }
