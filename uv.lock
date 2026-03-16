@@ -1644,6 +1644,7 @@ dependencies = [
     { name = "linkify-it-py" },
     { name = "lockfile" },
     { name = "methodtools" },
+    { name = "more-itertools", marker = "python_full_version < '3.12'" },
     { name = "msgspec" },
     { name = "natsort" },
     { name = "opentelemetry-api" },
@@ -8007,6 +8008,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "jsonschema", specifier = ">=4.19.1" },
     { name = "methodtools", specifier = ">=0.4.7" },
+    { name = "more-itertools", marker = "python_full_version < '3.12'", specifier = ">=9.0.0" },
     { name = "msgspec", specifier = ">=0.19.0" },
     { name = "opentelemetry-api", marker = "extra == 'all'", specifier = ">=1.27.0" },
     { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.27.0" },
@@ -20133,7 +20135,7 @@ dependencies = [
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 wheels = [
-    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.0-py3-none-any.whl", hash = "sha256:4e78c493d17a24fc6bc2af338d4a8a318e67d6bb25cd0bc85e3d74e281b1b494" },
+    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.0-py3-none-any.whl", hash = "sha256:4991b1bb2a0d3ec036436057f7ee037415e1cdcddc7ec1ad469c7cfe919cdf26" },
 ]
 
 [package.metadata]
