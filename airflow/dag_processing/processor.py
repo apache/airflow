@@ -846,6 +846,15 @@ class DagFileProcessor(LoggingMixin):
         if not ti:
             return
 
+        if request.is_failure_callback and simple_ti.try_number != ti.try_number:
+            cls.logger().warning(
+                "Skipping stale failure callback for %s: callback try_number=%s, current try_number=%s",
+                ti,
+                simple_ti.try_number,
+                ti.try_number,
+            )
+            return
+
         task: Operator | None = None
 
         if dagbag and simple_ti.dag_id in dagbag.dags:
