@@ -1745,6 +1745,10 @@ REQUEST_TEST_CASES = [
         test_id="set_rendered_map_index",
     ),
     RequestTestCase(
+        message=SetExecutionTimeout(execution_timeout=60.0),
+        test_id="set_execution_timeout",
+    ),
+    RequestTestCase(
         message=SucceedTask(
             end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
         ),
