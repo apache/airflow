@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.triggers.neptune_analytics import (
     NeptuneGraphDeletedTrigger,
     NeptuneGraphPrivateEndpointAvailableTrigger,
     NeptuneGraphPrivateEndpointDeletedTrigger,
+    NeptuneImportTaskCancelledTrigger,
     NeptuneImportTaskCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -762,3 +763,87 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
             task_id = event.get("task_id", "")
 
         return {"graph_id": self.graph_identifier, "task_id": task_id}
+
+
+class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
+    """
+    Cancels an active Neptune Graph import task.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:NeptuneCancelImportTaskOperator
+
+    :param task_identifier: Neptune Graph import task id to cancel.
+    :param wait_for_completion: Whether to wait for the endpoint to be available. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the endpoint to become available.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
+    :param waiter_delay: Time in seconds to wait between status checks.
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    :return: dictionary with Neptune graph id
+
+    """
+
+    aws_hook_class = NeptuneAnalyticsHook
+    template_fields: Sequence[str] = aws_template_fields("task_identifier")
+
+    def __init__(
+        self,
+        task_identifier: str,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.import_task_id = task_identifier
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute(self, context: Context) -> dict:
+        self.log.info("Cancelling import task %s", self.import_task_id)
+
+        response = self.hook.conn.cancel_import_task(taskIdentifier=self.import_task_id)
+
+        self.log.info("Import task %s status is %s", self.import_task_id, response.get("status", "Unknown"))
+
+        if self.deferrable:
+            self.log.info("Deferring until import task %s is cancelled", self.import_task_id)
+            self.defer(
+                trigger=NeptuneImportTaskCancelledTrigger(
+                    task_identifier=self.import_task_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for import task %s to be cancelled", self.import_task_id)
+            self.hook.get_waiter("import_task_cancelled").wait(
+                taskIdentifier=self.import_task_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return {"task_identifier": self.import_task_id}
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
+        task_id = ""
+        if event:
+            task_id = event.get("task_identifier", "")
+            self.log.info("Import task %s cancelled", task_id)
+
+        return {"task_identifier": task_id}

@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.triggers.neptune_analytics import (
     NeptuneGraphAvailableTrigger,
     NeptuneGraphPrivateEndpointAvailableTrigger,
     NeptuneGraphPrivateEndpointDeletedTrigger,
+    NeptuneImportTaskCancelledTrigger,
     NeptuneImportTaskCompleteTrigger,
 )
 from airflow.providers.common.compat.sdk import AirflowException
@@ -236,6 +237,52 @@ class TestNeptuneImportTaskCompleteTrigger:
         mock_get_waiter.return_value.wait = wait_mock
 
         trigger = NeptuneImportTaskCompleteTrigger(task_id=TASK_ID)
+
+        with pytest.raises(AirflowException):
+            await trigger.run().asend(None)
+
+
+class TestNeptuneImportTaskCancelledTrigger:
+    def test_serialization(self):
+        """
+        Asserts that the NeptuneImportTaskCancelledTrigger correctly serializes its arguments
+        and classpath.
+        """
+        trigger = NeptuneImportTaskCancelledTrigger(task_identifier=TASK_ID)
+        classpath, kwargs = trigger.serialize()
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.neptune_analytics.NeptuneImportTaskCancelledTrigger"
+        )
+        assert "task_identifier" in kwargs
+        assert kwargs["task_identifier"] == TASK_ID
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune_analytics.NeptuneAnalyticsHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune_analytics.NeptuneAnalyticsHook.get_async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.return_value.__aenter__.return_value = "CANCELLED"
+        mock_get_waiter().wait = AsyncMock()
+        trigger = NeptuneImportTaskCancelledTrigger(task_identifier=TASK_ID)
+        generator = trigger.run()
+        resp = await generator.asend(None)
+
+        assert resp == TriggerEvent({"status": "success", "task_identifier": TASK_ID})
+        assert mock_get_waiter().wait.call_count == 1
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune_analytics.NeptuneAnalyticsHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune_analytics.NeptuneAnalyticsHook.get_async_conn")
+    async def test_run_failure(self, mock_async_conn, mock_get_waiter):
+        wait_mock = AsyncMock()
+        wait_mock.side_effect = WaiterError(
+            name="import_task_cancelled",
+            reason='Waiter encountered a terminal failure state: For expression "status" we matched expected path: "FAILED"',
+            last_response={"status": "FAILED", "taskIdentifier": TASK_ID},
+        )
+        mock_get_waiter.return_value.wait = wait_mock
+
+        trigger = NeptuneImportTaskCancelledTrigger(task_identifier=TASK_ID)
 
         with pytest.raises(AirflowException):
             await trigger.run().asend(None)
