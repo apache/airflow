@@ -313,7 +313,7 @@ class InProcessExecutionAPI:
         if not self._app:
             import svcs
 
-            from airflow.api_fastapi.auth.tokens import JWTGenerator, get_signing_args
+            from airflow.api_fastapi.auth.tokens import JWTGenerator
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.datamodels.token import TIToken
@@ -342,10 +342,7 @@ class InProcessExecutionAPI:
             # Any service resolved via DepContainer in routes called during
             # dag.test() must be registered here.
             registry = svcs.Registry()
-            registry.register_value(
-                JWTGenerator,
-                JWTGenerator(valid_for=600, audience="urn:airflow.apache.org:task", **get_signing_args()),
-            )
+            registry.register_factory(JWTGenerator, _jwt_generator)
 
             async def _test_container(request: Request):
                 async with svcs.Container(registry) as cont:
