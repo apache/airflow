@@ -34,8 +34,8 @@ export class PluginsPage extends BasePage {
     this.heading = page.getByRole("heading", { name: /plugins/i });
     this.table = page.getByTestId("table-list");
     this.rows = this.table.locator("tbody tr").filter({ has: page.locator("td") });
-    this.nameColumn = this.rows.locator("td:nth-child(1)");
-    this.sourceColumn = this.rows.locator("td:nth-child(2)");
+    this.nameColumn = this.rows.getByTestId("table-cell-name");
+    this.sourceColumn = this.rows.getByTestId("table-cell-source");
   }
 
   public async navigate(): Promise<void> {
