@@ -663,6 +663,10 @@ def _fetch_collaborators_from_api(token: str, github_repository: str) -> list[st
 
 def _load_collaborators_cache(github_repository: str) -> list[str]:
     """Load collaborators from local cache file. Returns empty list if no cache."""
+    from airflow_breeze.utils.recording import generating_command_images
+
+    if generating_command_images():
+        return []
     cache_path = _get_collaborators_cache_path(github_repository)
     if cache_path.exists():
         try:
