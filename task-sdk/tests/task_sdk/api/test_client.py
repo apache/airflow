@@ -202,6 +202,13 @@ class TestClient:
         # detail is None when the detail string is used as the message itself
         assert "Detail:" not in error_str
 
+    def test_server_response_error_str_missing_detail_attr(self):
+        """Test that __str__ handles missing detail attribute gracefully."""
+        err = ServerResponseError.__new__(ServerResponseError)
+        # Simulate an instance where detail was never set (e.g. unpickling edge case)
+        err.args = ("test error",)
+        assert "Detail:" not in str(err)
+
     def test_retry_handling_unrecoverable_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
             responses: list[httpx.Response] = [

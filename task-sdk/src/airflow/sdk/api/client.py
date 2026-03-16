@@ -1029,8 +1029,9 @@ class ServerResponseError(httpx.HTTPStatusError):
 
     def __str__(self) -> str:
         base = super().__str__()
-        if self.detail:
-            return f"{base}\nDetail: {self.detail}"
+        detail = getattr(self, "detail", None)
+        if detail:
+            return f"{base}\nDetail: {detail}"
         return base
 
     def __reduce__(self) -> tuple[Any, ...]:
