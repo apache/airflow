@@ -2371,6 +2371,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         callback: DagCallbackRequest | None = None,
     ) -> None:
         if callback:
+            self.log.info(
+                "Sending %s callback request for dag_id=%s, run_id=%s to DAG Processor",
+                "failure" if callback.is_failure_callback else "success",
+                callback.dag_id,
+                callback.run_id,
+            )
             self.executor.send_callback(callback)
         else:
             self.log.debug("callback is empty")
