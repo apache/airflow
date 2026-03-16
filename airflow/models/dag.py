@@ -4104,7 +4104,7 @@ class DagModel(Base):
                 del dag_statuses[dag_id]
             else:
                 log.info(
-                    "Dataset condition satisfied: dag_id=%s, condition=%s, "
+                    "[DEBUG DATASETS] Dataset condition satisfied: dag_id=%s, condition=%s, "
                     "ddrq_uris=%s, ddrq_count=%d",
                     dag_id,
                     dataset_condition,

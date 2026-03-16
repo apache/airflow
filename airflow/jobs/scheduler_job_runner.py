@@ -1318,7 +1318,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._create_dag_runs(non_dataset_dags, session)
         if dataset_triggered_dags:
             self.log.info(
-                "Dataset-triggered DAGs ready: %s",
+                "[DEBUG DATASETS] Dataset-triggered DAGs ready: %s",
                 {
                     dag_id: (str(first), str(last))
                     for dag_id, (first, last) in dataset_triggered_dag_info.items()
@@ -1488,7 +1488,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 missing_uris = ddrq_uris - consumed_uris
                 if missing_uris:
                     self.log.warning(
-                        "DDRQ/event mismatch: dag_id=%s has DDRQ URIs %s with no matching "
+                        "[DEBUG DATASETS] DDRQ/event mismatch: dag_id=%s has DDRQ URIs %s with no matching "
                         "DatasetEvent in range (prev_exec=%s, exec_date=%s]. "
                         "Consumed URIs: %s. Possible stale DDRQ records.",
                         dag.dag_id,
@@ -1521,7 +1521,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
                 self.log.info(
-                    "Dataset-triggered DagRun created: dag_id=%s, exec_date=%s, "
+                    "[DEBUG DATASETS] Dataset-triggered DagRun created: dag_id=%s, exec_date=%s, "
                     "prev_exec=%s, data_interval=(%s, %s), "
                     "events_consumed=%d, event_uris=%s",
                     dag.dag_id,
@@ -1535,7 +1535,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if dataset_events:
                     event_timestamps = [e.timestamp for e in dataset_events]
                     self.log.debug(
-                        "Consumed event details: dag_id=%s, "
+                        "[DEBUG DATASETS] Consumed event details: dag_id=%s, "
                         "event_ts_range=(%s, %s), "
                         "events=[%s]",
                         dag.dag_id,
