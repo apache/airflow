@@ -112,22 +112,22 @@ class TestDefaultFillingLogic:
         assert op is not None
 
     def test_construction_succeeds_with_context_key_params(self):
-        def foo(start_date, end_date):
-            return end_date
+        def foo(ds, my_data):
+            return my_data
 
         assert make_op(foo, op_args=[None, None]) is not None
 
     def test_context_key_default_none_does_not_raise(self):
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
-        ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
+        ctx_key = next(iter(sorted(KNOWN_CONTEXT_KEYS)))
         f = _make_func(f"def dummy_task(x, {ctx_key}=None): return x")
         assert make_op(f, op_kwargs={"x": 1}) is not None
 
     def test_context_key_with_non_none_default_raises(self):
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
-        ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
+        ctx_key = next(iter(sorted(KNOWN_CONTEXT_KEYS)))
         f = _make_func(f"def dummy_task(x, {ctx_key}='bad_default'): return x")
         with pytest.raises(ValueError, match="can't have a default other than None"):
             make_op(f, op_kwargs={"x": 1})
@@ -178,7 +178,7 @@ class TestDefaultFillingLogic:
     def test_context_key_after_regular_default_preserves_original_default(self):
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
-        ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
+        ctx_key = next(iter(sorted(KNOWN_CONTEXT_KEYS)))
         f = _make_func(f"def dummy_task(x, y=5, {ctx_key}=None): return (x, y)")
         op = make_op(f, op_kwargs={"x": 1})
         sig = inspect.signature(op.python_callable)
@@ -188,14 +188,14 @@ class TestDefaultFillingLogic:
     def test_non_context_param_after_context_key_gets_none_injected(self):
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
-        ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
+        ctx_key = next(iter(sorted(KNOWN_CONTEXT_KEYS)))
         f = _make_func(f"def dummy_task({ctx_key}, a): ...")
         assert make_op(f, op_kwargs={"a": "2024-01-01"}) is not None
 
     def test_non_context_param_after_context_key_without_value_raises(self):
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
-        ctx_key = next(iter(KNOWN_CONTEXT_KEYS))
+        ctx_key = next(iter(sorted(KNOWN_CONTEXT_KEYS)))
         f = _make_func(f"def dummy_task({ctx_key}, a): ...")
         with pytest.raises(TypeError, match="missing required argument"):
             make_op(f)
