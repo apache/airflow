@@ -1,0 +1,43 @@
+{
+  "skills": [
+    {
+      "id": "run_tests",
+      "steps": [
+        {
+          "type": "local",
+          "command": "uv run --project distribution_folder pytest"
+        },
+        {
+          "type": "fallback",
+          "command": "breeze exec pytest"
+        }
+      ]
+    },
+    {
+      "id": "run_static_checks",
+      "steps": [
+        {
+          "type": "local",
+          "command": "uv run --project airflow-core ruff check ."
+        },
+        {
+          "type": "fallback",
+          "command": "breeze exec prek run --stage pre-commit"
+        }
+      ]
+    },
+    {
+      "id": "run_single_core_test",
+      "steps": [
+        {
+          "type": "local",
+          "command": "uv run --project airflow-core pytest airflow-core/tests/cli/test_cli_parser.py -xvs"
+        },
+        {
+          "type": "fallback",
+          "command": "breeze run pytest airflow-core/tests/cli/test_cli_parser.py -xvs"
+        }
+      ]
+    }
+  ]
+}
