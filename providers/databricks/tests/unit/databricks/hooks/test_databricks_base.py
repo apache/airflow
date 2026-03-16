@@ -978,8 +978,8 @@ class TestBaseDatabricksHook:
         assert k8s_json["spec"]["audiences"] == ["https://kubernetes.default.svc"]
         assert k8s_json["spec"]["expirationSeconds"] == 3600
 
-        # Verify SSL verification is disabled for in-cluster self-signed certs
-        assert k8s_call_args[1]["verify"] is False
+        # Verify TLS is verified using the in-cluster CA bundle
+        assert k8s_call_args[1]["verify"] == K8S_CA_CERT_PATH
 
         # Verify Databricks token exchange call
         db_call_args = mock_post.call_args_list[1]
@@ -1382,7 +1382,8 @@ class TestBaseDatabricksHook:
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
     @time_machine.travel("2025-07-12 12:00:00")
-    async def test_a_get_federated_token(self, mock_post):
+    @mock.patch("ssl.create_default_context")
+    async def test_a_get_federated_token(self, mock_ssl_ctx, mock_post):
         """Test async version of federated token exchange."""
         expiry_date = int((datetime(2025, 7, 12, 12, 0, 0) + timedelta(minutes=60)).timestamp())
 
@@ -1502,7 +1503,8 @@ class TestBaseDatabricksHook:
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
-    async def test_a_get_federated_token_databricks_error(self, mock_post):
+    @mock.patch("ssl.create_default_context")
+    async def test_a_get_federated_token_databricks_error(self, mock_ssl_ctx, mock_post):
         """Test async error handling when Databricks token exchange fails."""
         # Mock aiofiles.open for reading K8s token and namespace
         mock_token_file = mock.AsyncMock()
@@ -1780,7 +1782,8 @@ class TestBaseDatabricksHook:
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
-    async def test_a_get_token_with_federated_k8s_login(self, mock_post):
+    @mock.patch("ssl.create_default_context")
+    async def test_a_get_token_with_federated_k8s_login(self, mock_ssl_ctx, mock_post):
         """Test async _a_get_token with login='federated_k8s'."""
         # Mock aiofiles.open for reading K8s token and namespace
         mock_token_file = mock.AsyncMock()
@@ -1833,7 +1836,8 @@ class TestBaseDatabricksHook:
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
-    async def test_a_get_token_with_federated_k8s_extra(self, mock_post):
+    @mock.patch("ssl.create_default_context")
+    async def test_a_get_token_with_federated_k8s_extra(self, mock_ssl_ctx, mock_post):
         """Test async _a_get_token with federated_k8s in extras."""
         # Mock aiofiles.open for reading K8s token and namespace
         mock_token_file = mock.AsyncMock()
