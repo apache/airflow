@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 import apprise
-from apprise import AppriseConfig, NotifyFormat, NotifyType
+from apprise import AppriseAsset, AppriseConfig, NotifyFormat, NotifyType
 
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
@@ -42,6 +42,13 @@ class AppriseHook(BaseHook):
 
     :param apprise_conn_id: :ref:`Apprise connection id <howto/connection:apprise>`
         that has services configured in the `config` field.
+    :param storage_path: Optional filesystem path to enable Apprise persistent storage.
+        When set, login sessions and tokens are cached to disk, avoiding repeated
+        authentication (e.g., Matrix login rate limits). If not provided, persistent
+        storage is disabled and behavior is unchanged from previous versions.
+    :param storage_mode: Persistent storage mode. Only used when ``storage_path`` is set.
+        Valid values: ``"auto"`` (write on demand, default), ``"flush"`` (write always),
+        ``"memory"`` (disable disk writes). Maps to ``apprise.PersistentStoreMode``.
     """
 
     conn_name_attr = "apprise_conn_id"
@@ -49,9 +56,36 @@ class AppriseHook(BaseHook):
     conn_type = "apprise"
     hook_name = "Apprise"
 
-    def __init__(self, apprise_conn_id: str = default_conn_name) -> None:
+    def __init__(
+        self,
+        apprise_conn_id: str = default_conn_name,
+        storage_path: str | None = None,
+        storage_mode: str = "auto",
+    ) -> None:
         super().__init__()
         self.apprise_conn_id = apprise_conn_id
+        self.storage_path = storage_path
+        self.storage_mode = storage_mode
+
+    def _build_apprise_asset(self) -> AppriseAsset | None:
+        """Build an AppriseAsset with persistent storage if storage_path is configured."""
+        if not self.storage_path:
+            return None
+
+        mode_map = {
+            "auto": apprise.PersistentStoreMode.AUTO,
+            "flush": apprise.PersistentStoreMode.FLUSH,
+            "memory": apprise.PersistentStoreMode.MEMORY,
+        }
+        mode = mode_map.get(self.storage_mode.lower(), apprise.PersistentStoreMode.AUTO)
+        return AppriseAsset(storage_path=self.storage_path, storage_mode=mode)
+
+    def _create_apprise_obj(self) -> apprise.Apprise:
+        """Create an Apprise instance, optionally with persistent storage."""
+        asset = self._build_apprise_asset()
+        if asset:
+            return apprise.Apprise(asset=asset)
+        return apprise.Apprise()
 
     def get_config_from_conn(self, conn: Connection):
         config = conn.extra_dejson["config"]
@@ -98,8 +132,7 @@ class AppriseHook(BaseHook):
         :param config: Specify one or more configuration
         """
         title = title or ""
-
-        apprise_obj = apprise.Apprise()
+        apprise_obj = self._create_apprise_obj()
         if config:
             apprise_obj.add(config)
         else:
@@ -142,8 +175,7 @@ class AppriseHook(BaseHook):
         :param config: Specify one or more configuration
         """
         title = title or ""
-
-        apprise_obj = apprise.Apprise()
+        apprise_obj = self._create_apprise_obj()
         if config:
             apprise_obj.add(config)
         else:
