@@ -58,8 +58,6 @@ try:
 except ImportError:
     from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager  # type:ignore[no-redef]
 
-if AIRFLOW_V_3_2_PLUS:
-    from airflow.sdk.execution_time.callback_supervisor import supervise_callback
 
 log = logging.getLogger(__name__)
 
@@ -211,7 +209,6 @@ def execute_workload(input: str) -> None:
 
     from airflow.executors import workloads
     from airflow.providers.common.compat.sdk import conf
-    from airflow.sdk.execution_time.supervisor import supervise
 
     decoder = TypeAdapter[workloads.All](workloads.All)
     workload = decoder.validate_json(input)
@@ -228,6 +225,8 @@ def execute_workload(input: str) -> None:
 
     try:
         if isinstance(workload, workloads.ExecuteTask):
+            from airflow.sdk.execution_time.supervisor import supervise
+
             supervise(
                 # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                 ti=workload.ti,  # type: ignore[arg-type]
@@ -237,12 +236,15 @@ def execute_workload(input: str) -> None:
                 server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
                 log_path=workload.log_path,
             )
-        elif isinstance(workload, workloads.ExecuteCallback):
+        elif isinstance(workload, workloads.ExecuteCallback) and AIRFLOW_V_3_2_PLUS:
+            from airflow.sdk.execution_time.callback_supervisor import supervise_callback
+
             supervise_callback(
                 id=workload.callback.id,
                 callback_path=workload.callback.data.get("path", ""),
                 callback_kwargs=workload.callback.data.get("kwargs", {}),
                 log_path=workload.log_path,
+                bundle_info=workload.bundle_info,
             )
         else:
             raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")

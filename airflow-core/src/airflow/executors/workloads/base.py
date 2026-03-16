@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import os
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from collections.abc import Hashable
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
+    from airflow.executors.workloads.types import WorkloadState
 
 
 class BaseWorkload:
@@ -86,7 +88,7 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
 
     @property
     @abstractmethod
-    def key(self) -> Any:
+    def key(self) -> Hashable:
         """
         Return the unique key identifying this workload instance.
 
@@ -122,7 +124,7 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
 
     @property
     @abstractmethod
-    def success_state(self) -> Any:
+    def success_state(self) -> WorkloadState:
         """
         Return the state value representing successful completion of this workload type.
 
@@ -132,10 +134,11 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
 
     @property
     @abstractmethod
-    def failure_state(self) -> Any:
+    def failure_state(self) -> WorkloadState:
         """
         Return the state value representing failed completion of this workload type.
 
         Must be implemented by subclasses.
         """
         raise NotImplementedError(f"{self.__class__.__name__} must implement failure_state")
+
