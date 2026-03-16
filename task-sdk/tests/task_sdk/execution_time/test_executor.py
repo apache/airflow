@@ -22,6 +22,7 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
+from task_sdk.execution_time.test_task_runner import get_inline_dag
 from uuid6 import uuid7
 
 from airflow.sdk import BaseAsyncOperator, BaseOperator
@@ -30,7 +31,7 @@ from airflow.sdk.bases.operator import event_loop
 from airflow.sdk.exceptions import AirflowRescheduleTaskInstanceException, TaskDeferred
 from airflow.sdk.execution_time.executor import HybridExecutor, TaskExecutor, collect_futures
 from airflow.sdk.execution_time.task_runner import MappedTaskInstance
-from task_sdk.execution_time.test_task_runner import get_inline_dag
+
 from tests_common.test_utils.mock_context import mock_context
 
 
@@ -153,7 +154,9 @@ class TestHybridExecutor:
         """__exit__ calls shutdown on the thread pool."""
         with event_loop() as loop:
             executor = HybridExecutor(loop=loop, max_workers=2)
-            with mock.patch.object(executor._thread_pool, "shutdown", wraps=executor._thread_pool.shutdown) as shutdown_mock:
+            with mock.patch.object(
+                executor._thread_pool, "shutdown", wraps=executor._thread_pool.shutdown
+            ) as shutdown_mock:
                 with executor:
                     pass
                 shutdown_mock.assert_called_once_with(wait=True)
@@ -181,6 +184,7 @@ class TestCollectFutures:
     def test_yields_async_tasks(self):
         """collect_futures yields completed asyncio.Task objects."""
         with event_loop() as loop:
+
             async def coro(val):
                 return val
 
@@ -322,11 +326,11 @@ class TestTaskExecutor:
     @pytest.mark.parametrize(
         "try_number, max_tries, should_fail",
         [
-            (0, 0, True),   # next=1, max=0 → 1>0 → fail
+            (0, 0, True),  # next=1, max=0 → 1>0 → fail
             (0, 1, False),  # next=1, max=1 → 1<=1 → reschedule
-            (1, 1, True),   # next=2, max=1 → 2>1 → fail
+            (1, 1, True),  # next=2, max=1 → 2>1 → fail
             (2, 3, False),  # next=3, max=3 → 3<=3 → reschedule
-            (3, 3, True),   # next=4, max=3 → 4>3 → fail
+            (3, 3, True),  # next=4, max=3 → 4>3 → fail
         ],
     )
     def test_exit_retry_boundary(self, try_number, max_tries, should_fail):
