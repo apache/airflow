@@ -4870,7 +4870,6 @@ class TestSchedulerJob:
         session.add(AssetDagRunQueue(target_dag_id=dag_model.dag_id, asset_id=asset_id, created_at=queued_at))
         session.flush()
 
-        triggered_date_by_dag = {dag_model.dag_id: queued_at}
         # Simulate another scheduler consuming ADRQ rows after we computed triggered_date_by_dag.
         session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id))
         session.flush()
@@ -4879,7 +4878,6 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
         self.job_runner._create_dag_runs_asset_triggered(
             dag_models=[dag_model],
-            triggered_date_by_dag=triggered_date_by_dag,
             session=session,
         )
 
@@ -4923,7 +4921,6 @@ class TestSchedulerJob:
         with patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=_lock_only_selected_asset):
             self.job_runner._create_dag_runs_asset_triggered(
                 dag_models=[dag_model],
-                triggered_date_by_dag={dag_model.dag_id: timezone.utcnow()},
                 session=session,
             )
 
