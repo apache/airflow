@@ -83,7 +83,7 @@ export const TaskNode = ({
 
   return (
     <NodeWrapper>
-      <Flex alignItems="center" cursor="default" flexDirection="column">
+      <Flex alignItems="center" cursor="pointer" flexDirection="column">
         <TaskInstanceTooltip
           openDelay={500}
           positioning={{

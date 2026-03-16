@@ -1,0 +1,1 @@
+Fix cursor not changing to pointer when hovering over task node box in Graph view.
