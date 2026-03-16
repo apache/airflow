@@ -259,6 +259,13 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
+      - id: uv-sync
+        name: Run uv sync
+        entry: uv sync
+        language: system
+        files: (^|/)pyproject\.toml$
+        pass_filenames: false
+        require_serial: true
       - id: update-uv-lock
         name: Update uv.lock (manual)
         entry: ./scripts/ci/prek/update_uv_lock.py
