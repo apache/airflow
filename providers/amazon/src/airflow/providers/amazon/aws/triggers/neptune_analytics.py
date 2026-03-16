@@ -161,7 +161,7 @@ class NeptuneGraphDeletedTrigger(AwsBaseWaiterTrigger):
     """
     Triggers when a Neptune Graph is deleted.
 
-    :param graph_id: Graph Id of the endpoint
+    :param graph_id: Graph Id to be deleted
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -172,7 +172,6 @@ class NeptuneGraphDeletedTrigger(AwsBaseWaiterTrigger):
         self,
         *,
         graph_id: str,
-        endpoint_id: str,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
         **kwargs,
