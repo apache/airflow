@@ -538,7 +538,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.10.9",
+    "uv>=0.10.10",
 ]
 
 [project.urls]
@@ -785,6 +785,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 "dev/registry/tests/*" = ["S101"]
+"scripts/tests/*" = ["S101"]
 
 # Shared distributions SHOULD use relative imports when referencing each other
 # This one disables 'ban-relative-imports'.
@@ -1288,6 +1289,7 @@ dev = [
     "apache-airflow[all]",
     "apache-airflow-breeze",
     "apache-airflow-dev",
+    "apache-airflow-scripts",
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
     "apache-airflow-task-sdk-integration-tests",
@@ -1344,6 +1346,7 @@ no-build-isolation-package = ["sphinx-redoc"]
 apache-airflow = {workspace = true}
 apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
+apache-airflow-scripts = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
 apache-airflow-ctl-tests = {workspace = true}
@@ -1480,6 +1483,7 @@ members = [
     "airflow-ctl-tests",
     "dev",
     "devel-common",
+    "scripts",
     "docker-tests",
     "task-sdk-integration-tests",
     "helm-tests",
