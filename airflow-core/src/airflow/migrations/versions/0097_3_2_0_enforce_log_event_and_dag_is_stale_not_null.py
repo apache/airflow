@@ -38,15 +38,20 @@ airflow_version = "3.2.0"
 
 def upgrade():
     """Bring existing deployments in line with 0010 and 0067."""
+    from airflow.migrations.utils import disable_sqlite_fkeys
+
     # Ensure `log.event` can safely transition to NOT NULL.
     op.execute("UPDATE log SET event = '' WHERE event IS NULL")
-    with op.batch_alter_table("log") as batch_op:
-        batch_op.alter_column("event", existing_type=sa.String(60), nullable=False)
 
     # Make sure DAG rows that survived the old 0067 path are not NULL.
     op.execute("UPDATE dag SET is_stale = false WHERE is_stale IS NULL")
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.alter_column("is_stale", existing_type=sa.Boolean, nullable=False)
+
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("log") as batch_op:
+            batch_op.alter_column("event", existing_type=sa.String(60), nullable=False)
+
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.alter_column("is_stale", existing_type=sa.Boolean, nullable=False)
 
 
 def downgrade():
