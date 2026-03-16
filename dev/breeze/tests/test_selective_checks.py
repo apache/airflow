@@ -2429,7 +2429,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             ("providers/amazon/provider.yaml",),
             {
                 "ci-image-build": "true",
-                "prod-image-build": "true",
+                "prod-image-build": "false",
                 "run-helm-tests": "false",
             },
             id="Amazon provider.yaml",
@@ -2438,7 +2438,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             ("providers/amazon/pyproject.toml",),
             {
                 "ci-image-build": "true",
-                "prod-image-build": "true",
+                "prod-image-build": "false",
                 "run-helm-tests": "false",
             },
             id="Amazon pyproject.toml",

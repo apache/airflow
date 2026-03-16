@@ -189,7 +189,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.REMOTE_LOGGING_E2E_S3_FILES: [
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/remote_log_tests/.*",
-            r"^providers/amazon/.*",
+            r"^providers/amazon/src/airflow/providers/amazon/aws/log/s3_task_handler\.py$",
         ],
         FileGroupForCi.REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES: [
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/remote_log_elasticsearch_tests/.*",
