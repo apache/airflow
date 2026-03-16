@@ -65,6 +65,7 @@ Prefer a deferred operator when:
    from airflow.sdk import dag
    from airflow.providers.http.operators.http import HttpOperator
 
+
    @dag(schedule=None)
    def deferred_http_operator_dag():
 
