@@ -163,6 +163,7 @@ concurrently using ``asyncio.gather`` while limiting concurrency with a semaphor
        {"param1": "value7", "param2": "value8"},
    ]
 
+
    @dag(schedule=None)
    def async_http_multiplex_dag():
 
