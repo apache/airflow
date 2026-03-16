@@ -22,8 +22,8 @@ import enum
 import getpass
 import json
 import logging
-import re
 import os
+import re
 import sys
 from collections.abc import Callable
 from functools import wraps
