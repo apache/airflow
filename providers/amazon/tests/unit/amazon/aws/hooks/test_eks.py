@@ -1273,6 +1273,123 @@ class TestEksHook:
             if expected_region_args:
                 assert expected_region_args in command_arg
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
+    @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.fetch_access_token_for_cluster")
+    def test_generate_config_dict_for_deferral(self, mock_fetch_token, mock_conn):
+        """Test that generate_config_dict_for_deferral creates a config with embedded token."""
+        mock_conn.describe_cluster.return_value = {
+            "cluster": {
+                "certificateAuthority": {"data": "test-cert-data"},
+                "endpoint": "https://test-cluster.eks.amazonaws.com",
+            }
+        }
+        mock_fetch_token.return_value = "k8s-aws-v1.test-token-value"
+
+        hook = EksHook(aws_conn_id="test-conn", region_name="us-west-2")
+        hook.get_connection = lambda _: None
+
+        config_dict = hook.generate_config_dict_for_deferral(
+            eks_cluster_name="test-cluster",
+            pod_namespace="test-namespace",
+        )
+
+        # Verify basic kubeconfig structure
+        assert config_dict["apiVersion"] == "v1"
+        assert config_dict["kind"] == "Config"
+        assert config_dict["current-context"] == "aws"
+
+        # Verify cluster config
+        assert len(config_dict["clusters"]) == 1
+        cluster = config_dict["clusters"][0]
+        assert cluster["name"] == "test-cluster"
+        assert cluster["cluster"]["server"] == "https://test-cluster.eks.amazonaws.com"
+        assert cluster["cluster"]["certificate-authority-data"] == "test-cert-data"
+
+        # Verify context config
+        assert len(config_dict["contexts"]) == 1
+        context = config_dict["contexts"][0]
+        assert context["name"] == "aws"
+        assert context["context"]["cluster"] == "test-cluster"
+        assert context["context"]["namespace"] == "test-namespace"
+        assert context["context"]["user"] == "aws"
+
+        # Verify user config has embedded token (NOT exec block)
+        assert len(config_dict["users"]) == 1
+        user = config_dict["users"][0]
+        assert user["name"] == "aws"
+        assert "token" in user["user"]
+        assert user["user"]["token"] == "k8s-aws-v1.test-token-value"
+        assert "exec" not in user["user"]  # No exec block that would reference temp files
+
+        # Verify fetch_access_token_for_cluster was called with correct args
+        mock_fetch_token.assert_called_once()
+        call_kwargs = mock_fetch_token.call_args.kwargs
+        assert call_kwargs["eks_cluster_name"] == "test-cluster"
+        assert call_kwargs["region_name"] == "us-west-2"
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
+    def test_generate_config_dict_for_deferral_cluster_not_found(self, mock_conn):
+        """Test that generate_config_dict_for_deferral raises clear error when cluster not found."""
+        from botocore.exceptions import ClientError
+
+        mock_conn.describe_cluster.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "Cluster not-a-cluster not found"}},
+            "DescribeCluster",
+        )
+
+        hook = EksHook(aws_conn_id="test-conn", region_name="us-west-2")
+        hook.get_connection = lambda _: None
+
+        with pytest.raises(ValueError, match="Failed to describe EKS cluster 'not-a-cluster'"):
+            hook.generate_config_dict_for_deferral(
+                eks_cluster_name="not-a-cluster",
+                pod_namespace="test-namespace",
+            )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
+    @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.fetch_access_token_for_cluster")
+    def test_generate_config_dict_for_deferral_empty_token(self, mock_fetch_token, mock_conn):
+        """Test that generate_config_dict_for_deferral raises error when token is empty."""
+        mock_conn.describe_cluster.return_value = {
+            "cluster": {
+                "certificateAuthority": {"data": "test-cert-data"},
+                "endpoint": "https://test-cluster.eks.amazonaws.com",
+            }
+        }
+        mock_fetch_token.return_value = ""  # Empty token
+
+        hook = EksHook(aws_conn_id="test-conn", region_name="us-west-2")
+        hook.get_connection = lambda _: None
+
+        with pytest.raises(ValueError, match="Empty access token returned"):
+            hook.generate_config_dict_for_deferral(
+                eks_cluster_name="test-cluster",
+                pod_namespace="test-namespace",
+            )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
+    @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.fetch_access_token_for_cluster")
+    def test_generate_config_dict_for_deferral_token_fetch_failure(self, mock_fetch_token, mock_conn):
+        """Test that generate_config_dict_for_deferral raises clear error on token fetch failure."""
+        from botocore.exceptions import BotoCoreError
+
+        mock_conn.describe_cluster.return_value = {
+            "cluster": {
+                "certificateAuthority": {"data": "test-cert-data"},
+                "endpoint": "https://test-cluster.eks.amazonaws.com",
+            }
+        }
+        mock_fetch_token.side_effect = BotoCoreError()
+
+        hook = EksHook(aws_conn_id="test-conn", region_name="us-west-2")
+        hook.get_connection = lambda _: None
+
+        with pytest.raises(ValueError, match="Failed to fetch EKS access token"):
+            hook.generate_config_dict_for_deferral(
+                eks_cluster_name="test-cluster",
+                pod_namespace="test-namespace",
+            )
+
 
 # Helper methods for repeated assert combinations.
 def assert_all_arn_values_are_valid(expected_arn_values, pattern, arn_under_test) -> None:
