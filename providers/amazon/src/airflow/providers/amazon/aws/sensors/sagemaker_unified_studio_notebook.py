@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
 class SageMakerUnifiedStudioNotebookSensor(AwsBaseSensor[SageMakerUnifiedStudioNotebookHook]):
     """
-    Polls a SageMakerUnifiedStudio Workflow asynchronous Notebook execution until it reaches a terminal state.
+    Polls a SageMaker Unified Studio notebook execution until it reaches a terminal state.
 
     'SUCCEEDED', 'FAILED', 'STOPPED'
 
