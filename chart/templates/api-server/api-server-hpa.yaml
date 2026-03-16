@@ -20,7 +20,7 @@
 ################################
 ## Airflow Api-Server HPA
 #################################
-{{- if .Values.apiServer.hpa.enabled }}
+{{- if and .Values.apiServer.enabled .Values.apiServer.hpa.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
