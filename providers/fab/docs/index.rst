@@ -116,7 +116,8 @@ PIP package                                 Version required
 ``flask-session``                           ``>=0.8.0``
 ``msgpack``                                 ``>=1.0.0``
 ``flask-sqlalchemy``                        ``>=3.0.5``
-``flask-wtf``                               ``>=1.1.0``
+``flask-wtf``                               ``>=1.1.0; python_version < "3.14"``
+``flask-wtf``                               ``>=1.2.2; python_version >= "3.14"``
 ``jmespath``                                ``>=0.7.0``
 ``werkzeug``                                ``>=2.2; python_version <= "3.13"``
 ``werkzeug``                                ``>=3.1.6; python_version >= "3.14"``
