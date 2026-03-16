@@ -32,11 +32,9 @@ import sys
 from collections.abc import Iterable
 
 import yaml
+from common_prek_utils import get_provider_base_dir_from_path
 from packaging.specifiers import SpecifierSet
 from rich.console import Console
-
-sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
-from common_prek_utils import get_provider_base_dir_from_path
 
 console = Console(color_system="standard", width=200)
 
