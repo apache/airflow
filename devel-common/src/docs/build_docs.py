@@ -138,8 +138,9 @@ def _promote_new_flags():
     console.print()
     console.print("You can run clean build - refreshing inter-sphinx inventories or refresh airflow ones.\n")
     console.print(
-        "   [bright_blue]--clean-build                 - Refresh inventories and build files for all inter-sphinx references (including external ones)[/]"
+        "   [bright_blue]--clean-build                 - Clean build files (without cleaning inventory cache)[/]"
     )
+    console.print("   [bright_blue]--clean-inventory-cache        - Clean inventory cache before fetching[/]")
     console.print(
         "   [bright_blue]--refresh-airflow-inventories - Force refresh only airflow inventories (without cleaning build files or external inventories).[/]"
     )
@@ -467,7 +468,12 @@ click.rich_click.OPTION_GROUPS = {
         },
         {
             "name": "Cleaning inventories",
-            "options": ["--clean-build", "--refresh-airflow-inventories"],
+            "options": [
+                "--clean-build",
+                "--clean-inventory-cache",
+                "--refresh-airflow-inventories",
+                "--fail-on-missing-third-party-inventories",
+            ],
         },
         {
             "name": "Filtering options",
@@ -530,14 +536,25 @@ click.rich_click.OPTION_GROUPS = {
 @click.option(
     "--clean-build",
     is_flag=True,
-    help="Cleans the build directory before building the documentation and removes all inventory "
-    "cache (including external inventories).",
+    help="Cleans the build directory before building the documentation. "
+    "Does not delete inventory cache (use --clean-inventory-cache for that).",
+)
+@click.option(
+    "--clean-inventory-cache",
+    is_flag=True,
+    help="Cleans the inventory cache before fetching inventories.",
 )
 @click.option(
     "--refresh-airflow-inventories",
     is_flag=True,
     help="When set, only airflow package inventories will be refreshed, regardless "
     "if they are already downloaded. With `--clean-build` - everything is cleaned..",
+)
+@click.option(
+    "--fail-on-missing-third-party-inventories",
+    is_flag=True,
+    help="Fail the build if any third-party inventory cannot be downloaded. "
+    "By default, missing third-party inventories are warned about but do not fail the build.",
 )
 @click.option(
     "-v",
@@ -556,12 +573,14 @@ def build_docs(
     one_pass_only,
     package_filters,
     clean_build,
+    clean_inventory_cache,
     docs_only,
     spellcheck_only,
     include_commits,
     jobs,
     list_packages,
     refresh_airflow_inventories,
+    fail_on_missing_third_party_inventories,
     verbose,
     packages,
 ):
@@ -605,7 +624,10 @@ def build_docs(
         # Inventories that could not be retrieved should be built first. This may mean this is a
         # new package.
         packages_without_inventories = fetch_inventories(
-            clean_build=clean_build, refresh_airflow_inventories=refresh_airflow_inventories
+            clean_build=clean_build,
+            refresh_airflow_inventories=refresh_airflow_inventories,
+            fail_on_missing_third_party=fail_on_missing_third_party_inventories,
+            clean_inventory_cache=clean_inventory_cache,
         )
     normal_packages, priority_packages = partition(
         lambda d: d in packages_without_inventories, packages_to_build
