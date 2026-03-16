@@ -38,7 +38,7 @@ from airflow_breeze.global_constants import (
     PROVIDER_RUNTIME_DATA_SCHEMA_PATH,
     REGULAR_DOC_PACKAGES,
 )
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ORIGINAL_PROVIDERS_DIR,
@@ -223,7 +223,7 @@ def validate_provider_info_with_runtime_schema(provider_info: dict[str, Any]) ->
     try:
         jsonschema.validate(provider_info, schema=schema)
     except jsonschema.ValidationError as ex:
-        get_console().print(
+        console_print(
             "[red]Error when validating schema. The schema must be compatible with "
             "[bold]'airflow/provider_info.schema.json'[/bold].\n"
             f"Original exception [bold]{type(ex).__name__}: {ex}[/]"
@@ -539,8 +539,8 @@ def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
     try:
         return tomllib.loads(toml_content)
     except tomllib.TOMLDecodeError as e:
-        get_console().print(syntax)
-        get_console().print(f"[red]Error when loading {pyproject_toml_file_path}: {e}:")
+        console_print(syntax)
+        console_print(f"[red]Error when loading {pyproject_toml_file_path}: {e}:")
         sys.exit(1)
 
 
@@ -811,12 +811,10 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
                 check=True,
             )
         else:
-            get_console().print(
-                f"[error]Error {ex}[/]\n[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n"
-            )
+            console_print(f"[error]Error {ex}[/]\n[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n")
             sys.exit(1)
-    get_console().print("[info]Fetching full history and tags from remote.")
-    get_console().print("[info]This might override your local tags!")
+    console_print("[info]Fetching full history and tags from remote.")
+    console_print("[info]This might override your local tags!")
     result = run_command(
         ["git", "rev-parse", "--is-shallow-repository"],
         check=True,
@@ -830,7 +828,7 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
     try:
         run_command(fetch_command)
     except subprocess.CalledProcessError as e:
-        get_console().print(
+        console_print(
             f"[error]Error {e}[/]\n"
             f"[error]When fetching tags from remote. Your tags might not be refreshed.[/]\n\n"
             f'[warning]Please refresh the tags manually via:[/]\n\n"'
@@ -955,7 +953,7 @@ def regenerate_pyproject_toml(
     # Add cross-provider dependencies to the optional dependencies if they are missing
     for provider_id in sorted(cross_provider_ids):
         if provider_id in suspended_provider_ids:
-            get_console().print(
+            console_print(
                 f"[info]Provider {provider_id} in suspended list, skipping adding to optional dependencies.\n"
             )
             continue
@@ -992,7 +990,7 @@ def regenerate_pyproject_toml(
         keep_trailing_newline=True,
     )
     get_pyproject_toml_path.write_text(pyproject_toml_content)
-    get_console().print(
+    console_print(
         f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
     )
 
@@ -1031,7 +1029,7 @@ def _prepare_get_provider_info_py_file(context: dict[str, Any], provider_id: str
     )
     target_provider_specific_path = (target_path / "airflow" / "providers").joinpath(*provider_id.split("."))
     (target_provider_specific_path / "get_provider_info.py").write_text(black_format(get_provider_content))
-    get_console().print(f"[info]Generated get_provider_info.py in {target_provider_specific_path}[/]")
+    console_print(f"[info]Generated get_provider_info.py in {target_provider_specific_path}[/]")
 
 
 LICENCE_RST = """
@@ -1065,7 +1063,7 @@ def _prepare_pyproject_toml_file(context: dict[str, Any], target_path: Path):
         keep_trailing_newline=True,
     )
     (target_path / "pyproject.toml").write_text(manifest_content)
-    get_console().print(f"[info]Generated pyproject.toml in {target_path}[/]")
+    console_print(f"[info]Generated pyproject.toml in {target_path}[/]")
 
 
 def _prepare_readme_file(context: dict[str, Any], target_path: Path):
@@ -1073,18 +1071,18 @@ def _prepare_readme_file(context: dict[str, Any], target_path: Path):
         template_name="PROVIDER_README", context=context, extension=".rst"
     )
     (target_path / "README.rst").write_text(readme_content)
-    get_console().print(f"[info]Generated README.rst in {target_path}[/]")
+    console_print(f"[info]Generated README.rst in {target_path}[/]")
 
 
 def generate_build_files(provider_id: str, version_suffix: str, target_provider_root_sources_path: Path):
-    get_console().print(f"\n[info]Generate build files for {provider_id}\n")
+    console_print(f"\n[info]Generate build files for {provider_id}\n")
     jinja_context = get_provider_distribution_jinja_context(
         provider_id=provider_id, version_suffix=version_suffix
     )
     _prepare_get_provider_info_py_file(jinja_context, provider_id, target_provider_root_sources_path)
     _prepare_pyproject_toml_file(jinja_context, target_provider_root_sources_path)
     _prepare_readme_file(jinja_context, target_provider_root_sources_path)
-    get_console().print(f"\n[info]Generated package build files for {provider_id}[/]\n")
+    console_print(f"\n[info]Generated package build files for {provider_id}[/]\n")
 
 
 @contextmanager
@@ -1104,7 +1102,7 @@ def apply_version_suffix_to_provider_pyproject_toml(
         yield pyproject_toml_path
         return
     original_pyproject_toml_content = pyproject_toml_path.read_text()
-    get_console().print(f"\n[info]Applying version suffix {version_suffix} to {pyproject_toml_path}")
+    console_print(f"\n[info]Applying version suffix {version_suffix} to {pyproject_toml_path}")
     jinja_context = get_provider_distribution_jinja_context(
         provider_id=provider_id, version_suffix=version_suffix
     )
@@ -1113,14 +1111,14 @@ def apply_version_suffix_to_provider_pyproject_toml(
     try:
         yield pyproject_toml_path
     finally:
-        get_console().print(f"\n[info]Restoring original pyproject.toml file {pyproject_toml_path}")
+        console_print(f"\n[info]Restoring original pyproject.toml file {pyproject_toml_path}")
         pyproject_toml_path.write_text(original_pyproject_toml_content)
 
 
 def update_version_suffix_in_non_provider_pyproject_toml(version_suffix: str, pyproject_toml_path: Path):
     if not version_suffix:
         return
-    get_console().print(f"[info]Updating version suffix to {version_suffix} for {pyproject_toml_path}.\n")
+    console_print(f"[info]Updating version suffix to {version_suffix} for {pyproject_toml_path}.\n")
     lines = pyproject_toml_path.read_text().splitlines()
     updated_lines = []
     for line in lines:
@@ -1128,18 +1126,16 @@ def update_version_suffix_in_non_provider_pyproject_toml(version_suffix: str, py
         if comment:
             comment = " #" + comment
         if base_line.startswith("version = "):
-            get_console().print(f"[info]Updating version suffix to {version_suffix} for {line}.")
+            console_print(f"[info]Updating version suffix to {version_suffix} for {line}.")
             base_line = base_line.rstrip('"') + f'{version_suffix}"'
         if "https://airflow.apache.org/" in base_line and version_suffix:
-            get_console().print(f"[info]Updating documentation link to staging for {line}.")
+            console_print(f"[info]Updating documentation link to staging for {line}.")
             base_line = base_line.replace("https://airflow.apache.org/", "https://airflow.staged.apache.org/")
         # do not modify references for .post prefixes
         if not version_suffix.startswith(".post"):
             if base_line.strip().startswith('"apache-airflow-') and ">=" in base_line:
                 floored_version_suffix = floor_version_suffix(version_suffix)
-                get_console().print(
-                    f"[info]Updating version suffix to {floored_version_suffix} for {base_line}."
-                )
+                console_print(f"[info]Updating version suffix to {floored_version_suffix} for {base_line}.")
                 if ";" in base_line:
                     split_on_semicolon = base_line.split(";")
                     # If there is a semicolon, we need to remove it before adding the version suffix
@@ -1147,19 +1143,19 @@ def update_version_suffix_in_non_provider_pyproject_toml(version_suffix: str, py
                 else:
                     base_line = base_line.rstrip('",') + f'{floored_version_suffix}",'
             if base_line.strip().startswith('"apache-airflow-core') and "==" in base_line:
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {base_line}.")
+                console_print(f"[info]Updating version suffix to {version_suffix} for {base_line}.")
                 base_line = base_line.rstrip('",') + f'{version_suffix}",'
             if base_line.strip().startswith('"apache-airflow-task-sdk') and "==" in base_line:
-                get_console().print(f"[info]Updating version suffix to {version_suffix} for {base_line}.")
+                console_print(f"[info]Updating version suffix to {version_suffix} for {base_line}.")
                 base_line = base_line.rstrip('",') + f'{version_suffix}",'
         updated_lines.append(f"{base_line}{comment}")
     new_content = "\n".join(updated_lines) + "\n"
-    get_console().print(f"[info]Writing updated content to {pyproject_toml_path}.\n")
+    console_print(f"[info]Writing updated content to {pyproject_toml_path}.\n")
     pyproject_toml_path.write_text(new_content)
 
 
 def set_package_version(version: str, init_file_path: Path, extra_text: str) -> None:
-    get_console().print(f"\n[warning]Setting {extra_text} {version} version in {init_file_path}\n")
+    console_print(f"\n[warning]Setting {extra_text} {version} version in {init_file_path}\n")
     # replace __version__ with the version passed as argument in python
     init_content = init_file_path.read_text()
     init_content = re.sub(r'__version__ = "[^"]+"', f'__version__ = "{version}"', init_content)
@@ -1212,7 +1208,7 @@ def apply_version_suffix_to_non_provider_pyproject_tomls(
                 original_distribution_version, init_file_path=init_file_path, extra_text="back"
             )
         for pyproject_toml_path, original_content in zip(pyproject_toml_paths, original_contents):
-            get_console().print(f"[info]Restoring original content of {pyproject_toml_path}.\n")
+            console_print(f"[info]Restoring original content of {pyproject_toml_path}.\n")
             pyproject_toml_path.write_text(original_content)
 
 
@@ -1232,16 +1228,14 @@ def _get_provider_version_from_package_name(provider_package_name: str) -> str |
     provider_pyproject = AIRFLOW_PROVIDERS_ROOT_PATH / provider_id / "pyproject.toml"
 
     if not provider_pyproject.exists():
-        get_console().print(f"[warning]Provider pyproject.toml not found: {provider_pyproject}")
+        console_print(f"[warning]Provider pyproject.toml not found: {provider_pyproject}")
         return None
 
     provider_toml = load_pyproject_toml(provider_pyproject)
     provider_version = provider_toml.get("project", {}).get("version")
 
     if not provider_version:
-        get_console().print(
-            f"[warning]Could not find version for {provider_package_name} in {provider_pyproject}"
-        )
+        console_print(f"[warning]Could not find version for {provider_package_name} in {provider_pyproject}")
         return None
 
     return provider_version
@@ -1262,7 +1256,7 @@ def _update_dependency_line_with_new_version(
         Tuple of (updated_line, was_modified)
     """
     if new_version == current_min_version:
-        get_console().print(
+        console_print(
             f"[dim]Skipping {provider_package_name} in {pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)}: "
             f"already at version {new_version}"
         )
@@ -1289,7 +1283,7 @@ def _update_dependency_line_with_new_version(
         "file": str(pyproject_file),
     }
 
-    get_console().print(
+    console_print(
         f"[info]Updating {provider_package_name} in {pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)}: "
         f"{current_min_version} -> {new_version} (comment removed)"
     )
@@ -1362,8 +1356,6 @@ def update_providers_with_next_version_comment() -> dict[str, dict[str, Any]]:
         if file_modified:
             new_content = "\n".join(updated_lines)
             pyproject_file.write_text(new_content)
-            get_console().print(
-                f"[success]Updated {pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)}\n"
-            )
+            console_print(f"[success]Updated {pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)}\n")
 
     return updates_made

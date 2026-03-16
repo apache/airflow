@@ -27,7 +27,7 @@ import click
 
 from airflow_breeze.commands.common_options import option_dry_run, option_verbose
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import assert_prek_installed, run_compile_ui_assets
@@ -242,7 +242,7 @@ def compare_keys(
                     data = load_json(path)
                     keys = set(flatten_keys(data))
                 except Exception as e:
-                    get_console().print(f"Error loading {path}: {e}")
+                    console_print(f"Error loading {path}: {e}")
             key_sets.append(LocaleKeySet(locale=lf.locale, keys=keys))
         keys_by_locale = {ks.locale: ks.keys for ks in key_sets}
         en_keys = keys_by_locale.get("en", set()) or set()
@@ -253,7 +253,7 @@ def compare_keys(
                 en_data = load_json(en_path)
                 en_key_to_value = flatten_keys_to_values(en_data)
             except Exception as e:
-                get_console().print(f"Error loading en values from {en_path}: {e}")
+                console_print(f"Error loading en values from {en_path}: {e}")
         # Required = EN keys plus, for bases with {{count}} in EN, all plural forms for the locale
         missing_keys: dict[str, list[str]] = {}
         unused_keys: dict[str, list[str]] = {}
@@ -752,5 +752,5 @@ def compile_ui_assets(dev: bool, force_clean: bool):
         dev=dev, run_in_background=False, force_clean=force_clean, additional_ui_hooks=[]
     )
     if compile_ui_assets_result.returncode != 0:
-        get_console().print("[warn]New assets were generated[/]")
+        console_print("[warn]New assets were generated[/]")
     sys.exit(0)
