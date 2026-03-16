@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+.. note:: **Security fix — TLS verification for Kubernetes TokenRequest API (affects Kubernetes OIDC token federation)**
+
+   The Kubernetes TokenRequest API call made during ``federated_k8s`` authentication now verifies the
+   Kubernetes API server's TLS certificate using the in-cluster CA bundle at
+   ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. Previously, TLS verification was disabled
+   (``verify=False``), which exposed the token exchange to potential man-in-the-middle attacks within the
+   cluster.
+
+   **This is a security fix that enforces what should always have been the behaviour.**
+
+   For all standard Kubernetes deployments (EKS, AKS, GKE, vanilla Kubernetes), the CA bundle is
+   automatically mounted at the standard path by the Kubernetes API server as part of service account
+   token projection — no action is required.
+
+   **Potentially impacted:** Non-conformant or highly customised Kubernetes distributions that do not
+   mount ``ca.crt`` at ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. If you are affected,
+   please open an issue so support for a configurable CA path can be added.
+
 7.11.0
 ......
 
