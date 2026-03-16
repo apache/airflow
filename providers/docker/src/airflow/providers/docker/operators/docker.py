@@ -529,6 +529,8 @@ class DockerOperator(BaseOperator):
                 self.log.info("Not attempting to kill container as it was not created")
                 return
             self.cli.stop(self.container["Id"])
+            if self.auto_remove == "force":
+                self.cli.remove_container(self.container["Id"], force=True)
 
     @staticmethod
     def unpack_environment_variables(env_str: str) -> dict:
