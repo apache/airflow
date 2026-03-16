@@ -42,7 +42,6 @@ export class ConnectionsPage extends BasePage {
   public readonly connectionForm: Locator;
   public readonly connectionIdHeader: Locator;
   public readonly connectionIdInput: Locator;
-  // All table body rows (for web-first assertions in specs)
   public readonly connectionRows: Locator;
   // Core page elements
   public readonly connectionsTable: Locator;
@@ -98,15 +97,11 @@ export class ConnectionsPage extends BasePage {
 
     // Sorting and filtering
     this.tableHeader = page.locator('[role="columnheader"]').first();
-    this.connectionIdHeader = page
-      .locator("th, [role='columnheader']")
-      .filter({ hasText: "Connection ID" })
-      .first();
-    this.connectionTypeHeader = page
-      .locator("th, [role='columnheader']")
-      .filter({ hasText: "Connection Type" })
-      .first();
-    this.hostHeader = page.locator("th, [role='columnheader']").filter({ hasText: "Host" }).first();
+
+    this.connectionIdHeader = page.getByRole("columnheader", { name: "Connection ID" });
+    this.connectionTypeHeader = page.getByRole("columnheader", { name: "Connection Type" });
+    this.hostHeader = page.getByRole("columnheader", { name: "Host" });
+
     this.searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').first();
     // All table body rows (used by connectionRows for web-first assertions)
     this.connectionRows = page.locator("tbody tr");
@@ -143,24 +138,6 @@ export class ConnectionsPage extends BasePage {
     await editButton.click();
     await expect(this.connectionForm).toBeVisible({ timeout: 10_000 });
   }
-
-  // Check if a connection exists in the current view
-
-  public async connectionExists(connectionId: string): Promise<boolean> {
-    const emptyState = await this.page
-      .locator("text=No connection found!")
-      .isVisible({ timeout: 1000 })
-      .catch(() => false);
-
-    if (emptyState) {
-      return false;
-    }
-    const row = await this.findConnectionRow(connectionId);
-    const visible = row !== null;
-
-    return visible;
-  }
-
   // Create a new connection with full workflow
   public async createConnection(details: ConnectionDetails): Promise<void> {
     await this.clickAddButton();
@@ -221,17 +198,13 @@ export class ConnectionsPage extends BasePage {
 
       await expect(selectCombobox).toBeEnabled({ timeout: 25_000 });
 
-      await selectCombobox.click({ timeout: 3000 });
+      await selectCombobox.click();
 
       // Wait for options to appear and click the matching option
       const option = this.page.getByRole("option", { name: new RegExp(details.conn_type, "i") }).first();
 
-      await option.click({ timeout: 2000 }).catch(() => {
-        // If option click fails, try typing in the input
-        if (details.conn_type !== undefined && details.conn_type !== "") {
-          void this.page.keyboard.type(details.conn_type);
-        }
-      });
+      await expect(option).toBeVisible({ timeout: 10_000 });
+      await option.click();
     }
 
     if (details.host !== undefined && details.host !== "") {
