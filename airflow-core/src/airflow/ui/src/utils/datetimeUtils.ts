@@ -52,11 +52,13 @@ export const getDuration = (
   endDate?: string | null,
   withMilliseconds: boolean = true,
 ) => {
-  if (startDate === undefined || startDate === null || endDate === undefined || endDate === null) {
+  if (startDate === undefined || startDate === null) {
     return undefined;
   }
 
-  const seconds = dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds();
+  // If endDate is not provided (e.g. task/run is still in progress), use current time
+  const end = endDate === undefined || endDate === null ? dayjs() : dayjs(endDate);
+  const seconds = dayjs.duration(end.diff(startDate)).asSeconds();
 
   return renderDuration(seconds, withMilliseconds);
 };
