@@ -20,7 +20,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -37,14 +37,14 @@ def create_venv(
         capture_output=True,
     )
     if venv_command_result.returncode != 0:
-        get_console().print(
+        console_print(
             f"[error]Error when initializing virtualenv in {venv_path.as_posix()}:[/]\n"
             f"{venv_command_result.stdout}\n{venv_command_result.stderr}"
         )
         sys.exit(venv_command_result.returncode)
     python_path = venv_path / "bin" / "python"
     if not python_path.exists():
-        get_console().print(f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n")
+        console_print(f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n")
         sys.exit(1)
     result = run_command(
         [python_path.as_posix(), "-m", "pip", "install", f"pip=={pip_version}", f"uv=={uv_version}", "-q"],
@@ -53,7 +53,7 @@ def create_venv(
         text=True,
     )
     if result.returncode != 0:
-        get_console().print(
+        console_print(
             f"[error]Error when installing pip and uv in {venv_path.as_posix()}[/]\n"
             f"{result.stdout}\n{result.stderr}"
         )
@@ -67,7 +67,7 @@ def create_venv(
             text=True,
         )
         if result.returncode != 0:
-            get_console().print(
+            console_print(
                 f"[error]Error when installing packages from {requirements_file}[/]\n"
                 f"{result.stdout}\n{result.stderr}"
             )

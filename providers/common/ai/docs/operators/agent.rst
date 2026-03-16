@@ -31,7 +31,7 @@ a single prompt and returns the output. ``AgentOperator`` manages a stateful
 tool-call loop where the LLM decides which tools to call and when to stop.
 
 .. seealso::
-    :ref:`Connection configuration <howto/connection:pydantic_ai>`
+    :ref:`Connection configuration <howto/connection:pydanticai>`
 
 
 SQL Agent
