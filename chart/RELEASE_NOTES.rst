@@ -122,6 +122,7 @@ Features
 ^^^^^^^^
 
 - Support Helm template expressions in ``podAnnotations`` and ``airflowPodAnnotations`` values. (#63019)
+- Support Helm template expressions in podAnnotations (#63019)
 - Add minute-level log retention to clean-logs script (#61855)
 - Add LOG_MAX_SIZE environment variables to log groomer (#61559)
 
@@ -137,27 +138,34 @@ Improvements
 - Add workers.celery.podDisruptionBudget (#61414)
 - Add workers.celery.containerLifecycleHooks & workers.kubernetes.containerLifecycleHooks (#61369)
 - Refactor Git-Sync livenessProbe & deprecate readinessProbe & add startupProbe (#62334)
-- Default airflow version to 3.1.8 (#63392)
-- Drop support for all Airflow versions below 2.11 in Helm Chart (#61018)
-- Support Helm template expressions in podAnnotations (#63019)
 - Warn on deprecated per-component securityContext values (#62729)
+- Add ingress deprecation warnings for apiServer, statsd, and pgbouncer (#62490)
+- Add missing support for:  securityContexts and containerLifecycleHooks (#60677)
 
 Bug Fixes
 ^^^^^^^^^
 
-- Add ``*.iml`` to .gitignore in all distributions (#63636)
 - More restrictive chart rendering logic (#63464)
 - Omit api-server spec.replicas when HPA is enabled (#63187)
 - Add workers.celery.kerberosSidecar & workers.kubernetes.kerberosSidecar sections (#61881)
-- Cleanup Helm Chart documentation (#62544)
-- Upgrade important CI environment (#62792)
 - Fix chart NOTES.txt showing deprecation warnings only without secret key (#62722)
 - Fix tpl rendering for TLS hosts in ingress templates #62358 (#62548)
-- Upgrade important CI environment (#62610)
 - Fix all build-system/requires including transitive dependencies (#62570)
-- Add ingress deprecation warnings for apiServer, statsd, and pgbouncer (#62490)
-- Add missing support for:  securityContexts and containerLifecycleHooks (#60677)
 - Fix webserver.defaultUser.enabled=false not honored (#62143)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Cleanup Helm Chart documentation (#62544)
+
+Misc
+^^^^
+
+- Drop support for all Airflow versions below 2.11 in Helm Chart (#61018)
+- Default airflow version to 3.1.8 (#63392)
+- Add ``*.iml`` to .gitignore in all distributions (#63636)
+- Upgrade important CI environment (#62792)
+- Upgrade important CI environment (#62610)
 - Allow to use short SPDX licence identifier for selected files (#62073)
 
 
