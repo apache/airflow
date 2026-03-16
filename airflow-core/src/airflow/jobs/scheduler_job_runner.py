@@ -2970,12 +2970,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @staticmethod
     def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
+        # Disable RETURNING since we only need rowcount, not returned values
+        # This also avoids MariaDB syntax error with DELETE...RETURNING + CTE in EXISTS
         deleted_orphaned_assets = session.execute(
-            delete(AssetActive).where(
+            delete(AssetActive)
+            .where(
                 exists().where(
                     and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri)
                 )
             )
+            .execution_options(return_defaults=False)
         )
 
         Stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
