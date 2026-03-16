@@ -27,15 +27,15 @@ from typing import TYPE_CHECKING, Any
 
 try:
     # Python 3.12+
-    from itertools import batched
+    from itertools import batched  # type: ignore[attr-defined]
 except ImportError:
     from more_itertools import batched  # type: ignore[no-redef]
 
 try:
     # Python 3.11+
-    ExceptionGroup
+    BaseExceptionGroup
 except NameError:
-    from exceptiongroup import ExceptionGroup
+    from exceptiongroup import BaseExceptionGroup
 
 from airflow.sdk import TaskInstanceState, timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
@@ -187,7 +187,7 @@ class IterableOperator(BaseOperator):
                         self.log.info("Number of remaining futures: %s", futures_count)
                         prev_futures_count = futures_count
 
-                    for future in collect_futures(loop, futures.keys()):
+                    for future in collect_futures(loop, list(futures.keys())):
                         task = futures.pop(future)
 
                         try:
@@ -218,7 +218,7 @@ class IterableOperator(BaseOperator):
                             )
                         except asyncio.TimeoutError as e:
                             self.log.warning("A timeout occurred for task_id %s", task.task_id)
-                            if task.next_try_number > self.retries:
+                            if task.next_try_number > (self.retries or 0):
                                 exceptions.append(AirflowTaskTimeout(e))
                             else:
                                 reschedule_date = min(reschedule_date, task.next_retry_datetime())
@@ -253,7 +253,7 @@ class IterableOperator(BaseOperator):
 
         if not failed_tasks:
             if exceptions:
-                raise ExceptionGroup("Multiple sub-task failures", exceptions)
+                raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
             if self.do_xcom_push:
                 return XComIterable(
                     task_id=self.task_id,
