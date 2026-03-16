@@ -88,38 +88,37 @@ def user_confirm(
         allowed_answers = allowed_answers.replace(default_answer.value, default_answer.value.upper())
 
     prompt = f"\n{message} \nPress {allowed_answers}: "
-    console_print(prompt, end="")
 
-    try:
-        ch = _read_char()
-    except (KeyboardInterrupt, EOFError):
-        console_print()
-        if quit_allowed:
+    while True:
+        console_print(prompt, end="")
+
+        try:
+            ch = _read_char()
+        except (KeyboardInterrupt, EOFError):
+            console_print()
+            if quit_allowed:
+                return Answer.QUIT
+            sys.exit(1)
+
+        # Ignore multi-byte escape sequences (arrow keys, etc.)
+        if len(ch) > 1:
+            console_print()
+            console_print(f"  [warning]Invalid key. Press one of: {allowed_answers}[/]")
+            continue
+
+        console_print(ch)
+
+        if ch.upper() == "Y":
+            return Answer.YES
+        if ch.upper() == "N":
+            return Answer.NO
+        if ch.upper() == "Q" and quit_allowed:
             return Answer.QUIT
-        sys.exit(1)
-
-    # Ignore multi-byte escape sequences (arrow keys, etc.)
-    if len(ch) > 1:
-        console_print()
-        if default_answer:
+        # Enter/Return selects the default
+        if ch in ("\r", "\n", "") and default_answer:
             return default_answer
-        return Answer.NO
 
-    console_print(ch)
-
-    if ch.upper() == "Y":
-        return Answer.YES
-    if ch.upper() == "N":
-        return Answer.NO
-    if ch.upper() == "Q" and quit_allowed:
-        return Answer.QUIT
-    # Enter/Return selects the default
-    if ch in ("\r", "\n", "") and default_answer:
-        return default_answer
-    # Any other key — treat as default if available
-    if default_answer:
-        return default_answer
-    return Answer.NO
+        console_print(f"  [warning]Invalid key. Press one of: {allowed_answers}[/]")
 
 
 def confirm_action(
