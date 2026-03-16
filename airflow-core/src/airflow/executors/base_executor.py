@@ -187,7 +187,7 @@ class BaseExecutor(LoggingMixin):
 
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
-        self.executor_queues: dict[str, dict] = defaultdict(dict)
+        self.executor_queues: dict[str, dict[WorkloadKey, QueueableWorkload]] = defaultdict(dict)
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
