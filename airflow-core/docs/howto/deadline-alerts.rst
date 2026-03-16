@@ -425,17 +425,16 @@ implement an ``_evaluate_with()`` method.
 
 .. code-block:: python
 
-    from airflow.models.deadline import ReferenceModels
     from sqlalchemy.orm import Session
 
     from airflow.sdk import DeadlineReference
-    from airflow.sdk.definitions.deadline import deadline_reference
+    from airflow.sdk.definitions.deadline import BaseDeadlineReference, deadline_reference
     from airflow.sdk.timezone import datetime
 
 
     # By default, the evaluate_with method will be executed when the dagrun is created.
     @deadline_reference()
-    class MyCustomDecoratedReference(ReferenceModels.BaseDeadlineReference):
+    class MyCustomDecoratedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are created."""
 
         def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
@@ -445,7 +444,7 @@ implement an ``_evaluate_with()`` method.
 
     # You can specify when evaluate_with will be called by providing a DeadlineReference.TYPES value.
     @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
-    class MyQueuedReference(ReferenceModels.BaseDeadlineReference):
+    class MyQueuedReference(BaseDeadlineReference):
         """A custom reference evaluated when Dag runs are queued."""
 
         required_kwargs = {"custom_param"}

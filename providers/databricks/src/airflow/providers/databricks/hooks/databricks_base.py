@@ -33,7 +33,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-import aiofiles
 import aiohttp
 import requests
 from aiohttp.client_exceptions import ClientConnectorError
@@ -599,8 +598,28 @@ class BaseDatabricksHook(BaseHook):
         except PermissionError as e:
             raise AirflowException(f"Permission denied reading token from {projected_token_path}") from e
 
+    @staticmethod
+    def _get_aiofiles():
+        """
+        Lazy-import aiofiles for async Kubernetes in-cluster authentication.
+
+        :return: The aiofiles module.
+        :raises AirflowOptionalProviderFeatureException: If aiofiles is not installed.
+        """
+        try:
+            import aiofiles
+
+            return aiofiles
+        except ImportError as err:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'aiofiles' library is required for async Kubernetes in-cluster authentication. "
+                "Please install it with: pip install 'apache-airflow-providers-cncf-kubernetes'"
+            ) from err
+
     async def _a_get_k8s_projected_volume_token(self) -> str:
         """Async version of _get_k8s_projected_volume_token()."""
+        aiofiles = self._get_aiofiles()
+
         projected_token_path: str = self.databricks_conn.extra_dejson["k8s_projected_volume_token_path"]
 
         try:
@@ -710,6 +729,8 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_k8s_token_request_api(self) -> str:
         """Async version of _get_k8s_token_request_api()."""
+        aiofiles = self._get_aiofiles()
+
         audience = self.databricks_conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
         expiration_seconds = self.databricks_conn.extra_dejson.get("expiration_seconds", 3600)
         token_path = self.databricks_conn.extra_dejson.get(

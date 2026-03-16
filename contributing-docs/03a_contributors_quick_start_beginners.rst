@@ -87,7 +87,7 @@ Option A – Breeze on Your Laptop
 
 The command starts a shell and launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals. To know more about tmux commands,
-check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at |http://localhost:28080| with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
+check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at `http://localhost:28080 <http://localhost:28080>`_ with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
 of the tmux panes and hit Enter
 
 **Working with DAGs in Breeze:**
@@ -110,7 +110,19 @@ This flag enables configuration to load example DAGs when starting Airflow, whic
 
     prek --all-files
 
-6.  **Commit & push**
+6.  **Run tests**
+
+Run tests related to your change **before** pushing:
+
+.. code-block:: bash
+
+    # Example: run core tests
+    breeze testing core-tests
+
+Run ``breeze testing --help`` to see all available test groups.
+For more on testing, see the `Testing Guide <09_testing.rst>`_.
+
+7.  **Commit & push**
 
 .. code-block:: bash
 
@@ -118,7 +130,7 @@ This flag enables configuration to load example DAGs when starting Airflow, whic
     git commit -am "fix typo in README"
     git push -u origin docs-typo
 
-7.  **Open the PR** – GitHub shows a "Compare & pull request" button.
+8.  **Open the PR** – GitHub shows a "Compare & pull request" button.
 
 *Syncing your branch*
 

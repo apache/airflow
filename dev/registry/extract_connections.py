@@ -35,12 +35,15 @@ Output:
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from registry_contract_models import validate_provider_connections
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
@@ -155,15 +158,31 @@ def build_custom_fields(
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Extract provider connection metadata")
+    parser.add_argument(
+        "--provider",
+        default=None,
+        help="Only output connections for this provider ID (e.g. 'amazon').",
+    )
+    parser.add_argument(
+        "--providers-json",
+        default=None,
+        help="Path to providers.json (overrides default search paths).",
+    )
+    args = parser.parse_args()
+
     print("Airflow Registry Connection Metadata Extractor")
     print("=" * 50)
 
     # Load providers.json for provider_id -> latest_version + name mapping
-    providers_json_path = None
-    for candidate in PROVIDERS_JSON_CANDIDATES:
-        if candidate.exists():
-            providers_json_path = candidate
-            break
+    if args.providers_json:
+        providers_json_path = Path(args.providers_json)
+    else:
+        providers_json_path = None
+        for candidate in PROVIDERS_JSON_CANDIDATES:
+            if candidate.exists():
+                providers_json_path = candidate
+                break
 
     if providers_json_path is None:
         print("ERROR: providers.json not found. Run extract_metadata.py first.")
@@ -225,6 +244,13 @@ def main():
     print(f"  {total_with_custom} have custom fields")
     print(f"  {total_with_ui} have UI field customisation")
 
+    # Filter to single provider if requested
+    if args.provider:
+        provider_connections = {
+            pid: conns for pid, conns in provider_connections.items() if pid == args.provider
+        }
+        print(f"Filtering output to provider: {args.provider}")
+
     # Write per-provider files to versions/{pid}/{version}/connections.json
     for output_dir in OUTPUT_DIRS:
         if not output_dir.parent.exists():
@@ -240,13 +266,15 @@ def main():
             version_dir = output_dir / "versions" / pid / version
             version_dir.mkdir(parents=True, exist_ok=True)
 
-            provider_data = {
-                "provider_id": pid,
-                "provider_name": provider_names.get(pid, pid),
-                "version": version,
-                "generated_at": generated_at,
-                "connection_types": conns,
-            }
+            provider_data = validate_provider_connections(
+                {
+                    "provider_id": pid,
+                    "provider_name": provider_names.get(pid, pid),
+                    "version": version,
+                    "generated_at": generated_at,
+                    "connection_types": conns,
+                }
+            )
             with open(version_dir / "connections.json", "w") as f:
                 json.dump(provider_data, f, separators=(",", ":"))
             written += 1

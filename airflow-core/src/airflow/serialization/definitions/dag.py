@@ -919,6 +919,24 @@ class SerializedDAG:
         run_id: str,
         only_failed: bool = False,
         only_running: bool = False,
+        only_new: Literal[True],
+        dag_run_state: DagRunState = DagRunState.QUEUED,
+        session: Session = NEW_SESSION,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+        exclude_run_ids: frozenset[str] | None = frozenset(),
+        run_on_latest_version: bool = False,
+    ) -> set[str]: ...  # pragma: no cover
+
+    @overload
+    def clear(
+        self,
+        *,
+        dry_run: Literal[True],
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        run_id: str,
+        only_failed: bool = False,
+        only_running: bool = False,
+        only_new: Literal[False] = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
@@ -934,6 +952,7 @@ class SerializedDAG:
         run_id: str,
         only_failed: bool = False,
         only_running: bool = False,
+        only_new: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
         session: Session = NEW_SESSION,
@@ -986,13 +1005,14 @@ class SerializedDAG:
         end_date: datetime.datetime | None = None,
         only_failed: bool = False,
         only_running: bool = False,
+        only_new: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
-    ) -> int | Iterable[TaskInstance]:
+    ) -> int | Iterable[TaskInstance] | set[str]:
         """
         Clear a set of task instances associated with the current dag for a specified date range.
 
@@ -1002,6 +1022,7 @@ class SerializedDAG:
         :param end_date: The maximum logical_date to clear
         :param only_failed: Only clear failed tasks
         :param only_running: Only clear running tasks.
+        :param only_new: Only newly added tasks in the latest version without clearing existing tasks
         :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
@@ -1011,7 +1032,27 @@ class SerializedDAG:
             tuples that should not be cleared
         :param exclude_run_ids: A set of ``run_id`` or (``run_id``)
         """
-        from airflow.models.taskinstance import clear_task_instances
+        from airflow.models.taskinstance import (
+            _get_new_task_ids,
+            _update_dagrun_to_latest_version,
+            clear_task_instances,
+        )
+
+        if only_new:
+            if task_ids is not None:
+                raise ValueError("only_new and task_ids are mutually exclusive")
+            if only_failed:
+                raise ValueError("only_new and only_failed are mutually exclusive")
+            if only_running:
+                raise ValueError("only_new and only_running are mutually exclusive")
+            if not run_id:
+                raise ValueError("only_new requires run_id to be specified")
+            task_ids = _get_new_task_ids(self.dag_id, run_id, session)
+
+            if dry_run:
+                return set(task_ids)
+            if task_ids:
+                _update_dagrun_to_latest_version(self.dag_id, run_id, session)
 
         state: list[TaskInstanceState] = []
         if only_failed:

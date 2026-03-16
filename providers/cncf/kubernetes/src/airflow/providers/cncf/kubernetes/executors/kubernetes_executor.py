@@ -108,6 +108,7 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_scheduler: AirflowKubernetesScheduler | None = None
         self.kube_client: client.CoreV1Api | None = None
         self.scheduler_job_id: str | None = None
+        self._last_completed_pod_adoption = 0.0
         self.last_handled: dict[TaskInstanceKey, float] = {}
         self.kubernetes_queue: str | None = None
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
@@ -265,6 +266,13 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_config
             assert self.result_queue
             assert self.task_queue
+            assert self.kube_client
+
+        adoption_interval = conf.getfloat("scheduler", "orphaned_tasks_check_interval", fallback=300.0)
+        now = time.monotonic()
+        if now - self._last_completed_pod_adoption >= adoption_interval:
+            self._last_completed_pod_adoption = now
+            self._adopt_completed_pods(self.kube_client)
 
         if self.running:
             self.log.debug("self.running: %s", self.running)

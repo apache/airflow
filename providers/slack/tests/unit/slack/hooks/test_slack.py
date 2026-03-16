@@ -567,6 +567,16 @@ class TestSlackHook:
             hook.send_file_v1_to_v2(channels=channels, content="Fake")
             assert mocked_send_file_v2.call_count == expected_calls
 
+    def test_send_file_v1_to_v2_thread_ts_with_multiple_channels_raises(self):
+        """thread_ts with multiple channels is invalid; a thread belongs to one channel."""
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        with pytest.raises(ValueError, match="thread_ts.*single channel"):
+            hook.send_file_v1_to_v2(
+                channels="#general,#random",
+                content="Fake",
+                thread_ts="1234567890.123456",
+            )
+
 
 class TestSlackHookAsync:
     @pytest.fixture

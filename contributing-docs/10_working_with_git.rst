@@ -22,7 +22,9 @@ Working with Git
 In this document you can learn basics of how you should use Git in Airflow project. It explains branching model and stresses
 that we are using rebase workflow. It also explains how to sync your fork with the main repository.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Airflow Git Branches
 ====================

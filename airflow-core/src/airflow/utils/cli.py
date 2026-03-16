@@ -386,6 +386,14 @@ def setup_logging(filename):
     return handler.stream
 
 
+def print_banner() -> None:
+    """Print the Airflow ASCII art banner, unless JSON logging is enabled."""
+    from airflow.configuration import conf
+
+    if not conf.getboolean("logging", "json_logs", fallback=False):
+        print(settings.HEADER)
+
+
 def sigint_handler(sig, frame):
     """
     Return without error on SIGINT or SIGTERM signals in interactive command mode.
