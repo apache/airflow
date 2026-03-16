@@ -109,6 +109,7 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     PrevSuccessfulDagRunResult,
     RescheduleTask,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -4741,3 +4742,35 @@ def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
             dag_result=True,
         )
     )
+
+
+class TestExecutionTimeoutSending:
+    """Test that _prepare sends SetExecutionTimeout when execution_timeout is set."""
+
+    def test_sends_execution_timeout(self, create_runtime_ti, mock_supervisor_comms):
+        task = PythonOperator(
+            task_id="timeout_task",
+            python_callable=lambda: None,
+            execution_timeout=timedelta(seconds=120),
+        )
+        ti = create_runtime_ti(task=task)
+
+        run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+        assert call(msg=SetExecutionTimeout(execution_timeout=120.0)) in mock_supervisor_comms.send.mock_calls
+
+    def test_no_execution_timeout_when_not_set(self, create_runtime_ti, mock_supervisor_comms):
+        task = PythonOperator(
+            task_id="no_timeout_task",
+            python_callable=lambda: None,
+        )
+        ti = create_runtime_ti(task=task)
+
+        run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+        timeout_calls = [
+            c
+            for c in mock_supervisor_comms.send.mock_calls
+            if hasattr(c.kwargs.get("msg"), "type") and c.kwargs["msg"].type == "SetExecutionTimeout"
+        ]
+        assert timeout_calls == []
