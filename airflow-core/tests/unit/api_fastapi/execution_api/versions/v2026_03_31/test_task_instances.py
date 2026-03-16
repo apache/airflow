@@ -125,3 +125,60 @@ class TestDagRunStartDateNullableBackwardCompat:
         assert response.status_code == 200
         assert dag_run["start_date"] is not None, "start_date should not be None when DagRun has started"
         assert dag_run["start_date"] == TIMESTAMP.isoformat().replace("+00:00", "Z")
+
+
+class TestAddBundleVersionField:
+    """Test that bundle_version field is present in new API version and absent in older versions."""
+
+    @pytest.fixture(autouse=True)
+    def _freeze_time(self, time_machine):
+        time_machine.move_to(TIMESTAMP_STR, tick=False)
+
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_head_version_includes_bundle_version(
+        self,
+        client,
+        session,
+        create_task_instance,
+    ):
+        ti = create_task_instance(
+            task_id="test_bundle_version_present",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        dag_run = response.json()["dag_run"]
+        assert "bundle_version" in dag_run
+        assert dag_run["bundle_version"] is None
+
+    def test_old_version_excludes_bundle_version(
+        self,
+        old_ver_client,
+        session,
+        create_task_instance,
+    ):
+        ti = create_task_instance(
+            task_id="test_bundle_version_absent",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        session.commit()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        dag_run = response.json()["dag_run"]
+        assert "bundle_version" not in dag_run
