@@ -4097,10 +4097,20 @@ class DagModel(Base):
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
+            dataset_condition = ser_dag.dag.timetable.dataset_condition
 
-            if not dag_ready(dag_id, cond=ser_dag.dag.timetable.dataset_condition, statuses=statuses):
+            if not dag_ready(dag_id, cond=dataset_condition, statuses=statuses):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
+            else:
+                log.info(
+                    "Dataset condition satisfied: dag_id=%s, condition=%s, "
+                    "ddrq_uris=%s, ddrq_count=%d",
+                    dag_id,
+                    dataset_condition,
+                    sorted(statuses.keys()),
+                    len(statuses),
+                )
         del dag_statuses
         dataset_triggered_dag_info = {}
         for dag_id, records in by_dag.items():
