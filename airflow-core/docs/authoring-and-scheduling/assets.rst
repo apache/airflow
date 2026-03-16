@@ -407,9 +407,9 @@ Asset partitions
 
 .. versionadded:: 3.2.0
 
-Asset events can include a ``partition_key``. This lets you model the same
-asset at partition granularity (for example, ``2026-03-10T09:00:00`` for an
-hourly partition, or ``us|2026-03-10T09:00:00`` for a composite key).
+Asset events can include a ``partition_key`` to make it _partitioned__. This lets you model
+the same asset at partition granularity (for example, ``2026-03-10T09:00:00`` for an
+hourly partition).
 
 To produce partitioned events on a schedule, use
 ``CronPartitionTimetable`` in the producer Dag (or ``@asset``). This timetable
