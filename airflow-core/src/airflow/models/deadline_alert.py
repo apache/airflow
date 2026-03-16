@@ -86,9 +86,10 @@ class DeadlineAlert(Base):
     @property
     def reference_class(self) -> type[SerializedReferenceModels.SerializedBaseDeadlineReference]:
         """Return the deserialized reference class."""
-        return SerializedReferenceModels.get_reference_class(
-            self.reference[SerializedReferenceModels.REFERENCE_TYPE_FIELD]
-        )
+        ref_name = self.reference.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)
+        if ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
+            return SerializedReferenceModels.get_reference_class(ref_name)
+        return SerializedReferenceModels.SerializedCustomReference
 
     @classmethod
     @provide_session

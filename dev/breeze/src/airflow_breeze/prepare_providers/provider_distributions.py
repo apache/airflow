@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 from typing import TextIO
 
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.packages import (
     get_available_distributions,
     get_latest_provider_tag,
@@ -65,37 +65,37 @@ def should_skip_the_package(provider_id: str, version_suffix: str) -> tuple[bool
     if version_suffix == "":
         current_tag = get_latest_provider_tag(provider_id, "")
         if tag_exists_for_provider(provider_id, current_tag):
-            get_console().print(f"[warning]The 'final' tag {current_tag} exists. Skipping the package.[/]")
+            console_print(f"[warning]The 'final' tag {current_tag} exists. Skipping the package.[/]")
             return True, version_suffix
         return False, version_suffix
     # version_suffix starts with "rc"
     current_version = int(version_suffix[2:])
     release_tag = get_latest_provider_tag(provider_id, "")
     if tag_exists_for_provider(provider_id, release_tag):
-        get_console().print(f"[warning]The tag {release_tag} exists. Provider is released. Skipping it.[/]")
+        console_print(f"[warning]The tag {release_tag} exists. Provider is released. Skipping it.[/]")
         return True, version_suffix
     while True:
         current_tag = get_latest_provider_tag(provider_id, f"rc{current_version}")
         if tag_exists_for_provider(provider_id, current_tag):
             current_version += 1
-            get_console().print(f"[warning]The tag {current_tag} exists. Checking rc{current_version}.[/]")
+            console_print(f"[warning]The tag {current_tag} exists. Checking rc{current_version}.[/]")
         else:
             return False, f"rc{current_version}"
 
 
 def cleanup_build_remnants(target_provider_root_sources_path: Path):
-    get_console().print(f"\n[info]Cleaning remnants in {target_provider_root_sources_path}")
+    console_print(f"\n[info]Cleaning remnants in {target_provider_root_sources_path}")
     for file in target_provider_root_sources_path.glob("*.egg-info"):
         shutil.rmtree(file, ignore_errors=True)
     shutil.rmtree(target_provider_root_sources_path / "build", ignore_errors=True)
     shutil.rmtree(target_provider_root_sources_path / "dist", ignore_errors=True)
-    get_console().print(f"[info]Cleaned remnants in {target_provider_root_sources_path}\n")
+    console_print(f"[info]Cleaned remnants in {target_provider_root_sources_path}\n")
 
 
 def build_provider_distribution(
     provider_id: str, target_provider_root_sources_path: Path, distribution_format: str
 ):
-    get_console().print(
+    console_print(
         f"\n[info]Building provider package: {provider_id} "
         f"in format {distribution_format} in {target_provider_root_sources_path}\n"
     )
@@ -106,7 +106,7 @@ def build_provider_distribution(
     build_env = {"SOURCE_DATE_EPOCH": str(get_provider_details(provider_id).source_date_epoch)}
     if build_backend == "flit_core":
         command: list[str] = [sys.executable, "-m", "flit", "build", "--no-setup-py", "--use-vcs"]
-        get_console().print(
+        console_print(
             "[warning]Workaround wheel-only package bug in flit by building both and removing sdist."
         )
         # Workaround https://github.com/pypa/flit/issues/743 bug in flit that causes .gitignored files
@@ -125,14 +125,14 @@ def build_provider_distribution(
                 env=build_env,
             )
         except subprocess.CalledProcessError as ex:
-            get_console().print(f"[error]The command returned an error {ex}")
+            console_print(f"[error]The command returned an error {ex}")
             raise PrepareReleasePackageErrorBuildingPackageException()
         if remove_sdist:
-            get_console().print("[warning]Removing sdist file to workaround flit bug on wheel-only packages")
+            console_print("[warning]Removing sdist file to workaround flit bug on wheel-only packages")
             # Remove the sdist file if it was created
             package_prefix = "apache_airflow_providers_" + provider_id.replace(".", "_")
             for file in (target_provider_root_sources_path / "dist").glob(f"{package_prefix}*.tar.gz"):
-                get_console().print(f"[info]Removing {file} to workaround flit bug on wheel-only packages")
+                console_print(f"[info]Removing {file} to workaround flit bug on wheel-only packages")
                 file.unlink(missing_ok=True)
     elif build_backend == "hatchling":
         command = [sys.executable, "-m", "hatch", "build", "-c", "-t", "custom"]
@@ -148,15 +148,13 @@ def build_provider_distribution(
                 check=True,
             )
         except subprocess.CalledProcessError as ex:
-            get_console().print(f"[error]The command returned an error {ex}")
+            console_print(f"[error]The command returned an error {ex}")
             raise PrepareReleasePackageErrorBuildingPackageException()
         shutil.copytree(target_provider_root_sources_path / "dist", AIRFLOW_DIST_PATH, dirs_exist_ok=True)
     else:
-        get_console().print(f"[error]Unknown/unsupported build backend {build_backend}")
+        console_print(f"[error]Unknown/unsupported build backend {build_backend}")
         raise PrepareReleasePackageErrorBuildingPackageException()
-    get_console().print(
-        f"\n[info]Prepared provider package {provider_id} in format {distribution_format}[/]\n"
-    )
+    console_print(f"\n[info]Prepared provider package {provider_id} in format {distribution_format}[/]\n")
 
 
 def move_built_distributions_and_cleanup(
@@ -166,14 +164,14 @@ def move_built_distributions_and_cleanup(
     delete_only_build_and_dist_folders: bool = False,
 ):
     for file in (target_provider_root_sources_path / "dist").glob("apache*"):
-        get_console().print(f"[info]Moving {file} to {dist_folder}")
+        console_print(f"[info]Moving {file} to {dist_folder}")
         # Shutil can move packages also between filesystems
         target_file = dist_folder / file.name
         target_file.unlink(missing_ok=True)
         shutil.move(file.as_posix(), dist_folder.as_posix())
 
     if skip_cleanup:
-        get_console().print(
+        console_print(
             f"[warning]NOT Cleaning up the {target_provider_root_sources_path} because "
             f"it was requested by the user[/]\n"
             f"\nYou can use the generated packages to work on the build"
@@ -181,7 +179,7 @@ def move_built_distributions_and_cleanup(
             f"src/airflow_breeze/templates"
         )
     else:
-        get_console().print(
+        console_print(
             f"[info]Cleaning up {target_provider_root_sources_path} with "
             f"delete_only_build_and_dist_folders={delete_only_build_and_dist_folders}"
         )
@@ -192,7 +190,7 @@ def move_built_distributions_and_cleanup(
                 shutil.rmtree(file, ignore_errors=True)
         else:
             shutil.rmtree(target_provider_root_sources_path, ignore_errors=True)
-        get_console().print(f"[info]Cleaned up {target_provider_root_sources_path}")
+        console_print(f"[info]Cleaned up {target_provider_root_sources_path}")
 
 
 def get_packages_list_to_act_on(
@@ -202,7 +200,7 @@ def get_packages_list_to_act_on(
     include_removed: bool = False,
 ) -> list[str]:
     if distributions_list_file and provider_distributions:
-        get_console().print(
+        console_print(
             "[error]You cannot specify individual provider distributions when you specify package list file."
         )
         sys.exit(1)

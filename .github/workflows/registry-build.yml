@@ -239,7 +239,14 @@ jobs:
           S3_BUCKET: ${{ steps.destination.outputs.bucket }}
         run: |
           aws s3 sync registry/_site/ "${S3_BUCKET}" \
-            --cache-control "${REGISTRY_CACHE_CONTROL}"
+            --cache-control "${REGISTRY_CACHE_CONTROL}" \
+            --exclude "pagefind/*"
+          # Pagefind generates content-hashed filenames (e.g. en_181da6f.pf_index).
+          # Each rebuild produces new hashes, so --delete is needed to remove stale
+          # index files. This is separate from the main sync which intentionally
+          # omits --delete to preserve files written by other steps (publish-versions).
+          aws s3 sync registry/_site/pagefind/ "${S3_BUCKET}pagefind/" \
+            --cache-control "${REGISTRY_CACHE_CONTROL}" --delete
 
       - name: "Publish version metadata"
         env:
