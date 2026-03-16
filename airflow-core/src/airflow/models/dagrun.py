@@ -1306,16 +1306,26 @@ class DagRun(Base, LoggingMixin):
     ) -> DagCallbackRequest | None:
         """Create a callback request for the DAG, or execute the callbacks directly if instructed, and return None."""
         if not execute:
+            try:
+                context_from_server = DagRunContext(
+                    dag_run=self,
+                    last_ti=relevant_ti,
+                )
+            except Exception:
+                self.log.exception(
+                    "Failed to build DagRunContext for dag_id=%s run_id=%s; "
+                    "sending callback with minimal context",
+                    self.dag_id,
+                    self.run_id,
+                )
+                context_from_server = None
             return DagCallbackRequest(
                 filepath=self.dag_model.relative_fileloc,
                 dag_id=self.dag_id,
                 run_id=self.run_id,
                 bundle_name=self.dag_model.bundle_name,
                 bundle_version=self.bundle_version,
-                context_from_server=DagRunContext(
-                    dag_run=self,
-                    last_ti=relevant_ti,
-                ),
+                context_from_server=context_from_server,
                 is_failure_callback=(not success),
                 msg=reason,
             )
