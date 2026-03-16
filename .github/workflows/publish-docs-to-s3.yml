@@ -64,6 +64,11 @@ on:  # yamllint disable-line rule:truthy
         required: false
         description: "Optionally apply commit hashes before building - to patch the docs (coma separated)"
         type: string
+      ignore-missing-inventories:
+        required: false
+        description: "Do not fail the build on missing third-party inventories"
+        default: false
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -253,12 +258,27 @@ jobs:
           --build-arg VERSION_SUFFIX_FOR_PYPI=dev0
           -t ghcr.io/apache/airflow/main/ci/python3.9:latest --target main .
           -f Dockerfile.ci --platform linux/amd64
+      - name: "Restore docs inventory cache"
+        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          path: ./generated/_inventory_cache/
+          key: cache-docs-inventory-v1
+        id: restore-docs-inventory-cache
       - name: "Building docs with --docs-only flag using ${{ inputs.ref }} reference breeze"
         env:
           INCLUDE_DOCS: ${{ needs.build-info.outputs.include-docs }}
           INCLUDE_COMMITS: ${{ startsWith(inputs.ref, 'providers') && 'true' || 'false' }}
+          FAIL_ON_INVENTORIES: ${{ inputs.ignore-missing-inventories != true && '--fail-on-missing-third-party-inventories' || '' }}
         run: >
-          breeze build-docs ${INCLUDE_DOCS} --docs-only
+          breeze build-docs ${INCLUDE_DOCS} --docs-only ${FAIL_ON_INVENTORIES}
+      - name: "Save docs inventory cache"
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true'
+        with:
+          path: ./generated/_inventory_cache/
+          key: cache-docs-inventory-v1
+          if-no-files-found: 'error'
+          retention-days: '2'
       - name: "Store stable versions"
         run: uv run /tmp/store_stable_versions.py
       - name: "Saving build docs folder"
