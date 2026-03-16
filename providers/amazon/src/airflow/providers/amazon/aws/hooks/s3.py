@@ -1229,7 +1229,7 @@ class S3Hook(AwsBaseHook):
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="file", asset_kwargs={"path": filename}
         )
-        if getattr(self, "enable_hook_level_lineage", True):
+        if self.enable_hook_level_lineage:
             get_hook_lineage_collector().add_output_asset(
                 context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
             )
