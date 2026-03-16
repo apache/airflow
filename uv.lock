@@ -2319,7 +2319,7 @@ requires-dist = [
     { name = "semver", marker = "extra == 'devscripts'", specifier = ">=3.0.2" },
     { name = "setuptools", marker = "extra == 'docs'", specifier = "<82.0.0" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7" },
-    { name = "sphinx-airflow-theme", marker = "extra == 'docs'", url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.0-py3-none-any.whl" },
+    { name = "sphinx-airflow-theme", marker = "extra == 'docs'", url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.1-py3-none-any.whl" },
     { name = "sphinx-argparse", marker = "extra == 'docs'", specifier = ">=0.4.0" },
     { name = "sphinx-autoapi", marker = "extra == 'docs'", specifier = ">=3.8.0" },
     { name = "sphinx-autobuild", marker = "extra == 'docs'", specifier = ">=2024.10.2" },
@@ -20125,15 +20125,15 @@ wheels = [
 
 [[package]]
 name = "sphinx-airflow-theme"
-version = "0.3.0"
-source = { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.0-py3-none-any.whl" }
+version = "0.3.1"
+source = { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.1-py3-none-any.whl" }
 dependencies = [
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 wheels = [
-    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.0-py3-none-any.whl", hash = "sha256:4e78c493d17a24fc6bc2af338d4a8a318e67d6bb25cd0bc85e3d74e281b1b494" },
+    { url = "https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.1-py3-none-any.whl", hash = "sha256:25a75e9d26d2020524f382743f38bf4d849fcb49c06cb96f2cfff01d41e90898" },
 ]
 
 [package.metadata]
