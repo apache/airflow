@@ -3310,3 +3310,81 @@ class TestDagRunTracing:
 
         expected_status = StatusCode.OK if final_state == DagRunState.SUCCESS else StatusCode.ERROR
         assert span.status.status_code == expected_status
+
+
+@pytest.mark.db_test
+@pytest.mark.skip_if_database_isolation_mode
+def test_are_premature_tis_refreshes_finished_states(dag_maker, session):
+    """
+    Verify that _are_premature_tis does not use stale finished_tis cache.
+
+    Reproduces the race condition from https://github.com/apache/airflow/issues/63697
+    where the scheduler's cached finished_tis snapshot causes downstream tasks to be
+    permanently stuck in upstream_failed after a concurrent API call clears them.
+    """
+    from sqlalchemy.orm import Session as SASession
+
+    with dag_maker("test_upstream_failed_race", session=session):
+        fail_task = EmptyOperator(task_id="fail_task")
+        t0 = EmptyOperator(task_id="t0")
+        t1 = EmptyOperator(task_id="t1")
+        t2 = EmptyOperator(task_id="t2")
+        fail_task >> t0 >> t1 >> t2
+
+    dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+
+    # Step 1: fail_task fails, scheduler propagates upstream_failed to t0
+    tis["fail_task"].state = TaskInstanceState.FAILED
+    tis["t0"].state = TaskInstanceState.UPSTREAM_FAILED
+    session.flush()
+    session.commit()
+
+    # Step 2: Scheduler takes snapshot (simulated by building finished_tis list)
+    bind = session.get_bind()
+    scheduler_session: SASession = SASession(bind=bind)
+    try:
+        sched_dr = scheduler_session.get(DagRun, dr.id)
+        sched_dr.dag = dr.dag
+
+        stale_finished_tis = sched_dr.get_task_instances(state=State.finished, session=scheduler_session)
+        dag = sched_dr.get_dag()
+        for ti in stale_finished_tis:
+            ti.task = dag.get_task(ti.task_id)
+
+        # Step 3: API clears tasks in the primary session (concurrent connection)
+        session.expire_all()
+        api_tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        api_tis["fail_task"].state = TaskInstanceState.SUCCESS
+        api_tis["t0"].state = None  # cleared
+        session.flush()
+        session.commit()
+
+        # Step 4: Scheduler evaluates with stale cache
+        unfinished_tis = sched_dr.get_task_instances(state=State.unfinished, session=scheduler_session)
+        for ti in unfinished_tis:
+            ti.task = dag.get_task(ti.task_id)
+
+        # Call _are_premature_tis — the fix makes it ignore the stale finished_tis
+        # and re-query from DB, seeing the updated states
+        sched_dr._are_premature_tis(
+            unfinished_tis=unfinished_tis,
+            finished_tis=stale_finished_tis,
+            session=scheduler_session,
+        )
+        scheduler_session.flush()
+        scheduler_session.commit()
+
+        # Step 5: Verify t1 was NOT incorrectly marked upstream_failed
+        session.expire_all()
+        final_states = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+        assert final_states["fail_task"] == TaskInstanceState.SUCCESS
+        assert final_states["t0"] is None  # cleared by API
+        # With the fix, t1 should NOT be upstream_failed because the scheduler
+        # re-reads finished_tis from DB and sees fail_task=SUCCESS, t0=None
+        assert final_states["t1"] != TaskInstanceState.UPSTREAM_FAILED, (
+            "t1 should not be upstream_failed — the scheduler should have re-read "
+            "finished states from DB instead of using stale cache"
+        )
+    finally:
+        scheduler_session.close()
