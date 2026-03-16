@@ -225,6 +225,17 @@ export const prefetchUseConnectionServiceGetConnections = (queryClient: QueryCli
   orderBy?: string[];
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) });
 /**
+* Hook Meta Data For Type
+* Return full metadata (standard_fields, extra_fields) for a single connection type.
+* @param data The data for the request.
+* @param data.connectionType
+* @returns ConnectionHookMetaData Successful Response
+* @throws ApiError
+*/
+export const prefetchUseConnectionServiceHookMetaDataForType = (queryClient: QueryClient, { connectionType }: {
+  connectionType: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceHookMetaDataForTypeKeyFn({ connectionType }), queryFn: () => ConnectionService.hookMetaDataForType({ connectionType }) });
+/**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.
 * @returns ConnectionHookMetaData Successful Response

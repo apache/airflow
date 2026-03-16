@@ -122,6 +122,12 @@ export const UseConnectionServiceGetConnectionsKeyFn = ({ connectionIdPattern, l
   offset?: number;
   orderBy?: string[];
 } = {}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionsKey, ...(queryKey ?? [{ connectionIdPattern, limit, offset, orderBy }])];
+export type ConnectionServiceHookMetaDataForTypeDefaultResponse = Awaited<ReturnType<typeof ConnectionService.hookMetaDataForType>>;
+export type ConnectionServiceHookMetaDataForTypeQueryResult<TData = ConnectionServiceHookMetaDataForTypeDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useConnectionServiceHookMetaDataForTypeKey = "ConnectionServiceHookMetaDataForType";
+export const UseConnectionServiceHookMetaDataForTypeKeyFn = ({ connectionType }: {
+  connectionType: string;
+}, queryKey?: Array<unknown>) => [useConnectionServiceHookMetaDataForTypeKey, ...(queryKey ?? [{ connectionType }])];
 export type ConnectionServiceHookMetaDataDefaultResponse = Awaited<ReturnType<typeof ConnectionService.hookMetaData>>;
 export type ConnectionServiceHookMetaDataQueryResult<TData = ConnectionServiceHookMetaDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceHookMetaDataKey = "ConnectionServiceHookMetaData";

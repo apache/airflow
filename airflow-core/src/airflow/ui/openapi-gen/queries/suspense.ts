@@ -225,6 +225,17 @@ export const useConnectionServiceGetConnectionsSuspense = <TData = Common.Connec
   orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }, queryKey), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData, ...options });
 /**
+* Hook Meta Data For Type
+* Return full metadata (standard_fields, extra_fields) for a single connection type.
+* @param data The data for the request.
+* @param data.connectionType
+* @returns ConnectionHookMetaData Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceHookMetaDataForTypeSuspense = <TData = Common.ConnectionServiceHookMetaDataForTypeDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ connectionType }: {
+  connectionType: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceHookMetaDataForTypeKeyFn({ connectionType }, queryKey), queryFn: () => ConnectionService.hookMetaDataForType({ connectionType }) as TData, ...options });
+/**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.
 * @returns ConnectionHookMetaData Successful Response

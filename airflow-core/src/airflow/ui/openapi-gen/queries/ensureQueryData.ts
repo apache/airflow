@@ -225,6 +225,17 @@ export const ensureUseConnectionServiceGetConnectionsData = (queryClient: QueryC
   orderBy?: string[];
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) });
 /**
+* Hook Meta Data For Type
+* Return full metadata (standard_fields, extra_fields) for a single connection type.
+* @param data The data for the request.
+* @param data.connectionType
+* @returns ConnectionHookMetaData Successful Response
+* @throws ApiError
+*/
+export const ensureUseConnectionServiceHookMetaDataForTypeData = (queryClient: QueryClient, { connectionType }: {
+  connectionType: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseConnectionServiceHookMetaDataForTypeKeyFn({ connectionType }), queryFn: () => ConnectionService.hookMetaDataForType({ connectionType }) });
+/**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.
 * @returns ConnectionHookMetaData Successful Response

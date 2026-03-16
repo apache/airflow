@@ -2494,6 +2494,12 @@ export type TestConnectionResponse = ConnectionTestResponse;
 
 export type CreateDefaultConnectionsResponse = void;
 
+export type HookMetaDataForTypeData = {
+    connectionType: string;
+};
+
+export type HookMetaDataForTypeResponse = ConnectionHookMetaData;
+
 export type HookMetaDataResponse = Array<ConnectionHookMetaData>;
 
 export type GetDagRunData = {
