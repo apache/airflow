@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-16T00:46:58.948778
+# This constraints file was automatically generated on 2026-03-16T22:16:21.049905
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -431,7 +431,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.8.0
 linkify-it-py==2.1.0
-litellm==1.82.2
+litellm==1.82.3
 lockfile==0.12.2
 logfire-api==4.29.0
 looker_sdk==26.4.0
@@ -546,7 +546,7 @@ pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
 pydantic-ai-slim==1.68.0
-pydantic-extra-types==2.11.0
+pydantic-extra-types==2.11.1
 pydantic-graph==1.68.0
 pydantic-settings==2.13.1
 pydantic==2.12.5
@@ -563,7 +563,7 @@ pymssql==2.3.13
 pyodbc==5.3.0
 pyodps==0.12.5.1
 pyparsing==3.3.2
-pypsrp==0.9.0
+pypsrp==0.9.1
 pyroaring==1.0.3
 pyspark==4.1.1
 pyspnego==0.12.1
@@ -578,7 +578,7 @@ python-keycloak==7.1.1
 python-ldap==3.4.5
 python-multipart==0.0.22
 python-slugify==8.0.4
-python-telegram-bot==22.6
+python-telegram-bot==22.7
 pytokens==0.4.1
 pytz==2026.1.post1
 pywinrm==0.5.0
@@ -675,7 +675,7 @@ uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
 uv==0.10.10
-uvicorn==0.41.0
+uvicorn==0.42.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
