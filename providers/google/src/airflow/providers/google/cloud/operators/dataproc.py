@@ -63,6 +63,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -1880,6 +1881,8 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         The value is considered only when running in deferrable mode. Must be greater than 0.
     :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     :param wait_timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
+    :param start_from_trigger: If True and deferrable is True, the operator will start directly
+        from the triggerer without occupying a worker slot.
     """
 
     template_fields: Sequence[str] = (
@@ -1893,6 +1896,15 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
     template_fields_renderers = {"job": "json"}
 
     operator_extra_links = (DataprocJobLink(),)
+
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger",
+        trigger_kwargs={},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
+    start_from_trigger = False
 
     def __init__(
         self,
@@ -1911,6 +1923,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         polling_interval_seconds: int = 10,
         cancel_on_kill: bool = True,
         wait_timeout: int | None = None,
+        start_from_trigger: bool = False,
         openlineage_inject_parent_job_info: bool = conf.getboolean(
             "openlineage", "spark_inject_parent_job_info", fallback=False
         ),
@@ -1938,8 +1951,27 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         self.hook: DataprocHook | None = None
         self.job_id: str | None = None
         self.wait_timeout = wait_timeout
+        self.start_from_trigger = start_from_trigger
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
+
+        if self.deferrable and self.start_from_trigger:
+            self.start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger",
+                trigger_kwargs={
+                    "job": self.job,
+                    "project_id": self.project_id,
+                    "region": self.region,
+                    "gcp_conn_id": self.gcp_conn_id,
+                    "impersonation_chain": self.impersonation_chain,
+                    "polling_interval_seconds": self.polling_interval_seconds,
+                    "cancel_on_kill": self.cancel_on_kill,
+                    "request_id": self.request_id,
+                },
+                next_method="execute_complete",
+                next_kwargs=None,
+                timeout=None,
+            )
 
     def execute(self, context: Context):
         self.log.info("Submitting job")
@@ -2630,10 +2662,10 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             )
 
     def __update_batch_labels(self):
-        dag_id = re.sub(r"[.\s]", "_", self.dag_id.lower())
-        task_id = re.sub(r"[.\s]", "_", self.task_id.lower())
+        dag_id = re.sub(r"[^a-z0-9-]", "-", self.dag_id.lower())
+        task_id = re.sub(r"[^a-z0-9-]", "-", self.task_id.lower())
 
-        labels_regex = re.compile(r"^[a-z][\w-]{0,62}$")
+        labels_regex = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
         if not labels_regex.match(dag_id) or not labels_regex.match(task_id):
             return
 
@@ -2641,8 +2673,8 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         new_labels = {"airflow-dag-id": dag_id, "airflow-task-id": task_id}
 
         if self._dag:
-            dag_display_name = re.sub(r"[.\s]", "_", self._dag.dag_display_name.lower())
-            if labels_regex.match(dag_id):
+            dag_display_name = re.sub(r"[^a-z0-9-]", "-", self._dag.dag_display_name.lower())
+            if labels_regex.match(dag_display_name):
                 new_labels["airflow-dag-display-name"] = dag_display_name
 
         if isinstance(self.batch, Batch):

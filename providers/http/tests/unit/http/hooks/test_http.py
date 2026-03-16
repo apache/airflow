@@ -633,7 +633,7 @@ class TestHttpHook:
         url = hook.url_from_endpoint("baz/bop")
         assert url == "https://foo.bar.com/baz/bop"
 
-        # Verify get_connection was called and and verify that base_url is now initialized
+        # Verify get_connection was called and verify that base_url is now initialized
         mock_get_connection.assert_called_once_with("test_conn")
         assert hook._base_url_initialized
 

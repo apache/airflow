@@ -433,7 +433,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def _print_output(output: str):
-        name = "Simple auth manager"
-        colorized_name = colored(f"{name:10}", "white")
-        for line in output.splitlines():
-            print(f"{colorized_name} | {line.strip()}")
+        if conf.getboolean("logging", "json_logs", fallback=False):
+            for line in output.splitlines():
+                log.info(line.strip())
+        else:
+            name = "Simple auth manager"
+            colorized_name = colored(f"{name:10}", "white")
+            for line in output.splitlines():
+                print(f"{colorized_name} | {line.strip()}")
