@@ -198,8 +198,14 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (%s, %s, %s, %s, %s)",
-                            "orig_error": "(1062, \"Duplicate entry 'test_pool' for key 'slot_pool.slot_pool_pool_uq'\")",
+                            "statement": [
+                                "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (%(pool)s, %(slots)s, %(description)s, %(include_deferred)s, %(team_name)s)",
+                                "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (%s, %s, %s, %s, %s)",
+                            ],
+                            "orig_error": [
+                                "(1062, \"Duplicate entry 'test_pool' for key 'slot_pool_pool_uq'\")",
+                                "(1062, \"Duplicate entry 'test_pool' for key 'slot_pool.slot_pool_pool_uq'\")",
+                            ],
                         },
                     ),
                     HTTPException(
@@ -224,8 +230,15 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO variable (`key`, val, description, is_encrypted, team_name) VALUES (%s, %s, %s, %s, %s)",
-                            "orig_error": "(1062, \"Duplicate entry 'test_key' for key 'variable.variable_key_uq'\")",
+                            "statement": [
+                                "INSERT INTO variable (`key`, val, description, is_encrypted, team_name) VALUES (%(key)s, %(val)s, %(description)s, %(is_encrypted)s, %(team_name)s)",
+                                "INSERT INTO variable (`key`, val, description, is_encrypted, team_name) VALUES (%s, %s, %s, %s, %s)",
+                                "INSERT INTO variable (`key`, val, description, is_encrypted, team_name) VALUES (?, ?, ?, ?, ?)",
+                            ],
+                            "orig_error": [
+                                "(1062, \"Duplicate entry 'test_key' for key 'variable_key_uq'\")",
+                                "(1062, \"Duplicate entry 'test_key' for key 'variable.variable_key_uq'\")",
+                            ],
                         },
                     ),
                     HTTPException(
@@ -271,7 +284,20 @@ class TestUniqueConstraintErrorHandler:
 
         exeinfo_response_error.value.detail.pop("message", None)  # type: ignore[attr-defined]
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
-        assert exeinfo_response_error.value.detail == expected_exception.detail
+        # statement and orig_error exact formats vary between database servers and connectors
+        # (e.g. mysqlclient uses %(name)s params while PyMySQL uses %s, and MariaDB qualifies
+        # constraint names with a table prefix while MySQL does not), so when the expected
+        # value is a list, verify the actual value matches one of the expected values.
+        response_detail = exeinfo_response_error.value.detail
+        expected_detail = expected_exception.detail
+        for key in ("statement", "orig_error"):
+            actual_val = response_detail.pop(key, None)  # type: ignore[attr-defined]
+            expected_val = expected_detail.pop(key, None)  # type: ignore[attr-defined]
+            if isinstance(expected_val, list):
+                assert actual_val in expected_val, f"{key}: {actual_val!r} not in {expected_val!r}"
+            else:
+                assert actual_val == expected_val, f"{key}: {actual_val!r} != {expected_val!r}"
+        assert response_detail == expected_detail
 
     @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
     @conf_vars({("api", "expose_stacktrace"): "False"})
@@ -330,7 +356,10 @@ class TestUniqueConstraintErrorHandler:
                         detail={
                             "reason": "Unique constraint violation",
                             "statement": "INSERT INTO dag_run (dag_id, queued_at, logical_date, start_date, end_date, state, run_id, creating_job_id, run_type, triggered_by, triggering_user_name, conf, data_interval_start, data_interval_end, run_after, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, bundle_version, scheduled_by_job_id, context_carrier, created_dag_version_id, partition_key) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, (SELECT max(log_template.id) AS max_1 \nFROM log_template), %s, %s, %s, %s, %s, %s, %s, %s)",
-                            "orig_error": "(1062, \"Duplicate entry 'test_dag_id-test_run_id' for key 'dag_run.dag_run_dag_id_run_id_key'\")",
+                            "orig_error": [
+                                "(1062, \"Duplicate entry 'test_dag_id-test_run_id' for key 'dag_run_dag_id_run_id_key'\")",
+                                "(1062, \"Duplicate entry 'test_dag_id-test_run_id' for key 'dag_run.dag_run_dag_id_run_id_key'\")",
+                            ],
                         },
                     ),
                     HTTPException(
@@ -379,13 +408,18 @@ class TestUniqueConstraintErrorHandler:
         response_detail = exeinfo_response_error.value.detail
         expected_detail = expected_exception.detail
         actual_statement = response_detail.pop("statement", None)  # type: ignore[attr-defined]
-        expected_detail.pop("statement", None)
+        expected_detail.pop("statement", None)  # type: ignore[attr-defined]
+        actual_orig = response_detail.pop("orig_error", None)  # type: ignore[attr-defined]
+        expected_orig = expected_detail.pop("orig_error", None)  # type: ignore[attr-defined]
 
         # Removes the stacktrace from response to remove during comparison.
         response_detail.pop("message", None)  # type: ignore[attr-defined]
         assert response_detail == expected_detail
+        if isinstance(expected_orig, list):
+            assert actual_orig in expected_orig, f"orig_error: {actual_orig!r} not in {expected_orig!r}"
+        else:
+            assert actual_orig == expected_orig, f"orig_error: {actual_orig!r} != {expected_orig!r}"
         assert "INSERT INTO dag_run" in actual_statement
-        assert exeinfo_response_error.value.detail == expected_exception.detail
 
 
 class TestDagErrorHandler:
