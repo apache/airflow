@@ -690,10 +690,11 @@ class DagFileProcessorManager(LoggingMixin):
 
             known_files[bundle.name] = found_files
 
-            self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
+            observed_filelocs = self._get_observed_filelocs(found_files)
+            self.deactivate_deleted_dags(bundle_name=bundle.name, observed_filelocs=observed_filelocs)
             self.clear_orphaned_import_errors(
                 bundle_name=bundle.name,
-                observed_filelocs=self._get_observed_filelocs(found_files),
+                observed_filelocs=observed_filelocs,
             )
 
         if any_refreshed:
@@ -742,14 +743,12 @@ class DagFileProcessorManager(LoggingMixin):
 
         return observed_filelocs
 
-    def deactivate_deleted_dags(self, bundle_name: str, present: set[DagFileInfo]) -> None:
+    def deactivate_deleted_dags(self, bundle_name: str, observed_filelocs: set[str]) -> None:
         """Deactivate DAGs that come from files that are no longer present in bundle."""
-        rel_filelocs = list(self._get_observed_filelocs(present))
-
         with create_session() as session:
             any_deactivated = DagModel.deactivate_deleted_dags(
                 bundle_name=bundle_name,
-                rel_filelocs=rel_filelocs,
+                rel_filelocs=list(observed_filelocs),
                 session=session,
             )
             # Only run cleanup if we actually deactivated any DAGs
