@@ -258,11 +258,9 @@ class TestBigQueryInsertJobTrigger:
 
         caplog.set_level(logging.INFO)
 
-        try:
+        with pytest.raises(asyncio.CancelledError):
             async for _ in insert_job_trigger.run():
                 pass
-        except asyncio.CancelledError:
-            pass
 
         assert (
             "Task was killed" in caplog.text
@@ -294,11 +292,9 @@ class TestBigQueryInsertJobTrigger:
 
         caplog.set_level(logging.INFO)
 
-        try:
+        with pytest.raises(asyncio.CancelledError):
             async for _ in insert_job_trigger.run():
                 pass
-        except asyncio.CancelledError:
-            pass
 
         assert "Skipping to cancel job" in caplog.text, (
             "Expected message about skipping cancellation not found in log."
