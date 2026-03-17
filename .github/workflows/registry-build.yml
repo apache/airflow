@@ -258,9 +258,12 @@ jobs:
           # sync, then selectively upload only the target provider's files.
           EXCLUDE_PROVIDERS=()
           if [[ -n "${PROVIDER}" ]]; then
+            # Exclude per-provider subtrees but re-include global listing
+            # pages. AWS CLI processes filters in order — later rules win.
             EXCLUDE_PROVIDERS=(
               --exclude "api/providers/*"
               --exclude "providers/*"
+              --include "providers/index.html"
             )
           fi
 
