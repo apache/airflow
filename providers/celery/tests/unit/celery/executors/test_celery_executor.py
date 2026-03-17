@@ -45,12 +45,7 @@ from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import (
-    AIRFLOW_V_3_0_PLUS,
-    AIRFLOW_V_3_1_PLUS,
-    AIRFLOW_V_3_2_PLUS,
-    AIRFLOW_V_3_3_PLUS,
-)
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
@@ -173,7 +168,7 @@ class TestCeleryExecutor:
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.sync")
     @mock.patch(
         "airflow.providers.celery.executors.celery_executor.CeleryExecutor."
-        + ("trigger_workloads" if AIRFLOW_V_3_3_PLUS else "trigger_tasks")
+        + ("trigger_workloads" if AIRFLOW_V_3_2_PLUS else "trigger_tasks")
     )
     @mock.patch("airflow.executors.base_executor.Stats.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger, mock_sync):
