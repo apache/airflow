@@ -3379,10 +3379,10 @@ databaseCleanup:
   # Run every week on Sunday at midnight (templated).
   schedule: "0 0 * * 0"
   # Command to use when running the database cleanup cronjob (templated).
-  command:
-    - "bash"
+  command: ~
   # Args to use when running the database cleanup cronjob (templated).
   args:
+    - "bash"
     - "-c"
     - >-
       CLEAN_TS=$(date -d "-{{ .Values.databaseCleanup.retentionDays }} days" +"%Y-%m-%dT%H:%M:%S");
