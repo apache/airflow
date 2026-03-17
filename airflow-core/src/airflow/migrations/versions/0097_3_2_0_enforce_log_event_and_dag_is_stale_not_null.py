@@ -29,6 +29,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.utils import disable_sqlite_fkeys
+
 revision = "edc4f85a4619"
 down_revision = "b12d4f98a91e"
 branch_labels = None
@@ -38,8 +40,6 @@ airflow_version = "3.2.0"
 
 def upgrade():
     """Bring existing deployments in line with 0010 and 0067."""
-    from airflow.migrations.utils import disable_sqlite_fkeys
-
     # Ensure `log.event` can safely transition to NOT NULL.
     op.execute("UPDATE log SET event = '' WHERE event IS NULL")
 
@@ -56,8 +56,6 @@ def upgrade():
 
 def downgrade():
     """Allow the columns to accept NULL again for older state reversions."""
-    from airflow.migrations.utils import disable_sqlite_fkeys
-
     with disable_sqlite_fkeys(op):
         with op.batch_alter_table("log") as batch_op:
             batch_op.alter_column("event", existing_type=sa.String(60), nullable=True)

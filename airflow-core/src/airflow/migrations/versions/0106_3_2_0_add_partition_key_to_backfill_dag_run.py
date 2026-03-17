@@ -31,6 +31,7 @@ import sqlalchemy as sa
 from alembic import op
 
 from airflow.migrations.db_types import StringID
+from airflow.migrations.utils import disable_sqlite_fkeys
 from airflow.utils.sqlalchemy import UtcDateTime
 
 revision = "134de42d3cb0"
@@ -42,8 +43,6 @@ airflow_version = "3.2.0"
 
 def upgrade():
     """Apply Add partition_key to backfill_dag_run."""
-    from airflow.migrations.utils import disable_sqlite_fkeys
-
     op.add_column("dag_run", sa.Column("created_at", UtcDateTime(timezone=True), nullable=True))
     op.execute("update dag_run set created_at = run_after;")
 
@@ -58,8 +57,6 @@ def upgrade():
 
 def downgrade():
     """Unapply Add partition_key to backfill_dag_run."""
-    from airflow.migrations.utils import disable_sqlite_fkeys
-
     with disable_sqlite_fkeys(op):
         op.execute("DELETE FROM backfill_dag_run WHERE logical_date IS NULL;")
         with op.batch_alter_table("backfill_dag_run", schema=None) as batch_op:
