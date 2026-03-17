@@ -515,7 +515,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             if "trigger_rule" in self.kwargs:
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        return self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
+        return XComArg(operator=self._expand(DictOfListsExpandInput(map_kwargs), strict=False))
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
         if (
@@ -539,7 +539,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                     raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
-        return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
+        return XComArg(operator=self._expand(ListOfDictsExpandInput(kwargs), strict=strict))
 
     def iterate(self, **map_kwargs: OperatorExpandArgument) -> XComArg:
         if self.kwargs.get("trigger_rule") == TriggerRule.ALWAYS and any(
@@ -561,12 +561,11 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
         expand_input = DictOfListsExpandInput(map_kwargs)
-        op = self._expand(
+        operator = self._expand(
             expand_input,
             strict=False,
             apply_upstream_relationship=False,
         )
-        operator = cast("PlainXComArg", op).operator
         task_concurrency = operator.partial_kwargs.pop("task_concurrency", None)
         return XComArg(
             operator=IterableOperator(
@@ -601,12 +600,11 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         from airflow.sdk.definitions.iterableoperator import IterableOperator
 
         expand_input = ListOfDictsExpandInput(kwargs)
-        op = self._expand(
+        operator = self._expand(
             expand_input,
             strict=strict,
             apply_upstream_relationship=False,
         )
-        operator = cast("PlainXComArg", op).operator
         task_concurrency = operator.partial_kwargs.pop("task_concurrency", None)
         return XComArg(
             operator=IterableOperator(
@@ -618,7 +616,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
 
     def _expand(
         self, expand_input: ExpandInput, *, strict: bool, apply_upstream_relationship: bool = True
-    ) -> XComArg:
+    ) -> MappedOperator:
         ensure_xcomarg_return_value(expand_input.value)
 
         task_kwargs = self.kwargs.copy()
@@ -686,7 +684,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         except AttributeError:
             operator_name = self.operator_class.__name__
 
-        operator = _MappedOperator(
+        return _MappedOperator(
             operator_class=self.operator_class,
             expand_input=EXPAND_INPUT_EMPTY,  # Don't use this; mapped values go to op_kwargs_expand_input.
             partial_kwargs=partial_kwargs,
@@ -720,7 +718,6 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             start_from_trigger=self.operator_class.start_from_trigger,
             apply_upstream_relationship=apply_upstream_relationship,
         )
-        return XComArg(operator=operator)
 
     def partial(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         self._validate_arg_names("partial", kwargs)

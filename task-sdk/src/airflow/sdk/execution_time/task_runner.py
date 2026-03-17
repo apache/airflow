@@ -709,7 +709,7 @@ class MappedTaskInstance(RuntimeTaskInstance, LoggingMixin):
         self,
         task_ids: str | Iterable[str] | None = None,
         dag_id: str | None = None,
-        key: str = "return_value",  # XCOM_RETURN_KEY
+        key: str = BaseXCom.XCOM_RETURN_KEY,
         include_prior_dates: bool = False,  # TODO: Add support for this
         *,
         map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,

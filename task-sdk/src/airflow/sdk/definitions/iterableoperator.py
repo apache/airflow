@@ -39,6 +39,7 @@ except NameError:
 
 from airflow.sdk import TaskInstanceState, timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
 from airflow.sdk.exceptions import (
     AirflowRescheduleTaskInstanceException,
@@ -208,10 +209,11 @@ class IterableOperator(BaseOperator):
                             operator = DecoratedDeferredAsyncOperator(
                                 operator=task.task, task_deferred=task_deferred
                             )
+                            # map_index is guaranteed to be int in MappedTaskInstance due to validation in __init__
                             deferred_tasks.append(
                                 self._create_mapped_task(
                                     run_id=task.run_id,
-                                    map_index=task.map_index,
+                                    map_index=task.map_index,  # type: ignore[arg-type]
                                     try_number=task.try_number,
                                     operator=operator,
                                 )
