@@ -31,13 +31,16 @@ from sqlalchemy.orm import Session
 from airflow import settings
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import (
+    AssetActive,
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
     DagScheduleAssetAliasReference,
+    DagScheduleAssetNameReference,
     DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
 )
 from airflow.models.dag import DAG, DagModel
 from airflow.sdk.definitions.asset import Asset
@@ -295,3 +298,108 @@ class TestAssetManager:
 
         queued_id = session.scalar(select(AssetDagRunQueue.target_dag_id))
         assert queued_id == "stale_dag"
+
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partitioned_asset_event_does_not_trigger_non_partitioned_dag(self, session, mock_task_instance):
+        """Reproduce issue #63734: partitioned asset updates must NOT queue non-partitioned DAGs.
+
+        A DAG using CronPartitionTimetable emits asset events with a partition_key.
+        A second DAG scheduled on the plain (non-partitioned) asset must not be
+        triggered by those partitioned events.
+        """
+        asset_manager = AssetManager()
+        bundle_name = "testing"
+
+        asset_uri = "test://partitioned_asset/"
+        asset_name = "partitioned_asset"
+        asset_definition = Asset(uri=asset_uri, name=asset_name)
+
+        asm = AssetModel(uri=asset_uri, name=asset_name, group="asset")
+        session.add(asm)
+        session.add(AssetActive.for_asset(asm))
+
+        # This DAG is NOT partition-aware (timetable_partitioned=False, the default)
+        regular_dag = DagModel(
+            dag_id="regular_asset_dag",
+            is_stale=False,
+            is_paused=False,
+            bundle_name=bundle_name,
+            timetable_partitioned=False,
+        )
+        session.add(regular_dag)
+        asm.scheduled_dags = [DagScheduleAssetReference(dag_id=regular_dag.dag_id)]
+
+        session.execute(delete(AssetDagRunQueue))
+        session.flush()
+
+        # Simulate a partitioned asset update (e.g. from CronPartitionTimetable)
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset_definition,
+            session=session,
+            partition_key="2024-01-01T00:00:00+00:00",
+        )
+        session.flush()
+
+        count = session.scalar(select(func.count()).select_from(AssetDagRunQueue))
+        assert count == 0, (
+            f"Expected 0 queued DAG runs (partitioned events must not trigger "
+            f"non-partitioned DAGs), but got {count}"
+        )
+
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partitioned_asset_event_does_not_trigger_asset_ref_dag(self, session, mock_task_instance):
+        """Issue #63734: partitioned events must not queue DAGs linked via name/URI asset references.
+
+        DAGs registered via DagScheduleAssetNameReference or DagScheduleAssetUriReference
+        (the dags_to_queue_from_asset_ref path in register_asset_change) must also be
+        suppressed when the asset event carries a partition_key.
+        """
+        asset_manager = AssetManager()
+        bundle_name = "testing"
+
+        asset_uri = "test://ref_asset/"
+        asset_name = "ref_asset"
+        asset_definition = Asset(uri=asset_uri, name=asset_name)
+
+        asm = AssetModel(uri=asset_uri, name=asset_name, group="asset")
+        session.add(asm)
+        session.add(AssetActive.for_asset(asm))
+
+        # DAG linked via DagScheduleAssetNameReference (not partition-aware)
+        name_ref_dag = DagModel(
+            dag_id="name_ref_dag",
+            is_stale=False,
+            is_paused=False,
+            bundle_name=bundle_name,
+            timetable_partitioned=False,
+        )
+        # DAG linked via DagScheduleAssetUriReference (not partition-aware)
+        uri_ref_dag = DagModel(
+            dag_id="uri_ref_dag",
+            is_stale=False,
+            is_paused=False,
+            bundle_name=bundle_name,
+            timetable_partitioned=False,
+        )
+        session.add_all([name_ref_dag, uri_ref_dag])
+        session.flush()
+
+        session.add(DagScheduleAssetNameReference(name=asset_name, dag_id=name_ref_dag.dag_id))
+        session.add(DagScheduleAssetUriReference(uri=asset_uri, dag_id=uri_ref_dag.dag_id))
+        session.execute(delete(AssetDagRunQueue))
+        session.flush()
+
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=asset_definition,
+            session=session,
+            partition_key="2024-01-01T00:00:00+00:00",
+        )
+        session.flush()
+
+        count = session.scalar(select(func.count()).select_from(AssetDagRunQueue))
+        assert count == 0, (
+            f"Expected 0 queued DAG runs (partitioned events must not trigger "
+            f"non-partitioned DAGs via asset name/URI references), but got {count}"
+        )
