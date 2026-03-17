@@ -44,6 +44,7 @@ def _trigger_dag(
     dag_bag: DBDagBag,
     *,
     triggered_by: DagRunTriggeredByType,
+    run_type: DagRunType = DagRunType.MANUAL,
     triggering_user_name: str | None = None,
     run_after: datetime | None = None,
     run_id: str | None = None,
@@ -60,6 +61,7 @@ def _trigger_dag(
     :param dag_id: DAG ID
     :param dag_bag: DAG Bag model
     :param triggered_by: the entity which triggers the dag_run
+    :param run_type: the type of dag run (default: MANUAL)
     :param triggering_user_name: the user name who triggers the dag_run
     :param run_after: the datetime before which dag cannot run
     :param run_id: ID of the run
@@ -95,7 +97,7 @@ def _trigger_dag(
         data_interval = None
 
     run_id = run_id or dag.timetable.generate_run_id(
-        run_type=DagRunType.MANUAL,
+        run_type=run_type,
         run_after=timezone.coerce_datetime(run_after),
         data_interval=data_interval,
     )
@@ -116,7 +118,7 @@ def _trigger_dag(
         data_interval=data_interval,
         run_after=run_after,
         conf=run_conf,
-        run_type=DagRunType.MANUAL,
+        run_type=run_type,
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
         note=note,
@@ -133,6 +135,7 @@ def trigger_dag(
     dag_id: str,
     *,
     triggered_by: DagRunTriggeredByType,
+    run_type: DagRunType = DagRunType.MANUAL,
     triggering_user_name: str | None = None,
     run_after: datetime | None = None,
     run_id: str | None = None,
@@ -148,6 +151,7 @@ def trigger_dag(
 
     :param dag_id: DAG ID
     :param triggered_by: the entity which triggers the dag_run
+    :param run_type: the type of dag run (default: MANUAL)
     :param triggering_user_name: the user name who triggers the dag_run
     :param run_after: the datetime before which dag won't run
     :param run_id: ID of the dag_run
@@ -161,14 +165,15 @@ def trigger_dag(
     if dag_model is None:
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
 
-    if dag_model.allowed_run_types is not None and DagRunType.MANUAL not in dag_model.allowed_run_types:
-        raise ValueError(f"Dag with dag_id: '{dag_id}' does not allow manual runs")
+    if dag_model.allowed_run_types is not None and run_type not in dag_model.allowed_run_types:
+        raise ValueError(f"Dag with dag_id: '{dag_id}' does not allow {run_type} runs")
 
     dagbag = DBDagBag()
     dr = _trigger_dag(
         dag_id=dag_id,
         dag_bag=dagbag,
         run_id=run_id,
+        run_type=run_type,
         run_after=run_after or timezone.utcnow(),
         conf=conf,
         logical_date=logical_date,
