@@ -935,6 +935,8 @@ def test_return_to_worker_no_direct_queueing_configured():
     mock_session = mock.MagicMock()
 
     with conf_vars({("triggerer", "direct_queueing_executors"): "", ("core", "multi_team"): "False"}):
+        Trigger.direct_queueing_allowlist = []
+        Trigger.multi_team = False
         Trigger.return_to_worker(ti, session=mock_session)
 
     assert ti.trigger_id is None
@@ -962,6 +964,8 @@ def test_return_to_worker_direct_queueing_executor_matches_by_alias():
         ),
         patch("airflow.executors.workloads.ExecuteTask.make", return_value=mock_workload),
     ):
+        Trigger.direct_queueing_allowlist = ["LocalExecutor"]
+        Trigger.multi_team = False
         Trigger.return_to_worker(ti, session=mock_session)
 
     assert ti.trigger_id is None
@@ -995,6 +999,8 @@ def test_return_to_worker_direct_queueing_executor_not_in_allowlist():
             return_value=executor,
         ),
     ):
+        Trigger.direct_queueing_allowlist = ["CeleryExecutor"]
+        Trigger.multi_team = False
         Trigger.return_to_worker(ti, session=mock_session)
 
     assert ti.state == State.SCHEDULED
@@ -1022,6 +1028,8 @@ def test_return_to_worker_direct_queueing_find_executor_returns_none():
             return_value=None,
         ),
     ):
+        Trigger.direct_queueing_allowlist = ["LocalExecutor"]
+        Trigger.multi_team = False
         Trigger.return_to_worker(ti, session=mock_session)
 
     assert ti.state == State.SCHEDULED
@@ -1049,6 +1057,8 @@ def test_return_to_worker_direct_queueing_with_multi_team_resolves_team():
         ) as mock_find,
         patch("airflow.executors.workloads.ExecuteTask.make", return_value=mock_workload),
     ):
+        Trigger.direct_queueing_allowlist = ["LocalExecutor"]
+        Trigger.multi_team = True
         Trigger.return_to_worker(ti, session=mock_session)
 
     # Verify team_name was resolved and passed to find_executor
@@ -1068,6 +1078,8 @@ def test_return_to_worker_trigger_id_and_scheduled_dttm_always_set():
     mock_session = mock.MagicMock()
 
     with conf_vars({("triggerer", "direct_queueing_executors"): "", ("core", "multi_team"): "False"}):
+        Trigger.direct_queueing_allowlist = []
+        Trigger.multi_team = False
         Trigger.return_to_worker(ti, session=mock_session)
 
     assert ti.trigger_id is None
