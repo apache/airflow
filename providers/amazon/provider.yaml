@@ -931,6 +931,7 @@ extra-links:
 
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook
+    hook-name: "Amazon Web Services"
     connection-type: aws
     ui-field-behaviour:
       hidden-fields:
@@ -955,6 +956,7 @@ connection-types:
             "endpoint_url": "http://localhost:4566"
           }
   - hook-class-name: airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook
+    hook-name: "Amazon Chime Webhook"
     connection-type: chime
     ui-field-behaviour:
       hidden-fields:
@@ -969,6 +971,7 @@ connection-types:
         host: hooks.chime.aws/incomingwebhook/
         password: T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
+    hook-name: "Amazon Elastic MapReduce"
     connection-type: emr
     ui-field-behaviour:
       hidden-fields:
@@ -999,12 +1002,14 @@ connection-types:
             "StepConcurrencyLevel": 2
           }
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
+    hook-name: "Amazon Redshift"
     connection-type: redshift
     ui-field-behaviour:
       relabeling:
         login: User
         schema: Database
   - hook-class-name: airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook
+    hook-name: "Amazon Athena"
     connection-type: athena
     ui-field-behaviour:
       hidden-fields:

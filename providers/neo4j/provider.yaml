@@ -92,4 +92,5 @@ sensors:
 
 connection-types:
   - hook-class-name: airflow.providers.neo4j.hooks.neo4j.Neo4jHook
+    hook-name: "Neo4j"
     connection-type: neo4j
