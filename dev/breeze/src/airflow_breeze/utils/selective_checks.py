@@ -57,6 +57,7 @@ from airflow_breeze.global_constants import (
     SelectiveCoreTestType,
     SelectiveProvidersTestType,
     SelectiveTaskSdkTestType,
+    SelectiveTestType,
     all_helm_test_packages,
     all_selective_core_test_types,
     providers_test_type,
@@ -136,6 +137,7 @@ class FileGroupForCi(Enum):
     DEVEL_TOML_FILES = auto()
     UI_ENGLISH_TRANSLATION_FILES = auto()
     SCRIPTS_FILES = auto()
+    UV_LOCK_FILE = auto()
 
 
 class AllProvidersSentinel:
@@ -144,7 +146,7 @@ class AllProvidersSentinel:
 
 ALL_PROVIDERS_SENTINEL = AllProvidersSentinel()
 
-T = TypeVar("T", FileGroupForCi, SelectiveCoreTestType)
+T = TypeVar("T", FileGroupForCi, SelectiveTestType)
 
 
 class HashableDict(dict[T, list[str]]):
@@ -340,6 +342,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^scripts/tools/.*\.py$",
             r"^scripts/tests/.*\.py$",
         ],
+        FileGroupForCi.UV_LOCK_FILE: [
+            r"^uv\.lock$",
+        ],
     }
 )
 
@@ -347,7 +352,7 @@ PYTHON_OPERATOR_FILES = [
     r"^providers/tests/standard/operators/test_python.py",
 ]
 
-TEST_TYPE_MATCHES: HashableDict[SelectiveCoreTestType] = HashableDict(
+TEST_TYPE_MATCHES: HashableDict[SelectiveTestType] = HashableDict(
     {
         SelectiveCoreTestType.API: [
             r"^airflow-core/src/airflow/api/",
@@ -419,7 +424,7 @@ def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_r
 
 @clearable_cache
 def _matching_files(
-    files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict
+    files: tuple[str, ...], match_group: FileGroupForCi | SelectiveTestType, match_dict: HashableDict
 ) -> list[str]:
     matched_files: list[str] = []
     match_regexps = match_dict[match_group]
@@ -815,7 +820,9 @@ class SelectiveChecks:
     def kubernetes_combos_list_as_string(self) -> str:
         return " ".join(self.kubernetes_combos)
 
-    def _matching_files(self, match_group: FileGroupForCi, match_dict: HashableDict) -> list[str]:
+    def _matching_files(
+        self, match_group: FileGroupForCi | SelectiveTestType, match_dict: HashableDict
+    ) -> list[str]:
         return _matching_files(self._files, match_group, match_dict)
 
     def _should_be_run(self, source_area: FileGroupForCi) -> bool:
@@ -1023,9 +1030,7 @@ class SelectiveChecks:
             or self.run_ui_e2e_tests
         )
 
-    def _select_test_type_if_matching(
-        self, test_types: set[str], test_type: SelectiveCoreTestType
-    ) -> list[str]:
+    def _select_test_type_if_matching(self, test_types: set[str], test_type: SelectiveTestType) -> list[str]:
         matched_files = self._matching_files(test_type, TEST_TYPE_MATCHES)
         count = len(matched_files)
         if count > 0:
@@ -1304,19 +1309,27 @@ class SelectiveChecks:
         try:
             import tomllib
         except ImportError:
-            import tomli as tomllib
+            import tomli as tomllib  # type: ignore[no-redef]
 
         self._new_toml = tomllib.loads(new_result.stdout)
         self._old_toml = tomllib.loads(old_result.stdout)
         return True
 
     @cached_property
+    def is_uv_lock_update(self) -> bool:
+        """True when uv.lock changed — used to gate constraint branch commits on push."""
+        if len(self._matching_files(FileGroupForCi.UV_LOCK_FILE, CI_FILE_GROUP_MATCHES)) > 0:
+            console_print("[warning]uv.lock file changed[/]")
+            return True
+        return False
+
+    @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
         if len(self._matching_files(FileGroupForCi.ALL_PYPROJECT_TOML_FILES, CI_FILE_GROUP_MATCHES)) > 0:
             console_print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True
-        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]:
-            console_print("[warning]Upgrade to newer dependencies: Push or Schedule event[/]")
+        if self._github_event == GithubEvents.SCHEDULE:
+            console_print("[warning]Upgrade to newer dependencies: Schedule event[/]")
             return True
         if UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels:
             console_print(
@@ -1370,6 +1383,7 @@ class SelectiveChecks:
     def skip_prek_hooks(self) -> str:
         prek_hooks_to_skip = set()
         prek_hooks_to_skip.add("identity")
+        prek_hooks_to_skip.add("update-uv-lock")
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             prek_hooks_to_skip.update(
@@ -1468,7 +1482,7 @@ class SelectiveChecks:
         return " ".join(sorted(p for p in affected_providers if p not in suspended))
 
     def get_job_label(self, event_type: str, branch: str):
-        import requests
+        import requests  # type: ignore[import-untyped]
 
         job_name = "Basic tests"
         workflow_name = "ci-amd-arm.yml"
@@ -1716,7 +1730,7 @@ class SelectiveChecks:
         try:
             import tomllib
         except ImportError:
-            import tomli as tomllib
+            import tomli as tomllib  # type: ignore[no-redef]
 
         violations = []
         for pyproject_file in pyproject_files:

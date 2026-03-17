@@ -249,10 +249,9 @@ def _run_test(
     pytest_args.extend(extra_pytest_args)
     # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
     # Which might be the case if we are ignoring some providers during compatibility checks
-    pytest_args_before_skip = pytest_args
     pytest_args = [arg for arg in pytest_args if f"--ignore={arg}" not in pytest_args]
-    # Double check: If no test is leftover we can skip running the test
-    if pytest_args_before_skip != pytest_args and pytest_args[0].startswith("--"):
+    # If no test directory is left (all positional args were excluded/ignored), skip
+    if pytest_args and pytest_args[0].startswith("--"):
         return 0, f"Skipped test, no tests needed: {shell_params.test_type}"
     run_cmd.extend(pytest_args)
     try:
@@ -1402,7 +1401,10 @@ option_e2e_test_mode = click.option(
     default="basic",
     show_default=True,
     envvar="E2E_TEST_MODE",
-    type=click.Choice(["basic", "remote_log", "xcom_object_storage"], case_sensitive=False),
+    type=click.Choice(
+        ["basic", "remote_log", "remote_log_elasticsearch", "xcom_object_storage"],
+        case_sensitive=False,
+    ),
 )
 
 

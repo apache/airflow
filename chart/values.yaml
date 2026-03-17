@@ -634,8 +634,7 @@ workers:
   revisionHistoryLimit: ~
 
   # Command to use when running Airflow Celery workers and using pod-template-file (templated)
-  # Use workers.celery.command and/or workers.kubernetes.command to separate value between
-  # Celery workers and pod-template-file
+  # (deprecated, use workers.celery.command and/or workers.kubernetes.command instead)
   command: ~
 
   # Args to use when running Airflow Celery workers (templated)
@@ -684,6 +683,7 @@ workers:
 
   # When not set, the values defined in the global securityContext will
   # be used in Airflow Celery workers and pod-template-file
+  # (deprecated, use workers.celery.securityContexts and/or workers.kubernetes.securityContexts instead)
   securityContext: {}
   #  runAsUser: 50000
   #  fsGroup: 0
@@ -691,16 +691,25 @@ workers:
 
   # Detailed default security context for the
   # Airflow Celery workers and pod-template-file on container and pod level
-  # Use workers.celery.securityContexts and/or workers.kubernetes.securityContexts to separate value between
-  # Celery workers and pod-template-file
+  # (deprecated, use workers.celery.securityContexts and/or workers.kubernetes.securityContexts instead)
   securityContexts:
+    # (deprecated, use
+    #   workers.celery.securityContexts.pod and/or
+    #   workers.kubernetes.securityContexts.pod
+    # instead)
     pod: {}
+    # (deprecated, use
+    #   workers.celery.securityContexts.container and/or
+    #   workers.kubernetes.securityContexts.container
+    # instead)
     container: {}
 
   # Container level Lifecycle Hooks definition for
   # Airflow Celery workers and pods created with pod-template-file
-  # Use workers.celery.containerLifecycleHooks and/or workers.kubernetes.containerLifecycleHooks
-  # to separate value between Celery workers and pod-template-file.
+  # (deprecated, use
+  #   workers.celery.containerLifecycleHooks and/or
+  #   workers.kubernetes.containerLifecycleHooks
+  # instead)
   containerLifecycleHooks: {}
 
   # Airflow Celery workers pod disruption budget
@@ -854,12 +863,19 @@ workers:
       container: {}
 
   # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
-  # Use workers.celery.kerberosSidecar and/or workers.kubernetes.kerberosSidecar to separate
-  # value between Celery workers and pod-template-file
+  # (deprecated, use workers.celery.kerberosSidecar and/or workers.kubernetes.kerberosSidecar instead)
   kerberosSidecar:
     # Enable kerberos sidecar
+    # (deprecated, use
+    #   workers.celery.kerberosSidecar.enabled and/or
+    #   workers.kubernetes.kerberosSidecar.enabled
+    # instead)
     enabled: false
 
+    # (deprecated, use
+    #   workers.celery.kerberosSidecar.resources and/or
+    #   workers.kubernetes.kerberosSidecar.resources
+    # instead)
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -869,19 +885,41 @@ workers:
     #   memory: 128Mi
 
     # Detailed default security context for kerberos sidecar on container level
+    # (deprecated, use
+    #   workers.celery.kerberosSidecar.securityContexts and/or
+    #   workers.kubernetes.kerberosSidecar.securityContexts
+    # instead)
     securityContexts:
+      # (deprecated, use
+      #   workers.celery.kerberosSidecar.securityContexts.container and/or
+      #   workers.kubernetes.kerberosSidecar.securityContexts.container
+      # instead)
       container: {}
 
     # Container level lifecycle hooks
+    # (deprecated, use
+    #   workers.celery.kerberosSidecar.containerLifecycleHooks and/or
+    #   workers.kubernetes.kerberosSidecar.containerLifecycleHooks
+    # instead)
     containerLifecycleHooks: {}
 
   # Kerberos init container configuration for Airflow Celery workers and pods created with pod-template-file
-  # Use workers.celery.kerberosInitContainer and/or workers.kubernetes.kerberosInitContainer to separate
-  # value between Celery workers and pod-template-file
+  # (deprecated, use
+  #   workers.celery.kerberosInitContainer and/or
+  #   workers.kubernetes.kerberosInitContainer
+  # instead)
   kerberosInitContainer:
     # Enable kerberos init container
+    # (deprecated, use
+    #   workers.celery.kerberosInitContainer.enabled and/or
+    #   workers.kubernetes.kerberosInitContainer.enabled
+    # instead)
     enabled: false
 
+    # (deprecated, use
+    #   workers.celery.kerberosInitContainer.resources and/or
+    #   workers.kubernetes.kerberosInitContainer.resources
+    # instead)
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -891,14 +929,26 @@ workers:
     #   memory: 128Mi
 
     # Detailed default security context for kerberos init container
+    # (deprecated, use
+    #   workers.celery.kerberosInitContainer.securityContexts and/or
+    #   workers.kubernetes.kerberosInitContainer.securityContexts
+    # instead)
     securityContexts:
+      # (deprecated, use
+      #   workers.celery.kerberosInitContainer.securityContexts.container and/or
+      #   workers.kubernetes.kerberosInitContainer.securityContexts.container
+      # instead)
       container: {}
 
     # Container level lifecycle hooks
+    # (deprecated, use
+    #   workers.celery.kerberosInitContainer.containerLifecycleHooks and/or
+    #   workers.kubernetes.kerberosInitContainer.containerLifecycleHooks
+    # instead)
     containerLifecycleHooks: {}
 
   # Resource configuration for Airflow Celery workers and pods created with pod-template-file
-  # (deprecated, use `workers.celery.resources` or/and `workers.kubernetes.resources` instead)
+  # (deprecated, use workers.celery.resources or/and workers.kubernetes.resources instead)
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -909,8 +959,10 @@ workers:
 
   # Grace period for tasks to finish after SIGTERM is sent from kubernetes.
   # It is used by Airflow Celery workers and pod-template-file.
-  # Use workers.celery.terminationGracePeriodSeconds and/or workers.kubernetes.terminationGracePeriodSeconds
-  # to separate value between Celery workers and pod-template-file
+  # (deprecated, use
+  #   workers.celery.terminationGracePeriodSeconds or/and
+  #   workers.kubernetes.terminationGracePeriodSeconds
+  # instead)
   terminationGracePeriodSeconds: 600
 
   # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
@@ -947,8 +999,7 @@ workers:
   extraPorts: []
 
   # Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file
-  # Use workers.celery.nodeSelector and/or workers.kubernetes.nodeSelector to separate value
-  # between Celery workers and pod-template-file
+  # (deprecated, use workers.celery.nodeSelector or/and workers.kubernetes.nodeSelector instead)
   nodeSelector: {}
 
   runtimeClassName: ~

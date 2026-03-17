@@ -210,9 +210,16 @@ def get_allowed_llm_models() -> list[str]:
 
     Checks .build/llm_models_cache.json for a cached model list (refreshed at most
     every 24 hours). Falls back to the hardcoded _FALLBACK_LLM_MODELS.
+    When generating command images for documentation, always uses the hardcoded
+    fallback list to ensure deterministic output.
     """
     import json
     import time
+
+    from airflow_breeze.utils.recording import generating_command_images
+
+    if generating_command_images():
+        return list(_FALLBACK_LLM_MODELS)
 
     try:
         from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
