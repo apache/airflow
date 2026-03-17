@@ -18,8 +18,8 @@
  */
 import { useEffect, useState } from "react";
 
-import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import type { GridTISummaries, TaskInstanceState } from "openapi/requests";
+import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 /**
