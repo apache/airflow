@@ -317,7 +317,7 @@ class TestOtelIntegration:
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            scheduler_process, apiserver_process = self.start_scheduler()
+            scheduler_process, apiserver_process = self.start_scheduler(capture_output=True)
 
             dag_id = "otel_test_dag"
 
@@ -363,10 +363,7 @@ class TestOtelIntegration:
                 "The apiserver process status is None, which means that it hasn't terminated as expected."
             )
 
-        out, err = capfd.readouterr()
-        log.info("out-start --\n%s\n-- out-end", out)
-        log.info("err-start --\n%s\n-- err-end", err)
-
+        out, _err = capfd.readouterr()
         return out, dag
 
     def _get_ti(self, dag_id: str, run_id: str, task_id: str) -> Any | None:
@@ -482,9 +479,7 @@ class TestOtelIntegration:
                 "The apiserver process status is None, which means that it hasn't terminated as expected."
             )
 
-        out, err = capfd.readouterr()
-        log.info("out-start --\n%s\n-- out-end", out)
-        log.info("err-start --\n%s\n-- err-end", err)
+        capfd.readouterr()
 
         host = "jaeger"
         service_name = os.environ.get("OTEL_SERVICE_NAME", "test")
@@ -513,19 +508,22 @@ class TestOtelIntegration:
             "dag_run.otel_test_dag": None,
         }
 
-    def start_scheduler(self):
+    def start_scheduler(self, capture_output: bool = False):
+        stdout = None if capture_output else subprocess.DEVNULL
+        stderr = None if capture_output else subprocess.DEVNULL
+
         scheduler_process = subprocess.Popen(
             self.scheduler_command_args,
             env=os.environ.copy(),
-            stdout=None,
-            stderr=None,
+            stdout=stdout,
+            stderr=stderr,
         )
 
         apiserver_process = subprocess.Popen(
             self.apiserver_command_args,
             env=os.environ.copy(),
-            stdout=None,
-            stderr=None,
+            stdout=stdout,
+            stderr=stderr,
         )
 
         # Wait to ensure both processes have started.
