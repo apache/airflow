@@ -3572,20 +3572,6 @@ export type GenerateTokenData = {
 
 export type GenerateTokenResponse2 = GenerateTokenResponse;
 
-export type GetPartitionedDagRunsData = {
-    dagId?: string | null;
-    hasCreatedDagRunId?: boolean | null;
-};
-
-export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
-
-export type GetPendingPartitionedDagRunData = {
-    dagId: string;
-    partitionKey: string;
-};
-
-export type GetPendingPartitionedDagRunResponse = PartitionedDagRunDetailResponse;
-
 export type GetDependenciesData = {
     dependencyType?: 'scheduling' | 'data';
     nodeId?: string | null;
@@ -3718,6 +3704,20 @@ export type GetCalendarData = {
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
+
+export type GetPartitionedDagRunsData = {
+    dagId?: string | null;
+    hasCreatedDagRunId?: boolean | null;
+};
+
+export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
+
+export type GetPendingPartitionedDagRunData = {
+    dagId: string;
+    partitionKey: string;
+};
+
+export type GetPendingPartitionedDagRunResponse = PartitionedDagRunDetailResponse;
 
 export type ListTeamsData = {
     limit?: number;
@@ -6811,36 +6811,6 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/partitioned_dag_runs': {
-        get: {
-            req: GetPartitionedDagRunsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: PartitionedDagRunCollectionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
-        get: {
-            req: GetPendingPartitionedDagRunData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: PartitionedDagRunDetailResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
     '/ui/dependencies': {
         get: {
             req: GetDependenciesData;
@@ -7046,6 +7016,36 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/partitioned_dag_runs': {
+        get: {
+            req: GetPartitionedDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: PartitionedDagRunCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
+        get: {
+            req: GetPendingPartitionedDagRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: PartitionedDagRunDetailResponse;
                 /**
                  * Validation Error
                  */

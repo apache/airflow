@@ -176,7 +176,7 @@ def get_dag_deadline_alerts(
     if not serialized_dag:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"DAG with dag_id: '{dag_id}' not found",
+            f"Dag with id {dag_id} was not found",
         )
 
     query = select(DeadlineAlert).where(

@@ -790,20 +790,6 @@ export type AuthLinksServiceGetCurrentUserInfoDefaultResponse = Awaited<ReturnTy
 export type AuthLinksServiceGetCurrentUserInfoQueryResult<TData = AuthLinksServiceGetCurrentUserInfoDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAuthLinksServiceGetCurrentUserInfoKey = "AuthLinksServiceGetCurrentUserInfo";
 export const UseAuthLinksServiceGetCurrentUserInfoKeyFn = (queryKey?: Array<unknown>) => [useAuthLinksServiceGetCurrentUserInfoKey, ...(queryKey ?? [])];
-export type PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse = Awaited<ReturnType<typeof PartitionedDagRunService.getPartitionedDagRuns>>;
-export type PartitionedDagRunServiceGetPartitionedDagRunsQueryResult<TData = PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const usePartitionedDagRunServiceGetPartitionedDagRunsKey = "PartitionedDagRunServiceGetPartitionedDagRuns";
-export const UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn = ({ dagId, hasCreatedDagRunId }: {
-  dagId?: string;
-  hasCreatedDagRunId?: boolean;
-} = {}, queryKey?: Array<unknown>) => [usePartitionedDagRunServiceGetPartitionedDagRunsKey, ...(queryKey ?? [{ dagId, hasCreatedDagRunId }])];
-export type PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse = Awaited<ReturnType<typeof PartitionedDagRunService.getPendingPartitionedDagRun>>;
-export type PartitionedDagRunServiceGetPendingPartitionedDagRunQueryResult<TData = PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const usePartitionedDagRunServiceGetPendingPartitionedDagRunKey = "PartitionedDagRunServiceGetPendingPartitionedDagRun";
-export const UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn = ({ dagId, partitionKey }: {
-  dagId: string;
-  partitionKey: string;
-}, queryKey?: Array<unknown>) => [usePartitionedDagRunServiceGetPendingPartitionedDagRunKey, ...(queryKey ?? [{ dagId, partitionKey }])];
 export type DependenciesServiceGetDependenciesDefaultResponse = Awaited<ReturnType<typeof DependenciesService.getDependencies>>;
 export type DependenciesServiceGetDependenciesQueryResult<TData = DependenciesServiceGetDependenciesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetDependencies";
@@ -921,6 +907,20 @@ export const UseCalendarServiceGetCalendarKeyFn = ({ dagId, granularity, logical
   partitionDateLt?: string;
   partitionDateLte?: string;
 }, queryKey?: Array<unknown>) => [useCalendarServiceGetCalendarKey, ...(queryKey ?? [{ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }])];
+export type PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse = Awaited<ReturnType<typeof PartitionedDagRunService.getPartitionedDagRuns>>;
+export type PartitionedDagRunServiceGetPartitionedDagRunsQueryResult<TData = PartitionedDagRunServiceGetPartitionedDagRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const usePartitionedDagRunServiceGetPartitionedDagRunsKey = "PartitionedDagRunServiceGetPartitionedDagRuns";
+export const UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn = ({ dagId, hasCreatedDagRunId }: {
+  dagId?: string;
+  hasCreatedDagRunId?: boolean;
+} = {}, queryKey?: Array<unknown>) => [usePartitionedDagRunServiceGetPartitionedDagRunsKey, ...(queryKey ?? [{ dagId, hasCreatedDagRunId }])];
+export type PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse = Awaited<ReturnType<typeof PartitionedDagRunService.getPendingPartitionedDagRun>>;
+export type PartitionedDagRunServiceGetPendingPartitionedDagRunQueryResult<TData = PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const usePartitionedDagRunServiceGetPendingPartitionedDagRunKey = "PartitionedDagRunServiceGetPendingPartitionedDagRun";
+export const UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn = ({ dagId, partitionKey }: {
+  dagId: string;
+  partitionKey: string;
+}, queryKey?: Array<unknown>) => [usePartitionedDagRunServiceGetPendingPartitionedDagRunKey, ...(queryKey ?? [{ dagId, partitionKey }])];
 export type TeamsServiceListTeamsDefaultResponse = Awaited<ReturnType<typeof TeamsService.listTeams>>;
 export type TeamsServiceListTeamsQueryResult<TData = TeamsServiceListTeamsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTeamsServiceListTeamsKey = "TeamsServiceListTeams";
