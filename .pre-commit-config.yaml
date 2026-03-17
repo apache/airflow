@@ -923,13 +923,13 @@ repos:
         name: Extract and validate Agent Skills from AGENTS.md
         language: python
         entry: python scripts/ci/pre_commit/extract_agent_skills.py
-        files: ^AGENTS\.md$
+        files: ^AGENTS\.md$|^contributing-docs/.*\.rst$
         pass_filenames: false
       - id: check-agent-skills-drift
         name: Check Agent Skills manifest is in sync
         language: python
         entry: python scripts/ci/pre_commit/extract_agent_skills.py --check
-        files: ^AGENTS\.md$|^contributing-docs/agent_skills/skills\.json$
+        files: ^AGENTS\.md$|^contributing-docs/.*\.rst$|^contributing-docs/agent_skills/skills\.json$
         pass_filenames: false
       - id: generate-skill-graph
         name: Generate Agent Skills dependency graph

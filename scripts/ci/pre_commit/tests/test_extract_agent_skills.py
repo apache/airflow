@@ -29,7 +29,7 @@ import pytest
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from extract_agent_skills import parse_skills, validate_skill
+from extract_agent_skills import extract_all_skills, parse_skills, validate_skill
 
 VALID_SKILL_RST = """
 .. agent-skill::
@@ -317,6 +317,117 @@ def test_check_mode_prints_diff(tmp_path):
     )
     assert result.returncode == 1
     assert "DRIFT DETECTED" in result.stdout
+
+
+def test_extracts_from_rst_file(tmp_path):
+    """Extractor picks up agent-skill from a .rst file under docs_dir."""
+    rst_content = """
+.. agent-skill::
+   :id: only-in-rst
+   :context: host
+   :category: testing
+   :description: Skill defined in RST only
+
+   .. code-block:: bash
+
+      echo from-rst
+
+   .. agent-skill-expected-output::
+
+      from-rst
+"""
+    (tmp_path / "contributing-docs").mkdir(parents=True)
+    (tmp_path / "contributing-docs" / "test.rst").write_text(rst_content)
+    (tmp_path / "AGENTS.md").write_text("")
+    out_file = tmp_path / "skills.json"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "extract_agent_skills.py"),
+            "--docs-file",
+            str(tmp_path / "AGENTS.md"),
+            "--docs-dir",
+            str(tmp_path / "contributing-docs"),
+            "--output",
+            str(out_file),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0
+    data = json.loads(out_file.read_text())
+    skills = data["skills"]
+    assert len(skills) == 1
+    assert skills[0]["id"] == "only-in-rst"
+    assert "from-rst" in skills[0]["command"]
+
+
+def test_extracts_from_both_sources(tmp_path):
+    """Extractor merges skills from AGENTS.md and from a .rst file."""
+    agents_content = """
+.. agent-skill::
+   :id: from-agents
+   :context: host
+   :category: environment
+   :description: From AGENTS.md
+
+   .. code-block:: bash
+
+      echo agents
+
+   .. agent-skill-expected-output::
+
+      agents
+"""
+    rst_content = """
+.. agent-skill::
+   :id: from-rst
+   :context: host
+   :category: testing
+   :description: From RST
+
+   .. code-block:: bash
+
+      echo rst
+
+   .. agent-skill-expected-output::
+
+      rst
+"""
+    (tmp_path / "AGENTS.md").write_text(agents_content)
+    (tmp_path / "contributing-docs").mkdir(parents=True)
+    (tmp_path / "contributing-docs" / "extra.rst").write_text(rst_content)
+    out_file = tmp_path / "skills.json"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "extract_agent_skills.py"),
+            "--docs-file",
+            str(tmp_path / "AGENTS.md"),
+            "--docs-dir",
+            str(tmp_path / "contributing-docs"),
+            "--output",
+            str(out_file),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0
+    data = json.loads(out_file.read_text())
+    skills = {s["id"]: s for s in data["skills"]}
+    assert "from-agents" in skills
+    assert "from-rst" in skills
+    assert len(skills) == 2
+
+
+def test_rst_skill_appears_in_manifest():
+    """After extraction, run-tests-uv-first from contributing-docs RST is in skills.json."""
+    root = SCRIPT_DIR.resolve().parents[2]  # repo root (pre_commit -> ci -> scripts -> root)
+    skills = extract_all_skills(root, "AGENTS.md", "contributing-docs/")
+    ids = [s["id"] for s in skills]
+    assert "run-tests-uv-first" in ids
 
 
 def test_multiple_skills_extracted():

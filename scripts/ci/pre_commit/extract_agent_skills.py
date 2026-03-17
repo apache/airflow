@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Extract and validate .. agent-skill:: blocks from AGENTS.md into skills.json."""
+"""Extract and validate .. agent-skill:: blocks from AGENTS.md and contributing-docs/*.rst into skills.json."""
 from __future__ import annotations
 
 import argparse
@@ -25,13 +25,26 @@ import re
 import sys
 from pathlib import Path
 
+
+def collect_source_texts(root: Path, docs_file: str, docs_dir: str) -> list[tuple[Path, str]]:
+    """Return list of (path, text) for AGENTS.md and all .rst under docs_dir."""
+    result: list[tuple[Path, str]] = []
+    agents_path = Path(docs_file) if Path(docs_file).is_absolute() else root / docs_file
+    if agents_path.exists():
+        result.append((agents_path, agents_path.read_text(encoding="utf-8")))
+    contrib_dir = Path(docs_dir) if Path(docs_dir).is_absolute() else root / docs_dir
+    if contrib_dir.is_dir():
+        for rst_path in sorted(contrib_dir.rglob("*.rst")):
+            result.append((rst_path, rst_path.read_text(encoding="utf-8")))
+    return result
+
 VALID_CONTEXTS = {"host", "breeze", "either"}
 VALID_CATEGORIES = {"environment", "testing", "linting", "providers", "dags", "documentation"}
 ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
 def parse_skills(text: str) -> list[dict]:
-    """Extract agent-skill blocks and return list of skill dicts."""
+    """Extract agent-skill blocks from one file's text; return list of skill dicts."""
     blocks = re.split(r"\n\.\. agent-skill::\s*\n", text)
     skills = []
     for block in blocks[1:]:  # skip content before first block
@@ -86,16 +99,30 @@ def _normalize_skill_for_compare(skill: dict) -> dict:
     return {k: skill.get(k, "") for k in sorted(keys) if k in skill or k in keys}
 
 
-def check_drift(docs_path: Path, out_path: Path, docs_file: str) -> int:
+def extract_all_skills(root: Path, docs_file: str, docs_dir: str) -> list[dict]:
+    """Collect skills from AGENTS.md and all .rst under docs_dir; later occurrence wins on duplicate id."""
+    sources = collect_source_texts(root, docs_file, docs_dir)
+    by_id: dict[str, dict] = {}
+    for path, text in sources:
+        try:
+            for skill in parse_skills(text):
+                sid = skill.get("id")
+                if sid:
+                    by_id[sid] = skill
+        except Exception as e:
+            raise RuntimeError(f"Failed to parse {path}: {e}") from e
+    return list(by_id.values())
+
+
+def check_drift(root: Path, out_path: Path, docs_file: str, docs_dir: str) -> int:
     """
-    Compare re-extracted skills from AGENTS.md with skills.json on disk.
+    Compare re-extracted skills from AGENTS.md and contributing-docs/*.rst with skills.json on disk.
     Print diff (added/removed/modified) and return 0 if in sync, 1 if drifted.
     """
-    text = docs_path.read_text(encoding="utf-8")
     try:
-        extracted = parse_skills(text)
+        extracted = extract_all_skills(root, docs_file, docs_dir)
     except Exception as e:
-        print(f"Failed to parse AGENTS.md: {e}", file=sys.stderr)
+        print(f"Failed to extract skills: {e}", file=sys.stderr)
         return 1
     for i, skill in enumerate(extracted):
         try:
@@ -125,7 +152,7 @@ def check_drift(docs_path: Path, out_path: Path, docs_file: str) -> int:
                 modified.append(sid)
 
     if not added and not removed and not modified:
-        print("OK: skills.json is in sync with AGENTS.md")
+        print("OK: skills.json is in sync with AGENTS.md and contributing-docs/*.rst")
         return 0
 
     if added:
@@ -147,6 +174,11 @@ def check_drift(docs_path: Path, out_path: Path, docs_file: str) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Extract agent-skill blocks into skills.json")
     parser.add_argument("--docs-file", default="AGENTS.md", help="Path to AGENTS.md")
+    parser.add_argument(
+        "--docs-dir",
+        default="contributing-docs/",
+        help="Directory to scan for .rst files (default: contributing-docs/)",
+    )
     parser.add_argument("--output", default="contributing-docs/agent_skills/skills.json", help="Output JSON path")
     parser.add_argument(
         "--check",
@@ -155,14 +187,16 @@ def main() -> int:
     )
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
-    docs_path = root / args.docs_file
-    out_path = root / args.output
+    out_path = Path(args.output) if Path(args.output).is_absolute() else root / args.output
 
     if args.check:
-        return check_drift(docs_path, out_path, args.docs_file)
+        return check_drift(root, out_path, args.docs_file, args.docs_dir)
 
-    text = docs_path.read_text(encoding="utf-8")
-    skills = parse_skills(text)
+    try:
+        skills = extract_all_skills(root, args.docs_file, args.docs_dir)
+    except Exception as e:
+        print(f"Extraction error: {e}", file=sys.stderr)
+        return 1
     for i, skill in enumerate(skills):
         try:
             validate_skill(skill, i)
@@ -172,7 +206,7 @@ def main() -> int:
     out = {
         "version": "1.0",
         "generated_by": "extract_agent_skills.py",
-        "generated_from": args.docs_file,
+        "generated_from": f"{args.docs_file}, {args.docs_dir}*.rst",
         "skill_count": len(skills),
         "skills": skills,
     }
