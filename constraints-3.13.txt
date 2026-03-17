@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-16T22:16:21.049905
+# This constraints file was automatically generated on 2026-03-17T02:50:53.184406
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -517,7 +517,7 @@ pexpect==4.9.0
 pgvector==0.4.2
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
-pinotdb==9.1.0
+pinotdb==9.1.1
 platformdirs==4.9.4
 pluggy==1.6.0
 polars-runtime-32==1.39.0
@@ -539,7 +539,7 @@ py-spy==0.4.1
 py4j==0.10.9.9
 pyOpenSSL==25.1.0
 pyarrow==23.0.1
-pyasn1==0.6.2
+pyasn1==0.6.3
 pyasn1_modules==0.4.2
 pybreaker==1.4.1
 pycountry==26.2.16
@@ -674,7 +674,7 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
-uv==0.10.10
+uv==0.10.11
 uvicorn==0.42.0
 uvloop==0.22.1
 validators==0.35.0

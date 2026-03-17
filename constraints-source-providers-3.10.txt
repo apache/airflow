@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-16T22:12:35.088821
+# This constraints file was automatically generated on 2026-03-17T02:46:12.477897
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -62,16 +62,13 @@ aiosqlite==0.21.0
 airbyte-api==0.53.0
 alabaster==1.0.0
 alembic==1.18.4
-alibabacloud-adb20211201==3.7.0
+alibabacloud-adb20211201==3.7.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.8
-alibabacloud-openapi-util==0.2.4
+alibabacloud-tea-openapi==0.4.3
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
-alibabacloud_endpoint_util==0.0.4
 alibabacloud_gateway_spi==0.0.3
-alibabacloud_tea_openapi==0.3.16
-alibabacloud_tea_xml==0.0.3
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
@@ -148,7 +145,7 @@ cffi==2.0.0
 cfgv==3.5.0
 cfn-lint==1.41.0
 chardet==6.0.0.post1
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
 ciso8601==2.3.3
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
@@ -164,9 +161,10 @@ confluent-kafka==2.13.2
 coverage==7.13.4
 crcmod==1.7
 cron_descriptor==2.0.6
-croniter==6.0.0
-cryptography==46.0.5
+croniter==6.2.2
+cryptography==44.0.3
 curlify==3.0.0
+darabonba-core==1.0.5
 databricks-sql-connector==4.2.5
 databricks-sqlalchemy==2.0.9
 dataclasses-json==0.6.7
@@ -318,7 +316,7 @@ ibmcloudant==0.11.4
 icalendar==7.0.3
 icdiff==2.0.10
 id==1.6.1
-identify==2.6.17
+identify==2.6.18
 idna==3.11
 ijson==3.4.0.post0
 imagesize==2.0.0
@@ -343,7 +341,7 @@ jeepney==0.9.0
 jiter==0.13.0
 jmespath==0.10.0
 joblib==1.5.3
-joserfc==1.6.3
+joserfc==1.5.0
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.8.0
@@ -370,7 +368,7 @@ libcst==1.8.6
 librt==0.8.1
 limits==5.8.0
 linkify-it-py==2.1.0
-litellm==1.82.2
+litellm==1.82.3
 lockfile==0.12.2
 logfire-api==4.29.0
 looker_sdk==26.4.0
@@ -483,7 +481,7 @@ polars==1.39.0
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.5.1
-prek==0.3.5
+prek==0.3.6
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.24.1
@@ -499,7 +497,7 @@ pure_eval==0.2.3
 py-partiql-parser==0.6.3
 py-spy==0.4.1
 py4j==0.10.9.9
-pyOpenSSL==25.3.0
+pyOpenSSL==25.1.0
 pyarrow==23.0.1
 pyasn1==0.6.2
 pyasn1_modules==0.4.2
@@ -508,7 +506,7 @@ pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
 pydantic-ai-slim==1.38.0
-pydantic-extra-types==2.11.0
+pydantic-extra-types==2.11.1
 pydantic-graph==1.38.0
 pydantic-settings==2.13.1
 pydantic==2.12.5
@@ -527,7 +525,7 @@ pyodbc==5.3.0
 pyodps==0.12.5.1
 pyparsing==3.3.2
 pyproject_hooks==1.2.0
-pypsrp==0.9.0
+pypsrp==0.9.1
 pyroaring==1.0.3
 pyspark-client==4.0.2
 pyspark==4.1.1
@@ -555,7 +553,7 @@ python-ldap==3.4.5
 python-multipart==0.0.22
 python-on-whales==0.81.0
 python-slugify==8.0.4
-python-telegram-bot==22.6
+python-telegram-bot==22.7
 python3-saml==1.16.0
 pytokens==0.4.1
 pytz==2026.1.post1
@@ -636,7 +634,7 @@ spython==0.3.14
 sqlalchemy-bigquery==1.16.0
 sqlalchemy-spanner==1.17.2
 sqlalchemy_drill==1.1.10
-sqlglot==29.0.1
+sqlglot==30.0.1
 sqlparse==0.5.5
 sse-starlette==3.3.2
 sshtunnel==0.4.0
@@ -683,9 +681,9 @@ types-PyYAML==6.0.12.20250915
 types-aiofiles==25.1.0.20251011
 types-cachetools==6.2.0.20251022
 types-certifi==2021.10.8.3
-types-cffi==1.17.0.20260307
-types-croniter==6.0.0.20250809
-types-docutils==0.22.3.20260223
+types-cffi==2.0.0.20260316
+types-croniter==6.2.2.20260316
+types-docutils==0.22.3.20260316
 types-paramiko==3.5.0.20250801
 types-protobuf==6.32.1.20260221
 types-pyOpenSSL==24.1.0.20240722
@@ -709,7 +707,7 @@ urllib3==2.6.3
 userpath==1.9.2
 uuid6==2025.0.1
 uv==0.10.10
-uvicorn==0.41.0
+uvicorn==0.42.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
@@ -728,7 +726,7 @@ xmlsec==1.3.17
 xmltodict==1.0.4
 yamllint==1.38.0
 yandex-query-client==0.1.4
-yandexcloud==0.381.0
+yandexcloud==0.382.0
 yarl==1.23.0
 ydb-dbapi==0.1.19
 ydb==3.26.6
