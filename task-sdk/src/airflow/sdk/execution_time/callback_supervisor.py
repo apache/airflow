@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 import time
 from importlib import import_module
-from typing import TYPE_CHECKING, BinaryIO, ClassVar
+from typing import TYPE_CHECKING, BinaryIO, ClassVar, Protocol
 
 import attrs
 import structlog
@@ -39,7 +39,12 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
-    from airflow.executors.workloads.base import BundleInfo
+    # Core (airflow.executors.workloads.base.BundleInfo) and SDK (airflow.sdk.api.datamodels._generated.BundleInfo)
+    # are structurally identical, but MyPy treats them as different types. This Protocol makes MyPy happy.
+    class _BundleInfoLike(Protocol):
+        name: str
+        version: str | None
+
 
 __all__ = ["CallbackSubprocess", "supervise_callback"]
 
@@ -70,7 +75,7 @@ def execute_callback(
     :param log: Logger instance for recording execution.
     :return: Tuple of (success: bool, error_message: str | None)
     """
-    from airflow.models.callback import _accepts_context  # lazy import to avoid circular deps
+    from airflow.sdk._shared.module_loading import accepts_context
 
     if not callback_path:
         return False, "Callback path not found."
@@ -89,7 +94,7 @@ def execute_callback(
 
         # If the callback is a class then it is now instantiated and callable, call it.
         if callable(result):
-            context = callback_kwargs.get("context", {}) if _accepts_context(result) else {}
+            context = callback_kwargs.get("context", {}) if accepts_context(result) else {}
             log.debug("Calling result with context for %s", callback_path)
             result = result(context)
 
@@ -267,7 +272,7 @@ def supervise_callback(
     callback_path: str,
     callback_kwargs: dict,
     log_path: str | None = None,
-    bundle_info: BundleInfo | None = None,
+    bundle_info: _BundleInfoLike | None = None,
 ) -> int:
     """
     Run a single callback execution to completion in a supervised subprocess.
