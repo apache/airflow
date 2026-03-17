@@ -832,6 +832,9 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
 
+# Number of slices for core test types (splitting reduces memory per xdist collection)
+NUMBER_OF_CORE_SLICES = 2
+
 # Milestone Tag Assistant configuration
 # Labels indicating a bug fix PR that should have a milestone
 MILESTONE_BUG_LABELS: frozenset[str] = frozenset({"kind:bug", "type:bug-fix"})
