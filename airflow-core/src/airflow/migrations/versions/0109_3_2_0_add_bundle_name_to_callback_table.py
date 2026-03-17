@@ -20,7 +20,7 @@
 Add bundle_name to callback table.
 
 Revision ID: 1d6611b6ab7c
-Revises: 6222ce48e289
+Revises: 888b59e02a5b
 Create Date: 2026-03-17 00:23:45.305588
 
 """
@@ -37,7 +37,7 @@ from airflow.utils.sqlalchemy import ExtendedJSON
 
 # revision identifiers, used by Alembic.
 revision = "1d6611b6ab7c"
-down_revision = "6222ce48e289"
+down_revision = "888b59e02a5b"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
