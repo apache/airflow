@@ -86,6 +86,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--pin-versions",
                 "--update-chart-dependencies",
                 "--upgrade-important-versions",
+                "--update-uv-lock",
                 "--k8s-schema-sync",
             ],
         },
