@@ -137,7 +137,6 @@ def trigger_dag(
     *,
     triggered_by: DagRunTriggeredByType,
     run_type: DagRunType = DagRunType.MANUAL,
-    run_type: DagRunType = DagRunType.MANUAL,
     triggering_user_name: str | None = None,
     run_after: datetime | None = None,
     run_id: str | None = None,
