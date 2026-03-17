@@ -201,8 +201,9 @@ if __name__ == "__main__":
             if "=" in arg:
                 k, v = arg.split("=", 1)
                 params[k] = v
+        skills_json = Path(params.pop("skills_json")) if "skills_json" in params else SKILLS_JSON
         try:
-            print(get_command(skill_id, **params))
+            print(get_command(skill_id, skills_json=skills_json, **params))
         except (FileNotFoundError, KeyError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             sys.exit(1)
