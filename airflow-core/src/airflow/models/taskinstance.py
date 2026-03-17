@@ -20,7 +20,6 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
-import logging
 import math
 from collections import defaultdict
 from collections.abc import Collection, Iterable
@@ -31,6 +30,7 @@ from uuid import UUID
 
 import attrs
 import dill
+import structlog
 import uuid6
 from opentelemetry import trace
 from opentelemetry.trace import SpanContext, TraceFlags
@@ -104,8 +104,8 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 TR = TaskReschedule
 
-log = logging.getLogger(__name__)
-
+log = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -490,22 +490,23 @@ def uuid7() -> UUID:
 
 
 def _make_task_carrier(dag_run_context_carrier):
-    parent_otel_ctx = (
+    parent_context = (
         TraceContextTextMapPropagator().extract(dag_run_context_carrier) if dag_run_context_carrier else None
     )
-    parent_span = trace.get_current_span(parent_otel_ctx) if parent_otel_ctx is not None else None
-    parent_span_ctx = parent_span.get_span_context() if parent_span is not None else None
-    ctx = None
-    if parent_span_ctx is not None and parent_span_ctx.is_valid:
-        span_ctx = SpanContext(
-            trace_id=parent_span_ctx.trace_id,
-            span_id=parent_span_ctx.span_id,
-            is_remote=True,
-            trace_flags=TraceFlags(TraceFlags.SAMPLED),
-        )
-        ctx = trace.set_span_in_context(trace.NonRecordingSpan(span_ctx))
+
+    parent_span = trace.get_current_span(parent_context)
+    parent_span_ctx = parent_span.get_span_context()
+    span_ctx = SpanContext(
+        trace_id=parent_span_ctx.trace_id,
+        span_id=parent_span_ctx.span_id,
+        is_remote=True,
+        trace_flags=TraceFlags(TraceFlags.SAMPLED),
+    )
+    span = tracer.start_span("notused", context=parent_context)  # intentionally never closed
+    new_ctx = trace.set_span_in_context(span)
     carrier: dict[str, str] = {}
-    TraceContextTextMapPropagator().inject(carrier, context=ctx)
+    TraceContextTextMapPropagator().inject(carrier, context=new_ctx)
+    log.warning("making ti carrier", dag_run_carrier=dag_run_context_carrier, ti_carrier=carrier)
     return carrier
 
 

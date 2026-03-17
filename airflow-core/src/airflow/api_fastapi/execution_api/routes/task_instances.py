@@ -40,6 +40,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.traces import override_ids
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -437,27 +438,31 @@ def ti_update_state(
 
 def _emit_task_span(ti, state):
     log.info("making task span", ti=ti)
+
     ctx = TraceContextTextMapPropagator().extract(ti.context_carrier)
-    if not ti.start_date:
-        log.warning("ti has no start date", ti=ti)
-    span = tracer.start_span(
-        name=f"task_run.{ti.dag_id}",
-        start_time=int((ti.start_date or timezone.utcnow()).timestamp() * 1e9),
-        context=ctx,
-    )
-    span.set_attributes(
-        {
-            "airflow.dag_id": ti.dag_id,
-            "airflow.task_id": ti.task_id,
-            "airflow.dag_run.run_id": ti.run_id,
-            "airflow.task_instance.try_number": ti.try_number,
-            "airflow.task_instance.map_index": ti.map_index if ti.map_index is not None else -1,
-            "airflow.task_instance.state": state,
-        }
-    )
-    status_code = StatusCode.OK if state == TaskInstanceState.SUCCESS else StatusCode.ERROR
-    span.set_status(status_code)
-    span.end()
+    span = trace.get_current_span(context=ctx)
+    span_context = span.get_span_context()
+    with override_ids(span_context.trace_id, span_context.span_id):
+        if not ti.start_date:
+            log.warning("ti has no start date", ti=ti)
+        span = tracer.start_span(
+            name=f"task_run.{ti.dag_id}",
+            start_time=int((ti.start_date or timezone.utcnow()).timestamp() * 1e9),
+            context=ctx,
+        )
+        span.set_attributes(
+            {
+                "airflow.dag_id": ti.dag_id,
+                "airflow.task_id": ti.task_id,
+                "airflow.dag_run.run_id": ti.run_id,
+                "airflow.task_instance.try_number": ti.try_number,
+                "airflow.task_instance.map_index": ti.map_index if ti.map_index is not None else -1,
+                "airflow.task_instance.state": state,
+            }
+        )
+        status_code = StatusCode.OK if state == TaskInstanceState.SUCCESS else StatusCode.ERROR
+        span.set_status(status_code)
+        span.end()
 
 
 def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> None:
