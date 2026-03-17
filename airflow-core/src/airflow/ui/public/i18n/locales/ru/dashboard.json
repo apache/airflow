@@ -1,7 +1,7 @@
 {
   "favorite": {
-    "favoriteDags_one": "Первый {{count}} избранный Dag",
     "favoriteDags_few": "Первые {{count}} избранных Dag-а",
+    "favoriteDags_one": "Первый {{count}} избранный Dag",
     "favoriteDags_other": "Первые {{count}} избранных Dag-ов",
     "noDagRuns": "Для этого Dag-а еще нет запусков.",
     "noFavoriteDags": "Ещё нет избранных. Нажмите на иконку со звёздочкой рядом с Dag-ом в списке, чтобы добавить его в избранное."

@@ -70,9 +70,9 @@
     "triggeredBy": "Инициировано",
     "triggeringUser": "Инициатор запуска"
   },
-  "dagRun_one": "Запуск Dag-а",
   "dagRun_few": "Запуск Dag-ов",
   "dagRun_many": "Запуск Dag-ов",
+  "dagRun_one": "Запуск Dag-а",
   "dagRun_other": "Запусков Dag-ов",
   "dagRunId": "ID запуска Dag-а",
   "dagWarnings": "Предупреждения/ошибки Dag-а",
@@ -169,8 +169,8 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Полученные события актива"
   },
-  "pendingDagRun_one": "{{count}} Dag ожидает запуска",
   "pendingDagRun_few": "{{count}} Dag-а ожидают запуска",
+  "pendingDagRun_one": "{{count}} Dag ожидает запуска",
   "pendingDagRun_other": "{{count}} Dag-ов ожидают запуска",
   "reset": "Сбросить",
   "runId": "ID запуска",
@@ -274,9 +274,9 @@
     },
     "unixname": "Имя Unix"
   },
-  "taskInstance_one": "Экземпляр задачи",
   "taskInstance_few": "Экземпляра задачи",
   "taskInstance_many": "Экземпляров задачи",
+  "taskInstance_one": "Экземпляр задачи",
   "taskInstance_other": "Экземпляров задачи",
   "timeRange": {
     "last12Hours": "Последние 12 часов",
