@@ -35,12 +35,22 @@ Support for old versions of Apache Airflow <2.11 has been dropped (#61018)
 Minimum supported version of Apache Airflow is now 2.11.0. If you want to deploy an
 old version of Apache Airflow, please use the last released version of the chart 1.19.0.
 
-Parameters moved to related workers section
-"""""""""""""""""""""""""""""""""""""""""""
+``workers`` specific sections have been moved to ``workers.celery`` / ``workers.kubernetes`` sections
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+Please update your configuration accordingly:
+* ``workers.command`` command is now deprecated in favor of ``workers.celery.command``/``workers.kubernetes.command`` (#60067).
+* ``workers.securityContexts`` command is now deprecated in favor of ``workers.celery.securityContexts``/``workers.kubernetes.securityContexts`` (#60396).
+* ``workers.containerLifecycleHooks`` command is now deprecated in favor of ``workers.celery.containerLifecycleHooks``/``workers.kubernetes.containerLifecycleHooks`` (#61369).
+* ``workers.kerberosSidecar`` section is now deprecated in favor of ``workers.celery.kerberosSidecar``/``workers.kubernetes.kerberosSidecar`` (#61881).
+* ``workers.kerberosInitContainer`` section is now deprecated in favor of ``workers.celery.kerberosInitContainer``/``workers.kubernetes.kerberosInitContainer`` (#60751).
+* ``workers.terminationGracePeriodSeconds`` command is now deprecated in favor of ``workers.celery.terminationGracePeriodSeconds``/``workers.kubernetes.terminationGracePeriodSeconds`` (#61892).
+* ``workers.nodeSelector`` command is now deprecated in favor of ``workers.celery.nodeSelector``/``workers.kubernetes.nodeSelector`` (#61957).
 * ``workers.podDisruptionBudget`` section is now deprecated in favor of ``workers.celery.podDisruptionBudget``. Please update your configuration accordingly. (#61414)
 * ``workers.keda`` section is now deprecated in favor of ``workers.celery.keda``. Please update your configuration accordingly. (#61820)
 * ``workers.resources`` section is now deprecated in favor of ``workers.celery.resources`` and ``workers.kubernetes.resources``. Please update your configuration accordingly. (#61890)
+
+The previous configuration options are still working, but are deprecated and will be removed in a future version.
 
 
 As Git-Sync is not service-type object, the readiness probe will be removed. (#62334)
@@ -155,6 +165,7 @@ Doc only changes
 ^^^^^^^^^^^^^^^^
 
 - Cleanup Helm Chart documentation (#62544)
+- Add missing deprecation warnings for workers section (#63659)
 
 Misc
 ^^^^

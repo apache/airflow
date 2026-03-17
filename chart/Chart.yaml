@@ -63,6 +63,11 @@ annotations:
     - title: Code View
       url: https://airflow.apache.org/docs/apache-airflow/3.1.8/_images/dag_overview_code.png
   artifacthub.io/changes: |
+    - description: Add missing deprecation warnings for workers section
+      kind: changed
+      links:
+      - name: '#63659'
+        url: https://github.com/apache/airflow/pull/63659
     - description: Remove automatic `KUBERNETES_ENVIRONMENT_VARIABLES` and `KUBERNETES_SECRETS`
         prefixes from chart helpers
       kind: changed
