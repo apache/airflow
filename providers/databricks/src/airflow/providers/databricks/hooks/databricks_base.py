@@ -161,6 +161,22 @@ class BaseDatabricksHook(BaseHook):
     def databricks_conn(self) -> Connection:
         return self.get_connection(self.databricks_conn_id)  # type: ignore[return-value]
 
+    async def _a_get_databricks_conn(self) -> Connection:
+        """
+        Async version of databricks_conn property.
+
+        Fetches the connection without using async_to_sync, which would fail
+        when called from within an async event loop (e.g., in the triggerer).
+        Populates the cached_property so subsequent sync accesses work too.
+        """
+        if "databricks_conn" in self.__dict__:
+            return self.__dict__["databricks_conn"]
+        from airflow.sdk.execution_time.context import _async_get_connection
+
+        conn = await _async_get_connection(self.databricks_conn_id)  # type: ignore[return-value]
+        self.__dict__["databricks_conn"] = conn
+        return conn
+
     def get_conn(self) -> Connection:
         return self.databricks_conn
 
@@ -1151,6 +1167,10 @@ class BaseDatabricksHook(BaseHook):
             this function returns the response in JSON. Otherwise, throw an AirflowException.
         """
         method, endpoint = endpoint_info
+
+        # Eagerly fetch the connection asynchronously to avoid async_to_sync being called
+        # inside an already-running event loop (e.g., in the triggerer).
+        await self._a_get_databricks_conn()
 
         full_endpoint = f"api/{endpoint}"
         url = self._endpoint_url(full_endpoint)
