@@ -70,57 +70,36 @@ The automatic prefix addition for Kubernetes Executor environment variables and 
 
 **What changed:**
 
-Previously, when you added environment variables to component-specific configurations (e.g., ``.Values.scheduler.env``, ``.Values.workers.env``, ``.Values.apiServer.env``, ``.Values.dagProcessor.env``), the chart automatically created an additional environment variable with the ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` prefix for Kubernetes Executor worker pods.
-
-**Example - Before:**
-.. code-block:: yaml
-
-    apiServer:
-      env:
-        - name: MY_VAR
-          value: "my_value"
-
-This would automatically create both:
-* ``MY_VAR=my_value`` (for the apiServer)
-* ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_VAR=my_value`` (for worker pods)
-
-**Example - After:**
-.. code-block:: yaml
-
-    apiServer:
-      env:
-        - name: MY_VAR
-          value: "my_value"
-
-Now only ``MY_VAR=my_value`` is created for the apiServer. The ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_VAR`` is **no longer automatically created**.
+Previously, when you added environment variables to component-specific configurations (e.g., ``.Values.scheduler.env``), the chart automatically created an additional environment variable (to specified in the ``env`` section) with the ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` prefix for Kubernetes Executor worker pods. After this change, only the variable specified in ``env`` section will be created.
+Furthermore, for values specified under ``.Values.secret`` section, the ``AIRFLOW__KUBERNETES_SECRETS__`` prefix is no longer automatically added. Secrets are now passed as-is via ``secretKeyRef`` without the prefixed copy for worker pods.
 
 **Why this change:**
 
-* **Prevent Unintended Exposure of Sensitive Data**: Sensitive information (e.g., ``client_secret``) that should be securely handled via ``secretKeyRef`` for specific components was being automatically prefixed with ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__``. This prefixing causes these variables to be recognized as part of Airflow's internal configuration, leading to their unintended exposure in the Airflow Web UI (under Admin -> Configuration), even when ``AIRFLOW__API__EXPOSE_CONFIG`` is set to ``non-sensitive-only``.
-
-* **Avoid Unintended Environment Propagation to Workers**: Component-specific env configurations are intended strictly for specific components. However, the previous behavior caused these variables to be inadvertently passed to worker pods, which may result in unintended configuration conflicts and unexpected side effects.
+* Prevent unintended exposure of sensitive data like ``client_secret`` information. Previously, due to prefix, it was recognized as internal Airflow configuration leading to unintended exposure in Airflow UI (under Admin -> Configuration), even when ``AIRFLOW__API__EXPOSE_CONFIG`` is set to ``non-sensitive-only``.
+* Avoid unintended environment propagation to workers: component-specific env configurations are intended strictly for specific components. Previous behaviour caused these variables to be passed to worker pods, which could result in configuration conflicts and unexpected side effects.
 
 **Migration Required:**
 
 If you need to pass environment variables specifically to Kubernetes Executor worker pods, use one of the following approaches:
 
 **Option 1: Use ``.Values.env``**
+
 .. code-block:: yaml
 
     env:
       - name: my_var
         value: "my_value"
 
-Environment variables in ``.Values.env`` are now passed as-is without the automatic prefix (same behavior as component-specific env).
+Environment variables specified under ``.Values.env`` are now passed as-is without the automatic prefix (same behaviour as component-specific env).
 
 **Option 2: Use ``.Values.config.kubernetes_environment_variables``**
+
 .. code-block:: yaml
 
     config:
       kubernetes_environment_variables:
         my_var: "my_value"
 
-**Secrets (``.Values.secret``):** The ``AIRFLOW__KUBERNETES_SECRETS__`` prefix is no longer automatically added. Secrets are now passed as-is via ``secretKeyRef`` without the prefixed copy for worker pods.
 
 Default Airflow image is updated to ``3.1.8`` (#63392)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -146,10 +125,10 @@ Improvements
 - Add ``workers.celery.keda`` section (#61820)
 - Add ``workers.celery.podDisruptionBudget`` (#61414)
 - Add ``workers.celery.containerLifecycleHooks`` & ``workers.kubernetes.containerLifecycleHooks`` (#61369)
-- Refactor Git-Sync livenessProbe & deprecate readinessProbe & add startupProbe (#62334)
-- Warn on deprecated per-component securityContext values (#62729)
-- Add ingress deprecation warnings for apiServer, statsd, and pgbouncer (#62490)
-- Add missing support for: securityContexts and containerLifecycleHooks (#60677)
+- Refactor Git-Sync ``livenessProbe`` & deprecate ``readinessProbe`` & add ``startupProbe`` (#62334)
+- Warn on deprecated per-component ``securityContext`` values (#62729)
+- Add ingress deprecation warnings for ``apiServer``, ``statsd``, and ``pgbouncer`` (#62490)
+- Add missing support for: ``securityContexts`` and ``containerLifecycleHook`` (#60677)
 
 Bug Fixes
 ^^^^^^^^^
@@ -158,7 +137,7 @@ Bug Fixes
 - Omit api-server ``spec.replicas`` when HPA is enabled (#63187)
 - Add ``workers.celery.kerberosSidecar`` & ``workers.kubernetes.kerberosSidecar`` sections (#61881)
 - Fix chart NOTES.txt showing deprecation warnings only without secret key (#62722)
-- Fix tpl rendering for TLS hosts in ingress templates #62358 (#62548)
+- Fix ``tpl`` rendering for TLS hosts in ingress templates #62358 (#62548)
 - Fix ``webserver.defaultUser.enabled=false`` not honored (#62143)
 
 Doc only changes
@@ -174,7 +153,7 @@ Misc
 - Default airflow version to 3.1.8 (#63392)
 - Add ``*.iml`` to .gitignore in all distributions (#63636)
 - Upgrade important CI environment (#62792, #62610)
-- Allow to use short SPDX licence identifier for selected files (#62073)
+- Allow to use short SPDX license identifier for selected files (#62073)
 - Fix all build-system/requires including transitive dependencies (#62570)
 
 
