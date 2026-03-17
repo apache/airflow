@@ -1,0 +1,141 @@
+{
+  "version": "1.0",
+  "generated_by": "generate_agent_skills.py",
+  "generated_from": "contributing-docs/workflows/*.yaml",
+  "skill_count": 5,
+  "skills": [
+    {
+      "id": "build-docs",
+      "category": "documentation",
+      "description": "Build Airflow documentation locally inside Breeze",
+      "prereqs": [
+        "setup-breeze-environment"
+      ],
+      "steps": [
+        {
+          "context": "host",
+          "command": "breeze build-docs",
+          "description": "Build all docs"
+        },
+        {
+          "context": "host",
+          "command": "breeze build-docs --package-filter {package}",
+          "condition": "single_package",
+          "description": "Build docs for a specific package only (faster)"
+        }
+      ],
+      "parameters": {
+        "package": {
+          "description": "Package to build docs for (e.g. apache-airflow-providers-amazon)",
+          "required": false
+        }
+      },
+      "expected_output": "Build finished."
+    },
+    {
+      "id": "run-manual-checks",
+      "category": "linting",
+      "description": "Run slower manual checks with prek (run before opening a PR)",
+      "prereqs": [
+        "run-static-checks"
+      ],
+      "steps": [
+        {
+          "context": "host",
+          "command": "prek run --from-ref {target_branch} --stage manual",
+          "description": "Run manual stage checks (slower, more thorough)"
+        }
+      ],
+      "parameters": {
+        "target_branch": {
+          "description": "Branch the PR will be merged into, usually 'main'",
+          "required": true,
+          "default": "main"
+        }
+      },
+      "expected_output": "All checks passed."
+    },
+    {
+      "id": "run-single-test",
+      "category": "testing",
+      "description": "Run a targeted test for a changed module or provider",
+      "prereqs": [
+        "setup-breeze-environment"
+      ],
+      "steps": [
+        {
+          "context": "host",
+          "command": "uv run --project {project} pytest {test_path} -xvs",
+          "condition": "system_deps_available",
+          "description": "Preferred: run directly with uv (faster, debuggable in IDE)"
+        },
+        {
+          "context": "host",
+          "command": "breeze run pytest {test_path} -xvs",
+          "fallback_for": "system_deps_available",
+          "description": "Fallback: use Breeze when system deps are missing (e.g. mysql, kubernetes libraries)"
+        },
+        {
+          "context": "breeze",
+          "command": "pytest {test_path} -xvs",
+          "description": "Inside Breeze container"
+        }
+      ],
+      "parameters": {
+        "project": {
+          "description": "Path to distribution folder containing pyproject.toml (e.g. providers/amazon)",
+          "required": true
+        },
+        "test_path": {
+          "description": "Path to test file or directory (e.g. providers/amazon/tests/test_s3.py)",
+          "required": true
+        }
+      },
+      "expected_output": "passed"
+    },
+    {
+      "id": "run-static-checks",
+      "category": "linting",
+      "description": "Run fast static checks with prek before committing",
+      "prereqs": [
+        "setup-breeze-environment"
+      ],
+      "steps": [
+        {
+          "context": "host",
+          "command": "prek run --from-ref {target_branch} --stage pre-commit",
+          "description": "Run pre-commit stage checks (ruff, mypy, license headers, etc.)"
+        }
+      ],
+      "parameters": {
+        "target_branch": {
+          "description": "Branch the PR will be merged into, usually 'main'",
+          "required": true,
+          "default": "main"
+        }
+      },
+      "expected_output": "All checks passed."
+    },
+    {
+      "id": "setup-breeze-environment",
+      "category": "environment",
+      "description": "Start the Airflow Breeze development environment",
+      "prereqs": [],
+      "steps": [
+        {
+          "context": "host",
+          "command": "breeze start-airflow",
+          "description": "Start Breeze with default SQLite backend"
+        },
+        {
+          "context": "host",
+          "command": "breeze start-airflow --backend postgres",
+          "condition": "needs_postgres",
+          "description": "Start Breeze with Postgres (needed for DB integration tests)"
+        }
+      ],
+      "parameters": {},
+      "expected_output": "Airflow webserver is ready"
+    }
+  ]
+}
