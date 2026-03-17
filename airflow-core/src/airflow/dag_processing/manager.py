@@ -634,11 +634,9 @@ class DagFileProcessorManager(LoggingMixin):
         values: dict[str, Any] = {"last_refreshed": last_refreshed}
         if version is not None:
             values["version"] = version
-        result = session.execute(
+        session.execute(
             update(DagBundleModel).where(DagBundleModel.name == bundle_name).values(**values)
         )
-        if result.rowcount == 0:
-            raise RuntimeError(f"Bundle model not found for {bundle_name!r}")
 
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""

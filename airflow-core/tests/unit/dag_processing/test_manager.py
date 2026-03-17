@@ -1741,14 +1741,6 @@ class TestDagFileProcessorManager:
         assert model.last_refreshed == refreshed_at
         assert model.version == "keep_me"
 
-    def test_update_bundle_state_raises_for_missing_bundle(self):
-        manager = DagFileProcessorManager(max_runs=1)
-        with pytest.raises(RuntimeError, match="Bundle model not found"):
-            manager.update_bundle_state(
-                "nonexistent_bundle",
-                last_refreshed=timezone.datetime(2024, 1, 1),
-                version=None,
-            )
 
     def _make_refresh_bundle(self, *, supports_versioning=False, current_version=None):
         bundle = MagicMock(spec=BaseDagBundle)
@@ -1870,7 +1862,7 @@ class TestDagFileProcessorManager:
         bundle = self._make_refresh_bundle()
         manager._dag_bundles = [bundle]
 
-        known_files: dict = {}
+        known_files: dict[str, set[DagFileInfo]] = {}
         with (
             mock.patch.object(
                 manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
