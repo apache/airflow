@@ -1032,9 +1032,9 @@ class DagRun(Base, LoggingMixin):
                 "airflow.dag_run.created_at": self.created_at and str(self.created_at) or None,
             }
             if self.logical_date:
-                attributes["airflow.dag_run.logical_date"] = self.logical_date
+                attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
-                attributes["airflow.dag_run.partition_key"] = self.partition_key
+                attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
                 start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),

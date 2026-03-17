@@ -95,7 +95,7 @@ class HttpAccessLogMiddleware:
                     client = scope.get("client")
                     client_addr = f"{client[0]}:{client[1]}" if client else None
 
-                    logger.debug(
+                    logger.info(
                         "request finished",
                         method=method,
                         path=path,

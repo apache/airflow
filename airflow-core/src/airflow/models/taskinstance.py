@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
+import logging
 import math
 from collections import defaultdict
 from collections.abc import Collection, Iterable
@@ -30,7 +31,6 @@ from uuid import UUID
 
 import attrs
 import dill
-import structlog
 import uuid6
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -104,7 +104,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 TR = TaskReschedule
 
-log = structlog.get_logger(__name__)
+log = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
 
 if TYPE_CHECKING:
