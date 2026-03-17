@@ -141,4 +141,3 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
         Must be implemented by subclasses.
         """
         raise NotImplementedError(f"{self.__class__.__name__} must implement failure_state")
-
