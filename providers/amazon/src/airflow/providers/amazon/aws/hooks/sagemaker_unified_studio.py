@@ -20,11 +20,11 @@
 from __future__ import annotations
 
 import time
+from functools import cached_property
 
-from sagemaker_studio import ClientConfig
-from sagemaker_studio.sagemaker_studio_api import SageMakerStudioAPI
-
-from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local_runner
+from airflow.providers.amazon.aws.hooks._sagemaker_unified_studio_client import (
+    SageMakerUnifiedStudioExecutionClient,
+)
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 
@@ -52,16 +52,18 @@ class SageMakerNotebookHook(BaseHook):
 
     :param execution_name: The name of the notebook job to be executed, this is same as task_id.
     :param domain_id: The domain ID for Amazon SageMaker Unified Studio. Optional - if not provided,
-        the SDK will attempt to resolve it from the environment.
+        it will be resolved from the environment.
     :param project_id: The project ID for Amazon SageMaker Unified Studio. Optional - if not provided,
-        the SDK will attempt to resolve it from the environment.
+        it will be resolved from the environment.
     :param input_config: Configuration for the input file.
         Example: {'input_path': 'folder/input/notebook.ipynb', 'input_params': {'param1': 'value1'}}
-    :param output_config: Configuration for the output format. It should include an output_formats parameter to specify the output format.
+    :param output_config: Configuration for the output format. It should include an output_formats
+        parameter to specify the output format.
         Example: {'output_formats': ['NOTEBOOK']}
-    :param domain_region: The AWS region for the domain. If not provided, the default AWS region will be used.
-    :param compute: compute configuration to use for the notebook execution. This is a required attribute
-        if the execution is on a remote compute.
+    :param domain_region: The AWS region for the domain. If not provided, the default AWS region 'us-east-1'
+        will be used.
+    :param compute: compute configuration to use for the notebook execution. This is a required
+        attribute if the execution is on a remote compute.
         Example::
 
             {
@@ -98,7 +100,6 @@ class SageMakerNotebookHook(BaseHook):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self._sagemaker_studio = SageMakerStudioAPI(self._get_sagemaker_studio_config())
         self.execution_name = execution_name
         self.domain_id = domain_id
         self.project_id = project_id
@@ -111,56 +112,83 @@ class SageMakerNotebookHook(BaseHook):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
 
-    def _get_sagemaker_studio_config(self):
-        config = ClientConfig()
-        config.overrides["execution"] = {"local": is_local_runner()}
-        return config
+    @cached_property
+    def _execution_client(self) -> SageMakerUnifiedStudioExecutionClient:
+        """Get the execution client."""
+        return SageMakerUnifiedStudioExecutionClient(
+            domain_id=self.domain_id,
+            project_id=self.project_id,
+            domain_region=self.domain_region,
+        )
 
-    def _format_start_execution_input_config(self):
-        config = {
+    def _format_start_execution_input_config(self) -> dict:
+        """Format the input configuration for start_execution."""
+        return {
             "notebook_config": {
                 "input_path": self.input_config.get("input_path"),
                 "input_parameters": self.input_config.get("input_params"),
             },
         }
 
-        return config
-
-    def _format_start_execution_output_config(self):
+    def _format_start_execution_output_config(self) -> dict:
+        """Format the output configuration for start_execution."""
         output_formats = self.output_config.get("output_formats")
-        config = {
+        return {
             "notebook_config": {
                 "output_formats": output_formats,
             }
         }
-        return config
 
-    def start_notebook_execution(self):
-        start_execution_params = {
-            "execution_name": self.execution_name,
-            "execution_type": "NOTEBOOK",
-            "domain_id": self.domain_id,
-            "project_id": self.project_id,
-            "input_config": self._format_start_execution_input_config(),
-            "output_config": self._format_start_execution_output_config(),
-            "termination_condition": self.termination_condition,
-            "tags": self.tags,
-        }
+    def start_notebook_execution(self) -> dict:
+        """
+        Start a notebook execution.
 
-        if self.domain_region:
-            start_execution_params["domain_region"] = self.domain_region
+        :return: Execution details including execution_id
+        """
+        input_config = self._format_start_execution_input_config()
+        output_config = self._format_start_execution_output_config()
 
-        if self.compute:
-            start_execution_params["compute"] = self.compute
+        return self._execution_client.start_execution(
+            execution_name=self.execution_name,
+            input_config=input_config,
+            output_config=output_config,
+            compute=self.compute,
+            termination_condition=self.termination_condition,
+            tags=self.tags,
+        )
 
-        return self._sagemaker_studio.execution_client.start_execution(**start_execution_params)
+    def get_execution(self, execution_id: str) -> dict:
+        """
+        Get details of a specific execution.
 
-    def wait_for_execution_completion(self, execution_id, context):
+        :param execution_id: The unique identifier of the execution
+        :return: Execution details including status, times, and error info
+        """
+        return self._execution_client.get_execution(execution_id)
+
+    def get_execution_status(self, execution_id: str) -> str:
+        """
+        Get the status of a specific execution.
+
+        :param execution_id: The unique identifier of the execution
+        :return: The execution status string
+        """
+        execution = self.get_execution(execution_id)
+        return execution["status"]
+
+    def wait_for_execution_completion(self, execution_id: str, context: dict | None) -> dict:
+        """
+        Wait for an execution to complete.
+
+        :param execution_id: The unique identifier of the execution
+        :param context: The Airflow context for XCom operations
+        :return: Dict with Status and ExecutionId
+        """
         wait_attempts = 0
         while wait_attempts < self.waiter_max_attempts:
             wait_attempts += 1
             time.sleep(self.waiter_delay)
-            response = self._sagemaker_studio.execution_client.get_execution(execution_id=execution_id)
+            response = self.get_execution(execution_id=execution_id)
             error_message = response.get("error_details", {}).get("error_message")
             status = response["status"]
             if "files" in response:
@@ -175,39 +203,46 @@ class SageMakerNotebookHook(BaseHook):
         # If timeout, handle state FAILED with timeout message
         return self._handle_state(execution_id, "FAILED", "Execution timed out")
 
-    def _set_xcom_files(self, files, context):
+    def _set_xcom_files(self, files: list, context: dict | None) -> None:
+        """Push file information to XCom."""
         if not context:
-            error_message = "context is required"
-            raise AirflowException(error_message)
+            raise AirflowException("context is required")
         for file in files:
             context["ti"].xcom_push(
                 key=f"{file['display_name']}.{file['file_format']}",
                 value=file["file_path"],
             )
 
-    def _set_xcom_s3_path(self, s3_path, context):
+    def _set_xcom_s3_path(self, s3_path: str, context: dict | None) -> None:
+        """Push S3 path to XCom."""
         if not context:
-            error_message = "context is required"
-            raise AirflowException(error_message)
+            raise AirflowException("context is required")
         context["ti"].xcom_push(
             key="s3_path",
             value=s3_path,
         )
 
-    def _handle_state(self, execution_id, status, error_message):
+    def _handle_state(self, execution_id: str, status: str, error_message: str | None) -> dict | None:
+        """Handle execution state and determine if we should continue waiting."""
         finished_states = ["COMPLETED"]
         in_progress_states = ["IN_PROGRESS", "STOPPING"]
 
         if status in in_progress_states:
-            info_message = f"Execution {execution_id} is still in progress with state:{status}, will check for a terminal status again in {self.waiter_delay}"
-            self.log.info(info_message)
+            self.log.info(
+                "Execution %s is still in progress with state: %s, "
+                "will check for a terminal status again in %s seconds",
+                execution_id,
+                status,
+                self.waiter_delay,
+            )
             return None
+
         execution_message = f"Exiting Execution {execution_id} State: {status}"
         if status in finished_states:
             self.log.info(execution_message)
             return {"Status": status, "ExecutionId": execution_id}
-        log_error_message = f"Execution {execution_id} failed with error: {error_message}"
-        self.log.error(log_error_message)
-        if error_message == "":
+
+        self.log.error("Execution %s failed with error: %s", execution_id, error_message)
+        if not error_message:
             error_message = execution_message
         raise AirflowException(error_message)
