@@ -17,19 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
-import threading
-from contextlib import contextmanager, suppress
-from typing import TYPE_CHECKING, Any
-
 from asgiref.sync import sync_to_async
+from contextlib import contextmanager, suppress
+from typing import Any
 
 from airflow.sdk.bases.hook import BaseHook
-
-if TYPE_CHECKING:
-    from airflow.providers.common.compat.sdk import Connection
 
 
 class IBMMQHook(BaseHook):
@@ -99,36 +93,6 @@ class IBMMQHook(BaseHook):
             if name.startswith("MQOO_") and (open_options & value)
         ]
 
-    def _get_connect_params(self, connection: Connection) -> tuple[str, str, int]:
-        """
-        Extract connection parameters from the Airflow Connection object.
-
-        This method is called fresh each time to avoid race conditions when multiple
-        triggers use the same hook instance concurrently. Parameters are extracted
-        but NOT stored on the hook instance.
-
-        :param connection: Airflow Connection object.
-        :return: Tuple of (queue_manager, channel, open_options)
-        """
-        import ibmmq
-
-        config = connection.extra_dejson
-
-        queue_manager = self.queue_manager or config.get("queue_manager")
-        channel = self.channel or config.get("channel")
-        open_options = self.open_options or getattr(
-            ibmmq.CMQC,
-            config.get("open_options", self.default_open_options),
-            ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE,
-        )
-
-        if not queue_manager:
-            raise ValueError("queue_manager must be set in Connection extra config or hook init")
-        if not channel:
-            raise ValueError("channel must be set in Connection extra config or hook init")
-
-        return queue_manager, channel, open_options
-
     @contextmanager
     def get_conn(self):
         """
@@ -146,7 +110,21 @@ class IBMMQHook(BaseHook):
         connection = BaseHook.get_connection(self.conn_id)
 
         # Extract parameters from connection (fresh, no mutation of hook state)
-        queue_manager, channel, open_options = self._get_connect_params(connection)
+        config = connection.extra_dejson
+
+        queue_manager = self.queue_manager or config.get("queue_manager")
+        channel = self.channel or config.get("channel")
+
+        if not queue_manager:
+            raise ValueError("queue_manager must be set in Connection extra config or hook init")
+        if not channel:
+            raise ValueError("channel must be set in Connection extra config or hook init")
+
+        self.open_options = self.open_options or getattr(
+            ibmmq.CMQC,
+            config.get("open_options", self.default_open_options),
+            ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE,
+        )
 
         csp = ibmmq.CSP()
         csp.CSPUserId = connection.login
@@ -165,7 +143,6 @@ class IBMMQHook(BaseHook):
             if conn:
                 with suppress(Exception):
                     conn.disconnect()
-
 
     def _process_message(self, message: bytes) -> str:
         """
@@ -205,7 +182,7 @@ class IBMMQHook(BaseHook):
         requirement — every operation on a connection must happen from the thread that created it.
 
         A :class:`threading.Event` stop signal is passed to the worker so that, when this
-        coroutine is cancelled (e.g. because the Airflow triggerer reassigns the watcher to
+        coroutine is canceled (e.g. because the Airflow triggerer reassigns the watcher to
         another pod), the background thread exits cleanly after the current ``q.get`` call
         times out (at most ``poll_interval`` seconds).  Without this, an orphaned thread could
         silently consume a message after cancellation, causing the event to be lost and the
@@ -217,9 +194,13 @@ class IBMMQHook(BaseHook):
         :return: The decoded message payload if a message is received, otherwise ``None``.
         """
         stop_event = threading.Event()
-        return await sync_to_async(self._consume_sync)(
-            queue_name, poll_interval, stop_event
-        )
+        try:
+            return await sync_to_async(self._consume_sync)(
+                queue_name, poll_interval, stop_event
+            )
+        finally:
+            # Signal background thread to exit cleanly when coroutine is canceled
+            stop_event.set()
 
     def _consume_sync(
         self,
@@ -233,7 +214,7 @@ class IBMMQHook(BaseHook):
         All IBM MQ handles (queue manager connection, queue) are created **and used** within
         this method, satisfying the thread-affinity requirement of the IBM MQ C client library.
         The ``stop_event`` is checked between ``q.get`` calls so the thread terminates promptly
-        after the coroutine side is cancelled.
+        after the coroutine side is canceled.
         """
         import ibmmq
 
@@ -249,22 +230,18 @@ class IBMMQHook(BaseHook):
         gmo.Options = ibmmq.CMQC.MQGMO_WAIT | ibmmq.CMQC.MQGMO_NO_SYNCPOINT | ibmmq.CMQC.MQGMO_CONVERT
         gmo.WaitInterval = int(poll_interval * 1000)
 
-        # Get open_options for logging
-        connection = BaseHook.get_connection(self.conn_id)
-        _, _, open_options = self._get_connect_params(connection)
-
         try:
             with self.get_conn() as conn:
                 if self.log.isEnabledFor(logging.INFO):
-                    flag_names = self.get_open_options_flags(open_options)
+                    flag_names = self.get_open_options_flags(self.open_options)
                     self.log.info(
                         "Opening MQ queue '%s' with open_options=%s (%s)",
                         queue_name,
-                        open_options,
+                        self.open_options,
                         ", ".join(flag_names),
                     )
 
-                q = ibmmq.Queue(conn, od, open_options)
+                q = ibmmq.Queue(conn, od, self.open_options)
                 try:
                     # WaitInterval already blocks for poll_interval seconds when no message is
                     # available, so no additional sleep is needed between iterations.
