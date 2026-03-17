@@ -343,11 +343,11 @@ class PlainXComArg(XComArg):
         return super().concat(*others)
 
     def resolve(self, context: Context) -> Any:
-        ti = cast("RuntimeTaskInstance", context["ti"])
+        ti = context["ti"]
         task_id = self.operator.task_id
 
         if self.operator.is_mapped:
-            return LazyXComSequence(xcom_arg=self, ti=ti)
+            return LazyXComSequence(xcom_arg=self, ti=cast("RuntimeTaskInstance", ti))
         tg = self.operator.get_closest_mapped_task_group()
         if tg is None:
             # No mapped task group - pull from unmapped instance
