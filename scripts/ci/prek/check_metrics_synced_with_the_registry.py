@@ -291,8 +291,8 @@ def main() -> None:
             console.print(
                 f"    [red]-> {len(metrics_with_type_mismatch)} metric(s) found in code with a type that doesn't match the registry:[/red]"
             )
-            for metric_name, calls in sorted(metrics_with_type_mismatch.items()):
-                for call, code_type, registry_type in calls:
+            for metric_name, mismatched_calls in sorted(metrics_with_type_mismatch.items()):
+                for call, code_type, registry_type in mismatched_calls:
                     console.print(
                         f"        [yellow]{call.file_path}[/yellow] line [yellow]{call.line_num}[/yellow]: "
                         f"[green]{metric_name}[/green] ([magenta]{call.method}[/magenta]) [[cyan]{call.stats_obj}[/cyan]] "
