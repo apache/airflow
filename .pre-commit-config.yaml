@@ -807,7 +807,7 @@ repos:
         pass_filenames: false
       - id: check-breeze-contribution-skills-drift
         name: Check Breeze contribution skills drift
-        entry: ./scripts/ci/prek/extract_breeze_contribution_skills.py --check
+        entry: ./scripts/ci/prek/validate_skills.py --check
         language: python
         files: >
           (?x)

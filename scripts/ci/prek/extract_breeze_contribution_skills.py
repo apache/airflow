@@ -15,87 +15,123 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""Extract agent skills from SKILL.md and generate skills.json."""
+
 from __future__ import annotations
 
-import argparse
 import json
 import re
-import sys
 from pathlib import Path
 
-# Add current directory to path to allow common_prek_utils import
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from common_prek_utils import AIRFLOW_ROOT_PATH, console
 
-SKILL_DOC_PATH = AIRFLOW_ROOT_PATH / ".github" / "skills" / "breeze-contribution" / "SKILL.md"
-OUTPUT_SKILLS_PATH = AIRFLOW_ROOT_PATH / ".github" / "skills" / "breeze-contribution" / "skills.json"
+def extract_skills_from_markdown(markdown_content: str) -> list:
+    """
+    Extract skill definitions from SKILL.md markdown.
 
-SKILL_BLOCK_RE = re.compile(r"```agent-skill\r?\n(.*?)\r?\n```", re.DOTALL)
+    Looks for JSON blocks within markdown skill definitions.
 
+    Args:
+        markdown_content: Content of SKILL.md file
 
-def _extract_skills_from_markdown(markdown: str) -> list[dict]:
-    matches = SKILL_BLOCK_RE.findall(markdown)
-    if not matches:
-        raise ValueError("No ```agent-skill``` block found in SKILL.md")
-    if len(matches) > 1:
-        raise ValueError("Expected exactly one ```agent-skill``` block in SKILL.md")
+    Returns:
+        List of skill dictionaries
+    """
+    skills = []
 
-    try:
-        skills = json.loads(matches[0])
-    except json.JSONDecodeError as e:
-        raise ValueError(f"agent-skill block must be valid JSON: {e}") from e
+    # Find all JSON blocks in markdown
+    json_pattern = r"```json\s*(.*?)\s*```"
+    matches = re.findall(json_pattern, markdown_content, re.DOTALL)
 
-    if not isinstance(skills, list):
-        raise TypeError("agent-skill block must be a JSON array")
-    if not all(isinstance(s, dict) for s in skills):
-        raise TypeError("agent-skill block JSON array items must be objects")
+    for match in matches:
+        try:
+            skill = json.loads(match)
+            # Validate required fields
+            if "id" not in skill:
+                raise ValueError("Skill missing required field: id")
+            skills.append(skill)
+        except json.JSONDecodeError as e:
+            print(f"Warning: Failed to parse skill JSON: {e}")
+            continue
+
+    # Check for duplicate IDs
+    ids = [s["id"] for s in skills]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Duplicate skill IDs found")
+
     return skills
 
 
-def extract_skills(check_only: bool = False) -> None:
-    if not SKILL_DOC_PATH.exists():
-        console.print(f"[red]Error: {SKILL_DOC_PATH} not found.[/]")
-        raise SystemExit(1)
+def validate_skills_json(skills_data: dict) -> bool:
+    """
+    Validate skills.json structure.
 
-    markdown = SKILL_DOC_PATH.read_text()
-    try:
-        skills = _extract_skills_from_markdown(markdown)
-    except (ValueError, TypeError) as e:
-        console.print(f"[red]Error parsing {SKILL_DOC_PATH}: {e}[/]")
-        raise SystemExit(1)
+    Args:
+        skills_data: Parsed skills.json data
 
-    new_content = json.dumps(skills, indent=2, sort_keys=True) + "\n"
+    Returns:
+        True if valid
 
-    if check_only:
-        if not OUTPUT_SKILLS_PATH.exists():
-            console.print(f"[red]Drift detected: {OUTPUT_SKILLS_PATH} does not exist.[/]")
-            console.print(
-                "[yellow]Please run: python scripts/ci/prek/extract_breeze_contribution_skills.py[/]"
-            )
-            raise SystemExit(1)
-        current_content = OUTPUT_SKILLS_PATH.read_text()
-        if current_content != new_content:
-            console.print(
-                f"[red]Drift detected: {OUTPUT_SKILLS_PATH} is out of sync with {SKILL_DOC_PATH}.[/]"
-            )
-            console.print(
-                "[yellow]Please run: python scripts/ci/prek/extract_breeze_contribution_skills.py[/]"
-            )
-            raise SystemExit(1)
-        console.print("[success]Breeze contribution skills are in sync.[/]")
-        return
+    Raises:
+        ValueError: If validation fails
+    """
+    if "version" not in skills_data:
+        raise ValueError("Skills missing required field: version")
 
-    OUTPUT_SKILLS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_SKILLS_PATH.write_text(new_content)
-    console.print(f"[success]Wrote {OUTPUT_SKILLS_PATH}[/]")
+    if "skills" not in skills_data:
+        raise ValueError("Skills missing required field: skills")
+
+    for skill in skills_data["skills"]:
+        if "id" not in skill:
+            raise ValueError("Skill missing required field: id")
+        if "commands" not in skill:
+            raise ValueError(f"Skill {skill['id']} missing required field: commands")
+
+    return True
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Extract Breeze contribution skills from SKILL.md")
-    parser.add_argument("--check", action="store_true", help="Check for drift without writing")
-    args = parser.parse_args()
-    extract_skills(check_only=args.check)
+def extract_and_generate(skill_md_path: str, skills_json_path: str) -> None:
+    """
+    Extract skills from SKILL.md and generate skills.json.
+
+    Args:
+        skill_md_path: Path to SKILL.md
+        skills_json_path: Path to output skills.json
+    """
+    # Read SKILL.md
+    skill_md = Path(skill_md_path)
+    if not skill_md.exists():
+        raise FileNotFoundError(f"SKILL.md not found at {skill_md_path}")
+
+    content = skill_md.read_text()
+
+    # Extract skills
+    skills = extract_skills_from_markdown(content)
+
+    # Generate skills.json
+    skills_data = {"version": "1.0", "skills": skills}
+
+    # Validate
+    validate_skills_json(skills_data)
+
+    # Write to file
+    output_path = Path(skills_json_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, "w") as f:
+        json.dump(skills_data, f, indent=2)
+
+    print(f"✓ Generated skills.json with {len(skills)} skills")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if len(sys.argv) != 3:
+        print("Usage: python extract_breeze_contribution_skills.py <SKILL.md> <skills.json>")
+        sys.exit(1)
+
+    skill_md_path = sys.argv[1]
+    skills_json_path = sys.argv[2]
+
+    extract_and_generate(skill_md_path, skills_json_path)

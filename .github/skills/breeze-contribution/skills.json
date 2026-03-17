@@ -1,46 +1,45 @@
-[
-  {
-    "context": "host",
-    "id": "static-checks",
-    "notes": [
-      "Prefer running static checks on the host; fall back to Breeze only when required by missing system dependencies."
-    ],
-    "recommended": [
-      "prek run --from-ref <target_branch> --stage pre-commit"
-    ],
-    "title": "Run static checks (pre-commit)"
-  },
-  {
-    "context": "host",
-    "fallback": [
-      "breeze run pytest <TESTS> -xvs"
-    ],
-    "id": "unit-tests",
-    "inputs": {
-      "PROJECT": {
-        "description": "Folder containing the pyproject.toml for the package to test (e.g. airflow-core, providers/amazon)."
+{
+  "version": "1.0",
+  "skills": [
+    {
+      "id": "run-static-checks",
+      "name": "Run Static Checks",
+      "description": "Run prek static checks (linting, formatting, type checks)",
+      "commands": {
+        "host": "prek run {--target module}",
+        "breeze": "python -m pytest --doctest-modules {module}"
       },
-      "TESTS": {
-        "description": "Pytest node id or path (e.g. airflow-core/tests/unit/...::test_name)."
-      }
+      "preferred_context": "host",
+      "parameters": {
+        "module": {
+          "type": "string",
+          "required": false,
+          "description": "Target module (e.g., airflow/api)"
+        }
+      },
+      "prerequisites": [],
+      "success_criteria": "exit_code == 0"
     },
-    "notes": [
-      "Use Breeze when uv tests fail due to missing system dependencies or when reproducing CI-only failures."
-    ],
-    "recommended": [
-      "uv run --project <PROJECT> pytest <TESTS> -xvs"
-    ],
-    "title": "Run targeted unit tests"
-  },
-  {
-    "context": "either",
-    "id": "context-detect",
-    "notes": [
-      "Returns a short string indicating the current execution context (host or breeze)."
-    ],
-    "recommended": [
-      "python scripts/ci/prek/breeze_context.py"
-    ],
-    "title": "Detect host vs Breeze environment"
-  }
-]
+    {
+      "id": "run-unit-tests",
+      "name": "Run Unit Tests",
+      "description": "Run targeted unit tests with UV-first, Breeze-fallback strategy",
+      "commands": {
+        "host": "uv run --project airflow pytest {test_path}",
+        "breeze": "breeze exec pytest {test_path}"
+      },
+      "preferred_context": "host",
+      "parameters": {
+        "test_path": {
+          "type": "string",
+          "required": true,
+          "description": "Path to test file or directory"
+        }
+      },
+      "prerequisites": [
+        "run-static-checks"
+      ],
+      "success_criteria": "exit_code == 0"
+    }
+  ]
+}
