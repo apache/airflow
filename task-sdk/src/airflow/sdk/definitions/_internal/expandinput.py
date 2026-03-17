@@ -87,12 +87,6 @@ class ExpandInput(ABC, ResolveMixin):
         """The value of the expand input."""
         ...
 
-    def iter_references(self) -> Iterable[tuple[Operator, str]]:
-        raise NotImplementedError()
-
-    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
-        raise NotImplementedError()
-
 
 class DecoratedExpandInput(ExpandInput):
     EXPAND_INPUT_TYPE: ClassVar[str] = "decorated"
