@@ -110,11 +110,11 @@ class DecoratedExpandInput(ExpandInput):
     def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
         return map(
             lambda value: {"op_kwargs": value},
-            self.delegate.iter_values(context=context),
+            self.delegate.iter_values(context),
         )
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
-        return self.delegate.resolve(context=context)
+        return self.delegate.resolve(context)
 
 
 @attrs.define(kw_only=True)
