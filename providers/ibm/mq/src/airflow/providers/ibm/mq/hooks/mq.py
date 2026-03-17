@@ -107,12 +107,8 @@ class IBMMQHook(BaseHook):
         """
         import ibmmq
 
-        # Retrieve connection in executor thread (this is pure sync, safe here)
         connection = BaseHook.get_connection(self.conn_id)
-
-        # Extract parameters from connection (fresh, no mutation of hook state)
         config = connection.extra_dejson
-
         queue_manager = self.queue_manager or config.get("queue_manager")
         channel = self.channel or config.get("channel")
 
