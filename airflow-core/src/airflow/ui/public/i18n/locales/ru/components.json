@@ -115,7 +115,7 @@
     "file": "Файл",
     "location": "строка {{line}} в {{name}}"
   },
-  "reparseDag": "Повторный разбор ДАГа",
+  "reparseDag": "Повторный парсинг ДАГа",
   "sortedAscending": "сортировано по возрастанию",
   "sortedDescending": "сортировано по убыванию",
   "sortedUnsorted": "несортировано",

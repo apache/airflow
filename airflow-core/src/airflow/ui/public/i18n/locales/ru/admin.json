@@ -73,7 +73,7 @@
     "button": "Удалить",
     "modal": {
       "confirmButton": "Да, удалить",
-      "secondConfirmMessage": "Это действие является постоянным и не может быть отменено.",
+      "secondConfirmMessage": "Это действие необратимо и не может быть отменено.",
       "thirdConfirmMessage": "Вы уверены, что хотите продолжить?"
     },
     "selected": "Выбрано",
@@ -94,9 +94,9 @@
     "filters": {
       "allStates": "Все состояния",
       "allTypes": "Все типы",
-      "dagProcessorJob": "DagProcessorJob",
-      "schedulerJob": "SchedulerJob",
-      "triggererJob": "TriggererJob"
+      "dagProcessorJob": "Задание обработки ДАГа",
+      "schedulerJob": "Задание планировщика",
+      "triggererJob": "Задание триггера"
     }
   },
   "plugins": {
@@ -116,7 +116,7 @@
     },
     "edit": "Редактировать пул",
     "form": {
-      "checkbox": "Убедитесь, что отложенные задачи включены в расчет открытых слотов пула",
+      "checkbox": "Учитывать отложенные задачи при подсчёте свободных слотов пула",
       "description": "Описание",
       "includeDeferred": "Включить отложенные",
       "nameMaxLength": "Имя может содержать максимум 256 символов",
@@ -142,7 +142,7 @@
   "variables": {
     "add": "Добавить переменную",
     "columns": {
-      "isEncrypted": "Зашифрована ли"
+      "isEncrypted": "Зашифровано"
     },
     "delete": {
       "deleteVariable_one": "Удалить 1 переменную",
@@ -161,8 +161,8 @@
     },
     "import": {
       "button": "Импортировать",
-      "conflictResolution": "Выберите разрешение конфликта переменной",
-      "errorParsingJsonFile": "Ошибка разбора JSON файла: загрузите JSON файл, содержащий переменные (например, {\"key\": \"value\", ...}).",
+      "conflictResolution": "Выберите способ разрешения конфликтов переменных",
+      "errorParsingJsonFile": "Ошибка парсинга JSON файла: загрузите JSON файл, содержащий переменные (например, {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
           "description": "Отклоняет импорт, если обнаружены существующие переменные.",
