@@ -81,7 +81,7 @@ dependencies = [
 "mcp" = ["pydantic-ai-slim[mcp]"]
 "sql" = [
     "apache-airflow-providers-common-sql",
-    "sqlglot>=26.0.0",
+    "sqlglot>=30.0.0",
 ]
 "common.sql" = [
     "apache-airflow-providers-common-sql"
@@ -96,7 +96,7 @@ dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-standard",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "sqlglot>=26.0.0",
+    "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]",
     "apache-airflow-providers-common-sql[datafusion]"
 ]
