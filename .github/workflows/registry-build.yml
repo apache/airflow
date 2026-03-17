@@ -252,26 +252,31 @@ jobs:
           PROVIDER: ${{ inputs.provider }}
         run: |
           # Incremental builds only extract data for the target provider(s).
-          # Eleventy still generates API files for every provider, but
-          # non-target files contain incomplete/empty data (no version info,
-          # empty connections, etc.).  Exclude the entire per-provider API
-          # subtree from the main sync, then selectively upload only the
-          # target provider's files.
-          EXCLUDE_PROVIDER_API=()
+          # Eleventy rebuilds all pages, but non-target providers have
+          # incomplete data (no connections/parameters, wrong version info).
+          # Exclude both per-provider API JSON and HTML pages from the main
+          # sync, then selectively upload only the target provider's files.
+          EXCLUDE_PROVIDERS=()
           if [[ -n "${PROVIDER}" ]]; then
-            EXCLUDE_PROVIDER_API=(--exclude "api/providers/*")
+            EXCLUDE_PROVIDERS=(
+              --exclude "api/providers/*"
+              --exclude "providers/*"
+            )
           fi
 
           aws s3 sync registry/_site/ "${S3_BUCKET}" \
             --cache-control "${REGISTRY_CACHE_CONTROL}" \
             --exclude "pagefind/*" \
-            "${EXCLUDE_PROVIDER_API[@]}"
+            "${EXCLUDE_PROVIDERS[@]}"
 
-          # For incremental builds, sync only the target provider's API files.
+          # For incremental builds, sync only the target provider's files.
           if [[ -n "${PROVIDER}" ]]; then
             for pid in ${PROVIDER}; do
               aws s3 sync "registry/_site/api/providers/${pid}/" \
                 "${S3_BUCKET}api/providers/${pid}/" \
+                --cache-control "${REGISTRY_CACHE_CONTROL}"
+              aws s3 sync "registry/_site/providers/${pid}/" \
+                "${S3_BUCKET}providers/${pid}/" \
                 --cache-control "${REGISTRY_CACHE_CONTROL}"
             done
           fi
