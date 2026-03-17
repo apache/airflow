@@ -1127,7 +1127,7 @@ class BackfillResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     from_date: Annotated[datetime, Field(title="From Date")]
     to_date: Annotated[datetime, Field(title="To Date")]
-    dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")]
+    dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = None
     is_paused: Annotated[bool, Field(title="Is Paused")]
     reprocess_behavior: ReprocessBehavior
     max_active_runs: Annotated[int, Field(title="Max Active Runs")]
