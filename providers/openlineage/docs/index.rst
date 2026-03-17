@@ -114,14 +114,6 @@ PIP package                                 Version required
 ``openlineage-python``                      ``>=1.41.0``
 ==========================================  ==================
 
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-==================================================================================================================  =================
-
 Downloading official packages
 -----------------------------
 
