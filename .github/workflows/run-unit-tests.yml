@@ -179,6 +179,9 @@ jobs:
       TOTAL_TEST_TIMEOUT: "3600"  # 60 minutes in seconds
     if: inputs.test-group == 'core' || inputs.skip-providers-tests != 'true'
     steps:
+      - name: "Sanitize JOB_ID"
+        shell: bash
+        run: echo "JOB_ID=${JOB_ID//:/-}" >> "$GITHUB_ENV"  # zizmor: ignore[github-env]
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
