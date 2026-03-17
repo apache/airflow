@@ -3828,7 +3828,7 @@ requires-dist = [
     { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'" },
     { name = "pydantic-ai-slim", extras = ["mcp"], marker = "extra == 'mcp'" },
     { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'openai'" },
-    { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=26.0.0" },
+    { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
 ]
 provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "sql", "common-sql"]
 
@@ -3842,7 +3842,7 @@ dev = [
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "pydantic-ai-slim", extras = ["mcp"] },
-    { name = "sqlglot", specifier = ">=26.0.0" },
+    { name = "sqlglot", specifier = ">=30.0.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
@@ -19644,8 +19644,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography" },
-    { name = "jeepney" },
+    { name = "cryptography", marker = "(python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "jeepney", marker = "(python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
@@ -19968,15 +19968,15 @@ name = "snowflake-snowpark-python"
 version = "1.47.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cloudpickle" },
-    { name = "protobuf" },
-    { name = "python-dateutil" },
-    { name = "pyyaml" },
-    { name = "setuptools" },
-    { name = "snowflake-connector-python" },
-    { name = "typing-extensions" },
-    { name = "tzlocal" },
-    { name = "wheel" },
+    { name = "cloudpickle", marker = "python_full_version < '3.14'" },
+    { name = "protobuf", marker = "python_full_version < '3.14'" },
+    { name = "python-dateutil", marker = "python_full_version < '3.14'" },
+    { name = "pyyaml", marker = "python_full_version < '3.14'" },
+    { name = "setuptools", marker = "python_full_version < '3.14'" },
+    { name = "snowflake-connector-python", marker = "python_full_version < '3.14'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.14'" },
+    { name = "tzlocal", marker = "python_full_version < '3.14'" },
+    { name = "wheel", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/91/9a/0377127c344f2ccdf0877f96bf7a0215ea686d2656987698f972e6aab717/snowflake_snowpark_python-1.47.0.tar.gz", hash = "sha256:e4b4bfb24a52b50fe32746935fb6d0337183d57d3967ecd001c5cebe4a695a54", size = 1735283, upload-time = "2026-03-05T18:18:19.121Z" }
 wheels = [
