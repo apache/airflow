@@ -128,7 +128,7 @@ class DagRunType(str, Enum):
     BACKFILL = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
-    OPERATOR = "operator"
+    OPERATOR_TRIGGERED = "operator_triggered"
     ASSET_TRIGGERED = "asset_triggered"
     ASSET_MATERIALIZATION = "asset_materialization"
 

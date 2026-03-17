@@ -60,7 +60,7 @@ class TestDagRunTrigger:
         dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
         assert dag_run.conf == {"key1": "value1"}
         assert dag_run.logical_date == logical_date
-        assert dag_run.run_type == DagRunType.OPERATOR
+        assert dag_run.run_type == DagRunType.OPERATOR_TRIGGERED
 
     def test_trigger_dag_run_with_partition_key(self, client, session, dag_maker):
         dag_id = "test_trigger_dag_run_partition_key"

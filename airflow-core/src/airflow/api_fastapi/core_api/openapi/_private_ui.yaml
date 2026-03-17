@@ -1999,7 +1999,7 @@ components:
       - backfill
       - scheduled
       - manual
-      - operator
+      - operator_triggered
       - asset_triggered
       - asset_materialization
       title: DagRunType

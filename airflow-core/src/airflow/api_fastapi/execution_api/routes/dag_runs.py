@@ -112,7 +112,7 @@ def trigger_dag_run(
             },
         )
 
-    if dm.allowed_run_types is not None and DagRunType.OPERATOR not in dm.allowed_run_types:
+    if dm.allowed_run_types is not None and DagRunType.OPERATOR_TRIGGERED not in dm.allowed_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail={
@@ -125,7 +125,7 @@ def trigger_dag_run(
         trigger_dag(
             dag_id=dag_id,
             run_id=run_id,
-            run_type=DagRunType.OPERATOR,
+            run_type=DagRunType.OPERATOR_TRIGGERED,
             conf=payload.conf,
             logical_date=payload.logical_date,
             triggered_by=DagRunTriggeredByType.OPERATOR,
