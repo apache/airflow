@@ -27,6 +27,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.snowflake.operators.snowflake import SnowflakeSqlApiOperator
 from airflow.providers.snowflake.operators.snowflake_notebook import SnowflakeNotebookOperator
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 from airflow.utils.types import DagRunType
@@ -36,12 +37,11 @@ from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clea
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, timezone
 
-DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TASK_ID = "snowflake_notebook"
 CONN_ID = "my_snowflake_conn"
 NOTEBOOK = "MY_DB.MY_SCHEMA.MY_NOTEBOOK"
 
-MODULE = "airflow.providers.snowflake.operators.snowflake_notebook"
+HOOK_MODULE = "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook"
 
 
 @pytest.fixture(autouse=True)
@@ -85,7 +85,7 @@ def create_context(task, dag=None):
         )
         task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
-    task_instance.xcom_push = mock.Mock()
+    task_instance.xcom_push = mock.Mock(spec=TaskInstance.xcom_push)
     date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
     return {
         "dag": dag,
@@ -108,8 +108,7 @@ class TestSnowflakeNotebookOperatorSQL:
             task_id=TASK_ID,
             notebook=NOTEBOOK,
         )
-        sql = operator._build_execute_notebook_query()
-        assert sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK()"
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK()"
 
     def test_build_sql_with_params(self):
         operator = SnowflakeNotebookOperator(
@@ -117,8 +116,7 @@ class TestSnowflakeNotebookOperatorSQL:
             notebook=NOTEBOOK,
             parameters=["param1", "target_db=PROD"],
         )
-        sql = operator._build_execute_notebook_query()
-        assert sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('param1', 'target_db=PROD')"
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('param1', 'target_db=PROD')"
 
     def test_build_sql_escapes_single_quotes(self):
         operator = SnowflakeNotebookOperator(
@@ -126,8 +124,7 @@ class TestSnowflakeNotebookOperatorSQL:
             notebook=NOTEBOOK,
             parameters=["O'Brien", "it's"],
         )
-        sql = operator._build_execute_notebook_query()
-        assert sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('O''Brien', 'it''s')"
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK('O''Brien', 'it''s')"
 
     def test_build_sql_empty_params(self):
         operator = SnowflakeNotebookOperator(
@@ -135,13 +132,22 @@ class TestSnowflakeNotebookOperatorSQL:
             notebook=NOTEBOOK,
             parameters=[],
         )
-        sql = operator._build_execute_notebook_query()
-        assert sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK()"
+        assert operator.sql == "EXECUTE NOTEBOOK MY_DB.MY_SCHEMA.MY_NOTEBOOK()"
 
     def test_template_fields(self):
         assert "notebook" in SnowflakeNotebookOperator.template_fields
         assert "parameters" in SnowflakeNotebookOperator.template_fields
         assert "snowflake_conn_id" in SnowflakeNotebookOperator.template_fields
+
+    def test_statement_count_is_one(self):
+        operator = SnowflakeNotebookOperator(
+            task_id=TASK_ID,
+            notebook=NOTEBOOK,
+        )
+        assert operator.statement_count == 1
+
+    def test_is_subclass_of_snowflake_sql_api_operator(self):
+        assert issubclass(SnowflakeNotebookOperator, SnowflakeSqlApiOperator)
 
 
 @pytest.mark.db_test
@@ -162,12 +168,12 @@ class TestSnowflakeNotebookOperator:
 
     @pytest.fixture
     def mock_execute_query(self):
-        with mock.patch(f"{MODULE}.SnowflakeSqlApiHook.execute_query") as execute_query:
+        with mock.patch(f"{HOOK_MODULE}.execute_query") as execute_query:
             yield execute_query
 
     @pytest.fixture
     def mock_get_sql_api_query_status(self):
-        with mock.patch(f"{MODULE}.SnowflakeSqlApiHook.get_sql_api_query_status") as get_status:
+        with mock.patch(f"{HOOK_MODULE}.get_sql_api_query_status") as get_status:
             yield get_status
 
     def test_execute_success_immediate(self, mock_execute_query, mock_get_sql_api_query_status):
@@ -195,7 +201,7 @@ class TestSnowflakeNotebookOperator:
         with pytest.raises(AirflowException):
             operator.execute(context=None)
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
+    @mock.patch(f"{HOOK_MODULE}.execute_query")
     def test_execute_deferred(self, mock_execute_query, mock_get_sql_api_query_status):
         """Running notebook with deferrable=True raises TaskDeferred."""
         operator = SnowflakeNotebookOperator(
@@ -225,20 +231,17 @@ class TestSnowflakeNotebookOperator:
         mock_get_sql_api_query_status.side_effect = [
             # Initial status check in execute()
             {"status": "running"},
-            # 1st poll in _poll_until_complete
+            # 1st poll
             {"status": "running"},
-            # 2nd poll in _poll_until_complete
-            {"status": "running"},
-            # 3rd poll in _poll_until_complete — success
+            # 2nd poll — success
             {"status": "success"},
         ]
 
-        with mock.patch("time.sleep") as mock_sleep:
+        with mock.patch("time.sleep"), mock.patch(f"{HOOK_MODULE}.check_query_output"):
             operator.execute(context=None)
-            assert mock_sleep.call_count == 2
 
     def test_execute_polling_failure(self, mock_execute_query, mock_get_sql_api_query_status):
-        """Non-deferrable mode raises AirflowException when polling finds error."""
+        """Non-deferrable mode raises when polling finds error."""
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             snowflake_conn_id=CONN_ID,
@@ -254,58 +257,6 @@ class TestSnowflakeNotebookOperator:
 
         with pytest.raises(AirflowException):
             operator.execute(context=None)
-
-    @mock.patch(f"{MODULE}.SnowflakeNotebookOperator.defer")
-    def test_execute_succeeded_before_defer(
-        self, mock_defer, mock_execute_query, mock_get_sql_api_query_status
-    ):
-        """Task is not deferred when it succeeds before deferral."""
-        operator = SnowflakeNotebookOperator(
-            task_id=TASK_ID,
-            snowflake_conn_id="snowflake_default",
-            notebook=NOTEBOOK,
-            do_xcom_push=False,
-            deferrable=True,
-        )
-        mock_execute_query.return_value = ["uuid1"]
-        mock_get_sql_api_query_status.side_effect = [{"status": "success"}]
-        operator.execute(create_context(operator))
-
-        assert not mock_defer.called
-
-    @mock.patch(f"{MODULE}.SnowflakeNotebookOperator.defer")
-    def test_execute_failed_before_defer(self, mock_defer, mock_execute_query, mock_get_sql_api_query_status):
-        """Task is not deferred when it fails before deferral."""
-        operator = SnowflakeNotebookOperator(
-            task_id=TASK_ID,
-            snowflake_conn_id="snowflake_default",
-            notebook=NOTEBOOK,
-            do_xcom_push=False,
-            deferrable=True,
-        )
-        mock_execute_query.return_value = ["uuid1"]
-        mock_get_sql_api_query_status.side_effect = [{"status": "error", "message": "fail"}]
-        with pytest.raises(AirflowException):
-            operator.execute(create_context(operator))
-        assert not mock_defer.called
-
-    @mock.patch(f"{MODULE}.SnowflakeNotebookOperator.defer")
-    def test_execute_running_before_defer(
-        self, mock_defer, mock_execute_query, mock_get_sql_api_query_status
-    ):
-        """Task is deferred when still running."""
-        operator = SnowflakeNotebookOperator(
-            task_id=TASK_ID,
-            snowflake_conn_id="snowflake_default",
-            notebook=NOTEBOOK,
-            do_xcom_push=False,
-            deferrable=True,
-        )
-        mock_execute_query.return_value = ["uuid1"]
-        mock_get_sql_api_query_status.side_effect = [{"status": "running"}]
-        operator.execute(create_context(operator))
-
-        assert mock_defer.called
 
     def test_execute_xcom_push(self, mock_execute_query, mock_get_sql_api_query_status):
         """XCom push stores query_ids when do_xcom_push is True."""
@@ -324,7 +275,7 @@ class TestSnowflakeNotebookOperator:
         mock_ti.xcom_push.assert_called_once_with(key="query_ids", value=["uuid1"])
 
     def test_execute_complete_success(self):
-        """execute_complete logs success on success event."""
+        """execute_complete handles success event."""
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             snowflake_conn_id=CONN_ID,
@@ -332,9 +283,8 @@ class TestSnowflakeNotebookOperator:
             deferrable=True,
         )
         event = {"status": "success", "statement_query_ids": ["uuid1"]}
-        with mock.patch.object(operator.log, "info") as mock_log:
+        with mock.patch(f"{HOOK_MODULE}.check_query_output"):
             operator.execute_complete(context=None, event=event)
-        mock_log.assert_called_with("Notebook %s completed successfully.", NOTEBOOK)
 
     def test_execute_complete_failure(self):
         """execute_complete raises AirflowException on error event."""
@@ -351,16 +301,14 @@ class TestSnowflakeNotebookOperator:
             )
 
     def test_execute_complete_none_event(self):
-        """execute_complete logs success on None event."""
+        """execute_complete handles None event gracefully."""
         operator = SnowflakeNotebookOperator(
             task_id=TASK_ID,
             snowflake_conn_id=CONN_ID,
             notebook=NOTEBOOK,
             deferrable=True,
         )
-        with mock.patch.object(operator.log, "info") as mock_log:
-            operator.execute_complete(context=None, event=None)
-        mock_log.assert_called_with("Notebook %s completed successfully.", NOTEBOOK)
+        operator.execute_complete(context=None, event=None)
 
     def test_execute_complete_reassigns_query_ids(self):
         """execute_complete sets query_ids from event."""
@@ -371,13 +319,14 @@ class TestSnowflakeNotebookOperator:
             deferrable=True,
         )
         assert operator.query_ids == []
-        operator.execute_complete(
-            context=None,
-            event={"status": "success", "statement_query_ids": ["uuid1", "uuid2"]},
-        )
+        with mock.patch(f"{HOOK_MODULE}.check_query_output"):
+            operator.execute_complete(
+                context=None,
+                event={"status": "success", "statement_query_ids": ["uuid1", "uuid2"]},
+            )
         assert operator.query_ids == ["uuid1", "uuid2"]
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    @mock.patch(f"{HOOK_MODULE}.cancel_queries")
     def test_on_kill_with_queries(self, mock_cancel_queries):
         """on_kill cancels running queries."""
         operator = SnowflakeNotebookOperator(
@@ -389,7 +338,7 @@ class TestSnowflakeNotebookOperator:
         operator.on_kill()
         mock_cancel_queries.assert_called_once_with(["uuid1", "uuid2"])
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    @mock.patch(f"{HOOK_MODULE}.cancel_queries")
     def test_on_kill_no_queries(self, mock_cancel_queries):
         """on_kill does nothing when no query ids exist."""
         operator = SnowflakeNotebookOperator(
