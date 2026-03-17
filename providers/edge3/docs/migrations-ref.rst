@@ -18,12 +18,12 @@
 Reference for Database Migrations
 '''''''''''''''''''''''''''''''''
 
-Here's the list of all the Database Migrations that are executed via when you run ``airflow fab-db migrate``.
+Here's the list of all the Database Migrations that are executed via when you run ``airflow db migrate``.
 
 .. warning::
 
    Those migration details are mostly used here to make the users aware when and what kind of migrations
-   will be executed during migrations between specific FAB provider versions. The intention here is that the
+   will be executed during migrations between specific Edge3 provider versions. The intention here is that the
    "DB conscious" users might perform an analysis on the migrations and draw conclusions about the impact
    of the migrations on their Airflow database.
 
@@ -31,13 +31,15 @@ Here's the list of all the Database Migrations that are executed via when you ru
  .. All table elements are scraped from migration files
  .. Beginning of auto-generated table
 
-+-------------------------+------------------+---------------+-----------------------------------------+
-| Revision ID             | Revises ID       | Fab Version   | Description                             |
-+=========================+==================+===============+=========================================+
-| ``02ca36b0235b`` (head) | ``6709f7a774b9`` | ``3.5.0``     | Fix fab db inconsistencies.             |
-+-------------------------+------------------+---------------+-----------------------------------------+
-| ``6709f7a774b9`` (base) | ``None``         | ``1.4.0``     | Create User and Role tables if missing. |
-+-------------------------+------------------+---------------+-----------------------------------------+
++-------------------------+------------------+-----------------+----------------------------------------------+
+| Revision ID             | Revises ID       | Edge3 Version   | Description                                  |
++=========================+==================+=================+==============================================+
+| ``8c275b6fbaa8`` (head) | ``b3c4d5e6f7a8`` | ``3.2.0``       | Fix migration file/ORM inconsistencies.      |
++-------------------------+------------------+-----------------+----------------------------------------------+
+| ``b3c4d5e6f7a8``        | ``9d34dfc2de06`` | ``3.2.0``       | Add concurrency column to edge_worker table. |
++-------------------------+------------------+-----------------+----------------------------------------------+
+| ``9d34dfc2de06`` (base) | ``None``         | ``3.0.0``       | Create Edge tables if missing.               |
++-------------------------+------------------+-----------------+----------------------------------------------+
 
  .. End of auto-generated table
 
