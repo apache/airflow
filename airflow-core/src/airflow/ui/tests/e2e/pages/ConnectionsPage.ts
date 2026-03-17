@@ -98,9 +98,15 @@ export class ConnectionsPage extends BasePage {
     // Sorting and filtering
     this.tableHeader = page.locator('[role="columnheader"]').first();
 
-    this.connectionIdHeader = page.getByRole("columnheader", { name: "Connection ID" });
-    this.connectionTypeHeader = page.getByRole("columnheader", { name: "Connection Type" });
-    this.hostHeader = page.getByRole("columnheader", { name: "Host" });
+    this.connectionIdHeader = page
+      .locator('[role="columnheader"]')
+      .filter({ hasText: "Connection ID" })
+      .first();
+    this.connectionTypeHeader = page
+      .locator('[role="columnheader"]')
+      .filter({ hasText: "Connection Type" })
+      .first();
+    this.hostHeader = page.locator('[role="columnheader"]').filter({ hasText: "Host" }).first();
 
     this.searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').first();
     // All table body rows (used by connectionRows for web-first assertions)
@@ -170,12 +176,6 @@ export class ConnectionsPage extends BasePage {
 
   // Edit a connection by connection ID
   public async editConnection(connectionId: string, updates: Partial<ConnectionDetails>): Promise<void> {
-    const row = await this.findConnectionRow(connectionId);
-
-    if (!row) {
-      throw new Error(`Connection ${connectionId} not found`);
-    }
-
     await this.clickEditButton(connectionId);
 
     // Wait for form to load
