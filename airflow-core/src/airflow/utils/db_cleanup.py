@@ -251,7 +251,7 @@ def _do_delete(
                 # MySQL with replication needs this split into two queries, so just do it for all MySQL
                 # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
                 session.execute(text(f"CREATE TABLE {target_table_name} LIKE {orm_model.name}"))
-                metadata = reflect_tables([target_table_name], session)
+                metadata = reflect_tables([target_table_name], session=session)
                 target_table = metadata.tables[target_table_name]
                 insert_stm = target_table.insert().from_select(target_table.c, limited_query)
                 logger.debug("insert statement:\n%s", insert_stm.compile())
@@ -263,7 +263,7 @@ def _do_delete(
             session.commit()
 
             # delete the rows from the old table
-            metadata = reflect_tables([orm_model.name, target_table_name], session)
+            metadata = reflect_tables([orm_model.name, target_table_name], session=session)
             source_table = metadata.tables[orm_model.name]
             target_table = metadata.tables[target_table_name]
             logger.debug("rows moved; purging from %s", source_table.name)

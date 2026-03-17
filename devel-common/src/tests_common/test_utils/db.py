@@ -320,7 +320,7 @@ def clear_db_deadline_alert():
 @_retry_db
 def drop_tables_with_prefix(prefix):
     with create_session() as session:
-        metadata = reflect_tables(None, session)
+        metadata = reflect_tables(None, session=session)
         for table_name, table in metadata.tables.items():
             if table_name.startswith(prefix):
                 table.drop(session.bind)
@@ -336,7 +336,7 @@ def clear_db_serialized_dags():
 def clear_db_pools():
     with create_session() as session:
         session.execute(delete(Pool))
-        add_default_pool_if_not_exists(session)
+        add_default_pool_if_not_exists(session=session)
 
 
 def clear_test_connections(add_default_connections_back=True):
@@ -356,7 +356,7 @@ def clear_db_connections(add_default_connections_back=True):
     with create_session() as session:
         session.execute(delete(Connection))
         if add_default_connections_back:
-            create_default_connections(session)
+            create_default_connections(session=session)
 
 
 @_retry_db

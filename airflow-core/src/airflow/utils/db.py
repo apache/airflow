@@ -160,7 +160,7 @@ def timeout_with_traceback(seconds, message="Operation timed out"):
 
 
 @provide_session
-def merge_conn(conn: Connection, session: Session = NEW_SESSION):
+def merge_conn(conn: Connection, *, session: Session = NEW_SESSION):
     """Add new Connection."""
     if not session.scalar(select(1).where(conn.__class__.conn_id == conn.conn_id)):
         session.add(conn)
@@ -168,7 +168,7 @@ def merge_conn(conn: Connection, session: Session = NEW_SESSION):
 
 
 @provide_session
-def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
+def add_default_pool_if_not_exists(*, session: Session = NEW_SESSION):
     """Add default pool if it does not exist."""
     from airflow.models.pool import Pool
 
@@ -184,12 +184,12 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
 
 
 @provide_session
-def create_default_connections(session: Session = NEW_SESSION):
+def create_default_connections(*, session: Session = NEW_SESSION):
     """Create default Airflow connections."""
     conns = get_default_connections()
 
     for c in conns:
-        merge_conn(c, session)
+        merge_conn(c, session=session)
 
 
 def get_default_connections():
@@ -683,7 +683,7 @@ class AutocommitEngineForMySQL:
         settings.configure_orm()
 
 
-def _create_db_from_orm_mysql(session) -> None:
+def _create_db_from_orm_mysql(*, session: Session) -> None:
     """Create database tables from ORM models for MySQL."""
     from alembic import command
 
@@ -707,7 +707,7 @@ def _create_db_from_orm_mysql(session) -> None:
     log.info("Airflow database tables created")
 
 
-def _create_db_from_orm_default(session) -> None:
+def _create_db_from_orm_default(*, session: Session) -> None:
     """Create database tables from ORM models for PostgreSQL/SQLite."""
     from alembic import command
 
@@ -731,15 +731,15 @@ def _create_db_from_orm_default(session) -> None:
     log.info("Airflow database tables created")
 
 
-def _create_db_from_orm(session):
+def _create_db_from_orm(*, session: Session):
     """Create database tables from ORM models and stamp alembic version."""
     log.info("Creating Airflow database tables from the ORM")
     _setup_debug_logging_if_needed()
 
     if get_dialect_name(session) == "mysql":
-        _create_db_from_orm_mysql(session)
+        _create_db_from_orm_mysql(session=session)
     else:
-        _create_db_from_orm_default(session)
+        _create_db_from_orm_default(session=session)
 
 
 def _setup_debug_logging_if_needed():
@@ -823,7 +823,7 @@ def _single_connection_pool() -> Generator[None, None, None]:
 
 
 @provide_session
-def initdb(session: Session = NEW_SESSION):
+def initdb(*, session: Session = NEW_SESSION):
     """Initialize Airflow database."""
     # First validate external DB managers before running migration
     external_db_manager = RunDBManager()
@@ -993,7 +993,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
 
     from airflow.models.tasklog import LogTemplate
 
-    metadata = reflect_tables([LogTemplate], session)
+    metadata = reflect_tables([LogTemplate], session=session)
     log_template_table: Table | None = metadata.tables.get(LogTemplate.__tablename__)
 
     if log_template_table is None:
@@ -1055,7 +1055,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
-def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
+def reflect_tables(tables: list[MappedClassProtocol | str] | None, *, session: Session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the database.
 
@@ -1068,19 +1068,19 @@ def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
     metadata = sqlalchemy.schema.MetaData()
 
     if tables is None:
-        metadata.reflect(bind=bind, resolve_fks=False)
+        metadata.reflect(bind=bind, resolve_fks=False)  # type: ignore[arg-type]
     else:
         for tbl in tables:
             try:
                 table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
-                metadata.reflect(bind=bind, only=[table_name], extend_existing=True, resolve_fks=False)
+                metadata.reflect(bind=bind, only=[table_name], extend_existing=True, resolve_fks=False)  # type: ignore[arg-type]
             except exc.InvalidRequestError:
                 continue
     return metadata
 
 
 @provide_session
-def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
+def _check_migration_errors(*, session: Session = NEW_SESSION) -> Iterable[str]:
     """:session: session of the sqlalchemy."""
     check_functions: Iterable[Callable[..., Iterable[str]]] = ()
     for check_fn in check_functions:
@@ -1248,7 +1248,7 @@ def upgradedb(
     _run_upgradedb(config, to_revision, session)
 
 
-def _resetdb_mysql(session: Session) -> None:
+def _resetdb_mysql(*, session: Session) -> None:
     """Drop all Airflow tables for MySQL."""
     from sqlalchemy.orm import Session as SASession
 
@@ -1282,7 +1282,7 @@ def _resetdb_mysql(session: Session) -> None:
         lock_session.close()
 
 
-def _resetdb_default(session: Session) -> None:
+def _resetdb_default(*, session: Session) -> None:
     """Drop all Airflow tables for PostgreSQL/SQLite."""
     connection = settings.get_engine().connect()
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
@@ -1294,7 +1294,7 @@ def _resetdb_default(session: Session) -> None:
 
 
 @provide_session
-def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
+def resetdb(*, session: Session = NEW_SESSION, skip_init: bool = False):
     """Clear out the database."""
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
@@ -1303,9 +1303,9 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     import_all_models()
 
     if get_dialect_name(session) == "mysql":
-        _resetdb_mysql(session)
+        _resetdb_mysql(session=session)
     else:
-        _resetdb_default(session)
+        _resetdb_default(session=session)
 
     if not skip_init:
         # Create a fresh non-scoped session for initdb since the original was closed (MySQL)
@@ -1474,7 +1474,7 @@ def drop_airflow_moved_tables(connection):
 
 
 @provide_session
-def check(session: Session = NEW_SESSION):
+def check(*, session: Session = NEW_SESSION):
     """
     Check if the database works.
 
