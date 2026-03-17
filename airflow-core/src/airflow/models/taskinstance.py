@@ -735,7 +735,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
-            "parent_context_carrier": dag_run.context_carrier,
             "context_carrier": context_carrier,
         }
 
