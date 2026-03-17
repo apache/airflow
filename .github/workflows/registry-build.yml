@@ -120,7 +120,7 @@ jobs:
           python: "3.12"
           platform: "linux/amd64"
           use-uv: "true"
-          make-mnt-writeable-and-cleanup: "false"
+          make-mnt-writeable-and-cleanup: "true"
 
       - name: "Install AWS CLI v2"
         run: |
