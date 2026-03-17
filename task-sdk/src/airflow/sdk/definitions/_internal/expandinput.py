@@ -297,7 +297,7 @@ class ListOfDictsExpandInput(ExpandInput):
             for item in self.value:
                 if isinstance(item, XComArg):
                     for resolved_item in item.resolve(context):
-                        yield from resolved_item
+                        yield resolved_item
                 else:
                     yield item
 
