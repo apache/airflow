@@ -500,7 +500,6 @@ def _make_task_carrier(dag_run_context_carrier):
     new_ctx = trace.set_span_in_context(span)
     carrier: dict[str, str] = {}
     TraceContextTextMapPropagator().inject(carrier, context=new_ctx)
-    log.warning("making ti carrier", dag_run_carrier=dag_run_context_carrier, ti_carrier=carrier)
     return carrier
 
 
