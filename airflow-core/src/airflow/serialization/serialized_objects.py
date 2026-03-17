@@ -61,7 +61,11 @@ from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.sdk.definitions.taskgroup import (
+    DEFAULT_TASK_GROUP_RETRY_CONDITION,
+    MappedTaskGroup,
+    TaskGroup,
+)
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
@@ -712,7 +716,7 @@ class BaseSerialization:
     _deserialize_timezone = parse_timezone
 
     @classmethod
-    def _deserialize_timedelta(cls, seconds: int) -> datetime.timedelta:
+    def _deserialize_timedelta(cls, seconds: int | float) -> datetime.timedelta:
         return datetime.timedelta(seconds=seconds)
 
     @classmethod
@@ -2092,6 +2096,41 @@ class TaskGroupSerialization(BaseSerialization):
         if not task_group:
             return None
 
+        def _serialize_value(value: Any) -> Any:
+            serialized = cls.serialize(value)
+            if isinstance(serialized, dict) and Encoding.TYPE in serialized:
+                return serialized[Encoding.VAR]
+            return serialized
+
+        def _serialize_retry_condition(value: Any) -> Any:
+            # Custom callable retry conditions must be importable by the scheduler,
+            # which never loads DAG files.  Detect DAG-local callables early and
+            # raise a clear error instead of silently falling back at runtime.
+            # TODO: add a plugin registration system (like priority_weight_strategy)
+            #  so custom conditions can be discovered via entry points.
+            if callable(value):
+                module = getattr(value, "__module__", "") or ""
+                if module.startswith("unusual_prefix_"):
+                    raise SerializationError(
+                        f"TaskGroup retry_condition callable {qualname(value, True)!r} is defined "
+                        f"in a DAG file and cannot be imported by the scheduler. "
+                        f"Custom retry_condition callables must be defined in an installed "
+                        f"package (e.g., an Airflow plugin) so that the scheduler can import them. "
+                        f"Use a built-in condition string ('any_failed', 'all_failed') for "
+                        f"simple cases."
+                    )
+                return f"<callable {qualname(value, True)}>"
+            if isinstance(value, str) and "unusual_prefix_" in value:
+                raise SerializationError(
+                    f"TaskGroup retry_condition string {value!r} references a DAG-local module "
+                    f"that cannot be imported by the scheduler. "
+                    f"Custom retry_condition callables must be defined in an installed "
+                    f"package (e.g., an Airflow plugin). "
+                    f"Use a built-in condition string ('any_failed', 'all_failed') for "
+                    f"simple cases."
+                )
+            return _serialize_value(value)
+
         # task_group.xxx_ids needs to be sorted here, because task_group.xxx_ids is a set,
         # when converting set to list, the order is uncertain.
         # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
@@ -2110,6 +2149,17 @@ class TaskGroupSerialization(BaseSerialization):
             "upstream_task_ids": cls.serialize(sorted(task_group.upstream_task_ids)),
             "downstream_task_ids": cls.serialize(sorted(task_group.downstream_task_ids)),
         }
+        if task_group.retries:
+            retry_params = {
+                "retries": _serialize_value(task_group.retries),
+                "retry_delay": _serialize_value(task_group.retry_delay),
+                "retry_exponential_backoff": _serialize_value(task_group.retry_exponential_backoff),
+                "retry_condition": _serialize_retry_condition(task_group.retry_condition),
+                "retry_fast_fail": _serialize_value(task_group.retry_fast_fail),
+            }
+            if task_group.max_retry_delay is not None:
+                retry_params["max_retry_delay"] = _serialize_value(task_group.max_retry_delay)
+            encoded.update(retry_params)
 
         if isinstance(task_group, MappedTaskGroup):
             encoded["expand_input"] = encode_expand_input(task_group._expand_input)
@@ -2132,6 +2182,34 @@ class TaskGroupSerialization(BaseSerialization):
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
         kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
+        kwargs["retries"] = cls.deserialize(encoded_group.get("retries", 0))
+        retry_delay_value = encoded_group.get("retry_delay")
+        if retry_delay_value is None:
+            kwargs["retry_delay"] = None
+        else:
+            retry_delay_value = cls.deserialize(retry_delay_value)
+            kwargs["retry_delay"] = (
+                cls._deserialize_timedelta(retry_delay_value)
+                if isinstance(retry_delay_value, (int, float))
+                else retry_delay_value
+            )
+        kwargs["retry_exponential_backoff"] = cls.deserialize(
+            encoded_group.get("retry_exponential_backoff", 0)
+        )
+        kwargs["retry_condition"] = cls.deserialize(
+            encoded_group.get("retry_condition", DEFAULT_TASK_GROUP_RETRY_CONDITION)
+        )
+        kwargs["retry_fast_fail"] = cls.deserialize(encoded_group.get("retry_fast_fail", False))
+        max_retry_delay_value = encoded_group.get("max_retry_delay")
+        if max_retry_delay_value is None:
+            kwargs["max_retry_delay"] = None
+        else:
+            max_retry_delay_value = cls.deserialize(max_retry_delay_value)
+            kwargs["max_retry_delay"] = (
+                cls._deserialize_timedelta(max_retry_delay_value)
+                if isinstance(max_retry_delay_value, (int, float))
+                else max_retry_delay_value
+            )
 
         if not encoded_group.get("is_mapped"):
             group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)

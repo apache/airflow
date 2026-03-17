@@ -57,6 +57,7 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     AbstractOperator,
     DependencyMixin,
     TaskStateChangeCallback,
+    convert_timedelta,
 )
 from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
 from airflow.sdk.definitions._internal.node import validate_key
@@ -1360,14 +1361,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             raise TypeError(f"'retries' type must be int, not {type(retries).__name__}")
         return parsed_retries
 
-    @staticmethod
-    def _convert_timedelta(value: float | timedelta | None) -> timedelta | None:
-        if value is None or isinstance(value, timedelta):
-            return value
-        return timedelta(seconds=value)
-
-    _convert_retry_delay = _convert_timedelta
-    _convert_max_retry_delay = _convert_timedelta
+    _convert_timedelta = staticmethod(convert_timedelta)
+    _convert_retry_delay = staticmethod(convert_timedelta)
+    _convert_max_retry_delay = staticmethod(convert_timedelta)
 
     @staticmethod
     def _convert_resources(resources: dict[str, Any] | None) -> Resources | None:

@@ -31,6 +31,7 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7
 
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
@@ -102,6 +103,7 @@ from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
     LazyDeserializedDAG,
+    TaskGroupSerialization,
     _has_kubernetes,
     create_scheduler_operator,
 )
@@ -130,6 +132,10 @@ REFERENCE_TYPES = [
 async def empty_callback_for_deadline():
     """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
     pass
+
+
+def _task_group_retry_condition(task_instances, **_):
+    return bool(task_instances)
 
 
 def test_recursive_serialize_calls_must_forward_kwargs():
@@ -188,6 +194,70 @@ def test_strict_mode():
     BaseSerialization.serialize(obj)  # does not raise
     with pytest.raises(SerializationError, match="Encountered unexpected type"):
         BaseSerialization.serialize(obj, strict=True)  # now raises
+
+
+def test_task_group_retry_fields_serialization():
+    """TaskGroup retries should be serialized into the encoded dict."""
+    logical_date = datetime(2020, 1, 1)
+    with DAG(dag_id="test_task_group_retry_fields", schedule=None, start_date=logical_date) as dag:
+        with TaskGroup(
+            "group",
+            retries=2,
+            retry_delay=timedelta(seconds=90),
+            retry_exponential_backoff=2.5,
+            max_retry_delay=timedelta(seconds=600),
+            retry_condition=_task_group_retry_condition,
+            retry_fast_fail=True,
+        ) as group:
+            _ = EmptyOperator(task_id="task1")
+
+    encoded = TaskGroupSerialization.serialize_task_group(dag.task_group.children[group.group_id])
+    assert encoded["retries"] == 2
+    assert encoded["retry_delay"] == 90
+    assert encoded["retry_exponential_backoff"] == 2.5
+    assert encoded["max_retry_delay"] == 600
+    assert encoded["retry_fast_fail"] is True
+    assert encoded["retry_condition"] == f"<callable {qualname(_task_group_retry_condition, True)}>"
+
+
+def test_task_group_retry_condition_dag_local_callable_raises():
+    """Serialization should reject retry_condition callables defined in DAG files."""
+    from airflow.exceptions import SerializationError
+
+    def _dag_local_condition(task_instances, **_):
+        return bool(task_instances)
+
+    # Simulate a callable whose module looks like a DAG-processor-parsed module.
+    _dag_local_condition.__module__ = "unusual_prefix_abc123_my_dag"
+
+    logical_date = datetime(2020, 1, 1)
+    with DAG(dag_id="test_dag_local_retry_condition", schedule=None, start_date=logical_date) as dag:
+        with TaskGroup(
+            "group",
+            retries=1,
+            retry_condition=_dag_local_condition,
+        ) as group:
+            _ = EmptyOperator(task_id="task1")
+
+    with pytest.raises(SerializationError, match="defined in a DAG file"):
+        TaskGroupSerialization.serialize_task_group(dag.task_group.children[group.group_id])
+
+
+def test_task_group_retry_condition_dag_local_string_raises():
+    """Serialization should reject retry_condition strings referencing DAG-local modules."""
+    from airflow.exceptions import SerializationError
+
+    logical_date = datetime(2020, 1, 1)
+    with DAG(dag_id="test_dag_local_retry_string", schedule=None, start_date=logical_date) as dag:
+        with TaskGroup(
+            "group",
+            retries=1,
+            retry_condition="unusual_prefix_abc123_my_dag.my_condition",
+        ) as group:
+            _ = EmptyOperator(task_id="task1")
+
+    with pytest.raises(SerializationError, match="references a DAG-local module"):
+        TaskGroupSerialization.serialize_task_group(dag.task_group.children[group.group_id])
 
 
 def test_prevent_re_serialization_of_serialized_operators():

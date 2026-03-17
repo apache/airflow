@@ -17,13 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import itertools
 import logging
+import math
 import os
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
@@ -80,6 +82,7 @@ from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
+from airflow.ti_deps.deps.task_group_retry_dep import TaskGroupRetryDep
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
@@ -109,6 +112,7 @@ if TYPE_CHECKING:
     from airflow.sdk import DAG as SDKDAG
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     AttributeValueType: TypeAlias = (
@@ -1250,7 +1254,14 @@ class DagRun(Base, LoggingMixin):
                 else:
                     yield ti
 
-        tis = list(_filter_tis_and_exclude_removed(self.get_dag(), tis))
+        dag = self.get_dag()
+        tis = list(_filter_tis_and_exclude_removed(dag, tis))
+
+        if self._handle_task_group_retries(dag=dag, tis=tis, session=session):
+            session.flush()
+            session.expire_all()
+            tis = self.get_task_instances(session=session, state=State.task_states)
+            tis = list(_filter_tis_and_exclude_removed(dag, tis))
 
         unfinished_tis = [t for t in tis if t.state in State.unfinished]
         finished_tis = [t for t in tis if t.state in State.finished]
@@ -1281,6 +1292,207 @@ class DagRun(Base, LoggingMixin):
             unfinished_tis=unfinished_tis,
             finished_tis=finished_tis,
         )
+
+    @staticmethod
+    def _calculate_task_group_retry_delay(
+        *,
+        group: SerializedTaskGroup,
+        try_number: int,
+        dag_id: str,
+        run_id: str,
+        logical_date: datetime | None,
+    ) -> timedelta:
+        from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY
+
+        delay = group.retry_delay if group.retry_delay is not None else DEFAULT_RETRY_DELAY
+        if not isinstance(delay, timedelta):
+            delay = timedelta(seconds=delay)
+
+        # When backoff is 0 (default) or 1.0, multiplier stays 1.0 → constant delay (no backoff).
+        multiplier = group.retry_exponential_backoff if group.retry_exponential_backoff != 0 else 1.0
+        if multiplier != 1.0 and multiplier > 0:
+            try:
+                min_backoff = math.ceil(delay.total_seconds() * (multiplier ** (try_number - 1)))
+            except OverflowError:
+                min_backoff = MAX_RETRY_DELAY
+                log.warning(
+                    "OverflowError occurred while calculating TaskGroup retry backoff; "
+                    "using MAX_RETRY_DELAY for min_backoff."
+                )
+
+            if min_backoff < 1:
+                min_backoff = 1
+
+            hash_basis = logical_date.isoformat() if logical_date else run_id
+            group_hash = int(
+                hashlib.sha1(
+                    f"{dag_id}#{group.group_id}#{hash_basis}#{try_number}".encode(),
+                    usedforsecurity=False,
+                ).hexdigest(),
+                16,
+            )
+            modded_hash = min_backoff + group_hash % min_backoff
+            delay_backoff_in_seconds = min(modded_hash, MAX_RETRY_DELAY)
+            delay = timedelta(seconds=delay_backoff_in_seconds)
+            max_retry_delay = group.max_retry_delay
+            if isinstance(max_retry_delay, (int, float)):
+                max_retry_delay = timedelta(seconds=max_retry_delay)
+            if max_retry_delay:
+                delay = min(delay, max_retry_delay)
+
+        return delay
+
+    def _handle_task_group_retries(
+        self,
+        *,
+        dag: SerializedDAG,
+        tis: list[TI],
+        session: Session,
+    ) -> bool:
+        from airflow.models.taskgroupinstance import (
+            TaskGroupInstance,
+            collect_task_group_tis,
+            should_task_group_retry,
+        )
+        from airflow.models.taskinstance import clear_task_instances
+
+        # Quick check: if the root TaskGroup has no sub-groups, skip the dict build.
+        if not any(hasattr(child, "children") for child in dag.task_group.children.values()):
+            return False
+
+        group_dict = dag.task_group.get_task_group_dict()
+        groups = [group for group_id, group in group_dict.items() if group_id]
+        if not groups:
+            return False
+        if not any(getattr(g, "retries", 0) for g in groups):
+            return False
+
+        def _group_depth(group: SerializedTaskGroup) -> int:
+            depth = 0
+            parent = group.parent_group
+            while parent and not parent.is_root:
+                depth += 1
+                parent = parent.parent_group
+            return depth
+
+        groups.sort(key=_group_depth, reverse=True)
+
+        tis_by_task_id: dict[str, list[TI]] = defaultdict(list)
+        for ti in tis:
+            tis_by_task_id[ti.task_id].append(ti)
+
+        group_instances = {
+            tgi.task_group_id: tgi
+            for tgi in session.scalars(
+                select(TaskGroupInstance).where(
+                    TaskGroupInstance.dag_id == self.dag_id,
+                    TaskGroupInstance.run_id == self.run_id,
+                )
+            ).all()
+        }
+
+        now = timezone.utcnow()
+        for group in groups:
+            if not group.retries or group.is_root or getattr(group, "is_mapped", False):
+                continue
+            if not group.group_id:
+                continue
+
+            group_tis = collect_task_group_tis(group, tis_by_task_id)
+            if not group_tis:
+                continue
+
+            if any(ti.state in State.unfinished for ti in group_tis):
+                continue
+
+            should_retry = should_task_group_retry(task_group=group, task_instances=group_tis)
+            if not should_retry:
+                # All tasks finished and retry condition is not met (e.g. retry succeeded).
+                # Clear stale next_retry_at so TaskGroupRetryDep won't briefly block.
+                cached_tgi = group_instances.get(group.group_id)
+                if cached_tgi is not None and cached_tgi.next_retry_at is not None:
+                    cached_tgi.next_retry_at = None
+                    session.merge(cached_tgi)
+                continue
+
+            cached_tgi = group_instances.get(group.group_id)
+            if cached_tgi is None:
+                cached_tgi = TaskGroupInstance(
+                    dag_id=self.dag_id,
+                    run_id=self.run_id,
+                    task_group_id=group.group_id,
+                    try_number=0,
+                )
+                group_instances[group.group_id] = cached_tgi
+
+            current_try_number = cached_tgi.try_number or 0
+            if current_try_number >= group.retries:
+                continue
+
+            next_try_number = current_try_number + 1
+            delay = self._calculate_task_group_retry_delay(
+                group=group,
+                try_number=next_try_number,
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                logical_date=self.logical_date,
+            )
+            next_retry_at = now + delay
+
+            # Use an atomic UPDATE with optimistic locking to prevent concurrent
+            # scheduler loops from both incrementing the same try_number.
+            result = session.execute(
+                update(TaskGroupInstance)
+                .where(
+                    TaskGroupInstance.dag_id == self.dag_id,
+                    TaskGroupInstance.run_id == self.run_id,
+                    TaskGroupInstance.task_group_id == group.group_id,
+                    TaskGroupInstance.try_number == current_try_number,
+                )
+                .values(
+                    try_number=next_try_number,
+                    next_retry_at=next_retry_at,
+                    updated_at=now,
+                )
+            )
+            rows_updated = result.rowcount  # type: ignore[attr-defined]
+            if rows_updated == 0:
+                # Either the row doesn't exist yet, or a concurrent scheduler already
+                # incremented try_number (optimistic lock miss).  Check which case.
+                existing = session.scalar(
+                    select(TaskGroupInstance).where(
+                        TaskGroupInstance.dag_id == self.dag_id,
+                        TaskGroupInstance.run_id == self.run_id,
+                        TaskGroupInstance.task_group_id == group.group_id,
+                    )
+                )
+                if existing is not None:
+                    # Another scheduler already processed this retry — skip.
+                    continue
+                # Row genuinely doesn't exist — insert it.
+                cached_tgi.try_number = next_try_number
+                cached_tgi.next_retry_at = next_retry_at
+                cached_tgi.updated_at = now
+                session.merge(cached_tgi)
+            else:
+                # Update the in-memory object to stay consistent.
+                cached_tgi.try_number = next_try_number
+                cached_tgi.next_retry_at = next_retry_at
+                cached_tgi.updated_at = now
+
+            clear_task_instances(
+                group_tis,
+                session=session,
+                dag_run_state=False,
+                clear_task_group_instances=False,
+            )
+            # Break after the first group retry — clearing tasks invalidates
+            # tis_by_task_id, so the caller must re-fetch TIs before evaluating
+            # the next group.  The outer loop in task_instance_scheduling_decisions
+            # already handles this (re-fetches when changed=True).
+            return True
+
+        return False
 
     def notify_dagrun_state_changed(self, msg: str):
         try:
@@ -1413,10 +1625,34 @@ class DagRun(Base, LoggingMixin):
         # If we expand TIs, we need a new list so that we iterate over them too. (We can't alter
         # `schedulable_tis` in place and have the `for` loop pick them up
         additional_tis: list[TI] = []
+
+        # Pre-fetch all pending TaskGroup retry delays for this DagRun in a single query
+        # so that TaskGroupRetryDep can check in-memory instead of issuing per-task queries.
+        #
+        # TaskGroupRetryDep is injected locally here (not in the global RUNNING_DEPS /
+        # SCHEDULER_QUEUED_DEPS sets) so that it only runs in the scheduler loop where
+        # pre-fetched data is available.  This means ``airflow tasks deps`` (CLI) and the
+        # API dependency-check endpoint will not report TaskGroup retry delays — an
+        # acceptable trade-off to avoid an extra DB query per task in those paths.
+        from airflow.models.taskgroupinstance import TaskGroupInstance
+
+        now = timezone.utcnow()
+        pending_retries_list = session.scalars(
+            select(TaskGroupInstance).where(
+                TaskGroupInstance.dag_id == self.dag_id,
+                TaskGroupInstance.run_id == self.run_id,
+                TaskGroupInstance.next_retry_at.is_not(None),
+                TaskGroupInstance.next_retry_at > now,
+            )
+        ).all()
+        pending_retries = {tgi.task_group_id: tgi for tgi in pending_retries_list}
+
         dep_context = DepContext(
             flag_upstream_failed=True,
             ignore_unmapped_tasks=True,  # Ignore this Dep, as we will expand it if we can.
             finished_tis=finished_tis,
+            deps={TaskGroupRetryDep()},
+            pending_task_group_retries=pending_retries,
         )
 
         def _expand_mapped_task_if_needed(ti: TI) -> Iterable[TI] | None:
@@ -1510,6 +1746,7 @@ class DagRun(Base, LoggingMixin):
             flag_upstream_failed=True,
             ignore_in_retry_period=True,
             ignore_in_reschedule_period=True,
+            ignore_task_group_retry_delay=True,
             finished_tis=finished_tis,
         )
         # there might be runnable tasks that are up for retry and for some reason(retry delay, etc.) are

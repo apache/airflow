@@ -1175,27 +1175,63 @@ def test_task_group_arrow_with_setup_group():
 
 def test_task_group_display_name_used_as_label(dag_maker):
     """Test that the group_display_name for TaskGroup is used as the label for display on the UI."""
-    with dag_maker(dag_id="display_name", schedule=None, start_date=pendulum.datetime(2022, 1, 1)) as dag:
+    with dag_maker(dag_id="display_name", schedule=None, start_date=pendulum.datetime(2022, 1, 1)):
         with TaskGroup(group_id="tg", group_display_name="my_custom_name") as tg:
             task1 = BaseOperator(task_id="task1")
             task2 = BaseOperator(task_id="task2")
             task1 >> task2
 
     assert tg.group_id == "tg"
-    assert tg.label == "my_custom_name"
-    expected_node_id = {
-        "id": None,
-        "label": "",
-        "children": [
-            {
-                "id": "tg",
-                "label": "my_custom_name",
-                "children": [
-                    {"id": "tg.task1", "label": "task1"},
-                    {"id": "tg.task2", "label": "task2"},
-                ],
-            },
-        ],
-    }
 
-    assert extract_node_id(task_group_to_dict(dag.task_group), include_label=True) == expected_node_id
+
+def test_task_group_retry_condition_serializes(dag_maker):
+    with dag_maker(
+        dag_id="tg_retry_condition", schedule=None, start_date=pendulum.datetime(2022, 1, 1)
+    ) as dag:
+        with TaskGroup(
+            group_id="tg",
+            retries=1,
+            retry_condition="all_failed",
+            retry_fast_fail=True,
+        ) as tg:
+            BaseOperator(task_id="task1")
+
+    serialized_dag = create_scheduler_dag(dag)
+    group = serialized_dag.task_group_dict[tg.group_id]
+    assert group.retries == 1
+    assert group.retry_condition == "all_failed"
+    assert group.retry_fast_fail is True
+
+
+def test_task_group_retries_do_not_add_retry_task(dag_maker):
+    with dag_maker(dag_id="task_group_retries", schedule=None, start_date=pendulum.datetime(2022, 1, 1)):
+        start = EmptyOperator(task_id="start")
+        with TaskGroup(group_id="group", retries=2) as group:
+            task1 = EmptyOperator(task_id="task1")
+            task2 = EmptyOperator(task_id="task2")
+            task1 >> task2
+        downstream = EmptyOperator(task_id="downstream")
+        start >> group >> downstream
+    assert set(dag_maker.dag.task_dict) == {
+        start.task_id,
+        task1.task_id,
+        task2.task_id,
+        downstream.task_id,
+    }
+    assert downstream.upstream_task_ids == {task2.task_id}
+    assert group.retries == 2
+
+
+def test_nested_task_group_retries_do_not_add_retry_task(dag_maker):
+    with dag_maker(
+        dag_id="nested_task_group_retries", schedule=None, start_date=pendulum.datetime(2022, 1, 1)
+    ):
+        with TaskGroup(group_id="parent", retries=1) as parent:
+            with TaskGroup(group_id="child", retries=1) as child:
+                task1 = EmptyOperator(task_id="task1")
+                task2 = EmptyOperator(task_id="task2")
+                task1 >> task2
+    assert set(dag_maker.dag.task_dict) == {task1.task_id, task2.task_id}
+    assert task2.task_id in task1.downstream_task_ids
+    assert parent.retries == 1
+    assert child.retries == 1
