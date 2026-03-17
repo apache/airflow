@@ -103,8 +103,8 @@ class KubernetesExecutor(BaseExecutor):
         self.parallelism = self.kube_config.parallelism
 
         self._manager = multiprocessing.Manager()
-        self.task_queue: Queue[KubernetesJob] = self._manager.Queue()
-        self.result_queue: Queue[KubernetesResults] = self._manager.Queue()
+        self.task_queue: Queue[KubernetesJob] = self._manager.JoinableQueue()
+        self.result_queue: Queue[KubernetesResults] = self._manager.JoinableQueue()
         self.kube_scheduler: AirflowKubernetesScheduler | None = None
         self.kube_client: client.CoreV1Api | None = None
         self.scheduler_job_id: str | None = None

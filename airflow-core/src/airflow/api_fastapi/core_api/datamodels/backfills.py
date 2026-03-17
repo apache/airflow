@@ -46,7 +46,7 @@ class BackfillResponse(BaseModel):
     dag_id: str
     from_date: datetime
     to_date: datetime
-    dag_run_conf: dict
+    dag_run_conf: dict | None
     is_paused: bool
     reprocess_behavior: ReprocessBehavior
     max_active_runs: int

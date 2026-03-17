@@ -1,0 +1,12 @@
+``workers`` specific sections have been moved to ``workers.celery``/``workers.kubernetes`` sections.
+
+Please update your configuration accordingly:
+* ``workers.command`` command is now deprecated in favor of ``workers.celery.command``/``workers.kubernetes.command`` (#60067).
+* ``workers.securityContexts`` command is now deprecated in favor of ``workers.celery.securityContexts``/``workers.kubernetes.securityContexts`` (#60396).
+* ``workers.containerLifecycleHooks`` command is now deprecated in favor of ``workers.celery.containerLifecycleHooks``/``workers.kubernetes.containerLifecycleHooks`` (#61369).
+* ``workers.kerberosSidecar`` section is now deprecated in favor of ``workers.celery.kerberosSidecar``/``workers.kubernetes.kerberosSidecar`` (#61881).
+* ``workers.kerberosInitContainer`` section is now deprecated in favor of ``workers.celery.kerberosInitContainer``/``workers.kubernetes.kerberosInitContainer`` (#60751).
+* ``workers.terminationGracePeriodSeconds`` command is now deprecated in favor of ``workers.celery.terminationGracePeriodSeconds``/``workers.kubernetes.terminationGracePeriodSeconds`` (#61892).
+* ``workers.nodeSelector`` command is now deprecated in favor of ``workers.celery.nodeSelector``/``workers.kubernetes.nodeSelector`` (#61957).
+
+The previous configuration options are still working, but are deprecated and will be removed in a future version.
