@@ -199,6 +199,24 @@ def test_sync_bundles_to_db(clear_db, session):
     ]
 
 
+@pytest.mark.db_test
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+def test_sync_bundles_to_db_does_not_log_removing_none_team(clear_db, caplog):
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+
+        caplog.clear()
+        caplog.set_level("WARNING")
+
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db()
+
+    assert "Removing ownership of team 'None'" not in caplog.text
+
+
 @conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)})
 @pytest.mark.parametrize("version", [None, "hello"])
 def test_view_url(version):
