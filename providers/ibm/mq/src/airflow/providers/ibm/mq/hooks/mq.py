@@ -233,7 +233,7 @@ class IBMMQHook(BaseHook):
 
         try:
             with self.get_conn() as conn:
-                if self.log.isEnabledFor(logging.INFO):
+                if self.log.isEnabledFor(logging.INFO) and self.open_options is not None:
                     flag_names = self.get_open_options_flags(self.open_options)
                     self.log.info(
                         "Opening MQ queue '%s' with open_options=%s (%s)",
