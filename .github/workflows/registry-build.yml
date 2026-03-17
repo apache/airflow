@@ -98,6 +98,8 @@ jobs:
     needs: [build-ci-image]
     runs-on: ubuntu-latest
     env:
+      SCARF_ANALYTICS: "false"
+      DO_NOT_TRACK: "1"
       EXISTING_REGISTRY_DIR: /tmp/existing-registry
       REGISTRY_DATA_DIR: dev/registry
       REGISTRY_PROVIDERS_JSON: providers.json
@@ -247,10 +249,38 @@ jobs:
       - name: "Sync registry to S3"
         env:
           S3_BUCKET: ${{ steps.destination.outputs.bucket }}
+          PROVIDER: ${{ inputs.provider }}
         run: |
+          # Incremental builds only extract connections/parameters for the
+          # target provider(s).  The Eleventy site build still emits empty
+          # stub JSON for every other provider.  Uploading those stubs would
+          # overwrite real data on S3, so we exclude per-provider API JSON
+          # from the main sync and selectively upload only the target
+          # provider's files afterward.
+          EXCLUDE_PROVIDER_API=()
+          if [[ -n "${PROVIDER}" ]]; then
+            EXCLUDE_PROVIDER_API=(
+              --exclude "api/providers/*/connections.json"
+              --exclude "api/providers/*/parameters.json"
+              --exclude "api/providers/*/*/connections.json"
+              --exclude "api/providers/*/*/parameters.json"
+            )
+          fi
+
           aws s3 sync registry/_site/ "${S3_BUCKET}" \
             --cache-control "${REGISTRY_CACHE_CONTROL}" \
-            --exclude "pagefind/*"
+            --exclude "pagefind/*" \
+            "${EXCLUDE_PROVIDER_API[@]}"
+
+          # For incremental builds, sync only the updated provider's API files.
+          if [[ -n "${PROVIDER}" ]]; then
+            for pid in ${PROVIDER}; do
+              aws s3 sync "registry/_site/api/providers/${pid}/" \
+                "${S3_BUCKET}api/providers/${pid}/" \
+                --cache-control "${REGISTRY_CACHE_CONTROL}"
+            done
+          fi
+
           # Pagefind generates content-hashed filenames (e.g. en_181da6f.pf_index).
           # Each rebuild produces new hashes, so --delete is needed to remove stale
           # index files. This is separate from the main sync which intentionally
