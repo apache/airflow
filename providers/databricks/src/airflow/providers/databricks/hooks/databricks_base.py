@@ -591,7 +591,8 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_k8s_jwt_token(self) -> str:
         """Async version of _get_k8s_jwt_token()."""
-        if "k8s_projected_volume_token_path" in self.databricks_conn.extra_dejson:
+        conn = await self.a_databricks_conn()
+        if "k8s_projected_volume_token_path" in conn.extra_dejson:
             self.log.info("Using Kubernetes projected volume token")
             return await self._a_get_k8s_projected_volume_token()
 
@@ -648,8 +649,9 @@ class BaseDatabricksHook(BaseHook):
     async def _a_get_k8s_projected_volume_token(self) -> str:
         """Async version of _get_k8s_projected_volume_token()."""
         aiofiles = self._get_aiofiles()
+        conn = await self.a_databricks_conn()
 
-        projected_token_path: str = self.databricks_conn.extra_dejson["k8s_projected_volume_token_path"]
+        projected_token_path: str = conn.extra_dejson["k8s_projected_volume_token_path"]
 
         try:
             async with aiofiles.open(projected_token_path) as f:
@@ -759,15 +761,12 @@ class BaseDatabricksHook(BaseHook):
     async def _a_get_k8s_token_request_api(self) -> str:
         """Async version of _get_k8s_token_request_api()."""
         aiofiles = self._get_aiofiles()
+        conn = await self.a_databricks_conn()
 
-        audience = self.databricks_conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
-        expiration_seconds = self.databricks_conn.extra_dejson.get("expiration_seconds", 3600)
-        token_path = self.databricks_conn.extra_dejson.get(
-            "k8s_token_path", DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH
-        )
-        namespace_path = self.databricks_conn.extra_dejson.get(
-            "k8s_namespace_path", DEFAULT_K8S_NAMESPACE_PATH
-        )
+        audience = conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
+        expiration_seconds = conn.extra_dejson.get("expiration_seconds", 3600)
+        token_path = conn.extra_dejson.get("k8s_token_path", DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH)
+        namespace_path = conn.extra_dejson.get("k8s_namespace_path", DEFAULT_K8S_NAMESPACE_PATH)
 
         try:
             async with aiofiles.open(token_path) as f:
@@ -845,6 +844,20 @@ class BaseDatabricksHook(BaseHook):
             )
         return client_id
 
+    async def _a_get_required_client_id(self) -> str:
+        """Async version of `_get_required_client_id()`."""
+        conn = await self.a_databricks_conn()
+        client_id = conn.extra_dejson.get("client_id")
+        if not client_id:
+            # see: https://github.com/kubernetes/kubernetes/issues/116638
+            raise AirflowException(
+                "client_id is required for Kubernetes OIDC token federation. "
+                "Kubernetes service account tokens do not support custom claims, "
+                "so service principal-level federation must be used. "
+                "Please provide client_id in the connection extra parameters."
+            )
+        return client_id
+
     def _get_federated_databricks_token(self, resource: str) -> str:
         """
         Get Databricks OAuth token by exchanging Kubernetes JWT token.
@@ -908,7 +921,7 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing federated token is expired or missing. Fetching new token...")
 
-        client_id = self._get_required_client_id()
+        client_id = await self._a_get_required_client_id()
 
         # Get JWT from Kubernetes
         jwt_token = await self._a_get_k8s_jwt_token()
