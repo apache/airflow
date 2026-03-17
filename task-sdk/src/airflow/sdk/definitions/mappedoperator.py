@@ -758,7 +758,7 @@ class MappedOperator(AbstractOperator):
         """Implement DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _expand_mapped_kwargs(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
+    def _expand_mapped_kwargs(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         """
         Get the kwargs to create the unmapped operator.
 
@@ -767,7 +767,7 @@ class MappedOperator(AbstractOperator):
         """
         return self._get_specified_expand_input().resolve(context)
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Context, *, strict: bool) -> dict[str, Any]:
+    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
         """
         Get init kwargs to unmap the underlying operator class.
 
@@ -799,7 +799,7 @@ class MappedOperator(AbstractOperator):
             "params": params,
         }
 
-    def unmap(self, resolve: Context) -> BaseOperator:
+    def unmap(self, resolve: Mapping[str, Any]) -> BaseOperator:
         """
         Get the "normal" Operator after applying the current mapping.
 

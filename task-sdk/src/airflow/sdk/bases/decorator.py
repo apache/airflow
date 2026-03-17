@@ -751,14 +751,14 @@ class DecoratedMappedOperator(MappedOperator):
     def __hash__(self):
         return id(self)
 
-    def _expand_mapped_kwargs(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
+    def _expand_mapped_kwargs(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
         if self.expand_input is not EXPAND_INPUT_EMPTY:
             raise AssertionError(f"unexpected expand_input: {self.expand_input}")
         op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context)
         return {"op_kwargs": op_kwargs}, resolved_oids
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Context, *, strict: bool) -> dict[str, Any]:
+    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
         partial_op_kwargs = self.partial_kwargs["op_kwargs"]
         mapped_op_kwargs = mapped_kwargs["op_kwargs"]
 

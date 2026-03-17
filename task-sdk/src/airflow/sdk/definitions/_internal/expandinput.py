@@ -29,7 +29,6 @@ from airflow.sdk.definitions.xcom_arg import XComArg
 if TYPE_CHECKING:
     from typing import TypeGuard
 
-    from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import Operator
 
 # Each keyword argument to expand() can be an XComArg, sequence, or dict (not
@@ -91,7 +90,7 @@ class ExpandInput(ABC, ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         raise NotImplementedError()
 
-    def iter_values(self, context: Context) -> Iterable[Any]:
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
         raise NotImplementedError()
 
 
@@ -108,13 +107,13 @@ class DecoratedExpandInput(ExpandInput):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return self.delegate.iter_references()
 
-    def iter_values(self, context: Context) -> Iterable[dict]:
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
         return map(
             lambda value: {"op_kwargs": value},
             self.delegate.iter_values(context=context),
         )
 
-    def resolve(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
+    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         return self.delegate.resolve(context=context)
 
 
@@ -140,7 +139,7 @@ class MappedArgument(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         yield from self._input.iter_references()
 
-    def resolve(self, context: Context) -> Any:
+    def resolve(self, context: Mapping[str, Any]) -> Any:
         data, _ = self._input.resolve(context)
         return data[self._key]
 
@@ -223,7 +222,7 @@ class DictOfListsExpandInput(ExpandInput):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
-    def iter_values(self, context: Context) -> Iterable[Any]:
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
         from airflow.sdk.definitions.xcom_arg import XComArg
 
         resolved = {k: v.resolve(context) if isinstance(v, XComArg) else v for k, v in self.value.items()}
@@ -236,7 +235,7 @@ class DictOfListsExpandInput(ExpandInput):
         ):
             yield dict(zip(keys, items))
 
-    def resolve(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
+    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
         if map_index is None or map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
@@ -290,7 +289,7 @@ class ListOfDictsExpandInput(ExpandInput):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
-    def iter_values(self, context: Context) -> Iterable[Any]:
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
         if isinstance(self.value, XComArg):
             for item in self.value.resolve(context):
                 yield item
@@ -302,7 +301,7 @@ class ListOfDictsExpandInput(ExpandInput):
                 else:
                     yield item
 
-    def resolve(self, context: Context) -> tuple[Mapping[str, Any], set[int]]:
+    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
         if map_index is None or map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
