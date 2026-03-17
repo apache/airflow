@@ -189,10 +189,10 @@ class XComIterable(Sequence):
     @overload
     def __getitem__(self, key: slice) -> Sequence[Any]: ...
 
-    def __getitem__(self, key: int | slice):
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
         """Allow direct indexing so this works like a sequence."""
         if isinstance(key, slice):
-            start, stop, step = _coerce_slice(key)
+            start, stop, step = key.indices(len(self))
             return [self[i] for i in range(start, stop, step)]
 
         if not (0 <= key < self.length):
