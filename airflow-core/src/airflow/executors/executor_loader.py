@@ -328,13 +328,11 @@ class ExecutorLoader:
         :return: The matching executor instance, or None if not found.
         """
         if executor_name is None:
-            if not team_name:
-                # No team specified, return the global default (first in list)
-                return executors[0] if executors else None
-            # Find the default executor for the given team
-            for _executor in executors:
-                if _executor.team_name == team_name:
-                    return _executor
+            if team_name:
+                # Find the default executor for the given team
+                for _executor in executors:
+                    if _executor.team_name == team_name:
+                        return _executor
             # No team-specific executor found, fall back to global default
             return executors[0] if executors else None
 

@@ -72,6 +72,14 @@ class TriggerFailureReason(str, Enum):
     TRIGGER_FAILURE = "Trigger failure"
 
 
+@cache
+def get_executors():
+    """Load configured executors (cached) and find the one responsible for this task instance."""
+    from airflow.executors.executor_loader import ExecutorLoader
+
+    return ExecutorLoader.init_executors()
+
+
 class Trigger(Base):
     """
     Base Trigger class.
@@ -115,6 +123,9 @@ class Trigger(Base):
     callback = relationship("Callback", back_populates="trigger", uselist=False)
 
     max_trigger_to_select_per_loop = conf.getint("triggerer", "max_trigger_to_select_per_loop", fallback=50)
+    # Which executors are configured for direct queueing
+    direct_queueing_allowlist = conf.getlist("triggerer", "direct_queueing_executors", fallback=[])
+    multi_team = conf.getboolean("core", "multi_team")
 
     def __init__(
         self,
@@ -287,7 +298,6 @@ class Trigger(Base):
             trigger.callback.handle_event(event, session)
 
     @classmethod
-    @provide_session
     def return_to_worker(cls, task_instance: TaskInstance, session: Session) -> None:
         """
         Return a task instance to the worker for execution.
@@ -304,19 +314,11 @@ class Trigger(Base):
         task_instance.trigger_id = None
         task_instance.scheduled_dttm = timezone.utcnow()
 
-        # Check which executors are configured for direct queueing
-        direct_queueing_allowlist = conf.getlist("triggerer", "direct_queueing_executors", fallback=[])
-
-        if direct_queueing_allowlist:
+        if cls.direct_queueing_allowlist:
             # Resolve team name for multi-team setups
             team_name: str | None = None
-            if conf.getboolean("core", "multi_team"):
+            if cls.multi_team:
                 team_name = task_instance.dag_model.get_team_name(task_instance.dag_id, session=session)
-
-            # Load configured executors (cached) and find the one responsible for this task instance
-            @cache
-            def get_executors():
-                return ExecutorLoader.init_executors()
 
             executor = ExecutorLoader.find_executor(get_executors(), task_instance.executor, team_name)
 
@@ -327,7 +329,7 @@ class Trigger(Base):
                     executor.name.module_path,
                     executor.name.module_path.split(".")[-1],
                 }
-                if executor_identifiers & set(direct_queueing_allowlist):
+                if executor_identifiers & set(cls.direct_queueing_allowlist):
                     task_instance.state = TaskInstanceState.QUEUED
                     workload = workloads.ExecuteTask.make(ti=task_instance, generator=executor.jwt_generator)
                     executor.queue_workload(workload, session=session)
