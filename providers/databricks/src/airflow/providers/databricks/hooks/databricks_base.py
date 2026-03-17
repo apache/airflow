@@ -320,9 +320,9 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
         try:
+            conn = await self.a_databricks_conn()
             async for attempt in self._a_get_retry_object():
                 with attempt:
-                    conn = await self.a_databricks_conn()
                     async with self._session.post(
                         resource,
                         auth=aiohttp.BasicAuth(await self._a_get_connection_attr("login"), conn.password),
