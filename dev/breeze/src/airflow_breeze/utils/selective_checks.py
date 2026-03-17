@@ -1423,6 +1423,8 @@ class SelectiveChecks:
             # only skip provider validation if none of the provider.yaml and provider
             # python files changed because validation also walks through all the provider python files
             prek_hooks_to_skip.add("check-provider-yaml-valid")
+        if not self._matching_files(FileGroupForCi.ALL_PYPROJECT_TOML_FILES, CI_FILE_GROUP_MATCHES):
+            prek_hooks_to_skip.add("uv-sync")
         return ",".join(sorted(prek_hooks_to_skip))
 
     @cached_property
