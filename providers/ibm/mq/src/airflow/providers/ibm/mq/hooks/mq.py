@@ -20,12 +20,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from contextlib import asynccontextmanager, suppress
+import threading
+from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
 
-from airflow.providers.common.compat.connection import get_async_connection
 from airflow.sdk.bases.hook import BaseHook
 
 if TYPE_CHECKING:
@@ -99,44 +99,73 @@ class IBMMQHook(BaseHook):
             if name.startswith("MQOO_") and (open_options & value)
         ]
 
-    def _connect(self, conn: Connection):
+    def _get_connect_params(self, connection: Connection) -> tuple[str, str, int]:
+        """
+        Extract connection parameters from the Airflow Connection object.
+
+        This method is called fresh each time to avoid race conditions when multiple
+        triggers use the same hook instance concurrently. Parameters are extracted
+        but NOT stored on the hook instance.
+
+        :param connection: Airflow Connection object.
+        :return: Tuple of (queue_manager, channel, open_options)
+        """
         import ibmmq
 
-        csp = ibmmq.CSP()
-        csp.CSPUserId = conn.login
-        csp.CSPPassword = conn.password
+        config = connection.extra_dejson
 
-        config = conn.extra_dejson
-
-        if not self.queue_manager:
-            self.queue_manager = config["queue_manager"]
-        if not self.channel:
-            self.channel = config["channel"]
-        if not self.open_options:
-            self.open_options = getattr(
-                ibmmq.CMQC,
-                config.get("open_options", self.default_open_options),
-                ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE,
-            )
-
-        return ibmmq.connect(
-            self.queue_manager,
-            self.channel,
-            f"{conn.host}({conn.port})",
-            csp=csp,
+        queue_manager = self.queue_manager or config.get("queue_manager")
+        channel = self.channel or config.get("channel")
+        open_options = self.open_options or getattr(
+            ibmmq.CMQC,
+            config.get("open_options", self.default_open_options),
+            ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE,
         )
 
-    @asynccontextmanager
-    async def get_conn(self):
-        connection = await get_async_connection(conn_id=self.conn_id)
+        if not queue_manager:
+            raise ValueError("queue_manager must be set in Connection extra config or hook init")
+        if not channel:
+            raise ValueError("channel must be set in Connection extra config or hook init")
+
+        return queue_manager, channel, open_options
+
+    @contextmanager
+    def get_conn(self):
+        """
+        Sync context manager for IBM MQ connection lifecycle.
+
+        Must be called from the executor thread (not the event loop thread).
+        Retrieves the Airflow connection, extracts MQ parameters, and manages
+        the IBM MQ connection lifecycle.
+
+        :yield: IBM MQ connection object
+        """
+        import ibmmq
+
+        # Retrieve connection in executor thread (this is pure sync, safe here)
+        connection = BaseHook.get_connection(self.conn_id)
+
+        # Extract parameters from connection (fresh, no mutation of hook state)
+        queue_manager, channel, open_options = self._get_connect_params(connection)
+
+        csp = ibmmq.CSP()
+        csp.CSPUserId = connection.login
+        csp.CSPPassword = connection.password
+
         conn = None
         try:
-            conn = self._connect(connection)
+            conn = ibmmq.connect(
+                queue_manager,
+                channel,
+                f"{connection.host}({connection.port})",
+                csp=csp,
+            )
             yield conn
         finally:
             if conn:
                 with suppress(Exception):
                     conn.disconnect()
+
 
     def _process_message(self, message: bytes) -> str:
         """
@@ -171,13 +200,40 @@ class IBMMQHook(BaseHook):
         """
         Wait for a single message from the specified IBM MQ queue and return its decoded payload.
 
-        If the MQ connection is lost or another recoverable error occurs, the method logs the
-        issue and exits so that the next trigger instance can attempt to reconnect.
+        All blocking IBM MQ operations (connect, open queue, get, close, disconnect) run in a
+        separate thread via sync_to_async to satisfy the IBM MQ C client's thread-affinity
+        requirement — every operation on a connection must happen from the thread that created it.
+
+        A :class:`threading.Event` stop signal is passed to the worker so that, when this
+        coroutine is cancelled (e.g. because the Airflow triggerer reassigns the watcher to
+        another pod), the background thread exits cleanly after the current ``q.get`` call
+        times out (at most ``poll_interval`` seconds).  Without this, an orphaned thread could
+        silently consume a message after cancellation, causing the event to be lost and the
+        DAG never to run.
 
         :param queue_name: Name of the IBM MQ queue to consume messages from.
         :param poll_interval: Interval in seconds used to wait for messages and to control
             how long the underlying MQ get operation blocks before checking again.
         :return: The decoded message payload if a message is received, otherwise ``None``.
+        """
+        stop_event = threading.Event()
+        return await sync_to_async(self._consume_sync)(
+            queue_name, poll_interval, stop_event
+        )
+
+    def _consume_sync(
+        self,
+        queue_name: str,
+        poll_interval: float,
+        stop_event: threading.Event,
+    ) -> str | None:
+        """
+        Blocking implementation of :meth:`consume` — must be called from a single thread.
+
+        All IBM MQ handles (queue manager connection, queue) are created **and used** within
+        this method, satisfying the thread-affinity requirement of the IBM MQ C client library.
+        The ``stop_event`` is checked between ``q.get`` calls so the thread terminates promptly
+        after the coroutine side is cancelled.
         """
         import ibmmq
 
@@ -193,39 +249,33 @@ class IBMMQHook(BaseHook):
         gmo.Options = ibmmq.CMQC.MQGMO_WAIT | ibmmq.CMQC.MQGMO_NO_SYNCPOINT | ibmmq.CMQC.MQGMO_CONVERT
         gmo.WaitInterval = int(poll_interval * 1000)
 
+        # Get open_options for logging
+        connection = BaseHook.get_connection(self.conn_id)
+        _, _, open_options = self._get_connect_params(connection)
+
         try:
-            async with self.get_conn() as qmgr:
+            with self.get_conn() as conn:
                 if self.log.isEnabledFor(logging.INFO):
-                    flag_names = self.get_open_options_flags(
-                        self.open_options or ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE
-                    )
+                    flag_names = self.get_open_options_flags(open_options)
                     self.log.info(
                         "Opening MQ queue '%s' with open_options=%s (%s)",
                         queue_name,
-                        self.open_options,
+                        open_options,
                         ", ".join(flag_names),
                     )
 
-                q = ibmmq.Queue(
-                    qmgr,
-                    od,
-                    self.open_options,
-                )
-
-                async_get = sync_to_async(q.get, thread_sensitive=False)
-
+                q = ibmmq.Queue(conn, od, open_options)
                 try:
-                    while True:
+                    # WaitInterval already blocks for poll_interval seconds when no message is
+                    # available, so no additional sleep is needed between iterations.
+                    while not stop_event.is_set():
                         try:
-                            message = await async_get(None, md, gmo)
-
+                            message = q.get(None, md, gmo)
                             if message:
                                 return self._process_message(message)
-
                         except ibmmq.MQMIError as e:
                             if e.reason == ibmmq.CMQC.MQRC_NO_MSG_AVAILABLE:
                                 self.log.debug("No message available...")
-                                await asyncio.sleep(poll_interval)
                                 continue
                             if e.reason == ibmmq.CMQC.MQRC_CONNECTION_BROKEN:
                                 self.log.warning(
@@ -240,31 +290,38 @@ class IBMMQHook(BaseHook):
                                 e.reason,
                             )
                             raise
-
                 finally:
                     with suppress(Exception):
                         q.close()
-
-        except asyncio.CancelledError:
-            raise
         except Exception:
             self.log.exception(
                 "MQ consume failed on queue '%s', exiting; next trigger instance will retry",
                 queue_name,
             )
             return None
+        return None
 
     async def produce(self, queue_name: str, payload: str) -> None:
         """
         Put a message onto the specified IBM MQ queue.
 
-        This method connects to the configured MQ queue manager and sends the
-        provided payload as a UTF-8 encoded message to the given queue.
+        All blocking IBM MQ operations run in a separate thread via sync_to_async for the same
+        thread-safety reasons as :meth:`consume`.
 
         :param queue_name: Name of the IBM MQ queue to which the message should be sent.
         :param payload: Message payload to send. The payload will be encoded as UTF-8
             before being placed on the queue.
         :return: None
+        """
+        await sync_to_async(self._produce_sync)(queue_name, payload)
+
+    def _produce_sync(
+        self,
+        queue_name: str,
+        payload: str,
+    ) -> None:
+        """
+        Blocking implementation of :meth:`produce` — must be called from a single thread.
         """
         import ibmmq
 
@@ -276,17 +333,17 @@ class IBMMQHook(BaseHook):
         md.CodedCharSetId = 1208
         md.Encoding = ibmmq.CMQC.MQENC_NATIVE
 
-        async with self.get_conn() as qmgr:
-            q = ibmmq.Queue(
-                qmgr,
-                od,
-                ibmmq.CMQC.MQOO_OUTPUT,
+        try:
+            with self.get_conn() as conn:
+                q = ibmmq.Queue(conn, od, ibmmq.CMQC.MQOO_OUTPUT)
+                try:
+                    q.put(payload.encode("utf-8"), md)
+                finally:
+                    with suppress(Exception):
+                        q.close()
+        except Exception:
+            self.log.exception(
+                "MQ produce failed on queue '%s'",
+                queue_name,
             )
-
-            async_put = sync_to_async(q.put, thread_sensitive=False)
-
-            try:
-                await async_put(payload.encode("utf-8"), md)
-            finally:
-                with suppress(Exception):
-                    q.close()
+            raise
