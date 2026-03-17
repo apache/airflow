@@ -438,17 +438,17 @@ def ti_update_state(
 
 def _emit_task_span(ti, state):
     log.info("making task span", ti=ti)
-
+    log.info("ti.context_carrier", context_carrier=ti.context_carrier)
     ctx = TraceContextTextMapPropagator().extract(ti.context_carrier)
     span = trace.get_current_span(context=ctx)
     span_context = span.get_span_context()
     with override_ids(span_context.trace_id, span_context.span_id):
+        log.info("overriding ids", trace_id=span_context.trace_id, span_id=span_context.span_id)
         if not ti.start_date:
             log.warning("ti has no start date", ti=ti)
         span = tracer.start_span(
-            name=f"task_run.{ti.dag_id}",
+            name=f"task_run.{ti.task_id}",
             start_time=int((ti.start_date or timezone.utcnow()).timestamp() * 1e9),
-            context=ctx,
         )
         span.set_attributes(
             {
