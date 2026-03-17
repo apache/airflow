@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Iterable, Sequence, Mapping
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -135,7 +135,7 @@ class ResolveMixin:
         """
         raise NotImplementedError
 
-    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+    def iter_values(self, context: Context) -> Iterable[Any]:
         """
         Yield individual values for task expansion during Dynamic Task Iteration.
 
