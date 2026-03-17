@@ -832,7 +832,7 @@ export class ConnectionService {
         });
     }
 
-    /** 
+    /**
      * Hook Meta Data
      * Retrieve information about available connection types (hook classes) and their parameters.
      * @returns ConnectionHookMetaData Successful Response
