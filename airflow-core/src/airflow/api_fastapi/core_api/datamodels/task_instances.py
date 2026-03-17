@@ -189,8 +189,8 @@ class ClearTaskInstancesBody(StrictBaseModel):
         return data
 
 
-class PatchTaskInstanceBody(StrictBaseModel):
-    """Request body for Clear Task Instances endpoint."""
+class PatchTaskInstanceBaseBody(StrictBaseModel):
+    """Base class for patching task instance state with common fields and validation."""
 
     new_state: TaskInstanceState | None = None
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None
@@ -213,6 +213,14 @@ class PatchTaskInstanceBody(StrictBaseModel):
         if ns not in valid_states:
             raise ValueError(f"'{ns}' is not one of {valid_states}")
         return ns
+
+
+class PatchTaskInstanceBody(PatchTaskInstanceBaseBody):
+    """Request body for Clear Task Instances endpoint."""
+
+
+class PatchTaskGroupBody(PatchTaskInstanceBaseBody):
+    """Request body for patching the state of all task instances in a task group."""
 
 
 class BulkTaskInstanceBody(PatchTaskInstanceBody, StrictBaseModel):

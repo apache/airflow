@@ -4454,6 +4454,57 @@ export const $LastAssetEventResponse = {
     description: 'Last asset event response serializer.'
 } as const;
 
+export const $PatchTaskGroupBody = {
+    properties: {
+        new_state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        },
+        include_upstream: {
+            type: 'boolean',
+            title: 'Include Upstream',
+            default: false
+        },
+        include_downstream: {
+            type: 'boolean',
+            title: 'Include Downstream',
+            default: false
+        },
+        include_future: {
+            type: 'boolean',
+            title: 'Include Future',
+            default: false
+        },
+        include_past: {
+            type: 'boolean',
+            title: 'Include Past',
+            default: false
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    title: 'PatchTaskGroupBody',
+    description: 'Request body for patching the state of all task instances in a task group.'
+} as const;
+
 export const $PatchTaskInstanceBody = {
     properties: {
         new_state: {
