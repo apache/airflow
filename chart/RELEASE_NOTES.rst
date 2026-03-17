@@ -53,8 +53,8 @@ As Git-Sync has dedicated liveness service, the liveness probe behaviour will be
 Please update your configuration accordingly.
 
 
-Automatic ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` and ``AIRFLOW__KUBERNETES_SECRETS__`` prefix addition removed from ``container_extra_envs`` and ``custom_airflow_environment`` (#60750)
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Automatic env variables removed from ``container_extra_envs`` and ``custom_airflow_environment`` (#60750)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 The automatic prefix addition for Kubernetes Executor environment variables and secrets has been removed from both the ``container_extra_envs`` and ``custom_airflow_environment`` helper functions.
 
@@ -121,8 +121,7 @@ The default Airflow image that is used with the Chart is now ``3.1.8``, previous
 Features
 ^^^^^^^^
 
-- Support Helm template expressions in ``podAnnotations`` and ``airflowPodAnnotations`` values. (#63019)
-- Support Helm template expressions in podAnnotations (#63019)
+- Support Helm template expressions in ``podAnnotations`` and ``airflowPodAnnotations`` values (#63019)
 - Add minute-level log retention to clean-logs script (#61855)
 - Add LOG_MAX_SIZE environment variables to log groomer (#61559)
 
@@ -131,27 +130,26 @@ Improvements
 
 - Remove automatic ``KUBERNETES_ENVIRONMENT_VARIABLES`` and ``KUBERNETES_SECRETS`` prefixes from chart helpers (#60750)
 - Remove JWT secrets from triggerer, worker and dag-processor (#63204)
-- Add workers.celery.nodeSelector & workers.kubernetes.nodeSelector (#61957)
-- Add workers.celery.terminationGracePeriodSeconds & workers.kubernetes.terminationGracePeriodSeconds (#61892)
-- Add workers.celery.resources & workers.kubernetes.resources (#61890)
-- Add workers.celery.keda section (#61820)
-- Add workers.celery.podDisruptionBudget (#61414)
-- Add workers.celery.containerLifecycleHooks & workers.kubernetes.containerLifecycleHooks (#61369)
+- Add ``workers.celery.nodeSelector`` & ``workers.kubernetes.nodeSelector`` (#61957)
+- Add ``workers.celery.terminationGracePeriodSeconds`` & ``workers.kubernetes.terminationGracePeriodSeconds`` (#61892)
+- Add ``workers.celery.resources`` & ``workers.kubernetes.resources`` (#61890)
+- Add ``workers.celery.keda`` section (#61820)
+- Add ``workers.celery.podDisruptionBudget`` (#61414)
+- Add ``workers.celery.containerLifecycleHooks`` & ``workers.kubernetes.containerLifecycleHooks`` (#61369)
 - Refactor Git-Sync livenessProbe & deprecate readinessProbe & add startupProbe (#62334)
 - Warn on deprecated per-component securityContext values (#62729)
 - Add ingress deprecation warnings for apiServer, statsd, and pgbouncer (#62490)
-- Add missing support for:  securityContexts and containerLifecycleHooks (#60677)
+- Add missing support for: securityContexts and containerLifecycleHooks (#60677)
 
 Bug Fixes
 ^^^^^^^^^
 
 - More restrictive chart rendering logic (#63464)
-- Omit api-server spec.replicas when HPA is enabled (#63187)
-- Add workers.celery.kerberosSidecar & workers.kubernetes.kerberosSidecar sections (#61881)
+- Omit api-server ``spec.replicas`` when HPA is enabled (#63187)
+- Add ``workers.celery.kerberosSidecar`` & ``workers.kubernetes.kerberosSidecar`` sections (#61881)
 - Fix chart NOTES.txt showing deprecation warnings only without secret key (#62722)
 - Fix tpl rendering for TLS hosts in ingress templates #62358 (#62548)
-- Fix all build-system/requires including transitive dependencies (#62570)
-- Fix webserver.defaultUser.enabled=false not honored (#62143)
+- Fix ``webserver.defaultUser.enabled=false`` not honored (#62143)
 
 Doc only changes
 ^^^^^^^^^^^^^^^^
@@ -164,9 +162,9 @@ Misc
 - Drop support for all Airflow versions below 2.11 in Helm Chart (#61018)
 - Default airflow version to 3.1.8 (#63392)
 - Add ``*.iml`` to .gitignore in all distributions (#63636)
-- Upgrade important CI environment (#62792)
-- Upgrade important CI environment (#62610)
+- Upgrade important CI environment (#62792, #62610)
 - Allow to use short SPDX licence identifier for selected files (#62073)
+- Fix all build-system/requires including transitive dependencies (#62570)
 
 
 Airflow Helm Chart 1.19.0 (2026-02-17)
