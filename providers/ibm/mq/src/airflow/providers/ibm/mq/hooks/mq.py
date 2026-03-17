@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from asgiref.sync import sync_to_async
 from contextlib import contextmanager, suppress
 from typing import Any
