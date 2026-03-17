@@ -23,8 +23,6 @@ import re
 import sys
 from pathlib import Path
 
-import yaml
-
 # Add current directory to path to allow common_prek_utils import
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import AIRFLOW_ROOT_PATH, console
@@ -32,20 +30,25 @@ from common_prek_utils import AIRFLOW_ROOT_PATH, console
 SKILL_DOC_PATH = AIRFLOW_ROOT_PATH / ".github" / "skills" / "breeze-contribution" / "SKILL.md"
 OUTPUT_SKILLS_PATH = AIRFLOW_ROOT_PATH / ".github" / "skills" / "breeze-contribution" / "skills.json"
 
-SKILL_BLOCK_RE = re.compile(r"```agent-skill\\n(.*?)\\n```", re.DOTALL)
+SKILL_BLOCK_RE = re.compile(r"```agent-skill\r?\n(.*?)\r?\n```", re.DOTALL)
 
 
 def _extract_skills_from_markdown(markdown: str) -> list[dict]:
     matches = SKILL_BLOCK_RE.findall(markdown)
     if not matches:
-        return []
+        raise ValueError("No ```agent-skill``` block found in SKILL.md")
     if len(matches) > 1:
         raise ValueError("Expected exactly one ```agent-skill``` block in SKILL.md")
-    skills = yaml.safe_load(matches[0])
-    if skills is None:
-        return []
+
+    try:
+        skills = json.loads(matches[0])
+    except json.JSONDecodeError as e:
+        raise ValueError(f"agent-skill block must be valid JSON: {e}") from e
+
     if not isinstance(skills, list):
-        raise TypeError("agent-skill block must be a YAML list")
+        raise TypeError("agent-skill block must be a JSON array")
+    if not all(isinstance(s, dict) for s in skills):
+        raise TypeError("agent-skill block JSON array items must be objects")
     return skills
 
 
@@ -57,7 +60,7 @@ def extract_skills(check_only: bool = False) -> None:
     markdown = SKILL_DOC_PATH.read_text()
     try:
         skills = _extract_skills_from_markdown(markdown)
-    except (ValueError, TypeError, yaml.YAMLError) as e:
+    except (ValueError, TypeError) as e:
         console.print(f"[red]Error parsing {SKILL_DOC_PATH}: {e}[/]")
         raise SystemExit(1)
 

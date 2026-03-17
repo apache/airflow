@@ -1,1 +1,46 @@
-[]
+[
+  {
+    "context": "host",
+    "id": "static-checks",
+    "notes": [
+      "Prefer running static checks on the host; fall back to Breeze only when required by missing system dependencies."
+    ],
+    "recommended": [
+      "prek run --from-ref <target_branch> --stage pre-commit"
+    ],
+    "title": "Run static checks (pre-commit)"
+  },
+  {
+    "context": "host",
+    "fallback": [
+      "breeze run pytest <TESTS> -xvs"
+    ],
+    "id": "unit-tests",
+    "inputs": {
+      "PROJECT": {
+        "description": "Folder containing the pyproject.toml for the package to test (e.g. airflow-core, providers/amazon)."
+      },
+      "TESTS": {
+        "description": "Pytest node id or path (e.g. airflow-core/tests/unit/...::test_name)."
+      }
+    },
+    "notes": [
+      "Use Breeze when uv tests fail due to missing system dependencies or when reproducing CI-only failures."
+    ],
+    "recommended": [
+      "uv run --project <PROJECT> pytest <TESTS> -xvs"
+    ],
+    "title": "Run targeted unit tests"
+  },
+  {
+    "context": "either",
+    "id": "context-detect",
+    "notes": [
+      "Returns a short string indicating the current execution context (host or breeze)."
+    ],
+    "recommended": [
+      "python scripts/ci/prek/breeze_context.py"
+    ],
+    "title": "Detect host vs Breeze environment"
+  }
+]

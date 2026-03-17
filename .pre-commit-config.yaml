@@ -805,6 +805,17 @@ repos:
           ^airflow-core/src/airflow/ui/public/i18n/locales/en/.*\.json$|
           ^\.github/skills/airflow-translations/SKILL\.md$
         pass_filenames: false
+      - id: check-breeze-contribution-skills-drift
+        name: Check Breeze contribution skills drift
+        entry: ./scripts/ci/prek/extract_breeze_contribution_skills.py --check
+        language: python
+        files: >
+          (?x)
+          ^\.github/skills/breeze-contribution/SKILL\.md$|
+          ^\.github/skills/breeze-contribution/skills\.json$|
+          ^scripts/ci/prek/extract_breeze_contribution_skills\.py$
+        pass_filenames: false
+        require_serial: true
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python

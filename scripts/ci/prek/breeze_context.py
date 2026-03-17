@@ -23,15 +23,13 @@ from pathlib import Path
 
 def detect_context() -> str:
     """
-    Detect where we're running: host vs Breeze container.
+    Return "breeze" when running inside a Breeze container, otherwise "host".
 
-    This is intentionally simple and conservative so it's easy to maintain.
+    This is intentionally a small heuristic for the PoC and can be refined later.
     """
     if os.environ.get("AIRFLOW_BREEZE_CONTAINER"):
         return "breeze"
-    if Path("/.dockerenv").exists():
-        return "breeze"
-    if Path("/opt/airflow").exists():
+    if Path("/opt/airflow").exists() and Path("/.dockerenv").exists():
         return "breeze"
     return "host"
 
