@@ -58,6 +58,7 @@ export const useTagFilter = () => {
 
   const setTagFilterMode = (mode: TagMatchMode) => {
     searchParams.set(TAGS_MATCH_MODE, mode);
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
     setSavedTagMatchMode(mode);
   };

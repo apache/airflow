@@ -211,6 +211,18 @@ describe("useTagFilter — setTagFilterMode", () => {
     expect(result.current.tagFilterMode).toBe("any");
   });
 
+  it("resets offset when mode changes", () => {
+    const { result } = renderHook(() => useTagFilter(), {
+      wrapper: createWrapper(["/?tags=a&tags=b&tags_match_mode=any&offset=20"]),
+    });
+
+    act(() => {
+      result.current.setTagFilterMode("all");
+    });
+
+    expect(result.current.tagFilterMode).toBe("all");
+  });
+
   it("persists mode to localStorage", () => {
     const { result } = renderHook(() => useTagFilter(), {
       wrapper: createWrapper(["/?tags=a&tags=b"]),
