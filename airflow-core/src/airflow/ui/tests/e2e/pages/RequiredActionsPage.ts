@@ -95,7 +95,7 @@ export class RequiredActionsPage extends BasePage {
 
     await expect(actionButton).toBeVisible({ timeout: 10_000 });
 
-    const informationInput = this.page.getByRole("textbox", { name: /information/i });
+    const informationInput = this.page.getByRole("textbox");
 
     if (await informationInput.isVisible()) {
       await informationInput.fill("Approved by test");
@@ -133,7 +133,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const informationInput = this.page.getByRole("textbox", { name: /information/i });
+    const informationInput = this.page.getByRole("textbox");
 
     await expect(informationInput).toBeVisible({ timeout: 10_000 });
     await informationInput.fill("test");
@@ -155,7 +155,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const multiSelectContainer = this.page.getByRole("combobox", { name: /chosen options/i });
+    const multiSelectContainer = this.page.getByRole("combobox", { name: /select one or multiple values/i });
 
     await expect(multiSelectContainer).toBeVisible({ timeout: 30_000 });
     await multiSelectContainer.click();
