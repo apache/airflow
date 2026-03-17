@@ -60,6 +60,7 @@
       "title": "Mark {{type}} as {{state}}"
     },
     "options": {
+      "clearAllMappedTasks": "Clear all mapped task instances",
       "downstream": "Downstream",
       "existingTasks": "Clear existing tasks",
       "future": "Future",
