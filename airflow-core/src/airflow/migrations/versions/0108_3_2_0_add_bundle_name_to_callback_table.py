@@ -30,7 +30,7 @@ from __future__ import annotations
 import json
 
 import sqlalchemy as sa
-from alembic import op
+from alembic import context, op
 
 from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON
@@ -47,6 +47,16 @@ def upgrade():
     """Add bundle_name to callback rows and backfill dag-processor callbacks."""
     with op.batch_alter_table("callback", schema=None) as batch_op:
         batch_op.add_column(sa.Column("bundle_name", StringID(), nullable=True))
+
+    if context.is_offline_mode():
+        print(
+            """
+            --  WARNING: Unable to backfill callback.bundle_name values while in offline mode!
+            --  The bundle_name column will be added without migrating existing dag-processor callback rows.
+            --  Run this migration in online mode if you need existing pending callbacks backfilled.
+            """
+        )
+        return
 
     conn = op.get_bind()
     callback = sa.table(
@@ -68,8 +78,10 @@ def upgrade():
         req_data = data.get("req_data")
         if isinstance(req_data, str):
             req_data = json.loads(req_data)
+        elif not isinstance(req_data, dict):
+            continue
 
-        bundle_name = req_data.get("bundle_name") if isinstance(req_data, dict) else None
+        bundle_name = req_data.get("bundle_name")
         if bundle_name is None:
             continue
 
