@@ -76,7 +76,7 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async clickOnTaskInGrid(dagRunId: string, taskId: string): Promise<void> {
-    const taskLocator = this.page.locator(`[id="grid-${dagRunId}-${taskId}"]`);
+    const taskLocator = this.page.getByTestId(`grid-${dagRunId}-${taskId}`);
 
     await expect(taskLocator).toBeVisible({ timeout: 30_000 });
     await taskLocator.click();
@@ -95,7 +95,7 @@ export class RequiredActionsPage extends BasePage {
 
     await expect(actionButton).toBeVisible({ timeout: 10_000 });
 
-    const informationInput = this.page.locator("#element_information");
+    const informationInput = this.page.getByRole("textbox", { name: /information/i });
 
     if (await informationInput.isVisible()) {
       await informationInput.fill("Approved by test");
@@ -133,7 +133,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const informationInput = this.page.locator("#element_information");
+    const informationInput = this.page.getByRole("textbox", { name: /information/i });
 
     await expect(informationInput).toBeVisible({ timeout: 10_000 });
     await informationInput.fill("test");
@@ -155,7 +155,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const multiSelectContainer = this.page.locator("#element_chosen_options").locator("..");
+    const multiSelectContainer = this.page.getByRole("combobox", { name: /chosen options/i });
 
     await expect(multiSelectContainer).toBeVisible({ timeout: 30_000 });
     await multiSelectContainer.click();
