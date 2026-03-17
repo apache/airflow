@@ -27,6 +27,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
+    ALLOWED_LLM_MODELS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
@@ -39,7 +40,6 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_CORE_INTEGRATIONS,
     AUTOCOMPLETE_PROVIDERS_INTEGRATIONS,
     DEFAULT_POSTGRES_VERSION,
-    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
     normalize_platform_machine,
@@ -116,8 +116,20 @@ option_backend = click.option(
     help="Database backend to use. Default is 'sqlite'. "
     "If 'none' is chosen, Breeze will start with an invalid database configuration — "
     "no database will be available, and any attempt to run Airflow will fail. "
-    "Use 'none' only for specific non-DB test cases.",
+    "Use 'none' only for specific non-DB test cases. "
+    "If 'custom' is chosen, no database container will be started and you must provide "
+    "your own database connection via AIRFLOW__DATABASE__SQL_ALCHEMY_CONN environment variable. "
+    "Only officially supported backends (postgres, mysql, sqlite) are tested.",
     envvar="BACKEND",
+)
+option_custom_db_url = click.option(
+    "--custom-db-url",
+    type=str,
+    default=None,
+    help="SQLAlchemy connection URL for the custom database backend. "
+    "Only used when --backend=custom is selected. "
+    "Falls back to the AIRFLOW__DATABASE__SQL_ALCHEMY_CONN environment variable if not provided.",
+    envvar="AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
 )
 option_builder = click.option(
     "--builder",
@@ -185,6 +197,12 @@ option_dry_run = click.option(
 option_forward_credentials = click.option(
     "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
 )
+option_forward_ports = click.option(
+    "--forward-ports",
+    is_flag=True,
+    default=False,
+    help="Forward ports to host (for accessing Airflow UI/API from host machine).",
+)
 option_excluded_providers = click.option(
     "--excluded-providers",
     help="JSON-string of dictionary containing excluded providers per python version ({'3.12': ['provider']})",
@@ -210,6 +228,15 @@ option_github_repository = click.option(
     show_default=True,
     envvar="GITHUB_REPOSITORY",
     callback=_set_default_from_parent,
+)
+option_llm_model = click.option(
+    "--llm-model",
+    type=CacheableChoice(ALLOWED_LLM_MODELS),
+    default=CacheableDefault(ALLOWED_LLM_MODELS[1]),
+    show_default=True,
+    help="LLM model for assessment (format: provider/model). "
+    "Use 'claude/' prefix for Claude CLI, 'codex/' for OpenAI Codex CLI.",
+    envvar="LLM_MODEL",
 )
 option_historical_python_versions = click.option(
     "--python-versions",
@@ -441,11 +468,10 @@ option_use_uv_default_depends_on_installation_method = click.option(
 )
 option_uv_http_timeout = click.option(
     "--uv-http-timeout",
-    help="Timeout for requests that UV makes (only used in case of UV builds).",
+    help="Deprecated: This option isn't exposed anymore",
     type=click.IntRange(min=1),
-    default=DEFAULT_UV_HTTP_TIMEOUT,
-    show_default=True,
-    envvar="UV_HTTP_TIMEOUT",
+    default=30,
+    hidden=True,
 )
 option_use_airflow_version = click.option(
     "--use-airflow-version",

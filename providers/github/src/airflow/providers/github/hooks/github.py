@@ -64,8 +64,13 @@ class GithubHook(BaseHook):
                     raise ValueError("Unrecognised key file: expected a .pem private key")
                 with open(key_path) as key_file:
                     private_key = key_file.read()
+            elif key := extras.get("private_key"):
+                private_key = key
+
             else:
-                raise ValueError("No key_path provided for GitHub App authentication.")
+                raise ValueError(
+                    "Neither key_path nor private_key are provided for GitHub App authentication."
+                )
 
             app_id = extras.get("app_id")
             installation_id = extras.get("installation_id")

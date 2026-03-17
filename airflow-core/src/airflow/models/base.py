@@ -20,10 +20,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Integer, MetaData, String, text
-from sqlalchemy.orm import Mapped, registry
+from sqlalchemy.orm import Mapped, mapped_column, registry
 
 from airflow.configuration import conf
-from airflow.utils.sqlalchemy import is_sqlalchemy_v1, mapped_column
 
 SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 
@@ -55,8 +54,7 @@ else:
     Base = mapper_registry.generate_base()
     # TEMPORARY workaround to allow using unmapped (v1.4) models in SQLAlchemy 2.0. It is intended only to
     # unblock the development of SQLA2 support.
-    if not is_sqlalchemy_v1():
-        Base.__allow_unmapped__ = True
+    Base.__allow_unmapped__ = True
 
 ID_LEN = 250
 

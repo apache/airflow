@@ -43,6 +43,34 @@ from .exceptions import AirflowConfigException
 log = logging.getLogger(__name__)
 
 
+def _build_kwarg_env_prefix(section: str, kwargs_key: str) -> str:
+    """
+    Build env prefix for per-key backend kwargs.
+
+    ("secrets",  "backend_kwargs")         -> "AIRFLOW__SECRETS__BACKEND_KWARG__"
+    ("workers",  "secrets_backend_kwargs") -> "AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__"
+    """
+    singular_key = kwargs_key.replace("_kwargs", "_kwarg")
+    return f"{ENV_VAR_PREFIX}{section.upper()}__{singular_key.upper()}__"
+
+
+def _collect_kwarg_env_vars(prefix: str) -> dict[str, str]:
+    """
+    Scan os.environ for per-key secrets backend kwargs.
+
+    AIRFLOW__SECRETS__BACKEND_KWARG__ROLE_ID -> {"role_id": value}
+    Values are raw strings (not JSON-parsed).
+    Empty keys (trailing __ with no suffix) are ignored.
+    """
+    overrides: dict[str, str] = {}
+    for env_var, value in os.environ.items():
+        if env_var.startswith(prefix):
+            kwarg_key = env_var[len(prefix) :].lower()
+            if kwarg_key:
+                overrides[kwarg_key] = value
+    return overrides
+
+
 ConfigType = str | int | float | bool
 ConfigOptionsDictType = dict[str, ConfigType]
 ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
@@ -109,6 +137,35 @@ def _is_template(configuration_description: dict[str, dict[str, Any]], section: 
     return configuration_description.get(section, {}).get(key, {}).get("is_template", False)
 
 
+def configure_parser_from_configuration_description(
+    parser: ConfigParser,
+    configuration_description: dict[str, dict[str, Any]],
+    all_vars: dict[str, Any],
+) -> None:
+    """
+    Configure a ConfigParser based on configuration description.
+
+    :param parser: ConfigParser to configure
+    :param configuration_description: configuration description from config.yml
+    """
+    for section, section_desc in configuration_description.items():
+        parser.add_section(section)
+        options = section_desc["options"]
+        for key in options:
+            default_value = options[key]["default"]
+            is_template = options[key].get("is_template", False)
+            if (default_value is not None) and not (
+                options[key].get("version_deprecated") or options[key].get("deprecation_reason")
+            ):
+                if is_template or not isinstance(default_value, str):
+                    parser.set(section, key, str(default_value))
+                else:
+                    try:
+                        parser.set(section, key, default_value.format(**all_vars))
+                    except (KeyError, ValueError):
+                        parser.set(section, key, default_value)
+
+
 class AirflowConfigParser(ConfigParser):
     """
     Base configuration parser with pure parsing logic.
@@ -152,6 +209,11 @@ class AirflowConfigParser(ConfigParser):
         ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
         ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
         ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
+        ("core", "num_dag_runs_to_retain_rendered_fields"): (
+            "core",
+            "max_num_rendered_ti_fields_per_task",
+            "3.2.0",
+        ),
         ("api", "page_size"): ("webserver", "page_size", "3.1.0"),
         ("api", "default_wrap"): ("webserver", "default_wrap", "3.1.0"),
         ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
@@ -160,6 +222,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
         ("scheduler", "ti_metrics_interval"): ("scheduler", "running_metrics_interval", "3.2.0"),
         ("api", "fallback_page_limit"): ("api", "page_size", "3.2.0"),
+        ("workers", "missing_dag_retries"): ("workers", "missing_dag_retires", "3.1.8"),
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -373,6 +436,10 @@ class AirflowConfigParser(ConfigParser):
         except ValueError:
             log.warning("Failed to parse [%s] %s into a dict, defaulting to no kwargs.", section, kwargs_key)
             backend_kwargs = {}
+
+        # Collect per-key overrides; they take precedence over the JSON blob.
+        env_prefix = _build_kwarg_env_prefix(section, kwargs_key)
+        backend_kwargs.update(_collect_kwarg_env_vars(env_prefix))
 
         return secrets_backend_cls(**backend_kwargs)
 
@@ -851,6 +918,9 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from command execution."""
+        if kwargs.get("team_name", None):
+            # Commands based team config fetching is not currently supported
+            return VALUE_NOT_FOUND_SENTINEL
         option = self._get_cmd_option(section, key)
         if option:
             return option
@@ -874,6 +944,9 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from secrets backend."""
+        if kwargs.get("team_name", None):
+            # Secrets based team config fetching is not currently supported
+            return VALUE_NOT_FOUND_SENTINEL
         option = self._get_secret_option(section, key)
         if option:
             return option

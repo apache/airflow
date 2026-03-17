@@ -31,7 +31,7 @@ dependencies = [
     # TODO there could be still missing deps such as airflow-core
     "argcomplete>=1.10",
     "httpx>=0.27.0",
-    "keyring>=25.6.0",
+    "keyring>=25.7.0",
     "lazy-object-proxy>=1.2.0",
     "methodtools>=0.4.7",
     "platformdirs>=4.3.6",
@@ -40,6 +40,7 @@ dependencies = [
     "structlog>=25.4.0",
     "uuid6>=2024.7.10",
     "tabulate>=0.9.0",
+    "tenacity>=9.1.4",
 ]
 
 classifiers = [
@@ -69,7 +70,14 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 airflowctl = "airflowctl.__main__:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = [
+    "hatchling==1.29.0",
+    "packaging==26.0",
+    "pathspec==1.0.4",
+    "pluggy==1.6.0",
+    "tomli==2.4.0; python_version < '3.11'",
+    "trove-classifiers==2026.1.14.14",
+]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]

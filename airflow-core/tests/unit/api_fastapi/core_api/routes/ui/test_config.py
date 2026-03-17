@@ -42,7 +42,17 @@ THEME = {
                 "950": {"value": "oklch(0.179 0.05 265.487)"},
             }
         }
-    }
+    },
+    "globalCss": {
+        "button": {
+            "text-transform": "uppercase",
+        },
+        "a": {
+            "text-transform": "uppercase",
+        },
+    },
+    "icon": "https://somehost.com/static/custom-logo.svg",
+    "icon_dark_mode": "/static/custom-logo-dark.svg",
 }
 
 expected_config_response = {

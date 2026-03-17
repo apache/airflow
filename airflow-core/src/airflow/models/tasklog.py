@@ -20,11 +20,11 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import Integer, Text
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class LogTemplate(Base):

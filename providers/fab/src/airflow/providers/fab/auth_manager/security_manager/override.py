@@ -51,7 +51,6 @@ from flask_appbuilder.security.registerviews import (
 from flask_appbuilder.security.views import (
     AuthDBView,
     AuthLDAPView,
-    AuthOAuthView,
     AuthRemoteUserView,
     AuthView,
     RegisterUserModelView,
@@ -64,8 +63,8 @@ from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup, escape
 from packaging.version import Version
-from sqlalchemy import delete, func, inspect, or_, select
-from sqlalchemy.exc import MultipleResultsFound
+from sqlalchemy import delete, exists, func, inspect, or_, select
+from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -78,9 +77,11 @@ from airflow.providers.fab.auth_manager.models import (
     Resource,
     Role,
     User,
+    assoc_permission_role,
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
+from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
 from airflow.providers.fab.auth_manager.views.permissions import (
     ActionModelView,
     PermissionPairModelView,
@@ -187,8 +188,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """ Override if you want your own Authentication DB view """
     authldapview = AuthLDAPView
     """ Override if you want your own Authentication LDAP view """
-    authoauthview = AuthOAuthView
-    """ Override if you want your own Authentication OAuth view """
+    authoauthview = CustomAuthOAuthView
+    """ Custom Authentication OAuth view with session commit fix for #57981 """
     authremoteuserview = AuthRemoteUserView
     """ Override if you want your own Authentication REMOTE_USER view """
     registeruserdbview = RegisterUserDBView
@@ -395,7 +396,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _get_authentik_jwks(self, jwks_url) -> dict:
         import requests
 
-        resp = requests.get(jwks_url)
+        resp = requests.get(jwks_url, timeout=30)
         if resp.status_code == 200:
             return resp.json()
         return {}
@@ -1407,9 +1408,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             raise FabException(const.LOGMSG_ERR_SEC_ADD_USER) from e
 
     def load_user(self, pk: int) -> User | None:
-        user = self.get_user_by_id(int(pk))
-        if user and user.is_active:
-            return user
+        try:
+            user = self.get_user_by_id(int(pk))
+            if user and user.is_active:
+                return user
+        except Exception as e:
+            log.error("Error loading user: %s", e)
+            self.session.rollback()
+            return None
         return None
 
     def get_user_by_id(self, pk) -> User | None:
@@ -1457,15 +1463,31 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 ).one_or_none()
             except MultipleResultsFound:
                 log.error("Multiple results found for user %s", username)
+            except Exception as e:
+                log.error("Error finding user %s: %s", username, e)
+                self.session.rollback()
+                return None
         elif email:
             try:
                 return self.session.scalars(select(self.user_model).filter_by(email=email)).one_or_none()
             except MultipleResultsFound:
                 log.error("Multiple results found for user with email %s", email)
+            except Exception as e:
+                log.error("Error finding user with email %s: %s", email, e)
+                self.session.rollback()
+                return None
         return None
 
     def update_user(self, user: User) -> bool:
         try:
+            existing_user = self.session.get(self.user_model, user.id)
+            if existing_user:
+                existing_role_ids = {r.id for r in existing_user.roles}
+                existing_group_ids = {grp.id for grp in existing_user.groups}
+                new_role_ids = {r.id for r in user.roles}
+                new_group_ids = {grp.id for grp in user.groups}
+                if existing_role_ids != new_role_ids or existing_group_ids != new_group_ids:
+                    user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
             self.session.merge(user)
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
@@ -1726,9 +1748,33 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.merge(role)
                 self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_PERMROLE, permission, role.name)
+            except IntegrityError as e:
+                self.session.rollback()
+                if self._is_permission_assigned_to_role(role_id=role.id, permission_view_id=permission.id):
+                    log.info("Permission '%s' already assigned to role '%s'", permission, role.name)
+                else:
+                    log.error(
+                        const.LOGMSG_ERR_SEC_ADD_PERMROLE,
+                        f"Failed to add '{permission}' permission to the '{role}' role Error: {e}",
+                    )
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE, e)
                 self.session.rollback()
+
+    def _is_permission_assigned_to_role(self, role_id: int | None, permission_view_id: int | None) -> bool:
+        """Check if the permission is already assigned to the role."""
+        if role_id is None or permission_view_id is None:
+            return False
+        return bool(
+            self.session.scalar(
+                select(
+                    exists().where(
+                        assoc_permission_role.c.role_id == role_id,
+                        assoc_permission_role.c.permission_view_id == permission_view_id,
+                    )
+                )
+            )
+        )
 
     def remove_permission_from_role(self, role: Role, permission: Permission) -> None:
         """
@@ -2137,12 +2183,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             me = self._decode_and_validate_azure_jwt(resp["id_token"])
             log.debug("User info from Azure: %s", me)
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-token-claims-reference#payload-claims
+            role_key = current_app.config.get("AUTH_OAUTH_ROLE_KEYS", {}).get("azure", "roles")
             return {
                 "email": me["email"] if "email" in me else me["upn"],
                 "first_name": me.get("given_name", ""),
                 "last_name": me.get("family_name", ""),
                 "username": me["oid"],
-                "role_keys": me.get("roles", []),
+                "role_keys": me.get(role_key, []),
             }
         # for OpenShift
         if provider == "openshift":
@@ -2279,7 +2326,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
         import requests
 
-        return requests.get(MICROSOFT_KEY_SET_URL).json()
+        return requests.get(MICROSOFT_KEY_SET_URL, timeout=30).json()
 
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
         verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)

@@ -810,7 +810,7 @@ See `Google Cloud Vision Remove Product From Product Set documentation
 .. _howto/operator:CloudVisionDetectTextOperator:
 
 CloudVisionDetectTextOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------
 
 Run text detection for an image.
 
@@ -862,7 +862,7 @@ See `Google Cloud Vision Text Detection documentation
 .. _howto/operator:CloudVisionTextDetectOperator:
 
 CloudVisionTextDetectOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------
 
 Run document text detection for an image.
 
@@ -914,7 +914,7 @@ See `Google Cloud Vision Document Text Detection documentation
 .. _howto/operator:CloudVisionDetectImageLabelsOperator:
 
 CloudVisionDetectImageLabelsOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------------
 
 Run image label detection for an image.
 
@@ -967,7 +967,7 @@ See `Google Cloud Vision Label Detection documentation
 .. _howto/operator:CloudVisionDetectImageSafeSearchOperator:
 
 CloudVisionDetectImageSafeSearchOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------
 
 Run image label detection for an image.
 

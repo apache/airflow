@@ -367,6 +367,45 @@ class TestOdbcHook:
         hook.get_uri = raise_argument_error
         assert hook.dialect_name == "oracle"
 
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        hook = mock_db_hook(OdbcHook)
+        sql = "SELECT 1"
+        hook.run(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        hook = mock_db_hook(OdbcHook)
+        sql = "SELECT 1"
+        hook.get_df(sql, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        hook = mock_db_hook(OdbcHook)
+        sql = "SELECT 1"
+        parameters = ("x",)
+        hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
     def test_get_sqlalchemy_engine_verify_creator_is_being_used(self):
         hook = mock_db_hook(OdbcHook, conn_params={"extra": {"sqlalchemy_scheme": "sqlite"}})
 

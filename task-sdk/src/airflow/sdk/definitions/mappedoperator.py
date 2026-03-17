@@ -27,6 +27,7 @@ import attrs
 import methodtools
 from lazy_object_proxy import Proxy
 
+from airflow.sdk.api.datamodels._generated import DagAttributeTypes
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
@@ -50,7 +51,6 @@ from airflow.sdk.definitions._internal.expandinput import (
     is_mappable,
 )
 from airflow.sdk.definitions._internal.types import NOTSET
-from airflow.serialization.enums import DagAttributeTypes
 
 if TYPE_CHECKING:
     import datetime
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
-    from airflow.task.priority_strategy import PriorityWeightStrategy
+    from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import StartTriggerArgs
 
 ValidationSource = Literal["expand"] | Literal["partial"]
@@ -214,8 +214,8 @@ class OperatorPartial:
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
-        from airflow.providers.standard.utils.skipmixin import SkipMixin
         from airflow.sdk import BaseSensorOperator
+        from airflow.sdk.bases.skipmixin import SkipMixin
 
         self._expand_called = True
         ensure_xcomarg_return_value(expand_input.value)
@@ -555,11 +555,11 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["priority_weight"] = value
 
     @property
-    def weight_rule(self) -> PriorityWeightStrategy:
+    def weight_rule(self) -> WeightRuleParam:
         return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
 
     @weight_rule.setter
-    def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
+    def weight_rule(self, value: WeightRuleParam) -> None:
         self.partial_kwargs["weight_rule"] = value
 
     @property

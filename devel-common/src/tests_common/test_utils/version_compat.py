@@ -55,25 +55,12 @@ else:
     from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef]
 
 
-def get_sqlalchemy_version_tuple() -> tuple[int, int, int]:
-    import sqlalchemy
-    from packaging.version import Version
-
-    sqlalchemy_version = Version(sqlalchemy.__version__)
-    return sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro
-
-
-SQLALCHEMY_V_1_4 = (1, 4, 0) <= get_sqlalchemy_version_tuple() < (2, 0, 0)
-SQLALCHEMY_V_2_0 = (2, 0, 0) <= get_sqlalchemy_version_tuple() < (2, 1, 0)
-
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
     "AIRFLOW_V_3_0_1",
     "AIRFLOW_V_3_1_PLUS",
     "AIRFLOW_V_3_2_PLUS",
     "NOTSET",
-    "SQLALCHEMY_V_1_4",
-    "SQLALCHEMY_V_2_0",
     "XCOM_RETURN_KEY",
     "ArgNotSet",
     "PokeReturnValue",

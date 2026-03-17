@@ -27,6 +27,103 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add real-time concurrency control for edge workers via UI (#63142)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Centralized runtime control of Edge Worker concurrency in distributed deployments (#62896)``
+* ``Fix _execution_api_server_url() reading edge.api_url when execution_api_server_url is already set (#63192)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs(edge3): add set-worker-concurrency command to deployment guide (#63083)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``chore(deps): bump the edge-ui-package-updates group across 1 directory with 6 updates (#63070)``
+   * ``Upgrade 'tar' (#62939)``
+   * ``Update dependencies for TS code (#62678)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Introduce EdgeDBManager: Independent Provider Specific Database Schema Management (#61155)``
+* ``Add Filtering to Edge UI Plugin Jobs Page (#61934)``
+* ``Route providers to consume Stats from common compat provider (#61812)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Toaster in Plugin in Edge UI (#55641)``
+* ``Executor Synchronous callback workload (#61153)``
+* ``Fix edge3 executor startup crash on Airflow < 3.2 (#62593)``
+
+Misc
+~~~~
+
+* ``Bump minimum prek version to 0.3.2 in edge3 provider (#62194)``
+* ``Auto-discover DB managers from provider.yaml (#62308)``
+* ``Upgrade dependency to minimatch (#62303)``
+* ``Warn when EdgeDBManager is missing from external_db_managers in config (#62204)``
+* ``Replace Base.metadata.remove() hack with dedicated Edge3 declarative base (#62202)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 11 updates (#62040)``
+* ``Enable dynamic generation of assets for Edge UI Plugin (#56456)``
+* ``Dependabot: Upgrade vulnerable rolloup (#62535)``
+
+
+Doc-only
+~~~~~~~~
+
+* ``Add external_db_managers configuration requirement (#62203)``
+* ``docs: edge3 db-manager is auto loaded by provider manager (#62550)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove comments for missing features (#61922)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Fix version check for RC versions (#61318)``
+   * ``CI: Upgrade important CI environment (#62610)``
+   * ``Fix all build-system/requires including transitive dependencies (#62570)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+
+3.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ASYNC240: replace blocking filesystem calls with anyio (#61616)``
+
+Misc
+~~~~
+
+* ``Bump axios from 1.13.4 to 1.13.5 in /providers/edge3/src/airflow/providers/edge3/plugins/www (#61695)``
+* ``Upgrade fastapi and conform openapi schema changes (#61476)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 11 updates (#61406)``
+* ``Bump Edge Dependencies after Dependabot (#61298)``
+* ``Bump happy-dom from 20.3.7 to 20.3.9 in /providers/edge3/src/airflow/providers/edge3/plugins/www in the edge-ui-package-updates group across 1 directory (#61265)``
+* ``Bump axios from 1.13.2 to 1.13.3 in /providers/edge3/src/airflow/providers/edge3/plugins/www in the edge-ui-package-updates group across 1 directory (#61220)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 5 updates (#61146)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarification on Edge UI Plugin roles and permissions (#61509)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.0.1
 .....
 
@@ -183,14 +280,14 @@ Misc
 
 .. warning::
   The React Plugin integration in this release is incompatible with Airflow 3.1.0
-  It is recommended to use apache-airflow>=3.1.1
+  It is recommended to use apache-airflow>=3.2.0
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix Link to Dag in Plugin (#55642)``
 * ``Bugfix/support Subpath w/o Execution API Url (#57372)``
-* ``Adjust authentication token after UI changes in Airflow 3.1.1 (#57370)``
+* ``Adjust authentication token after UI changes in Airflow 3.2.0 (#57370)``
 
 Misc
 ~~~~

@@ -18,12 +18,12 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import textwrap
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
+import structlog
 from packaging.version import InvalidVersion, parse as parse_version
 from tenacity import Retrying, stop_after_attempt, wait_fixed
 
@@ -38,7 +38,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 if TYPE_CHECKING:
     from tenacity import RetryCallState
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 @providers_configuration_loaded
@@ -94,7 +94,7 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
 
     :meta private:
     """
-    print(f"DB: {settings.get_engine().url!r}")
+    db_url = str(settings.get_engine().url)
     if args.to_revision and args.to_version:
         raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
     if args.from_version and args.from_revision:
@@ -128,16 +128,16 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
         to_revision = args.to_revision
 
     if not args.show_sql_only:
-        print(f"Performing upgrade to the metadata database {settings.get_engine().url!r}")
+        log.info("Performing upgrade to the metadata database", url=db_url)
     else:
-        print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
+        log.info("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
     command(
         to_revision=to_revision,
         from_revision=from_revision,
         show_sql_only=args.show_sql_only,
     )
     if not args.show_sql_only:
-        print("Database migration done!")
+        log.info("Database migration done!")
 
 
 def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
@@ -171,10 +171,11 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
             raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
     elif args.to_revision:
         to_revision = args.to_revision
+    db_url = str(settings.get_engine().url)
     if not args.show_sql_only:
-        print(f"Performing downgrade with database {settings.get_engine().url!r}")
+        log.info("Performing downgrade with database", url=db_url)
     else:
-        print("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
+        log.info("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
 
     if args.show_sql_only or (
         args.yes
@@ -187,7 +188,7 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
     ):
         command(to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
         if not args.show_sql_only:
-            print("Downgrade complete")
+            log.info("Downgrade complete")
     else:
         raise SystemExit("Cancelled")
 

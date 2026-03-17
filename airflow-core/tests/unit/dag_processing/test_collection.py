@@ -49,6 +49,7 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
 )
 from airflow.models.dag import DagTag
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -802,6 +803,41 @@ class TestUpdateDagParsingResults:
 
         import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
         assert import_errors == {("other.py", bundle_name)}, "Import error for parsed file should be cleared"
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_import_error_update_does_not_touch_other_bundle_with_same_relative_fileloc(self, session):
+        relative_fileloc = "example_dag.py"
+        session.add_all([DagBundleModel(name="bundle_a"), DagBundleModel(name="bundle_b")])
+        session.flush()
+        session.add_all(
+            [
+                DagModel(dag_id="dag_in_bundle_a", relative_fileloc=relative_fileloc, bundle_name="bundle_a"),
+                DagModel(dag_id="dag_in_bundle_b", relative_fileloc=relative_fileloc, bundle_name="bundle_b"),
+            ]
+        )
+        session.flush()
+
+        update_dag_parsing_results_in_db(
+            bundle_name="bundle_a",
+            bundle_version=None,
+            dags=[],
+            import_errors={("bundle_a", relative_fileloc): "Import failed in bundle_a"},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+            files_parsed={("bundle_a", relative_fileloc)},
+        )
+        session.flush()
+
+        dag_in_bundle_a = session.get(DagModel, "dag_in_bundle_a")
+        dag_in_bundle_b = session.get(DagModel, "dag_in_bundle_b")
+
+        assert dag_in_bundle_a is not None
+        assert dag_in_bundle_b is not None
+        assert dag_in_bundle_a.bundle_name == "bundle_a"
+        assert dag_in_bundle_b.bundle_name == "bundle_b"
+        assert dag_in_bundle_a.has_import_errors is True
+        assert dag_in_bundle_b.has_import_errors is False
 
     @pytest.mark.need_serialized_dag(False)
     @pytest.mark.parametrize(

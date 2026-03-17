@@ -27,7 +27,10 @@ from io import StringIO
 from typing import Any
 
 from airflow.sdk import yaml
-from airflow.sdk._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
+from airflow.sdk._shared.configuration.parser import (
+    AirflowConfigParser as _SharedAirflowConfigParser,
+    configure_parser_from_configuration_description,
+)
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
@@ -85,20 +88,7 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     """
     parser = ConfigParser()
     all_vars = get_sdk_expansion_variables()
-    for section, section_desc in configuration_description.items():
-        parser.add_section(section)
-        options = section_desc["options"]
-        for key in options:
-            default_value = options[key]["default"]
-            is_template = options[key].get("is_template", False)
-            if default_value is not None:
-                if is_template or not isinstance(default_value, str):
-                    parser.set(section, key, str(default_value))
-                else:
-                    try:
-                        parser.set(section, key, default_value.format(**all_vars))
-                    except (KeyError, ValueError):
-                        parser.set(section, key, default_value)
+    configure_parser_from_configuration_description(parser, configuration_description, all_vars)
     return parser
 
 
@@ -237,11 +227,18 @@ def initialize_secrets_backends(
     custom_secret_backend = get_custom_secret_backend(worker_mode)
 
     if custom_secret_backend is not None:
+        from airflow.sdk.definitions.connection import Connection
+
+        custom_secret_backend._set_connection_class(Connection)
         backend_list.append(custom_secret_backend)
 
     for class_name in default_backends:
+        from airflow.sdk.definitions.connection import Connection
+
         secrets_backend_cls = import_string(class_name)
-        backend_list.append(secrets_backend_cls())
+        backend = secrets_backend_cls()
+        backend._set_connection_class(Connection)
+        backend_list.append(backend)
 
     return backend_list
 

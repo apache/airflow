@@ -37,10 +37,12 @@ from typing import TYPE_CHECKING, Any
 from celery import states as celery_states
 from deprecated import deprecated
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.executors import (
+    celery_executor_utils as _celery_executor_utils,  # noqa: F401 # Needed to register Celery tasks at worker startup, see #63043
+)
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
 from airflow.utils.state import TaskInstanceState
 
@@ -53,13 +55,11 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from sqlalchemy.orm import Session
-
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.celery.executors.celery_executor_utils import TaskInstanceInCelery, TaskTuple
+    from airflow.providers.celery.executors.celery_executor_utils import TaskTuple, WorkloadInCelery
 
 
 # PEP562
@@ -92,31 +92,53 @@ class CeleryExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    supports_callbacks: bool = True
     sentry_integration: str = "sentry_sdk.integrations.celery.CeleryIntegration"
 
     # TODO: Remove this flag once providers depend on Airflow 3.2.
     supports_sentry: bool = True
+    supports_multi_team: bool = True
 
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor
-        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
+    if TYPE_CHECKING:
+        if AIRFLOW_V_3_0_PLUS:
+            # TODO: TaskSDK: move this type change into BaseExecutor
+            queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # Check if self has the ExecutorConf set on the self.conf attribute with all required methods.
+        # In Airflow 2.x, ExecutorConf exists but lacks methods like getint, getboolean, getsection, etc.
+        # In such cases, fall back to the global configuration object.
+        # This allows the changes to be backwards compatible with older versions of Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration (3.2+).
+        if not hasattr(self, "conf") or not hasattr(self.conf, "getint"):
+            from airflow.configuration import conf as global_conf
+
+            self.conf = global_conf
+        # Also set team_name to None if it doesn't exist, since the Celery app creation expects it to be
+        # there (even if it's None)
+        if not hasattr(self, "team_name"):
+            self.team_name = None
+
+        # Create Celery app, it will be team specific if the configuration has been set for that.
+        from airflow.providers.celery.executors.celery_executor_utils import create_celery_app
+
+        self.celery_app = create_celery_app(self.conf)
+
         # Celery doesn't support bulk sending the tasks (which can become a bottleneck on bigger clusters)
         # so we use a multiprocessing pool to speed this up.
         # How many worker processes are created for checking celery task state.
-        self._sync_parallelism = conf.getint("celery", "SYNC_PARALLELISM")
+        self._sync_parallelism = self.conf.getint("celery", "SYNC_PARALLELISM", fallback=0)
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
         from airflow.providers.celery.executors.celery_executor_utils import BulkStateFetcher
 
-        self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
+        self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism, celery_app=self.celery_app)
         self.tasks = {}
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
-        self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries")
+        self.task_publish_max_retries = self.conf.getint("celery", "task_publish_max_retries", fallback=3)
 
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
@@ -131,34 +153,37 @@ class CeleryExecutor(BaseExecutor):
 
     def _process_tasks(self, task_tuples: Sequence[TaskTuple]) -> None:
         # Airflow V2 version
-        from airflow.providers.celery.executors.celery_executor_utils import execute_command
 
-        task_tuples_to_send = [task_tuple[:3] + (execute_command,) for task_tuple in task_tuples]
+        task_tuples_to_send = [task_tuple[:3] + (self.team_name,) for task_tuple in task_tuples]
 
         self._send_tasks(task_tuples_to_send)
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         # Airflow V3 version -- have to delay imports until we know we are on v3
         from airflow.executors.workloads import ExecuteTask
-        from airflow.providers.celery.executors.celery_executor_utils import execute_workload
 
-        tasks = [
-            (workload.ti.key, workload, workload.ti.queue, execute_workload)
-            for workload in workloads
-            if isinstance(workload, ExecuteTask)
-        ]
-        if len(tasks) != len(workloads):
-            invalid = list(workload for workload in workloads if not isinstance(workload, ExecuteTask))
-            raise ValueError(f"{type(self)}._process_workloads cannot handle {invalid}")
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.executors.workloads import ExecuteCallback
+
+        tasks: list[WorkloadInCelery] = []
+        for workload in workloads:
+            if isinstance(workload, ExecuteTask):
+                tasks.append((workload.ti.key, workload, workload.ti.queue, self.team_name))
+            elif AIRFLOW_V_3_2_PLUS and isinstance(workload, ExecuteCallback):
+                # Use default queue for callbacks, or extract from callback data if available
+                queue = "default"
+                if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
+                    queue = workload.callback.data["queue"]
+                tasks.append((workload.callback.key, workload, queue, self.team_name))
+            else:
+                raise ValueError(f"{type(self)}._process_workloads cannot handle {type(workload)}")
 
         self._send_tasks(tasks)
 
-    def _send_tasks(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
-        first_task = next(t[-1] for t in task_tuples_to_send)
-
+    def _send_tasks(self, task_tuples_to_send: Sequence[WorkloadInCelery]):
         # Celery state queries will be stuck if we do not use one same backend
         # for all tasks.
-        cached_celery_backend = first_task.backend
+        cached_celery_backend = self.celery_app.backend
 
         key_and_async_results = self._send_tasks_to_celery(task_tuples_to_send)
         self.log.debug("Sent all tasks.")
@@ -179,7 +204,10 @@ class CeleryExecutor(BaseExecutor):
                     )
                     self.task_publish_retries[key] = retries + 1
                     continue
-            self.queued_tasks.pop(key)
+            if key in self.queued_tasks:
+                self.queued_tasks.pop(key)
+            else:
+                self.queued_callbacks.pop(key, None)
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
@@ -194,7 +222,7 @@ class CeleryExecutor(BaseExecutor):
                 # which point we don't need the ID anymore anyway
                 self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
 
-    def _send_tasks_to_celery(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
+    def _send_tasks_to_celery(self, task_tuples_to_send: Sequence[WorkloadInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_task_to_executor
 
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
@@ -206,6 +234,8 @@ class CeleryExecutor(BaseExecutor):
         chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
         num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
 
+        # Use ProcessPoolExecutor with team_name instead of task objects to avoid pickling issues.
+        # Subprocesses reconstruct the team-specific Celery app from the team name and existing config.
         with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
             key_and_async_results = list(
                 send_pool.map(send_task_to_executor, task_tuples_to_send, chunksize=chunksize)
@@ -343,12 +373,10 @@ class CeleryExecutor(BaseExecutor):
         return reprs
 
     def revoke_task(self, *, ti: TaskInstance):
-        from airflow.providers.celery.executors.celery_executor_utils import app
-
         celery_async_result = self.tasks.pop(ti.key, None)
         if celery_async_result:
             try:
-                app.control.revoke(celery_async_result.task_id)
+                self.celery_app.control.revoke(celery_async_result.task_id)
             except Exception:
                 self.log.exception("Error revoking task instance %s from celery", ti.key)
         self.running.discard(ti.key)
@@ -359,11 +387,3 @@ class CeleryExecutor(BaseExecutor):
         from airflow.providers.celery.cli.definition import get_celery_cli_commands
 
         return get_celery_cli_commands()
-
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
-
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload

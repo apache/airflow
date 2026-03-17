@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import time
+import warnings
 from base64 import urlsafe_b64decode
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
@@ -32,6 +34,7 @@ from urllib3.util import Retry
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
@@ -40,7 +43,13 @@ except ImportError:
 
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli.cli_config import CLICommand
-from airflow.providers.common.compat.sdk import AirflowException, conf
+
+try:
+    from airflow.providers.common.compat.sdk import AirflowException, conf
+except ModuleNotFoundError:
+    from airflow.configuration import conf
+    from airflow.exceptions import AirflowException
+from airflow.providers.keycloak.auth_manager.cache import single_flight
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
@@ -66,6 +75,7 @@ if TYPE_CHECKING:
         DagAccessEntity,
         DagDetails,
         PoolDetails,
+        TeamDetails,
         VariableDetails,
     )
     from airflow.cli.cli_config import CLICommand
@@ -73,6 +83,15 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
+TEAM_SCOPED_RESOURCES = frozenset(
+    {
+        KeycloakResource.CONNECTION,
+        KeycloakResource.DAG,
+        KeycloakResource.POOL,
+        KeycloakResource.TEAM,
+        KeycloakResource.VARIABLE,
+    }
+)
 
 
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
@@ -181,10 +200,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     ) -> bool:
         config_section = details.section if details else None
         return self._is_authorized(
-            method=method,
-            resource_type=KeycloakResource.CONFIGURATION,
-            user=user,
-            resource_id=config_section,
+            method=method, resource_type=KeycloakResource.CONFIGURATION, user=user, resource_id=config_section
         )
 
     def is_authorized_connection(
@@ -195,8 +211,13 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         details: ConnectionDetails | None = None,
     ) -> bool:
         connection_id = details.conn_id if details else None
+        team_name = self._get_team_name(details)
         return self._is_authorized(
-            method=method, resource_type=KeycloakResource.CONNECTION, user=user, resource_id=connection_id
+            method=method,
+            resource_type=KeycloakResource.CONNECTION,
+            user=user,
+            resource_id=connection_id,
+            team_name=team_name,
         )
 
     def is_authorized_dag(
@@ -208,18 +229,27 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         details: DagDetails | None = None,
     ) -> bool:
         dag_id = details.id if details else None
+        team_name = self._get_team_name(details)
         access_entity_str = access_entity.value if access_entity else None
         return self._is_authorized(
             method=method,
             resource_type=KeycloakResource.DAG,
             user=user,
             resource_id=dag_id,
+            team_name=team_name,
             attributes={"dag_entity": access_entity_str},
         )
 
     def is_authorized_backfill(
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: BackfillDetails | None = None
     ) -> bool:
+        # Method can be removed once the min Airflow version is >= 3.2.0.
+        warnings.warn(
+            "Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         backfill_id = str(details.id) if details else None
         return self._is_authorized(
             method=method, resource_type=KeycloakResource.BACKFILL, user=user, resource_id=backfill_id
@@ -252,16 +282,37 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: VariableDetails | None = None
     ) -> bool:
         variable_key = details.key if details else None
+        team_name = self._get_team_name(details)
         return self._is_authorized(
-            method=method, resource_type=KeycloakResource.VARIABLE, user=user, resource_id=variable_key
+            method=method,
+            resource_type=KeycloakResource.VARIABLE,
+            user=user,
+            resource_id=variable_key,
+            team_name=team_name,
         )
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: PoolDetails | None = None
     ) -> bool:
         pool_name = details.name if details else None
+        team_name = self._get_team_name(details)
         return self._is_authorized(
-            method=method, resource_type=KeycloakResource.POOL, user=user, resource_id=pool_name
+            method=method,
+            resource_type=KeycloakResource.POOL,
+            user=user,
+            resource_id=pool_name,
+            team_name=team_name,
+        )
+
+    def is_authorized_team(
+        self, *, method: ResourceMethod, user: KeycloakAuthManagerUser, details: TeamDetails | None = None
+    ) -> bool:
+        team_name = details.name if details else None
+        return self._is_authorized(
+            method=method,
+            resource_type=KeycloakResource.TEAM,
+            user=user,
+            team_name=team_name,
         )
 
     def is_authorized_view(self, *, access_view: AccessView, user: KeycloakAuthManagerUser) -> bool:
@@ -346,6 +397,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         resource_type: KeycloakResource,
         user: KeycloakAuthManagerUser,
         resource_id: str | None = None,
+        team_name: str | None = None,
         attributes: dict[str, str | None] | None = None,
     ) -> bool:
         client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
@@ -358,9 +410,19 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
+        if (
+            team_name
+            and conf.getboolean("core", "multi_team", fallback=False)
+            and resource_type in TEAM_SCOPED_RESOURCES
+        ):
+            resource_name = f"{resource_type.value}:{team_name}"
+        else:
+            resource_name = resource_type.value
+        permission = f"{resource_name}#{method}"
+
         resp = self.http_session.post(
             self._get_token_url(server_url, realm),
-            data=self._get_payload(client_id, f"{resource_type.value}#{method}", context_attributes),
+            data=self._get_payload(client_id, permission, context_attributes),
             headers=self._get_headers(user.access_token),
             timeout=5,
         )
@@ -378,6 +440,24 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
+
+    def filter_authorized_dag_ids(
+        self,
+        *,
+        dag_ids: set[str],
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        cache_key = (user.get_id(), method, team_name, frozenset(dag_ids))
+
+        def query_keycloak() -> set[str]:
+            kwargs: dict = dict(dag_ids=dag_ids, user=user, method=method)
+            if team_name is not None:
+                kwargs["team_name"] = team_name
+            return super(KeycloakAuthManager, self).filter_authorized_dag_ids(**kwargs)
+
+        return single_flight(cache_key, query_keycloak)
 
     def _is_batch_authorized(
         self,
@@ -410,9 +490,34 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             )
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
+    def _get_teams(self) -> set[str]:
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+
+        pat = self.get_keycloak_client().token(grant_type="client_credentials")["access_token"]
+
+        prefix = f"{KeycloakResource.TEAM.value}:"
+        resource_url = f"{server_url.rstrip('/')}/realms/{realm}/authz/protection/resource_set"
+        resources_resp = self.http_session.get(
+            resource_url,
+            params={"name": prefix, "matchingUri": "false", "max": "-1", "deep": "true"},
+            headers={"Authorization": f"Bearer {pat}"},
+            timeout=5,
+        )
+        resources_resp.raise_for_status()
+
+        return {r["name"][len(prefix) :] for r in resources_resp.json() if r["name"].startswith(prefix)}
+
     @staticmethod
     def _get_token_url(server_url, realm):
-        return f"{server_url}/realms/{realm}/protocol/openid-connect/token"
+        # Normalize server_url to avoid double slashes (required for Keycloak 26.4+ strict path validation).
+        return f"{server_url.rstrip('/')}/realms/{realm}/protocol/openid-connect/token"
+
+    @staticmethod
+    def _get_team_name(
+        details: ConnectionDetails | DagDetails | PoolDetails | VariableDetails | None,
+    ) -> str | None:
+        return getattr(details, "team_name", None) if details else None
 
     @staticmethod
     def _get_payload(client_id: str, permission: str, attributes: dict[str, str] | None = None):
@@ -422,7 +527,14 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "permission": permission,
         }
         if attributes:
-            payload["context"] = {"attributes": attributes}
+            # Per UMA spec, push claims using claim_token parameter with base64-encoded JSON
+            # Values must be arrays of strings per Keycloak documentation
+            # See: https://www.keycloak.org/docs/latest/authorization_services/index.html#_service_pushing_claims
+            claims = {key: [value] for key, value in attributes.items()}
+            claim_json = json.dumps(claims, sort_keys=True)
+            claim_token = base64.b64encode(claim_json.encode()).decode()
+            payload["claim_token"] = claim_token
+            payload["claim_token_format"] = "urn:ietf:params:oauth:token-type:jwt"
 
         return payload
 

@@ -98,7 +98,7 @@ IN_PROGRESS_REFRESH_DETAILS = {
 
 class TestPowerBIDatasetRefreshOperator:
     @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
-    def test_execute_wait_for_termination_with_deferrable(self, connection):
+    def test_execute_wait_for_completion_with_deferrable(self, connection):
         operator = PowerBIDatasetRefreshOperator(
             **CONFIG,
         )
@@ -112,34 +112,52 @@ class TestPowerBIDatasetRefreshOperator:
 
     @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
     def test_powerbi_operator_async_get_refresh_status_success(self, connection):
-        """Assert that get_refresh_status log success message"""
+        """Test that execute defers once when wait_for_completion=True"""
         operator = PowerBIDatasetRefreshOperator(
             **CONFIG,
+            wait_for_completion=True,  # Explicitly set to True
         )
-        context = {"ti": MagicMock()}
-        context["ti"].task_id = TASK_ID
+        context = mock_context(task=operator)
 
         with pytest.raises(TaskDeferred) as exc:
-            operator.get_refresh_status(
-                context=context,
-                event=SUCCESS_TRIGGER_EVENT,
-            )
+            operator.execute(context)
 
+        # Verify trigger is correct type
         assert isinstance(exc.value.trigger, PowerBITrigger)
-        assert exc.value.trigger.dataset_refresh_id is NEW_REFRESH_REQUEST_ID
-        assert context["ti"].xcom_push.call_count == 1
+
+        # Verify trigger has correct parameters
+        assert exc.value.trigger.dataset_id == DATASET_ID
+        assert exc.value.trigger.group_id == GROUP_ID
+        assert exc.value.trigger.wait_for_termination is True
+
+        # Verify callback method name
+        assert exc.value.method_name == "execute_complete"
+
+        # Verify dataset_refresh_id is None (trigger will create it)
+        assert exc.value.trigger.dataset_refresh_id is None
 
     def test_powerbi_operator_async_execute_complete_success(self):
-        """Assert that execute_complete log success message"""
-        operator = PowerBIDatasetRefreshOperator(
-            **CONFIG,
-        )
+        """Assert that execute_complete processes success event correctly"""
+        operator = PowerBIDatasetRefreshOperator(**CONFIG)
         context = {"ti": MagicMock()}
+
         operator.execute_complete(
             context=context,
             event=SUCCESS_REFRESH_EVENT,
         )
-        assert context["ti"].xcom_push.call_count == 1
+
+        # Should push both refresh_id and status
+        assert context["ti"].xcom_push.call_count == 2
+
+        # Verify the XCom keys and values
+        calls = context["ti"].xcom_push.call_args_list
+        xcom_data = {call[1]["key"]: call[1]["value"] for call in calls}
+
+        assert f"{TASK_ID}.powerbi_dataset_refresh_id" in xcom_data
+        assert xcom_data[f"{TASK_ID}.powerbi_dataset_refresh_id"] == NEW_REFRESH_REQUEST_ID
+
+        assert f"{TASK_ID}.powerbi_dataset_refresh_status" in xcom_data
+        assert xcom_data[f"{TASK_ID}.powerbi_dataset_refresh_status"] == PowerBIDatasetRefreshStatus.COMPLETED
 
     def test_powerbi_operator_async_execute_complete_fail(self):
         """Assert that execute_complete raise exception on error"""
@@ -176,7 +194,7 @@ class TestPowerBIDatasetRefreshOperator:
                     "dataset_refresh_id": "1234",
                 },
             )
-        assert context["ti"].xcom_push.call_count == 1
+        assert context["ti"].xcom_push.call_count == 2
         assert str(exc.value) == "error message"
 
     def test_execute_complete_no_event(self):
@@ -213,3 +231,83 @@ class TestPowerBIDatasetRefreshOperator:
         )
 
         assert url == EXPECTED_ITEM_RUN_OP_EXTRA_LINK
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.powerbi.PowerBIHook")
+    @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
+    def test_execute_fire_and_forget_mode(self, mock_connection, mock_hook_class):
+        """Test fire-and-forget mode (wait_for_completion=False)"""
+        mock_hook_instance = mock_hook_class.return_value
+        mock_hook_instance.trigger_dataset_refresh.return_value = NEW_REFRESH_REQUEST_ID
+
+        operator = PowerBIDatasetRefreshOperator(
+            **CONFIG,
+            wait_for_completion=False,
+        )
+        context = {"ti": MagicMock()}
+        context["ti"].task_id = TASK_ID
+
+        # Should not raise TaskDeferred
+        result = operator.execute(context)
+
+        # Verify hook was called correctly
+        mock_hook_instance.trigger_dataset_refresh.assert_called_once_with(
+            dataset_id=DATASET_ID,
+            group_id=GROUP_ID,
+            request_body=REQUEST_BODY,
+        )
+
+        # Verify XCom push
+        assert context["ti"].xcom_push.call_count == 1
+        call_args = context["ti"].xcom_push.call_args
+        assert call_args[1]["key"] == f"{TASK_ID}.powerbi_dataset_refresh_id"
+        assert call_args[1]["value"] == NEW_REFRESH_REQUEST_ID
+
+        # Should return None (completes synchronously)
+        assert result is None
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.powerbi.PowerBIHook")
+    @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
+    def test_execute_fire_and_forget_mode_failure(self, mock_connection, mock_hook_class):
+        """Test fire-and-forget mode raises exception when trigger fails"""
+        mock_hook_instance = mock_hook_class.return_value
+        mock_hook_instance.trigger_dataset_refresh.return_value = None
+
+        operator = PowerBIDatasetRefreshOperator(
+            **CONFIG,
+            wait_for_completion=False,
+        )
+        context = {"ti": MagicMock()}
+        context["ti"].task_id = TASK_ID
+
+        # Should raise AirflowException
+        with pytest.raises(AirflowException, match="Failed to trigger dataset refresh"):
+            operator.execute(context)
+
+        # Should not push to XCom on failure
+        assert context["ti"].xcom_push.call_count == 0
+
+    @mock.patch.object(BaseHook, "get_connection", side_effect=get_airflow_connection)
+    def test_execute_default_behavior_waits_for_completion(self, mock_connection):
+        """Test that default behavior (wait_for_completion=True) defers and waits"""
+        config_without_wait = {
+            "task_id": TASK_ID,
+            "conn_id": DEFAULT_CONNECTION_CLIENT_SECRET,
+            "group_id": GROUP_ID,
+            "dataset_id": DATASET_ID,
+            "request_body": REQUEST_BODY,
+            "check_interval": 1,
+            "timeout": 3,
+            # Deliberately exclude wait_for_completion - should default to True
+        }
+
+        operator = PowerBIDatasetRefreshOperator(**config_without_wait)
+        context = mock_context(task=operator)
+
+        # Should defer (because default is wait_for_completion=True)
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context)
+
+        # Verify it deferred with correct trigger
+        assert isinstance(exc.value.trigger, PowerBITrigger)
+        assert exc.value.trigger.wait_for_termination is True
+        assert exc.value.method_name == "execute_complete"

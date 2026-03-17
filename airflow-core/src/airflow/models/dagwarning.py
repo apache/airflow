@@ -22,14 +22,14 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKeyConstraint, Index, String, Text, delete, select, true
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
 from airflow.models.dag import DagModel
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

@@ -220,7 +220,6 @@ This approach disables the rendering of both macros and files and can be applied
 
     from airflow.sdk import literal
 
-
     fixed_print_script = BashOperator(
         task_id="fixed_print_script",
         bash_command=literal("cat script.sh"),

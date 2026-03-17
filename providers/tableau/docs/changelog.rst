@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+5.3.3
+.....
+
+Misc
+~~~~
+
+* ``limit 0.39 version due to missing package (#61387)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.3.2
 .....
 

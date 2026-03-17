@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
+    from airflow.listeners.types import AssetEvent
     from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
 
 hookspec = HookspecMarker("airflow")
@@ -41,3 +42,13 @@ def on_asset_alias_created(asset_alias: SerializedAssetAlias):
 @hookspec
 def on_asset_changed(asset: SerializedAsset):
     """Execute when asset change is registered."""
+
+
+@hookspec
+def on_asset_event_emitted(asset_event: AssetEvent):
+    """
+    Execute when an asset event is emitted.
+
+    This is generally called together with ``on_asset_changed``, but with
+    information on the emitted event instead.
+    """

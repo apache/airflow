@@ -29,6 +29,7 @@ from multiprocessing import Process, Queue
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import anyio
 from aiofiles import open as aio_open
 from aiohttp import ClientResponseError
 from lockfile.pidlockfile import remove_existing_pidfile
@@ -81,10 +82,10 @@ def _edge_hostname() -> str:
 @cache
 def _execution_api_server_url() -> str:
     """Get the execution api server url from config or environment."""
-    api_url = conf.get("edge", "api_url")
     execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
-    if not execution_api_server_url and api_url:
+    if not execution_api_server_url:
         # Derive execution api url from edge api url as fallback
+        api_url = conf.get("edge", "api_url")
         execution_api_server_url = api_url.replace("edge_worker/v1/rpcapi", "execution")
     logger.info("Using execution api server url: %s", execution_api_server_url)
     return execution_api_server_url
@@ -238,7 +239,8 @@ class EdgeWorker:
         return process, results_queue
 
     async def _push_logs_in_chunks(self, job: Job):
-        if push_logs and job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
+        aio_logfile = anyio.Path(job.logfile)
+        if push_logs and await aio_logfile.exists() and (await aio_logfile.stat()).st_size > job.logsize:
             async with aio_open(job.logfile, mode="rb") as logf:
                 await logf.seek(job.logsize, os.SEEK_SET)
                 read_data = await logf.read()
@@ -399,6 +401,13 @@ class EdgeWorker:
                 new_maintenance_comments,
             )
             self.queues = worker_info.queues
+            if worker_info.concurrency is not None and worker_info.concurrency != self.concurrency:
+                logger.info(
+                    "Concurrency updated from %d to %d by remote request.",
+                    self.concurrency,
+                    worker_info.concurrency,
+                )
+                self.concurrency = worker_info.concurrency
             if worker_info.state == EdgeWorkerState.MAINTENANCE_REQUEST:
                 logger.info("Maintenance mode requested!")
                 self.maintenance_mode = True

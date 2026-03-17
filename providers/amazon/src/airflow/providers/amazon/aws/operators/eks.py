@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import stat
 import warnings
 from ast import literal_eval
 from collections.abc import Sequence
@@ -89,6 +91,7 @@ def _create_compute(
     fargate_selectors: list | None = None,
     create_fargate_profile_kwargs: dict | None = None,
     subnets: list[str] | None = None,
+    delete_nodegroup_on_failure: bool = True,
 ):
     log = logging.getLogger(__name__)
     eks_hook = EksHook(aws_conn_id=aws_conn_id, region_name=region)
@@ -96,6 +99,10 @@ def _create_compute(
         # this is to satisfy mypy
         subnets = subnets or []
         create_nodegroup_kwargs = create_nodegroup_kwargs or {}
+        if nodegroup_role_arn is None:
+            raise ValueError(
+                MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement="nodegroup_role_arn")
+            )
 
         eks_hook.create_nodegroup(
             clusterName=cluster_name,
@@ -104,21 +111,59 @@ def _create_compute(
             nodeRole=nodegroup_role_arn,
             **create_nodegroup_kwargs,
         )
-        if wait_for_completion:
-            log.info("Waiting for nodegroup to provision.  This will take some time.")
-            wait(
-                waiter=eks_hook.conn.get_waiter("nodegroup_active"),
-                waiter_delay=waiter_delay,
-                waiter_max_attempts=waiter_max_attempts,
-                args={"clusterName": cluster_name, "nodegroupName": nodegroup_name},
-                failure_message="Nodegroup creation failed",
-                status_message="Nodegroup status is",
-                status_args=["nodegroup.status"],
+        try:
+            if wait_for_completion:
+                log.info("Waiting for nodegroup to provision. This will take some time.")
+                wait(
+                    waiter=eks_hook.conn.get_waiter("nodegroup_active"),
+                    waiter_delay=waiter_delay,
+                    waiter_max_attempts=waiter_max_attempts,
+                    args={"clusterName": cluster_name, "nodegroupName": nodegroup_name},
+                    failure_message="Nodegroup creation failed",
+                    status_message="Nodegroup status is",
+                    status_args=["nodegroup.status"],
+                )
+
+        # waiter_with_logging.wait wraps botocore WaiterError in AirflowException.
+        # WaiterError is caught to handle changes in the implementation of waiter_with_logging.wait.
+        except (WaiterError, AirflowException):
+            # Best-effort cleanup when post-initiation steps fail (e.g. IAM/permission errors).
+            log.exception(
+                "Nodegroup '%s' in cluster '%s' failed after creation during wait phase",
+                nodegroup_name,
+                cluster_name,
             )
+
+            # delete_nodegroup_on_failure defaults to True to prevent orphaned nodegroups.
+            if delete_nodegroup_on_failure:
+                try:
+                    eks_hook.delete_nodegroup(
+                        clusterName=cluster_name,
+                        nodegroupName=nodegroup_name,
+                    )
+                    log.info(
+                        "Issued delete request for nodegroup '%s' in cluster '%s' after failure.",
+                        nodegroup_name,
+                        cluster_name,
+                    )
+                except ClientError:
+                    log.exception(
+                        "Failed to cleanup nodegroup '%s' in cluster '%s' after failure; "
+                        "manual cleanup may be required.",
+                        nodegroup_name,
+                        cluster_name,
+                    )
+            raise
     elif compute == "fargate" and fargate_profile_name:
         # this is to satisfy mypy
         create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
         fargate_selectors = fargate_selectors or []
+        if fargate_pod_execution_role_arn is None:
+            raise ValueError(
+                MISSING_ARN_MSG.format(
+                    compute=FARGATE_FULL_NAME, requirement="fargate_pod_execution_role_arn"
+                )
+            )
 
         eks_hook.create_fargate_profile(
             clusterName=cluster_name,
@@ -199,7 +244,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
-
+    :param delete_nodegroup_on_failure: Whether to attempt best-effort deletion of the managed nodegroup if creation
+        fails during the wait phase after successful initiation. Defaults to True.
     """
 
     aws_hook_class = EksHook
@@ -238,6 +284,7 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
+        delete_nodegroup_on_failure: bool = True,
         **kwargs,
     ) -> None:
         self.compute = compute
@@ -258,6 +305,7 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
         self.fargate_profile_name = fargate_profile_name
         self.deferrable = deferrable
+        self.delete_nodegroup_on_failure = delete_nodegroup_on_failure
 
         if region is not None:
             warnings.warn(
@@ -379,6 +427,7 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                 fargate_selectors=self.fargate_selectors,
                 create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
                 subnets=cast("list[str]", self.resources_vpc_config.get("subnetIds")),
+                delete_nodegroup_on_failure=self.delete_nodegroup_on_failure,
             )
             if self.compute == "fargate":
                 self.defer(
@@ -454,7 +503,8 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
     :param deferrable: If True, the operator will wait asynchronously for the nodegroup to be created.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
-
+    :param delete_nodegroup_on_failure: Whether to attempt best-effort deletion of the managed nodegroup if creation
+        fails during the wait phase after successful initiation. Defaults to True.
     """
 
     aws_hook_class = EksHook
@@ -479,6 +529,7 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
         waiter_delay: int = 30,
         waiter_max_attempts: int = 80,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        delete_nodegroup_on_failure: bool = True,
         **kwargs,
     ) -> None:
         self.nodegroup_subnets = nodegroup_subnets
@@ -493,6 +544,7 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.delete_nodegroup_on_failure = delete_nodegroup_on_failure
 
         if region is not None:
             warnings.warn(
@@ -531,6 +583,7 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
             nodegroup_role_arn=self.nodegroup_role_arn,
             create_nodegroup_kwargs=self.create_nodegroup_kwargs,
             subnets=self.nodegroup_subnets,
+            delete_nodegroup_on_failure=self.delete_nodegroup_on_failure,
         )
 
         if self.deferrable:
@@ -1052,6 +1105,8 @@ class EksPodOperator(KubernetesPodOperator):
         self.pod_name = pod_name
         self.aws_conn_id = aws_conn_id
         self.region = region
+        # Track credentials file path for credential refresh during long-running tasks
+        self._credentials_file_path: str | None = None
         super().__init__(
             in_cluster=self.in_cluster,
             namespace=self.namespace,
@@ -1070,10 +1125,18 @@ class EksPodOperator(KubernetesPodOperator):
             region_name=self.region,
         )
         session = eks_hook.get_session()
-        credentials = session.get_credentials().get_frozen_credentials()
+        credentials_obj = session.get_credentials()
+        if credentials_obj is None:
+            raise AirflowException(
+                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
+                "Please check your AWS connection configuration."
+            )
+        credentials = credentials_obj.get_frozen_credentials()
         with eks_hook._secure_credential_context(
             credentials.access_key, credentials.secret_key, credentials.token
         ) as credentials_file:
+            # Store credentials file path for potential refresh during long-running tasks
+            self._credentials_file_path = credentials_file
             with eks_hook.generate_config_file(
                 eks_cluster_name=self.cluster_name,
                 pod_namespace=self.namespace,
@@ -1089,13 +1152,103 @@ class EksPodOperator(KubernetesPodOperator):
         eks_cluster_name = event["eks_cluster_name"]
         pod_namespace = event["namespace"]
         session = eks_hook.get_session()
-        credentials = session.get_credentials().get_frozen_credentials()
+        credentials_obj = session.get_credentials()
+        if credentials_obj is None:
+            raise AirflowException(
+                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
+                "Please check your AWS connection configuration."
+            )
+        credentials = credentials_obj.get_frozen_credentials()
         with eks_hook._secure_credential_context(
             credentials.access_key, credentials.secret_key, credentials.token
         ) as credentials_file:
+            # Store credentials file path for potential refresh during long-running tasks
+            self._credentials_file_path = credentials_file
             with eks_hook.generate_config_file(
                 eks_cluster_name=eks_cluster_name,
                 pod_namespace=pod_namespace,
                 credentials_file=credentials_file,
             ) as self.config_file:
                 return super().trigger_reentry(context, event)
+
+    def _write_credentials_to_file(
+        self, credentials_file_path: str, access_key: str, secret_key: str, session_token: str | None
+    ) -> None:
+        """
+        Write AWS credentials to an existing credentials file.
+
+        This overwrites the contents of the credentials file with fresh credentials,
+        which allows the kubeconfig exec credential plugin to use new credentials
+        without regenerating the entire kubeconfig.
+
+        The file was originally created by EksHook._secure_credential_context with
+        restrictive permissions (0600 - owner read/write only). This method preserves
+        those permissions by using os.open with the same mode flags.
+
+        :param credentials_file_path: Path to the credentials file to update
+        :param access_key: AWS access key ID
+        :param secret_key: AWS secret access key
+        :param session_token: AWS session token (optional)
+        """
+        # Open with same restrictive permissions as _secure_credential_context (0600)
+        fd = os.open(credentials_file_path, os.O_WRONLY | os.O_TRUNC, stat.S_IRUSR | stat.S_IWUSR)
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(f"export AWS_ACCESS_KEY_ID='{access_key}'\n")
+                f.write(f"export AWS_SECRET_ACCESS_KEY='{secret_key}'\n")
+                if session_token:
+                    f.write(f"export AWS_SESSION_TOKEN='{session_token}'\n")
+        except Exception:
+            # If fdopen fails, we need to close the file descriptor manually
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            raise
+
+    def _refresh_cached_properties(self) -> None:
+        """
+        Refresh cached properties including AWS credentials.
+
+        This method is called by KubernetesPodOperator._handle_api_exception (in
+        providers/cncf/kubernetes/operators/pod.py) when a 401 Unauthorized error
+        is received from the Kubernetes API. The 401 error indicates that the
+        credentials used to authenticate with EKS have expired.
+
+        The call chain is:
+        1. KubernetesPodOperator._await_pod_completion catches ApiException with status 401
+        2. _handle_api_exception is called, which logs a warning and calls _refresh_cached_properties
+        3. This override refreshes the AWS credentials file that the kubeconfig exec
+           credential plugin reads from (see EksHook._secure_credential_context)
+        4. The parent class deletes cached hook/client/pod_manager so they are recreated
+           with fresh credentials on next access
+
+        Without this refresh, the kubeconfig would continue to reference stale
+        credentials in the temp file, causing repeated authentication failures.
+        """
+        if self._credentials_file_path:
+            self.log.info("Refreshing AWS credentials for EKS authentication")
+            try:
+                eks_hook = EksHook(
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region,
+                )
+                session = eks_hook.get_session()
+                credentials_obj = session.get_credentials()
+                if credentials_obj is None:
+                    raise AirflowException(
+                        "Unable to retrieve fresh AWS credentials during refresh. "
+                        "Credentials may have expired or the AWS connection may be misconfigured."
+                    )
+                credentials = credentials_obj.get_frozen_credentials()
+                self._write_credentials_to_file(
+                    self._credentials_file_path,
+                    credentials.access_key,
+                    credentials.secret_key,
+                    credentials.token,
+                )
+                self.log.info("Successfully refreshed AWS credentials for EKS")
+            except Exception:
+                self.log.exception("Failed to refresh AWS credentials.")
+                raise
+        super()._refresh_cached_properties()

@@ -52,15 +52,9 @@ class TestListTeams:
         assert response.status_code == 200
         assert response.json() == {
             "teams": [
-                {
-                    "name": "team1",
-                },
-                {
-                    "name": "team2",
-                },
-                {
-                    "name": "team3",
-                },
+                {"name": "team1"},
+                {"name": "team2"},
+                {"name": "team3"},
             ],
             "total_entries": 3,
         }

@@ -17,18 +17,54 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
 
 import structlog
 
 if TYPE_CHECKING:
+    import sys
     from collections.abc import Collection, Iterable
+
+    # Replicate `airflow.typing_compat.Self` to avoid illegal imports
+    if sys.version_info >= (3, 11):
+        from typing import Self
+    else:
+        from typing_extensions import Self
 
     from ..logging.types import Logger
 
-Dag = TypeVar("Dag")
-Task = TypeVar("Task")
-TaskGroup = TypeVar("TaskGroup")
+
+class DagProtocol(Protocol):
+    """Protocol defining the minimum interface required for Dag generic type."""
+
+    dag_id: str
+    task_dict: dict[str, Any]
+
+    def get_task(self, tid: str) -> Any:
+        """Retrieve a task by its task ID."""
+        ...
+
+
+class TaskProtocol(Protocol):
+    """Protocol defining the minimum interface required for Task generic type."""
+
+    task_id: str
+    is_setup: bool
+    is_teardown: bool
+    downstream_list: Iterable[Self]
+    downstream_task_ids: set[str]
+
+
+class TaskGroupProtocol(Protocol):
+    """Protocol defining the minimum interface required for TaskGroup generic type."""
+
+    node_id: str
+    prefix_group_id: bool
+
+
+Dag = TypeVar("Dag", bound=DagProtocol)
+Task = TypeVar("Task", bound=TaskProtocol)
+TaskGroup = TypeVar("TaskGroup", bound=TaskGroupProtocol)
 
 
 class GenericDAGNode(Generic[Dag, Task, TaskGroup]):

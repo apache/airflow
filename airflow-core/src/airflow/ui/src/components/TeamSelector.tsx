@@ -59,6 +59,7 @@ export const TeamSelector = <T extends FieldValues = FieldValues>({ control }: P
               ) : undefined}
               <Select
                 {...Field}
+                data-testid="team-selector"
                 isClearable
                 isDisabled={isLoading}
                 // eslint-disable-next-line unicorn/no-null

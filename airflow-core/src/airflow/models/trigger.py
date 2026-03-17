@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, Session, relationship, selectinload
+from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
@@ -39,7 +39,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:

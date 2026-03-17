@@ -338,7 +338,12 @@ class S3Hook(AwsBaseHook):
         return self.resource.Bucket(bucket_name)
 
     @provide_bucket_name
-    def create_bucket(self, bucket_name: str | None = None, region_name: str | None = None) -> None:
+    def create_bucket(
+        self,
+        bucket_name: str | None = None,
+        region_name: str | None = None,
+        bucket_namespace: str | None = None,
+    ) -> None:
         """
         Create an Amazon S3 bucket.
 
@@ -347,6 +352,10 @@ class S3Hook(AwsBaseHook):
 
         :param bucket_name: The name of the bucket
         :param region_name: The name of the aws region in which to create the bucket.
+        :param bucket_namespace: The namespace of the bucket. Set to ``account-regional`` to create
+            the bucket in the account-regional namespace. If not specified, the bucket is created
+            in the global namespace. See:
+            https://docs.aws.amazon.com/AmazonS3/latest/userguide/gpbucketnamespaces.html
         """
         if not region_name:
             if self.conn_region_name == "aws-global":
@@ -356,13 +365,13 @@ class S3Hook(AwsBaseHook):
                 )
             region_name = self.conn_region_name
 
-        if region_name == "us-east-1":
-            self.get_conn().create_bucket(Bucket=bucket_name)
-        else:
-            self.get_conn().create_bucket(
-                Bucket=bucket_name,
-                CreateBucketConfiguration={"LocationConstraint": region_name},
-            )
+        kwargs: dict[str, Any] = {"Bucket": bucket_name}
+        if region_name != "us-east-1":
+            kwargs["CreateBucketConfiguration"] = {"LocationConstraint": region_name}
+        if bucket_namespace:
+            kwargs["BucketNamespace"] = bucket_namespace
+
+        self.get_conn().create_bucket(**kwargs)
 
     @provide_bucket_name
     def check_for_prefix(self, prefix: str, delimiter: str, bucket_name: str | None = None) -> bool:
@@ -1107,14 +1116,16 @@ class S3Hook(AwsBaseHook):
         """
         expression = expression or "SELECT * FROM S3Object"
         expression_type = expression_type or "SQL"
-        extra_args = {}
 
         if input_serialization is None:
             input_serialization = {"CSV": {}}
         if output_serialization is None:
             output_serialization = {"CSV": {}}
         if self._requester_pays:
-            extra_args["RequestPayer"] = "requester"
+            raise ValueError(
+                "select_key cannot be used with requester_pays=True. "
+                "S3 Select does not support the RequestPayer parameter."
+            )
 
         response = self.get_conn().select_object_content(
             Bucket=bucket_name,
@@ -1123,7 +1134,6 @@ class S3Hook(AwsBaseHook):
             ExpressionType=expression_type,
             InputSerialization=input_serialization,
             OutputSerialization=output_serialization,
-            ExtraArgs=extra_args,
         )
 
         return b"".join(
@@ -1386,6 +1396,8 @@ class S3Hook(AwsBaseHook):
         source_version_id: str | None = None,
         acl_policy: str | None = None,
         meta_data_directive: str | None = None,
+        kms_key_id: str | None = None,
+        kms_encryption_type: str | None = None,
         **kwargs,
     ) -> None:
         """
@@ -1417,6 +1429,10 @@ class S3Hook(AwsBaseHook):
             object to be copied which is private by default.
         :param meta_data_directive: Whether to `COPY` the metadata from the source object or `REPLACE` it
             with metadata that's provided in the request.
+        :param kms_key_id: The ARN, id or alias of the AWS KMS key to use for encrypting the destination object.
+            Required if using KMS-based server-side encryption with a non-default key.
+        :param kms_encryption_type: Type of KMS encryption to use for the object.
+            Can be either "aws:kms" (standard KMS) or "aws:kms:dsse" (double-shielded KMS).
         """
         acl_policy = acl_policy or "private"
         if acl_policy != NO_ACL:
@@ -1425,6 +1441,13 @@ class S3Hook(AwsBaseHook):
             kwargs["MetadataDirective"] = meta_data_directive
         if self._requester_pays:
             kwargs["RequestPayer"] = "requester"
+
+        if bool(kms_key_id) != bool(kms_encryption_type):
+            message = "kms_key_id and kms_encryption_type must both be specified. Only one was provided."
+            raise ValueError(message)
+        if kms_key_id and kms_encryption_type:
+            kwargs["SSEKMSKeyId"] = kms_key_id
+            kwargs["ServerSideEncryption"] = kms_encryption_type
 
         dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
             dest_bucket_name, dest_bucket_key, "dest_bucket_name", "dest_bucket_key"
@@ -1603,6 +1626,7 @@ class S3Hook(AwsBaseHook):
             ExtraArgs=extra_args,
             Config=self.transfer_config,
         )
+        file.flush()
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )
@@ -1720,27 +1744,19 @@ class S3Hook(AwsBaseHook):
         s3_client.delete_bucket_tagging(Bucket=bucket_name)
 
     def _sync_to_local_dir_delete_stale_local_files(self, current_s3_objects: list[Path], local_dir: Path):
-        current_s3_keys = {key for key in current_s3_objects}
+        current_s3_keys = {key.resolve() for key in current_s3_objects}
 
-        for item in local_dir.iterdir():
-            item: Path  # type: ignore[no-redef]
-            absolute_item_path = item.resolve()
-
-            if absolute_item_path not in current_s3_keys:
-                try:
-                    if item.is_file():
-                        item.unlink(missing_ok=True)
-                        self.log.debug("Deleted stale local file: %s", item)
-                    elif item.is_dir():
-                        # delete only when the folder is empty
-                        if not os.listdir(item):
-                            item.rmdir()
-                            self.log.debug("Deleted stale empty directory: %s", item)
-                    else:
-                        self.log.debug("Skipping stale item of unknown type: %s", item)
-                except OSError as e:
-                    self.log.error("Error deleting stale item %s: %s", item, e)
-                    raise e
+        for item in local_dir.rglob("*"):
+            if item.is_file() and item.resolve() not in current_s3_keys:
+                self.log.debug("Deleted stale local file: %s", item)
+                item.unlink()
+        # Clean up empty directories
+        for root, dirs, _ in os.walk(local_dir, topdown=False):
+            for d in dirs:
+                dir_path = os.path.join(root, d)
+                if not os.listdir(dir_path):
+                    self.log.debug("Deleted stale empty directory: %s", dir_path)
+                    os.rmdir(dir_path)
 
     def _sync_to_local_dir_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
         should_download = False

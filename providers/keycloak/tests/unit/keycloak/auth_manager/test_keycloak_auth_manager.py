@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import json
+from contextlib import ExitStack
 from unittest.mock import Mock, patch
 
 import pytest
@@ -35,8 +37,21 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_2_PLUS
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
+else:
+    TeamDetails = None  # type: ignore[assignment,misc]
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.exceptions import AirflowProviderDeprecationWarning
+
+try:
+    from airflow.providers.common.compat.sdk import AirflowException
+except ModuleNotFoundError:
+    from airflow.exceptions import AirflowException
+from airflow.providers.keycloak.auth_manager import cache as cache_module
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
@@ -51,7 +66,13 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS
+
+
+def _build_access_token(payload: dict[str, object]) -> str:
+    header = {"alg": "none", "typ": "JWT"}
+    header_b64 = base64.urlsafe_b64encode(json.dumps(header).encode()).decode().rstrip("=")
+    payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+    return f"{header_b64}.{payload_b64}."
 
 
 @pytest.fixture
@@ -68,11 +89,35 @@ def auth_manager():
 
 
 @pytest.fixture
+def auth_manager_multi_team():
+    with conf_vars(
+        {
+            ("core", "multi_team"): "True",
+            (CONF_SECTION_NAME, CONF_CLIENT_ID_KEY): "client_id",
+            (CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY): "client_secret",
+            (CONF_SECTION_NAME, CONF_REALM_KEY): "realm",
+            (CONF_SECTION_NAME, CONF_SERVER_URL_KEY): "server_url",
+        }
+    ):
+        yield KeycloakAuthManager()
+
+
+@pytest.fixture
 def user():
     user = Mock()
     user.access_token = "access_token"
     user.refresh_token = "refresh_token"
     return user
+
+
+@pytest.fixture(autouse=True)
+def _clear_filter_cache():
+    """Clear module-level single-flight cache between tests."""
+    cache_module._cache.clear()
+    cache_module._pending_requests.clear()
+    yield
+    cache_module._cache.clear()
+    cache_module._pending_requests.clear()
 
 
 class TestKeycloakAuthManager:
@@ -237,6 +282,7 @@ class TestKeycloakAuthManager:
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
             ["is_authorized_pool", "GET", None, "Pool#LIST", {}],
+            ["is_authorized_team", "GET", None, "Team#LIST", {}],
         ],
     )
     @pytest.mark.parametrize(
@@ -263,11 +309,45 @@ class TestKeycloakAuthManager:
         mock_response.status_code = status_code
         auth_manager.http_session.post = Mock(return_value=mock_response)
 
-        result = getattr(auth_manager, function)(method=method, user=user, details=details)
+        with ExitStack() as stack:
+            if function == "is_authorized_backfill":
+                stack.enter_context(
+                    pytest.warns(
+                        AirflowProviderDeprecationWarning,
+                        match="Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+                    )
+                )
+
+            result = getattr(auth_manager, function)(method=method, user=user, details=details)
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", permission, attributes)
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
+        assert result == expected
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="TeamDetails not available before Airflow 3.2.0")
+    @pytest.mark.parametrize(
+        ("status_code", "expected"),
+        [
+            [200, True],
+            [401, False],
+            [403, False],
+        ],
+    )
+    def test_is_authorized_team_with_details(self, status_code, expected, auth_manager, user):
+        details = TeamDetails(name="team-a")
+        mock_response = Mock()
+        mock_response.status_code = status_code
+        auth_manager.http_session.post = Mock(return_value=mock_response)
+
+        result = auth_manager.is_authorized_team(method="GET", user=user, details=details)
+
+        token_url = auth_manager._get_token_url("server_url", "realm")
+        payload = auth_manager._get_payload("client_id", "Team#LIST", {})
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
@@ -284,6 +364,7 @@ class TestKeycloakAuthManager:
             "is_authorized_asset_alias",
             "is_authorized_variable",
             "is_authorized_pool",
+            "is_authorized_team",
         ],
     )
     def test_is_authorized_failure(self, function, auth_manager, user):
@@ -291,10 +372,19 @@ class TestKeycloakAuthManager:
         resp.status_code = 500
         auth_manager.http_session.post = Mock(return_value=resp)
 
-        with pytest.raises(AirflowException) as e:
-            getattr(auth_manager, function)(method="GET", user=user)
+        with ExitStack() as stack:
+            if function == "is_authorized_backfill":
+                stack.enter_context(
+                    pytest.warns(
+                        AirflowProviderDeprecationWarning,
+                        match="Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+                    )
+                )
 
-        assert "Unexpected error" in str(e.value)
+            with pytest.raises(AirflowException) as e:
+                getattr(auth_manager, function)(method="GET", user=user)
+
+            assert "Unexpected error" in str(e.value)
 
     @pytest.mark.parametrize(
         "function",
@@ -307,6 +397,7 @@ class TestKeycloakAuthManager:
             "is_authorized_asset_alias",
             "is_authorized_variable",
             "is_authorized_pool",
+            "is_authorized_team",
         ],
     )
     def test_is_authorized_invalid_request(self, function, auth_manager, user):
@@ -315,10 +406,19 @@ class TestKeycloakAuthManager:
         resp.text = json.dumps({"error": "invalid_scope", "error_description": "Invalid scopes: GET"})
         auth_manager.http_session.post = Mock(return_value=resp)
 
-        with pytest.raises(AirflowException) as e:
-            getattr(auth_manager, function)(method="GET", user=user)
+        with ExitStack() as stack:
+            if function == "is_authorized_backfill":
+                stack.enter_context(
+                    pytest.warns(
+                        AirflowProviderDeprecationWarning,
+                        match="Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+                    )
+                )
 
-        assert "Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET" in str(e.value)
+            with pytest.raises(AirflowException) as e:
+                getattr(auth_manager, function)(method="GET", user=user)
+
+            assert "Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET" in str(e.value)
 
     @pytest.mark.parametrize(
         ("method", "access_entity", "details", "permission", "attributes"),
@@ -382,11 +482,221 @@ class TestKeycloakAuthManager:
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", permission, attributes)
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
         assert result == expected
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @pytest.mark.parametrize(
+        ("function", "method", "details_cls", "details_kwargs", "permission"),
+        [
+            ("is_authorized_dag", "GET", DagDetails, {"id": "test", "team_name": "team-a"}, "Dag#GET"),
+            (
+                "is_authorized_connection",
+                "DELETE",
+                ConnectionDetails,
+                {"conn_id": "test", "team_name": "team-a"},
+                "Connection#DELETE",
+            ),
+            (
+                "is_authorized_variable",
+                "PUT",
+                VariableDetails,
+                {"key": "test", "team_name": "team-a"},
+                "Variable#PUT",
+            ),
+            ("is_authorized_pool", "POST", PoolDetails, {"name": "test", "team_name": "team-a"}, "Pool#POST"),
+            ("is_authorized_team", "GET", TeamDetails, {"name": "team-a"}, "Team#LIST"),
+        ],
+    )
+    def test_team_name_ignored_when_multi_team_disabled(
+        self, auth_manager, user, function, method, details_cls, details_kwargs, permission
+    ):
+        details = details_cls(**details_kwargs)
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager.http_session.post = Mock(return_value=mock_response)
+
+        getattr(auth_manager, function)(method=method, user=user, details=details)
+
+        actual_permission = auth_manager.http_session.post.call_args.kwargs["data"]["permission"]
+        assert actual_permission == permission
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @pytest.mark.parametrize(
+        ("function", "details_cls", "details_kwargs", "permission"),
+        [
+            ("is_authorized_dag", DagDetails, {"id": "test", "team_name": "team-a"}, "Dag:team-a#GET"),
+            (
+                "is_authorized_connection",
+                ConnectionDetails,
+                {"conn_id": "test", "team_name": "team-a"},
+                "Connection:team-a#GET",
+            ),
+            (
+                "is_authorized_variable",
+                VariableDetails,
+                {"key": "test", "team_name": "team-a"},
+                "Variable:team-a#GET",
+            ),
+            ("is_authorized_pool", PoolDetails, {"name": "test", "team_name": "team-a"}, "Pool:team-a#GET"),
+            ("is_authorized_team", TeamDetails, {"name": "team-a"}, "Team:team-a#LIST"),
+        ],
+    )
+    def test_with_team_name_uses_team_scoped_permission(
+        self, auth_manager_multi_team, user, function, details_cls, details_kwargs, permission
+    ):
+        details = details_cls(**details_kwargs)
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
+
+        getattr(auth_manager_multi_team, function)(method="GET", user=user, details=details)
+
+        actual_permission = auth_manager_multi_team.http_session.post.call_args.kwargs["data"]["permission"]
+        assert actual_permission == permission
+
+    @pytest.mark.parametrize(
+        ("function", "details", "permission"),
+        [
+            ("is_authorized_dag", DagDetails(id="test"), "Dag#GET"),
+            ("is_authorized_connection", ConnectionDetails(conn_id="test"), "Connection#GET"),
+            ("is_authorized_variable", VariableDetails(key="test"), "Variable#GET"),
+            ("is_authorized_pool", PoolDetails(name="test"), "Pool#GET"),
+            ("is_authorized_team", None, "Team#LIST"),
+        ],
+    )
+    def test_without_team_name_uses_global_permission(
+        self, auth_manager_multi_team, user, function, details, permission
+    ):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
+
+        getattr(auth_manager_multi_team, function)(method="GET", user=user, details=details)
+
+        actual_permission = auth_manager_multi_team.http_session.post.call_args.kwargs["data"]["permission"]
+        assert actual_permission == permission
+
+    @pytest.mark.parametrize(
+        ("function", "permission"),
+        [
+            ("is_authorized_dag", "Dag#LIST"),
+            ("is_authorized_connection", "Connection#LIST"),
+            ("is_authorized_variable", "Variable#LIST"),
+            ("is_authorized_pool", "Pool#LIST"),
+            ("is_authorized_team", "Team#LIST"),
+        ],
+    )
+    def test_list_without_team_name_uses_global_permission(
+        self, auth_manager_multi_team, user, function, permission
+    ):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
+
+        getattr(auth_manager_multi_team, function)(method="GET", user=user)
+
+        actual_permission = auth_manager_multi_team.http_session.post.call_args.kwargs["data"]["permission"]
+        assert actual_permission == permission
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @pytest.mark.parametrize(
+        ("function", "details_cls", "details_kwargs", "permission"),
+        [
+            ("is_authorized_dag", DagDetails, {"team_name": "team-a"}, "Dag:team-a#LIST"),
+            (
+                "is_authorized_connection",
+                ConnectionDetails,
+                {"team_name": "team-a"},
+                "Connection:team-a#LIST",
+            ),
+            ("is_authorized_variable", VariableDetails, {"team_name": "team-a"}, "Variable:team-a#LIST"),
+            ("is_authorized_pool", PoolDetails, {"team_name": "team-a"}, "Pool:team-a#LIST"),
+            ("is_authorized_team", TeamDetails, {"name": "team-a"}, "Team:team-a#LIST"),
+        ],
+    )
+    def test_list_with_team_name_uses_team_scoped_permission(
+        self, auth_manager_multi_team, user, function, details_cls, details_kwargs, permission
+    ):
+        details = details_cls(**details_kwargs)
+        user.access_token = _build_access_token({"groups": ["team-a"]})
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
+
+        getattr(auth_manager_multi_team, function)(method="GET", user=user, details=details)
+
+        actual_permission = auth_manager_multi_team.http_session.post.call_args.kwargs["data"]["permission"]
+        assert actual_permission == permission
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=False)
+    def test_filter_authorized_dag_ids_team_mismatch(self, mock_is_authorized, auth_manager_multi_team, user):
+        result = auth_manager_multi_team.filter_authorized_dag_ids(
+            dag_ids={"dag-a"}, user=user, team_name="team-b"
+        )
+
+        mock_is_authorized.assert_called_once()
+        assert result == set()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True)
+    def test_filter_authorized_dag_ids_team_match(self, mock_is_authorized, auth_manager_multi_team, user):
+        result = auth_manager_multi_team.filter_authorized_dag_ids(
+            dag_ids={"dag-a"}, user=user, team_name="team-a"
+        )
+
+        mock_is_authorized.assert_called_once()
+        assert result == {"dag-a"}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)
+    def test_filter_authorized_pools_no_team_returns_empty(
+        self, mock_is_authorized, auth_manager_multi_team, user
+    ):
+        result = auth_manager_multi_team.filter_authorized_pools(
+            pool_names={"pool-a"}, user=user, team_name=None
+        )
+
+        mock_is_authorized.assert_called_once()
+        assert result == set()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @pytest.mark.parametrize(
+        ("function", "details_cls", "details_kwargs"),
+        [
+            ("is_authorized_dag", DagDetails, {"team_name": "team-b"}),
+            ("is_authorized_connection", ConnectionDetails, {"team_name": "team-b"}),
+            ("is_authorized_variable", VariableDetails, {"team_name": "team-b"}),
+            ("is_authorized_pool", PoolDetails, {"team_name": "team-b"}),
+            ("is_authorized_team", TeamDetails, {"name": "team-b"}),
+        ],
+    )
+    def test_list_with_mismatched_team_delegates_to_keycloak(
+        self, auth_manager_multi_team, user, function, details_cls, details_kwargs
+    ):
+        details = details_cls(**details_kwargs)
+        mock_response = Mock()
+        mock_response.status_code = 403
+        auth_manager_multi_team.http_session.post = Mock(return_value=mock_response)
+
+        result = getattr(auth_manager_multi_team, function)(method="GET", user=user, details=details)
+
+        auth_manager_multi_team.http_session.post.assert_called_once()
+        assert result is False
+
+    def test_filter_authorized_menu_items_with_batch_authorized(self, auth_manager, user):
+        with patch.object(
+            KeycloakAuthManager,
+            "_is_batch_authorized",
+            return_value={("MENU", menu.value) for menu in MenuItem},
+        ):
+            result = auth_manager.filter_authorized_menu_items(list(MenuItem), user=user)
+
+        assert set(result) == set(MenuItem)
 
     @pytest.mark.parametrize(
         ("status_code", "expected"),
@@ -412,7 +722,7 @@ class TestKeycloakAuthManager:
         payload = auth_manager._get_payload(
             "client_id", "View#GET", {RESOURCE_ID_ATTRIBUTE_NAME: "CLUSTER_ACTIVITY"}
         )
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
@@ -440,7 +750,7 @@ class TestKeycloakAuthManager:
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", "Custom#GET", {RESOURCE_ID_ATTRIBUTE_NAME: "test"})
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
@@ -473,7 +783,7 @@ class TestKeycloakAuthManager:
         payload = auth_manager._get_batch_payload(
             "client_id", [("MENU", MenuItem.ASSETS.value), ("MENU", MenuItem.CONNECTIONS.value)]
         )
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
@@ -498,7 +808,7 @@ class TestKeycloakAuthManager:
         payload = auth_manager._get_batch_payload(
             "client_id", [("MENU", MenuItem.ASSETS.value), ("MENU", MenuItem.CONNECTIONS.value)]
         )
-        headers = auth_manager._get_headers("access_token")
+        headers = auth_manager._get_headers(user.access_token)
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
@@ -559,3 +869,240 @@ class TestKeycloakAuthManager:
             client_secret_key="client_secret",
         )
         assert client == mock_keycloak_openid.return_value
+
+    @pytest.mark.parametrize(
+        ("client_id", "permission", "attributes", "expected_claims"),
+        [
+            # Test without attributes - no claim_token should be added
+            ("test_client", "DAG#GET", None, None),
+            # Test with single attribute
+            ("test_client", "DAG#READ", {"resource_id": "test_dag"}, {"resource_id": ["test_dag"]}),
+            # Test with multiple attributes
+            (
+                "test_client",
+                "DAG#GET",
+                {"resource_id": "my_dag", "dag_entity": "RUN"},
+                {"dag_entity": ["RUN"], "resource_id": ["my_dag"]},  # sorted by key
+            ),
+            # Test with different attribute types
+            (
+                "my_client",
+                "Connection#POST",
+                {"resource_id": "conn123", "extra": "value"},
+                {"extra": ["value"], "resource_id": ["conn123"]},  # sorted by key
+            ),
+        ],
+    )
+    def test_get_payload(self, client_id, permission, attributes, expected_claims, auth_manager):
+        """Test _get_payload with various attribute configurations."""
+        import base64
+
+        payload = auth_manager._get_payload(client_id, permission, attributes)
+
+        # Verify basic payload structure
+        assert payload["grant_type"] == "urn:ietf:params:oauth:grant-type:uma-ticket"
+        assert payload["audience"] == client_id
+        assert payload["permission"] == permission
+
+        if attributes is None:
+            # When no attributes, claim_token should not be present
+            assert "claim_token" not in payload
+            assert "claim_token_format" not in payload
+        else:
+            # When attributes are provided, claim_token should be present
+            assert "claim_token" in payload
+            assert "claim_token_format" in payload
+            assert payload["claim_token_format"] == "urn:ietf:params:oauth:token-type:jwt"
+
+            # Decode and verify the claim_token contains the attributes as arrays
+            decoded_claim = base64.b64decode(payload["claim_token"]).decode()
+            claims = json.loads(decoded_claim)
+            assert claims == expected_claims
+
+    @pytest.mark.parametrize(
+        ("server_url", "expected_url"),
+        [
+            (
+                "https://keycloak.example.com/auth",
+                "https://keycloak.example.com/auth/realms/myrealm/protocol/openid-connect/token",
+            ),
+            (
+                "https://keycloak.example.com/auth/",
+                "https://keycloak.example.com/auth/realms/myrealm/protocol/openid-connect/token",
+            ),
+            (
+                "https://keycloak.example.com/auth///",
+                "https://keycloak.example.com/auth/realms/myrealm/protocol/openid-connect/token",
+            ),
+            (
+                "https://keycloak.example.com/",
+                "https://keycloak.example.com/realms/myrealm/protocol/openid-connect/token",
+            ),
+        ],
+    )
+    def test_get_token_url_normalization(self, auth_manager, server_url, expected_url):
+        """Test that _get_token_url normalizes server_url by stripping trailing slashes."""
+        token_url = auth_manager._get_token_url(server_url, "myrealm")
+        assert token_url == expected_url
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Team not available before Airflow 3.2.0")
+    @patch(
+        "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager.get_keycloak_client"
+    )
+    def test_get_teams(self, mock_get_keycloak_client, auth_manager_multi_team):
+        """_get_teams fetches Team: resources from Keycloak and returns team names."""
+        mock_get_keycloak_client.return_value.token.return_value = {"access_token": "pat-token"}
+
+        mock_response = Mock()
+        mock_response.json.return_value = [
+            {"name": "Team:team-a", "type": "urn:airflow:resource"},
+            {"name": "Team:team-b", "type": "urn:airflow:resource"},
+            {"name": "Connection", "type": "urn:airflow:resource"},  # should be ignored
+        ]
+        mock_response.raise_for_status = Mock()
+        auth_manager_multi_team.http_session.get = Mock(return_value=mock_response)
+
+        result = auth_manager_multi_team._get_teams()
+
+        assert result == {"team-a", "team-b"}
+        auth_manager_multi_team.http_session.get.assert_called_once_with(
+            "server_url/realms/realm/authz/protection/resource_set",
+            params={"name": "Team:", "matchingUri": "false", "max": "-1", "deep": "true"},
+            headers={"Authorization": "Bearer pat-token"},
+            timeout=5,
+        )
+
+    @pytest.mark.parametrize(
+        ("status_codes", "expected"),
+        [
+            ([200, 200, 200], True),
+            ([200, 403, 200], False),
+            ([401, 200, 200], False),
+            ([200, 200, 401], False),
+        ],
+    )
+    def test_batch_is_authorized_dag(self, status_codes, expected, auth_manager, user):
+        return_values = [code == 200 for code in status_codes]
+
+        requests = [{"method": "GET", "details": DagDetails(id=f"dag_{i}")} for i in range(len(status_codes))]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
+            result = auth_manager.batch_is_authorized_dag(requests, user=user)
+
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("status_codes", "expected"),
+        [
+            ([200, 200], True),
+            ([200, 403], False),
+        ],
+    )
+    def test_batch_is_authorized_connection(self, status_codes, expected, auth_manager, user):
+        return_values = [code == 200 for code in status_codes]
+
+        requests = [
+            {"method": "GET", "details": ConnectionDetails(conn_id=f"conn_{i}")}
+            for i in range(len(status_codes))
+        ]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
+            result = auth_manager.batch_is_authorized_connection(requests, user=user)
+
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("status_codes", "expected"),
+        [
+            ([200, 200], True),
+            ([403, 200], False),
+        ],
+    )
+    def test_batch_is_authorized_pool(self, status_codes, expected, auth_manager, user):
+        return_values = [code == 200 for code in status_codes]
+
+        requests = [
+            {"method": "GET", "details": PoolDetails(name=f"pool_{i}")} for i in range(len(status_codes))
+        ]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
+            result = auth_manager.batch_is_authorized_pool(requests, user=user)
+
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("status_codes", "expected"),
+        [
+            ([200, 200], True),
+            ([200, 401], False),
+        ],
+    )
+    def test_batch_is_authorized_variable(self, status_codes, expected, auth_manager, user):
+        return_values = [code == 200 for code in status_codes]
+
+        requests = [
+            {"method": "GET", "details": VariableDetails(key=f"var_{i}")} for i in range(len(status_codes))
+        ]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
+            result = auth_manager.batch_is_authorized_variable(requests, user=user)
+
+        assert result == expected
+
+    def test_batch_is_authorized_dag_empty_requests(self, auth_manager, user):
+        result = auth_manager.batch_is_authorized_dag([], user=user)
+        assert result is True
+
+    def test_batch_is_authorized_dag_with_access_entity(self, auth_manager, user):
+        requests = [
+            {
+                "method": "GET",
+                "access_entity": DagAccessEntity.TASK_INSTANCE,
+                "details": DagDetails(id="dag_1"),
+            }
+        ]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", return_value=True) as mock_is_authorized:
+            result = auth_manager.batch_is_authorized_dag(requests, user=user)
+
+        assert result is True
+        # Verify the call included the dag_entity attribute
+        call_kwargs = mock_is_authorized.call_args
+        assert call_kwargs.kwargs["attributes"] == {"dag_entity": "TASK_INSTANCE"}
+
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_dag",
+        side_effect=lambda *, details, **kw: {"dag_0": True, "dag_1": False, "dag_2": True}[details.id],
+    )
+    def test_filter_authorized_dag_ids(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_dag_ids(
+            dag_ids={"dag_0", "dag_1", "dag_2"}, user=user, method="GET"
+        )
+
+        assert result == {"dag_0", "dag_2"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_dag_ids_empty(self, auth_manager, user):
+        result = auth_manager.filter_authorized_dag_ids(dag_ids=set(), user=user, method="GET")
+        assert result == set()
+
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=False)
+    def test_filter_authorized_dag_ids_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_dag_ids(dag_ids={"dag_0", "dag_1"}, user=user, method="GET")
+
+        assert result == set()
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True)
+    def test_filter_authorized_dag_ids_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        dag_ids = {"dag_0", "dag_1"}
+
+        result1 = auth_manager.filter_authorized_dag_ids(dag_ids=dag_ids, user=user, method="GET")
+        result2 = auth_manager.filter_authorized_dag_ids(dag_ids=dag_ids, user=user, method="GET")
+
+        assert result1 == dag_ids
+        assert result2 == dag_ids
+        # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
+        assert mock_is_authorized.call_count == 2

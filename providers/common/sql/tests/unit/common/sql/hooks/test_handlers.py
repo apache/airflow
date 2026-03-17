@@ -50,9 +50,9 @@ class TestHandlers:
     def test_fetch_one_handler(self):
         cursor = MagicMock()
         cursor.description = [("col1", "int")]
-        cursor.fetchone.return_value = 1
+        cursor.fetchone.return_value = (1,)
 
-        assert fetch_one_handler(cursor) == (1)
+        assert fetch_one_handler(cursor) == (1,)
 
         cursor.description = None
         assert fetch_one_handler(cursor) is None

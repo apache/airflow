@@ -31,5 +31,7 @@
   "name": "이름",
   "producingTasks": "생성하는 태스크",
   "scheduledDags": "스케줄 된 Dags",
-  "searchPlaceholder": "에셋 검색"
+  "scheduling": "스케줄링",
+  "searchPlaceholder": "에셋 검색",
+  "taskDependencies": "태스크 종속성"
 }

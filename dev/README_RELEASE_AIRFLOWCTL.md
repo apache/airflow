@@ -507,7 +507,7 @@ rm -rf dist/*
 4) Build the packages using checked out sources
 
 ```shell
-breeze release-management prepare-airflow-ctl-distributions --distribution-format both
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
 
@@ -539,6 +539,7 @@ present in SVN. This command may also help with verifying installation of the pa
 breeze release-management check-release-files airflow-ctl --version ${VERSION_RC}
 ```
 
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ### Licence check
 
@@ -564,6 +565,7 @@ rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf $
 Run the check:
 
 ```shell script
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-src/.rat-excludes
 java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
 ```
 
@@ -611,6 +613,7 @@ Download the KEYS file from the above link and save it locally.
 You can import the whole KEYS file into gpg by running the following command:
 
 ```shell script
+wget https://dist.apache.org/repos/dist/release/airflow/KEYS
 gpg --import KEYS
 ```
 

@@ -162,6 +162,10 @@ class SerializedAsset(SerializedAssetBase):
         """
         return AssetProfile(name=self.name or None, uri=self.uri or None, type="Asset")
 
+    def __hash__(self):
+        f = attrs.filters.include(*attrs.fields_dict(SerializedAsset))
+        return hash(json.dumps(attrs.asdict(self, filter=f), sort_keys=True))
+
 
 class SerializedAssetRef(SerializedAssetBase, AttrsInstance):
     """Serialized representation of an asset reference."""

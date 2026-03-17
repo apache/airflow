@@ -107,6 +107,7 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
             task_id="test_cleanup_on_error",
             image_id=self._get_image_id(ec2_hook),
             wait_for_completion=True,
+            terminate_instance_on_failure=True,
         )
 
         waiter_error = WaiterError(
@@ -140,6 +141,7 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
             task_id="test_cleanup_failure_does_not_mask_error",
             image_id=self._get_image_id(ec2_hook),
             wait_for_completion=True,
+            terminate_instance_on_failure=True,
         )
 
         waiter_error = WaiterError(

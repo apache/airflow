@@ -60,7 +60,11 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
-from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
+from airflow.providers.openlineage.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    get_base_airflow_version_tuple,
+)
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 
 try:
@@ -749,11 +753,13 @@ class DagRunInfo(InfoJsonEncodable):
     ]
 
     casts = {
+        "note": lambda dagrun: getattr(dagrun, "note", None) if AIRFLOW_V_3_2_PLUS else None,
         "duration": lambda dagrun: DagRunInfo.duration(dagrun),
         "dag_bundle_name": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_name"),
         "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
         "dag_version_id": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_id"),
         "dag_version_number": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_number"),
+        "deadlines": lambda dagrun: DagRunInfo.deadlines(dagrun),
     }
 
     @classmethod
@@ -765,7 +771,52 @@ class DagRunInfo(InfoJsonEncodable):
         return (dagrun.end_date - dagrun.start_date).total_seconds()
 
     @classmethod
+    def deadlines(cls, dagrun: DagRun) -> dict[str, Any] | None:
+        """
+        Extract deadline state and alert definitions from a DagRun (on scheduler).
+
+        Returns a dict (not a list) so _cast_basic_types passes it through.
+        """
+        try:
+            # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
+            deadlines = getattr(dagrun, "deadlines", None)
+            if not deadlines:
+                return None
+        except Exception as err:
+            log.warning("OpenLineage failed to retrieve deadlines. Exception: %s", err)
+            return None
+
+        result = []
+        for d in deadlines:
+            try:
+                info: dict[str, Any] = {}
+                if deadline_time := getattr(d, "deadline_time", None):
+                    info["deadline_time"] = deadline_time.isoformat()
+                if (missed := getattr(d, "missed", None)) is not None:
+                    info["missed"] = missed
+                try:
+                    # deadline_alert is a lazy-loaded ORM relationship that may
+                    # trigger a DB query; keep it isolated so a detached-session
+                    # error doesn't discard the rest of the deadline info.
+                    if alert := getattr(d, "deadline_alert", None):
+                        info.update(
+                            {
+                                k: v
+                                for k in ("name", "description", "reference", "interval", "callback_def")
+                                if (v := getattr(alert, k, None)) is not None
+                            }
+                        )
+                except Exception as err:
+                    log.warning("OpenLineage could not load deadline_alert relationship for %s", err)
+                if info:
+                    result.append(info)
+            except Exception as err:
+                log.warning("OpenLineage failed to serialize deadline: %s", err)
+        return {"alerts": result} if result else None
+
+    @classmethod
     def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
+        """Extract deg version info for given key, sourced from DagRun (on scheduler)."""
         # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
         if not getattr(dagrun, "dag_versions", []):
             return None
@@ -837,6 +888,7 @@ class TaskInfo(InfoJsonEncodable):
         # Operator-specific useful attributes
         "trigger_dag_id",  # TriggerDagRunOperator
         "trigger_run_id",  # TriggerDagRunOperator
+        "note",  # TriggerDagRunOperator
         "external_dag_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
         "external_task_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
         "external_task_ids",  # ExternalTaskSensor
@@ -861,6 +913,7 @@ class TaskInfo(InfoJsonEncodable):
         "postoperator",  # SQLInsertRowsOperator
         "table_name_with_schema",  # SQLInsertRowsOperator
         "column_names",  # SQLInsertRowsOperator
+        "hitl_summary",  # All HITLOperator based operators
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
@@ -977,13 +1030,19 @@ def get_airflow_run_facet(
 def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
     if not dag_run.dag:
         return {}
-    return {
-        "airflow": AirflowJobFacet(
-            taskTree={},  # caused OOM errors, to be removed, see #41587
-            taskGroups=_get_task_groups_details(dag_run.dag),
-            tasks=_get_tasks_details(dag_run.dag),
-        )
-    }
+    try:
+        edge_map = _build_labeled_edge_map(dag_run.dag)
+        return {
+            "airflow": AirflowJobFacet(
+                taskTree={},  # caused OOM errors, to be removed, see #41587
+                taskGroups=_get_task_groups_details(dag=dag_run.dag, edge_map=edge_map),
+                tasks=_get_tasks_details(dag=dag_run.dag, edge_map=edge_map),
+            )
+        }
+    except Exception as e:
+        log.warning("Failed to build AirflowJobFacet for DagRun %s/%s: %s.", dag_run.dag, dag_run.run_id, e)
+        log.debug("Exception details:", exc_info=True)
+        return {}
 
 
 def get_airflow_state_run_facet(
@@ -1360,9 +1419,81 @@ def get_dag_job_dependency_facet(
         return {}
 
 
-def _get_tasks_details(dag: DAG | SerializedDAG) -> dict:
-    tasks = {
-        single_task.task_id: {
+def _build_labeled_edge_map(dag: DAG | SerializedDAG) -> dict[str, tuple[dict, dict]]:
+    """
+    Build a mapping of classified labeled edges for every task and group in the DAG.
+
+    Translates Airflow's internal ``dag.edge_info`` (which uses virtual
+    ``downstream_join_id`` / ``upstream_join_id`` keys) into a clean mapping
+    keyed by real ``task_id`` or ``group_id``.  Each value is a tuple of
+    ``(downstream_task_edges, downstream_group_edges)`` sorted dicts.
+
+    ``downstream_task_edges``
+        Target is a **specific task**.  Keyed by ``task_id``, regardless of
+        whether source and target are in the same group, different groups,
+        or at root level.
+
+    ``downstream_group_edges``
+        Target is a **TaskGroup as a whole**.  Keyed by ``group_id``.
+        Only produced by ``task >> TaskGroup`` or ``TaskGroup >> TaskGroup``.
+
+    **How to read the result (for OL event consumers)**
+
+    Look up ``edge_map.get(task_id)`` or ``edge_map.get(group_id)``.
+    Missing keys mean no labeled edges from that source.  Unlabeled edges
+    are not included — use ``downstream_task_ids`` for the full dependency
+    graph.
+
+    Key points:
+
+    - Cross-group task-to-task labels (e.g. ``step_2 >> Label >> final``
+      where the tasks are in different groups) appear under the **source
+      group's** key, not the originating task's key, because Airflow promotes
+      labels to the group boundary.
+    - ``task >> TaskGroup`` produces entries in **both** dicts: per-root-task
+      entries in ``downstream_task_edges`` and a group-level entry in
+      ``downstream_group_edges``, all with the same label.
+
+    See ``test_get_tasks_details_with_edge_labels`` for a comprehensive example
+    covering all edge patterns (same-group, cross-group, task-to-TaskGroup,
+    TaskGroup-to-TaskGroup, nested groups, etc.).
+    """
+    edge_info = dag.edge_info or {}
+    if not edge_info:
+        return {}
+
+    upstream_join_id_to_group_id: dict[str, str] = {}
+    downstream_join_id_to_group_id: dict[str, str] = {}
+
+    for tg_id, tg in dag.task_group_dict.items():
+        upstream_join_id_to_group_id[tg.upstream_join_id] = tg_id
+        downstream_join_id_to_group_id[tg.downstream_join_id] = tg_id
+
+    result: dict[str, tuple[dict, dict]] = {}
+    for source_id, edges in edge_info.items():
+        # Resolve downstream_join_id sources to their owning group_id
+        group_id = downstream_join_id_to_group_id.get(source_id)
+        logical_key = group_id if group_id is not None else source_id
+
+        task_edges: dict = {}
+        group_edges: dict = {}
+        for target_id, info in sorted(edges.items()):
+            resolved_group = upstream_join_id_to_group_id.get(target_id)
+            if resolved_group is not None:  # If target is a group, classify as group edge
+                group_edges[resolved_group] = info
+            else:
+                task_edges[target_id] = info
+
+        result[logical_key] = (task_edges, group_edges)
+
+    return result
+
+
+def _get_tasks_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple[dict, dict]]) -> dict:
+    tasks = {}
+    for single_task in sorted(dag.tasks, key=lambda x: x.task_id):
+        task_edges, group_edges = edge_map.get(single_task.task_id, ({}, {}))
+        tasks[single_task.task_id] = {
             "operator": get_fully_qualified_class_name(single_task),
             "task_group": single_task.task_group.group_id if single_task.task_group else None,
             "emits_ol_events": _emits_ol_events(single_task),
@@ -1372,23 +1503,25 @@ def _get_tasks_details(dag: DAG | SerializedDAG) -> dict:
             "is_setup": single_task.is_setup,
             "is_teardown": single_task.is_teardown,
             "downstream_task_ids": sorted(single_task.downstream_task_ids),
+            "downstream_task_edges": task_edges,
+            "downstream_group_edges": group_edges,
         }
-        for single_task in sorted(dag.tasks, key=lambda x: x.task_id)
-    }
-
     return tasks
 
 
-def _get_task_groups_details(dag: DAG | SerializedDAG) -> dict:
-    return {
-        tg_id: {
-            "parent_group": tg.parent_group.group_id,
+def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple[dict, dict]]) -> dict:
+    result = {}
+    for tg_id, tg in dag.task_group_dict.items():
+        task_edges, group_edges = edge_map.get(tg_id, ({}, {}))
+        result[tg_id] = {
+            "parent_group": tg.parent_group.group_id if tg.parent_group else None,
             "ui_color": tg.ui_color,
             "ui_fgcolor": tg.ui_fgcolor,
             "ui_label": tg.label,
+            "downstream_task_edges": task_edges,
+            "downstream_group_edges": group_edges,
         }
-        for tg_id, tg in dag.task_group_dict.items()
-    }
+    return result
 
 
 def _emits_ol_events(task: AnyOperator) -> bool:

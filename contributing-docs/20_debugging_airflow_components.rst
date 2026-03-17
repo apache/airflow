@@ -106,7 +106,7 @@ Setting up VSCode for Remote Debugging
 
    .. code-block:: bash
 
-       python setup_vscode.py
+       uv run dev/ide_setup/setup_vscode.py
 
    This will create debug configurations for all Airflow components. Here's an example configuration for the scheduler:
 

@@ -22,12 +22,15 @@ description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 state: ready
-source-date-epoch: 1768335197
+lifecycle: production
+source-date-epoch: 1773070907
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.4.1
+  - 5.4.0
   - 5.3.2
   - 5.3.1
   - 5.3.0
@@ -85,6 +88,12 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.jdbc.hooks.jdbc.JdbcHook
     connection-type: jdbc
+    ui-field-behaviour:
+      hidden-fields:
+        - port
+        - schema
+      relabeling:
+        host: Connection URL
 
 config:
   providers.jdbc:

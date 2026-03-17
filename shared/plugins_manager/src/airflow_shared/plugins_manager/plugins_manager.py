@@ -19,6 +19,9 @@
 
 from __future__ import annotations
 
+import importlib
+import importlib.machinery
+import importlib.util
 import inspect
 import logging
 import os
@@ -208,8 +211,6 @@ def _load_plugins_from_plugin_directory(
     ignore_file_syntax: str = "glob",
 ) -> tuple[list[AirflowPlugin], dict[str, str]]:
     """Load and register Airflow Plugins from plugins directory."""
-    import importlib
-
     from ..module_loading import find_path_from_directory
 
     if not plugins_folder:
@@ -219,6 +220,8 @@ def _load_plugins_from_plugin_directory(
     plugin_search_locations: list[tuple[str, Generator[str, None, None]]] = [("", files)]
 
     if load_examples:
+        if not example_plugins_module:
+            raise ValueError("example_plugins_module is required when load_examples is True")
         log.debug("Note: Loading plugins from examples as well: %s", plugins_folder)
         example_plugins = importlib.import_module(example_plugins_module)
         example_plugins_folder = next(iter(example_plugins.__path__))

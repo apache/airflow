@@ -260,14 +260,13 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 for container_status in container_statuses_to_check:
                     container_status_state = container_status["state"]
                     if "waiting" in container_status_state:
+                        waiting_reason = container_status_state["waiting"].get("reason")
+                        waiting_message = container_status_state["waiting"].get("message")
                         if (
-                            container_status_state["waiting"]["reason"]
+                            waiting_reason
                             in self.kube_config.worker_pod_pending_fatal_container_state_reasons
                         ):
-                            if (
-                                container_status_state["waiting"]["reason"] == "ErrImagePull"
-                                and container_status_state["waiting"]["message"] == "pull QPS exceeded"
-                            ):
+                            if waiting_reason == "ErrImagePull" and waiting_message == "pull QPS exceeded":
                                 continue
                             key = annotations_to_key(annotations=annotations)
                             task_key_str = (
@@ -277,7 +276,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 "Event: %s has container %s with fatal reason %s, task: %s",
                                 pod_name,
                                 container_status["name"],
-                                container_status_state["waiting"]["reason"],
+                                waiting_reason,
                                 task_key_str,
                             )
                             self.watcher_queue.put(

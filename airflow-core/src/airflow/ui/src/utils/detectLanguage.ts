@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Parser } from "node-sql-parser";
+import { validate } from "@guanmingchiu/sqlparser-ts";
 import { parse as parseYaml } from "yaml";
 
 export const detectLanguage = (value: string): string => {
@@ -31,25 +31,13 @@ export const detectLanguage = (value: string): string => {
     // Not valid JSON, continue
   }
 
-  // Try to detect SQL by parsing with node-sql-parser
+  // Try to detect SQL using sqlparser-rs
   try {
-    const parser = new Parser();
-
-    // Support multiple SQL dialects
-    parser.astify(trimmed, { database: "postgresql" });
+    validate(trimmed);
 
     return "sql";
   } catch {
-    // Try with other dialects if PostgreSQL fails
-    try {
-      const parser = new Parser();
-
-      parser.astify(trimmed, { database: "mysql" });
-
-      return "sql";
-    } catch {
-      // Not valid SQL, continue to other checks
-    }
+    // Not valid SQL, continue to other checks
   }
 
   // Try to detect Bash (basic heuristics)

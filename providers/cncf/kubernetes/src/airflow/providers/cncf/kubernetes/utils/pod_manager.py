@@ -90,6 +90,7 @@ class PodPhase:
     RUNNING = "Running"
     FAILED = "Failed"
     SUCCEEDED = "Succeeded"
+    UNKNOWN = "Unknown"
 
     terminal_states = {FAILED, SUCCEEDED}
 
@@ -187,20 +188,49 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
     """
     Identify issues that justify terminating the pod early.
 
+    This method distinguishes between permanent failures (e.g., invalid image names)
+    and transient errors (e.g., rate limits) that should be retried by Kubernetes.
+
     :param pod: The pod object to check.
     :return: An error message if an issue is detected; otherwise, None.
     """
+    # Indicators in error messages that suggest transient issues
+    TRANSIENT_ERROR_PATTERNS = [
+        "pull qps exceeded",
+        "rate limit",
+        "too many requests",
+        "quota exceeded",
+        "temporarily unavailable",
+        "timeout",
+        "account limit",
+    ]
+
+    FATAL_STATES = ["InvalidImageName", "ErrImageNeverPull"]
+    TRANSIENT_STATES = ["ErrImagePull", "ImagePullBackOff"]
+    ERROR_MESSAGE = "Image cannot be pulled, unable to start: {reason}\n{message}"
+
     pod_status = pod.status
-    if pod_status.container_statuses:
-        for container_status in pod_status.container_statuses:
-            container_state: V1ContainerState = container_status.state
-            container_waiting: V1ContainerStateWaiting | None = container_state.waiting
-            if container_waiting:
-                if container_waiting.reason in ["ErrImagePull", "ImagePullBackOff", "InvalidImageName"]:
-                    return (
-                        f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
-                        f"\n{container_waiting.message}"
-                    )
+    if not pod_status.container_statuses:
+        return None
+
+    for container_status in pod_status.container_statuses:
+        container_state: V1ContainerState = container_status.state
+        container_waiting: V1ContainerStateWaiting | None = container_state.waiting
+        if not container_waiting:
+            continue
+
+        if container_waiting.reason in FATAL_STATES:
+            return ERROR_MESSAGE.format(
+                reason=container_waiting.reason, message=container_waiting.message or ""
+            )
+
+        if container_waiting.reason in TRANSIENT_STATES:
+            message_lower = (container_waiting.message or "").lower()
+            is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
+            if not is_transient:
+                return ERROR_MESSAGE.format(
+                    reason=container_waiting.reason, message=container_waiting.message or ""
+                )
     return None
 
 
@@ -210,6 +240,10 @@ class PodLaunchTimeoutException(AirflowException):
 
 class PodNotFoundException(AirflowException):
     """Expected pod does not exist in kube-api."""
+
+
+class PodCommandException(AirflowException):
+    """When a pod command execution fails."""
 
 
 class PodLogsConsumer:
@@ -325,6 +359,7 @@ class PodManager(LoggingMixin):
         self._watch = watch.Watch()
         self._callbacks = callbacks or []
         self.stop_watching_events = False
+        self.container_log_times: dict[tuple[str, str, str], DateTime] = {}
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Run POD asynchronously."""
@@ -504,6 +539,10 @@ class PodManager(LoggingMixin):
                                     log_formatter,
                                 )
                                 last_captured_timestamp = message_timestamp
+                                if last_captured_timestamp is not None:
+                                    self.container_log_times[
+                                        (pod.metadata.namespace, pod.metadata.name, container_name)
+                                    ] = last_captured_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
                         else:  # continuation of the previous log line
@@ -524,6 +563,10 @@ class PodManager(LoggingMixin):
                             message_to_log, container_name, container_name_log_prefix_enabled, log_formatter
                         )
                     last_captured_timestamp = message_timestamp
+                    if last_captured_timestamp:
+                        self.container_log_times[
+                            (pod.metadata.namespace, pod.metadata.name, container_name)
+                        ] = last_captured_timestamp
             except TimeoutError as e:
                 # in case of timeout, increment return time by 2 seconds to avoid
                 # duplicate log entries
@@ -633,10 +676,12 @@ class PodManager(LoggingMixin):
         containers_to_log = sorted(containers_to_log, key=lambda cn: all_containers.index(cn))
         for c in containers_to_log:
             self._await_init_container_start(pod=pod, container_name=c)
+            since_time = self.container_log_times.get((pod.metadata.namespace, pod.metadata.name, c))
             status = self.fetch_container_logs(
                 pod=pod,
                 container_name=c,
                 follow=follow_logs,
+                since_time=since_time,
                 container_name_log_prefix_enabled=container_name_log_prefix_enabled,
                 log_formatter=log_formatter,
             )
@@ -666,10 +711,12 @@ class PodManager(LoggingMixin):
             pod_name=pod.metadata.name,
         )
         for c in containers_to_log:
+            since_time = self.container_log_times.get((pod.metadata.namespace, pod.metadata.name, c))
             status = self.fetch_container_logs(
                 pod=pod,
                 container_name=c,
                 follow=follow_logs,
+                since_time=since_time,
                 container_name_log_prefix_enabled=container_name_log_prefix_enabled,
                 log_formatter=log_formatter,
             )
@@ -807,6 +854,12 @@ class PodManager(LoggingMixin):
                 resource_version=resource_version,
                 resource_version_match="NotOlderThan" if resource_version else None,
             )
+        except TypeError:
+            return self._client.list_namespaced_event(
+                namespace=pod.metadata.namespace,
+                field_selector=f"involvedObject.name={pod.metadata.name}",
+                resource_version=resource_version,
+            )
         except HTTPError as e:
             raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
 
@@ -869,6 +922,7 @@ class PodManager(LoggingMixin):
             f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
             f"else echo {EMPTY_XCOM_RESULT}; fi"
         )
+        result = None
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,
@@ -919,7 +973,18 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            self._exec_pod_command(resp, "kill -2 $(pgrep -u $(id -u) -f 'sh')")
+            xcom_kill_command = "kill -2 $(pgrep -u $(id -u) -f 'sh')"
+            # fallback command for containers that don't support pgrep -u
+            fallback_xcom_kill_command = (
+                "for f in /proc/[0-9]*/comm; do "
+                '[ -O $f ] && read c < $f && [ "$c" = "sh" ] && pid=${f%/comm} && kill -2 ${pid##*/}; '
+                "done"
+            )
+            try:
+                self._exec_pod_command(resp, xcom_kill_command)
+            except PodCommandException:
+                self.log.info("Primary kill command failed, trying fallback command")
+                self._exec_pod_command(resp, fallback_xcom_kill_command)
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = ""
@@ -935,8 +1000,8 @@ class PodManager(LoggingMixin):
             while resp.peek_stderr():
                 error_res += resp.read_stderr()
             if error_res:
-                self.log.info("stderr from command: %s", error_res)
-                break
+                self.log.warning("stderr from command: %s", error_res)
+                raise PodCommandException(f"Command failed with stderr: {error_res}")
             if res:
                 return res
         return None

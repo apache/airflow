@@ -1,0 +1,234 @@
+---
+layout: base.njk
+title: Statistics
+description: Overview of all Airflow providers and modules in the ecosystem
+mainClass: statistics-page
+---
+
+<div class="container">
+    <!-- Page Header -->
+    <header class="page-header">
+      <h1>Registry Statistics</h1>
+      <p>Overview of all Airflow providers and modules in the ecosystem</p>
+    </header>
+
+    <!-- Stats Overview -->
+    <section class="stats-overview">
+      <dl>
+        <div>
+          <dt>{{ statsData.totalProviders }}</dt>
+          <dd>Total Providers</dd>
+        </div>
+        <div>
+          <dt>{{ statsData.totalModules | thousands }}</dt>
+          <dd>Total Modules</dd>
+        </div>
+        <div>
+          <dt>{{ statsData.lifecycleCounts.stable or 0 }}</dt>
+          <dd>Stable Providers</dd>
+        </div>
+        <div>
+          <dt>{{ statsData.lifecycleCounts.incubation or 0 }}</dt>
+          <dd>Incubating Providers</dd>
+        </div>
+      </dl>
+    </section>
+
+    <!-- Module Breakdown -->
+    <section class="module-breakdown">
+      <header>
+        <h2>Modules by Type</h2>
+      </header>
+      <div class="breakdown-grid">
+        {% for moduleType in statsData.moduleTypeStats %}
+        <article class="module-type">
+          <div class="type-header">
+            <div class="type-icon {{ moduleType.colorClass }}">
+              <span>{{ moduleType.icon }}</span>
+            </div>
+            <div class="type-stats">
+              <div class="type-count">{{ moduleType.count | thousands }}</div>
+            </div>
+          </div>
+          <div class="type-label">{{ moduleType.label }}</div>
+          <meter class="share-bar {{ moduleType.colorClass }}"
+                 value="{{ moduleType.percentage }}"
+                 min="0"
+                 max="100"
+                 aria-label="{{ moduleType.label }}: {{ moduleType.percentage }}% of total">
+            {{ moduleType.percentage }}%
+          </meter>
+          <div class="share-label">{{ moduleType.percentage }}% of total</div>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Two Column Section -->
+    <div class="stats-columns">
+      <!-- Tier Distribution -->
+      <section class="lifecycle-distribution card">
+        <header>
+          <h2>Providers by Lifecycle</h2>
+        </header>
+        <div class="lifecycle-stats">
+          {% for lc in statsData.lifecycleStats %}
+          <div class="lifecycle-stat">
+            <div class="lifecycle-info">
+              <span class="lifecycle-name lifecycle-{{ lc.stage }}">{{ lc.stage | capitalize }}</span>
+              <span class="lifecycle-count">{{ lc.count }} providers ({{ lc.percentage }}%)</span>
+            </div>
+            <meter class="lifecycle-bar lifecycle-{{ lc.stage }}"
+                   value="{{ lc.percentage }}"
+                   min="0"
+                   max="100"
+                   aria-label="{{ lc.stage }} providers: {{ lc.percentage }}%">
+              {{ lc.percentage }}%
+            </meter>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Quick Access Links -->
+      <section class="quick-access card">
+        <header>
+          <h2>Quick Links</h2>
+        </header>
+        <nav class="access-links">
+          <a href="{{ '/providers/' | url }}" class="access-link">
+            <span>Browse All Providers</span>
+            <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+          <a href="{{ '/explore/' | url }}" class="access-link">
+            <span>Explore by Category</span>
+            <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+        </nav>
+      </section>
+    </div>
+
+    <!-- Provider Rankings -->
+    <section class="provider-ranking">
+      <header>
+        <nav class="ranking-tabs" role="tablist">
+          <button class="ranking-tab active" data-target="downloads-table" role="tab" aria-selected="true" aria-controls="downloads-table" id="tab-downloads">Top 10 by Downloads</button>
+          <button class="ranking-tab" data-target="modules-table" role="tab" aria-selected="false" aria-controls="modules-table" id="tab-modules">Top 10 by Module Count</button>
+        </nav>
+      </header>
+
+      {# Module Count Table #}
+      <div id="modules-table" class="ranking-panel card" role="tabpanel" aria-labelledby="tab-modules" hidden>
+        <table class="ranking-table">
+          <thead class="ranking-header">
+            <tr>
+              <th class="rank-column">#</th>
+              <th class="provider-column">Provider</th>
+              <th class="module-column">
+                <span class="full-label">Operators</span>
+                <span class="abbr-label">O</span>
+              </th>
+              <th class="module-column">
+                <span class="full-label">Hooks</span>
+                <span class="abbr-label">H</span>
+              </th>
+              <th class="module-column">
+                <span class="full-label">Sensors</span>
+                <span class="abbr-label">S</span>
+              </th>
+              <th class="module-column">
+                <span class="full-label">Triggers</span>
+                <span class="abbr-label">T</span>
+              </th>
+              <th class="module-column">
+                <span class="full-label">Transfers</span>
+                <span class="abbr-label">X</span>
+              </th>
+              <th class="total-column">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for provider in statsData.topProviders %}
+            <tr class="ranking-row">
+              <td class="rank-cell">{{ loop.index }}</td>
+              <td class="provider-cell">
+                <a href="{{ '/providers/' | url }}{{ provider.id }}/" class="provider-link">
+                  <div class="provider-logo">
+                    {% if provider.logo %}
+                    <img src="{{ provider.logo | url }}" alt="{{ provider.name }}">
+                    {% else %}
+                    <span class="initial">{{ provider.name | first }}</span>
+                    {% endif %}
+                  </div>
+                  <span class="provider-name">{{ provider.name }}</span>
+                </a>
+              </td>
+              <td class="module-count operator">{{ provider.module_counts.operator or 0 }}</td>
+              <td class="module-count hook">{{ provider.module_counts.hook or 0 }}</td>
+              <td class="module-count sensor">{{ provider.module_counts.sensor or 0 }}</td>
+              <td class="module-count trigger">{{ provider.module_counts.trigger or 0 }}</td>
+              <td class="module-count transfer">{{ provider.module_counts.transfer or 0 }}</td>
+              <td class="total-count">{{ provider.totalModules }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {# Downloads Table #}
+      <div id="downloads-table" class="ranking-panel active card" role="tabpanel" aria-labelledby="tab-downloads">
+        <table class="ranking-table">
+          <thead class="ranking-header">
+            <tr>
+              <th class="rank-column">#</th>
+              <th class="provider-column">Provider</th>
+              <th class="downloads-column">Monthly</th>
+              <th class="downloads-column">Weekly</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for provider in statsData.topByDownloads %}
+            <tr class="ranking-row">
+              <td class="rank-cell">{{ loop.index }}</td>
+              <td class="provider-cell">
+                <a href="{{ '/providers/' | url }}{{ provider.id }}/" class="provider-link">
+                  <div class="provider-logo">
+                    {% if provider.logo %}
+                    <img src="{{ provider.logo | url }}" alt="{{ provider.name }}">
+                    {% else %}
+                    <span class="initial">{{ provider.name | first }}</span>
+                    {% endif %}
+                  </div>
+                  <span class="provider-name">{{ provider.name }}</span>
+                </a>
+              </td>
+              <td class="downloads-count">{{ provider.monthlyDownloads | formatDownloads }}</td>
+              <td class="downloads-count">{{ provider.weeklyDownloads | formatDownloads }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <script>
+    document.querySelectorAll('.ranking-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.ranking-tab').forEach(t => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('.ranking-panel').forEach(p => { p.hidden = true; p.classList.remove('active'); });
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+        const panel = document.getElementById(tab.dataset.target);
+        panel.hidden = false;
+        panel.classList.add('active');
+      });
+    });
+    </script>
+</div>

@@ -25,6 +25,7 @@ CI_COMMANDS: dict[str, str | list[str]] = {
         "selective-check",
         "get-workflow-info",
         "upgrade",
+        "set-milestone",
     ],
 }
 CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -74,7 +75,39 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--target-branch",
                 "--create-pr",
                 "--switch-to-base",
+                "--airflow-site",
+                "--force-k8s-schema-sync",
             ],
-        }
+        },
+        {
+            "name": "Upgrade steps",
+            "options": [
+                "--autoupdate",
+                "--pin-versions",
+                "--update-chart-dependencies",
+                "--upgrade-important-versions",
+                "--update-uv-lock",
+                "--k8s-schema-sync",
+            ],
+        },
+    ],
+    "breeze ci set-milestone": [
+        {
+            "name": "PR information",
+            "options": [
+                "--pr-number",
+                "--pr-title",
+                "--pr-labels",
+                "--base-branch",
+                "--merged-by",
+            ],
+        },
+        {
+            "name": "GitHub parameters",
+            "options": [
+                "--github-token",
+                "--github-repository",
+            ],
+        },
     ],
 }

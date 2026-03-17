@@ -51,8 +51,7 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 # Checked before putting in build cache
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
-# We set 3.12 as default image version until FAB supports Python 3.13
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 
 
 # Maps each supported Python version to the minimum Airflow version that supports it.
@@ -62,14 +61,16 @@ PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "v3.10.18"}
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
 # No database will be started - access to a database will fail.
+# The "custom" value allows providing an external database via AIRFLOW__DATABASE__SQL_ALCHEMY_CONN.
 SQLITE_BACKEND = "sqlite"
 MYSQL_BACKEND = "mysql"
 POSTGRES_BACKEND = "postgres"
 NONE_BACKEND = "none"
-ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
+CUSTOM_BACKEND = "custom"
+ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND, CUSTOM_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_CORE_INTEGRATIONS = ["kerberos", "redis"]
+TESTABLE_CORE_INTEGRATIONS = ["kerberos", "otel", "redis"]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
@@ -87,7 +88,6 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "ydb",
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
-    "elasticsearch",
     "mssql",
     "localstack",  # just for local integration testing for now
 ]
@@ -103,8 +103,9 @@ KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
 OTEL_INTEGRATION = "otel"
 OPENLINEAGE_INTEGRATION = "openlineage"
-OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, OTEL_INTEGRATION, KEYCLOAK_INTEGRATION]
-OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION]
+OPENSEARCH_INTEGRATION = "opensearch"
+OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, KEYCLOAK_INTEGRATION]
+OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION, OPENSEARCH_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_CORE_INTEGRATIONS = sorted(
     [
@@ -183,6 +184,62 @@ ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test
 ALLOWED_CONSTRAINTS_MODES_CI = [CONSTRAINTS_SOURCE_PROVIDERS, CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS]
 ALLOWED_CONSTRAINTS_MODES_PROD = [CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS, CONSTRAINTS_SOURCE_PROVIDERS]
 
+_FALLBACK_LLM_MODELS = [
+    # Claude models (via claude CLI)
+    "claude/claude-opus-4-6",
+    "claude/claude-sonnet-4-6",
+    "claude/claude-opus-4-20250514",
+    "claude/claude-sonnet-4-20250514",
+    "claude/claude-haiku-4-5-20251001",
+    "claude/sonnet",
+    "claude/opus",
+    "claude/haiku",
+    # OpenAI Codex models (via codex CLI)
+    "codex/o3",
+    "codex/o4-mini",
+    "codex/gpt-4.1",
+]
+
+# Model aliases — short names users can type instead of full model IDs
+_CLAUDE_ALIASES = ["claude/sonnet", "claude/opus", "claude/haiku"]
+_CODEX_ALIASES = ["codex/o3", "codex/o4-mini"]
+
+
+def get_allowed_llm_models() -> list[str]:
+    """Return the list of allowed LLM models, reading from cache if available.
+
+    Checks .build/llm_models_cache.json for a cached model list (refreshed at most
+    every 24 hours). Falls back to the hardcoded _FALLBACK_LLM_MODELS.
+    When generating command images for documentation, always uses the hardcoded
+    fallback list to ensure deterministic output.
+    """
+    import json
+    import time
+
+    from airflow_breeze.utils.recording import generating_command_images
+
+    if generating_command_images():
+        return list(_FALLBACK_LLM_MODELS)
+
+    try:
+        from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
+
+        cache_file = BUILD_CACHE_PATH / "llm_models_cache.json"
+        if cache_file.is_file():
+            data = json.loads(cache_file.read_text())
+            # Use cache if less than 24 hours old
+            if time.time() - data.get("timestamp", 0) < 86400:
+                models = data.get("models", [])
+                if models:
+                    return models
+    except Exception:
+        pass
+    return list(_FALLBACK_LLM_MODELS)
+
+
+# For backward compatibility and static option definition
+ALLOWED_LLM_MODELS = get_allowed_llm_models()
+
 ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
 DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]
 
@@ -218,11 +275,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "25.3"
-UV_VERSION = "0.9.26"
-
-DEFAULT_UV_HTTP_TIMEOUT = 300
-DEFAULT_WSL2_HTTP_TIMEOUT = 900
+PIP_VERSION = "26.0.1"
+UV_VERSION = "0.10.10"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -742,8 +796,8 @@ DEFAULT_EXTRAS = [
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
-        "airflow-version": "2.11.0",
-        "remove-providers": "common.messaging edge3 fab git keycloak",
+        "airflow-version": "2.11.1",
+        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai",
         "run-unit-tests": "true",
     },
     {
@@ -754,21 +808,27 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.1.6",
+        "airflow-version": "3.1.8",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.10": "3.10.19",
-    "3.11": "3.11.14",
-    "3.12": "3.12.12",
-    "3.13": "3.13.11",
+    "3.10": "3.10.20",
+    "3.11": "3.11.15",
+    "3.12": "3.12.13",
+    "3.13": "3.13.12",
 }
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
+
+# Milestone Tag Assistant configuration
+# Labels indicating a bug fix PR that should have a milestone
+MILESTONE_BUG_LABELS: frozenset[str] = frozenset({"kind:bug", "type:bug-fix"})
+# Labels that indicate the PR should be skipped from milestone auto-tagging
+MILESTONE_SKIP_LABELS: frozenset[str] = frozenset({"area:dev-tools", "area:dev-env", "area:CI"})
 
 
 class GithubEvents(Enum):

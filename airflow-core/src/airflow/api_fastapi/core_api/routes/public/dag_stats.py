@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, status
 
@@ -41,7 +41,11 @@ from airflow.api_fastapi.core_api.datamodels.dag_stats import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep, requires_access_dag
 from airflow.models.dagrun import DagRun
+from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
+
+if TYPE_CHECKING:
+    from sqlalchemy import Result
 
 dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
 
@@ -71,7 +75,8 @@ def get_dag_stats(
         session=session,
         return_total_entries=False,
     )
-    query_result = session.execute(dagruns_select)
+    # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+    query_result: Result[Unpack[tuple[str, str, str, int]]] = session.execute(dagruns_select)  # type: ignore[type-arg]
 
     result_dag_ids = []
     dag_display_names: dict[str, str] = {}

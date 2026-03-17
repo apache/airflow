@@ -27,6 +27,58 @@
 Changelog
 ---------
 
+9.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make hive cli 'zooKeeperNamespace' and 'ssl' parameters configurable (#63193)``
+
+Misc
+~~~~
+
+* ``Made sqlalchemy dependency optional for hive (#62329)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``change to owner airflow in example dag (#62957)``
+
+9.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix HiveServer2Hook password handling for PLAIN auth (#62364)``
+
+Misc
+~~~~
+
+* ``Bump min sqlalchemy version to 1.4.54 (#62299)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Fix mypy type error in MsSqlToHiveOperator (#61902)``
+   * ``Migrate apache/hive connection UI metadata to YAML (#62380)``
+
+9.2.5
+.....
+
+Misc
+~~~~
+
+* ``Cleanup some dependencies (#60992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.2.4
 .....
 

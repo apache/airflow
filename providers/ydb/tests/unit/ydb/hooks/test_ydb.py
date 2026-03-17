@@ -99,3 +99,110 @@ def test_execute(cursor_class, mock_session_pool, mock_driver, mock_get_connecti
             assert cur.fetchone() == (1, 2)
             assert cur.fetchmany(2) == [(1, 2), (2, 3)]
             assert cur.fetchall() == [(1, 2), (2, 3), (3, 4)]
+
+
+@patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+@patch("ydb.Driver")
+@patch("ydb.QuerySessionPool")
+@patch("ydb_dbapi.Connection._cursor_cls", new_callable=PropertyMock)
+def test_run_hook_lineage(
+    cursor_class, mock_session_pool, mock_driver, mock_get_connection, mock_send_lineage
+):
+    mock_get_connection.return_value = Connection(
+        conn_type="ydb",
+        host="grpc://localhost",
+        port=2135,
+        login="my_user",
+        password="my_pwd",
+        extra={"database": "/my_db1"},
+    )
+    driver_instance = FakeDriver()
+
+    cursor_class.return_value = FakeYDBCursor
+    mock_driver.return_value = driver_instance
+    mock_session_pool.return_value = FakeSessionPool(driver_instance)
+
+    hook = YDBHook()
+    sql = "SELECT 1"
+    hook.run(sql)
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] is None
+
+
+@patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+@patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+@patch("ydb.Driver")
+@patch("ydb.QuerySessionPool")
+@patch("ydb_dbapi.Connection._cursor_cls", new_callable=PropertyMock)
+def test_get_df_hook_lineage(
+    cursor_class, mock_session_pool, mock_driver, mock_get_connection, mock_get_pandas_df, mock_send_lineage
+):
+    mock_get_connection.return_value = Connection(
+        conn_type="ydb",
+        host="grpc://localhost",
+        port=2135,
+        login="my_user",
+        password="my_pwd",
+        extra={"database": "/my_db1"},
+    )
+    driver_instance = FakeDriver()
+
+    cursor_class.return_value = FakeYDBCursor
+    mock_driver.return_value = driver_instance
+    mock_session_pool.return_value = FakeSessionPool(driver_instance)
+
+    hook = YDBHook()
+    sql = "SELECT 1"
+    hook.get_df(sql, df_type="pandas")
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] is None
+
+
+@patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+@patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+@patch("ydb.Driver")
+@patch("ydb.QuerySessionPool")
+@patch("ydb_dbapi.Connection._cursor_cls", new_callable=PropertyMock)
+def test_get_df_by_chunks_hook_lineage(
+    cursor_class,
+    mock_session_pool,
+    mock_driver,
+    mock_get_connection,
+    mock_get_pandas_df_by_chunks,
+    mock_send_lineage,
+):
+    mock_get_connection.return_value = Connection(
+        conn_type="ydb",
+        host="grpc://localhost",
+        port=2135,
+        login="my_user",
+        password="my_pwd",
+        extra={"database": "/my_db1"},
+    )
+    driver_instance = FakeDriver()
+
+    cursor_class.return_value = FakeYDBCursor
+    mock_driver.return_value = driver_instance
+    mock_session_pool.return_value = FakeSessionPool(driver_instance)
+
+    hook = YDBHook()
+    sql = "SELECT 1"
+    parameters = ("x",)
+    hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+    mock_send_lineage.assert_called_once()
+    call_kw = mock_send_lineage.call_args.kwargs
+    assert call_kw["context"] is hook
+    assert call_kw["sql"] == sql
+    assert call_kw["sql_parameters"] == parameters

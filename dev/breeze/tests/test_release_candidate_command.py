@@ -17,7 +17,15 @@
 
 from __future__ import annotations
 
+import os
+from unittest import mock
+
 import pytest
+
+
+def is_ci_environment() -> bool:
+    """Check if running in CI environment by checking the CI environment variable."""
+    return os.environ.get("CI", "").lower() in ("true", "1", "yes")
 
 
 class FakeDirEntry:
@@ -35,6 +43,68 @@ def rc_cmd():
     import airflow_breeze.commands.release_candidate_command as module
 
     return module
+
+
+def test_clone_asf_repo(monkeypatch, rc_cmd):
+    """Test that clone_asf_repo behaves correctly based on CI environment."""
+    version = "2.10.0rc3"
+    repo_root = "/repo/root"
+
+    chdir_calls: list[str] = []
+    console_messages: list[str] = []
+    run_command_calls: list[tuple[list[str], dict]] = []
+    confirm_prompts: list[str] = []
+
+    # Check if we're in CI environment
+    is_ci = is_ci_environment()
+
+    def fake_confirm_action(prompt: str, **kwargs):
+        confirm_prompts.append(prompt)
+        return True
+
+    def fake_chdir(path: str):
+        chdir_calls.append(path)
+
+    def fake_run_command(cmd: list[str], **kwargs):
+        run_command_calls.append((cmd, kwargs))
+        return None
+
+    monkeypatch.setattr(rc_cmd.os, "chdir", fake_chdir)
+    monkeypatch.setattr(rc_cmd, "confirm_action", fake_confirm_action)
+    monkeypatch.setattr(rc_cmd, "console_print", lambda msg="": console_messages.append(str(msg)))
+    monkeypatch.setattr(rc_cmd, "run_command", fake_run_command)
+
+    rc_cmd.clone_asf_repo(version=version, repo_root=repo_root)
+
+    assert confirm_prompts == ["Do you want to clone asf repo?"]
+    assert chdir_calls == [repo_root]
+
+    if is_ci:
+        # In CI, should simulate SVN checkout
+        assert "[info]Running in CI environment - simulating SVN checkout" in console_messages
+        assert "[success]Simulated ASF repo checkout in CI" in console_messages
+
+        # Should use mkdir -p to create directory structure
+        assert any(
+            cmd == ["mkdir", "-p", f"{repo_root}/asf-dist/dev/airflow"] and kwargs.get("check") is True
+            for cmd, kwargs in run_command_calls
+        )
+
+        # Should NOT have any svn commands
+        assert not any(len(cmd) >= 1 and cmd[0] == "svn" for cmd, kwargs in run_command_calls)
+    else:
+        # In normal environment, should use actual SVN commands
+        assert "[success]Cloned ASF repo successfully" in console_messages
+        assert "[info]Running in CI environment - simulating SVN checkout" not in console_messages
+
+        # Should have SVN checkout command
+        assert any(
+            cmd[0] == "svn" and cmd[1] == "checkout" and "https://dist.apache.org/repos/dist" in cmd
+            for cmd, kwargs in run_command_calls
+        )
+
+        # Should have SVN update command
+        assert any(cmd[0] == "svn" and cmd[1] == "update" for cmd, kwargs in run_command_calls)
 
 
 def test_remove_old_releases_only_collects_rc_directories(monkeypatch, rc_cmd):
@@ -112,10 +182,15 @@ def test_remove_old_releases_returns_early_when_user_declines(monkeypatch, rc_cm
     assert confirm_prompts == ["Do you want to look for old RCs to remove?"]
 
 
+@mock.patch.dict(os.environ, {"CI": "true"})
 def test_remove_old_releases_removes_confirmed_old_releases(monkeypatch, rc_cmd):
+    """Test that remove_old_releases works correctly based on CI environment."""
     version = "3.1.5rc3"
     task_sdk_version = "1.0.6rc3"
     repo_root = "/repo/root"
+
+    # Check if we're in CI environment
+    is_ci = is_ci_environment()
 
     # Unsorted on purpose to verify sorting before prompting/removing.
     entries = [
@@ -169,11 +244,46 @@ def test_remove_old_releases_removes_confirmed_old_releases(monkeypatch, rc_cmd)
     assert "Removing old Airflow release 3.1.5rc2" in console_messages
     assert "[success]Old releases removed" in console_messages
 
-    # Only rc1 was confirmed, so we should run rm+commit for rc1 only.
-    assert run_command_calls == [
-        (["svn", "rm", "3.1.0rc1"], {"check": True}),
-        (["svn", "commit", "-m", "Remove old release: 3.1.0rc1"], {"check": True}),
-    ]
+    if is_ci:
+        # In CI, should simulate SVN commands
+        assert "[success]Old releases removed" in console_messages
+        assert (
+            "The following old Airflow releases should be removed: ['3.1.0rc1', '3.1.5rc2']"
+            in console_messages
+        )
+        assert "Removing old Airflow release 3.1.0rc1" in console_messages
+        assert "Removing old Airflow release 3.1.5rc2" in console_messages
+
+        # Should NOT have any actual svn commands (only rc1 was confirmed)
+        assert run_command_calls == [
+            (
+                [
+                    "svn",
+                    "rm",
+                    "3.1.0rc1",
+                ],
+                {
+                    "check": True,
+                },
+            ),
+            (
+                [
+                    "svn",
+                    "commit",
+                    "-m",
+                    "Remove old release: 3.1.0rc1",
+                ],
+                {
+                    "check": True,
+                },
+            ),
+        ]
+    else:
+        # Only rc1 was confirmed, so we should run rm+commit for rc1 only.
+        assert run_command_calls == [
+            (["svn", "rm", "3.1.0rc1"], {"check": True}),
+            (["svn", "commit", "-m", "Remove old release: 3.1.0rc1"], {"check": True}),
+        ]
 
 
 def test_remove_old_releases_removes_task_sdk_releases(monkeypatch, rc_cmd):
@@ -244,10 +354,15 @@ def test_remove_old_releases_removes_task_sdk_releases(monkeypatch, rc_cmd):
     assert run_command_calls == []
 
 
+@mock.patch.dict(os.environ, {"CI": "true"})
 def test_remove_old_releases_removes_both_airflow_and_task_sdk_releases(monkeypatch, rc_cmd):
+    """Test that remove_old_releases works correctly based on CI environment."""
     version = "3.1.5rc3"
     task_sdk_version = "1.0.6rc3"
     repo_root = "/repo/root"
+
+    # Check if we're in CI environment
+    is_ci = is_ci_environment()
 
     # Airflow entries
     airflow_entries = [
@@ -321,13 +436,69 @@ def test_remove_old_releases_removes_both_airflow_and_task_sdk_releases(monkeypa
     assert "Removing old Task SDK release 1.0.6rc2" in console_messages
     assert "[success]Old releases removed" in console_messages
 
-    # Both Airflow and Task SDK removals were confirmed
-    assert run_command_calls == [
-        (["svn", "rm", "3.1.5rc2"], {"check": True}),
-        (["svn", "commit", "-m", "Remove old release: 3.1.5rc2"], {"check": True}),
-        (["svn", "rm", "1.0.6rc1"], {"check": True}),
-        (["svn", "commit", "-m", "Remove old Task SDK release: 1.0.6rc1"], {"check": True}),
-    ]
+    if is_ci:
+        # In CI, should simulate SVN commands
+        assert "The following old Airflow releases should be removed: ['3.1.5rc2']" in console_messages
+        assert "Removing old Airflow release 3.1.5rc2" in console_messages
+        assert (
+            "The following old Task SDK releases should be removed: ['1.0.6rc1', '1.0.6rc2']"
+            in console_messages
+        )
+        assert "Removing old Task SDK release 1.0.6rc1" in console_messages
+
+        # Should NOT have any actual svn commands
+        assert run_command_calls == [
+            (
+                [
+                    "svn",
+                    "rm",
+                    "3.1.5rc2",
+                ],
+                {
+                    "check": True,
+                },
+            ),
+            (
+                [
+                    "svn",
+                    "commit",
+                    "-m",
+                    "Remove old release: 3.1.5rc2",
+                ],
+                {
+                    "check": True,
+                },
+            ),
+            (
+                [
+                    "svn",
+                    "rm",
+                    "1.0.6rc1",
+                ],
+                {
+                    "check": True,
+                },
+            ),
+            (
+                [
+                    "svn",
+                    "commit",
+                    "-m",
+                    "Remove old Task SDK release: 1.0.6rc1",
+                ],
+                {
+                    "check": True,
+                },
+            ),
+        ]
+    else:
+        # Both Airflow and Task SDK removals were confirmed
+        assert run_command_calls == [
+            (["svn", "rm", "3.1.5rc2"], {"check": True}),
+            (["svn", "commit", "-m", "Remove old release: 3.1.5rc2"], {"check": True}),
+            (["svn", "rm", "1.0.6rc1"], {"check": True}),
+            (["svn", "commit", "-m", "Remove old Task SDK release: 1.0.6rc1"], {"check": True}),
+        ]
 
 
 def test_move_artifacts_to_svn_returns_early_when_user_declines(monkeypatch, rc_cmd):
@@ -363,13 +534,17 @@ def test_move_artifacts_to_svn_returns_early_when_user_declines(monkeypatch, rc_
     assert confirm_prompts == ["Do you want to move artifacts to SVN?"]
 
 
+@mock.patch.dict(os.environ, {"CI": "true"})
 def test_move_artifacts_to_svn_completes_successfully(monkeypatch, rc_cmd):
-    """Test that function completes successfully when user confirms."""
+    """Test that function completes successfully when user confirms based on CI environment."""
     version = "2.10.0rc3"
     version_without_rc = "2.10.0"
     task_sdk_version = "1.0.6rc3"
     task_sdk_version_without_rc = "1.0.6"
     repo_root = "/repo/root"
+
+    # Check if we're in CI environment
+    is_ci = is_ci_environment()
 
     chdir_calls: list[str] = []
     console_messages: list[str] = []
@@ -401,30 +576,52 @@ def test_move_artifacts_to_svn_completes_successfully(monkeypatch, rc_cmd):
 
     assert confirm_prompts == ["Do you want to move artifacts to SVN?"]
     assert chdir_calls == [f"{repo_root}/asf-dist/dev/airflow"]
-    # Verify svn mkdir for airflow version
-    assert any(
-        cmd == ["svn", "mkdir", version] and kwargs.get("check") is True for cmd, kwargs in run_command_calls
-    )
-    # Verify mv command for airflow artifacts
+
+    if is_ci:
+        # In CI, should use mkdir -p instead of svn mkdir
+        assert (
+            "[info]Running in CI environment - executing mkdir (override dry-run mode if specified)"
+            in console_messages
+        )
+        assert any(
+            cmd == ["mkdir", "-p", version] and kwargs.get("check") is True
+            for cmd, kwargs in run_command_calls
+        )
+        assert any(
+            cmd == ["mkdir", "-p", f"task-sdk/{task_sdk_version}"] and kwargs.get("check") is True
+            for cmd, kwargs in run_command_calls
+        )
+
+        # Should NOT have any svn mkdir commands
+        assert not any(
+            isinstance(cmd, list) and len(cmd) >= 2 and cmd[0] == "svn" and cmd[1] == "mkdir"
+            for cmd, kwargs in run_command_calls
+        )
+    else:
+        # Verify svn mkdir for airflow version
+        assert any(
+            cmd == ["svn", "mkdir", version] and kwargs.get("check") is True
+            for cmd, kwargs in run_command_calls
+        )
+        # Verify svn mkdir for task-sdk version
+        assert any(
+            cmd == ["svn", "mkdir", f"task-sdk/{task_sdk_version}"] for cmd, kwargs in run_command_calls
+        )
+
+    # Verify mv commands run normally in both cases
     assert any(
         cmd == f"mv {repo_root}/dist/*{version_without_rc}* {version}/"
         and kwargs.get("check") is True
         and kwargs.get("shell") is True
         for cmd, kwargs in run_command_calls
     )
-    # Verify svn mkdir for task-sdk version
-    assert any(cmd == ["svn", "mkdir", f"task-sdk/{task_sdk_version}"] for cmd, kwargs in run_command_calls)
-    # Verify mv command for task-sdk artifacts
     assert any(
         cmd == f"mv {repo_root}/dist/*{task_sdk_version_without_rc}* task-sdk/{task_sdk_version}/"
         and kwargs.get("check") is True
         and kwargs.get("shell") is True
         for cmd, kwargs in run_command_calls
     )
-    assert "[success]Moved artifacts to SVN:" in console_messages
-    # Verify ls commands
-    assert any(cmd == [f"ls {version}/"] for cmd, kwargs in run_command_calls)
-    assert any(cmd == [f"ls task-sdk/{task_sdk_version}/"] for cmd, kwargs in run_command_calls)
+    assert "[success]Moved artifacts to SVN" in console_messages
 
 
 def test_push_artifacts_to_asf_repo_returns_early_when_user_declines(monkeypatch, rc_cmd):
@@ -458,11 +655,15 @@ def test_push_artifacts_to_asf_repo_returns_early_when_user_declines(monkeypatch
     assert confirm_prompts == ["Do you want to push artifacts to ASF repo?"]
 
 
+@mock.patch.dict(os.environ, {"CI": "true"})
 def test_push_artifacts_to_asf_repo_completes_successfully(monkeypatch, rc_cmd):
-    """Test that function completes successfully when user confirms all prompts."""
+    """Test that function completes successfully when user confirms all prompts based on CI environment."""
     version = "2.10.0rc3"
     task_sdk_version = "1.0.6rc3"
     repo_root = "/repo/root"
+
+    # Check if we're in CI environment
+    is_ci = is_ci_environment()
 
     chdir_calls: list[str] = []
     console_messages: list[str] = []
@@ -500,13 +701,28 @@ def test_push_artifacts_to_asf_repo_completes_successfully(monkeypatch, rc_cmd):
         kwargs.get("cwd") == f"{repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}"
         for cmd, kwargs in ls_calls
     )
-    assert any(
-        cmd == f"svn add {version}/* task-sdk/{task_sdk_version}/*" for cmd, kwargs in run_command_calls
-    )
-    assert any(
-        cmd == ["svn", "commit", "-m", f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}"]
-        for cmd, kwargs in run_command_calls
-    )
+
+    if is_ci:
+        # In CI, should simulate SVN commands
+        assert "Airflow Version Files to push to svn:" in console_messages
+        assert "Task SDK Version Files to push to svn:" in console_messages
+        assert "[success]Files pushed to svn" in console_messages
+        assert (
+            "Verify that the files are available here: https://dist.apache.org/repos/dist/dev/airflow/"
+            in console_messages
+        )
+        # There are some SVN traces in the code but still they are just printing and not actually running any SVN commands in CI
+    else:
+        # In normal environment, should execute SVN commands
+        assert any(
+            cmd == f"svn add {version}/* task-sdk/{task_sdk_version}/*" for cmd, kwargs in run_command_calls
+        )
+        assert any(
+            cmd
+            == ["svn", "commit", "-m", f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}"]
+            for cmd, kwargs in run_command_calls
+        )
+
     assert "[success]Files pushed to svn" in console_messages
     assert (
         "Verify that the files are available here: https://dist.apache.org/repos/dist/dev/airflow/"

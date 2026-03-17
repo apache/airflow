@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
@@ -39,7 +39,6 @@ from airflow.models.crypto import get_fernet
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import mapped_column
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
@@ -227,7 +226,7 @@ class Connection(Base, LoggingMixin):
     def _parse_from_uri(self, uri: str):
         schemes_count_in_uri = uri.count("://")
         if schemes_count_in_uri > 2:
-            raise AirflowException(f"Invalid connection string: {uri}.")
+            raise AirflowException("Invalid connection string.")
         host_with_protocol = schemes_count_in_uri == 2
         uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
@@ -236,7 +235,7 @@ class Connection(Base, LoggingMixin):
         if host_with_protocol:
             uri_splits = rest_of_the_url.split("://", 1)
             if "@" in uri_splits[0] or ":" in uri_splits[0]:
-                raise AirflowException(f"Invalid connection string: {uri}.")
+                raise AirflowException("Invalid connection string.")
         uri_parts = urlsplit(rest_of_the_url)
         protocol = uri_parts.scheme if host_with_protocol else None
         host = _parse_netloc_to_hostname(uri_parts)

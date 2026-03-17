@@ -21,11 +21,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Index, Integer, String, Text
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from airflow.models.dag import DagModel

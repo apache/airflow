@@ -24,6 +24,190 @@
 
 .. towncrier release notes start
 
+Airflow 3.1.8 (2026-03-11)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Backfill permissions are now handled via ``DagAccessEntity.Run`` (#61456)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+``is_authorized_backfill`` of the ``BaseAuthManager`` interface has been removed. Core will no longer call this method and their
+provider counterpart implementation will be marked as deprecated.
+Permissions for backfill operations are now checked against the ``DagAccessEntity.Run`` permission using the existing
+``requires_access_dag`` decorator. In other words, if a user has permission to run a DAG, they can perform backfill operations on it.
+
+Please update your security policies to ensure that users who need to perform backfill operations have the appropriate ``DagAccessEntity.Run`` permissions. (Users
+having the Backfill permissions without having the DagRun ones will no longer be able to perform backfill operations without any update)
+
+Elasticsearch is now fully compatible with remote logging along (#62940)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Elasticsearch is now fully compatible with remote logging along side with ``apache-airflow-providers-elasticsearch>=6.5.0``. Please review elasticsearch provider release notes for more information https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.5.0/changelog.html (#62121) (#62940)
+
+Bug Fixes
+^^^^^^^^^
+- Fix SQLite migration disable ``disable_sqlite_fkeys`` in revision ``509b94a1042d`` (#63256) (#63272)
+- Fix: 404 queued asset events from API server logs (#62934) (#62976)
+- Fix: Always include kid in JWT header for symmetric key tokens (#62883) (#62943)
+- Fix: Scope session token in cookie to base_url  (#62771) (#62851)
+- Fix: UI of Scope session token in cookie to base_url (#62771) (#62859)
+- Fix: UI tasks log missing in UP_FOR_RETRY and UP_FOR_RESCHEDULE states (#54547) (#62862)
+- Fix: Backfill permissions (#62856) (#62873)
+- Fix: Use ``useAssetServiceGetDagAssetQueuedEvents`` to get the correct number of ADRQs (#62868) (#62902)
+- Fix: Adds task instance validation for HITL (#62886) (#62909)
+- Fix: Restore task_instance_history sequence on downgrade (#62759)
+- Fix broken ``dag_processing.total_parse_time`` metric (#62128) (#62764)
+- Fix Trigger UI form rendering for null enum values (#62060) (#62767)
+- Fix ``timer.duration`` unit labels in logs (#61824) (#62757)
+- Fix XCom migration failing for NaN/Infinity float values (#62686) (#62760)
+- Fix SQL not rendered in Rendered Templates view (#60739) (#62348)
+- Fix missing DAG read permission checks on dependencies endpoint (#62046) (#62586)
+- Changed ``dag_bundle.signed_url_template`` from ``varchar(200)`` to ``text`` (#61041) (#62568)
+- Fix WASB remote logging base path handling (#58946) (#61013) (#62456)
+- Handle non-dictionary json payload during logging to avoid internal server error. (#62355) (#62367)
+- Fix grid view crash when task converted to TaskGroup (#61208) (#61279) (#62181)
+- Fix running task duration showing as null in UI (#61898) (#62136)
+- Fix deferrable sensors not respecting soft_fail on timeout (#61132) (#61421)
+- Fix task failure details being obscured by finalization errors (#62070) (#62113)
+- Add missing ti.start and ti.finish metrics in Airflow 3 (#62019) (#62110)
+- Fix DepContext mutation leak and restore reschedule-mode guard (#62089)
+- Fix scheduler heartbeat misses caused by slow reschedule dependency check (#61983) (#62068)
+- Flush in-memory OTEL metrics at process shutdown (#61808) (#61869)
+- Fix executor slots showing negative infinity (#61140) (#61768)
+- Fix recursion depth error in _redact_exception_with_context (#61776) (#61795)
+- Fix API server segfault when ``PYTHONASYNCIODEBUG=1`` is set (#61281) (#61933)
+- Fix scheduler crash when queuing TI with null dag_version_id (#61813) (#61846)
+- Fix secrets masking in Rendered Templates for complex objects (#61394) (#61763)
+- Fix list dag versions permissions (#61675) (#61733)
+- Fix Triggerer crashing if Trigger uses builtin print function (#60258) (#61703)
+- Fix GZipMiddleware with correct comment placement (#61538) (#61566)
+- Fix middleware order to prevent chunked FastAPI responses (#61043) (#61539)
+- Fix XCom serialization for ``pendulum.date.Date`` values (#61176) (#61717)
+- Fix ``access_key`` and ``connection_string`` not being masked in logs (#61580) (#61582)
+- Fix ``minimatch`` ReDoS vulnerabilities via ``pnpm`` overrides (#62805)
+- Fix language selector state not updating on change (#61060) (#61263)
+- Make conn_type optional in task SDK Connection data model (#61728) (#61835)
+- UI: optimize grid view refresh pressure on the API (#62085) (#62135)
+- UI: Fix main content margin to align with navigation sidebar width (#61614) (#61622)
+- UI: Fix Preserve variable value formatting in edit dialog (#58757) (#62339)
+- UI: Fix missing translation keys for blocking dependencies in UI (#61314) (#61366) (#61638)
+- UI: Add error handling for pause/unpause toggle permission errors (#61389) (#61533)
+- UI: Flatten grid structure endpoint memory consumption (#61273) (#61393)
+- UI: Reduce memory usage in grid view by optimizing node data storage (#61656) (#61789)
+- UI: Fix variable table word-break when values are expanded (#62416) (#62781)
+- UI: Fix use ISO dates in Gantt chart for cross-browser consistency (#61250) (#62784)
+- UI: Fix DataTable overflow on narrow screens (#62603)
+- UI: Fix unique keys for pagination ellipses (#62352) (#62366)
+- UI: Fix ``elk.portConstraints`` for LR orientation in graph view (#62144) (#62187)
+- UI: Fix show active backfill in banner instead of first one (#61851) (#62137)
+- UI: Fix star icon visibility in Favorite filter buttons when selected (#61862)
+- UI: Fix grid view tooltip z-index issue (#61275) (#61403)
+- UI: Fix mini-map on DAG graph view not showing DAG nodes (#61511) (#61530)
+- UI: Fix pale appearance of filter buttons when selected (#60346 backport fix) (#61457)
+
+Miscellaneous
+^^^^^^^^^^^^^
+- Add logging to detect try number race (#62703) (#62821)
+- Override tar dependency in Simple auth manager (#62787)
+- Remove mp_start_method remnants (#61150) (#62762)
+- Expose literal and ParamsDict at SDK top level (#59782) (#62756)
+- Add on_task_instance_skipped listener hookspec (#59467) (#61863)
+- Persist table columns visibility in local storage (#61858) (#61868)
+- Add ``run_after`` alias to ``XComResponse`` for backward compatibility (#61443) (#61672)
+- UI: Add task_display_name to LightGridTaskInstanceSummary model (#61440) (#61505)
+- UI: Add multi-line text display option on Variables page (#61679) (#62779)
+- UI: Add bulk actions for connections and variables (#61570) (#62076)
+- UI: Allow selecting file path using cursor in log viewer (#61011) (#61506)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Fix Liveness / Readiness / Startup probe path for Airflow 3.x (#58734) (#61411)
+- Update health check command syntax for celery worker (#58861) (#61412)
+- Translation fixes: Polish (#62031) (#62761), Catalan (#62477), Taiwanese Mandarin (#62397),
+  German (#61478), Polish (#61423)
+- Remove docs mentioning old, unsupported hybrid executors (#62093) (#62096)
+- Clarify security model of Airflow (#61754) (#61770)
+- Clarify ExternalTaskSensor path in dags.rst (#61555) (#61617)
+- Clarify policy for exposing sensitive data (#59864) (#61392)
+- Clarify template context for asset-triggered DAGs in airflow-core docs (#61258) (#61282)
+- Add Keycloak token documentation to Security/API (#61228) (#61248)
+
+
+Airflow 3.1.7 (2026-02-04)
+--------------------------
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+- Fix JWT token generation with unset issuer/audience config (#61331)
+- Fix callback files losing priority during queue resort (#61232) (#61243)
+- Fix Dag callback for versioned bundles in the processor (#60734) (#61230)
+- Add 404 handling for non-existent Dag (#61131) (#61225)
+- Add guardrail to handle Dag deserialization errors in scheduler (#61162) (#61210)
+- Fix asset scheduling for stale Dags (#59337) (#60022) (#61106)
+- Fix unnecessary Dag version churn when Dag file paths change (#60799)
+- Fix missing warning when Bundle path may not be accessible to impersonated user (#60278)
+- Fix ``TriggerDagRunOperator`` deferring when ``wait_for_completion=False`` (#60052)
+- Fix NoneType error when updating serialized Dag (#56422)
+- Fix Pool API slots validation (#61071) (#61114)
+- Fix DagBag parsing by adding bundle_path temporarily to sys.path (#55894) (#61053)
+- Fix API to respect maximum page limit (#60989) (#61073)
+- Prevent Triggerer from crashing when a trigger event isn't serializable (#60152) (#60981)
+- Fix permissions on get_event_logs endpoint (#60936) (#60958)
+- Fix Dag access control for dag_id in query param (#60935) (#60959)
+- Fix root logger to use log_level instead of hardcoded INFO level (#60784) (#60970)
+- Fix Dag processor OOM by Avoid loading all TaskInstances when checking DagVersion in write_dag (#60937) (#60962)
+- Fix worker startup Dag load failures by rescheduling tasks instead of exiting (#59604) (#60926)
+- Fix permissions check in import error APIs (#60801) (#60884)
+- Fix refresh-token invalidation by logging out the user (#60781) (#60881)
+- Fix connection test API to restore masked password/extra from existing connections (#59643) (#60873)
+- Fix Dag processor overhead by applying ``gc.freeze`` (#60505) (#60845)
+- Fix Dag processor crashing due to MySQL deadlock errors (#60166) (#60418)
+- Ensure unique run_id across manually triggered Dags with schedules (#59477) (#60468)
+- UI: Avoid gantt annotation error during resize (#60877)
+- UI: Fix react apps plugins router (#61206)
+- UI: Reset pagination on search in all pages (#61169)
+- UI: Explicitly set UI table ordering (#60609) (#61216)
+- UI: Plugins pagination fix  #61055 (#61059) (#61129)
+- UI: Fix ui get dags permission endpoint for user without Dag run permissions (#60979) (#60988)
+- UI: Convert Tasks Table from card to table mode (#60830) (#60874)
+- UI: Fix slow log scrolling for large task logs (#60806) (#60875)
+- UI: Grey out trigger button on API 403 (#60648) (#60777)
+- UI: Remove API error from disabling submit (#60473) (#60658)
+- UI: Added toasters for permission denied (#57966) (#58016) (#60646)
+- UI: Move row count and display toggle into DataTable (#57680) (#60639)
+- UI: Fix/backfill permission error handling (#60582) (#60587)
+- UI: Improve Dags Filter UI (#60346) (#60547)
+- UI: Update PoolBar to separate Scheduled and Deferred slots (#59270) (#60538)
+- UI: Correct the access for the ``externalLogUrl`` (#60412) (#60479)
+- UI: Fix gantt chart styling (#60347) (#60457)
+- UI: Reset pagination on DagList search (#60326) (#60336)
+- UI: Move dags list filters to ``buttongroups`` (#60298) (#60337)
+- UI: Fix table filters resetting when deleting a Dag (#60279) (#60287)
+- UI: Fix sidebar visibility issue when main content exceeds ``viewport`` height (#59660) (#60286)
+- UI: Add virtualization to grid view (#60241) (#60285)
+
+Miscellaneous
+^^^^^^^^^^^^^
+- UI: Upgrade react-dom-router in Airflow UI (#60316) (#60456)
+- Use bulk DELETE for XComModel.clear() instead of loading records (#60955)
+- Refactor Dag file queuing and fix redundant processing (#60124)
+- Optimized Dag processing queue order on bundle refresh (#60003)
+- Remove unused method ``is_default_pool`` in Pool model (#61084) (#61128)
+- Translation fixes: ``Taiwaness Mandarin`` (#61126), Catalan (#61093), German (#61097), Polish (#61099),
+  Arabic (#60635 #60782, (#60635) (#60782)), Spanish (#60775 #60785, (#60775) (#60785)),
+  Hebrew (#60633 #60686, (#60633) (#60686))
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Fix minor display issue with migration to airflow 3 docs (#60749)
+- Fix airflow.utils.context.Context import path in Airflow 3 migration doc (#59937)
+- Add missing links to airflow.sdk classes and functions in public interface docs (#61005) (#61012)
+- Clarify BaseSensorOperator parameters in Sensors guide (#60275)
+- Fix docstring for RuntimeTaskInstance.xcom_pull (#60220) (#60252)
+- Fix broken syntax highlighting in AIR rules note section (#59188)
+
 Airflow 3.1.6 (2026-01-13)
 --------------------------
 
@@ -2329,6 +2513,91 @@ Airflow 3.0 represents more than a year of collaboration across hundreds of cont
 thank everyone who helped shape this release through design discussions, code contributions, testing, documentation, and
 community feedback. For full details, migration guidance, and upgrade best practices, refer to the official Upgrade
 Guide and join the conversation on the Airflow dev and user mailing lists.
+
+Airflow 2.11.1 (2026-02-20)
+---------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Python 3.9 support removed
+""""""""""""""""""""""""""
+
+Support for Python 3.9 has been removed, as it has reached end-of-life.
+Airflow 2.11.1 requires Python 3.10, 3.11, or 3.12. Note that this is unusual to remove
+Python version support in patch-level release of Airflow, but since Python 3.9 is already
+end-of-life, many libraries do not support it any more, and Airflow 2.11.1 is focused on
+improving security by upgrading dependencies, so we decided to remove Python 3.9 support
+in this patch release, to improve security of the release. Python 3.10 and 3.11 had almost
+no backward-incompatible changes, so you should be able to upgrade to Python 3.10 or 3.11
+easily. If you were using Python 3.9 before, it is recommended to first upgrade Python version
+in existing installation and then upgrade to Airflow 2.11.1.
+
+Publishing timer and timing metrics in seconds is now deprecated
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+In Airflow 3.0, the ``timer_unit_consistency`` setting in the ``metrics`` section will be
+enabled by default and setting itself will be removed. This will standardize all timer and timing metrics to
+milliseconds across all metric loggers.
+
+**Users Integrating with Datadog, OpenTelemetry, or other metric backends** should enable this setting. For users, using
+``statsd``, this change will not affect you.
+
+If you need backward compatibility, you can leave this setting disabled temporarily, but enabling
+``timer_unit_consistency`` is encouraged to future-proof your metrics setup. (#39908)
+
+Retrieving historical log templates is disabled in Airflow 2.11.1
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+When you change the log template in Airflow 2.11.1, the historical log templates are not retrieved.
+This means that if you have existing logs that were generated using a different log template,
+they will not be accessible using the new log template.
+
+This change is due to potential security issues that could arise from retrieving historical log templates,
+which allow Dag Authors to execute arbitrary code in webserver when retrieving logs.
+By disabling the retrieval of historical log templates, Airflow 2.11.1 aims to enhance the security of the
+system and prevent potential vulnerabilities in case the potential of executing arbitrary code in webserver
+is important for Airflow deployment.
+
+Users who need to access historical logs generated with a different log template will need to manually
+update their log files to match the naming of their historical log files with the latest log template
+configured in Airflow configuration, or they can set the "core.use_historical_filename_templates"
+configuration option to True to enable the retrieval of historical log templates, if they are fine with
+the Dag Authors being able to execute arbitrary code in webserver when retrieving logs. (#61880)
+
+Updated dependencies
+""""""""""""""""""""
+
+Airflow 2.11.1 includes updates to a number of dependencies including connexion, Flask-Session, Werkzeug,
+that were not possible to upgrade before, because the dependencies did not have compatible versions
+with Airflow 2.11.0, but we worked together with the community to update them. Many thanks to connexion
+team and a number of community members to help with the updates so that we could upgrade to newer
+versions and get rid of some dependency versions that had known security vulnerabilities (#51681)
+
+Bug fixes
+"""""""""
+
+- Add proxy values to be masked by secrets manager (#61906)
+- Masking details while creating connections using json & uri (#61882)
+- Fix redaction of illegal args (#61883)
+- Fix stuck queued tasks by calling executor fail method and invoking failure callbacks (#53038)
+- Fix recursion depth error in _redact_exception_with_context (#61797)
+- Avoid warning when passing none as dataset alias (#61791)
+- Add pool name validation to avoid XSS from the DAG file (#61732)
+- Prevent scheduler to crash due to RecursionError when making a SQL query (#55778)
+- Fix root logger level cache invalidation in LoggerMutationHelper (#61644)
+- update null event values to empty string in downgrade for migration revision_id d75389605139 (#57131)
+- Fix WeightRule spec (#53947)
+- Correctly treat request on reschedule sensors as resetting after each reschedule (#51410) (#52638)
+- Allow more empty loops before stopping log streaming (#52614) (#52636)
+- Ensuring XCom return value can be mapped for dynamically-mapped @task_group's (#51668)
+- Fix archival for cascading deletes by archiving dependent tables first (#51952) (#52211)
+- Stop streaming task logs if end of log mark is missing (#51904)
+- Fix bad width w/no options in multi-select DAG parameter (#51516)
+- Fix remove filter button visibility in Pools list page (#51161)
+- Fix delete button visibility in search filters (#51100)
+- Fix migration from 2.2.0 to 2.11.0 for Sqlite (#50745)
+- Check if stand alone dag processor is active in get_health endpoint (#48612)
 
 Airflow 2.11.0 (2025-05-20)
 ---------------------------

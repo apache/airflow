@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "Auf Letzten zurücksetzen",
       "toggleGroup": "Gruppen umschalten"
-    }
+    },
+    "runTypeLegend": "Legende für Lauf-Typen"
   },
   "header": {
     "buttons": {
@@ -72,6 +73,12 @@
   "navigation": {
     "navigation": "Navigation: Umschalttaste+{{arrow}}",
     "toggleGroup": "Gruppen umschalten: Leertaste"
+  },
+  "notFound": {
+    "back": "Zurück",
+    "backToDags": "Zurück zu Dags",
+    "message": "Dag \"{{dagId}}\" existiert nicht.",
+    "title": "Dag nicht gefunden"
   },
   "overview": {
     "buttons": {
@@ -115,6 +122,15 @@
     "graphDirection": {
       "label": "Richtung des Graph"
     },
+    "showVersionIndicator": {
+      "label": "Versionsindikator anzeigen",
+      "options": {
+        "hideAll": "Alle ausblenden",
+        "showAll": "Alle anzeigen",
+        "showBundleVersion": "Bündelversion anzeigen",
+        "showDagVersion": "Dag-Version anzeigen"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "Aktiver Filter",
       "clearFilter": "Filter zurücksetzen",
@@ -123,6 +139,7 @@
       "direction": "Richtung",
       "label": "Filter",
       "mode": "Modus",
+      "modeTooltip": "Der Modus \"Statisch\" behält die aktuelle Ansicht beim Navigieren zwischen verschiedenen Tasks bei, während der Modus \"Traversieren\" den aktiven Filter automatisch auf den angeklickten Task aktualisiert, um die Dag-Navigation zu erleichtern.",
       "modes": {
         "static": "Statisch",
         "traverse": "Traversieren"

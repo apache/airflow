@@ -65,7 +65,12 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.serialization.decoders import decode_asset_like, decode_relativedelta, decode_timetable
+from airflow.serialization.decoders import (
+    decode_asset_like,
+    decode_deadline_alert,
+    decode_relativedelta,
+    decode_timetable,
+)
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -74,6 +79,7 @@ from airflow.serialization.definitions.assets import (
 )
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.definitions.node import DAGNode
 from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
@@ -82,6 +88,7 @@ from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, deseria
 from airflow.serialization.encoders import (
     coerce_to_core_timetable,
     encode_asset_like,
+    encode_deadline_alert,
     encode_expand_input,
     encode_relativedelta,
     encode_timetable,
@@ -145,7 +152,7 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
         )
 
 
-def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
+def _encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     key = var.key
     return {
         "key": BaseSerialization.serialize(key),
@@ -154,7 +161,7 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     }
 
 
-def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
+def _decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
     asset_alias_events = var.get("asset_alias_events", [])
     outlet_event_accessor = OutletEventAccessor(
         key=BaseSerialization.deserialize(var["key"]),
@@ -175,26 +182,26 @@ def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
     return outlet_event_accessor
 
 
-def encode_outlet_event_accessors(var: OutletEventAccessors) -> dict[str, Any]:
+def _encode_outlet_event_accessors(var: OutletEventAccessors) -> dict[str, Any]:
     return {
         "__type": DAT.ASSET_EVENT_ACCESSORS,
         "_dict": [
-            {"key": BaseSerialization.serialize(k), "value": encode_outlet_event_accessor(v)}
+            {"key": BaseSerialization.serialize(k), "value": _encode_outlet_event_accessor(v)}
             for k, v in var._dict.items()
         ],
     }
 
 
-def decode_outlet_event_accessors(var: dict[str, Any]) -> OutletEventAccessors:
+def _decode_outlet_event_accessors(var: dict[str, Any]) -> OutletEventAccessors:
     d = OutletEventAccessors()
     d._dict = {
-        BaseSerialization.deserialize(row["key"]): decode_outlet_event_accessor(row["value"])
+        BaseSerialization.deserialize(row["key"]): _decode_outlet_event_accessor(row["value"])
         for row in var["_dict"]
     }
     return d
 
 
-def encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
+def _encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
     """
     Encode a priority weight strategy instance.
 
@@ -211,7 +218,7 @@ def encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
     return importable_string
 
 
-def decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
+def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
     """
     Decode a previously serialized priority weight strategy.
 
@@ -224,12 +231,8 @@ def decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
     return priority_weight_strategy_class()
 
 
-def encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
-    """
-    Encode a StartTriggerArgs.
-
-    :meta private:
-    """
+def _encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
+    """Encode a StartTriggerArgs."""
 
     def serialize_kwargs(key: str) -> Any:
         if (val := getattr(var, key)) is None:
@@ -246,12 +249,8 @@ def encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
     }
 
 
-def decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
-    """
-    Decode a StartTriggerArgs.
-
-    :meta private:
-    """
+def _decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
+    """Decode a StartTriggerArgs."""
 
     def deserialize_kwargs(key: str) -> Any:
         if (val := var[key]) is None:
@@ -441,7 +440,7 @@ class BaseSerialization:
             elif key == "timetable" and value is not None:
                 serialized_object[key] = encode_timetable(value)
             elif key == "weight_rule" and value is not None:
-                encoded_priority_weight_strategy = encode_priority_weight_strategy(value)
+                encoded_priority_weight_strategy = _encode_priority_weight_strategy(value)
 
                 # Exclude if it is just default
                 default_pri_weight_stra = cls.get_schema_defaults("operator").get(key, None)
@@ -497,7 +496,7 @@ class BaseSerialization:
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, OutletEventAccessors):
             return cls._encode(
-                encode_outlet_event_accessors(var),
+                _encode_outlet_event_accessors(var),
                 type_=DAT.ASSET_EVENT_ACCESSORS,
             )
         elif isinstance(var, AssetUniqueKey):
@@ -512,8 +511,8 @@ class BaseSerialization:
             )
         elif isinstance(var, DAG):
             return cls._encode(DagSerialization.serialize_dag(var), type_=DAT.DAG)
-        elif isinstance(var, DeadlineAlert):
-            return cls._encode(DeadlineAlert.serialize_deadline_alert(var), type_=DAT.DEADLINE_ALERT)
+        elif isinstance(var, (DeadlineAlert, SerializedDeadlineAlert)):
+            return cls._encode(encode_deadline_alert(var), type_=DAT.DEADLINE_ALERT)
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
@@ -632,7 +631,7 @@ class BaseSerialization:
         if type_ == DAT.DICT:
             return {k: cls.deserialize(v) for k, v in var.items()}
         elif type_ == DAT.ASSET_EVENT_ACCESSORS:
-            return decode_outlet_event_accessors(var)
+            return _decode_outlet_event_accessors(var)
         elif type_ == DAT.ASSET_UNIQUE_KEY:
             return AssetUniqueKey(name=var["name"], uri=var["uri"])
         elif type_ == DAT.ASSET_ALIAS_UNIQUE_KEY:
@@ -700,7 +699,7 @@ class BaseSerialization:
 
             return NOTSET
         elif type_ == DAT.DEADLINE_ALERT:
-            return DeadlineAlert.deserialize_deadline_alert(var)
+            return decode_deadline_alert(var)
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
@@ -852,7 +851,7 @@ class BaseSerialization:
         return defaults
 
 
-class DependencyDetector:
+class _DependencyDetector:
     """
     Detects dependencies between DAGs.
 
@@ -1031,7 +1030,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             serialize_op["_can_skip_downstream"] = True
 
         if op.start_trigger_args:
-            serialize_op["start_trigger_args"] = encode_start_trigger_args(op.start_trigger_args)
+            serialize_op["start_trigger_args"] = _encode_start_trigger_args(op.start_trigger_args)
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
@@ -1156,7 +1155,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 k = "on_failure_fail_dagrun"
             elif k == "weight_rule":
                 k = "_weight_rule"
-                v = decode_priority_weight_strategy(v)
+                v = _decode_priority_weight_strategy(v)
             elif k == "retry_exponential_backoff":
                 if isinstance(v, bool):
                     v = 2.0 if v else 0
@@ -1208,7 +1207,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
         if encoded_start_trigger_args:
             encoded_start_trigger_args = cast("dict", encoded_start_trigger_args)
-            start_trigger_args = decode_start_trigger_args(encoded_start_trigger_args)
+            start_trigger_args = _decode_start_trigger_args(encoded_start_trigger_args)
         setattr(op, "start_trigger_args", start_trigger_args)
         setattr(op, "start_from_trigger", bool(encoded_op.get("start_from_trigger", False)))
 
@@ -1364,7 +1363,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
     @classmethod
     def detect_dependencies(cls, op: SdkOperator) -> set[DagDependency]:
         """Detect between DAG dependencies for the operator."""
-        dependency_detector = DependencyDetector()
+        dependency_detector = _DependencyDetector()
         deps = set(dependency_detector.detect_task_dependencies(op))
         return deps
 
@@ -1704,17 +1703,22 @@ class DagSerialization(BaseSerialization):
                 for task in dag.task_dict.values()
                 for dep in OperatorSerialization.detect_dependencies(task)
             ]
-            dag_deps.extend(DependencyDetector.detect_dag_dependencies(dag))
+            dag_deps.extend(_DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
             if dag.deadline:
                 deadline_list = dag.deadline if isinstance(dag.deadline, list) else [dag.deadline]
-                serialized_dag["deadline"] = [
-                    deadline.serialize_deadline_alert() for deadline in deadline_list
-                ]
+                serialized_dag["deadline"] = [encode_deadline_alert(deadline) for deadline in deadline_list]
             else:
                 serialized_dag["deadline"] = None
+
+            if dag.allowed_run_types:
+                serialized_dag["allowed_run_types"] = sorted(
+                    v.value if isinstance(v, enum.Enum) else v for v in dag.allowed_run_types
+                )
+            else:
+                serialized_dag["allowed_run_types"] = None
 
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
@@ -1806,13 +1810,20 @@ class DagSerialization(BaseSerialization):
             elif k == "timetable":
                 v = decode_timetable(v)
             elif k == "weight_rule":
-                v = decode_priority_weight_strategy(v)
+                v = _decode_priority_weight_strategy(v)
             elif k in cls._decorated_fields:
                 v = cls.deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
             elif k == "tags":
                 v = set(v)
+            elif k == "allowed_run_types":
+                if v:
+                    from airflow.utils.types import DagRunType
+
+                    v = frozenset(DagRunType(x) for x in v)
+                else:
+                    v = None
             # else use v as it is
 
             object.__setattr__(dag, k, v)
@@ -2213,6 +2224,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "max_consecutive_failed_dag_runs",
         "dagrun_timeout",
         "deadline",
+        "allowed_run_types",
         "catchup",
         "doc_md",
         "access_control",

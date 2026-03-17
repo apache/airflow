@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+3.9.2
+.....
+
+Misc
+~~~~
+
+* ``Cleanup Cassandra driver dependencies (#61724)``
+* ``Update cassandra driver specification for various python versions (#61685)``
+* ``Restrict setuptools 82.0.0 in cassandra provider (#61666)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.9.1
 .....
 

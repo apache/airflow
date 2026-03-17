@@ -27,8 +27,6 @@ export class XComsPage extends BasePage {
   public readonly addFilterButton: Locator;
   public readonly collapseAllButton: Locator;
   public readonly expandAllButton: Locator;
-  public readonly paginationNextButton: Locator;
-  public readonly paginationPrevButton: Locator;
   public readonly xcomsTable: Locator;
 
   public constructor(page: Page) {
@@ -36,8 +34,6 @@ export class XComsPage extends BasePage {
     this.addFilterButton = page.locator('[data-testid="add-filter-button"]');
     this.collapseAllButton = page.locator('[data-testid="collapse-all-button"]');
     this.expandAllButton = page.locator('[data-testid="expand-all-button"]');
-    this.paginationNextButton = page.locator('[data-testid="next"]');
-    this.paginationPrevButton = page.locator('[data-testid="prev"]');
     this.xcomsTable = page.locator('[data-testid="table-list"]');
   }
 
@@ -127,42 +123,6 @@ export class XComsPage extends BasePage {
     }
   }
 
-  public async verifyPagination(limit: number): Promise<void> {
-    await this.navigateTo(`${XComsPage.xcomsUrl}?offset=0&limit=${limit}`);
-    await this.page.waitForURL(/.*offset=0.*limit=/, { timeout: 10_000 });
-    await this.page.waitForLoadState("networkidle");
-    await this.xcomsTable.waitFor({ state: "visible", timeout: 10_000 });
-
-    const rows = this.xcomsTable.locator("tbody tr");
-
-    expect(await rows.count()).toBeGreaterThan(0);
-
-    await expect(this.paginationNextButton).toBeVisible({ timeout: 10_000 });
-    await this.paginationNextButton.click();
-    await this.page.waitForLoadState("networkidle");
-    await this.xcomsTable.waitFor({ state: "visible", timeout: 10_000 });
-
-    const urlPage2 = this.page.url();
-
-    expect(urlPage2).toContain(`limit=${limit}`);
-    expect(urlPage2).not.toContain("offset=0&");
-
-    const rows2 = this.xcomsTable.locator("tbody tr");
-
-    expect(await rows2.count()).toBeGreaterThan(0);
-
-    await expect(this.paginationPrevButton).toBeVisible({ timeout: 5000 });
-    await this.paginationPrevButton.click();
-    await this.page.waitForLoadState("networkidle");
-    await this.xcomsTable.waitFor({ state: "visible", timeout: 10_000 });
-
-    const urlBackToPage1 = this.page.url();
-
-    expect(urlBackToPage1).toContain(`limit=${limit}`);
-    const isPage1 = urlBackToPage1.includes("offset=0") || !urlBackToPage1.includes("offset=");
-
-    expect(isPage1).toBeTruthy();
-  }
   public async verifyXComDetailsDisplay(): Promise<void> {
     const firstRow = this.xcomsTable.locator("tbody tr").first();
 

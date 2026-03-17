@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
@@ -40,14 +40,6 @@ export class AssetListPage extends BasePage {
 
     this.searchInput = page.getByTestId("search-dags");
     this.emptyState = page.getByText(/no items/i);
-  }
-
-  public async assetCount(): Promise<number> {
-    return this.rows.count();
-  }
-
-  public async assetNames(): Promise<Array<string>> {
-    return this.rows.locator("td a").allTextContents();
   }
 
   public async navigate(): Promise<void> {
@@ -80,22 +72,6 @@ export class AssetListPage extends BasePage {
   }
 
   private async waitForTableData(): Promise<void> {
-    // Wait for actual data links to appear (not skeleton loaders)
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-
-        // Check for actual links in tbody (real data, not skeleton)
-        const links = table.querySelectorAll("tbody tr td a");
-
-        return links.length > 0;
-      },
-      undefined,
-      { timeout: 30_000 },
-    );
+    await expect(this.rows.locator("td a").first()).toBeVisible({ timeout: 30_000 });
   }
 }

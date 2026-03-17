@@ -33,5 +33,7 @@
   "name": "Nazwa",
   "producingTasks": "Zadania produkujące",
   "scheduledDags": "Zaplanowane Dagi",
-  "searchPlaceholder": "Szukaj zasobów"
+  "scheduling": "Planowanie",
+  "searchPlaceholder": "Szukaj zasobów",
+  "taskDependencies": "Zależności zadań"
 }

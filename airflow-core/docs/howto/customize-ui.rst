@@ -70,9 +70,10 @@ We can provide a JSON configuration to customize the UI.
 
 .. important::
 
-  - Currently only the ``brand`` color palette can be customized.
+  - You can customize the ``brand`` color palette, ``globalCss`` and the navigation icon via ``icon`` (and ``icon_dark_mode``).
   - You must supply ``50``-``950`` OKLCH color values for ``brand`` color.
   - OKLCH colors must have next format ``oklch(l c h)`` For more info see :ref:`config:api__theme`
+  - There is also the ability to provide custom global CSS for a fine grained theme control.
 
 .. note::
 
@@ -149,6 +150,74 @@ Dark Mode
 """""""""
 
 .. image:: ../img/change-theme/exmaple_theme_configuration_dark_mode.png
+
+3.  To add custom CSS rules to the airflow UI, you can include a ``globalCss`` key in the theme configuration. More information https://chakra-ui.com/docs/theming/customization/global-css
+
+.. code-block::
+
+  AIRFLOW__API__THEME='{
+    "tokens": {
+      "colors": {
+        "brand": {
+          "50": { "value": "oklch(0.971 0.013 17.38)" },
+          "100": { "value": "oklch(0.936 0.032 17.717)" },
+          "200": { "value": "oklch(0.885 0.062 18.334)" },
+          "300": { "value": "oklch(0.808 0.114 19.571)" },
+          "400": { "value": "oklch(0.704 0.191 22.216)" },
+          "500": { "value": "oklch(0.637 0.237 25.331)" },
+          "600": { "value": "oklch(0.577 0.245 27.325)" },
+          "700": { "value": "oklch(0.505 0.213 27.518)" },
+          "800": { "value": "oklch(0.444 0.177 26.899)" },
+          "900": { "value": "oklch(0.396 0.141 25.723)" },
+          "950": { "value": "oklch(0.258 0.092 26.042)" }
+        }
+      }
+    },
+    "globalCss": {
+      "button": {
+        "text-transform": "uppercase"
+      }
+    }
+  }'
+
+Icon (SVG-only)
+^^^^^^^^^^^^^^^
+
+You can replace the default Airflow icon in the navigation bar by providing an ``icon`` key (and optionally
+``icon_dark_mode`` for dark color mode) in the ``theme`` configuration. The value must be either an absolute
+``http(s)`` URL or an app-relative path starting with ``/``, and must point to an ``.svg`` file.
+
+.. code-block::
+
+  [api]
+
+  theme = {
+      "tokens": {
+        "colors": {
+          "brand": {
+            "50": { "value": "oklch(0.971 0.013 17.38)" },
+            "100": { "value": "oklch(0.936 0.032 17.717)" },
+            "200": { "value": "oklch(0.885 0.062 18.334)" },
+            "300": { "value": "oklch(0.808 0.114 19.571)" },
+            "400": { "value": "oklch(0.704 0.191 22.216)" },
+            "500": { "value": "oklch(0.637 0.237 25.331)" },
+            "600": { "value": "oklch(0.577 0.245 27.325)" },
+            "700": { "value": "oklch(0.505 0.213 27.518)" },
+            "800": { "value": "oklch(0.444 0.177 26.899)" },
+            "900": { "value": "oklch(0.396 0.141 25.723)" },
+            "950": { "value": "oklch(0.258 0.092 26.042)" }
+          }
+        }
+      },
+      "icon": "/static/company-icon.svg",
+      "icon_dark_mode": "/static/company-icon-dark.svg"
+    }
+
+.. note::
+
+  - Only SVG icons are supported.
+  - If the icon fails to load, Airflow falls back to its default icon.
+  - Icon sizing is controlled by the UI and cannot be configured via the theme.
 
 |
 

@@ -40,3 +40,7 @@ class AirflowCtlCredentialNotFoundException(AirflowCtlNotFoundException):
 
 class AirflowCtlConnectionException(AirflowCtlException):
     """Raise when a connection error occurs while performing an operation."""
+
+
+class AirflowCtlKeyringException(AirflowCtlException):
+    """Raise when a keyring error occurs while performing an operation."""

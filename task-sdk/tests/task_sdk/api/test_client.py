@@ -262,6 +262,33 @@ class TestClient:
         response = httpx.Response(status_code, json={"detail": f"Test {description}"})
         assert ServerResponseError.from_response(response) is None
 
+    @mock.patch("airflow.sdk.api.client.API_CLIENT_SSL_CERT", "/etc/airflow/certs/client.crt")
+    @mock.patch("airflow.sdk.api.client.API_CLIENT_SSL_KEY", "/etc/airflow/certs/client.key")
+    def test_sets_cert_tuple(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        captured: dict[str, object] = {}
+        real_init = httpx.Client.__init__
+
+        def spy_init(self, *args, **kwargs):
+            captured["cert"] = kwargs.get("cert")
+            return real_init(self, *args, **kwargs)
+
+        with mock.patch.object(httpx.Client, "__init__", spy_init):
+            make_client(httpx.MockTransport(handle_request))
+
+        assert captured["cert"] == ("/etc/airflow/certs/client.crt", "/etc/airflow/certs/client.key")
+
+    @mock.patch("airflow.sdk.api.client.API_CLIENT_SSL_CERT", "/etc/airflow/certs/client.crt")
+    @mock.patch("airflow.sdk.api.client.API_CLIENT_SSL_KEY", None)
+    def test_requires_both_cert_and_key(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        with pytest.raises(ValueError, match="Both client_ssl_cert and client_ssl_key must be set"):
+            make_client(httpx.MockTransport(handle_request))
+
 
 class TestTaskInstanceOperations:
     """
@@ -716,7 +743,7 @@ class TestVariableOperations:
             assert result.value == "test_value"
             assert call_count == 2
 
-    def test_variable_not_found(self):
+    def test_variable_not_found(self, cap_structlog):
         # Simulate a 404 response from the server
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/variables/non_existent_var":
@@ -733,11 +760,14 @@ class TestVariableOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
 
-        resp = client.variables.get(key="non_existent_var")
+        with cap_structlog.at_level("debug"):
+            resp = client.variables.get(key="non_existent_var")
 
         assert isinstance(resp, ErrorResponse)
         assert resp.error == ErrorType.VARIABLE_NOT_FOUND
         assert resp.detail == {"key": "non_existent_var"}
+        # Verify the log is at debug level, not error (#52771)
+        assert {"log_level": "debug", "event": "Variable not found"} in cap_structlog
 
     def test_variable_get_500_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):

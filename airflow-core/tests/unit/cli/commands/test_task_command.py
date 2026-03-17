@@ -241,27 +241,32 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @mock.patch("airflow.providers.standard.triggers.file.os.path.getmtime", return_value=0)
     @mock.patch(
         "airflow.providers.standard.triggers.file.glob", return_value=["/tmp/temporary_file_for_testing"]
     )
-    @mock.patch("airflow.providers.standard.triggers.file.os")
     @mock.patch("airflow.providers.standard.sensors.filesystem.FileSensor.poke", return_value=False)
-    def test_cli_test_with_deferrable_operator(self, mock_pock, mock_os, mock_glob, mock_getmtime, caplog):
-        mock_os.path.isfile.return_value = True
-        with caplog.at_level(level=logging.INFO):
-            task_command.task_test(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "test",
-                        "example_sensors",
-                        "wait_for_file_async",
-                        DEFAULT_DATE.isoformat(),
-                    ]
+    def test_cli_test_with_deferrable_operator(self, mock_poke, mock_glob, caplog):
+        mock_stat = mock.MagicMock()
+        mock_stat.st_mtime = 0
+        mock_path_instance = mock.MagicMock()
+        mock_path_instance.is_file = mock.AsyncMock(return_value=True)
+        mock_path_instance.stat = mock.AsyncMock(return_value=mock_stat)
+        mock_anyio_path = mock.MagicMock(return_value=mock_path_instance)
+
+        with mock.patch("airflow.providers.standard.triggers.file.anyio.Path", mock_anyio_path):
+            with caplog.at_level(level=logging.INFO):
+                task_command.task_test(
+                    self.parser.parse_args(
+                        [
+                            "tasks",
+                            "test",
+                            "example_sensors",
+                            "wait_for_file_async",
+                            DEFAULT_DATE.isoformat(),
+                        ]
+                    )
                 )
-            )
-            output = caplog.text
+                output = caplog.text
         assert "Found File /tmp/temporary_file_for_testing" in output
 
     def test_task_render(self):
@@ -304,6 +309,68 @@ class TestCliTasks:
         assert "[2]" not in output
         assert "[3]" not in output
         assert "property: op_args" in output
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_mapped_task_render_out_of_range_map_index(self):
+        """Raise ValueError when map_index exceeds the parse-time mapped count."""
+        with pytest.raises(ValueError, match=r"map_index 5 is out of range.*3 mapped instance"):
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer_literal",
+                        "2022-01-01",
+                        "--map-index",
+                        "5",
+                    ]
+                )
+            )
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_mapped_task_render_boundary_map_index(self):
+        """Render should succeed for the last valid map_index (count - 1)."""
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer_literal",
+                        "2022-01-01",
+                        "--map-index",
+                        "2",
+                    ]
+                )
+            )
+        output = stdout.getvalue()
+        assert "[3]" in output
+        assert "property: op_args" in output
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_mapped_task_render_dynamic_skips_validation(self):
+        """Dynamic (XCom-based) mapping should skip map_index validation."""
+        # consumer depends on XCom from make_arg_lists, so parse-time count
+        # is not available. Validation should be skipped (NotFullyPopulated).
+        # The render may fail for other reasons, but not with our
+        # "out of range" ValueError.
+        with pytest.raises(Exception) as exc_info:  # noqa: PT011
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer",
+                        "2022-01-01",
+                        "--map-index",
+                        "999",
+                    ]
+                )
+            )
+        assert "out of range" not in str(exc_info.value)
 
     def test_mapped_task_render_with_template(self, dag_maker):
         """

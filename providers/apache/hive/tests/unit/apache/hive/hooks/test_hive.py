@@ -117,6 +117,33 @@ class TestHiveCliHook:
             close_fds=True,
         )
 
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.send_sql_hook_lineage")
+    @mock.patch("tempfile.tempdir", "/tmp/")
+    @mock.patch("tempfile._RandomNameSequence.__next__")
+    @mock.patch("subprocess.Popen")
+    def test_run_cli_hook_lineage(self, mock_popen, mock_temp_dir, mock_send_lineage):
+        mock_subprocess = MockSubProcess()
+        mock_popen.return_value = mock_subprocess
+        mock_temp_dir.return_value = "test_run_cli"
+        hql = "SHOW DATABASES"
+        envron_name = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "AIRFLOW_CTX_DAG_ID": "test_dag_id",
+                "AIRFLOW_CTX_TASK_ID": "test_task_id",
+                envron_name: "2015-01-01T00:00:00+00:00",
+                "AIRFLOW_CTX_TRY_NUMBER": "1",
+                "AIRFLOW_CTX_DAG_RUN_ID": "55",
+                "AIRFLOW_CTX_DAG_OWNER": "airflow",
+                "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
+            },
+        ):
+            hook = MockHiveCliHook()
+            hook.run_cli(hql, schema="some_schema")
+
+        mock_send_lineage.assert_called_once_with(context=hook, sql=f"USE some_schema;\n{hql}\n")
+
     def test_hive_cli_hook_invalid_schema(self):
         hook = InvalidHiveCliHook()
         with pytest.raises(RuntimeError) as error:
@@ -650,6 +677,47 @@ class TestHiveServer2Hook:
                 database="default",
             )
 
+    @mock.patch("pyhive.hive.connect")
+    def test_get_conn_with_password_plain(self, mock_connect):
+        conn_id = "conn_plain_with_password"
+        conn_env = CONN_ENV_PREFIX + conn_id.upper()
+
+        with mock.patch.dict(
+            "os.environ",
+            {conn_env: "jdbc+hive2://login:password@localhost:10000/default?auth_mechanism=PLAIN"},
+        ):
+            HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+            mock_connect.assert_called_once_with(
+                host="localhost",
+                port=10000,
+                auth="PLAIN",
+                kerberos_service_name=None,
+                username="login",
+                password="password",
+                database="default",
+            )
+
+    @mock.patch("pyhive.hive.connect")
+    def test_get_conn_with_password_none_auth(self, mock_connect):
+        """Test that password is passed through even when auth_mechanism is NONE."""
+        conn_id = "conn_none_with_password"
+        conn_env = CONN_ENV_PREFIX + conn_id.upper()
+
+        with mock.patch.dict(
+            "os.environ",
+            {conn_env: "jdbc+hive2://user:mypassword@localhost:10000/default"},
+        ):
+            HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+            mock_connect.assert_called_once_with(
+                host="localhost",
+                port=10000,
+                auth="NONE",
+                kerberos_service_name=None,
+                username="user",
+                password="mypassword",
+                database="default",
+            )
+
     @pytest.mark.parametrize(
         ("host", "port", "schema", "message"),
         [
@@ -766,6 +834,20 @@ class TestHiveServer2Hook:
         results = hook.get_results(query, schema=self.database)
 
         assert results["data"] == [(1, 1), (2, 2)]
+
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.send_sql_hook_lineage")
+    def test_get_results_sends_hook_lineage(self, mock_send_lineage):
+        hook = MockHiveServer2Hook()
+
+        query = f"SELECT * FROM {self.table}"
+        hook.get_results(query, schema=self.database)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == query
+        assert call_kw["cur"] is hook.mock_cursor
+        assert call_kw["default_schema"] == self.database
 
     def test_to_csv(self):
         hook = MockHiveServer2Hook()
@@ -962,18 +1044,22 @@ class TestHiveCli:
         [
             (
                 {"high_availability": "true"},
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
             (
                 {"high_availability": "false"},
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
-            ({}, "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"),
+            (
+                {"high_availability": "true", "ssl": "false", "zoo_keeper_namespace": "custom_hive_server"},
+                "serviceDiscoveryMode=zooKeeper;ssl=false;zooKeeperNamespace=custom_hive_server",
+            ),
+            ({}, "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2"),
             # with proxy user
             (
                 {"proxy_user": "a_user_proxy", "high_availability": "true"},
                 "hive.server2.proxy.user=a_user_proxy;"
-                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+                "serviceDiscoveryMode=zooKeeper;ssl=True;zooKeeperNamespace=hiveserver2",
             ),
         ],
     )

@@ -30,8 +30,9 @@ from contextlib import suppress
 from datetime import datetime
 from socket import socket
 from traceback import format_exception
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, TextIO, TypedDict
 
+import anyio
 import attrs
 import structlog
 from pydantic import BaseModel, Field, TypeAdapter
@@ -44,10 +45,11 @@ from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
+from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
-from airflow.observability.trace import DebugTrace, Trace, add_debug_span
+from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
@@ -166,6 +168,8 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     def _execute(self) -> int | None:
         self.log.info("Starting the triggerer")
         self.register_signals()
+        stats_factory = stats_utils.get_stats_factory(Stats)
+        Stats.initialize(factory=stats_factory)
         try:
             # Kick off runner sub-process without DB access
             self.trigger_runner = TriggerRunnerSupervisor.start(
@@ -296,6 +300,8 @@ class TriggerLoggingFactory:
 
     bound_logger: WrappedLogger = attrs.field(init=False, repr=False)
 
+    _filehandle: TextIO | BinaryIO = attrs.field(init=False, repr=False)
+
     def __call__(self, processors: Iterable[structlog.typing.Processor]) -> WrappedLogger:
         if hasattr(self, "bound_logger"):
             return self.bound_logger
@@ -306,12 +312,19 @@ class TriggerLoggingFactory:
 
         pretty_logs = False
         if pretty_logs:
-            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("w", buffering=1))
+            self._filehandle = log_file.open("w", buffering=1)
+            underlying_logger: WrappedLogger = structlog.WriteLogger(self._filehandle)
         else:
-            underlying_logger = structlog.BytesLogger(log_file.open("wb"))
+            self._filehandle = log_file.open("wb")
+            underlying_logger = structlog.BytesLogger(self._filehandle)
         logger = structlog.wrap_logger(underlying_logger, processors=processors).bind()
         self.bound_logger = logger
         return logger
+
+    def close(self):
+        # Explicitly close the file descriptor.
+        if hasattr(self, "_filehandle") and self._filehandle and not self._filehandle.closed:
+            self._filehandle.close()
 
     def upload_to_remote(self):
         from airflow.sdk.log import upload_to_remote
@@ -415,10 +428,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             for id in msg.finished or ():
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
-                # Remove logger from the cache, and since structlog doesn't have an explicit close method, we
-                # only need to remove the last reference to it to close the open FH
                 if factory := self.logger_cache.pop(id, None):
                     factory.upload_to_remote()
+                    # Need to close the FD explicitly, as it is not closed when logger is removed.
+                    factory.close()
 
             response = messages.TriggerStateSync(
                 to_create=[],
@@ -541,18 +554,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if not self.is_alive():
                 log.error("Trigger runner process has died! Exiting.")
                 break
-            with DebugTrace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner"):
-                self.load_triggers()
+            self.load_triggers()
 
-                # Wait for up to 1 second for activity
-                self._service_subprocess(1)
+            # Wait for up to 1 second for activity
+            self._service_subprocess(1)
 
-                self.handle_events()
-                self.handle_failed_triggers()
-                self.clean_unused()
-                self.heartbeat()
+            self.handle_events()
+            self.handle_failed_triggers()
+            self.clean_unused()
+            self.heartbeat()
 
-                self.emit_metrics()
+            self.emit_metrics()
 
     def heartbeat(self):
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
@@ -560,7 +572,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def heartbeat_callback(self, session: Session | None = None) -> None:
         Stats.incr("triggerer_heartbeat", 1, 1)
 
-    @add_debug_span
     def load_triggers(self):
         """Query the database for the triggers we're supposed to be running and update the runner."""
         Trigger.assign_unassigned(
@@ -572,7 +583,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         ids = Trigger.ids_for_triggerer(self.job.id, queues=self.queues)
         self.update_triggers(set(ids))
 
-    @add_debug_span
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
         while self.events:
@@ -583,12 +593,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # Emit stat event
             Stats.incr("triggers.succeeded")
 
-    @add_debug_span
     def clean_unused(self):
         """Clean out unused or finished triggers."""
         Trigger.clean_unused()
 
-    @add_debug_span
     def handle_failed_triggers(self):
         """
         Handle "failed" triggers. - ones that errored or exited before they sent an event.
@@ -616,15 +624,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             capacity_left,
             tags={},
             extra_tags={"hostname": self.job.hostname},
-        )
-
-        span = Trace.get_current_span()
-        span.set_attributes(
-            {
-                "trigger host": self.job.hostname,
-                "triggers running": len(self.running_triggers),
-                "capacity left": capacity_left,
-            }
         )
 
     def update_triggers(self, requested_trigger_ids: set[int]):
@@ -688,9 +687,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         ti_id=new_trigger_orm.task_instance.id,
                     )
                     continue
-                ser_ti = workloads.TaskInstance.model_validate(
-                    new_trigger_orm.task_instance, from_attributes=True
-                )
+                ser_ti = TaskInstanceDTO.model_validate(new_trigger_orm.task_instance, from_attributes=True)
                 # When producing logs from TIs, include the job id producing the logs to disambiguate it.
                 self.logger_cache[new_id] = TriggerLoggingFactory(
                     log_path=f"{log_path}.trigger.{self.job.id}.log",
@@ -857,6 +854,7 @@ class TriggerRunner:
 
     # Should-we-stop flag
     stop: bool = False
+    _stop_event: anyio.Event | None = None
 
     # TODO: connect this to the parent process
     log: FilteringBoundLogger = structlog.get_logger()
@@ -872,10 +870,13 @@ class TriggerRunner:
         self.events = deque()
         self.failed_triggers = deque()
         self.job_id = None
+        self._stop_event = None
 
     def _handle_signal(self, signum, frame) -> None:
         """Handle termination signals gracefully."""
         self.stop = True
+        if self._stop_event is not None:
+            self._stop_event.set()
 
     def run(self):
         """Sync entrypoint - just run arun in an async loop."""
@@ -893,6 +894,7 @@ class TriggerRunner:
         await self.init_comms()
 
         watchdog = asyncio.create_task(self.block_watchdog())
+        stop_event = self._stop_event = anyio.Event()
 
         last_status = time.monotonic()
         try:
@@ -908,8 +910,9 @@ class TriggerRunner:
                 await self.sync_state_to_supervisor(finished_ids)
                 await self.create_triggers()
                 await self.cancel_triggers()
-                # Sleep for a bit
-                await asyncio.sleep(1)
+                # Sleep for a bit, or exit early if stop is requested.
+                with anyio.move_on_after(1):
+                    await stop_event.wait()
                 # Every minute, log status
                 if (now := time.monotonic()) - last_status >= 60:
                     watchers = len([trigger for trigger in self.triggers.values() if trigger["is_watcher"]])
