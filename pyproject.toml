@@ -772,6 +772,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 # TID253: Banned top level imports, e.g. pandas, numpy
 # S101: Use `assert`
 # TRY002: Use `raise Exception`
+"scripts/tests/*" = ["D", "S101", "TRY002"]
 "dev/perf/*" = ["TID253"]
 "dev/check_files.py" = ["S101"]
 "dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
