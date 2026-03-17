@@ -52,7 +52,6 @@ from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
-    DagStateResponse,
     TaskInstance,
     TaskInstanceState,
     TaskStatesResponse,
@@ -1484,10 +1483,7 @@ class ActivitySubprocess(WatchedSubprocess):
             dg_state = self.client.dags.get_state(
                 dag_id=msg.dag_id,
             )
-            if isinstance(dg_state, DagStateResponse):
-                resp = DagStateResult.from_api_response(dg_state)
-            else:
-                resp = dg_state
+            resp = DagStateResult.from_api_response(dg_state)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

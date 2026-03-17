@@ -17,8 +17,6 @@
 
 from __future__ import annotations
 
-import logging
-
 from fastapi import APIRouter, HTTPException, status
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -26,9 +24,6 @@ from airflow.api_fastapi.execution_api.datamodels.dags import DagStateResponse
 from airflow.models.dag import DagModel
 
 router = APIRouter()
-
-
-log = logging.getLogger(__name__)
 
 
 @router.get(
@@ -41,7 +36,7 @@ def get_dag_state(
     dag_id: str,
     session: SessionDep,
 ) -> DagStateResponse:
-    """Get a DAG Run State."""
+    """Get the state of a DAG."""
     dag_model: DagModel | None = session.get(DagModel, dag_id)
     if not dag_model:
         raise HTTPException(
@@ -52,6 +47,4 @@ def get_dag_state(
             },
         )
 
-    is_paused = False if dag_model.is_paused is None else dag_model.is_paused
-
-    return DagStateResponse(is_paused=is_paused)
+    return DagStateResponse(is_paused=dag_model.is_paused)

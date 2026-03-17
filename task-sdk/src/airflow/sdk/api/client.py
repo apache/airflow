@@ -1027,7 +1027,8 @@ class Client(httpx.Client):
 
     @lru_cache()  # type: ignore[misc]
     @property
-    def dags(self):
+    def dags(self) -> DagsOperations:
+        """Operations related to DAGs."""
         return DagsOperations(self)
 
 

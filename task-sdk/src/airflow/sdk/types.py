@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.execution_time.comms import DagStateResult
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
@@ -182,6 +183,9 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     @staticmethod
     def get_dagrun_state(dag_id: str, run_id: str) -> str: ...
+
+    @staticmethod
+    def get_dag_state(dag_id: str) -> DagStateResult: ...
 
 
 # Public alias for RuntimeTaskInstanceProtocol
