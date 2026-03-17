@@ -448,7 +448,7 @@ def _emit_task_span(ti, state):
             log.warning("ti has no start date", ti=ti)
         span = tracer.start_span(
             name=f"task_run.{ti.task_id}",
-            start_time=int((ti.start_date or timezone.utcnow()).timestamp() * 1e9),
+            start_time=int((ti.queued_dttm or timezone.utcnow()).timestamp() * 1e9),
         )
         span.set_attributes(
             {
