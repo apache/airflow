@@ -244,7 +244,6 @@ def upgrade():
 
 def downgrade():
     """Restore Deadline table's inline callback fields from callback_id foreign key."""
-
     _CALLBACK_STATE_SUCCESS = "success"
     _CALLBACK_STATE_FAILED = "failed"
 
