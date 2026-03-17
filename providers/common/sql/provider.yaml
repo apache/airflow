@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1771577228
+source-date-epoch: 1773070489
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.33.0
   - 1.32.0
   - 1.31.0
   - 1.30.4
@@ -103,6 +104,7 @@ operators:
     python-modules:
       - airflow.providers.common.sql.operators.sql
       - airflow.providers.common.sql.operators.generic_transfer
+      - airflow.providers.common.sql.operators.analytics
 
 dialects:
   - dialect-type: default
@@ -128,3 +130,5 @@ sensors:
 task-decorators:
   - class-name: airflow.providers.common.sql.decorators.sql.sql_task
     name: sql
+  - class-name: airflow.providers.common.sql.decorators.analytics.analytics_task
+    name: analytics

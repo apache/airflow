@@ -28,7 +28,6 @@ from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, Call
 TEST_MESSAGE = "test_message"
 TEST_CALLBACK_PATH = "classpath.test_callback"
 TEST_CALLBACK_KWARGS = {"message": TEST_MESSAGE, "context": {"dag_run": "test"}}
-TEST_TRIGGER = CallbackTrigger(callback_path=TEST_CALLBACK_PATH, callback_kwargs=TEST_CALLBACK_KWARGS)
 
 
 class ExampleAsyncNotifier(BaseNotifier):
@@ -46,6 +45,14 @@ class ExampleAsyncNotifier(BaseNotifier):
 
 
 class TestCallbackTrigger:
+    @pytest.fixture
+    def trigger(self):
+        """Create a fresh trigger per test to avoid shared mutable state."""
+        return CallbackTrigger(
+            callback_path=TEST_CALLBACK_PATH,
+            callback_kwargs=dict(TEST_CALLBACK_KWARGS),
+        )
+
     @pytest.fixture
     def mock_import_string(self):
         with mock.patch("airflow.triggers.callback.import_string") as m:
@@ -72,29 +79,30 @@ class TestCallbackTrigger:
         }
 
     @pytest.mark.asyncio
-    async def test_run_success_with_async_function(self, mock_import_string):
+    async def test_run_success_with_async_function(self, trigger, mock_import_string):
         """Test trigger handles async functions correctly."""
         callback_return_value = "some value"
         mock_callback = mock.AsyncMock(return_value=callback_return_value)
         mock_import_string.return_value = mock_callback
 
-        trigger_gen = TEST_TRIGGER.run()
+        trigger_gen = trigger.run()
 
         running_event = await anext(trigger_gen)
         assert running_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
 
         success_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
+        # AsyncMock accepts **kwargs, so _accepts_context returns True and context is passed through
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
         assert success_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
         assert success_event.payload[PAYLOAD_BODY_KEY] == callback_return_value
 
     @pytest.mark.asyncio
-    async def test_run_success_with_notifier(self, mock_import_string):
+    async def test_run_success_with_notifier(self, trigger, mock_import_string):
         """Test trigger handles async notifier classes correctly."""
         mock_import_string.return_value = ExampleAsyncNotifier
 
-        trigger_gen = TEST_TRIGGER.run()
+        trigger_gen = trigger.run()
 
         running_event = await anext(trigger_gen)
         assert running_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
@@ -108,18 +116,19 @@ class TestCallbackTrigger:
         )
 
     @pytest.mark.asyncio
-    async def test_run_failure(self, mock_import_string):
+    async def test_run_failure(self, trigger, mock_import_string):
         exc_msg = "Something went wrong"
         mock_callback = mock.AsyncMock(side_effect=RuntimeError(exc_msg))
         mock_import_string.return_value = mock_callback
 
-        trigger_gen = TEST_TRIGGER.run()
+        trigger_gen = trigger.run()
 
         running_event = await anext(trigger_gen)
         assert running_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.RUNNING
 
         failure_event = await anext(trigger_gen)
         mock_import_string.assert_called_once_with(TEST_CALLBACK_PATH)
+        # AsyncMock accepts **kwargs, so _accepts_context returns True and context is passed through
         mock_callback.assert_called_once_with(**TEST_CALLBACK_KWARGS)
         assert failure_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.FAILED
         assert all(s in failure_event.payload[PAYLOAD_BODY_KEY] for s in ["raise", "RuntimeError", exc_msg])

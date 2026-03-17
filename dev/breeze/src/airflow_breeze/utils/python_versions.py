@@ -19,7 +19,7 @@ from __future__ import annotations
 import sys
 
 from airflow_breeze.global_constants import ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 
 
 def get_python_version_list(python_versions: str) -> list[str]:
@@ -32,12 +32,10 @@ def get_python_version_list(python_versions: str) -> list[str]:
     errors = False
     for python in python_version_list:
         if python not in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS:
-            get_console().print(
-                f"[error]The Python version {python} passed in {python_versions} is wrong.[/]"
-            )
+            console_print(f"[error]The Python version {python} passed in {python_versions} is wrong.[/]")
             errors = True
     if errors:
-        get_console().print(
+        console_print(
             f"\nSome of the Python versions passed are not in the "
             f"list: {ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS}. Quitting.\n"
         )

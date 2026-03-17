@@ -62,7 +62,6 @@ from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
 from airflow.observability.metrics import stats_utils
-from airflow.observability.trace import DebugTrace
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.typing_compat import assert_never
@@ -151,6 +150,29 @@ def utc_epoch() -> datetime:
     return result
 
 
+class _StubSelector(selectors.BaseSelector):
+    """
+    Stub to stand in until the real selector is created.
+
+    This is used in DagFileProcessorManager to keep Mypy happy, and emit a
+    slightly better error message than TypeError (if None is used) if a
+    contributor accidentally initializes a selector in a wrong place in the
+    future.
+
+    Some selectors do not work well in daemon mode after fork (exact reason
+    unknown; it's CPython internal). This stub allows us to delay creating a
+    selector until after forking and work around the issue.
+    """
+
+    def __getattribute__(self, name):
+        raise RuntimeError("Selector not initialized")
+
+    def register(self, fileobj, events, data=None): ...
+    def unregister(self, fileobj): ...
+    def select(self, timeout=None): ...
+    def get_map(self): ...
+
+
 @attrs.define(kw_only=True)
 class DagFileProcessorManager(LoggingMixin):
     """
@@ -172,7 +194,7 @@ class DagFileProcessorManager(LoggingMixin):
     processor_timeout: float = attrs.field(
         factory=_config_int_factory("dag_processor", "dag_file_processor_timeout")
     )
-    selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
+    selector: selectors.BaseSelector = attrs.field(factory=_StubSelector)
 
     _parallelism: int = attrs.field(factory=_config_int_factory("dag_processor", "parsing_processes"))
 
@@ -256,6 +278,14 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("Finished terminating DAG processors.")
         sys.exit(os.EX_OK)
 
+    def sync_bundles(self) -> None:
+        """Sync configured DAG bundles to the metadata database."""
+        DagBundlesManager().sync_bundles_to_db()
+
+    def get_all_bundles(self) -> list[BaseDagBundle]:
+        """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
+        return list(DagBundlesManager().get_all_dag_bundles())
+
     def run(self):
         """
         Use multiple processes to parse and generate tasks for the DAGs in parallel.
@@ -273,6 +303,10 @@ class DagFileProcessorManager(LoggingMixin):
         # Related: https://github.com/apache/airflow/pull/57459
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
 
+        # Initialization is delayed until here to avoid fork issues in some
+        # selector implementations. Also see _StubSelector documentation.
+        self.selector = selectors.DefaultSelector()
+
         stats_factory = stats_utils.get_stats_factory(Stats)
         Stats.initialize(factory=stats_factory)
 
@@ -281,9 +315,8 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
 
-        DagBundlesManager().sync_bundles_to_db()
-
-        dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+        self.sync_bundles()
+        dag_bundles = self.get_all_bundles()
         if self.bundle_names_to_parse:
             dag_bundles = [b for b in dag_bundles if b.name in self.bundle_names_to_parse]
         self._dag_bundles = dag_bundles
@@ -321,11 +354,15 @@ class DagFileProcessorManager(LoggingMixin):
         if elapsed_time_since_cleanup < self.stale_bundle_cleanup_interval:
             return
         try:
-            BundleUsageTrackingManager().remove_stale_bundle_versions()
+            self.cleanup_stale_bundle_versions()
         except Exception:
             self.log.exception("Error removing stale bundle versions")
         finally:
             self._last_stale_bundle_cleanup_time = now
+
+    def cleanup_stale_bundle_versions(self) -> None:
+        """Clean up stale DAG bundle version usage records."""
+        BundleUsageTrackingManager().remove_stale_bundle_versions()
 
     @provide_session
     def deactivate_stale_dags(
@@ -458,6 +495,22 @@ class DagFileProcessorManager(LoggingMixin):
         if self._force_refresh_bundles:
             self.log.info("Bundles being force refreshed: %s", ", ".join(self._force_refresh_bundles))
 
+    def should_skip_refresh(
+        self,
+        *,
+        bundle: BaseDagBundle,
+        elapsed_time_since_refresh: float,
+        current_version_matches_db: bool,
+        previously_seen: bool,
+    ) -> bool:
+        """Return ``True`` when a Dag bundle refresh should be skipped."""
+        return (
+            elapsed_time_since_refresh < bundle.refresh_interval
+            and current_version_matches_db
+            and previously_seen
+            and bundle.name not in self._force_refresh_bundles
+        )
+
     @provide_session
     def _get_priority_files(self, session: Session = NEW_SESSION) -> list[DagFileInfo]:
         files: list[DagFileInfo] = []
@@ -587,11 +640,11 @@ class DagFileProcessorManager(LoggingMixin):
                     current_version_matches_db = True
 
                 previously_seen = bundle.name in self._bundle_versions
-                if (
-                    elapsed_time_since_refresh < bundle.refresh_interval
-                    and current_version_matches_db
-                    and previously_seen
-                    and bundle.name not in self._force_refresh_bundles
+                if self.should_skip_refresh(
+                    bundle=bundle,
+                    elapsed_time_since_refresh=elapsed_time_since_refresh,
+                    current_version_matches_db=current_version_matches_db,
+                    previously_seen=previously_seen,
                 ):
                     self.log.info("Not time to refresh bundle %s", bundle.name)
                     continue
@@ -1133,10 +1186,11 @@ class DagFileProcessorManager(LoggingMixin):
             duration = now - processor.start_time
             if duration > self.processor_timeout:
                 self.log.error(
-                    "Processor for %s with PID %s started %d ago killing it.",
+                    "Processor for %s with PID %s has been running for %.2f seconds, exceeding the timeout of %.2f seconds. Killing it!",
                     file,
                     processor.pid,
                     duration,
+                    self.processor_timeout,
                 )
                 file_name = str(file.rel_path)
                 Stats.decr("dag_processing.processes", tags={"file_path": file_name, "action": "timeout"})
@@ -1222,17 +1276,9 @@ def emit_metrics(*, parse_time: float, stats: Sequence[DagFileStat]):
     This is called once every time around the parsing "loop" - i.e. after
     all files have been parsed.
     """
-    with DebugTrace.start_span(span_name="emit_metrics", component="DagFileProcessorManager") as span:
-        Stats.gauge("dag_processing.total_parse_time", parse_time)
-        Stats.gauge("dagbag_size", sum(stat.num_dags for stat in stats))
-        Stats.gauge("dag_processing.import_errors", sum(stat.import_errors for stat in stats))
-        span.set_attributes(
-            {
-                "total_parse_time": parse_time,
-                "dag_bag_size": sum(stat.num_dags for stat in stats),
-                "import_errors": sum(stat.import_errors for stat in stats),
-            }
-        )
+    Stats.gauge("dag_processing.total_parse_time", parse_time)
+    Stats.gauge("dagbag_size", sum(stat.num_dags for stat in stats))
+    Stats.gauge("dag_processing.import_errors", sum(stat.import_errors for stat in stats))
 
 
 def process_parse_results(

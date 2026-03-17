@@ -842,7 +842,7 @@ class TestWorkerSets:
         }
 
     @pytest.mark.parametrize(
-        "values",
+        "workers_values",
         [
             {
                 "celery": {
@@ -852,9 +852,7 @@ class TestWorkerSets:
                             "name": "test",
                             "kerberosInitContainer": {
                                 "enabled": True,
-                                "securityContexts": {
-                                    "container": {"runAsUser": 10},
-                                },
+                                "securityContexts": {"container": {"runAsUser": 10}},
                             },
                         }
                     ],
@@ -873,9 +871,26 @@ class TestWorkerSets:
                             "name": "test",
                             "kerberosInitContainer": {
                                 "enabled": True,
-                                "securityContexts": {
-                                    "container": {"runAsUser": 10},
-                                },
+                                "securityContexts": {"container": {"runAsUser": 10}},
+                            },
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "kerberosInitContainer": {
+                        "securityContexts": {
+                            "container": {"allowPrivilegeEscalation": False},
+                        }
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosInitContainer": {
+                                "enabled": True,
+                                "securityContexts": {"container": {"runAsUser": 10}},
                             },
                         }
                     ],
@@ -883,9 +898,9 @@ class TestWorkerSets:
             },
         ],
     )
-    def test_overwrite_kerberos_init_container_security_context(self, values):
+    def test_overwrite_kerberos_init_container_security_context(self, workers_values):
         docs = render_chart(
-            values={"workers": values},
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -894,7 +909,7 @@ class TestWorkerSets:
         ) == {"runAsUser": 10}
 
     @pytest.mark.parametrize(
-        "values",
+        "workers_values",
         [
             {
                 "celery": {
@@ -931,11 +946,30 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "kerberosInitContainer": {
+                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}}
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosInitContainer": {
+                                "enabled": True,
+                                "containerLifecycleHooks": {
+                                    "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
-    def test_overwrite_kerberos_init_container_lifecycle_hooks(self, values):
+    def test_overwrite_kerberos_init_container_lifecycle_hooks(self, workers_values):
         docs = render_chart(
-            values={"workers": values},
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -943,24 +977,55 @@ class TestWorkerSets:
             "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
         ) == {"postStart": {"exec": {"command": ["echo", "release-name"]}}}
 
-    def test_overwrite_container_lifecycle_hooks(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [
-                            {
-                                "name": "test",
-                                "containerLifecycleHooks": {
-                                    "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
-                                },
-                            }
-                        ],
-                    },
-                }
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                            },
+                        }
+                    ],
+                },
             },
+            {
+                "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                            },
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}},
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "containerLifecycleHooks": {
+                                "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
+                            },
+                        }
+                    ],
+                },
+            },
+        ],
+    )
+    def test_overwrite_container_lifecycle_hooks(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -973,8 +1038,7 @@ class TestWorkerSets:
         docs = render_chart(
             values={
                 "workers": {
-                    "celery": {"enableDefault": enable_default},
-                    "podDisruptionBudget": {"enabled": True},
+                    "celery": {"enableDefault": enable_default, "podDisruptionBudget": {"enabled": True}},
                 }
             },
             show_only=["templates/workers/worker-poddisruptionbudget.yaml"],
@@ -994,9 +1058,9 @@ class TestWorkerSets:
             name="test",
             values={
                 "workers": {
-                    "podDisruptionBudget": {"enabled": True},
                     "celery": {
                         "enableDefault": enable_default,
+                        "podDisruptionBudget": {"enabled": True},
                         "sets": [
                             {"name": "set1"},
                             {"name": "set2"},
@@ -1024,38 +1088,82 @@ class TestWorkerSets:
 
         assert docs[0] is not None
 
-    def test_overwrite_pod_disruption_budget_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "podDisruptionBudget": {"enabled": True},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "podDisruptionBudget": {"enabled": False}}],
-                    },
-                }
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "podDisruptionBudget": {"enabled": False}}],
+                },
             },
+            {
+                "podDisruptionBudget": {"enabled": True},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "podDisruptionBudget": {"enabled": False}}],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "podDisruptionBudget": {"enabled": True},
+                    "sets": [{"name": "test", "podDisruptionBudget": {"enabled": False}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_pod_disruption_budget_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-poddisruptionbudget.yaml"],
         )
 
         assert len(docs) == 0
 
-    def test_overwrite_pod_disruption_budget_config(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "podDisruptionBudget": {"enabled": True, "config": {"maxUnavailable": 1}},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [
-                            {
-                                "name": "test",
-                                "podDisruptionBudget": {"enabled": True, "config": {"minAvailable": 1}},
-                            }
-                        ],
-                    },
-                }
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "podDisruptionBudget": {"enabled": True, "config": {"minAvailable": 1}},
+                        }
+                    ],
+                },
             },
+            {
+                "podDisruptionBudget": {"enabled": True, "config": {"maxUnavailable": 1}},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "podDisruptionBudget": {"enabled": True, "config": {"minAvailable": 1}},
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "podDisruptionBudget": {"enabled": True, "config": {"maxUnavailable": 1}},
+                    "sets": [
+                        {
+                            "name": "test",
+                            "podDisruptionBudget": {"enabled": True, "config": {"minAvailable": 1}},
+                        }
+                    ],
+                },
+            },
+        ],
+    )
+    def test_overwrite_pod_disruption_budget_config(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-poddisruptionbudget.yaml"],
         )
 
@@ -1187,8 +1295,8 @@ class TestWorkerSets:
             name="test",
             values={
                 "workers": {
-                    "keda": {"enabled": True},
                     "celery": {
+                        "keda": {"enabled": True},
                         "enableDefault": enable_default,
                         "sets": [
                             {"name": "set1"},
@@ -1214,77 +1322,133 @@ class TestWorkerSets:
 
         assert len(docs) == 1
 
-    def test_overwrite_keda_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"enabled": True},
+                "celery": {"enableDefault": False, "sets": [{"name": "test", "keda": {"enabled": False}}]},
+            },
+            {
+                "celery": {
                     "keda": {"enabled": True},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": False}}],
-                    },
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": False}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
         assert len(docs) == 0
 
-    def test_overwrite_keda_pooling_interval(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "pollingInterval": 10}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"pollingInterval": 1},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "pollingInterval": 10}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"pollingInterval": 1},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "pollingInterval": 10}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_pooling_interval(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
         assert jmespath.search("spec.pollingInterval", docs[0]) == 10
 
-    def test_overwrite_keda_cooldown_period(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "cooldownPeriod": 10}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"cooldownPeriod": 1},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "cooldownPeriod": 10}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"cooldownPeriod": 1},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "cooldownPeriod": 10}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_cooldown_period(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
         assert jmespath.search("spec.cooldownPeriod", docs[0]) == 10
 
-    def test_overwrite_keda_min_replica_count(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "minReplicaCount": 10}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"minReplicaCount": 1},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "minReplicaCount": 10}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"minReplicaCount": 1},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "minReplicaCount": 10}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_min_replica_count(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
         assert jmespath.search("spec.minReplicaCount", docs[0]) == 10
 
-    def test_overwrite_keda_max_replica_count(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "maxReplicaCount": 5}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"maxReplicaCount": 1},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "maxReplicaCount": 5}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"maxReplicaCount": 1},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "maxReplicaCount": 5}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_max_replica_count(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
@@ -1340,6 +1504,35 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "keda": {
+                        "advanced": {
+                            "horizontalPodAutoscalerConfig": {
+                                "behavior": {
+                                    "scaleDown": {
+                                        "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "keda": {
+                                "enabled": True,
+                                "advanced": {
+                                    "horizontalPodAutoscalerConfig": {
+                                        "behavior": {"scaleDown": {"stabilizationWindowSeconds": 300}}
+                                    }
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_keda_advanced(self, workers_values):
@@ -1352,32 +1545,57 @@ class TestWorkerSets:
             "horizontalPodAutoscalerConfig": {"behavior": {"scaleDown": {"stabilizationWindowSeconds": 300}}}
         }
 
-    def test_overwrite_keda_query(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "query": "test"}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"query": "not"},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "query": "test"}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"query": "not"},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "query": "test"}}],
                 }
             },
+        ],
+    )
+    def test_overwrite_keda_query(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
 
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == "test"
 
-    def test_overwrite_keda_use_pgbouncer_enable(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"usePgbouncer": False},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": True}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"usePgbouncer": False},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": True}}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_keda_use_pgbouncer_enable(self, workers_values):
         docs = render_chart(
             values={
                 "pgbouncer": {"enabled": True},
-                "workers": {
-                    "keda": {"usePgbouncer": False},
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": True}}],
-                    },
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
@@ -1387,16 +1605,30 @@ class TestWorkerSets:
             == "AIRFLOW_CONN_AIRFLOW_DB"
         )
 
-    def test_overwrite_keda_use_pgbouncer_disable(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "keda": {"usePgbouncer": True},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": False}}],
+                },
+            },
+            {
+                "celery": {
+                    "keda": {"usePgbouncer": True},
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": False}}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_keda_use_pgbouncer_disable(self, workers_values):
         docs = render_chart(
             values={
                 "pgbouncer": {"enabled": True},
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "keda": {"enabled": True, "usePgbouncer": False}}],
-                    },
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
@@ -1620,16 +1852,20 @@ class TestWorkerSets:
 
         assert jmespath.search("spec.behavior", docs[0]) == {"scaleDown": {"selectPolicy": "Max"}}
 
-    def test_overwrite_kerberos_sidecar_enabled(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "kerberosSidecar": {"enabled": True}}],
-                    },
-                }
+    @pytest.mark.parametrize(
+        "workers_celery_values",
+        [
+            {"enableDefault": False, "sets": [{"name": "test", "kerberosSidecar": {"enabled": True}}]},
+            {
+                "kerberosSidecar": {"enabled": False},
+                "enableDefault": False,
+                "sets": [{"name": "test", "kerberosSidecar": {"enabled": True}}],
             },
+        ],
+    )
+    def test_overwrite_kerberos_sidecar_enabled(self, workers_celery_values):
+        docs = render_chart(
+            values={"workers": {"celery": workers_celery_values}},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -1704,6 +1940,27 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "resources": {
+                            "requests": {"cpu": "10m", "memory": "20Mi"},
+                        }
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosSidecar": {
+                                "enabled": True,
+                                "resources": {
+                                    "limits": {"cpu": "3m", "memory": "4Mi"},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_kerberos_sidecar_resources(self, values):
@@ -1744,6 +2001,27 @@ class TestWorkerSets:
                     }
                 },
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosSidecar": {
+                                "enabled": True,
+                                "securityContexts": {
+                                    "container": {"runAsUser": 10},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "securityContexts": {
+                            "container": {"allowPrivilegeEscalation": False},
+                        }
+                    },
                     "enableDefault": False,
                     "sets": [
                         {
@@ -1808,6 +2086,25 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "kerberosSidecar": {
+                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}}
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "kerberosSidecar": {
+                                "enabled": True,
+                                "containerLifecycleHooks": {
+                                    "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}},
+                                },
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_kerberos_sidecar_container_lifecycle_hooks(self, values):
@@ -1852,6 +2149,22 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "resources": {
+                        "requests": {"cpu": "10m", "memory": "20Mi"},
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "resources": {
+                                "limits": {"cpu": "3m", "memory": "4Mi"},
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_resources(self, values):
@@ -1864,21 +2177,34 @@ class TestWorkerSets:
             "limits": {"cpu": "3m", "memory": "4Mi"},
         }
 
-    def test_overwrite_termination_grace_period_seconds(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [
-                            {
-                                "name": "test",
-                                "terminationGracePeriodSeconds": 5,
-                            }
-                        ],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
                 }
             },
+            {
+                "terminationGracePeriodSeconds": 20,
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
+                },
+            },
+            {
+                "celery": {
+                    "terminationGracePeriodSeconds": 20,
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_termination_grace_period_seconds(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -2119,6 +2445,13 @@ class TestWorkerSets:
             {
                 "nodeSelector": {"test": "name"},
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "nodeSelector": {"name": "test-node"}}],
+                },
+            },
+            {
+                "celery": {
+                    "nodeSelector": {"test": "name"},
                     "enableDefault": False,
                     "sets": [{"name": "set1", "nodeSelector": {"name": "test-node"}}],
                 },

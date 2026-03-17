@@ -31,9 +31,9 @@ from airflow_breeze.utils.docker_command_utils import (
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
 def test_check_docker_version_unknown(
-    mock_get_console, mock_run_command, mock_check_docker_permission_denied
+    mock_console_print, mock_run_command, mock_check_docker_permission_denied
 ):
     mock_check_docker_permission_denied.return_value = False
     with pytest.raises(SystemExit) as e:
@@ -50,7 +50,7 @@ def test_check_docker_version_unknown(
         ),
     ]
     mock_run_command.assert_has_calls(expected_run_command_calls)
-    mock_get_console.return_value.print.assert_called_with(
+    mock_console_print.assert_called_with(
         """
 [warning]Your version of docker is unknown. If the scripts fail, please make sure to[/]
 [warning]install docker at least: 25.0.0 version.[/]
@@ -60,9 +60,9 @@ def test_check_docker_version_unknown(
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
 def test_check_docker_version_too_low(
-    mock_get_console, mock_run_command, mock_check_docker_permission_denied
+    mock_console_print, mock_run_command, mock_check_docker_permission_denied
 ):
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
@@ -79,7 +79,7 @@ def test_check_docker_version_too_low(
         check=False,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with(
+    mock_console_print.assert_called_with(
         """
 [error]Your version of docker is too old: 0.9.\n[/]\n[warning]Please upgrade to at least 25.0.0.\n[/]\n\
 You can find installation instructions here: https://docs.docker.com/engine/install/
@@ -89,8 +89,8 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_version_ok(mock_get_console, mock_run_command, mock_check_docker_permission_denied):
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_docker_version_ok(mock_console_print, mock_run_command, mock_check_docker_permission_denied):
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "25.0.0"
@@ -104,13 +104,15 @@ def test_check_docker_version_ok(mock_get_console, mock_run_command, mock_check_
         check=False,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 25.0.0.[/]")
+    mock_console_print.assert_called_with("[success]Good version of Docker: 25.0.0.[/]")
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_version_higher(mock_get_console, mock_run_command, mock_check_docker_permission_denied):
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_docker_version_higher(
+    mock_console_print, mock_run_command, mock_check_docker_permission_denied
+):
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "25.0.0"
@@ -124,14 +126,14 @@ def test_check_docker_version_higher(mock_get_console, mock_run_command, mock_ch
         check=False,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 25.0.0.[/]")
+    mock_console_print.assert_called_with("[success]Good version of Docker: 25.0.0.[/]")
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
 def test_check_docker_version_higher_rancher_desktop(
-    mock_get_console, mock_run_command, mock_check_docker_permission_denied
+    mock_console_print, mock_run_command, mock_check_docker_permission_denied
 ):
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
@@ -146,12 +148,12 @@ def test_check_docker_version_higher_rancher_desktop(
         check=False,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 25.0.0-r.[/]")
+    mock_console_print.assert_called_with("[success]Good version of Docker: 25.0.0-r.[/]")
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_compose_version_unknown(mock_get_console, mock_run_command):
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_docker_compose_version_unknown(mock_console_print, mock_run_command):
     with pytest.raises(SystemExit) as e:
         check_docker_compose_version()
     assert e.value.code == 1
@@ -165,7 +167,7 @@ def test_check_docker_compose_version_unknown(mock_get_console, mock_run_command
         ),
     ]
     mock_run_command.assert_has_calls(expected_run_command_calls)
-    mock_get_console.return_value.print.assert_called_with(
+    mock_console_print.assert_called_with(
         """
 [error]Unknown docker-compose version.[/]\n[warning]At least 2.20.2 needed! Please upgrade!\n[/]
 See https://docs.docker.com/compose/install/ for installation instructions.\n
@@ -175,8 +177,8 @@ Make sure docker-compose you install is first on the PATH variable of yours.\n
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_compose_version_low(mock_get_console, mock_run_command):
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_docker_compose_version_low(mock_console_print, mock_run_command):
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "1.28.5"
     with pytest.raises(SystemExit) as e:
@@ -189,7 +191,7 @@ def test_check_docker_compose_version_low(mock_get_console, mock_run_command):
         text=True,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with(
+    mock_console_print.assert_called_with(
         """
 [error]You have too old version of docker-compose: 1.28.5!\n[/]
 [warning]At least 2.20.2 needed! Please upgrade!\n[/]
@@ -200,8 +202,8 @@ Make sure docker-compose you install is first on the PATH variable of yours.\n
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_docker_compose_version_ok(mock_console_print, mock_run_command):
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "2.20.2"
     check_docker_compose_version()
@@ -212,9 +214,7 @@ def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
         text=True,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with(
-        "[success]Good version of docker-compose: 2.20.2[/]"
-    )
+    mock_console_print.assert_called_with("[success]Good version of docker-compose: 2.20.2[/]")
 
 
 def _fake_ctx_output(*names: str) -> str:
@@ -261,11 +261,10 @@ def test_autodetect_docker_context(context_output: str, selected_context: str, c
     with mock.patch("airflow_breeze.utils.docker_command_utils.run_command") as mock_run_command:
         mock_run_command.return_value.returncode = 0
         mock_run_command.return_value.stdout = context_output
-        with mock.patch("airflow_breeze.utils.docker_command_utils.get_console") as mock_get_console:
-            mock_get_console.return_value.input.return_value = selected_context
+        with mock.patch("airflow_breeze.utils.docker_command_utils.console_print") as mock_console_print:
             assert autodetect_docker_context() == selected_context
-            mock_get_console.return_value.print.assert_called_once()
-            assert console_output in mock_get_console.return_value.print.call_args[0][0]
+            mock_console_print.assert_called_once()
+            assert console_output in mock_console_print.call_args[0][0]
 
 
 SOCKET_INFO = json.dumps(

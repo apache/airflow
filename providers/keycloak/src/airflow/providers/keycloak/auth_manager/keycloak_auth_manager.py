@@ -49,6 +49,7 @@ try:
 except ModuleNotFoundError:
     from airflow.configuration import conf
     from airflow.exceptions import AirflowException
+from airflow.providers.keycloak.auth_manager.cache import single_flight
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
@@ -440,6 +441,24 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             )
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
 
+    def filter_authorized_dag_ids(
+        self,
+        *,
+        dag_ids: set[str],
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        cache_key = (user.get_id(), method, team_name, frozenset(dag_ids))
+
+        def query_keycloak() -> set[str]:
+            kwargs: dict = dict(dag_ids=dag_ids, user=user, method=method)
+            if team_name is not None:
+                kwargs["team_name"] = team_name
+            return super(KeycloakAuthManager, self).filter_authorized_dag_ids(**kwargs)
+
+        return single_flight(cache_key, query_keycloak)
+
     def _is_batch_authorized(
         self,
         *,
@@ -470,6 +489,24 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
         raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
+
+    def _get_teams(self) -> set[str]:
+        realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
+        server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+
+        pat = self.get_keycloak_client().token(grant_type="client_credentials")["access_token"]
+
+        prefix = f"{KeycloakResource.TEAM.value}:"
+        resource_url = f"{server_url.rstrip('/')}/realms/{realm}/authz/protection/resource_set"
+        resources_resp = self.http_session.get(
+            resource_url,
+            params={"name": prefix, "matchingUri": "false", "max": "-1", "deep": "true"},
+            headers={"Authorization": f"Bearer {pat}"},
+            timeout=5,
+        )
+        resources_resp.raise_for_status()
+
+        return {r["name"][len(prefix) :] for r in resources_resp.json() if r["name"].startswith(prefix)}
 
     @staticmethod
     def _get_token_url(server_url, realm):

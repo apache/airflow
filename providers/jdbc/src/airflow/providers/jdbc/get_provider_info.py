@@ -42,7 +42,14 @@ def get_provider_info():
             }
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.jdbc.hooks.jdbc.JdbcHook", "connection-type": "jdbc"}
+            {
+                "hook-class-name": "airflow.providers.jdbc.hooks.jdbc.JdbcHook",
+                "connection-type": "jdbc",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port", "schema"],
+                    "relabeling": {"host": "Connection URL"},
+                },
+            }
         ],
         "config": {
             "providers.jdbc": {

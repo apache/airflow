@@ -27,9 +27,6 @@ import os
 import re
 import shlex
 import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 from common_prek_utils import (
     AIRFLOW_ROOT_PATH,
@@ -191,7 +188,7 @@ if res.returncode != 0:
                 "[yellow]You are running mypy with the folders selected. If you want to "
                 "reproduce it locally, you need to run the following command:\n"
             )
-            console.print(f"prek --hook-stage manual mypy-{mypy_folders[0]} --all-files\n")
+            console.print(f"prek --stage manual mypy-{mypy_folders[0]} --all-files\n")
         upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
         if upgrading:
             console.print(
@@ -212,7 +209,7 @@ if res.returncode != 0:
                 "You are running mypy with the folders selected. If you want to "
                 "reproduce it locally, you need to run the following command:\n"
             )
-            print(f"prek --hook-stage manual mypy-{mypy_folders[0]} --all-files\n")
+            print(f"prek --stage manual mypy-{mypy_folders[0]} --all-files\n")
         upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
         if upgrading:
             print("You are running mypy with the image that has dependencies upgraded automatically.\n")

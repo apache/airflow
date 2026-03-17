@@ -68,7 +68,7 @@ dependencies = [
     # End of shared timezones dependencies
     # Start of shared secrets_masker dependencies
     "colorlog>=6.8.2",
-    "pydantic>2.11.0",
+    "pydantic>2.12.3",
     # End of shared secrets_masker dependencies
     # Start of shared logging dependencies
     "pygtrie>=2.5.0",
@@ -118,7 +118,14 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 
 [build-system]
-requires = ["hatchling"]
+requires = [
+    "hatchling==1.29.0",
+    "packaging==26.0",
+    "pathspec==1.0.4",
+    "pluggy==1.6.0",
+    "tomli==2.4.0; python_version < '3.11'",
+    "trove-classifiers==2026.1.14.14",
+]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
@@ -136,11 +143,23 @@ path = "src/airflow/sdk/__init__.py"
 "../shared/listeners/src/airflow_shared/listeners" = "src/airflow/sdk/_shared/listeners"
 "../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/sdk/_shared/plugins_manager"
 "../shared/providers_discovery/src/airflow_shared/providers_discovery" = "src/airflow/sdk/_shared/providers_discovery"
+"../shared/template_rendering/src/airflow_shared/template_rendering" = "src/airflow/sdk/_shared/template_rendering"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
 # This file only exists to make pyright/VSCode happy, don't ship it
-exclude = ["src/airflow/__init__.py"]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/sdk/_shared/AGENTS.md",
+    "src/airflow/sdk/_shared/README.md",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "src/airflow/__init__.py",
+    "src/airflow/sdk/_shared/AGENTS.md",
+    "src/airflow/sdk/_shared/README.md",
+]
 
 [tool.ruff]
 extend = "../pyproject.toml"

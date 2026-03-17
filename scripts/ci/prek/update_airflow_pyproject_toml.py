@@ -22,6 +22,7 @@
 #   "packaging>=25",
 #   "rich>=13.6.0",
 #   "tomli>=2.0.1",
+#   "pyyaml",
 # ]
 # ///
 """
@@ -36,10 +37,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from packaging.version import Version, parse as parse_version
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_ROOT_PATH, console, get_all_provider_ids, insert_documentation
+from packaging.version import Version, parse as parse_version
 
 AIRFLOW_PYPROJECT_TOML_FILE = AIRFLOW_ROOT_PATH / "pyproject.toml"
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
@@ -78,7 +77,7 @@ MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "openlineage": parse_version("2.3.0"),
     "git": parse_version("0.0.2"),
     "common.messaging": parse_version("2.0.0"),
-    "informatica": parse_version("0.1.0"),
+    "elasticsearch": parse_version("6.5.0"),
 }
 
 
@@ -235,7 +234,7 @@ if __name__ == "__main__":
             all_optional_dependencies.append(f'"{optional}" = [\n    "apache-airflow-core[{optional}]"\n]\n')
     optional_airflow_task_sdk_dependencies = get_optional_dependencies(AIRFLOW_TASK_SDK_PYPROJECT_TOML_FILE)
     all_optional_dependencies.append('"all-task-sdk" = [\n    "apache-airflow-task-sdk[all]"\n]\n')
-    all_providers = sorted(get_all_provider_ids())
+    all_providers = sorted(get_all_provider_ids(exclude_suspended_providers=True))
     all_provider_lines = []
     for provider_id in all_providers:
         distribution_name = provider_distribution_name(provider_id)

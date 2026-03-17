@@ -21,6 +21,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from gunicorn.config import Config
 
 
 class TestAirflowArbiter:
@@ -299,9 +300,11 @@ class TestAirflowArbiter:
 class TestAirflowGunicornApp:
     """Tests for the AirflowGunicornApp class."""
 
-    def test_load_config(self):
+    def test_load_config(self, monkeypatch):
         """Test that options are loaded into gunicorn config."""
         from airflow.api_fastapi.gunicorn_app import AirflowGunicornApp
+
+        monkeypatch.delenv("GUNICORN_CMD_ARGS", raising=False)
 
         def mock_init(self, options):
             pass  # Do nothing, we'll set up state manually
@@ -309,14 +312,49 @@ class TestAirflowGunicornApp:
         with mock.patch.object(AirflowGunicornApp, "__init__", mock_init):
             app = AirflowGunicornApp.__new__(AirflowGunicornApp)
             app.options = {"workers": 4, "bind": "0.0.0.0:8080"}
-            app.cfg = mock.MagicMock()
-            app.cfg.settings = {"workers": mock.MagicMock(), "bind": mock.MagicMock()}
+            app.cfg = Config()
 
             app.load_config()
 
-            assert app.cfg.set.call_count == 2
-            app.cfg.set.assert_any_call("workers", 4)
-            app.cfg.set.assert_any_call("bind", "0.0.0.0:8080")
+            assert app.cfg.workers == 4
+            assert app.cfg.bind == ["0.0.0.0:8080"]
+
+    def test_load_config_respects_gunicorn_cmd_args(self, monkeypatch):
+        """Test that GUNICORN_CMD_ARGS env var values are applied to config."""
+        from airflow.api_fastapi.gunicorn_app import AirflowGunicornApp
+
+        monkeypatch.setenv("GUNICORN_CMD_ARGS", "--worker-tmp-dir /dev/shm --max-requests 1000")
+
+        def mock_init(self, options):
+            pass
+
+        with mock.patch.object(AirflowGunicornApp, "__init__", mock_init):
+            app = AirflowGunicornApp.__new__(AirflowGunicornApp)
+            app.options = {"workers": 4}
+            app.cfg = Config()
+
+            app.load_config()
+
+            assert app.cfg.worker_tmp_dir == "/dev/shm"
+            assert app.cfg.max_requests == 1000
+            assert app.cfg.workers == 4
+
+    def test_load_config_gunicorn_cmd_args_overrides_options(self, monkeypatch):
+        """Test that GUNICORN_CMD_ARGS takes precedence over programmatic options."""
+        monkeypatch.setenv("GUNICORN_CMD_ARGS", "--workers 8")
+        from airflow.api_fastapi.gunicorn_app import AirflowGunicornApp
+
+        def mock_init(self, options):
+            pass
+
+        with mock.patch.object(AirflowGunicornApp, "__init__", mock_init):
+            app = AirflowGunicornApp.__new__(AirflowGunicornApp)
+            app.options = {"workers": 4}
+            app.cfg = Config()
+
+            app.load_config()
+
+            assert app.cfg.workers == 8
 
     def test_load_returns_airflow_app(self):
         """Test that load() returns the Airflow FastAPI app."""
@@ -376,8 +414,9 @@ class TestCreateGunicornApp:
             assert options["bind"] == "0.0.0.0:8080"
             assert options["workers"] == 4
             assert options["timeout"] == 120
-            assert options["worker_class"] == "uvicorn.workers.UvicornWorker"
+            assert options["worker_class"] == "airflow.api_fastapi.gunicorn_app.AirflowUvicornWorker"
             assert options["preload_app"] is True
+            assert "accesslog" not in options
 
     def test_create_app_with_ssl(self):
         """Test creating an app with SSL settings."""
@@ -415,8 +454,8 @@ class TestCreateGunicornApp:
 
             assert options["forwarded_allow_ips"] == "*"
 
-    def test_create_app_with_access_log(self):
-        """Test creating an app with access logging enabled."""
+    def test_create_app_never_sets_accesslog(self):
+        """accesslog is never set; HttpAccessLogMiddleware handles HTTP access logging."""
         from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
 
         with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
@@ -425,26 +464,18 @@ class TestCreateGunicornApp:
                 port=8080,
                 num_workers=4,
                 worker_timeout=120,
-                access_log=True,
-            )
-
-            options = mock_app_class.call_args[0][0]
-
-            assert options["accesslog"] == "-"
-
-    def test_create_app_without_access_log(self):
-        """Test creating an app with access logging disabled."""
-        from airflow.api_fastapi.gunicorn_app import create_gunicorn_app
-
-        with mock.patch("airflow.api_fastapi.gunicorn_app.AirflowGunicornApp") as mock_app_class:
-            create_gunicorn_app(
-                host="0.0.0.0",
-                port=8080,
-                num_workers=4,
-                worker_timeout=120,
-                access_log=False,
             )
 
             options = mock_app_class.call_args[0][0]
 
             assert "accesslog" not in options
+
+    def test_airflow_uvicorn_worker_config(self):
+        """AirflowUvicornWorker disables uvicorn's access log and log_config override."""
+        from uvicorn.workers import UvicornWorker
+
+        from airflow.api_fastapi.gunicorn_app import AirflowUvicornWorker
+
+        assert AirflowUvicornWorker.CONFIG_KWARGS["log_config"] is None
+        assert AirflowUvicornWorker.CONFIG_KWARGS["access_log"] is False
+        assert issubclass(AirflowUvicornWorker, UvicornWorker)

@@ -231,6 +231,81 @@ class TestExecutorLoader:
                 ],
                 id="core_executors_and_custom_module_path_executor_with_aliases_per_team",
             ),
+            pytest.param(
+                "my_local:LocalExecutor, CeleryExecutor",
+                [
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="my_local",
+                        team_name=None,
+                    ),
+                    ExecutorName(
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
+                    ),
+                ],
+                id="aliased_core_executor",
+            ),
+            pytest.param(
+                "my_celery:CeleryExecutor, my_local:LocalExecutor",
+                [
+                    ExecutorName(
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="my_celery",
+                        team_name=None,
+                    ),
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="my_local",
+                        team_name=None,
+                    ),
+                ],
+                id="multiple_aliased_core_executors",
+            ),
+            pytest.param(
+                "=GlobalLocal:LocalExecutor;team_a=TeamLocal:LocalExecutor",
+                [
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="GlobalLocal",
+                        team_name=None,
+                    ),
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="TeamLocal",
+                        team_name="team_a",
+                    ),
+                ],
+                id="aliased_core_executor_global_and_team",
+            ),
+            pytest.param(
+                "=LocalExecutor;team_a=TeamLocal:LocalExecutor",
+                [
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name=None,
+                    ),
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="TeamLocal",
+                        team_name="team_a",
+                    ),
+                ],
+                id="core_executor_global_and_aliased_core_executor_team",
+            ),
+            pytest.param(
+                "my_k8s:KubernetesExecutor",
+                [
+                    ExecutorName(
+                        module_path="airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor",
+                        alias="my_k8s",
+                        team_name=None,
+                    ),
+                ],
+                id="aliased_kubernetes_executor",
+            ),
         ],
     )
     def test_get_hybrid_executors_from_configs(self, executor_config, expected_executors_list):
@@ -276,8 +351,8 @@ class TestExecutorLoader:
             "LocalExecutor, Ce:ler:yExecutor",
             "LocalExecutor, CeleryExecutor:",
             "LocalExecutor, my_cool_alias:",
-            "LocalExecutor, my_cool_alias:CeleryExecutor",
             "LocalExecutor, module.path.first:alias_second",
+            "LocalExecutor, my_cool_alias:not_a_core_or_module",
         ],
     )
     def test_get_hybrid_executors_from_config_core_executors_bad_config_format(self, executor_config):
@@ -339,6 +414,45 @@ class TestExecutorLoader:
                 executor_loader.ExecutorLoader.load_executor(executor_loader._executor_names[0]),
                 LocalExecutor,
             )
+
+    def test_load_executor_aliased_core_executor(self):
+        """Test that a core executor can be aliased and loaded by its custom alias."""
+        with conf_vars({("core", "executor"): "my_local:LocalExecutor"}):
+            executor_loader.ExecutorLoader.init_executors()
+            # Can load by alias
+            executor = executor_loader.ExecutorLoader.load_executor("my_local")
+            assert isinstance(executor, LocalExecutor)
+            assert executor.name.alias == "my_local"
+            assert executor.name.module_path == "airflow.executors.local_executor.LocalExecutor"
+            # Can also load by module path
+            assert isinstance(
+                executor_loader.ExecutorLoader.load_executor(
+                    "airflow.executors.local_executor.LocalExecutor"
+                ),
+                LocalExecutor,
+            )
+            # Can also load by class name
+            assert isinstance(
+                executor_loader.ExecutorLoader.load_executor("LocalExecutor"),
+                LocalExecutor,
+            )
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "my_local:LocalExecutor, LocalExecutor",
+            "alias1:LocalExecutor, alias2:LocalExecutor",
+            "my_local:LocalExecutor, airflow.executors.local_executor.LocalExecutor",
+            "alias1:CeleryExecutor, alias2:CeleryExecutor",
+        ],
+    )
+    def test_aliased_core_executor_duplicate_in_same_team_fails(self, executor_config):
+        """Test that two executors of the same type within the same team always fails (duplicate)."""
+        with conf_vars({("core", "executor"): executor_config}):
+            with pytest.raises(
+                AirflowConfigException, match=r".+Duplicate executors are not yet supported.+"
+            ):
+                executor_loader.ExecutorLoader._get_executor_names()
 
     @mock.patch(
         "airflow.executors.executor_loader.ExecutorLoader._get_executor_names",
@@ -613,6 +727,27 @@ class TestExecutorLoader:
                 # Should not call team validation when validate_teams=False
                 executor_loader.ExecutorLoader.get_executor_names(validate_teams=False)
                 mock_get_team_names.assert_not_called()
+
+    def test_lookup_executor_name_by_str_skips_db_when_validate_teams_false(self):
+        """Regression test: lookup_executor_name_by_str with validate_teams=False must not access the DB.
+
+        During DAG parsing in Airflow 3, database access is blocked. The lookup_executor_name_by_str
+        method is called from _validate_executor_fields during parsing, so it must be able to resolve
+        executor names using only local config without triggering _validate_teams_exist_in_database.
+        """
+        with conf_vars(
+            {("core", "executor"): "=LocalExecutor;team1=CeleryExecutor", ("core", "multi_team"): "True"}
+        ):
+            with patch.object(
+                executor_loader.ExecutorLoader,
+                "_validate_teams_exist_in_database",
+                side_effect=RuntimeError("Direct database access via the ORM is not allowed in Airflow 3.0"),
+            ):
+                # Should succeed without hitting the database
+                result = executor_loader.ExecutorLoader.lookup_executor_name_by_str(
+                    "LocalExecutor", validate_teams=False
+                )
+                assert result.alias == "LocalExecutor"
 
     def test_get_executor_names_default_validates_teams(self):
         """Test that get_executor_names validates teams by default."""
