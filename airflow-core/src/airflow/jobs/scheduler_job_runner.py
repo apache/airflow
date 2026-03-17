@@ -1592,7 +1592,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
                 dag_models=asset_triggered_dags,
-                triggered_date_by_dag=triggered_date_by_dag,
                 session=session,
             )
 
@@ -1705,30 +1704,44 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dag_runs_asset_triggered(
         self,
+        *,
         dag_models: Collection[DagModel],
-        triggered_date_by_dag: dict[str, datetime],
         session: Session,
     ) -> None:
-        """For DAGs that are triggered by assets, create dag runs."""
-        triggered_dates: dict[str, DateTime] = {
-            dag_id: timezone.coerce_datetime(last_asset_event_time)
-            for dag_id, last_asset_event_time in triggered_date_by_dag.items()
-        }
-
+        """For Dags that are triggered by assets, create Dag runs."""
         for dag_model in dag_models:
             dag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not dag:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
+                self.log.error("Dag '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
             if not isinstance(dag.timetable, AssetTriggeredTimetable):
                 self.log.error(
-                    "DAG '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
+                    "Dag '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
                     dag_model.dag_id,
                 )
                 continue
 
-            triggered_date = triggered_dates[dag.dag_id]
+            queued_adrqs = session.scalars(
+                with_row_locks(
+                    select(AssetDagRunQueue)
+                    .where(AssetDagRunQueue.target_dag_id == dag.dag_id)
+                    .order_by(AssetDagRunQueue.created_at.desc()),
+                    of=AssetDagRunQueue,
+                    skip_locked=True,
+                    key_share=False,
+                    session=session,
+                )
+            ).all()
+            # If another scheduler already locked these ADRQ rows, SKIP LOCKED makes this scheduler skip them.
+            if not queued_adrqs:
+                self.log.debug(
+                    "Skipping asset-triggered DagRun creation for Dag '%s'; no queued assets remain.",
+                    dag.dag_id,
+                )
+                continue
+
+            triggered_date: DateTime = timezone.coerce_datetime(queued_adrqs[0].created_at)
             cte = (
                 select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
                 .where(
@@ -1775,7 +1788,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             Stats.incr("asset.triggered_dagruns")
             dag_run.consumed_asset_events.extend(asset_events)
-            session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id))
+
+            # Delete only consumed ADRQ rows to avoid dropping newly queued events
+            # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
+            adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
+            session.execute(
+                delete(AssetDagRunQueue).where(
+                    tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                )
+            )
 
     def _should_update_dag_next_dagruns(
         self,
