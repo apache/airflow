@@ -51,7 +51,7 @@ import {
 import { Bar, Line } from "react-chartjs-2";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 
-import { getComputedCSSVariableValue } from "src/theme";
+import { resolveTokenValue } from "src/theme";
 
 // import { useColorMode } from "src/context/colorMode";
 
@@ -121,17 +121,17 @@ export const Charts = ({ isOpen, onToggle }: ChartsProps) => {
   ]);
 
   // Convert CSS variables to computed color values
-  const success = getComputedCSSVariableValue(successToken ?? "oklch(0.5 0 0)");
-  const failed = getComputedCSSVariableValue(failedToken ?? "oklch(0.5 0 0)");
-  const running = getComputedCSSVariableValue(runningToken ?? "oklch(0.5 0 0)");
-  const queued = getComputedCSSVariableValue(queuedToken ?? "oklch(0.5 0 0)");
-  const skipped = getComputedCSSVariableValue(skippedToken ?? "oklch(0.5 0 0)");
-  const upstreamFailed = getComputedCSSVariableValue(upstreamFailedToken ?? "oklch(0.5 0 0)");
-  const upForRetry = getComputedCSSVariableValue(upForRetryToken ?? "oklch(0.5 0 0)");
-  const upForReschedule = getComputedCSSVariableValue(upForRescheduleToken ?? "oklch(0.5 0 0)");
-  const scheduled = getComputedCSSVariableValue(scheduledToken ?? "oklch(0.5 0 0)");
-  const deferred = getComputedCSSVariableValue(deferredToken ?? "oklch(0.5 0 0)");
-  const removed = getComputedCSSVariableValue(removedToken ?? "oklch(0.5 0 0)");
+  const success = resolveTokenValue(successToken ?? "oklch(0.5 0 0)");
+  const failed = resolveTokenValue(failedToken ?? "oklch(0.5 0 0)");
+  const running = resolveTokenValue(runningToken ?? "oklch(0.5 0 0)");
+  const queued = resolveTokenValue(queuedToken ?? "oklch(0.5 0 0)");
+  const skipped = resolveTokenValue(skippedToken ?? "oklch(0.5 0 0)");
+  const upstreamFailed = resolveTokenValue(upstreamFailedToken ?? "oklch(0.5 0 0)");
+  const upForRetry = resolveTokenValue(upForRetryToken ?? "oklch(0.5 0 0)");
+  const upForReschedule = resolveTokenValue(upForRescheduleToken ?? "oklch(0.5 0 0)");
+  const scheduled = resolveTokenValue(scheduledToken ?? "oklch(0.5 0 0)");
+  const deferred = resolveTokenValue(deferredToken ?? "oklch(0.5 0 0)");
+  const removed = resolveTokenValue(removedToken ?? "oklch(0.5 0 0)");
 
   // Mock data for duration chart
   const durationData = {
@@ -280,7 +280,7 @@ export const Charts = ({ isOpen, onToggle }: ChartsProps) => {
   const stateColorMap = Object.fromEntries(
     states.map((state, index) => [
       state,
-      getComputedCSSVariableValue(stateColorTokens[index] ?? "oklch(0.5 0 0)"),
+      resolveTokenValue(stateColorTokens[index] ?? "oklch(0.5 0 0)"),
     ]),
   );
 

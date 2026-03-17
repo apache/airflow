@@ -22,16 +22,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Collapsible, Heading, HStack, Text, VStack } from "@chakra-ui/react";
+import { Box, Collapsible, Heading, HStack, Text, useToken, VStack } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 
 import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import { useColorMode } from "src/context/colorMode";
 import { OpenGroupsContext } from "src/context/openGroups/Context";
-import { getReactFlowThemeStyle } from "src/theme";
 
 type GraphProps = {
   readonly isOpen: boolean;
@@ -40,6 +39,22 @@ type GraphProps = {
 
 export const Graph = ({ isOpen, onToggle }: GraphProps) => {
   const { colorMode = "light" } = useColorMode();
+
+  const [bg, pattern, controlsBg, controlsHover, minimapBg] = useToken("colors", [
+    "graph.bg",
+    "graph.pattern",
+    "graph.controls.bg.default",
+    "graph.controls.bg.hover",
+    "graph.minimap.bg",
+  ]);
+
+  const reactFlowStyle = {
+    "--xy-background-color": bg,
+    "--xy-background-pattern-color": pattern,
+    "--xy-controls-button-background-color": controlsBg,
+    "--xy-controls-button-background-color-hover": controlsHover,
+    "--xy-minimap-background-color": minimapBg,
+  } as React.CSSProperties;
 
   // Mock OpenGroups context for playground
   const mockOpenGroupsContext = useMemo(
@@ -261,7 +276,7 @@ export const Graph = ({ isOpen, onToggle }: GraphProps) => {
                         nodesDraggable={false}
                         nodeTypes={nodeTypes}
                         onlyRenderVisibleElements
-                        style={getReactFlowThemeStyle(colorMode)}
+                        style={reactFlowStyle}
                       >
                         <Background />
                         <Controls showInteractive={false} />
