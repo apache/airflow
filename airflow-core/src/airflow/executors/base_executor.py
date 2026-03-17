@@ -34,7 +34,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.executors.workloads import QueueableWorkload, WorkloadType
+from airflow.executors.workloads import WorkloadType
 from airflow.models import Log
 from airflow.models.callback import CallbackKey
 from airflow.observability.metrics import stats_utils
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.executors.workloads.types import WorkloadKey
+    from airflow.executors.workloads.types import QueueableWorkload, WorkloadKey
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 

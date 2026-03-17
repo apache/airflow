@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, TypeAlias
+from typing import Annotated
 
 from pydantic import Field
 
@@ -32,10 +32,6 @@ All = Annotated[
     Field(discriminator="type"),
 ]
 
-# Workload types that flow through executor queues (have queue_key and sort_key).
-# Update this union when adding a new queueable workload type.
-QueueableWorkload: TypeAlias = ExecuteTask | ExecuteCallback
-
 TaskInstance = TaskInstanceDTO
 
 __all__ = [
@@ -45,7 +41,6 @@ __all__ = [
     "CallbackFetchMethod",
     "ExecuteCallback",
     "ExecuteTask",
-    "QueueableWorkload",
     "TaskInstance",
     "TaskInstanceDTO",
     "WORKLOAD_TYPE_TIER",
