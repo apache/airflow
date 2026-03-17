@@ -55,6 +55,7 @@ def get_calendar(
     session: SessionDep,
     dag_bag: DagBagDep,
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
+    partition_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("partition_date", DagRun))],
     granularity: Literal["hourly", "daily"] = "daily",
 ) -> CalendarTimeRangeCollectionResponse:
     """Get calendar data for a DAG including historical and planned DAG runs."""
@@ -67,5 +68,6 @@ def get_calendar(
         session=session,
         dag=dag,
         logical_date=logical_date,
+        partition_date=partition_date,
         granularity=granularity,
     )
