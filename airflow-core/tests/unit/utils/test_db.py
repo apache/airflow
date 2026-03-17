@@ -630,7 +630,6 @@ class TestMergeAndPool:
 
     def test_add_default_pool_external_session(self, mocker):
         """Test that add_default_pool_if_not_exists flushes but does not commit with external session."""
-        from airflow.models.pool import Pool
 
         session = mocker.Mock()
         session.scalar.return_value = None
