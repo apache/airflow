@@ -1230,6 +1230,7 @@ class TriggerRunner:
                 raise
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR), description=str(e))
+                raise
             finally:
                 # CancelledError will get injected when we're stopped - which is
                 # fine, the cleanup process will understand that, but we want to
