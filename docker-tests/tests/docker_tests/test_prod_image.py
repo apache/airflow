@@ -21,6 +21,7 @@ import os
 from importlib.util import find_spec
 
 import pytest
+import yaml
 from python_on_whales import DockerException
 
 from docker_tests.constants import AIRFLOW_ROOT_PATH
@@ -57,6 +58,39 @@ REGULAR_IMAGE_PROVIDERS = [
 testing_slim_image = os.environ.get("TEST_SLIM_IMAGE", str(False)).lower() in ("true", "1", "yes")
 
 
+def _get_provider_python_exclusions() -> dict[str, list[str]]:
+    """Return mapping of provider_id -> list of excluded Python minor versions from provider.yaml."""
+    exclusions: dict[str, list[str]] = {}
+    providers_root = AIRFLOW_ROOT_PATH / "providers"
+    for line in PROD_IMAGE_PROVIDERS_FILE_PATH.read_text().splitlines():
+        provider_id = line.split(">=")[0].strip()
+        if not provider_id or provider_id.startswith("#"):
+            continue
+        provider_yaml_path = providers_root / provider_id.replace(".", "/") / "provider.yaml"
+        if not provider_yaml_path.exists():
+            continue
+        with open(provider_yaml_path) as f:
+            data = yaml.safe_load(f)
+        excluded = data.get("excluded-python-versions", [])
+        if excluded:
+            exclusions[provider_id] = [str(v) for v in excluded]
+    return exclusions
+
+
+PROVIDER_PYTHON_EXCLUSIONS = _get_provider_python_exclusions()
+
+
+def _get_python_minor_version(default_docker_image: str) -> str:
+    """Get Python minor version (e.g. '3.14') from the Docker image."""
+    python_version = run_bash_in_docker("python --version", image=default_docker_image)
+    return ".".join(python_version.strip().split()[1].split(".")[:2])
+
+
+def _get_excluded_provider_ids(python_minor: str) -> set[str]:
+    """Return set of provider IDs excluded for the given Python minor version."""
+    return {pid for pid, versions in PROVIDER_PYTHON_EXCLUSIONS.items() if python_minor in versions}
+
+
 class TestCommands:
     def test_without_command(self, default_docker_image):
         """Checking the image without a command. It should return non-zero exit code."""
@@ -91,7 +125,10 @@ class TestPythonPackages:
         if testing_slim_image:
             packages_to_install = set(SLIM_IMAGE_PROVIDERS)
         else:
-            packages_to_install = set(REGULAR_IMAGE_PROVIDERS)
+            python_minor = _get_python_minor_version(default_docker_image)
+            excluded_ids = _get_excluded_provider_ids(python_minor)
+            excluded_packages = {f"apache-airflow-providers-{pid.replace('.', '-')}" for pid in excluded_ids}
+            packages_to_install = set(REGULAR_IMAGE_PROVIDERS) - excluded_packages
         assert len(packages_to_install) != 0
         output = run_bash_in_docker(
             "airflow providers list --output json",
@@ -197,15 +234,19 @@ class TestPythonPackages:
     def test_check_dependencies_imports(
         self, package_name: str, import_names: list[str], default_docker_image: str
     ):
+        python_minor = _get_python_minor_version(default_docker_image)
+        excluded_ids = _get_excluded_provider_ids(python_minor)
+        # Skip individual provider test cases if the provider is excluded for this Python version
+        if package_name in excluded_ids:
+            pytest.skip(f"Provider {package_name} is excluded for Python {python_minor}")
         if package_name == "providers":
-            python_version = run_bash_in_docker(
-                "python --version",
-                image=default_docker_image,
-            )
-            if python_version.startswith("Python 3.13"):
-                if "airflow.providers.fab" in import_names:
-                    import_names.remove("airflow.providers.fab")
-        run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
+            excluded_imports = {f"airflow.providers.{pid}" for pid in excluded_ids}
+            import_names = [name for name in import_names if name not in excluded_imports]
+            # FAB provider has import issues on Python 3.13
+            if python_minor == "3.13":
+                import_names = [name for name in import_names if name != "airflow.providers.fab"]
+        if import_names:
+            run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
 
     def test_there_is_no_opt_airflow_airflow_folder(self, default_docker_image):
         output = run_bash_in_docker(
