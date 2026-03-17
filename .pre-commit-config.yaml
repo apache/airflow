@@ -259,17 +259,6 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
-      - id: update-uv-lock
-        name: Update uv.lock (manual)
-        entry: ./scripts/ci/prek/update_uv_lock.py
-        stages: ['manual']
-        language: python
-        files: >
-          (?x)
-          ^pyproject\.toml$|
-          ^uv\.lock$
-        pass_filenames: false
-        require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
     rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:
@@ -991,8 +980,22 @@ repos:
         pass_filenames: false
         files: ^dev/breeze/src/airflow_breeze/global_constants\.py$
         require_serial: true
+        # This is a fast regular hook that runs when any pyproject.toml changes
+        # It runs locally and usually will not result in modifying the lock unnecessarily
+        # Unless there is a conflict and uv will determine that the lock needs to be updated to resolve it
+      - id: update-uv-lock
+        name: Update uv.lock
+        entry: uv sync
+        language: system
+        files: >
+          (?x)
+          (^|/)pyproject\.toml$|
+          ^uv\.lock$
+        pass_filenames: false
+        require_serial: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
         # The below prek hooks are those requiring CI image to be built
+        ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: mypy-dev
         stages: ['pre-push']
         name: Run mypy for dev
@@ -1056,10 +1059,23 @@ repos:
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/(datamodels|routes|services|openapi)/.*\.py$
         require_serial: true
-        ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: check-contextmanager-class-decorators
         name: Check for problematic context manager class decorators
         entry: ./scripts/ci/prek/check_contextmanager_class_decorators.py
         language: python
         files: .*test.*\.py$
         pass_filenames: true
+        # This is a manual hook, run by `breeze ci upgrade` - upgrading all dependencies inside the
+        # Breeze CI image - which allows checking all dependencies for all providers.
+        # ALWAYS keep it at the end so that it can take into account all the other hook's changes.
+      - id: update-uv-lock
+        stages: ['manual']
+        name: Update uv.lock (manual)
+        entry: breeze run uv lock --upgrade
+        language: system
+        files: >
+          (?x)
+          (^|/)pyproject\.toml$|
+          ^uv\.lock$
+        pass_filenames: false
+        require_serial: true
