@@ -179,7 +179,7 @@ jobs:
       - name: "Merge with existing registry data"
         if: inputs.provider != '' && steps.download-existing.outputs.found == 'true'
         run: |
-          uv run dev/registry/merge_registry_data.py \
+          uv run --project dev/registry dev/registry/merge_registry_data.py \
             --existing-providers "${EXISTING_REGISTRY_DIR}/${REGISTRY_PROVIDERS_JSON}" \
             --existing-modules "${EXISTING_REGISTRY_DIR}/${REGISTRY_MODULES_JSON}" \
             --new-providers "${REGISTRY_DATA_DIR}/${REGISTRY_PROVIDERS_JSON}" \

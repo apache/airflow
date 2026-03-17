@@ -69,6 +69,9 @@ the integration can go further. Besides recording which assets were read or writ
 it may also extract the executed SQL text, external query/job IDs. For each query a separate pair of child OpenLineage
 events is emitted.
 
+For details on when hook-level lineage is attached to the OpenLineage event and how it interacts with
+extractors and inlets/outlets, see :ref:`extraction_precedence:openlineage`.
+
 .. important::
   The level of detail captured varies between hooks and methods. Some may only report dataset information, while others
   expose SQL text, query IDs and more. Review the hook implementation to confirm what lineage data is available.
