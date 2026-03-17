@@ -22,7 +22,7 @@ from sqlalchemy import select
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.models import DagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_dag_bundles,
@@ -61,3 +61,23 @@ def test_trigger_dag_raises_error_if_manual_runs_denied(dag_maker, session):
             triggered_by=DagRunTriggeredByType.REST_API,
             session=session,
         )
+
+
+def test_trigger_dag_with_custom_run_type(dag_maker, session):
+    """Test that trigger_dag accepts and uses custom run_type parameter."""
+    with dag_maker(session=session, dag_id="TEST_DAG_2", schedule=None):
+        EmptyOperator(task_id="mytask")
+    session.commit()
+
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == "TEST_DAG_2"))
+    dag_model.allowed_run_types = ["manual", "asset_materialization"]
+    session.commit()
+
+    dag_run = trigger_dag(
+        dag_id="TEST_DAG_2",
+        triggered_by=DagRunTriggeredByType.CLI,
+        run_type=DagRunType.ASSET_MATERIALIZATION,
+        session=session,
+    )
+
+    assert dag_run.run_type == DagRunType.ASSET_MATERIALIZATION
