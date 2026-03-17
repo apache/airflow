@@ -623,6 +623,8 @@ class TestShowwarning:
                 _showwarning("some warning", UserWarning, "foo.py", 1)
 
         mock_get_logger.assert_called_once_with("py.warnings")
+
+
 @pytest.mark.parametrize(
     ("get_logger", "message", "args", "expected_event"),
     [
