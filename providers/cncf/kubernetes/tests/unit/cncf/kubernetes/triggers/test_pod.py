@@ -676,3 +676,22 @@ class TestKubernetesPodTrigger:
             schedule_timeout=STARTUP_TIMEOUT_SECS,
         )
         assert await trigger.safe_to_cancel() is False
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, side_effect=Exception("API down")
+    )
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_cleanup_skips_deletion_when_safe_to_cancel_raises(self, mock_hook, mock_safe):
+        """When safe_to_cancel() raises, cleanup should skip pod deletion (fail-safe)."""
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            on_kill_action="delete_pod",
+            on_finish_action="delete_pod",
+        )
+        await trigger.cleanup()
+        mock_hook.delete_pod.assert_not_called()

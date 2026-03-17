@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, cast
 import tenacity
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
@@ -38,6 +37,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
@@ -397,7 +397,7 @@ class KubernetesPodTrigger(BaseTrigger):
             )
             try:
                 return task_states_response[self.task_instance.run_id][self.task_instance.task_id]
-            except Exception:
+            except KeyError:
                 raise AirflowException(
                     "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
                     self.task_instance.dag_id,
