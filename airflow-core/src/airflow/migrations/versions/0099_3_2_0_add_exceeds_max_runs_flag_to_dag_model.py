@@ -52,5 +52,8 @@ def upgrade():
 
 def downgrade():
     """Unapply Add exceeds max runs flag to dag model."""
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.drop_column("exceeds_max_non_backfill")
+    from airflow.migrations.utils import disable_sqlite_fkeys
+
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.drop_column("exceeds_max_non_backfill")
