@@ -23,7 +23,7 @@
     "respond": "Ответить",
     "responded_by_user_name": "Ответил (Имя пользователя)",
     "success": "Ответ {{taskId}} успешен",
-    "title": "Экземпляр человеческой задачи - {{taskId}}"
+    "title": "Экземпляр задачи для человека - {{taskId}}"
   },
   "state": {
     "approvalReceived": "Одобрение получено",

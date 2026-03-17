@@ -94,7 +94,7 @@
     "filters": {
       "allStates": "Все состояния",
       "allTypes": "Все типы",
-      "dagProcessorJob": "Задание обработки ДАГа",
+      "dagProcessorJob": "Задание обработки Dag-а",
       "schedulerJob": "Задание планировщика",
       "triggererJob": "Задание триггера"
     }

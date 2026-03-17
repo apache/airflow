@@ -1,14 +1,14 @@
 {
   "favorite": {
-    "favoriteDags_one": "Первый {{count}} избранный ДАГ",
-    "favoriteDags_few": "Первые {{count}} избранных ДАГа",
-    "favoriteDags_other": "Первые {{count}} избранных ДАГов",
-    "noDagRuns": "Для этого ДАГа еще нет запусков.",
-    "noFavoriteDags": "Ещё нет избранных. Нажмите на иконку со звёздочкой рядом с ДАГом в списке, чтобы добавить его в избранное."
+    "favoriteDags_one": "Первый {{count}} избранный Dag",
+    "favoriteDags_few": "Первые {{count}} избранных Dag-а",
+    "favoriteDags_other": "Первые {{count}} избранных Dag-ов",
+    "noDagRuns": "Для этого Dag-а еще нет запусков.",
+    "noFavoriteDags": "Ещё нет избранных. Нажмите на иконку со звёздочкой рядом с Dag-ом в списке, чтобы добавить его в избранное."
   },
   "group": "Группа",
   "health": {
-    "dagProcessor": "Процессор ДАГа",
+    "dagProcessor": "Процессор Dag-а",
     "health": "Состояние",
     "healthy": "Исправный",
     "lastHeartbeat": "Последний hearbeat-сигнал",
@@ -20,8 +20,8 @@
   },
   "history": "История",
   "importErrors": {
-    "dagImportError_one": "Ошибка импорта ДАГов",
-    "dagImportError_other": "Ошибки импорта ДАГов",
+    "dagImportError_one": "Ошибка импорта Dag-ов",
+    "dagImportError_other": "Ошибки импорта Dag-ов",
     "searchByFile": "Поиск по файлу",
     "timestamp": "Отметка времени"
   },
@@ -35,11 +35,11 @@
   },
   "source": "Источник",
   "stats": {
-    "activeDags": "Активные ДАГи",
-    "failedDags": "ДАГи с ошибками",
-    "queuedDags": "ДАГи в очереди",
+    "activeDags": "Активные Dag-и",
+    "failedDags": "Dag-и с ошибками",
+    "queuedDags": "Dag-и в очереди",
     "requiredActions": "Необходимые действия",
-    "runningDags": "Выполняющиеся ДАГи",
+    "runningDags": "Выполняющиеся Dag-и",
     "stats": "Статистика"
   },
   "uri": "URI",

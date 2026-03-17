@@ -20,7 +20,7 @@
       "title": "Добавить XCom"
     },
     "columns": {
-      "dag": "ДАГ",
+      "dag": "Dag",
       "key": "Ключ",
       "value": "Значение"
     },

@@ -10,8 +10,8 @@
   "allOperators": "Все операторы",
   "appearance": {
     "appearance": "Внешний вид",
-    "darkMode": "Темный режим",
-    "lightMode": "Светлый режим",
+    "darkMode": "Тёмная тема",
+    "lightMode": "Светлая тема",
     "systemMode": "Следовать системным настройкам"
   },
   "asset_one": "Актив",
@@ -24,40 +24,40 @@
     "auditLog": "Журнал аудита",
     "jobs": "Задания",
     "requiredActions": "Необходимые действия",
-    "xcoms": "XComs"
+    "xcoms": "XCom-ы"
   },
   "collapseAllExtra": "Свернуть все дополнительные JSON",
   "collapseDetailsPanel": "Свернуть панель деталей",
   "createdAssetEvent_one": "Создано событие актива",
   "createdAssetEvent_other": "Созданы события активов",
-  "dag_one": "ДАГ",
-  "dag_other": "ДАГи",
+  "dag_one": "Dag",
+  "dag_other": "Dag-и",
   "dagDetails": {
     "catchup": "Сбор данных",
-    "dagRunTimeout": "Тайм-аут запуска ДАГа",
+    "dagRunTimeout": "Тайм-аут запуска Dag-а",
     "defaultArgs": "Аргументы по умолчанию",
     "description": "Описание",
-    "documentation": "Документация ДАГа",
+    "documentation": "Документация Dag-а",
     "fileLocation": "Место хранения файла",
     "hasTaskConcurrencyLimits": "Имеет ограничения на параллельные задачи",
-    "lastExpired": "Последний истекший",
+    "lastExpired": "Последний истёкший",
     "lastParseDuration": "Длительность последнего парсинга",
     "lastParsed": "Последний распарсенный",
-    "latestDagVersion": "Последняя версия ДАГа",
+    "latestDagVersion": "Последняя версия Dag-а",
     "latestRun": "Последний запуск",
     "maxActiveRuns": "Максимум активных запусков",
     "maxActiveTasks": "Максимум активных задач",
-    "maxConsecutiveFailedDagRuns": "Максимум последовательных неудачных запусков ДАГа",
+    "maxConsecutiveFailedDagRuns": "Максимум последовательных неудачных запусков Dag-а",
     "nextRun": "Следующий запуск",
     "owner": "Владелец",
     "params": "Параметры",
     "schedule": "Расписание",
     "tags": "Теги"
   },
-  "dagId": "ID ДАГа",
+  "dagId": "ID Dag-а",
   "dagRun": {
     "conf": "Конфигурация",
-    "dagVersions": "Версии ДАГа",
+    "dagVersions": "Версии Dag-а",
     "dataIntervalEnd": "Конец временного интервала",
     "dataIntervalStart": "Начало временного интервала",
     "lastSchedulingDecision": "Последнее решение о расписании",
@@ -70,12 +70,12 @@
     "triggeredBy": "Инициировано",
     "triggeringUser": "Инициатор запуска"
   },
-  "dagRun_one": "Запуск ДАГа",
-  "dagRun_few": "Запуск ДАГов",
-  "dagRun_many": "Запуск ДАГов",
-  "dagRun_other": "Запусков ДАГов",
-  "dagRunId": "ID запуска ДАГа",
-  "dagWarnings": "Предупреждения/ошибки ДАГа",
+  "dagRun_one": "Запуск Dag-а",
+  "dagRun_few": "Запуск Dag-ов",
+  "dagRun_many": "Запуск Dag-ов",
+  "dagRun_other": "Запусков Dag-ов",
+  "dagRunId": "ID запуска Dag-а",
+  "dagWarnings": "Предупреждения/ошибки Dag-а",
   "defaultToGraphView": "По умолчанию отображать график",
   "defaultToGridView": "По умолчанию отображать в сетке",
   "delete": "Удалить",
@@ -86,12 +86,12 @@
   "direction": "Направление",
   "docs": {
     "documentation": "Документация",
-    "githubRepo": "GitHub Репозиторий",
-    "restApiReference": "REST API Справочник"
+    "githubRepo": "Репозиторий на GitHub",
+    "restApiReference": "Референс REST API"
   },
   "download": {
     "download": "Скачать",
-    "hotkey": "d",
+    "hotkey": "D",
     "tooltip": "Нажмите {{hotkey}}, чтобы скачать журналы"
   },
   "duration": "Длительность",
@@ -108,14 +108,14 @@
   "expand": {
     "collapse": "Свернуть",
     "expand": "Развернуть",
-    "hotkey": "e",
+    "hotkey": "E",
     "tooltip": "Нажмите {{hotkey}}, чтобы переключить развертывание"
   },
   "expandAllExtra": "Развернуть все дополнительные JSON",
   "expression": {
-    "all": "Все",
+    "all": "ВСЕ",
     "and": "И",
-    "any": "Любой",
+    "any": "ЛЮБОЙ",
     "or": "ИЛИ"
   },
   "filter": "Фильтр",
@@ -134,7 +134,7 @@
   "logicalDate": "Логическая дата",
   "logout": "Выйти",
   "logoutConfirmation": "Вы собираетесь выйти из приложения.",
-  "mapIndex": "Индекс маппинга",
+  "mapIndex": "Индекс отображения",
   "modal": {
     "add": "Добавить",
     "cancel": "Отменить",
@@ -149,7 +149,7 @@
     "admin": "Администратор",
     "assets": "Активы",
     "browse": "Просмотр",
-    "dags": "ДАГи",
+    "dags": "Dag-и",
     "docs": "Документы",
     "home": "Главная",
     "legacyFabViews": "Устаревшие виды",
@@ -159,19 +159,19 @@
   "noItemsFound": "Не найдено {{modelName}}",
   "note": {
     "add": "Добавить заметку",
-    "dagRun": "Заметка запуска ДАГа",
+    "dagRun": "Заметка запуска Dag-а",
     "label": "Заметка",
     "placeholder": "Добавьте заметку...",
-    "taskInstance": "Заметка экземпляра задачи"
+    "taskInstance": "Заметка для экземпляра задачи"
   },
-  "partitionedDagRun_one": "Разделенный запуск ДАГа",
-  "partitionedDagRun_other": "Разделенных запусков ДАГа",
+  "partitionedDagRun_one": "Разделенный запуск Dag-а",
+  "partitionedDagRun_other": "Разделенных запусков Dag-а",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Полученные события актива"
   },
-  "pendingDagRun_one": "{{count}} ДАГ ожидает запуска",
-  "pendingDagRun_few": "{{count}} ДАГа ожидают запуска",
-  "pendingDagRun_other": "{{count}} ДАГов ожидают запуска",
+  "pendingDagRun_one": "{{count}} Dag ожидает запуска",
+  "pendingDagRun_few": "{{count}} Dag-а ожидают запуска",
+  "pendingDagRun_other": "{{count}} Dag-ов ожидают запуска",
   "reset": "Сбросить",
   "runId": "ID запуска",
   "runTypes": {
@@ -199,7 +199,7 @@
   "signedInAs": "Вошли как",
   "source": {
     "hide": "Скрыть источник",
-    "hotkey": "s",
+    "hotkey": "S",
     "show": "Показать источник"
   },
   "sourceAssetEvent_one": "Событие источника актива",
@@ -214,7 +214,7 @@
     "open": "Открыт",
     "planned": "Запланирован",
     "queued": "В очереди",
-    "removed": "Удален",
+    "removed": "Удалён",
     "restarting": "Перезапуск",
     "running": "Выполняется",
     "scheduled": "Запланирован",
@@ -227,7 +227,7 @@
   "table": {
     "completedAt": "Завершен в",
     "createdAt": "Создан в",
-    "filterByTag": "Фильтровать ДАГи по тегу",
+    "filterByTag": "Фильтровать Dag-и по тегу",
     "filterColumns": "Фильтровать столбцы таблицы",
     "filterReset_one": "Сбросить фильтр",
     "filterReset_other": "Сбросить фильтры",
@@ -252,7 +252,7 @@
   "taskGroup": "Группа задач",
   "taskId": "ID задачи",
   "taskInstance": {
-    "dagVersion": "Версия ДАГа",
+    "dagVersion": "Версия Dag-а",
     "executor": "Исполнитель",
     "executorConfig": "Конфигурация исполнителя",
     "hostname": "Имя хоста",
@@ -269,10 +269,10 @@
       "class": "Класс триггера",
       "createdAt": "Время создания триггера",
       "id": "ID триггера",
-      "latestHeartbeat": "Последний heartbeat триггера",
+      "latestHeartbeat": "Последний heartbeat-сигнал триггера",
       "title": "Информация о триггере"
     },
-    "unixname": "Unix имя"
+    "unixname": "Имя Unix"
   },
   "taskInstance_one": "Экземпляр задачи",
   "taskInstance_few": "Экземпляра задачи",
@@ -286,7 +286,7 @@
   },
   "timestamp": {
     "hide": "Скрыть временные метки",
-    "hotkey": "t",
+    "hotkey": "T",
     "show": "Показать временные метки"
   },
   "timezone": "Часовой пояс",
@@ -294,14 +294,14 @@
     "current-timezone": "Текущее время в",
     "placeholder": "Выбрать часовой пояс",
     "title": "Выбрать часовой пояс",
-    "utc": "UTC (Координированное всемирное время)"
+    "utc": "UTC (Всемирное координированное время)"
   },
   "toaster": {
     "bulkDelete": {
-      "error": "Ошибка пакетного удаления {{resourceName}}",
+      "error": "Ошибка массового удаления {{resourceName}}",
       "success": {
         "description": "{{count}} {{resourceName}} успешно удалены. Ключи: {{keys}}",
-        "title": "Запрос на пакетное удаление {{resourceName}} отправлен"
+        "title": "Запрос на массовое удаление {{resourceName}} отправлен"
       }
     },
     "create": {
@@ -314,13 +314,13 @@
     "delete": {
       "error": "Ошибка удаления {{resourceName}}",
       "success": {
-        "description": "{{resourceName}} успешно удален.",
+        "description": "{{resourceName}} успешно удалён.",
         "title": "Запрос на удаление {{resourceName}} отправлен"
       }
     },
     "forbidden": {
       "description": "У вас нет разрешения на выполнение этого действия.",
-      "title": "Доступ запрещен"
+      "title": "Доступ запрещён"
     },
     "import": {
       "error": "Ошибка импорта {{resourceName}}",
@@ -332,7 +332,7 @@
     "update": {
       "error": "Ошибка обновления {{resourceName}}",
       "success": {
-        "description": "{{resourceName}} успешно обновлен.",
+        "description": "{{resourceName}} успешно обновлён.",
         "title": "Запрос на обновление {{resourceName}} отправлен"
       }
     }
@@ -346,15 +346,15 @@
     "selectType": "Выберите тип токена для генерации.",
     "title": "Генерация токена",
     "tokenExpiresIn": "Этот токен истекает через {{duration}}.",
-    "tokenGenerated": "Ваш токен был сгенерирован.",
-    "tokenShownOnce": "Этот токен будет показан только один раз. Скопируйте его сейчас."
+    "tokenGenerated": "Ваш токен сгенерирован.",
+    "tokenShownOnce": "Этот токен будет показан только один раз. Не забудьте скопировать и сохранить его."
   },
   "total": "Итого {{state}}",
   "triggered": "Запущено",
   "tryNumber": "Номер попытки",
   "user": "Пользователь",
   "wrap": {
-    "hotkey": "w",
+    "hotkey": "W",
     "tooltip": "Нажмите {{hotkey}}, чтобы свернуть/развернуть",
     "unwrap": "Развернуть",
     "wrap": "Свернуть"
