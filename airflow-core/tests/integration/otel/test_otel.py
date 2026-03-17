@@ -250,7 +250,7 @@ class TestOtelIntegration:
         dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
 
         dag_ids = dag_bag.dag_ids
-        assert len(dag_ids) == 3
+        assert len(dag_ids) == 1
 
         dag_dict: dict[str, SerializedDAG] = {}
         with create_session() as session:
@@ -317,7 +317,7 @@ class TestOtelIntegration:
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            scheduler_process, apiserver_process = self.start_worker_and_scheduler()
+            scheduler_process, apiserver_process = self.start_scheduler(capture_output=True)
 
             dag_id = "otel_test_dag"
 
@@ -363,10 +363,7 @@ class TestOtelIntegration:
                 "The apiserver process status is None, which means that it hasn't terminated as expected."
             )
 
-        out, err = capfd.readouterr()
-        log.info("out-start --\n%s\n-- out-end", out)
-        log.info("err-start --\n%s\n-- err-end", err)
-
+        out, _err = capfd.readouterr()
         return out, dag
 
     def _get_ti(self, dag_id: str, run_id: str, task_id: str) -> Any | None:
@@ -441,7 +438,7 @@ class TestOtelIntegration:
         try:
             # Start the processes here and not as fixtures or in a common setup,
             # so that the test can capture their output.
-            scheduler_process, apiserver_process = self.start_worker_and_scheduler()
+            scheduler_process, apiserver_process = self.start_scheduler()
 
             dag_id = "otel_test_dag"
 
@@ -482,14 +479,10 @@ class TestOtelIntegration:
                 "The apiserver process status is None, which means that it hasn't terminated as expected."
             )
 
-        out, err = capfd.readouterr()
-        log.info("out-start --\n%s\n-- out-end", out)
-        log.info("err-start --\n%s\n-- err-end", err)
+        capfd.readouterr()
 
-        # host = "host.docker.internal"
         host = "jaeger"
         service_name = os.environ.get("OTEL_SERVICE_NAME", "test")
-        # service_name ``= "my-service-name"
         r = requests.get(f"http://{host}:16686/api/traces?service={service_name}")
         data = r.json()
 
@@ -510,28 +503,27 @@ class TestOtelIntegration:
 
         nested = get_span_hierarchy()
         assert nested == {
-            "otel_test_dag": None,
-            "task1": None,
-            "task1_sub_span1": None,
-            "task1_sub_span2": None,
-            "task1_sub_span3": "task1_sub_span2",
-            "task1_sub_span4": None,
-            "task2": None,
+            "sub_span1": "task_run.task1",
+            "task_run.task1": "dag_run.otel_test_dag",
+            "dag_run.otel_test_dag": None,
         }
 
-    def start_worker_and_scheduler(self):
+    def start_scheduler(self, capture_output: bool = False):
+        stdout = None if capture_output else subprocess.DEVNULL
+        stderr = None if capture_output else subprocess.DEVNULL
+
         scheduler_process = subprocess.Popen(
             self.scheduler_command_args,
             env=os.environ.copy(),
-            stdout=None,
-            stderr=None,
+            stdout=stdout,
+            stderr=stderr,
         )
 
         apiserver_process = subprocess.Popen(
             self.apiserver_command_args,
             env=os.environ.copy(),
-            stdout=None,
-            stderr=None,
+            stdout=stdout,
+            stderr=stderr,
         )
 
         # Wait to ensure both processes have started.

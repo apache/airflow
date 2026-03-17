@@ -27,6 +27,7 @@ from unittest.mock import ANY, call
 
 import pendulum
 import pytest
+from opentelemetry.sdk.trace import TracerProvider
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
@@ -54,9 +55,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
@@ -560,142 +559,6 @@ class TestDagRun:
         assert dag_run.state == DagRunState.SUCCESS
         mock_on_success.assert_called_once()
 
-    def test_start_dr_spans_if_needed_new_span(self, dag_maker, session):
-        with dag_maker(
-            dag_id="test_start_dr_spans_if_needed_new_span",
-            schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
-        ) as dag:
-            dag_task1 = EmptyOperator(task_id="test_task1")
-            dag_task2 = EmptyOperator(task_id="test_task2")
-            dag_task1.set_downstream(dag_task2)
-
-        initial_task_states = {
-            "test_task1": TaskInstanceState.QUEUED,
-            "test_task2": TaskInstanceState.QUEUED,
-        }
-
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-
-        active_spans = ThreadSafeDict()
-        dag_run.set_active_spans(active_spans)
-
-        tis = dag_run.get_task_instances()
-
-        assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
-        assert dag_run.span_status == SpanStatus.NOT_STARTED
-
-        dag_run.start_dr_spans_if_needed(tis=tis)
-
-        assert dag_run.span_status == SpanStatus.ACTIVE
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is not None
-
-    def test_start_dr_spans_if_needed_span_with_continuance(self, dag_maker, session):
-        with dag_maker(
-            dag_id="test_start_dr_spans_if_needed_span_with_continuance",
-            schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
-        ) as dag:
-            dag_task1 = EmptyOperator(task_id="test_task1")
-            dag_task2 = EmptyOperator(task_id="test_task2")
-            dag_task1.set_downstream(dag_task2)
-
-        initial_task_states = {
-            "test_task1": TaskInstanceState.RUNNING,
-            "test_task2": TaskInstanceState.QUEUED,
-        }
-
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-
-        active_spans = ThreadSafeDict()
-        dag_run.set_active_spans(active_spans)
-
-        dag_run.span_status = SpanStatus.NEEDS_CONTINUANCE
-
-        tis = dag_run.get_task_instances()
-
-        first_ti = tis[0]
-        first_ti.span_status = SpanStatus.NEEDS_CONTINUANCE
-
-        assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
-        assert dag_run.active_spans.get(f"ti:{first_ti.id}") is None
-        assert dag_run.span_status == SpanStatus.NEEDS_CONTINUANCE
-        assert first_ti.span_status == SpanStatus.NEEDS_CONTINUANCE
-
-        dag_run.start_dr_spans_if_needed(tis=tis)
-
-        assert dag_run.span_status == SpanStatus.ACTIVE
-        assert first_ti.span_status == SpanStatus.ACTIVE
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is not None
-        assert dag_run.active_spans.get(f"ti:{first_ti.id}") is not None
-
-    def test_end_dr_span_if_needed(self, testing_dag_bundle, dag_maker, session):
-        with dag_maker(
-            dag_id="test_end_dr_span_if_needed",
-            schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
-        ) as dag:
-            dag_task1 = EmptyOperator(task_id="test_task1")
-            dag_task2 = EmptyOperator(task_id="test_task2")
-            dag_task1.set_downstream(dag_task2)
-
-        initial_task_states = {
-            "test_task1": TaskInstanceState.SUCCESS,
-            "test_task2": TaskInstanceState.SUCCESS,
-        }
-
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-
-        active_spans = ThreadSafeDict()
-        dag_run.set_active_spans(active_spans)
-
-        from airflow.observability.trace import Trace
-
-        dr_span = Trace.start_root_span(span_name="test_span", start_as_current=False)
-
-        active_spans.set("dr:" + str(dag_run.id), dr_span)
-
-        assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is not None
-
-        dag_run.end_dr_span_if_needed()
-
-        assert dag_run.span_status == SpanStatus.ENDED
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
-
-    def test_end_dr_span_if_needed_with_span_from_another_scheduler(
-        self, testing_dag_bundle, dag_maker, session
-    ):
-        with dag_maker(
-            dag_id="test_end_dr_span_if_needed_with_span_from_another_scheduler",
-            schedule=datetime.timedelta(days=1),
-            start_date=datetime.datetime(2017, 1, 1),
-        ) as dag:
-            dag_task1 = EmptyOperator(task_id="test_task1")
-            dag_task2 = EmptyOperator(task_id="test_task2")
-            dag_task1.set_downstream(dag_task2)
-
-        initial_task_states = {
-            "test_task1": TaskInstanceState.SUCCESS,
-            "test_task2": TaskInstanceState.SUCCESS,
-        }
-
-        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-
-        active_spans = ThreadSafeDict()
-        dag_run.set_active_spans(active_spans)
-
-        dag_run.span_status = SpanStatus.ACTIVE
-
-        assert dag_run.active_spans is not None
-        assert dag_run.active_spans.get("dr:" + str(dag_run.id)) is None
-
-        dag_run.end_dr_span_if_needed()
-
-        assert dag_run.span_status == SpanStatus.SHOULD_END
-
     def test_dagrun_update_state_with_handle_callback_success(self, testing_dag_bundle, dag_maker, session):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_success"
@@ -744,7 +607,6 @@ class TestDagRun:
         )
 
     def test_dagrun_update_state_with_handle_callback_failure(self, testing_dag_bundle, dag_maker, session):
-
         def on_failure_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
 
@@ -3292,3 +3154,159 @@ class TestDagRunHandleDagCallback:
         assert context_received["ti"].task_id == "test_task"
         assert context_received["ti"].dag_id == "test_dag"
         assert context_received["ti"].run_id == dr.run_id
+
+
+class TestDagRunTracing:
+    """Tests for DagRun OpenTelemetry span behavior."""
+
+    @pytest.fixture(autouse=True)
+    def sdk_tracer_provider(self):
+        """Patch the module-level tracer with one backed by a real SDK provider so spans have valid IDs."""
+        provider = TracerProvider()
+        real_tracer = provider.get_tracer("airflow.models.dagrun")
+        with mock.patch("airflow.models.dagrun.tracer", real_tracer):
+            yield
+
+    def test_context_carrier_set_on_init(self, dag_maker):
+        """DagRun.__init__ should populate context_carrier with a W3C traceparent."""
+        with dag_maker("test_tracing_init"):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+
+        assert dr.context_carrier is not None
+        assert isinstance(dr.context_carrier, dict)
+        assert "traceparent" in dr.context_carrier
+
+    def test_context_carrier_unique_per_dagrun(self, dag_maker):
+        """Each DagRun should get a distinct trace context."""
+        with dag_maker("test_tracing_unique1"):
+            EmptyOperator(task_id="t1")
+        dr1 = dag_maker.create_dagrun()
+
+        with dag_maker("test_tracing_unique2"):
+            EmptyOperator(task_id="t1")
+        dr2 = dag_maker.create_dagrun()
+
+        assert dr1.context_carrier["traceparent"] != dr2.context_carrier["traceparent"]
+
+    @pytest.mark.parametrize("final_state", [DagRunState.SUCCESS, DagRunState.FAILED])
+    def test_emit_dagrun_span_called_on_completion(self, dag_maker, session, final_state):
+        """_emit_dagrun_span should be called exactly once when a dag run finishes."""
+        with dag_maker("test_tracing_emit", session=session) as dag:
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("t1", session=session)
+        ti.state = (
+            TaskInstanceState.SUCCESS if final_state == DagRunState.SUCCESS else TaskInstanceState.FAILED
+        )
+        session.flush()
+
+        dr.dag = dag
+
+        with mock.patch.object(dr, "_emit_dagrun_span") as mock_emit:
+            dr.update_state(session=session)
+
+        mock_emit.assert_called_once_with(state=final_state)
+
+    def test_emit_dagrun_span_not_called_while_running(self, dag_maker, session):
+        """_emit_dagrun_span should not be called while the dag run is still running."""
+        with dag_maker("test_tracing_no_emit_running", session=session) as dag:
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        tis = dr.get_task_instances(session=session)
+        for ti in tis:
+            if ti.task_id == "t1":
+                ti.state = TaskInstanceState.SUCCESS
+            else:
+                ti.state = TaskInstanceState.RUNNING
+        session.flush()
+
+        dr.dag = dag
+
+        with mock.patch.object(dr, "_emit_dagrun_span") as mock_emit:
+            dr.update_state(session=session)
+
+        mock_emit.assert_not_called()
+
+    def test_emit_dagrun_span_uses_context_carrier_ids(self, dag_maker, session):
+        """The emitted span should inherit trace_id/span_id from the context_carrier."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+        from airflow._shared.observability.traces import OverrideableRandomIdGenerator
+
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker("test_tracing_ids", session=session) as dag:
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("t1", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+        dr.dag = dag
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr.update_state(session=session)
+
+        spans = in_mem_exporter.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+
+        # Decode the expected trace_id/span_id from the stored context_carrier
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        from opentelemetry import trace as otel_trace
+
+        stored_span = otel_trace.get_current_span(context=ctx)
+        stored_ctx = stored_span.get_span_context()
+
+        assert span.context.trace_id == stored_ctx.trace_id
+        assert span.context.span_id == stored_ctx.span_id
+
+    @pytest.mark.parametrize("final_state", [DagRunState.SUCCESS, DagRunState.FAILED])
+    def test_emit_dagrun_span_attributes_and_status(self, dag_maker, session, final_state):
+        """The emitted span should have the correct name, attributes, and status code."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+        from opentelemetry.trace import StatusCode
+
+        from airflow._shared.observability.traces import OverrideableRandomIdGenerator
+
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker("test_tracing_attrs", session=session) as dag:
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("t1", session=session)
+        ti.state = (
+            TaskInstanceState.SUCCESS if final_state == DagRunState.SUCCESS else TaskInstanceState.FAILED
+        )
+        session.flush()
+        dr.dag = dag
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr.update_state(session=session)
+
+        spans = in_mem_exporter.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+
+        assert span.name == f"dag_run.{dr.dag_id}"
+        assert span.attributes["airflow.dag_id"] == dr.dag_id
+        assert span.attributes["airflow.dag_run.run_id"] == dr.run_id
+
+        expected_status = StatusCode.OK if final_state == DagRunState.SUCCESS else StatusCode.ERROR
+        assert span.status.status_code == expected_status

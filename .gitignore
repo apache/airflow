@@ -10,6 +10,10 @@ airflow.db
 
 # Airflow temporary artifacts
 airflow-core/src/airflow/git_version
+# ERD diagrams (generated at doc build time)
+airflow-core/docs/img/airflow_erd.svg
+providers/fab/docs/img/fab_erd.svg
+providers/edge3/docs/img/edge3_erd.svg
 airflow-core/src/airflow/ui/coverage/
 # and legacy ones
 airflow/git_version
@@ -39,8 +43,6 @@ env/
 build/
 develop-eggs/
 dist/
-!providers/fab/**/www/static/dist
-!providers/edge3/**/www/dist
 downloads/
 eggs/
 .eggs/
@@ -128,6 +130,9 @@ ENV/
 # PyCharm
 .idea/
 *.iml
+
+# Claude Code
+.claude/
 
 # Cursor
 .cursor/
@@ -264,9 +269,6 @@ licenses/LICENSES-ui.txt
 
 # airflow-build-dockerfile and correconding ignore file
 airflow-build-dockerfile*
-
-# Temporary ignore uv.lock until we integrate it fully in our constraint preparation mechanism
-/uv.lock
 
 # Ignore zip files https://github.com/apache/airflow/issues/46449
 *.zip

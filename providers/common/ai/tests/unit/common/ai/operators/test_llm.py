@@ -53,15 +53,17 @@ class TestLLMOperator:
         """Default output_type=str returns the LLM string directly."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("Paris is the capital of France.")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(task_id="test", prompt="What is the capital of France?", llm_conn_id="my_llm")
         result = op.execute(context=MagicMock())
 
         assert result == "Paris is the capital of France."
         mock_agent.run_sync.assert_called_once_with("What is the capital of France?")
-        mock_hook_cls.return_value.create_agent.assert_called_once_with(output_type=str, instructions="")
-        mock_hook_cls.assert_called_once_with(llm_conn_id="my_llm", model_id=None)
+        mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
+            output_type=str, instructions=""
+        )
+        mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": None})
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_structured_output_with_all_params(self, mock_hook_cls):
@@ -72,7 +74,7 @@ class TestLLMOperator:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Entities(names=["Alice", "Bob"]))
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(
             task_id="test",
@@ -86,8 +88,8 @@ class TestLLMOperator:
         result = op.execute(context=MagicMock())
 
         assert result == {"names": ["Alice", "Bob"]}
-        mock_hook_cls.assert_called_once_with(llm_conn_id="my_llm", model_id="openai:gpt-5")
-        mock_hook_cls.return_value.create_agent.assert_called_once_with(
+        mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": "openai:gpt-5"})
+        mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=Entities,
             instructions="You are an extractor.",
             retries=3,
@@ -126,7 +128,7 @@ class TestLLMOperatorApproval:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("LLM response")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(
             task_id="approval_test",
@@ -152,7 +154,7 @@ class TestLLMOperatorApproval:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("draft output")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(
             task_id="mod_test",
@@ -178,7 +180,7 @@ class TestLLMOperatorApproval:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("output")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         timeout = timedelta(hours=1)
         op = LLMOperator(
@@ -207,7 +209,7 @@ class TestLLMOperatorApproval:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="hello"))
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(
             task_id="struct_test",
@@ -228,7 +230,7 @@ class TestLLMOperatorApproval:
         """When require_approval=False, execute() returns output directly."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("plain output")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(task_id="no_approval", prompt="p", llm_conn_id="my_llm", require_approval=False)
         result = op.execute(context={})

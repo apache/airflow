@@ -240,13 +240,13 @@ If you are using Kubernetes Engine, you can use
 `Workload Identity <https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity>`__ to assign
 an identity to individual pods.
 
-For more information about service accounts in the Airflow, see :ref:`howto/connection:gcp`
+For more information about service accounts in the Airflow, see :ref:`howto/connection:google_cloud_platform`
 
 Impersonate Service Accounts
 ----------------------------
 
 If you need access to other service accounts, you can
-:ref:`impersonate other service accounts <howto/connection:gcp:impersonation>` to exchange the token with
+:ref:`impersonate other service accounts <howto/connection:google_cloud_platform:impersonation>` to exchange the token with
 the default identity to another service account. Thus, the account keys are still managed by Google
 and cannot be read by your workload.
 
