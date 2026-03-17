@@ -334,8 +334,8 @@ it triggers `registry-build.yml` with the provider ID. The incremental flow:
    all records. Because per-version data only exists for the target provider, Eleventy
    emits empty fallback JSON for other providers' `connections.json` and
    `parameters.json` API endpoints (see **Known limitation** below).
-5. **S3 sync (selective)** — the main sync excludes per-provider `connections.json`
-   and `parameters.json` to avoid overwriting real data with empty stubs. A second
+5. **S3 sync (selective)** — the main sync excludes the entire `api/providers/`
+   subtree to avoid overwriting real data with incomplete/empty stubs. A second
    sync uploads only the target provider's API files.
 6. **Publish versions** — `publish_versions.py` updates `api/providers/{id}/versions.json`.
 

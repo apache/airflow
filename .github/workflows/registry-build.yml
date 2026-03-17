@@ -251,20 +251,15 @@ jobs:
           S3_BUCKET: ${{ steps.destination.outputs.bucket }}
           PROVIDER: ${{ inputs.provider }}
         run: |
-          # Incremental builds only extract connections/parameters for the
-          # target provider(s).  The Eleventy site build still emits empty
-          # stub JSON for every other provider.  Uploading those stubs would
-          # overwrite real data on S3, so we exclude per-provider API JSON
-          # from the main sync and selectively upload only the target
-          # provider's files afterward.
+          # Incremental builds only extract data for the target provider(s).
+          # Eleventy still generates API files for every provider, but
+          # non-target files contain incomplete/empty data (no version info,
+          # empty connections, etc.).  Exclude the entire per-provider API
+          # subtree from the main sync, then selectively upload only the
+          # target provider's files.
           EXCLUDE_PROVIDER_API=()
           if [[ -n "${PROVIDER}" ]]; then
-            EXCLUDE_PROVIDER_API=(
-              --exclude "api/providers/*/connections.json"
-              --exclude "api/providers/*/parameters.json"
-              --exclude "api/providers/*/*/connections.json"
-              --exclude "api/providers/*/*/parameters.json"
-            )
+            EXCLUDE_PROVIDER_API=(--exclude "api/providers/*")
           fi
 
           aws s3 sync registry/_site/ "${S3_BUCKET}" \
@@ -272,7 +267,7 @@ jobs:
             --exclude "pagefind/*" \
             "${EXCLUDE_PROVIDER_API[@]}"
 
-          # For incremental builds, sync only the updated provider's API files.
+          # For incremental builds, sync only the target provider's API files.
           if [[ -n "${PROVIDER}" ]]; then
             for pid in ${PROVIDER}; do
               aws s3 sync "registry/_site/api/providers/${pid}/" \
