@@ -20,7 +20,7 @@
 Add triggered_at to dag_run table.
 
 Revision ID: cd799060f00b
-Revises: 6222ce48e289
+Revises: 888b59e02a5b
 Create Date: 2026-03-10 00:00:00.000000
 
 """
@@ -33,7 +33,7 @@ from alembic import op
 from airflow.utils.sqlalchemy import UtcDateTime
 
 revision = "cd799060f00b"
-down_revision = "6222ce48e289"
+down_revision = "888b59e02a5b"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
