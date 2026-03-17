@@ -506,12 +506,10 @@ class TestMySqlHook:
             IGNORE 1 LINES""",
         )
         self.cur.execute.assert_called_once_with(
-            (
-                f"LOAD DATA LOCAL INFILE %s IGNORE INTO TABLE `{table}` "
-                "FIELDS TERMINATED BY ';'\n"
-                "            OPTIONALLY ENCLOSED BY '\"'\n"
-                "            IGNORE 1 LINES"
-            ),
+            f"LOAD DATA LOCAL INFILE %s IGNORE INTO TABLE `{table}` "
+            "FIELDS TERMINATED BY ';'\n"
+            "            OPTIONALLY ENCLOSED BY '\"'\n"
+            "            IGNORE 1 LINES",
             ("/tmp/file",),
         )
 
