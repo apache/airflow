@@ -4604,7 +4604,7 @@ class TestSchedulerJob:
         session.flush()
 
         scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
         self.job_runner._create_dag_runs_asset_triggered(
             dag_models=[dag_model],
             session=session,
@@ -4639,7 +4639,7 @@ class TestSchedulerJob:
         session.flush()
 
         scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         def _lock_only_selected_asset(query, **_):
             # Simulate SKIP LOCKED behavior where this scheduler can only consume one ADRQ row.
