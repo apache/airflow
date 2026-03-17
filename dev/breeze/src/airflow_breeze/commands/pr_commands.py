@@ -2202,7 +2202,7 @@ def _build_comment(
     what_to_do = _load_what_to_do_next()
 
     rebase_note = ""
-    if commits_behind > 0:
+    if commits_behind > 50:
         rebase_note = (
             f"\n\n> **Note:** Your branch is **{commits_behind} "
             f"commit{'s' if commits_behind != 1 else ''} behind `{base_ref}`**. "

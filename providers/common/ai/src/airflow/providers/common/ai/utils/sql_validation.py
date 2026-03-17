@@ -32,7 +32,7 @@ from sqlglot.errors import ErrorLevel
 # - Select: plain queries and CTE-wrapped queries (WITH ... AS ... SELECT is parsed
 #   as Select with a `with` clause property — still a Select node at the top level)
 # - Union/Intersect/Except: set operations on SELECT results
-DEFAULT_ALLOWED_TYPES: tuple[type[exp.Expression], ...] = (
+DEFAULT_ALLOWED_TYPES: tuple[type[exp.Expr], ...] = (
     exp.Select,
     exp.Union,
     exp.Intersect,
@@ -47,10 +47,10 @@ class SQLSafetyError(Exception):
 def validate_sql(
     sql: str,
     *,
-    allowed_types: tuple[type[exp.Expression], ...] | None = None,
+    allowed_types: tuple[type[exp.Expr], ...] | None = None,
     dialect: str | None = None,
     allow_multiple_statements: bool = False,
-) -> list[exp.Expression]:
+) -> list[exp.Expr]:
     """
     Parse SQL and verify all statements are in the allowed types list.
 
@@ -66,7 +66,7 @@ def validate_sql(
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
     :param allow_multiple_statements: Whether to allow multiple semicolon-separated
         statements. Default ``False``.
-    :return: List of parsed sqlglot Expression objects.
+    :return: List of parsed sqlglot Expr objects.
     :raises SQLSafetyError: If the SQL is empty, contains disallowed statement types,
         or has multiple statements when not permitted.
     """
@@ -81,7 +81,7 @@ def validate_sql(
         raise SQLSafetyError(f"SQL parse error: {e}") from e
 
     # sqlglot.parse can return [None] for empty input
-    parsed: list[exp.Expression] = [s for s in statements if s is not None]  # type: ignore[misc]
+    parsed: list[exp.Expr] = [s for s in statements if s is not None]
     if not parsed:
         raise SQLSafetyError("Empty SQL input.")
 
