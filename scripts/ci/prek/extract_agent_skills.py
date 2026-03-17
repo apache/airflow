@@ -83,6 +83,23 @@ def parse_marker(line: str) -> dict[str, str] | None:
     return fields
 
 
+RST_SKILL_RE = re.compile(r"[.][.] agent-skill::[ ]*\n(?P<fields>(?:[ ]{3}:[^:]+: .+\n)+)", re.MULTILINE)
+RST_FIELD_RE = re.compile(r"[ ]{3}:([^:]+): (.+)")
+
+
+def extract_skills_from_rst(rst_path: Path) -> list[dict[str, str]]:
+    """Extract agent-skill directives from RST contributing docs."""
+    if not rst_path.exists():
+        return []
+    skills = []
+    for match in RST_SKILL_RE.finditer(rst_path.read_text(encoding="utf-8")):
+        fields = dict(RST_FIELD_RE.findall(match.group("fields")))
+        if "id" in fields:
+            fields["workflow"] = fields.pop("id")
+            skills.append(fields)
+    return skills
+
+
 def extract_skills(skill_md_path: Path) -> list[dict[str, str]]:
     """
     Read SKILL.md and extract all agent-skill-sync markers.
@@ -179,6 +196,8 @@ def main() -> None:
     args = parser.parse_args()
 
     skills = extract_skills(args.skill_md)
+    rst_path = Path("contributing-docs/03_contributors_quick_start.rst")
+    skills += extract_skills_from_rst(rst_path)
 
     if not skills:
         print(

@@ -962,7 +962,7 @@ repos:
       - id: check-agent-skills-drift
         name: Check agent skills are in sync with SKILL.md
         description: Fails if skills.json has drifted from agent-skill-sync markers in SKILL.md
-        entry: ./scripts/ci/prek/extract_agent_skills.py --check
+        entry: python3 scripts/ci/prek/extract_agent_skills.py --check
         language: python
         files: >
           (?x)

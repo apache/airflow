@@ -306,6 +306,15 @@ or with pipx:
   pipx install prek
 
 
+
+.. agent-skill::
+   :id: static-checks
+   :context: host
+   :local: prek
+   :breeze: prek
+   :prereqs:
+   :description: Run pre-commit static checks before committing
+
 3. Go to your project directory
 
 .. code-block:: bash
@@ -745,6 +754,16 @@ All Tests are inside ./tests directory.
 - Running Unit tests inside Breeze environment.
 
   Just run ``pytest filepath+filename`` to run the tests.
+.. agent-skill::
+   :id: run-tests
+   :context: host
+   :local: uv run --project {distribution_folder} pytest {test_path} -xvs
+   :breeze: pytest {test_path} -xvs
+   :prereqs: run-static-checks
+   :fallback: missing_system_deps
+   :description: Run targeted tests local-first, fall back to Breeze if missing system deps
+
+
 
 .. code-block:: bash
 

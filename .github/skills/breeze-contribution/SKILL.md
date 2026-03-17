@@ -87,7 +87,6 @@ prek
 
 If prek is not installed: `uv tool install prek`
 
-<!-- agent-skill-sync: workflow=static-checks host=prek breeze=prek -->
 
 ---
 
@@ -108,7 +107,6 @@ Signs you need Breeze fallback:
 - `ModuleNotFoundError` for system-level packages (mysqlclient, libpq, etc.)
 - Test results differ from CI
 
-<!-- agent-skill-sync: workflow=run-tests host="uv run --project {dist} pytest {path} -xvs" breeze="pytest {path} -xvs" fallback=missing_system_deps -->
 
 ---
 
@@ -122,7 +120,6 @@ breeze exec -- airflow dags trigger {dag_id}
 breeze exec -- airflow tasks states-for-dag-run {dag_id} {run_id}
 ```
 
-<!-- agent-skill-sync: workflow=system-verify host="breeze start-airflow" breeze=N/A -->
 
 ---
 
