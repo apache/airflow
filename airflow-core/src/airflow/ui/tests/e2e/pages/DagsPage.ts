@@ -231,7 +231,7 @@ export class DagsPage extends BasePage {
     }
 
     await this.page.keyboard.press("Escape");
-    await expect(dropdown).toBeHidden({ timeout: 5000 });
+    await expect(dropdown).toHaveAttribute("data-state", "closed", { timeout: 5000 });
 
     return dataValues;
   }
@@ -498,7 +498,9 @@ export class DagsPage extends BasePage {
     await expect(option).toBeVisible({ timeout: 5000 });
     await option.click();
 
-    await expect(this.page.locator('div[role="listbox"]')).toBeHidden({ timeout: 5000 });
+    await expect(this.page.locator('div[role="listbox"]')).toHaveAttribute("data-state", "closed", {
+      timeout: 5000,
+    });
   }
 
   /**
