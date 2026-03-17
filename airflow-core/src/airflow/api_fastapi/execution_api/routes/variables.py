@@ -67,7 +67,13 @@ def get_variable(
 ) -> VariableResponse:
     """Get an Airflow Variable."""
     if not variable_key:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": "Not Found",
+            },
+        )
 
     try:
         variable_value = Variable.get(variable_key, team_name=team_name)
@@ -96,7 +102,13 @@ def put_variable(
 ):
     """Set an Airflow Variable."""
     if not variable_key:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": "Not Found",
+            },
+        )
 
     Variable.set(key=variable_key, value=body.value, description=body.description, team_name=team_name)
     return {"message": "Variable successfully set"}
@@ -113,6 +125,12 @@ def put_variable(
 def delete_variable(variable_key: str, team_name: Annotated[str | None, Depends(get_team_name_dep)]):
     """Delete an Airflow Variable."""
     if not variable_key:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not Found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": "Not Found",
+            },
+        )
 
     Variable.delete(key=variable_key, team_name=team_name)
