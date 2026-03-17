@@ -33,7 +33,6 @@ import dill
 import structlog
 import uuid6
 from opentelemetry import trace
-from opentelemetry.trace import SpanContext, TraceFlags
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
@@ -101,6 +100,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow_shared.observability.traces import new_dagrun_trace_carrier
 
 TR = TaskReschedule
 
@@ -385,7 +385,7 @@ def clear_task_instances(
         for instance in tis:
             run_ids_by_dag_id[instance.dag_id].add(instance.run_id)
 
-        drs = session.scalars(
+        drs: Iterable[DagRun] = session.scalars(
             select(DagRun).where(
                 or_(
                     *(
@@ -400,6 +400,7 @@ def clear_task_instances(
             # Always update clear_number and queued_at when clearing tasks, regardless of state
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
+            dr.context_carrier = new_dagrun_trace_carrier()
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
 
@@ -428,6 +429,8 @@ def clear_task_instances(
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
+    for ti in tis:
+        ti.context_carrier = _make_task_carrier(ti.dag_run.context_carrier)
     session.flush()
 
 
@@ -492,15 +495,6 @@ def uuid7() -> UUID:
 def _make_task_carrier(dag_run_context_carrier):
     parent_context = (
         TraceContextTextMapPropagator().extract(dag_run_context_carrier) if dag_run_context_carrier else None
-    )
-
-    parent_span = trace.get_current_span(parent_context)
-    parent_span_ctx = parent_span.get_span_context()
-    span_ctx = SpanContext(
-        trace_id=parent_span_ctx.trace_id,
-        span_id=parent_span_ctx.span_id,
-        is_remote=True,
-        trace_flags=TraceFlags(TraceFlags.SAMPLED),
     )
     span = tracer.start_span("notused", context=parent_context)  # intentionally never closed
     new_ctx = trace.set_span_in_context(span)
