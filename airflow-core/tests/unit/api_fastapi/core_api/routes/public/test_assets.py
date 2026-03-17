@@ -1171,7 +1171,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get(
                 f"/dags/{dag_id}/assets/queuedEvents",
             )
@@ -1475,7 +1475,7 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get(f"/assets/{asset.id}/queuedEvents")
 
         assert response.status_code == 200

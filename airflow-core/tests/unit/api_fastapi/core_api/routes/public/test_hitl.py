@@ -529,7 +529,7 @@ class TestGetHITLDetailsEndpoint:
         test_client: TestClient,
         expected_sample_hitl_detail_dict: dict[str, Any],
     ) -> None:
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
         assert response.status_code == 200
         assert response.json() == {
@@ -599,7 +599,7 @@ class TestGetHITLDetailsEndpoint:
         params: dict[str, Any],
         expected_ti_count: int,
     ) -> None:
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti_count

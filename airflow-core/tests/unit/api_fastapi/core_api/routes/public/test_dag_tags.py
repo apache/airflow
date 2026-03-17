@@ -246,7 +246,7 @@ class TestDagTags(TestDagEndpoint):
     def test_get_dag_tags(
         self, test_client, query_params, expected_status_code, expected_dag_tags, expected_total_entries
     ):
-        with assert_queries_count(3 if expected_status_code == 200 else 2):
+        with assert_queries_count(4 if expected_status_code == 200 else 3):
             response = test_client.get("/dagTags", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:

@@ -1673,7 +1673,13 @@ def get_sqla_model_classes():
         return Base._decl_class_registry.values()
 
 
-def get_query_count(query_stmt: Select, *, session: Session) -> int:
+def get_query_count(
+    query_stmt: Select,
+    *,
+    session: Session,
+    allow_estimation: bool = False,
+    threshold: int = 5000000,
+) -> int:
     """
     Get count of a query.
 
@@ -1684,9 +1690,45 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
 
     :meta private:
     """
+    dialect_name = get_dialect_name(session)
+
+    if allow_estimation and dialect_name in ("postgresql", "mysql") and _is_simple_select_from(query_stmt):
+        table = getattr(query_stmt.get_final_froms()[0], "name", None)
+        if dialect_name == "postgresql":
+            estimate_stmt = text("SELECT reltuples FROM pg_class WHERE relname = :table")
+        elif dialect_name == "mysql":
+            estimate_stmt = text(
+                "SELECT NUM_ROWS FROM INFORMATION_SCHEMA.INNODB_TABLESTATS where NAME = 'airflow/:table'"
+            )
+        result = session.scalar(estimate_stmt, {"table": table})
+
+        # If the row count estimate is small, query count(*) to get the exact number
+        if result is not None and result > threshold:
+            return result
+
     count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
     result = session.scalar(count_stmt)
     return result or 0
+
+
+def _is_simple_select_from(query_stmt: Select) -> bool:
+    """
+    Check whether a query has a simple `SELECT ... FROM ... ORDER BY ...` pattern.
+
+    Return false if there is any where / join / groupby / limit / offset clause
+    or subquery in the query statement.
+    """
+    if query_stmt._where_criteria:
+        return False
+    if query_stmt._group_by_clauses:
+        return False
+    if query_stmt._limit_clause is not None or query_stmt._offset_clause is not None:
+        return False
+
+    from_clauses = query_stmt.get_final_froms()
+    if len(from_clauses) > 1 or from_clauses[0]._is_join or from_clauses[0]._is_subquery:
+        return False
+    return True
 
 
 async def get_query_count_async(statement: Select, *, session: AsyncSession) -> int:

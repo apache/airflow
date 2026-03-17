@@ -29,7 +29,7 @@ from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import current_app, g
 from flask_appbuilder.const import AUTH_LDAP
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
@@ -503,12 +503,12 @@ class FabAuthManager(BaseAuthManager[User]):
         user: User,
         method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
-    ) -> set[str]:
+    ) -> tuple[set[str], bool]:
         if self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user):
             # If user is authorized to access all DAGs, return all DAGs
-            return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+            return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}, True
         if isinstance(user, AnonymousUser):
-            return set()
+            return set(), False
         user_query = (
             session.scalars(
                 select(User)
@@ -535,10 +535,14 @@ class FabAuthManager(BaseAuthManager[User]):
                 ):
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
-                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}, True
                     if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                         resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
-        return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
+
+        dag_ids = set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
+        total_dag_count = session.scalar(select(func.count(DagModel.dag_id)))
+        all_dags_selected = len(dag_ids) == total_dag_count
+        return dag_ids, all_dags_selected
 
     @provide_session
     def get_authorized_pools(

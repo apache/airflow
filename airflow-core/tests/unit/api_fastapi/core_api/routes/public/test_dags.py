@@ -427,7 +427,7 @@ class TestGetDags(TestDagEndpoint):
         if any(param in query_params for param in ["has_asset_schedule", "asset_dependency"]):
             self._create_asset_test_data(session)
 
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
@@ -477,7 +477,7 @@ class TestGetDags(TestDagEndpoint):
     def test_get_dags_with_nullable_fields(
         self, test_client, query_params, expected_total_entries, expected_ids, session
     ):
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
@@ -489,7 +489,7 @@ class TestGetDags(TestDagEndpoint):
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_get_dags_should_call_get_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
-        mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
+        mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}, False
         response = test_client.get("/dags")
         mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
         assert response.status_code == 200
@@ -792,7 +792,7 @@ class TestPatchDags(TestDagEndpoint):
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_patch_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
-        mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
+        mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}, False
         response = test_client.patch(
             "/dags", json={"is_paused": False}, params={"exclude_stale": False, "dag_id_pattern": "~"}
         )

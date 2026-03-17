@@ -1000,7 +1000,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/~/taskInstances",
                 {"logical_date_lte": DEFAULT_DATETIME_1},
                 1,
-                5,
+                7,
                 id="test logical date filter",
             ),
             pytest.param(
@@ -1013,7 +1013,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/~/taskInstances",
                 {"start_date_gte": DEFAULT_DATETIME_1, "start_date_lte": DEFAULT_DATETIME_STR_2},
                 2,
-                5,
+                7,
                 id="test start date filter",
             ),
             pytest.param(
@@ -1029,7 +1029,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                     "start_date_lt": DEFAULT_DATETIME_STR_2,
                 },
                 1,
-                5,
+                7,
                 id="test start date gt and lt filter",
             ),
             pytest.param(
@@ -1042,7 +1042,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/~/taskInstances?",
                 {"end_date_gte": DEFAULT_DATETIME_1, "end_date_lte": DEFAULT_DATETIME_STR_2},
                 2,
-                5,
+                7,
                 id="test end date filter",
             ),
             pytest.param(
@@ -1058,7 +1058,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                     "end_date_lt": (DEFAULT_DATETIME_2 + dt.timedelta(hours=1)).isoformat(),
                 },
                 1,
-                5,
+                7,
                 id="test end date gt and lt filter",
             ),
             pytest.param(
@@ -1071,7 +1071,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances",
                 {"duration_gte": 100, "duration_lte": 200},
                 3,
-                7,
+                9,
                 id="test duration filter",
             ),
             pytest.param(
@@ -1084,7 +1084,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"duration_gte": 100, "duration_lte": 200},
                 3,
-                3,
+                5,
                 id="test duration filter ~",
             ),
             pytest.param(
@@ -1097,7 +1097,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"duration_gt": 100, "duration_lt": 200},
                 1,
-                3,
+                5,
                 id="test duration gt and lt filter ~",
             ),
             pytest.param(
@@ -1111,7 +1111,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"state": ["running", "queued", "none"]},
                 3,
-                7,
+                9,
                 id="test state filter",
             ),
             pytest.param(
@@ -1125,7 +1125,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"state": ["no_status"]},
                 1,
-                7,
+                9,
                 id="test no_status state filter",
             ),
             pytest.param(
@@ -1139,7 +1139,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {},
                 4,
-                7,
+                9,
                 id="test null states with no filter",
             ),
             pytest.param(
@@ -1148,7 +1148,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances",
                 {"start_date_gte": DEFAULT_DATETIME_STR_1},
                 1,
-                7,
+                9,
                 id="test start_date coalesce with null",
             ),
             pytest.param(
@@ -1161,7 +1161,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"pool": ["test_pool_1", "test_pool_2"]},
                 2,
-                7,
+                9,
                 id="test pool filter",
             ),
             pytest.param(
@@ -1174,7 +1174,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"pool": ["test_pool_1", "test_pool_2"]},
                 2,
-                3,
+                5,
                 id="test pool filter ~",
             ),
             pytest.param(
@@ -1187,7 +1187,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"pool_name_pattern": "test_pool"},
                 3,
-                3,
+                5,
                 id="test pool_name_pattern filter",
             ),
             pytest.param(
@@ -1200,7 +1200,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances",
                 {"queue": ["test_queue_1", "test_queue_2"]},
                 2,
-                7,
+                9,
                 id="test queue filter",
             ),
             pytest.param(
@@ -1213,7 +1213,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"queue": ["test_queue_1", "test_queue_2"]},
                 2,
-                3,
+                5,
                 id="test queue filter ~",
             ),
             pytest.param(
@@ -1228,7 +1228,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"queue_name_pattern": "test"},
                 3,
-                3,
+                5,
                 id="test queue_name_pattern filter",
             ),
             pytest.param(
@@ -1241,7 +1241,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"executor": ["test_exec_1", "test_exec_2"]},
                 2,
-                7,
+                9,
                 id="test_executor_filter",
             ),
             pytest.param(
@@ -1254,7 +1254,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"executor": ["test_exec_1", "test_exec_2"]},
                 2,
-                3,
+                5,
                 id="test executor filter ~",
             ),
             pytest.param(
@@ -1267,7 +1267,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"task_display_name_pattern": "task_name"},
                 2,
-                3,
+                5,
                 id="test task_display_name_pattern filter",
             ),
             pytest.param(
@@ -1276,7 +1276,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"task_group_id": "section_1"},
                 3,
-                7,
+                9,
                 id="test task_group filter with exact match",
             ),
             pytest.param(
@@ -1285,7 +1285,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"task_group_id": "section_2"},
                 4,  # section_2 has 4 tasks: task_1 + inner_section_2 (task_2, task_3, task_4)
-                7,
+                9,
                 id="test task_group filter exact match on group_id",
             ),
             pytest.param(
@@ -1298,7 +1298,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"task_id": "task_match_id_2"},
                 1,
-                3,
+                5,
                 id="test task_id filter",
             ),
             pytest.param(
@@ -1309,7 +1309,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"version_number": [2]},
                 2,
-                3,
+                5,
                 id="test version number filter",
             ),
             pytest.param(
@@ -1321,7 +1321,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"version_number": [1, 2, 3]},
                 7,  # apart from the TIs in the fixture, we also get one from
                 # the create_task_instances method
-                3,
+                5,
                 id="test multiple version numbers filter",
             ),
             pytest.param(
@@ -1337,7 +1337,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
                 {"try_number": [0, 1]},
                 5,
-                7,
+                9,
                 id="test_try_number_filter",
             ),
             pytest.param(
@@ -1356,7 +1356,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"operator": ["FirstOperator", "SecondOperator"]},
                 5,
-                3,
+                5,
                 id="test operator type filter filter",
             ),
             pytest.param(
@@ -1371,7 +1371,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"operator_name_pattern": "Custom"},
                 2,
-                3,
+                5,
                 id="test operator_name_pattern filter",
             ),
             pytest.param(
@@ -1389,7 +1389,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ("/dags/~/dagRuns/~/taskInstances"),
                 {"map_index": [0, 1]},
                 2,
-                3,
+                5,
                 id="test map_index filter",
             ),
             pytest.param(
@@ -1401,7 +1401,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 {"run_id_pattern": "TEST_DAG_"},
                 1,  # apart from the TIs in the fixture, we also get one from
                 # the create_task_instances method
-                3,
+                5,
                 id="test run_id_pattern filter",
             ),
             pytest.param(
@@ -1410,7 +1410,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "example_python_operator"},
                 14,  # Based on test failure - example_python_operator creates 14 task instances
-                3,
+                5,
                 id="test dag_id_pattern exact match",
             ),
             pytest.param(
@@ -1419,7 +1419,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "example_%"},
                 22,  # Based on test failure - both DAGs together create 22 task instances
-                3,
+                5,
                 id="test dag_id_pattern wildcard prefix",
             ),
             pytest.param(
@@ -1428,7 +1428,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "%skip%"},
                 8,  # Based on test failure - example_skip_dag creates 8 task instances
-                3,
+                5,
                 id="test dag_id_pattern wildcard contains",
             ),
             pytest.param(
@@ -1437,7 +1437,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "nonexistent"},
                 0,
-                3,
+                5,
                 id="test dag_id_pattern no match",
             ),
         ],
@@ -1882,7 +1882,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             update_extras=update_extras,
             task_instances=task_instances,
         )
-        with assert_queries_count(4):
+        with assert_queries_count(6):
             response = test_client.post(
                 "/dags/~/dagRuns/~/taskInstances/list",
                 json=payload,

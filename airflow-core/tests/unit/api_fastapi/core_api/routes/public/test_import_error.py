@@ -148,10 +148,11 @@ def import_errors(session: Session = NEW_SESSION) -> list[ParseImportError]:
 
 
 def set_mock_auth_manager__get_authorized_dag_ids(
-    mock_auth_manager: mock.Mock, get_authorized_dag_ids_return_value: set[str] | None = None
+    mock_auth_manager: mock.Mock,
+    get_authorized_dag_ids_return_value: tuple[set[str] | None, bool] | None = None,
 ) -> mock.Mock:
     if get_authorized_dag_ids_return_value is None:
-        get_authorized_dag_ids_return_value = set()
+        get_authorized_dag_ids_return_value = set(), False
     mock_get_authorized_dag_ids = mock_auth_manager.return_value.get_authorized_dag_ids
     mock_get_authorized_dag_ids.return_value = get_authorized_dag_ids_return_value
     return mock_get_authorized_dag_ids
@@ -217,7 +218,7 @@ class TestGetImportError:
             import_errors[prepared_import_error_idx] if prepared_import_error_idx is not None else None
         )
         import_error_id = import_error.id if import_error else IMPORT_ERROR_NON_EXISTED_ID
-        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, (permitted_dag_model_all, False))
         response = test_client.get(f"/importErrors/{import_error_id}")
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -261,7 +262,7 @@ class TestGetImportError:
         import_errors,
     ):
         import_error_id = import_errors[0].id
-        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, (permitted_dag_model_all, False))
         # Act
         response = test_client.get(f"/importErrors/{import_error_id}")
         # Assert
@@ -278,7 +279,7 @@ class TestGetImportError:
     def test_get_import_error__no_dag_in_dagmodel(self, mock_get_auth_manager, test_client, import_errors):
         """Test import error is returned when no DAG exists in DagModel."""
         import_error_id = import_errors[0].id
-        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, (set(), False))
 
         response = test_client.get(f"/importErrors/{import_error_id}")
 
@@ -379,7 +380,7 @@ class TestGetImportErrors:
         expected_filenames,
         permitted_dag_model_all,
     ):
-        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, permitted_dag_model_all)
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, (permitted_dag_model_all, False))
         set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
 
         with assert_queries_count(5):
@@ -439,7 +440,7 @@ class TestGetImportErrors:
         dag_id1 = "dag_id1"
         mock_get_dag_id_to_team_name_mapping.return_value = {dag_id1: team}
         mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(
-            mock_get_auth_manager, {dag_id1}
+            mock_get_auth_manager, ({dag_id1}, False)
         )
         mock_batch_is_authorized_dag = set_mock_auth_manager__batch_is_authorized_dag(
             mock_get_auth_manager, batch_is_authorized_dag_return_value
@@ -479,7 +480,7 @@ class TestGetImportErrors:
         """Test that the bundle_name join condition works correctly."""
         dag_id1 = "dag_id1"
         mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(
-            mock_get_auth_manager, {dag_id1}
+            mock_get_auth_manager, ({dag_id1}, False)
         )
         set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
 
@@ -514,7 +515,7 @@ class TestGetImportErrors:
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_get_import_errors__no_dag_in_dagmodel(self, mock_get_auth_manager, test_client, import_errors):
         """Test import errors are returned when no DAG exists in DagModel."""
-        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, (set(), False))
 
         response = test_client.get("/importErrors")
 

@@ -234,7 +234,7 @@ class TestGetXComEntries(TestXComEndpoint):
 
     def test_should_respond_200(self, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get(
                 f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries"
             )

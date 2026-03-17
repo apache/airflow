@@ -400,14 +400,14 @@ class TestBaseAuthManager:
                 {},
                 {},
                 [("dag1", None), ("dag2", None)],
-                set(),
+                (set(), False),
             ),
             # Access to specific dags
             (
                 {"dag1": True},
                 {},
                 [("dag1", None), ("dag2", None)],
-                {"dag1"},
+                ({"dag1"}, False),
             ),
             # With teams
             # No access to any dag
@@ -415,14 +415,14 @@ class TestBaseAuthManager:
                 {},
                 {},
                 [("dag1", "team1"), ("dag2", "team2")],
-                set(),
+                (set(), False),
             ),
             # Access to a specific team
             (
                 {},
                 {"team1": True},
                 [("dag1", "team1"), ("dag2", "team1"), ("dag3", "team2")],
-                {"dag1", "dag2"},
+                ({"dag1", "dag2"}, False),
             ),
         ],
     )

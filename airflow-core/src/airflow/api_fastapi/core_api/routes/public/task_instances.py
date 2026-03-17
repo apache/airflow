@@ -22,7 +22,7 @@ from typing import Annotated, Literal, cast
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager, joinedload, load_only
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -32,7 +32,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_dag_for_run_or_latest_version,
     get_latest_version_of_dag,
 )
-from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -64,6 +64,7 @@ from airflow.api_fastapi.common.parameters import (
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.task_instance_history import (
     TaskInstanceHistoryCollectionResponse,
@@ -88,8 +89,9 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
-from airflow.models import Base, DagRun
-from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models import Base, DagModel, DagRun
+from airflow.models.dag_version import DagVersion
+from airflow.models.taskinstance import TaskInstance as TI, TaskInstanceNote, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -479,10 +481,75 @@ def get_task_instances(
     This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
     and DAG runs.
     """
-    dag_run = None
-    query = (
-        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
+    filters: list[OrmClause] = [
+        run_after_range,
+        logical_date_range,
+        start_date_range,
+        end_date_range,
+        update_at_range,
+        duration_range,
+        state,
+        pool,
+        pool_name_pattern,
+        queue,
+        queue_name_pattern,
+        executor,
+        task_id,
+        task_display_name_pattern,
+        task_group_id,
+        dag_id_pattern,
+        run_id_pattern,
+        version_number,
+        readable_ti_filter,
+        try_number,
+        operator,
+        operator_name_pattern,
+        map_index,
+    ]
+    task_instance_columns = (
+        TI.id,
+        TI.task_id,
+        TI.dag_id,
+        TI.run_id,
+        TI.map_index,
+        TI.start_date,
+        TI.end_date,
+        TI.duration,
+        TI.state,
+        TI.try_number,
+        TI.max_tries,
+        TI._task_display_property_value,
+        TI.hostname,
+        TI.unixname,
+        TI.pool,
+        TI.pool_slots,
+        TI.queue,
+        TI.priority_weight,
+        TI.operator,
+        TI.custom_operator_name,
+        TI.queued_dttm,
+        TI.scheduled_dttm,
+        TI.pid,
+        TI.executor,
+        TI.executor_config,
+        TI._rendered_map_index,
     )
+    dag_run_columns = (DagRun.run_after, DagRun.logical_date)
+    dag_model_columns = (DagModel._dag_display_property_value,)
+    task_instance_note_columns = (TaskInstanceNote.content,)
+
+    # Build an ID-only query with all filters applied
+    task_instance_id_select: Select | None = None
+    if version_number.value:
+        task_instance_id_select = (
+            select(TI)
+            .join(TI.dag_version)
+            .options(load_only(TI.id), contains_eager(TI.dag_version).load_only(DagVersion.version_number))
+        )
+    else:
+        task_instance_id_select = select(TI.id.label("id")).select_from(TI)
+
+    dag_run = None
     if dag_run_id != "~":
         if dag_id == "~":
             raise HTTPException(
@@ -495,47 +562,53 @@ def get_task_instances(
                 status.HTTP_404_NOT_FOUND,
                 f"DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
             )
-        query = query.where(TI.run_id == dag_run_id)
+        filters.append(FilterParam(TI.run_id, dag_run_id))
     if dag_id != "~":
         dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
-        query = query.where(TI.dag_id == dag_id)
+        filters.append(FilterParam(TI.dag_id, dag_id))
         if dag:
             task_group_id.dag = dag
 
-    task_instance_select, total_entries = paginated_select(
-        statement=query,
-        filters=[
-            run_after_range,
-            logical_date_range,
-            start_date_range,
-            end_date_range,
-            update_at_range,
-            duration_range,
-            state,
-            pool,
-            pool_name_pattern,
-            queue,
-            queue_name_pattern,
-            executor,
-            task_id,
-            task_display_name_pattern,
-            task_group_id,
-            dag_id_pattern,
-            run_id_pattern,
-            version_number,
-            readable_ti_filter,
-            try_number,
-            operator,
-            operator_name_pattern,
-            map_index,
-        ],
+    task_instance_id_select = apply_filters_to_select(statement=task_instance_id_select, filters=filters)
+    total_entries = get_query_count(task_instance_id_select, session=session, allow_estimation=True)
+
+    # Apply ordering/pagination to the ID query.
+    # Join DagRun only when sorting by DagRun fields
+    order_by_column_names = [v.lstrip("-") for v in (order_by.value or [])]
+    dag_run_column_names = [
+        col.name for col in dag_run_columns + (DagRun.data_interval_start, DagRun.data_interval_end)
+    ]
+    if any(name in dag_run_column_names for name in order_by_column_names):
+        task_instance_id_select = task_instance_id_select.join(TI.dag_run)
+    task_instance_id_select, _ = paginated_select(
+        statement=task_instance_id_select,
         order_by=order_by,
         offset=offset,
         limit=limit,
-        session=session,
+        return_total_entries=False,
     )
+    task_instance_id = list(session.scalars(task_instance_id_select.with_only_columns(TI.id)))
 
-    task_instances = session.scalars(task_instance_select)
+    # Fetch full TI rows for the paginated ids
+    query = (
+        select(TI)
+        .where(TI.id.in_(task_instance_id))
+        .join(TI.dag_run)
+        .options(
+            load_only(*task_instance_columns),
+            contains_eager(TI.dag_run).load_only(*dag_run_columns),
+            joinedload(TI.trigger),
+        )
+    )
+    query = query.outerjoin(DagRun.dag_model).options(
+        contains_eager(TI.dag_run).contains_eager(DagRun.dag_model).load_only(*dag_model_columns)
+    )
+    query = query.join(TI.dag_version).options(contains_eager(TI.dag_version).joinedload(DagVersion.bundle))
+    query = query.options(joinedload(TI.task_instance_note).load_only(*task_instance_note_columns))
+
+    task_instance_order_by = order_by.to_orm(query)
+    task_instances = session.scalars(task_instance_order_by)
+
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
         total_entries=total_entries,
