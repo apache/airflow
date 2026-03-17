@@ -115,7 +115,7 @@ const DagNode = ({
         }
         height={`${height}px`}
         width={`${width}px`}
-        cursor={latestDagRunId ? "cursor" : "default"}
+        cursor={latestDagRunId ? "pointer" : "default"}
         opacity={isActive ? 1 : 0.3}
         transition="opacity 0.2s"
         data-testid="node"
