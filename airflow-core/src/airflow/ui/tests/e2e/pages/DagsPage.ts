@@ -55,12 +55,7 @@ export class DagsPage extends BasePage {
     this.triggerButton = page.getByTestId("trigger-dag-button");
     // Scoped to the dialog so we never accidentally click the page-level trigger.
     this.confirmButton = page.getByRole("dialog").getByRole("button", { name: "Trigger" });
-    // Targets the value cell next to the "State" label on the run details page.
-    this.stateElement = page
-      .locator("tr")
-      .filter({ has: page.locator("td").filter({ hasText: /^State$/ }) })
-      .locator("td")
-      .nth(1);
+    this.stateElement = page.getByTestId("dag-run-state");
     this.searchBox = page.getByRole("textbox", { name: /search/i });
     this.searchInput = page.getByPlaceholder("Search DAGs");
     this.operatorFilter = page.getByRole("combobox").filter({ hasText: /operator/i });
@@ -236,11 +231,7 @@ export class DagsPage extends BasePage {
     }
 
     await this.page.keyboard.press("Escape");
-    await expect(dropdown)
-      .toBeHidden({ timeout: 5000 })
-      .catch(() => {
-        // Some dropdowns close instantly; a timeout here is not a failure.
-      });
+    await expect(dropdown).toBeHidden({ timeout: 5000 });
 
     return dataValues;
   }
@@ -507,11 +498,7 @@ export class DagsPage extends BasePage {
     await expect(option).toBeVisible({ timeout: 5000 });
     await option.click();
 
-    await expect(this.page.locator('div[role="listbox"]'))
-      .toBeHidden({ timeout: 5000 })
-      .catch(() => {
-        // Dropdown may already be gone.
-      });
+    await expect(this.page.locator('div[role="listbox"]')).toBeHidden({ timeout: 5000 });
   }
 
   /**
