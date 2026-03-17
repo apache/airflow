@@ -17,28 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import time
 from collections.abc import Sequence
-from datetime import timedelta
-from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
-from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
-from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
-
-if TYPE_CHECKING:
-    from airflow.providers.common.compat.sdk import Context
+from airflow.providers.snowflake.operators.snowflake import SnowflakeSqlApiOperator
 
 
-class SnowflakeNotebookOperator(BaseOperator):
+class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
     """
     Execute a Snowflake Notebook via the Snowflake SQL API.
 
-    Submits an ``EXECUTE NOTEBOOK`` statement through the Snowflake SQL API,
-    polls for completion, and pushes the statement query id to XCom.
-    Supports both synchronous polling and deferrable (async) mode for
-    long-running notebook executions.
+    Builds an ``EXECUTE NOTEBOOK`` statement and delegates execution to
+    :class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator`,
+    which handles query submission, polling, deferral, and cancellation.
 
     The operator supports the following authentication methods via the Snowflake connection:
 
@@ -74,82 +65,21 @@ class SnowflakeNotebookOperator(BaseOperator):
         ``tenacity.Retrying`` for API call retries.
     """
 
-    LIFETIME = timedelta(minutes=59)
-    RENEWAL_DELTA = timedelta(minutes=54)
-
-    template_fields: Sequence[str] = (
-        "notebook",
-        "parameters",
-        "snowflake_conn_id",
+    template_fields: Sequence[str] = tuple(
+        set(SnowflakeSqlApiOperator.template_fields) | {"notebook", "parameters"}
     )
-
-    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
         notebook: str,
         parameters: list[str] | None = None,
-        snowflake_conn_id: str = "snowflake_default",
-        warehouse: str | None = None,
-        database: str | None = None,
-        schema: str | None = None,
-        role: str | None = None,
-        authenticator: str | None = None,
-        session_parameters: dict[str, Any] | None = None,
-        poll_interval: int = 5,
-        token_life_time: timedelta = LIFETIME,
-        token_renewal_delta: timedelta = RENEWAL_DELTA,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        snowflake_api_retry_args: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
         self.notebook = notebook
         self.parameters = parameters
-        self.snowflake_conn_id = snowflake_conn_id
-        self.warehouse = warehouse
-        self.database = database
-        self.schema = schema
-        self.role = role
-        self.authenticator = authenticator
-        self.session_parameters = session_parameters
-        self.poll_interval = poll_interval
-        self.token_life_time = token_life_time
-        self.token_renewal_delta = token_renewal_delta
-        self.deferrable = deferrable
-        self.snowflake_api_retry_args = snowflake_api_retry_args or {}
-        self.query_ids: list[str] = []
-
-    @cached_property
-    def _hook(self) -> SnowflakeSqlApiHook:
-        hook_kwargs: dict[str, Any] = {}
-        if any(
-            [
-                self.warehouse,
-                self.database,
-                self.role,
-                self.schema,
-                self.authenticator,
-                self.session_parameters,
-            ]
-        ):
-            hook_kwargs = {
-                "warehouse": self.warehouse,
-                "database": self.database,
-                "role": self.role,
-                "schema": self.schema,
-                "authenticator": self.authenticator,
-                "session_parameters": self.session_parameters,
-            }
-        return SnowflakeSqlApiHook(
-            snowflake_conn_id=self.snowflake_conn_id,
-            token_life_time=self.token_life_time,
-            token_renewal_delta=self.token_renewal_delta,
-            deferrable=self.deferrable,
-            api_retry_args=self.snowflake_api_retry_args,
-            **hook_kwargs,
-        )
+        sql = self._build_execute_notebook_query()
+        super().__init__(sql=sql, statement_count=1, **kwargs)
 
     def _build_execute_notebook_query(self) -> str:
         """Build the ``EXECUTE NOTEBOOK`` SQL statement."""
@@ -158,79 +88,3 @@ class SnowflakeNotebookOperator(BaseOperator):
             escaped = ", ".join(f"'{p.replace(chr(39), chr(39) + chr(39))}'" for p in self.parameters)
             params_clause = escaped
         return f"EXECUTE NOTEBOOK {self.notebook}({params_clause})"
-
-    def execute(self, context: Context) -> None:
-        """Submit the notebook execution and wait for completion."""
-        sql = self._build_execute_notebook_query()
-        self.log.info("Executing Snowflake Notebook: %s", sql)
-
-        self.query_ids = self._hook.execute_query(sql, statement_count=1)
-        self.log.info("Notebook submitted with query ids: %s", self.query_ids)
-
-        if self.do_xcom_push:
-            context["ti"].xcom_push(key="query_ids", value=self.query_ids)
-
-        succeeded_query_ids = []
-        for query_id in self.query_ids:
-            self.log.info("Retrieving status for query id %s", query_id)
-            statement_status = self._hook.get_sql_api_query_status(query_id)
-            if statement_status.get("status") == "running":
-                break
-            if statement_status.get("status") == "success":
-                succeeded_query_ids.append(query_id)
-            else:
-                raise AirflowException(f"{statement_status.get('status')}: {statement_status.get('message')}")
-
-        if len(self.query_ids) == len(succeeded_query_ids):
-            self.log.info("Notebook %s completed successfully.", self.notebook)
-            return
-
-        if self.deferrable:
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=SnowflakeSqlApiTrigger(
-                    poll_interval=self.poll_interval,
-                    query_ids=self.query_ids,
-                    snowflake_conn_id=self.snowflake_conn_id,
-                    token_life_time=self.token_life_time,
-                    token_renewal_delta=self.token_renewal_delta,
-                ),
-                method_name="execute_complete",
-            )
-        else:
-            self._poll_until_complete()
-            self.log.info("Notebook %s completed successfully.", self.notebook)
-
-    def _poll_until_complete(self) -> None:
-        """Poll query status until all queries reach a terminal state."""
-        while True:
-            all_done = True
-            for query_id in self.query_ids:
-                statement_status = self._hook.get_sql_api_query_status(query_id)
-                if statement_status.get("status") == "error":
-                    raise AirflowException(
-                        f"{statement_status.get('status')}: {statement_status.get('message')}"
-                    )
-                if statement_status.get("status") == "running":
-                    all_done = False
-            if all_done:
-                break
-            time.sleep(self.poll_interval)
-
-    def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
-        """Handle the event fired by the trigger on completion."""
-        if event:
-            if event.get("status") == "error":
-                raise AirflowException(f"{event['status']}: {event.get('message')}")
-            if event.get("status") == "success":
-                self.query_ids = list(event.get("statement_query_ids", []))
-                self.log.info("Notebook %s completed successfully.", self.notebook)
-                return
-        self.log.info("Notebook %s completed successfully.", self.notebook)
-
-    def on_kill(self) -> None:
-        """Cancel the running notebook execution."""
-        if self.query_ids:
-            self.log.info("Cancelling notebook query ids: %s", self.query_ids)
-            self._hook.cancel_queries(self.query_ids)
-            self.log.info("Notebook query ids %s cancelled.", self.query_ids)
