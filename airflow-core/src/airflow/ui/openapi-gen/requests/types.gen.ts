@@ -138,8 +138,8 @@ export type BackfillResponse = {
     from_date: string;
     to_date: string;
     dag_run_conf: {
-        [key: string]: unknown;
-    };
+    [key: string]: unknown;
+} | null;
     is_paused: boolean;
     reprocess_behavior: ReprocessBehavior;
     max_active_runs: number;
