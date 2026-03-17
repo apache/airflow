@@ -32,6 +32,9 @@ from uuid import UUID
 import attrs
 import dill
 import uuid6
+from opentelemetry import trace
+from opentelemetry.trace import SpanContext, TraceFlags
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
     Float,
@@ -486,6 +489,26 @@ def uuid7() -> UUID:
     return uuid6.uuid7()
 
 
+def _make_task_carrier(dag_run_context_carrier):
+    parent_otel_ctx = (
+        TraceContextTextMapPropagator().extract(dag_run_context_carrier) if dag_run_context_carrier else None
+    )
+    parent_span = trace.get_current_span(parent_otel_ctx) if parent_otel_ctx is not None else None
+    parent_span_ctx = parent_span.get_span_context() if parent_span is not None else None
+    ctx = None
+    if parent_span_ctx is not None and parent_span_ctx.is_valid:
+        span_ctx = SpanContext(
+            trace_id=parent_span_ctx.trace_id,
+            span_id=parent_span_ctx.span_id,
+            is_remote=True,
+            trace_flags=TraceFlags(TraceFlags.SAMPLED),
+        )
+        ctx = trace.set_span_in_context(trace.NonRecordingSpan(span_ctx))
+    carrier: dict[str, str] = {}
+    TraceContextTextMapPropagator().inject(carrier, context=ctx)
+    return carrier
+
+
 class TaskInstance(Base, LoggingMixin, BaseWorkload):
     """
     Task instances store the state of a task instance.
@@ -679,7 +702,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, dag_version_id: UUID | None
+        run_id: str, task: Operator, map_index: int, *, dag_version_id: UUID | None, dag_run: DagRun
     ) -> dict[str, Any]:
         """
         Insert mapping.
@@ -689,6 +712,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         priority_weight = task.weight_rule.get_weight(
             TaskInstance(task=task, run_id=run_id, map_index=map_index, dag_version_id=dag_version_id)
         )
+        context_carrier = _make_task_carrier(dag_run.context_carrier)
 
         return {
             "dag_id": task.dag_id,
@@ -710,6 +734,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
+            "parent_context_carrier": dag_run.context_carrier,
+            "context_carrier": context_carrier,
         }
 
     @reconstructor
