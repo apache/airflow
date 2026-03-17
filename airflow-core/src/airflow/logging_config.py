@@ -115,14 +115,30 @@ def configure_logging():
             log_format=getattr(logging_config, "LOG_FORMAT", conf.get("logging", "log_format", fallback="")),
             callsite_params=conf.getlist("logging", "callsite_parameters", fallback=[]),
         )
+        json_output = conf.getboolean("logging", "json_logs", fallback=False)
+
+        stdlib_config = dict(logging_config)
+        # Route uvicorn/gunicorn error loggers explicitly through our handler so their output
+        # is formatted correctly regardless of what propagation state those loggers end up in.
+        # Suppress the built-in access loggers; HttpAccessLogMiddleware and
+        # AirflowUvicornWorker.CONFIG_KWARGS take over access logging instead.
+        extra_loggers = {
+            "uvicorn.access": {"handlers": [], "propagate": False},
+            "gunicorn.access": {"handlers": [], "propagate": False},
+            "uvicorn.error": {"handlers": ["default"], "propagate": False},
+            "gunicorn.error": {"handlers": ["default"], "propagate": False},
+        }
+        stdlib_config = {**stdlib_config, "loggers": {**stdlib_config.get("loggers", {}), **extra_loggers}}
+
         configure_logging(
             log_level=level,
             namespace_log_levels=conf.get("logging", "namespace_levels", fallback=None),
-            stdlib_config=logging_config,
+            stdlib_config=stdlib_config,
             log_format=log_fmt,
             log_timestamp_format=conf.get("logging", "log_timestamp_format", fallback="iso"),
             callsite_parameters=callsite_params,
             colors=colors,
+            json_output=json_output,
         )
     except (ValueError, KeyError) as e:
         log.error("Unable to load the config, contains a configuration error.")

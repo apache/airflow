@@ -16,7 +16,14 @@
 # under the License.
 
 [build-system]
-requires = ["hatchling==1.29.0"]
+requires = [
+    "hatchling==1.29.0",
+    "packaging==26.0",
+    "pathspec==1.0.4",
+    "pluggy==1.6.0",
+    "tomli==2.4.0; python_version < '3.11'",
+    "trove-classifiers==2026.1.14.14",
+]
 build-backend = "hatchling.build"
 
 [project]
@@ -25,7 +32,10 @@ description = "Extraction and build tools for the Airflow Provider Registry"
 version = "0.0.1"
 requires-python = ">=3.10"
 classifiers = ["Private :: Do Not Upload"]
-dependencies = ["pyyaml>=6.0.3"]
+dependencies = [
+    "pydantic>=2.12.3",
+    "pyyaml>=6.0.3",
+]
 
 [dependency-groups]
 dev = ["pytest"]

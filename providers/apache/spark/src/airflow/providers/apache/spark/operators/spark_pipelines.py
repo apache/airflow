@@ -46,7 +46,7 @@ class SparkPipelinesOperator(BaseOperator):
     :param pipeline_spec: Path to the pipeline specification file (YAML). (templated)
     :param pipeline_command: The spark-pipelines command to execute ('run', 'dry-run'). Default is 'run'.
     :param conf: Arbitrary Spark configuration properties (templated)
-    :param conn_id: The :ref:`spark connection id <howto/connection:spark-submit>` as configured
+    :param conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
         in Airflow administration. When an invalid connection_id is supplied, it will default to yarn.
     :param num_executors: Number of executors to launch
     :param executor_cores: Number of cores per executor (Default: 2)

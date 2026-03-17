@@ -111,6 +111,14 @@ class TestVaultSecrets:
         connection = test_client.get_connection(conn_id="airflow/test_postgres")
         assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
+        # When mount_point=None and conn_id does not contain "/",
+        # backend should return None and not call Vault
+
+        mock_client.reset_mock()
+
+        assert test_client.get_connection("simple_id") is None
+        mock_client.secrets.kv.v2.read_secret_version.assert_not_called()
+
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value(self, mock_hvac):
         mock_client = mock.MagicMock()
@@ -487,6 +495,40 @@ class TestVaultSecrets:
         test_client = VaultBackend(**kwargs)
         assert test_client.get_connection(conn_id="test") is None
         mock_hvac.Client.assert_not_called()
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_connection_with_empty_connections_path(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {
+                "data": {"conn_uri": "postgresql://user:pass@host:5432/db"},
+                "metadata": {"version": 1},
+            }
+        }
+
+        kwargs = {
+            "connections_path": "",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "token",
+        }
+
+        backend = VaultBackend(**kwargs)
+
+        connection = backend.get_connection("my_conn")
+
+        # Assert Vault was called without "connections/" prefix
+        mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+            mount_point="airflow",
+            path="my_conn",
+            version=None,
+            raise_on_deleted_version=True,
+        )
+
+        assert connection.get_uri() == "postgres://user:pass@host:5432/db"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_variables_path_none_value(self, mock_hvac):

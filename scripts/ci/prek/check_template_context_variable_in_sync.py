@@ -26,12 +26,9 @@
 from __future__ import annotations
 
 import ast
-import pathlib
 import re
 import sys
 import typing
-
-sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 
 from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_TASK_SDK_SOURCES_PATH
 

@@ -43,6 +43,7 @@ from typing import Any
 
 import tomllib
 import yaml
+from registry_contract_models import validate_providers_catalog
 
 # External endpoints used by metadata extraction.
 PYPISTATS_RECENT_URL = "https://pypistats.org/api/packages/{package_name}/recent"
@@ -483,12 +484,14 @@ def main():
         # Write logos to dev/registry/logos/ — this directory is mounted in
         # breeze (unlike registry/public/) so copies survive the container.
         # Also copy to registry/public/logos/ for local dev convenience.
+        # Directories are created lazily (only when a logo is found) to avoid
+        # empty dirs that trip up glob-based cp in the CI workflow.
         logos_dest_dir = SCRIPT_DIR / "logos"
-        logos_dest_dir.mkdir(parents=True, exist_ok=True)
         registry_logos_dir = SCRIPT_DIR.parent.parent / "registry" / "public" / "logos"
-        registry_logos_dir.mkdir(parents=True, exist_ok=True)
 
         if integration_logos_dir.exists():
+            logos_dest_dir.mkdir(parents=True, exist_ok=True)
+
             # First, check for priority logos for known providers
             if provider_id in logo_priority_map:
                 for priority_logo in logo_priority_map[provider_id]:
@@ -537,6 +540,7 @@ def main():
             logo_filename = logo.split("/")[-1]
             src = logos_dest_dir / logo_filename
             if src.exists():
+                registry_logos_dir.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, registry_logos_dir / logo_filename)
 
         # Extract connection types from provider.yaml
@@ -626,7 +630,7 @@ def main():
                 break
 
     new_providers.sort(key=lambda p: p["name"].lower())
-    providers_json = {"providers": new_providers}
+    providers_json = validate_providers_catalog({"providers": new_providers})
 
     # Write output files to all output directories.
     # Inside breeze, registry/ is not mounted so OUTPUT_DIR writes are lost.

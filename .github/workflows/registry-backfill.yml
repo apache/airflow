@@ -159,7 +159,7 @@ jobs:
           for VERSION in ${VERSIONS}; do
             VERSION_ARGS="${VERSION_ARGS} --version ${VERSION}"
           done
-          uv run python dev/registry/extract_versions.py \
+          uv run --project dev/registry python dev/registry/extract_versions.py \
             --provider "${PROVIDER}" ${VERSION_ARGS} || true
 
       - name: "Run breeze registry backfill"

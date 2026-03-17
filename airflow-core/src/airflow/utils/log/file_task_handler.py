@@ -684,7 +684,7 @@ class FileTaskHandler(logging.Handler):
 
             # skip log stream until the last position
             if metadata and "log_pos" in metadata:
-                islice(out_stream, metadata["log_pos"])
+                out_stream = islice(out_stream, metadata["log_pos"], None)
             else:
                 # first time reading log, add messages before interleaved log stream
                 out_stream = chain(header, out_stream)

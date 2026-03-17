@@ -33,18 +33,7 @@ from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import (
-    and_,
-    delete,
-    exists,
-    func,
-    inspect,
-    or_,
-    select,
-    text,
-    tuple_,
-    update,
-)
+from sqlalchemy import CTE, and_, delete, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -822,7 +811,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 task_instance,
                             )
                             starved_tasks_task_dagrun_concurrency.add(
-                                (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
+                                (
+                                    task_instance.dag_id,
+                                    task_instance.run_id,
+                                    task_instance.task_id,
+                                )
                             )
                             continue
 
@@ -1845,7 +1838,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
                 dag_models=[d for d in asset_triggered_dags if d.dag_id not in partition_dag_ids],
-                triggered_date_by_dag=triggered_date_by_dag,
                 session=session,
             )
 
@@ -2012,30 +2004,44 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dag_runs_asset_triggered(
         self,
+        *,
         dag_models: Collection[DagModel],
-        triggered_date_by_dag: dict[str, datetime],
         session: Session,
     ) -> None:
-        """For DAGs that are triggered by assets, create dag runs."""
-        triggered_dates: dict[str, DateTime] = {
-            dag_id: timezone.coerce_datetime(last_asset_event_time)
-            for dag_id, last_asset_event_time in triggered_date_by_dag.items()
-        }
-
+        """For Dags that are triggered by assets, create Dag runs."""
         for dag_model in dag_models:
             dag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not dag:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
+                self.log.error("Dag '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
             if not isinstance(dag.timetable, AssetTriggeredTimetable):
                 self.log.error(
-                    "DAG '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
+                    "Dag '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
                     dag_model.dag_id,
                 )
                 continue
 
-            triggered_date = triggered_dates[dag.dag_id]
+            queued_adrqs = session.scalars(
+                with_row_locks(
+                    select(AssetDagRunQueue)
+                    .where(AssetDagRunQueue.target_dag_id == dag.dag_id)
+                    .order_by(AssetDagRunQueue.created_at.desc()),
+                    of=AssetDagRunQueue,
+                    skip_locked=True,
+                    key_share=False,
+                    session=session,
+                )
+            ).all()
+            # If another scheduler already locked these ADRQ rows, SKIP LOCKED makes this scheduler skip them.
+            if not queued_adrqs:
+                self.log.debug(
+                    "Skipping asset-triggered DagRun creation for Dag '%s'; no queued assets remain.",
+                    dag.dag_id,
+                )
+                continue
+
+            triggered_date: DateTime = timezone.coerce_datetime(queued_adrqs[0].created_at)
             cte = (
                 select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
                 .where(
@@ -2084,7 +2090,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             Stats.incr("asset.triggered_dagruns")
             dag_run.consumed_asset_events.extend(asset_events)
-            session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id))
+
+            # Delete only consumed ADRQ rows to avoid dropping newly queued events
+            # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
+            adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
+            session.execute(
+                delete(AssetDagRunQueue).where(
+                    tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                )
+            )
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
         """
@@ -2940,43 +2954,40 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             == 0
         ).label("orphaned")
-        asset_reference_query = session.execute(
-            select(orphaned, AssetModel)
+        asset_reference_query = (
+            select(AssetModel)
             .outerjoin(DagScheduleAssetReference)
             .outerjoin(TaskOutletAssetReference)
             .outerjoin(TaskInletAssetReference)
             .group_by(AssetModel.id)
-            .order_by(orphaned)
         )
-        asset_orphanation: dict[bool, Collection[AssetModel]] = {
-            orphaned: [asset for _, asset in group]
-            for orphaned, group in itertools.groupby(asset_reference_query, key=operator.itemgetter(0))
-        }
-        self._orphan_unreferenced_assets(asset_orphanation.get(True, ()), session=session)
-        self._activate_referenced_assets(asset_orphanation.get(False, ()), session=session)
+
+        orphan_query = asset_reference_query.having(orphaned).cte()
+        activate_query = asset_reference_query.having(~orphaned).cte()
+
+        self._orphan_unreferenced_assets(orphan_query, session=session)
+        self._activate_referenced_assets(activate_query, session=session)
 
     @staticmethod
-    def _orphan_unreferenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
-        if assets:
-            session.execute(
-                delete(AssetActive).where(
-                    tuple_(AssetActive.name, AssetActive.uri).in_((a.name, a.uri) for a in assets)
-                )
-            )
-        Stats.gauge("asset.orphaned", len(assets))
-
-    @staticmethod
-    def _activate_referenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
-        if not assets:
-            return
-
-        active_assets = set(
-            session.execute(
-                select(AssetActive.name, AssetActive.uri).where(
-                    tuple_(AssetActive.name, AssetActive.uri).in_((a.name, a.uri) for a in assets)
+    def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
+        deleted_orphaned_assets = session.execute(
+            delete(AssetActive).where(
+                exists().where(
+                    and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri)
                 )
             )
         )
+
+        Stats.gauge("asset.orphaned", max(getattr(deleted_orphaned_assets, "rowcount", 0), 0))
+
+    @staticmethod
+    def _activate_referenced_assets(assets_query: CTE, *, session: Session) -> None:
+        active_assets_query = select(AssetActive.name, AssetActive.uri).join(
+            assets_query,
+            and_(AssetActive.name == assets_query.c.name, AssetActive.uri == assets_query.c.uri),
+        )
+
+        active_assets = session.execute(active_assets_query).all()
 
         active_name_to_uri: dict[str, str] = {name: uri for name, uri in active_assets}
         active_uri_to_name: dict[str, str] = {uri: name for name, uri in active_assets}
@@ -3002,9 +3013,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
             incoming_name_to_uri: dict[str, str] = {}
             incoming_uri_to_name: dict[str, str] = {}
-            for asset in assets:
-                if (asset.name, asset.uri) in active_assets:
-                    continue
+
+            inactive_assets_query = (
+                select(AssetModel)
+                .join(
+                    assets_query,
+                    and_(
+                        assets_query.c.name == AssetModel.name,
+                        assets_query.c.uri == AssetModel.uri,
+                    ),
+                )
+                .where(
+                    ~active_assets_query.where(
+                        and_(AssetActive.name == AssetModel.name, AssetActive.uri == AssetModel.uri)
+                    ).exists()
+                )
+            )
+
+            for asset in session.scalars(inactive_assets_query):
                 existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)
                 if existing_uri is not None and existing_uri != asset.uri:
                     yield from _generate_warning_message(asset, "name", existing_uri)
