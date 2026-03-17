@@ -363,8 +363,8 @@ class TestXComArg:
             ((x for x in [4, 5]), [4, 5]),  # generator
         ],
     )
-    def test_plain_xcomarg_iter_values(self, xcom_value, expected):
-        xcom_arg = make_xcom_arg(xcom_value)
+    def test_plain_xcomarg_iter_values(self, actual, expected):
+        xcom_arg = make_xcom_arg(actual)
         result = list(xcom_arg.iter_values({}))
         assert result == expected
 
