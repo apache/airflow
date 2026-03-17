@@ -2538,7 +2538,6 @@ dependencies = [
     { name = "jsonpath-ng" },
     { name = "marshmallow" },
     { name = "pyathena" },
-    { name = "pydynamodb", marker = "python_full_version >= '3.13'" },
     { name = "redshift-connector", version = "2.1.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
     { name = "redshift-connector", version = "2.1.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "sagemaker-studio" },
@@ -2676,11 +2675,10 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version >= '3.13' and extra == 'pandas'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
     { name = "pyathena", specifier = ">=3.10.0" },
-    { name = "pydynamodb", marker = "python_full_version >= '3.13'", specifier = ">=0.8.1" },
     { name = "python3-saml", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.16.0" },
     { name = "redshift-connector", specifier = ">=2.1.3" },
     { name = "s3fs", marker = "extra == 's3fs'", specifier = ">=2023.10.0" },
-    { name = "sagemaker-studio", specifier = ">=1.0.9" },
+    { name = "sagemaker-studio", specifier = ">=1.0.25,<1.1.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
     { name = "watchtower", specifier = ">=3.3.1,<4" },
     { name = "xmlsec", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.3.14" },
@@ -3828,7 +3826,7 @@ requires-dist = [
     { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'" },
     { name = "pydantic-ai-slim", extras = ["mcp"], marker = "extra == 'mcp'" },
     { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'openai'" },
-    { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=26.0.0" },
+    { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
 ]
 provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "sql", "common-sql"]
 
@@ -3842,7 +3840,7 @@ dev = [
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "pydantic-ai-slim", extras = ["mcp"] },
-    { name = "sqlglot", specifier = ">=26.0.0" },
+    { name = "sqlglot", specifier = ">=30.0.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
@@ -17490,21 +17488,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e9/45/2f64d8c14b487274e825d793dc634f9f1040537aa6cb93d1ea8fc4498d65/pydruid-0.6.9.tar.gz", hash = "sha256:63c41b33ab47fbb71cc25d3f3316cad78f18bfe947fa108862dd841d1f44fe49", size = 135508, upload-time = "2024-05-16T19:40:32.469Z" }
 
 [[package]]
-name = "pydynamodb"
-version = "0.8.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "boto3", marker = "python_full_version >= '3.13'" },
-    { name = "botocore", marker = "python_full_version >= '3.13'" },
-    { name = "pyparsing", marker = "python_full_version >= '3.13'" },
-    { name = "tenacity", marker = "python_full_version >= '3.13'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/1a/e362260a767e59419d45476bb1cfeaf978e894f6f89dd794be47a4898695/pydynamodb-0.8.1.tar.gz", hash = "sha256:b073f99217695dcf304fcd8933e74ab97d13590af8d0d96109df6f689a3de465", size = 69769, upload-time = "2026-01-21T16:45:21.437Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/46/1970a44620582f5eac6dbcd76845258d42b2ff9ec8bc4e6cdd89dcf02260/pydynamodb-0.8.1-py3-none-any.whl", hash = "sha256:a9679650d0559ed1cae600dda5517f0f8e7e795446e8ef56f71451a82bd68472", size = 62520, upload-time = "2026-01-21T16:45:20.446Z" },
-]
-
-[[package]]
 name = "pyenchant"
 version = "3.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -19644,8 +19627,8 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography" },
-    { name = "jeepney" },
+    { name = "cryptography", marker = "(python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (sys_platform != 'emscripten' and sys_platform != 'win32')" },
+    { name = "jeepney", marker = "(python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (sys_platform != 'emscripten' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
@@ -19968,15 +19951,15 @@ name = "snowflake-snowpark-python"
 version = "1.47.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cloudpickle" },
-    { name = "protobuf" },
-    { name = "python-dateutil" },
-    { name = "pyyaml" },
-    { name = "setuptools" },
-    { name = "snowflake-connector-python" },
-    { name = "typing-extensions" },
-    { name = "tzlocal" },
-    { name = "wheel" },
+    { name = "cloudpickle", marker = "python_full_version < '3.14'" },
+    { name = "protobuf", marker = "python_full_version < '3.14'" },
+    { name = "python-dateutil", marker = "python_full_version < '3.14'" },
+    { name = "pyyaml", marker = "python_full_version < '3.14'" },
+    { name = "setuptools", marker = "python_full_version < '3.14'" },
+    { name = "snowflake-connector-python", marker = "python_full_version < '3.14'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.14'" },
+    { name = "tzlocal", marker = "python_full_version < '3.14'" },
+    { name = "wheel", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/91/9a/0377127c344f2ccdf0877f96bf7a0215ea686d2656987698f972e6aab717/snowflake_snowpark_python-1.47.0.tar.gz", hash = "sha256:e4b4bfb24a52b50fe32746935fb6d0337183d57d3967ecd001c5cebe4a695a54", size = 1735283, upload-time = "2026-03-05T18:18:19.121Z" }
 wheels = [

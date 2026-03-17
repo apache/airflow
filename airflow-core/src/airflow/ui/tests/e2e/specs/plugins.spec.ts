@@ -37,36 +37,32 @@ test.describe("Plugins Page", () => {
     await expect(pluginsPage.table).toBeVisible();
   });
 
-  test("verify plugins list displays with data", async () => {
-    const count = await pluginsPage.getPluginCount();
-
-    expect(count).toBeGreaterThan(0);
+  test("verify plugins list has at least one entry", async () => {
+    await expect(pluginsPage.rows).not.toHaveCount(0);
   });
 
   test("verify each plugin has a name", async () => {
-    const pluginNames = await pluginsPage.getPluginNames();
+    await expect(pluginsPage.rows).not.toHaveCount(0);
+    const count = await pluginsPage.rows.count();
 
-    expect(pluginNames.length).toBeGreaterThan(0);
-
-    for (const name of pluginNames) {
-      expect(name.trim().length).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      await expect(pluginsPage.nameColumn.nth(i)).not.toBeEmpty();
     }
   });
 
   test("verify each plugin has a source", async () => {
-    const pluginSources = await pluginsPage.getPluginSources();
+    await expect(pluginsPage.rows).not.toHaveCount(0);
+    const count = await pluginsPage.rows.count();
 
-    expect(pluginSources.length).toBeGreaterThan(0);
-
-    for (const source of pluginSources) {
-      expect(source.trim().length).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      await expect(pluginsPage.sourceColumn.nth(i)).not.toBeEmpty();
     }
   });
 
   test("verify plugin names and sources have matching counts", async () => {
-    const pluginNames = await pluginsPage.getPluginNames();
-    const pluginSources = await pluginsPage.getPluginSources();
+    const rowCount = await pluginsPage.rows.count();
 
-    expect(pluginNames.length).toBe(pluginSources.length);
+    await expect(pluginsPage.nameColumn).toHaveCount(rowCount);
+    await expect(pluginsPage.sourceColumn).toHaveCount(rowCount);
   });
 });

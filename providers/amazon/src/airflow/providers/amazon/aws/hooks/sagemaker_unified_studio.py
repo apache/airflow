@@ -98,11 +98,11 @@ class SageMakerNotebookHook(BaseHook):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self._sagemaker_studio = SageMakerStudioAPI(self._get_sagemaker_studio_config())
         self.execution_name = execution_name
         self.domain_id = domain_id
         self.project_id = project_id
         self.domain_region = domain_region
+        self._sagemaker_studio = SageMakerStudioAPI(self._get_sagemaker_studio_config())
         self.input_config = input_config or {}
         self.output_config = output_config or {"output_formats": ["NOTEBOOK"]}
         self.compute = compute
@@ -113,7 +113,14 @@ class SageMakerNotebookHook(BaseHook):
 
     def _get_sagemaker_studio_config(self):
         config = ClientConfig()
-        config.overrides["execution"] = {"local": is_local_runner()}
+        if self.domain_region:
+            config.region = self.domain_region
+        config.overrides["execution"] = {
+            "local": is_local_runner(),
+            "domain_identifier": self.domain_id,
+            "project_identifier": self.project_id,
+            "datazone_domain_region": self.domain_region,
+        }
         return config
 
     def _format_start_execution_input_config(self):
