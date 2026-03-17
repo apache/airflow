@@ -195,13 +195,17 @@ jobs:
           cp \
             "${REGISTRY_DATA_DIR}/${REGISTRY_MODULES_JSON}" \
             "${REGISTRY_SITE_DATA_DIR}/${REGISTRY_MODULES_JSON}"
-          if [ -d "${REGISTRY_DATA_DIR}/output/versions" ]; then
-            cp -r "${REGISTRY_DATA_DIR}/output/versions/"* "${REGISTRY_SITE_VERSIONS_DIR}/"
+          VERSIONS_SRC="${REGISTRY_DATA_DIR}/output/versions"
+          if [ -d "${VERSIONS_SRC}" ] && ls "${VERSIONS_SRC}/"* &>/dev/null; then
+            cp -r "${VERSIONS_SRC}/"* "${REGISTRY_SITE_VERSIONS_DIR}/"
           fi
-          # Copy provider logos extracted from providers/*/docs/integration-logos/
-          if [ -d "${REGISTRY_DATA_DIR}/logos" ]; then
+          # Copy provider logos extracted by extract_metadata.py.
+          # The directory may exist but be empty (incremental build for
+          # a provider without logos), so check for files before copying.
+          LOGOS_SRC="${REGISTRY_DATA_DIR}/logos"
+          if [ -d "${LOGOS_SRC}" ] && ls "${LOGOS_SRC}/"* &>/dev/null; then
             mkdir -p "${REGISTRY_SITE_LOGOS_DIR}"
-            cp -r "${REGISTRY_DATA_DIR}/logos/"* "${REGISTRY_SITE_LOGOS_DIR}/"
+            cp -r "${LOGOS_SRC}/"* "${REGISTRY_SITE_LOGOS_DIR}/"
           fi
 
       - name: "Setup pnpm"

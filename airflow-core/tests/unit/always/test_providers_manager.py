@@ -23,6 +23,9 @@ import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.sdk import BaseHook
+
 PY313 = sys.version_info >= (3, 13)
 from unittest.mock import patch
 
@@ -450,3 +453,39 @@ class TestProvidersMetadataLoading:
 
             # assert that HttpHook was not imported during initialization, which means yaml path was taken
             assert len([call for call in mock_import.call_args_list if "HttpHook" in str(call)]) == 0
+
+    def test_deprecated_hook_methods_emit_warnings(self):
+        """Test that hooks using Python methods emit AirflowProviderDeprecationWarning."""
+
+        class MockDeprecatedHook(BaseHook):
+            conn_type = "mock_deprecated"
+
+            @staticmethod
+            def get_connection_form_widgets():
+                from wtforms import StringField
+
+                return {"test_field": StringField("Test Field")}
+
+            @staticmethod
+            def get_ui_field_behaviour():
+                return {"hidden_fields": ["schema"]}
+
+        pm = ProvidersManager()
+
+        with patch("airflow.providers_manager.import_string", return_value=MockDeprecatedHook):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match="get_connection_form_widgets"
+            ) as widgets_warning:
+                with pytest.warns(
+                    AirflowProviderDeprecationWarning, match="get_ui_field_behaviour"
+                ) as behaviour_warning:
+                    pm._import_hook(
+                        connection_type=None,
+                        provider_info=None,
+                        hook_class_name="test.MockDeprecatedHook",
+                        package_name="test-provider",
+                    )
+
+            # Validate deprecated_provider_since is set correctly
+            assert widgets_warning[0].message.deprecated_provider_since == "3.2.0"
+            assert behaviour_warning[0].message.deprecated_provider_since == "3.2.0"

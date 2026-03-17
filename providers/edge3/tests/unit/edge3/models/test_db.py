@@ -213,7 +213,7 @@ class TestEdgeDBManager:
         assert "3.0.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.0.0"] == "9d34dfc2de06"
         assert "3.2.0" in _REVISION_HEADS_MAP
-        assert _REVISION_HEADS_MAP["3.2.0"] == "b3c4d5e6f7a8"
+        assert _REVISION_HEADS_MAP["3.2.0"] == "8c275b6fbaa8"
 
     def test_initdb_stamps_and_upgrades_when_tables_exist_without_version(self, session):
         """Test that initdb runs incremental migrations when tables exist but alembic version table does not."""
@@ -244,7 +244,7 @@ class TestEdgeDBManager:
             version = conn.execute(text("SELECT version_num FROM alembic_version_edge3")).scalar()
             columns = {col["name"] for col in inspect(conn).get_columns("edge_worker")}
 
-        assert version == "b3c4d5e6f7a8"
+        assert version == "8c275b6fbaa8"
         assert "concurrency" in columns
 
     def test_migration_adds_concurrency_column(self, session):
