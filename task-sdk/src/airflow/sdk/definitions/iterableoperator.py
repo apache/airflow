@@ -39,7 +39,6 @@ except NameError:
 
 from airflow.sdk import TaskInstanceState, timezone
 from airflow.sdk.bases.operator import BaseOperator, DecoratedDeferredAsyncOperator, event_loop
-from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
 from airflow.sdk.exceptions import (
     AirflowRescheduleTaskInstanceException,
@@ -49,7 +48,7 @@ from airflow.sdk.exceptions import (
 from airflow.sdk.execution_time.context import context_to_airflow_vars
 from airflow.sdk.execution_time.executor import HybridExecutor, TaskExecutor, collect_futures
 from airflow.sdk.execution_time.lazy_sequence import XComIterable
-from airflow.sdk.execution_time.task_runner import MappedTaskInstance, RuntimeTaskInstance
+from airflow.sdk.execution_time.task_runner import MappedTaskInstance
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
@@ -148,7 +147,7 @@ class IterableOperator(BaseOperator):
         self._number_of_tasks += 1
         return self._operator.unmap(mapped_kwargs)
 
-    def _xcom_push(self, context: Context, task: RuntimeTaskInstance, value: Any) -> None:
+    def _xcom_push(self, context: Context, task: MappedTaskInstance, value: Any) -> None:
         self.log.debug("Pushing XCom %s", task.map_index)
 
         context["ti"].xcom_push(key=task.xcom_key, value=value)
