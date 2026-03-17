@@ -40,6 +40,35 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/auth/token:
+    post:
+      tags:
+      - Auth Links
+      summary: Generate Token
+      description: Generate a JWT token for the authenticated user.
+      operationId: generate_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateTokenBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateTokenResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -1745,28 +1774,6 @@ components:
       - failed
       title: DAGRunStates
       description: DAG Run States for responses.
-    DAGRunTypes:
-      properties:
-        backfill:
-          type: integer
-          title: Backfill
-        scheduled:
-          type: integer
-          title: Scheduled
-        manual:
-          type: integer
-          title: Manual
-        asset_triggered:
-          type: integer
-          title: Asset Triggered
-      type: object
-      required:
-      - backfill
-      - scheduled
-      - manual
-      - asset_triggered
-      title: DAGRunTypes
-      description: DAG Run Types for responses.
     DAGWithLatestDagRunsCollectionResponse:
       properties:
         total_entries:
@@ -1847,6 +1854,9 @@ components:
           - type: string
           - type: 'null'
           title: Timetable Description
+        timetable_partitioned:
+          type: boolean
+          title: Timetable Partitioned
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -1945,6 +1955,7 @@ components:
       - description
       - timetable_summary
       - timetable_description
+      - timetable_partitioned
       - tags
       - max_active_tasks
       - max_active_runs
@@ -2234,6 +2245,31 @@ components:
       - end_date
       title: GanttTaskInstance
       description: Task instance data for Gantt chart.
+    GenerateTokenBody:
+      properties:
+        token_type:
+          $ref: '#/components/schemas/TokenType'
+          default: api
+      type: object
+      title: GenerateTokenBody
+      description: Request body for generating a token.
+    GenerateTokenResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        token_type:
+          $ref: '#/components/schemas/TokenType'
+        expires_in_seconds:
+          type: integer
+          title: Expires In Seconds
+      type: object
+      required:
+      - access_token
+      - token_type
+      - expires_in_seconds
+      title: GenerateTokenResponse
+      description: Response for a generated token.
     GridNodeResponse:
       properties:
         id:
@@ -2465,17 +2501,18 @@ components:
       title: HTTPValidationError
     HistoricalMetricDataResponse:
       properties:
-        dag_run_types:
-          $ref: '#/components/schemas/DAGRunTypes'
         dag_run_states:
           $ref: '#/components/schemas/DAGRunStates'
         task_instance_states:
           $ref: '#/components/schemas/TaskInstanceStateCount'
+        state_count_limit:
+          type: integer
+          title: State Count Limit
       type: object
       required:
-      - dag_run_types
       - dag_run_states
       - task_instance_states
+      - state_count_limit
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
     JobResponse:
@@ -3238,11 +3275,28 @@ components:
             type: object
           - type: 'null'
           title: Globalcss
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        icon_dark_mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Dark Mode
       type: object
       required:
       - tokens
       title: Theme
       description: JSON to modify Chakra's theme.
+    TokenType:
+      type: string
+      enum:
+      - api
+      - cli
+      title: TokenType
+      description: Type of token to generate.
     TriggerResponse:
       properties:
         id:

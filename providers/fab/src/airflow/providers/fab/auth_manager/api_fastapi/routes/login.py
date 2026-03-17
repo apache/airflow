@@ -29,6 +29,12 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import Logi
 from airflow.providers.fab.auth_manager.api_fastapi.routes.router import auth_router
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
 from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_8_PLUS
+
+if AIRFLOW_V_3_1_8_PLUS:
+    from airflow.api_fastapi.app import get_cookie_path
+else:
+    get_cookie_path = lambda: "/"
 
 
 @auth_router.post(
@@ -68,14 +74,17 @@ def logout(request: Request) -> RedirectResponse:
     with get_application_builder():
         login_url = get_auth_manager().get_url_login()
         secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+        cookie_path = get_cookie_path()
         response = RedirectResponse(login_url)
         response.delete_cookie(
             key="session",
+            path=cookie_path,
             secure=secure,
             httponly=True,
         )
         response.delete_cookie(
             key=COOKIE_NAME_JWT_TOKEN,
+            path=cookie_path,
             secure=secure,
             httponly=True,
         )

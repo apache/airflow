@@ -93,10 +93,10 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
         {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.airflowPodAnnotations) . | nindent 8 }}
         {{- end }}
         {{- if .Values.triggerer.podAnnotations }}
-          {{- toYaml .Values.triggerer.podAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.triggerer.podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.triggerer.priorityClassName }}
@@ -157,7 +157,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- if .Values.triggerer.waitForMigrations.env }}
               {{- tpl (toYaml .Values.triggerer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -205,7 +205,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.triggerer.env) | nindent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.triggerer.livenessProbe.initialDelaySeconds }}
@@ -244,6 +244,10 @@ spec:
           {{- if .Values.triggerer.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.triggerer.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.triggerer.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.triggerer.logGroomerSidecar.retentionMinutes }}"
           {{- end }}
           {{- if .Values.triggerer.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES

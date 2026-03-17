@@ -188,6 +188,20 @@ class AirbyteHook(BaseHook):
         except Exception as e:
             raise AirflowException(e)
 
+    def submit_reset_connection(self, connection_id: str) -> Any:
+        try:
+            self.log.debug("Creating job request..")
+            res = self.airbyte_api.jobs.create_job(
+                request=JobCreateRequest(
+                    connection_id=connection_id,
+                    job_type=JobTypeEnum.RESET,
+                )
+            )
+            self.log.debug("Job request successful, response: %s", res.job_response)
+            return res.job_response
+        except Exception as e:
+            raise AirflowException(e)
+
     def cancel_job(self, job_id: int) -> Any:
         """
         Cancel the job when task is cancelled.

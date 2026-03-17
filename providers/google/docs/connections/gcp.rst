@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:gcp:
+.. _howto/connection:google_cloud_platform:
 
 Google Cloud Connection
 ================================
@@ -82,7 +82,7 @@ For example:
 
    export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='google-cloud-platform://'
 
-.. _howto/connection:gcp:configuring_the_connection:
+.. _howto/connection:google_cloud_platform:configuring_the_connection:
 
 Configuring the Connection
 --------------------------
@@ -169,7 +169,7 @@ Impersonation Chain
 
        export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{"conn_type": "google_cloud_platform", "extra": {"key_path": "/keys/key.json", "scope": "https://www.googleapis.com/auth/cloud-platform", "project": "airflow", "num_retries": 5}}'
 
-.. _howto/connection:gcp:impersonation:
+.. _howto/connection:google_cloud_platform:impersonation:
 
 Direct impersonation of a service account
 -----------------------------------------

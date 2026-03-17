@@ -29,7 +29,7 @@ and presents them to the LLM as a constrained enum via pydantic-ai structured
 output. No text parsing or manual validation is needed.
 
 .. seealso::
-    :ref:`Connection configuration <howto/connection:pydantic_ai>`
+    :ref:`Connection configuration <howto/connection:pydanticai>`
 
 Basic Usage
 -----------
@@ -95,3 +95,10 @@ Parameters
   task ID. When ``True`` the LLM may return one or more task IDs.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
   constructor (e.g. ``retries``, ``model_settings``). Supports Jinja templating.
+
+Logging
+-------
+
+After each LLM call, the operator logs a summary with model name, token usage,
+and request count at INFO level. See :ref:`AgentOperator — Logging <howto/operator:agent>`
+for details on the log format.

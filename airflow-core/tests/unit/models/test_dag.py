@@ -922,8 +922,8 @@ class TestDag:
             )
 
             # should not raise any exception
-        dag_run.handle_dag_callback(dag=dag, success=False)
-        dag_run.handle_dag_callback(dag=dag, success=True)
+        dag_run.execute_dag_callbacks(dag=dag, success=False)
+        dag_run.execute_dag_callbacks(dag=dag, success=True)
 
         mock_stats.incr.assert_called_with(
             "dag.callback_exceptions",
@@ -963,8 +963,8 @@ class TestDag:
             assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
 
             # should not raise any exception
-            dag_run.handle_dag_callback(dag=dag, success=False)
-            dag_run.handle_dag_callback(dag=dag, success=True)
+            dag_run.execute_dag_callbacks(dag=dag, success=False)
+            dag_run.execute_dag_callbacks(dag=dag, success=True)
 
     @time_machine.travel(timezone.datetime(2025, 11, 11))
     @pytest.mark.parametrize(("catchup", "expected_next_dagrun"), [(True, DEFAULT_DATE), (False, None)])
@@ -3605,15 +3605,17 @@ def test_get_run_data_interval_pre_aip_39():
 
 
 @pytest.mark.parametrize(
-    ("schedule", "next_run", "next_interval", "next_run_after"),
+    ("schedule", "next_run", "next_interval", "next_run_after", "next_partition_key", "next_partition_date"),
     [
         (
             CronPartitionTimetable(
                 "0 0 * * *",
                 timezone=pendulum.UTC,
             ),
-            TEST_DATE + timedelta(days=1),
             None,
+            None,
+            TEST_DATE + timedelta(days=1),
+            (TEST_DATE + timedelta(days=1)).strftime(r"%Y-%m-%dT%H:%M:%S"),
             TEST_DATE + timedelta(days=1),
         ),
         (
@@ -3621,8 +3623,12 @@ def test_get_run_data_interval_pre_aip_39():
             TEST_DATE,
             DataInterval(start=TEST_DATE, end=TEST_DATE + timedelta(days=1)),
             TEST_DATE + timedelta(days=1),
+            None,
+            None,
         ),
         (
+            None,
+            None,
             None,
             None,
             None,
@@ -3633,10 +3639,20 @@ def test_get_run_data_interval_pre_aip_39():
             None,
             None,
             None,
+            None,
+            None,
         ),
     ],
 )
-def test_calculate_dagrun_date_fields(schedule, next_run, next_interval, next_run_after, dag_maker, session):
+def test_calculate_dagrun_date_fields(
+    schedule,
+    dag_maker,
+    next_run,
+    next_interval,
+    next_run_after,
+    next_partition_key,
+    next_partition_date,
+):
     with dag_maker(schedule=schedule, catchup=True, start_date=TEST_DATE):
         BashOperator(task_id="hi", bash_command="yo")
 
@@ -3647,3 +3663,5 @@ def test_calculate_dagrun_date_fields(schedule, next_run, next_interval, next_ru
     assert dag_model.next_dagrun_data_interval == next_interval
     assert dag_model.next_dagrun == next_run
     assert dag_model.next_dagrun_create_after == next_run_after
+    assert dag_model.next_dagrun_partition_key == next_partition_key
+    assert dag_model.next_dagrun_partition_date == next_partition_date

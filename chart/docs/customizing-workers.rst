@@ -22,15 +22,14 @@ Both ``CeleryExecutor`` and ``KubernetesExecutor`` workers can be highly customi
 For example, to set resources on workers:
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-  workers:
-    resources:
-      requests:
-        cpu: 1
-      limits:
-        cpu: 1
-
-See :ref:`workers parameters <parameters:workers>` for a complete list.
+   workers:
+     resources:
+       requests:
+         cpu: 1
+       limits:
+         cpu: 1
 
 One notable exception for ``KubernetesExecutor`` is that the default anti-affinity applied to ``CeleryExecutor`` workers to spread them across nodes
 is not applied to ``KubernetesExecutor`` workers, as there is no reason to spread out per-task workers.
@@ -38,31 +37,37 @@ is not applied to ``KubernetesExecutor`` workers, as there is no reason to sprea
 Custom ``pod_template_file``
 ----------------------------
 
-With ``KubernetesExecutor`` or ``CeleryKubernetesExecutor`` you can also provide a complete ``pod_template_file`` to configure Kubernetes workers.
-This may be useful if you need different configuration between worker types for ``CeleryKubernetesExecutor``
-or if you need to customize something not possible with :ref:`workers parameters <parameters:workers>` alone.
+With ``KubernetesExecutor`` or ``CeleryKubernetesExecutor`` you can also provide a complete ``pod_template_file``
+to fully override default Kubernetes workers configuration. This may be useful if you need different configuration between
+worker types for ``CeleryKubernetesExecutor`` or if you need to customize something not possible with :ref:`workers parameters <parameters:workers>` alone.
+
+.. note::
+
+   Some configuration options between Celery and Kubernetes workers can be overwritten by new ``workers.celery`` and ``workers.kubernetes`` sections.
+   Implementation of ``workers.celery`` and ``workers.kubernetes`` is not yet fully completed.
 
 As an example, let's say you want to set ``priorityClassName`` on your workers:
 
 .. note::
 
-  The following example is NOT functional, but meant to be illustrative of how you can provide a custom ``pod_template_file``.
-  You're better off starting with the `default pod_template_file`_ instead.
+   The following example is NOT functional, but meant to be illustrative of how you can provide a custom ``pod_template_file``.
+   You're better off starting with the default `pod_template_file`_ instead.
 
-.. _default pod_template_file: https://github.com/apache/airflow/blob/main/chart/files/pod-template-file.kubernetes-helm-yaml
+.. _pod_template_file: https://github.com/apache/airflow/blob/main/chart/files/pod-template-file.kubernetes-helm-yaml
 
 .. code-block:: yaml
+   :caption: values.yaml
 
-  podTemplate: |
-    apiVersion: v1
-    kind: Pod
-    metadata:
-      name: placeholder-name
-      labels:
-        tier: airflow
-        component: worker
-        release: {{ .Release.Name }}
-    spec:
-      priorityClassName: high-priority
-      containers:
-        - name: base
+   podTemplate: |
+     apiVersion: v1
+     kind: Pod
+     metadata:
+       name: placeholder-name
+       labels:
+         tier: airflow
+         component: worker
+         release: {{ .Release.Name }}
+     spec:
+       priorityClassName: high-priority
+       containers:
+         - name: base

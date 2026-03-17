@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:ftp:
+.. _howto/connection:git:
 
 GIT Connection
 ==============
@@ -27,27 +27,53 @@ The GIT connection type enables the GIT Integrations.
 Authenticating to GIT
 -----------------------
 
-Authenticate to FTP using `ftplib
-<https://docs.python.org/3/library/ftplib.html>`_.
-i.e. indicate ``user``, ``password``, ``host``
+Authenticate to GIT using `GitPython <https://github.com/gitpython-developers/GitPython>`_.
+The hook supports both HTTPS (token-based) and SSH (key-based) authentication.
 
 Default Connection IDs
 ----------------------
 
-Hooks, bundles related to GIT use ``git_default`` by default.
+Hooks and bundles related to GIT use ``git_default`` by default.
 
 Configuring the Connection
 --------------------------
-Username
-    Specify the git ``username``.
 
-Repository URL (optional)
-    Specify the repository url e.g ``git@github.com/apache/airflow.git``.
+Repository URL
+    The URL of the git repository, e.g. ``git@github.com:apache/airflow.git`` for SSH
+    or ``https://github.com/apache/airflow.git`` for HTTPS.
+    This can also be passed directly to the hook via the ``repo_url`` parameter.
 
-Password (optional)
-    Specify the git ``password`` a.k.a ``ACCESS TOKEN`` if using https.
+Username or Access Token name (optional)
+    The username for HTTPS authentication or the token name. Defaults to ``user`` if not specified.
+    When using HTTPS with an access token, this value is used as the username in the
+    authenticated URL (e.g. ``https://user:token@github.com/repo.git``).
+
+Access Token (optional)
+    The access token for HTTPS authentication. When provided along with the username,
+    the hook injects the credentials into the repository URL for HTTPS cloning.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in ftp connection.
-    You can specify the ``key_file`` path or ``private_key`` as extra parameters. You can
-    also optionally specify the ``strict_host_key_checking`` parameter.
+    Specify the extra parameters as a JSON dictionary. The following keys are supported:
+
+    * ``key_file``: Path to an SSH private key file to use for authentication.
+    * ``private_key``: An inline SSH private key string. When provided, the hook writes it
+      to a temporary file and uses it for the SSH connection.
+    * ``strict_host_key_checking``: Controls SSH strict host key checking. Defaults to ``no``.
+      Set to ``yes`` to enable strict checking.
+
+    Example:
+
+    .. code-block:: json
+
+        {
+            "key_file": "/path/to/id_rsa",
+            "strict_host_key_checking": "no"
+        }
+
+    Or with an inline private key:
+
+    .. code-block:: json
+
+        {
+            "private_key": "<content of your PEM-encoded private key>"
+        }

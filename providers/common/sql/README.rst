@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-sql``
 
-Release: ``1.32.0``
+Release: ``1.33.0``
 
 
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
@@ -36,7 +36,7 @@ This is a provider package for ``common.sql`` provider. All classes for this pro
 are in ``airflow.providers.common.sql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.32.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.33.0/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.14.1``
 ``sqlparse``                                ``>=0.5.1``
 ``more-itertools``                          ``>=9.0.0``
 ``methodtools``                             ``>=0.4.7``
@@ -70,27 +70,33 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-sql[common.compat]
+    pip install apache-airflow-providers-common-sql[amazon]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-==================================================================================================================  =================
+====================================================================================================================  ==================
+Dependent package                                                                                                     Extra
+====================================================================================================================  ==================
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                  ``amazon``
+`apache-airflow-providers-apache-iceberg <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg>`_  ``apache.iceberg``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_    ``common.compat``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_        ``openlineage``
+====================================================================================================================  ==================
 
 Optional dependencies
 ----------------------
 
-===============  ================================================================================================
-Extra            Dependencies
-===============  ================================================================================================
-``pandas``       ``pandas[sql-other]>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13"``
-``openlineage``  ``apache-airflow-providers-openlineage``
-``polars``       ``polars>=1.26.0``
-``sqlalchemy``   ``sqlalchemy>=1.4.54``
-===============  ================================================================================================
+==================  ================================================================================================
+Extra               Dependencies
+==================  ================================================================================================
+``pandas``          ``pandas[sql-other]>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13"``
+``openlineage``     ``apache-airflow-providers-openlineage``
+``polars``          ``polars>=1.26.0``
+``sqlalchemy``      ``sqlalchemy>=1.4.54``
+``amazon``          ``apache-airflow-providers-amazon``
+``datafusion``      ``datafusion>=50.0.0,<52.0.0``
+``pyiceberg-core``  ``pyiceberg-core>=0.8.0``
+``apache.iceberg``  ``apache-airflow-providers-apache-iceberg``
+==================  ================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.32.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/1.33.0/changelog.html>`_.

@@ -52,6 +52,7 @@ from airflow.utils import yaml
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
 
+    from aiohttp import ClientResponse
     from kubernetes.client import V1JobList
     from kubernetes.client.models import CoreV1Event, CoreV1EventList, V1Job, V1Pod
 
@@ -81,7 +82,25 @@ def _get_request_timeout(timeout_seconds: int | None) -> float:
 
 
 class _TimeoutK8sApiClient(client.ApiClient):
-    """Wrapper around kubernetes sync ApiClient to set default timeout."""
+    """
+    Wrapper around kubernetes sync ApiClient to set default timeout.
+
+    When *disable_verify_ssl* is True the TLS certificate check is turned off
+    on the *client_configuration* that is passed (or on a fresh default copy)
+    so that callers do not need to repeat this logic at every call-site.
+    """
+
+    def __init__(
+        self,
+        configuration: client.Configuration | None = None,
+        *,
+        disable_verify_ssl: bool = False,
+    ) -> None:
+        if disable_verify_ssl:
+            if configuration is None:
+                configuration = client.Configuration.get_default_copy()
+            configuration.verify_ssl = False
+        super().__init__(configuration=configuration)
 
     def call_api(self, *args, **kwargs):
         timeout_seconds = kwargs.get("timeout_seconds")  # get server-side timeout
@@ -302,7 +321,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             self.log.debug("loading kube_config from: in_cluster configuration")
             self._is_in_cluster = True
             config.load_incluster_config()
-            return _TimeoutK8sApiClient()
+            return _TimeoutK8sApiClient(
+                configuration=self.client_configuration,
+                disable_verify_ssl=disable_verify_ssl is True,
+            )
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
@@ -312,7 +334,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            return _TimeoutK8sApiClient()
+            return _TimeoutK8sApiClient(
+                configuration=self.client_configuration,
+                disable_verify_ssl=disable_verify_ssl is True,
+            )
 
         if kubeconfig is not None:
             with tempfile.NamedTemporaryFile() as temp_config:
@@ -327,7 +352,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                     client_configuration=self.client_configuration,
                     context=cluster_context,
                 )
-            return _TimeoutK8sApiClient()
+            return _TimeoutK8sApiClient(
+                configuration=self.client_configuration,
+                disable_verify_ssl=disable_verify_ssl is True,
+            )
 
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
@@ -337,11 +365,18 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            return _TimeoutK8sApiClient()
+            return _TimeoutK8sApiClient(
+                configuration=self.client_configuration,
+                disable_verify_ssl=disable_verify_ssl is True,
+            )
 
-        return self._get_default_client(cluster_context=cluster_context)
+        return self._get_default_client(
+            cluster_context=cluster_context, disable_verify_ssl=disable_verify_ssl
+        )
 
-    def _get_default_client(self, *, cluster_context: str | None = None) -> client.ApiClient:
+    def _get_default_client(
+        self, *, cluster_context: str | None = None, disable_verify_ssl: bool | None = None
+    ) -> client.ApiClient:
         # if we get here, then no configuration has been supplied
         # we should try in_cluster since that's most likely
         # but failing that just load assuming a kubeconfig file
@@ -356,7 +391,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-        return _TimeoutK8sApiClient()
+        return _TimeoutK8sApiClient(
+            configuration=self.client_configuration,
+            disable_verify_ssl=disable_verify_ssl is True,
+        )
 
     @property
     def is_in_cluster(self) -> bool:
@@ -997,14 +1035,22 @@ class AsyncKubernetesHook(KubernetesHook):
         async with self.get_conn() as connection:
             try:
                 v1_api = async_client.CoreV1Api(connection)
-                logs = await v1_api.read_namespaced_pod_log(
+                # Always retrieve raw bytes and decode with 'replace' to avoid
+                # UnicodeDecodeError when pod output contains non-UTF-8 bytes
+                # (e.g. binary data, truncated multi-byte sequences).
+                # kubernetes_asyncio's default decoding uses strict UTF-8 which
+                # crashes the task in those cases.
+                raw_resp: ClientResponse = await v1_api.read_namespaced_pod_log(
                     name=name,
                     namespace=namespace,
                     container=container_name,
                     follow=False,
                     timestamps=True,
                     since_seconds=since_seconds,
-                )
+                    _preload_content=False,
+                )  # type: ignore  # _preload_content=False makes returning ClientResponse instead of str!
+                raw_bytes = await raw_resp.read()
+                logs = raw_bytes.decode("utf-8", errors="replace")
                 logs_list: list[str] = logs.splitlines()
                 return logs_list
             except HTTPError as e:

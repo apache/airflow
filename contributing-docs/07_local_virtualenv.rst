@@ -26,7 +26,9 @@ harder to debug the tests and to use your IDE to run them.
 
 That's why we recommend using local virtualenv for development and testing.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Required Software Packages
 --------------------------
@@ -244,7 +246,7 @@ in editable mode.
 The dependencies for providers are configured in ``providers/PROVIDER/pyproject.toml`` files -
 separately for each provider. You can find there two types of ``dependencies`` - production runtime
 dependencies, and sometimes ``development dependencies`` (in ``dev`` dependency group) which are needed
-to run tests and are installed automatically when you install environment with ``uv-sync``.
+to run tests and are installed automatically when you install environment with ``uv sync``.
 
 If you want to add another dependency to a provider, you should add it to corresponding ``pyproject.toml``,
 add the files to your commit with ``git add`` and run ``prek`` to update generated dependencies.

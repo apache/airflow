@@ -35,7 +35,7 @@ from rich.syntax import Syntax
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import MOUNT_SELECTED
 from airflow_breeze.params.shell_params import ShellParams
-from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.console import Output, console_print
 from airflow_breeze.utils.docker_command_utils import execute_command_in_shell
 from airflow_breeze.utils.github import download_constraints_file
 from airflow_breeze.utils.parallel import get_temp_file_name
@@ -55,7 +55,7 @@ def parse_constraints_generation_date(lines):
             try:
                 return datetime.fromisoformat(date_str).replace(tzinfo=None)
             except ValueError:
-                get_console().print(
+                console_print(
                     f"[yellow]Warning: Could not parse constraints generation date from: {date_str}[/]"
                 )
                 return None
@@ -176,7 +176,7 @@ def get_first_newer_release_date_str(releases, current_version):
         return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
 
     except version.InvalidVersion as e:
-        get_console().print(
+        console_print(
             f"[yellow]Warning: Invalid version format for {current_version}. Skipping date check. Error: {str(e)}[/]"
         )
         return None
@@ -191,8 +191,8 @@ def constraints_version_check(
     github_token: str | None = None,
     github_repository: str | None = None,
 ):
-    get_console().print(f"[bold cyan]Python version:[/] [white]{python}[/]")
-    get_console().print(f"[bold cyan]Constraints mode:[/] [white]{airflow_constraints_mode}[/]\n")
+    console_print(f"[bold cyan]Python version:[/] [white]{python}[/]")
+    console_print(f"[bold cyan]Constraints mode:[/] [white]{airflow_constraints_mode}[/]\n")
     with tempfile.TemporaryDirectory() as temp_dir:
         constraints_file = Path(temp_dir) / "constraints.txt"
         download_constraints_file(
@@ -205,15 +205,15 @@ def constraints_version_check(
         lines = constraints_file.read_text().splitlines()
     constraints_date = parse_constraints_generation_date(lines)
     if constraints_date:
-        get_console().print(
+        console_print(
             f"[bold cyan]Constraints file generation date:[/] [white]{constraints_date.strftime('%Y-%m-%d %H:%M:%S')}[/]"
         )
-        get_console().print()
+        console_print()
     if selected_packages:
-        get_console().print("selected_packages:", selected_packages)
+        console_print("selected_packages:", selected_packages)
     packages = parse_packages_from_lines(lines, selected_packages)
     if not packages:
-        get_console().print("[bold red]No matching packages found in constraints file.[/]")
+        console_print("[bold red]No matching packages found in constraints file.[/]")
         sys.exit(1)
     col_widths, format_str, headers, total_width = get_table_format(packages)
     print_table_header(format_str, headers, total_width)
@@ -255,7 +255,7 @@ def parse_packages_from_lines(lines: list[str], selected_packages: set[str] | No
                 if pkg_name and selected_packages and pkg_name in selected_packages:
                     remaining_packages.remove(pkg_name)
     if remaining_packages:
-        get_console().print(
+        console_print(
             f"[bold yellow]Warning:[/] [white]{len(remaining_packages)}[/] packages were selected but not found in constraints file: {', '.join(remaining_packages)}"
         )
     return packages
@@ -298,24 +298,24 @@ def get_table_format(packages: list[tuple[str, str]]):
 
 
 def print_table_header(format_str: str, headers: list[str], total_width: int):
-    get_console().print(f"[bold magenta]{format_str.format(*headers)}[/]")
-    get_console().print(f"[magenta]{'=' * total_width}[/]")
+    console_print(f"[bold magenta]{format_str.format(*headers)}[/]")
+    console_print(f"[magenta]{'=' * total_width}[/]")
 
 
 def print_table_footer(total_width: int, total_pkgs: int, outdated_count: int, skipped_count: int, mode: str):
-    get_console().print(f"[magenta]{'=' * total_width}[/]")
-    get_console().print(f"[bold cyan]\nTotal packages checked:[/] [white]{total_pkgs}[/]")
-    get_console().print(f"[bold yellow]Outdated packages found:[/] [white]{outdated_count}[/]")
+    console_print(f"[magenta]{'=' * total_width}[/]")
+    console_print(f"[bold cyan]\nTotal packages checked:[/] [white]{total_pkgs}[/]")
+    console_print(f"[bold yellow]Outdated packages found:[/] [white]{outdated_count}[/]")
     if mode == "diff-constraints":
-        get_console().print(
+        console_print(
             f"[bold blue]Skipped packages (updated after constraints generation):[/] [white]{skipped_count}[/]"
         )
 
 
 def print_explanations(explanations: list[str]):
-    get_console().print("\n[bold magenta]Upgrade Explanations:[/]")
+    console_print("\n[bold magenta]Upgrade Explanations:[/]")
     for explanation in explanations:
-        get_console().print(explanation)
+        console_print(explanation)
 
 
 def update_pyproject_dependency(pyproject_path: Path, pkg: str, latest_version: str, python_version: str):
@@ -336,7 +336,7 @@ def update_pyproject_dependency(pyproject_path: Path, pkg: str, latest_version: 
         new_lines.append(dep_string)
     pyproject_path.write_text("\n".join(new_lines) + "\n")
     if get_verbose():
-        get_console().print(
+        console_print(
             f"[cyan]Fixed {pkg} at {latest_version} in [white]{pyproject_path}[/] [dim](pyproject.toml)[/]"
         )
 
@@ -417,10 +417,10 @@ def process_packages(
                 )
                 explanations.append(explanation)
         except HTTPError as e:
-            get_console().print(f"[bold red]Error fetching {pkg} from PyPI: HTTP {e.code}[/]")
+            console_print(f"[bold red]Error fetching {pkg} from PyPI: HTTP {e.code}[/]")
             continue
         except URLError as e:
-            get_console().print(f"[bold red]Error fetching {pkg} from PyPI: {e.reason}[/]")
+            console_print(f"[bold red]Error fetching {pkg} from PyPI: {e.reason}[/]")
             continue
     return outdated_count, skipped_count, explanations
 
@@ -460,7 +460,7 @@ def print_package_table_row(
         versions_behind_str,
         pypi_link,
     )
-    get_console().print(f"[{color}]{string_to_print}[/]")
+    console_print(f"[{color}]{string_to_print}[/]")
 
 
 def explain_package_upgrade(

@@ -21,11 +21,15 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
-from airflow.providers.common.compat.sdk import BaseOperator, Context
-from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
+from airflow.providers.common.compat.sdk import (
+    AirflowOptionalProviderFeatureException,
+    BaseOperator,
+    Context,
+)
 
 if TYPE_CHECKING:
     from airflow.providers.common.sql.config import DataSourceConfig
+    from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 
 
 class AnalyticsOperator(BaseOperator):
@@ -63,8 +67,17 @@ class AnalyticsOperator(BaseOperator):
         self.result_output_format = result_output_format
 
     @cached_property
-    def _df_engine(self):
+    def _df_engine(self) -> DataFusionEngine:
         if self.engine is None:
+            try:
+                from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
+            except ModuleNotFoundError as e:
+                if e.name == "datafusion":
+                    raise AirflowOptionalProviderFeatureException(
+                        "Failed to import DataFusion. To use the AnalyticsOperator, please install the "
+                        "`apache-airflow-providers-common-sql[datafusion]` extra."
+                    ) from e
+                raise
             return DataFusionEngine()
         return self.engine
 

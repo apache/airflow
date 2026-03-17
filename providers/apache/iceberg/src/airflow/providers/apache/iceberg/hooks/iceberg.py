@@ -77,7 +77,10 @@ class IcebergHook(BaseHook):
         # Start with extra so connection fields take precedence
         extra = conn.extra_dejson or {}
         catalog_properties: dict[str, str] = {**extra}
-        catalog_properties["uri"] = conn.host.rstrip("/") if conn.host else ""
+        host = conn.host.rstrip("/") if conn.host else None
+        if host:
+            catalog_properties["uri"] = host
+
         if "type" not in catalog_properties:
             catalog_properties["type"] = "rest"
 
