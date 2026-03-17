@@ -39,7 +39,14 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.confirm import Answer, TriageAction, prompt_triage_action, user_confirm
+from airflow_breeze.utils.confirm import (
+    Answer,
+    ContinueAction,
+    TriageAction,
+    prompt_space_continue,
+    prompt_triage_action,
+    user_confirm,
+)
 from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.custom_param_types import HiddenChoiceWithCompletion, NotVerifiedBetterChoice
 from airflow_breeze.utils.run_utils import run_command
@@ -3339,6 +3346,9 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
         f"{' (LLM assessments running in background)' if ctx.llm_future_to_pr else ''}:[/]\n"
     )
 
+    # Collect PRs with pending runs for batched review
+    batch_approvable: list[tuple[PRData, list[dict]]] = []
+
     for pr in pending_approval:
         if ctx.stats.quit_early:
             return
@@ -3590,20 +3600,50 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                 )
             continue
 
-        answer = user_confirm(
-            f"Review diff for PR {_pr_link(pr)} before approving workflows?",
-            default_answer=Answer.YES,
-            forced_answer=ctx.answer_triage,
-        )
-        if answer == Answer.QUIT:
-            console_print("[warning]Quitting.[/]")
-            ctx.stats.quit_early = True
-            return
-        if answer == Answer.NO:
-            console_print(f"  [info]Skipping workflow approval for PR {_pr_link(pr)}.[/]")
-            continue
+        # Normal workflow approval — collect for batched review
+        batch_approvable.append((pr, pending_runs))
 
-        has_sensitive_changes = False
+    # --- Batched workflow approval flow ---
+    # Group PRs that have pending runs, show titles first, then diffs one-by-one,
+    # then batch approve all non-flagged PRs at once.
+    if not batch_approvable or ctx.stats.quit_early:
+        return
+
+    console_print()
+    get_console().rule("[bold bright_cyan]Workflow approval — batch review[/]", style="bright_cyan")
+    console_print(
+        f"\n[info]{len(batch_approvable)} "
+        f"{'PRs' if len(batch_approvable) != 1 else 'PR'} "
+        f"with pending workflow runs to review:[/]\n"
+    )
+    for pr, runs in batch_approvable:
+        draft_tag = " [yellow](draft)[/]" if pr.is_draft else ""
+        console_print(
+            f"  {_pr_link(pr)} {pr.title}{draft_tag}  "
+            f"[dim]by {pr.author_login} — {len(runs)} pending "
+            f"{'runs' if len(runs) != 1 else 'run'}[/]"
+        )
+
+    if ctx.dry_run:
+        console_print("\n[warning]Dry run — skipping batch workflow approval.[/]")
+        return
+
+    console_print(
+        "\n[info]Showing diffs one-by-one. Press SPACE to continue, "
+        "[f] to flag as suspicious, [q] to quit.[/]\n"
+    )
+
+    # Track which PRs to approve vs flagged as suspicious
+    prs_to_approve: list[tuple[PRData, list[dict]]] = []
+    flagged_suspicious: list[PRData] = []
+
+    for pr, runs in batch_approvable:
+        if ctx.stats.quit_early:
+            break
+
+        get_console().rule(f"[cyan]PR {_pr_link(pr)}[/]", style="dim")
+        console_print(f"  [bold]{pr.title}[/] by {pr.author_login}\n")
+
         console_print(f"  Fetching diff for PR {_pr_link(pr)}...")
         diff_text = _fetch_pr_diff(ctx.token, ctx.github_repository, pr.number)
         if diff_text:
@@ -3620,7 +3660,6 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
             # Warn about changes to sensitive directories (.github/, scripts/)
             sensitive_files = _detect_sensitive_file_changes(diff_text)
             if sensitive_files:
-                has_sensitive_changes = True
                 console_print()
                 console_print(
                     "[bold red]WARNING: This PR contains changes to sensitive files "
@@ -3635,64 +3674,100 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
                 f"Review manually at: {pr.url}/files[/]"
             )
 
-        approve_default = Answer.NO if has_sensitive_changes else Answer.YES
-        answer = user_confirm(
-            f"No suspicious changes found in PR {_pr_link(pr)}? "
-            f"Approve {len(pending_runs)} workflow {'runs' if len(pending_runs) != 1 else 'run'}?",
-            default_answer=approve_default,
+        action = prompt_space_continue(forced_answer=ctx.answer_triage)
+        if action == ContinueAction.QUIT:
+            console_print("[warning]Quitting.[/]")
+            ctx.stats.quit_early = True
+            break
+        if action == ContinueAction.FLAG:
+            console_print(f"  [bold red]Flagged PR {_pr_link(pr)} by {pr.author_login} as suspicious.[/]")
+            flagged_suspicious.append(pr)
+        else:
+            prs_to_approve.append((pr, runs))
+
+    if ctx.stats.quit_early:
+        return
+
+    # Handle flagged suspicious PRs
+    for pr in flagged_suspicious:
+        console_print(
+            f"\n  [bold red]Suspicious changes detected in PR {_pr_link(pr)} by {pr.author_login}.[/]"
+        )
+        console_print(f"  Fetching all open PRs by {pr.author_login}...")
+        author_prs = _fetch_author_open_prs(ctx.token, ctx.github_repository, pr.author_login)
+        if not author_prs:
+            console_print(f"  [dim]No open PRs found for {pr.author_login}.[/]")
+            continue
+
+        console_print()
+        console_print(
+            f"  [bold red]The following {len(author_prs)} "
+            f"{'PRs' if len(author_prs) != 1 else 'PR'} by "
+            f"{pr.author_login} will be closed, labeled "
+            f"'{_SUSPICIOUS_CHANGES_LABEL}', and commented:[/]"
+        )
+        for pr_info in author_prs:
+            console_print(f"    - [link={pr_info['url']}]#{pr_info['number']}[/link] {pr_info['title']}")
+        console_print()
+
+        confirm = user_confirm(
+            f"Close all {len(author_prs)} {'PRs' if len(author_prs) != 1 else 'PR'} "
+            f"by {pr.author_login} and label as suspicious?",
             forced_answer=ctx.answer_triage,
         )
-        if answer == Answer.QUIT:
+        if confirm == Answer.QUIT:
             console_print("[warning]Quitting.[/]")
             ctx.stats.quit_early = True
             return
-        if answer == Answer.NO:
-            console_print(
-                f"\n  [bold red]Suspicious changes detected in PR {_pr_link(pr)} by {pr.author_login}.[/]"
-            )
-            console_print(f"  Fetching all open PRs by {pr.author_login}...")
-            author_prs = _fetch_author_open_prs(ctx.token, ctx.github_repository, pr.author_login)
-            if not author_prs:
-                console_print(f"  [dim]No open PRs found for {pr.author_login}.[/]")
-                continue
-
-            console_print()
-            console_print(
-                f"  [bold red]The following {len(author_prs)} "
-                f"{'PRs' if len(author_prs) != 1 else 'PR'} by "
-                f"{pr.author_login} will be closed, labeled "
-                f"'{_SUSPICIOUS_CHANGES_LABEL}', and commented:[/]"
-            )
-            for pr_info in author_prs:
-                console_print(f"    - [link={pr_info['url']}]#{pr_info['number']}[/link] {pr_info['title']}")
-            console_print()
-
-            confirm = user_confirm(
-                f"Close all {len(author_prs)} {'PRs' if len(author_prs) != 1 else 'PR'} "
-                f"by {pr.author_login} and label as suspicious?",
-                forced_answer=ctx.answer_triage,
-            )
-            if confirm == Answer.QUIT:
-                console_print("[warning]Quitting.[/]")
-                ctx.stats.quit_early = True
-                return
-            if confirm == Answer.NO:
-                console_print(f"  [info]Skipping — no PRs closed for {pr.author_login}.[/]")
-                continue
-
-            closed, commented = _close_suspicious_prs(ctx.token, ctx.github_repository, author_prs, pr.number)
-            console_print(
-                f"  [success]Closed {closed}/{len(author_prs)} "
-                f"{'PRs' if len(author_prs) != 1 else 'PR'}, commented on {commented}.[/]"
-            )
-            ctx.stats.total_closed += closed
+        if confirm == Answer.NO:
+            console_print(f"  [info]Skipping — no PRs closed for {pr.author_login}.[/]")
             continue
 
-        approved = _approve_workflow_runs(ctx.token, ctx.github_repository, pending_runs)
+        closed, commented = _close_suspicious_prs(ctx.token, ctx.github_repository, author_prs, pr.number)
+        console_print(
+            f"  [success]Closed {closed}/{len(author_prs)} "
+            f"{'PRs' if len(author_prs) != 1 else 'PR'}, commented on {commented}.[/]"
+        )
+        ctx.stats.total_closed += closed
+
+    if ctx.stats.quit_early:
+        return
+
+    # Batch approve all non-flagged PRs
+    if not prs_to_approve:
+        console_print("\n[info]No PRs to approve (all were flagged or skipped).[/]")
+        return
+
+    console_print()
+    get_console().rule("[bold green]Batch approval[/]", style="green")
+    console_print(
+        f"\n[info]Approving workflows for {len(prs_to_approve)} "
+        f"{'PRs' if len(prs_to_approve) != 1 else 'PR'}:[/]"
+    )
+    for pr, runs in prs_to_approve:
+        console_print(
+            f"  {_pr_link(pr)} {pr.title} [dim]({len(runs)} {'runs' if len(runs) != 1 else 'run'})[/]"
+        )
+
+    answer = user_confirm(
+        f"Approve workflow runs for all {len(prs_to_approve)} {'PRs' if len(prs_to_approve) != 1 else 'PR'}?",
+        default_answer=Answer.YES,
+        forced_answer=ctx.answer_triage,
+    )
+    if answer == Answer.QUIT:
+        console_print("[warning]Quitting.[/]")
+        ctx.stats.quit_early = True
+        return
+    if answer == Answer.NO:
+        console_print("[info]Skipping batch approval — no workflows approved.[/]")
+        return
+
+    for pr, runs in prs_to_approve:
+        approved = _approve_workflow_runs(ctx.token, ctx.github_repository, runs)
         if approved:
             console_print(
-                f"  [success]Approved {approved}/{len(pending_runs)} workflow "
-                f"{'runs' if len(pending_runs) != 1 else 'run'} for PR "
+                f"  [success]Approved {approved}/{len(runs)} workflow "
+                f"{'runs' if len(runs) != 1 else 'run'} for PR "
                 f"{_pr_link(pr)}.[/]"
             )
             ctx.stats.total_workflows_approved += 1
@@ -3701,7 +3776,6 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
             # Approval failed (likely 403 — runs are too old). Suggest converting to draft
             # with a rebase comment so the author pushes fresh commits.
             if pr.is_draft:
-                # Already a draft — just add a comment, no need to convert
                 rebase_comment = (
                     f"@{pr.author_login} This PR has workflow runs awaiting approval that could "
                     f"not be approved (they are likely too old). The PR is "
