@@ -176,6 +176,18 @@ class TestGetBackfill(TestBackfillEndpoint):
             "updated_at": mock.ANY,
         }
 
+    def test_get_backfill_with_null_conf(self, session, test_client):
+        """dag_run_conf can be NULL in the DB; the API should still serialize it."""
+        (dag,) = self._create_dag_models()
+        from_date = timezone.utcnow()
+        to_date = timezone.utcnow()
+        backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date, dag_run_conf=None)
+        session.add(backfill)
+        session.commit()
+        response = test_client.get(f"/backfills/{backfill.id}")
+        assert response.status_code == 200
+        assert response.json()["dag_run_conf"] is None
+
     def test_no_exist(self, session, test_client):
         response = test_client.get(f"/backfills/{231984098}")
         assert response.status_code == 404
