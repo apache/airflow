@@ -4914,10 +4914,7 @@ class TestSchedulerJob:
                 AssetDagRunQueue(
                     asset_id=asset_1_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow()
                 ),
-                AssetEvent(
-                    asset_id=asset_2_id,
-                    timestamp=timezone.utcnow()
-                ),
+                AssetEvent(asset_id=asset_2_id, timestamp=timezone.utcnow()),
                 # The ADRQ that arrives after the Dag run creation but before ADRQ clean up
                 # This situation is simluarted by _lock_only_selected_asset below
                 AssetDagRunQueue(
@@ -4972,19 +4969,13 @@ class TestSchedulerJob:
         session.add_all(
             [
                 # Asset Event 1
-                AssetEvent(
-                    asset_id=asset_id,
-                    timestamp=asset_event_ts
-                ),
+                AssetEvent(asset_id=asset_id, timestamp=asset_event_ts),
                 # Asset Event 2
-                AssetEvent(
-                    asset_id=asset_id,
-                    timestamp=asset_event_ts
-                ),
+                AssetEvent(asset_id=asset_id, timestamp=asset_event_ts),
                 # Bound with Asset Event 2
                 AssetDagRunQueue(
                     asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow()
-                )
+                ),
             ]
         )
         session.flush()
@@ -4999,15 +4990,17 @@ class TestSchedulerJob:
         assert dr is not None
         assert len(dr.consumed_asset_events) == 2
         # A late ADRQ row from Asset Event 1
-        session.add(AssetDagRunQueue(
-                    asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow()
-                ))
+        session.add(
+            AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow())
+        )
         with create_session() as session:
             self.job_runner._create_dag_runs_asset_triggered(
                 dag_models=[dag_model],
                 session=session,
             )
-        dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id, DagRun.run_after > dr.run_after)).one_or_none()
+        dr = session.scalars(
+            select(DagRun).where(DagRun.dag_id == dag_model.dag_id, DagRun.run_after > dr.run_after)
+        ).one_or_none()
         assert dr is None
 
     @pytest.mark.need_serialized_dag
@@ -5152,7 +5145,9 @@ class TestSchedulerJob:
         # Simulate an ADRQ row being updated while the scheduler is creating asset-triggered DagRuns.
         # Each asset event can update or insert ADRQ rows.
         # Assume the matching asset events were already consumed by an earlier ADRQ row.
-        adrq = AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow())
+        adrq = AssetDagRunQueue(
+            asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow()
+        )
         session.add(adrq)
         session.flush()
         adrq.created_at = timezone.utcnow() + timedelta(seconds=1)
@@ -5166,10 +5161,12 @@ class TestSchedulerJob:
             )
         dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none()
         assert dr is None
-        adrq = session.scalars(select(AssetDagRunQueue).where(
-            AssetDagRunQueue.asset_id == asset_id,
-            AssetDagRunQueue.target_dag_id == dag_model.dag_id)).one_or_none()
-        assert adrq is None
+        _adrq = session.scalars(
+            select(AssetDagRunQueue).where(
+                AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == dag_model.dag_id
+            )
+        ).one_or_none()
+        assert _adrq is None
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.timing")
