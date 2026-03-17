@@ -38,7 +38,6 @@ import structlog
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from opentelemetry.util._decorator import _AgnosticContextManager
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
@@ -91,6 +90,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
+    from opentelemetry.util._decorator import _AgnosticContextManager
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
