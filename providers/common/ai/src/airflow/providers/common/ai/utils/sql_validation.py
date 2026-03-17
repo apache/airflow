@@ -81,7 +81,7 @@ def validate_sql(
         raise SQLSafetyError(f"SQL parse error: {e}") from e
 
     # sqlglot.parse can return [None] for empty input
-    parsed: list[exp.Expression] = [s for s in statements if s is not None]  # type: ignore[misc]
+    parsed: list[exp.Expression] = [s for s in statements if isinstance(s, exp.Expression)]
     if not parsed:
         raise SQLSafetyError("Empty SQL input.")
 
