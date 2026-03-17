@@ -58,7 +58,6 @@ const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcom
       dagRunId: runId,
       deserialize: true,
       mapIndex,
-      stringify: false,
       taskId,
       xcomKey: xcomKey ?? "",
     },
