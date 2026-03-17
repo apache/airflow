@@ -72,7 +72,6 @@ def _make_mapped_ti(
     )
 
 
-
 class TestHybridExecutor:
     def test_submit_sync_function_returns_future(self):
         """Sync callables are dispatched to the thread pool and return a concurrent.futures.Future."""
@@ -324,7 +323,7 @@ class TestTaskExecutor:
         assert ti.state == TaskInstanceState.FAILED
 
     @pytest.mark.parametrize(
-        "try_number, max_tries, should_fail",
+        ("try_number", "max_tries", "should_fail"),
         [
             (0, 0, True),  # next=1, max=0 → 1>0 → fail
             (0, 1, False),  # next=1, max=1 → 1<=1 → reschedule
