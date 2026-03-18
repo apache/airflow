@@ -31,16 +31,13 @@ from sqlalchemy.orm import Session
 from airflow import settings
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import (
-    AssetActive,
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
     DagScheduleAssetAliasReference,
-    DagScheduleAssetNameReference,
     DagScheduleAssetReference,
-    DagScheduleAssetUriReference,
 )
 from airflow.models.dag import DAG, DagModel
 from airflow.sdk.definitions.asset import Asset
