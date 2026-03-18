@@ -493,6 +493,69 @@ class TestCalculatedDeadlineDatabaseCalls:
             result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
             assert result is None
 
+    def test_average_runtime_with_multiplier(self, session, dag_maker):
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800]
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"multiplier_test_{i}", state=DagRunState.SUCCESS
+            )
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=2, multiplier=1.5)
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+            expected_avg_seconds = sum(durations) / len(durations)
+            expected_scaled = expected_avg_seconds * 1.5
+            expected = DEFAULT_DATE + timedelta(seconds=expected_scaled) + interval
+            assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
+
+    def test_average_runtime_with_default_multiplier(self, session, dag_maker):
+        with dag_maker(DAG_ID):
+            EmptyOperator(task_id="test_task")
+
+        base_time = DEFAULT_DATE
+        durations = [3600, 7200, 1800]
+
+        for i, duration in enumerate(durations):
+            logical_date = base_time + timedelta(days=i)
+            start_time = logical_date + timedelta(minutes=5)
+            end_time = start_time + timedelta(seconds=duration)
+
+            dagrun = dag_maker.create_dagrun(
+                logical_date=logical_date, run_id=f"default_mult_{i}", state=DagRunState.SUCCESS
+            )
+            dagrun.start_date = start_time
+            dagrun.end_date = end_time
+
+        session.commit()
+
+        reference = SerializedReferenceModels.AverageRuntimeDeadline(max_runs=10, min_runs=2)
+        interval = timedelta(hours=1)
+
+        with mock.patch("airflow._shared.timezones.timezone.utcnow") as mock_utcnow:
+            mock_utcnow.return_value = DEFAULT_DATE
+            result = reference.evaluate_with(session=session, interval=interval, dag_id=DAG_ID)
+
+            expected_avg_seconds = sum(durations) / len(durations)
+            expected = DEFAULT_DATE + timedelta(seconds=expected_avg_seconds) + interval
+            assert result.replace(second=0, microsecond=0) == expected.replace(second=0, microsecond=0)
+
     def test_average_runtime_min_runs_validation(self):
         """Test that min_runs must be at least 1."""
         with pytest.raises(ValueError, match="min_runs must be at least 1"):
@@ -500,6 +563,13 @@ class TestCalculatedDeadlineDatabaseCalls:
 
         with pytest.raises(ValueError, match="min_runs must be at least 1"):
             DeadlineReference.AVERAGE_RUNTIME(max_runs=10, min_runs=-1)
+
+    def test_average_runtime_multiplier_validation(self):
+        with pytest.raises(ValueError, match="multiplier must be positive"):
+            DeadlineReference.AVERAGE_RUNTIME(max_runs=10, multiplier=0)
+
+        with pytest.raises(ValueError, match="multiplier must be positive"):
+            DeadlineReference.AVERAGE_RUNTIME(max_runs=10, multiplier=-1.0)
 
 
 class TestDeadlineReference:
@@ -569,11 +639,34 @@ class TestDeadlineReference:
         assert isinstance(average_runtime_reference, AverageRuntimeDeadline)
         assert average_runtime_reference.max_runs == 10
         assert average_runtime_reference.min_runs == 10
+        assert average_runtime_reference.multiplier == 1.0
 
         # Test with custom parameters
         custom_reference = DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=3)
         assert custom_reference.max_runs == 5
         assert custom_reference.min_runs == 3
+        assert custom_reference.multiplier == 1.0
+
+        # Test with multiplier
+        multiplier_reference = DeadlineReference.AVERAGE_RUNTIME(max_runs=5, min_runs=3, multiplier=1.5)
+        assert multiplier_reference.max_runs == 5
+        assert multiplier_reference.min_runs == 3
+        assert multiplier_reference.multiplier == 1.5
+
+    def test_average_runtime_multiplier_serialization_roundtrip(self):
+        ref = AverageRuntimeDeadline(max_runs=10, min_runs=5, multiplier=2.0)
+        serialized = ref.serialize_reference()
+        assert serialized["multiplier"] == 2.0
+
+        deserialized = AverageRuntimeDeadline.deserialize_reference(serialized)
+        assert deserialized.multiplier == 2.0
+        assert deserialized.max_runs == 10
+        assert deserialized.min_runs == 5
+
+    def test_average_runtime_deserialize_without_multiplier(self):
+        serialized = {"reference_type": "AverageRuntimeDeadline", "max_runs": 10, "min_runs": 10}
+        deserialized = AverageRuntimeDeadline.deserialize_reference(serialized)
+        assert deserialized.multiplier == 1.0
 
 
 class TestCustomDeadlineReference:

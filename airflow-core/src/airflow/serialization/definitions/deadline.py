@@ -191,6 +191,7 @@ class SerializedReferenceModels:
         DEFAULT_LIMIT = 10
         max_runs: int
         min_runs: int | None = None
+        multiplier: float = 1.0
         required_kwargs = {"dag_id"}
 
         def __post_init__(self):
@@ -198,6 +199,8 @@ class SerializedReferenceModels:
                 self.min_runs = self.max_runs
             if self.min_runs < 1:
                 raise ValueError("min_runs must be at least 1")
+            if self.multiplier <= 0:
+                raise ValueError("multiplier must be positive")
 
         @provide_session
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
@@ -245,24 +248,32 @@ class SerializedReferenceModels:
 
             decimal_durations = [Decimal(str(d)) for d in durations]
             avg_seconds = float(sum(decimal_durations) / len(decimal_durations))
+            scaled_seconds = avg_seconds * self.multiplier
             logger.info(
-                "Average runtime for dag_id %s (from %d runs): %.2f seconds",
+                "Average runtime for dag_id %s (from %d runs): %.2f seconds (multiplier=%.2f, scaled=%.2f)",
                 dag_id,
                 len(durations),
                 avg_seconds,
+                self.multiplier,
+                scaled_seconds,
             )
-            return timezone.utcnow() + timedelta(seconds=avg_seconds)
+            return timezone.utcnow() + timedelta(seconds=scaled_seconds)
 
         def serialize_reference(self) -> dict:
             return {
                 SerializedReferenceModels.REFERENCE_TYPE_FIELD: self.reference_name,
                 "max_runs": self.max_runs,
                 "min_runs": self.min_runs,
+                "multiplier": self.multiplier,
             }
 
         @classmethod
         def deserialize_reference(cls, reference_data: dict):
-            return cls(max_runs=reference_data["max_runs"], min_runs=reference_data.get("min_runs"))
+            return cls(
+                max_runs=reference_data["max_runs"],
+                min_runs=reference_data.get("min_runs"),
+                multiplier=reference_data.get("multiplier", 1.0),
+            )
 
     class SerializedCustomReference(SerializedBaseDeadlineReference):
         """
