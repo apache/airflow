@@ -46,7 +46,7 @@
     "dayjs": "^1.11.19",
     "elkjs": "^0.11.1",
     "html-to-image": "^1.11.13",
-    "i18next": "^25.8.14",
+    "i18next": "^25.8.16",
     "i18next-browser-languagedetector": "^8.2.1",
     "i18next-http-backend": "^3.0.2",
     "next-themes": "^0.4.6",
