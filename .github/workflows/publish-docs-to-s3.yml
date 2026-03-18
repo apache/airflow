@@ -307,6 +307,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      packages: write
     runs-on: ubuntu-latest
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
