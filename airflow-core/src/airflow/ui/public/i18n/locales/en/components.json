@@ -78,7 +78,8 @@
     "validationErrorArrayNotArray": "Value must be an array.",
     "validationErrorArrayNotNumbers": "All elements in the array must be numbers.",
     "validationErrorArrayNotObject": "All elements in the array must be objects.",
-    "validationErrorRequired": "This field is required"
+    "validationErrorRequired": "This field is required",
+    "searchPlaceholder": "Search options"
   },
   "graph": {
     "directionDown": "Top to Bottom",
