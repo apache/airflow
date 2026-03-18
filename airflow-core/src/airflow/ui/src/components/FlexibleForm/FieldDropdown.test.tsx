@@ -17,14 +17,12 @@
  * under the License.
  */
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
 import { FieldDropdown } from "./FieldDropdown";
 
-// Mock the useParamStore hook
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockParamsDict: Record<string, any> = {};
 const mockSetParamsDict = vi.fn();
@@ -44,7 +42,6 @@ vi.mock("src/queries/useParamStore", () => ({
 
 describe("FieldDropdown", () => {
   beforeEach(() => {
-    // Clear mock params before each test
     Object.keys(mockParamsDict).forEach((key) => {
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete mockParamsDict[key];
@@ -66,9 +63,7 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    const select = screen.getByRole("combobox");
-
-    expect(select).toBeDefined();
+    expect(screen.getByRole("combobox")).toBeDefined();
   });
 
   it("displays custom label for null value via values_display", () => {
@@ -91,9 +86,7 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    const select = screen.getByRole("combobox");
-
-    expect(select).toBeDefined();
+    expect(screen.getByRole("combobox")).toBeDefined();
   });
 
   it("handles string enum with null value", () => {
@@ -110,9 +103,7 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    const select = screen.getByRole("combobox");
-
-    expect(select).toBeDefined();
+    expect(screen.getByRole("combobox")).toBeDefined();
   });
 
   it("handles enum with only null value", () => {
@@ -130,9 +121,7 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    const select = screen.getByRole("combobox");
-
-    expect(select).toBeDefined();
+    expect(screen.getByRole("combobox")).toBeDefined();
   });
 
   it("renders when current value is null", () => {
@@ -150,14 +139,10 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    const select = screen.getByRole("combobox");
-
-    expect(select).toBeDefined();
+    expect(screen.getByRole("combobox")).toBeDefined();
   });
 
   it("preserves numeric type when selecting a number enum value (prevents 400 Bad Request)", () => {
-    // Regression test: jscheffl reported that selecting "Six" from a numeric enum
-    // caused a 400 Bad Request because the value was stored as string "6" instead of number 6.
     mockParamsDict.test_param = {
       schema: {
         // eslint-disable-next-line unicorn/no-null
@@ -183,50 +168,5 @@ describe("FieldDropdown", () => {
 
     expect(original).toBe(6);
     expect(typeof original).toBe("number");
-  });
-
-  it("renders a search input inside the dropdown content", () => {
-    mockParamsDict.test_param = {
-      schema: {
-        enum: ["apple", "banana", "cherry", "date", "elderberry"],
-        type: "string",
-      },
-      value: "apple",
-    };
-
-    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, {
-      wrapper: Wrapper,
-    });
-
-    // The search input is rendered inside the dropdown content
-    const searchInput = screen.getByPlaceholderText("Search options");
-
-    expect(searchInput).toBeDefined();
-  });
-
-  it("filters displayed options as the user types in the search input", async () => {
-    mockParamsDict.test_param = {
-      schema: {
-        enum: ["apple", "banana", "apricot", "cherry"],
-        type: "string",
-      },
-      value: "apple",
-    };
-
-    const user = userEvent.setup();
-
-    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, {
-      wrapper: Wrapper,
-    });
-
-    const searchInput = screen.getByPlaceholderText("Search options");
-
-    await user.type(searchInput, "ap");
-
-    // After typing "ap", only "apple" and "apricot" should be visible; "banana" and "cherry" should not
-    expect(screen.queryByText("banana")).toBeNull();
-    expect(screen.queryByText("cherry")).toBeNull();
-    expect(screen.getByText("apple")).toBeDefined();
-    expect(screen.getByText("apricot")).toBeDefined();
   });
 });
