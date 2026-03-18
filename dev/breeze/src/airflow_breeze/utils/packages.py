@@ -700,7 +700,12 @@ def get_provider_jinja_context(
     supported_python_versions = [
         p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
     ]
-    cross_providers_dependencies = get_cross_provider_dependent_packages(provider_id=provider_id)
+
+    pip_requirements = get_provider_requirements(provider_details.provider_id)
+    cross_deps = get_cross_provider_dependent_packages(provider_id=provider_id)
+    optional_cross_provider_dependencies = [
+        dep for dep in cross_deps if get_pip_package_name(dep) not in "\n".join(pip_requirements)
+    ]
 
     requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     # Most providers require the same python versions, but some may have exclusions
@@ -716,7 +721,7 @@ def get_provider_jinja_context(
         "RELEASE": current_release_version,
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
         "VERSION_SUFFIX": version_suffix,
-        "PIP_REQUIREMENTS": get_provider_requirements(provider_details.provider_id),
+        "PIP_REQUIREMENTS": pip_requirements,
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
         "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.root_provider_path,
@@ -729,13 +734,11 @@ def get_provider_jinja_context(
         "MIN_AIRFLOW_VERSION": get_min_airflow_version(provider_id),
         "PROVIDER_REMOVED": provider_details.removed,
         "PROVIDER_INFO": get_provider_info_dict(provider_id),
-        "CROSS_PROVIDERS_DEPENDENCIES": get_cross_provider_dependent_packages(provider_id),
+        "CROSS_PROVIDERS_DEPENDENCIES": optional_cross_provider_dependencies,
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST": convert_cross_package_dependencies_to_table(
-            cross_providers_dependencies, markdown=False
+            optional_cross_provider_dependencies, markdown=False
         ),
-        "PIP_REQUIREMENTS_TABLE_RST": convert_pip_requirements_to_table(
-            get_provider_requirements(provider_id), markdown=False
-        ),
+        "PIP_REQUIREMENTS_TABLE_RST": convert_pip_requirements_to_table(pip_requirements, markdown=False),
         "REQUIRES_PYTHON": requires_python_version,
         "EXTRA_PROJECT_METADATA": provider_details.extra_project_metadata,
         "OPTIONAL_DEPENDENCIES": get_provider_optional_dependencies(provider_id),
