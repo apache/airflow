@@ -1305,6 +1305,42 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lt
+      - name: partition_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Gte
+      - name: partition_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Gt
+      - name: partition_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Lte
+      - name: partition_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Lt
       responses:
         '200':
           description: Successful Response
@@ -1421,8 +1457,10 @@ components:
           format: date-time
           title: To Date
         dag_run_conf:
-          additionalProperties: true
-          type: object
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
           title: Dag Run Conf
         is_paused:
           type: boolean
