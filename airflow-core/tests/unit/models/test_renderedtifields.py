@@ -372,6 +372,37 @@ class TestRenderedTaskInstanceFields:
             {"bash_command": "echo test_val_updated", "env": None, "cwd": None},
         )
 
+    def test_write_upsert_existing_record(self, dag_maker, session):
+        """
+        Test that writing RTIF for the same task instance twice updates the existing
+        record rather than raising an IntegrityError.  This is the scenario that occurs
+        when the SDK retries an RTIF PUT after a client-side timeout.
+        """
+        with dag_maker("test_write_upsert"):
+            task = BashOperator(task_id="test", bash_command="echo original")
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+
+        rtif = RTIF(ti=ti, render_templates=False, rendered_fields={"bash_command": "echo original"})
+        rtif.write(session=session)
+        session.flush()
+
+        result = session.scalar(
+            select(RTIF).where(RTIF.dag_id == ti.dag_id, RTIF.task_id == ti.task_id, RTIF.run_id == ti.run_id)
+        )
+        assert result.rendered_fields == {"bash_command": "echo original"}
+
+        rtif2 = RTIF(ti=ti, render_templates=False, rendered_fields={"bash_command": "echo updated"})
+        rtif2.write(session=session)
+        session.flush()
+        session.expire_all()
+
+        result = session.scalar(
+            select(RTIF).where(RTIF.dag_id == ti.dag_id, RTIF.task_id == ti.task_id, RTIF.run_id == ti.run_id)
+        )
+        assert result.rendered_fields == {"bash_command": "echo updated"}
+
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
     def test_redact(self, dag_maker):
         with mock.patch("airflow._shared.secrets_masker.redact", autospec=True) as redact:

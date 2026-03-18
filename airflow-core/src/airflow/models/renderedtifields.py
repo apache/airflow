@@ -239,13 +239,51 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @provide_session
     @retry_db_transaction
-    def write(self, session: Session):
+    def write(self, session: Session = NEW_SESSION):
         """
         Write instance to database.
 
+        Uses a database-level upsert (INSERT ... ON CONFLICT DO UPDATE) to
+        atomically insert or update the record, avoiding race conditions that
+        can occur with session.merge() when concurrent requests (e.g. from
+        client-side timeout retries) target the same primary key.
+
         :param session: SqlAlchemy Session
         """
-        session.merge(self)
+        dialect_name = get_dialect_name(session)
+
+        if dialect_name == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert
+        elif dialect_name == "mysql":
+            from sqlalchemy.dialects.mysql import insert
+        else:
+            from sqlalchemy.dialects.sqlite import insert
+
+        values = {
+            "dag_id": self.dag_id,
+            "task_id": self.task_id,
+            "run_id": self.run_id,
+            "map_index": self.map_index,
+            "rendered_fields": self.rendered_fields,
+            "k8s_pod_yaml": self.k8s_pod_yaml,
+        }
+
+        stmt = insert(RenderedTaskInstanceFields).values(**values)
+
+        update_on_conflict = {
+            "rendered_fields": self.rendered_fields,
+            "k8s_pod_yaml": self.k8s_pod_yaml,
+        }
+
+        if dialect_name == "mysql":
+            stmt = stmt.on_duplicate_key_update(**update_on_conflict)
+        else:
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["dag_id", "task_id", "run_id", "map_index"],
+                set_=update_on_conflict,
+            )
+
+        session.execute(stmt)
 
     @classmethod
     @provide_session
