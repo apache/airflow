@@ -6485,7 +6485,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "qdrant-client", specifier = ">=1.15.1,!=1.17.0" },
+    { name = "qdrant-client", specifier = ">=1.17.1" },
 ]
 
 [package.metadata.requires-dev]
