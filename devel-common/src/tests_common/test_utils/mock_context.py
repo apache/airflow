@@ -67,6 +67,6 @@ def mock_context(task, run_id: str | None = None) -> Context:
             values[key] = value
 
     values["ti"] = create_task_instance(task, dag_version_id=mock.MagicMock(), ti_type=MockedTaskInstance)
-    values["run_id"] =  DagRun.generate_run_id(run_type=DagRunType.MANUAL, run_after=datetime.now())
+    values["run_id"] = DagRun.generate_run_id(run_type=DagRunType.MANUAL, run_after=datetime.now()) if run_id is None else run_id
 
     return Context(values)  # type: ignore[misc]
