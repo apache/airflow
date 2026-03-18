@@ -179,7 +179,6 @@ PIP package                                 Version required
 ``proto-plus``                              ``>=1.26.0``
 ``pyarrow``                                 ``>=18.0.0``
 ``python-slugify``                          ``>=7.0.0``
-``PyOpenSSL``                               ``>=23.0.0``
 ``sqlalchemy-bigquery``                     ``>=1.2.1``
 ``sqlalchemy-spanner``                      ``>=1.6.2``
 ``tenacity``                                ``>=8.3.0``
