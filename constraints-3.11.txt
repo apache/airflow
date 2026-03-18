@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-18T12:24:21.332639
+# This constraints file was automatically generated on 2026-03-18T19:04:46.677474
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -356,7 +356,7 @@ google-cloud-spanner==3.63.0
 google-cloud-speech==2.37.0
 google-cloud-storage-control==1.10.0
 google-cloud-storage-transfer==1.19.0
-google-cloud-storage==3.9.0
+google-cloud-storage==3.10.0
 google-cloud-tasks==2.21.0
 google-cloud-texttospeech==2.34.0
 google-cloud-translate==3.24.0
@@ -698,8 +698,8 @@ xmltodict==1.0.4
 yandex-query-client==0.1.4
 yandexcloud==0.382.0
 yarl==1.23.0
-ydb-dbapi==0.1.19
-ydb==3.26.6
+ydb-dbapi==0.1.20
+ydb==3.26.7
 zeep==4.3.2
 zenpy==2.0.57
 zipp==3.23.0
