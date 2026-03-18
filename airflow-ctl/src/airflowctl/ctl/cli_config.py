@@ -381,7 +381,17 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
+        self.output_command_list = [
+            "list",
+            "get",
+            "create",
+            "delete",
+            "update",
+            "trigger",
+            "add",
+            "edit",
+            "clear",
+        ]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -645,10 +655,16 @@ class CommandFactory:
                                 datamodel_param_name = parameter_key
                             if expanded_parameter in self.excluded_parameters:
                                 continue
-                            if expanded_parameter in args_dict.keys():
+                            if expanded_parameter in args_dict.keys() and args_dict[expanded_parameter] is not None:
+                                val = args_dict[expanded_parameter]
+                                # Automatically convert comma-separated strings to lists if the field expects a list
+                                field_annotation = str(datamodel.model_fields[expanded_parameter].annotation).lower()
+                                if "list" in field_annotation and isinstance(val, str):
+                                    val = [v.strip() for v in val.split(",") if v.strip()]
+
                                 method_params[parameter_key][
                                     self._sanitize_method_param_key(expanded_parameter)
-                                ] = args_dict[expanded_parameter]
+                                ] = val
 
             if datamodel:
                 if datamodel_param_name:
