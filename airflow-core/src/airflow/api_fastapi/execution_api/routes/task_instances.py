@@ -437,6 +437,10 @@ def ti_update_state(
 
 
 def _emit_task_span(ti, state):
+    # just to be safe
+    if not (ti.dag_run and ti.dag_run.context_carrier and ti.context_carrier):
+        return
+
     dr_ctx = TraceContextTextMapPropagator().extract(ti.dag_run.context_carrier)
 
     ti_ctx = TraceContextTextMapPropagator().extract(ti.context_carrier)

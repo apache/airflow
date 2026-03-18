@@ -1019,6 +1019,10 @@ class DagRun(Base, LoggingMixin):
         return leaf_tis
 
     def _emit_dagrun_span(self, state: DagRunState):
+        # just to be safe
+        if not self.context_carrier:
+            return
+
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()

@@ -103,7 +103,7 @@ logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def _prepare_span(
+def _make_trigger_span(
     ti: TaskInstanceDTO | None, trigger_id: int, name: str
 ) -> _AgnosticContextManager[trace.Span]:
     parent_context = (
@@ -1210,7 +1210,7 @@ class TriggerRunner:
 
         name = self.triggers[trigger_id]["name"]
         self.log.info("trigger %s starting", name)
-        with _prepare_span(ti=trigger.task_instance, trigger_id=trigger_id, name=name) as span:
+        with _make_trigger_span(ti=trigger.task_instance, trigger_id=trigger_id, name=name) as span:
             try:
                 async for event in trigger.run():
                     await self.log.ainfo(
