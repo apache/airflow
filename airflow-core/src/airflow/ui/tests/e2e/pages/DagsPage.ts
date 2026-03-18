@@ -496,7 +496,7 @@ export class DagsPage extends BasePage {
     const option = this.page.locator(`div[role="option"][data-value="${value}"]`);
 
     await expect(option).toBeVisible({ timeout: 5000 });
-    await option.click();
+    await option.dispatchEvent("click");
 
     await expect(filter).toHaveAttribute("data-state", "closed", { timeout: 5000 });
   }
