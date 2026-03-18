@@ -537,7 +537,6 @@ class DagFileProcessorManager(LoggingMixin):
         """Fetch callbacks from database and add them to the internal queue for execution."""
         self.log.debug("Fetching callbacks from the database.")
 
-
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
             bundle_names = [bundle.name for bundle in self._dag_bundles]
