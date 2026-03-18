@@ -2668,14 +2668,12 @@ class TestKubernetesPodOperatorAsync:
 
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
-    @patch(KUB_OP_PATH.format("_write_logs"))
-    @patch(POD_MANAGER_CLASS)
+    @patch(KUB_OP_PATH.format("pod_manager"))
     @patch(HOOK_CLASS)
     def test_async_get_logs_should_execute_successfully(
-        self, mocked_hook, mock_manager, mocked_write_logs, post_complete_action, get_logs
+        self, mocked_hook, mock_manager, post_complete_action, get_logs
     ):
         mocked_hook.return_value.get_pod.return_value = MagicMock()
-        mock_manager.return_value.await_pod_completion.return_value = MagicMock()
         k = KubernetesPodOperator(
             task_id="task",
             get_logs=get_logs,
@@ -2695,20 +2693,20 @@ class TestKubernetesPodOperatorAsync:
         )
 
         if get_logs:
-            mocked_write_logs.assert_called_once()
+            mock_manager.fetch_requested_container_logs.assert_called_once()
             post_complete_action.assert_called_once()
         else:
-            mocked_write_logs.assert_not_called()
+            mock_manager.fetch_requested_container_logs.assert_not_called()
 
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
     @patch(KUB_OP_PATH.format("client"))
     @patch(KUB_OP_PATH.format("extract_xcom"))
     @patch(HOOK_CLASS)
-    @patch(KUB_OP_PATH.format("pod_manager"))
+    # @patch(KUB_OP_PATH.format("pod_manager"))
     def test_async_write_logs_should_execute_successfully(
         self,
-        mock_manager,
+        # mock_manager,
         mocked_hook,
         mock_extract_xcom,
         mocked_client,
@@ -2717,14 +2715,33 @@ class TestKubernetesPodOperatorAsync:
         caplog,
     ):
         test_logs = "ok"
+
+        def log_generator(*_, **__):
+            yield f"{DEFAULT_DATE:%Y-%m-%dT%H:%M:%S} {test_logs}".encode()
+
         # Mock client.read_namespaced_pod_log to return an iterable of bytes
-        mocked_client.read_namespaced_pod_log.return_value = [test_logs.encode("utf-8")]
-        mock_manager.await_pod_completion.return_value = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
-        )
+        mocked_client.read_namespaced_pod_log.return_value = mock.Mock()
+        mocked_client.read_namespaced_pod_log.return_value.stream = mock.Mock(side_effect=log_generator)
+
         mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE),
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]),
+            status=k8s.V1PodStatus(
+                container_statuses=[
+                    k8s.V1ContainerStatus(
+                        name="base",
+                        image="alpine",
+                        image_id="",
+                        ready=False,
+                        restart_count=0,
+                        state=k8s.V1ContainerState(
+                            terminated=k8s.V1ContainerStateTerminated(exit_code=0, finished_at=pendulum.now())
+                        ),
+                    )
+                ]
+            ),
         )
+        mocked_client.read_namespaced_pod.return_value = mocked_hook.return_value.get_pod.return_value
         mock_extract_xcom.return_value = "{}"
         k = KubernetesPodOperator(
             task_id="task",
@@ -2737,7 +2754,7 @@ class TestKubernetesPodOperatorAsync:
             # Verify that client.read_namespaced_pod_log was called
             mocked_client.read_namespaced_pod_log.assert_called_once()
             # Verify the log output using caplog
-            assert f"[base] logs: {test_logs}" in caplog.text
+            assert f"[base] {test_logs}" in caplog.text
             post_complete_action.assert_called_once()
         else:
             # When get_logs=False, _write_logs should not be called, so client.read_namespaced_pod_log should not be called
@@ -2779,11 +2796,10 @@ class TestKubernetesPodOperatorAsync:
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
 
-    @patch(KUB_OP_PATH.format("_write_logs"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
-    def test_get_logs_not_running(self, fetch_container_logs, find_pod, cleanup, mock_write_log):
+    def test_get_logs_not_running(self, fetch_container_logs, find_pod, cleanup):
         pod = MagicMock()
         find_pod.return_value = pod
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
@@ -2793,10 +2809,9 @@ class TestKubernetesPodOperatorAsync:
         )
         fetch_container_logs.is_called_with(pod, "base")
 
-    @patch(KUB_OP_PATH.format("_write_logs"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
-    def test_trigger_error(self, find_pod, cleanup, mock_write_log):
+    def test_trigger_error(self, find_pod, cleanup):
         """Assert that trigger_reentry raise exception in case of error"""
         find_pod.return_value = MagicMock()
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
@@ -2813,7 +2828,8 @@ class TestKubernetesPodOperatorAsync:
             )
 
     @patch(HOOK_CLASS)
-    def test_execute_async_callbacks(self, mocked_hook):
+    @patch(KUB_OP_PATH.format("client"))
+    def test_execute_async_callbacks(self, mocked_client, mocked_hook):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
 
         from unit.cncf.kubernetes.test_callbacks import (
@@ -2823,10 +2839,36 @@ class TestKubernetesPodOperatorAsync:
 
         MockWrapper.reset()
         mock_callbacks = MockWrapper.mock_callbacks
-        remote_pod_mock = MagicMock()
-        remote_pod_mock.status.phase = "Succeeded"
+
+        remote_pod_mock = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE),
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]),
+            status=k8s.V1PodStatus(
+                phase="Succeeded",
+                container_statuses=[
+                    k8s.V1ContainerStatus(
+                        name="base",
+                        image="alpine",
+                        image_id="",
+                        ready=False,
+                        restart_count=0,
+                        state=k8s.V1ContainerState(
+                            terminated=k8s.V1ContainerStateTerminated(exit_code=0, finished_at=pendulum.now())
+                        ),
+                    )
+                ],
+            ),
+        )
         self.await_pod_mock.return_value = remote_pod_mock
         mocked_hook.return_value.get_pod.return_value = remote_pod_mock
+
+        def log_generator(*_, **__):
+            yield f"{DEFAULT_DATE:%Y-%m-%dT%H:%M:%S} line 1".encode()
+
+        # Mock client.read_namespaced_pod_log to return an iterable of bytes
+        mocked_client.read_namespaced_pod.return_value = mocked_hook.return_value.get_pod.return_value
+        mocked_client.read_namespaced_pod_log.return_value = mock.Mock()
+        mocked_client.read_namespaced_pod_log.return_value.stream = mock.Mock(side_effect=log_generator)
 
         k = KubernetesPodOperator(
             namespace="default",
@@ -2877,6 +2919,16 @@ class TestKubernetesPodOperatorAsync:
             "pod": remote_pod_mock,
             "operator": k,
             "context": context,
+        }
+
+        mock_callbacks.progress_callback.assert_called()
+        assert mock_callbacks.progress_callback.call_args.kwargs == {
+            "line": "line 1",
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "container_name": "base",
+            "timestamp": DEFAULT_DATE,
+            "pod": remote_pod_mock,
         }
 
     @patch(KUB_OP_PATH.format("client"))
