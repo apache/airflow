@@ -4,7 +4,7 @@
   "description": "Apache Airflow Provider Registry",
   "scripts": {
     "dev": "REGISTRY_PATH_PREFIX=/ pnpm build && REGISTRY_PATH_PREFIX=/ eleventy --serve --port=8080",
-    "prebuild": "uv run python ../dev/registry/export_registry_schemas.py",
+    "prebuild": "uv run --project ../dev/registry python ../dev/registry/export_registry_schemas.py",
     "build": "rm -rf _site && eleventy",
     "postbuild": "cleancss -o _site/css/main.css _site/css/main.css && node scripts/build-pagefind-index.mjs"
   },
