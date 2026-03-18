@@ -19,9 +19,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow._shared.observability.metrics.stats import Stats
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
+from airflow.observability import stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -68,4 +68,4 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
         return None
 
     def heartbeat_callback(self, session: Session | None = None) -> None:
-        Stats.incr("dag_processor_heartbeat", 1, 1)
+        stats.incr("dag_processor_heartbeat", 1, 1)

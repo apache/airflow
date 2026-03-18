@@ -889,7 +889,7 @@ class TestDag:
         assert dag_run.state == State.RUNNING
         assert dag_run.run_type != DagRunType.MANUAL
 
-    @patch("airflow.models.dagrun.Stats")
+    @patch("airflow.models.dagrun.stats")
     def test_dag_handle_callback_crash(self, mock_stats, testing_dag_bundle):
         """
         Tests avoid crashes from calling dag callbacks exceptions

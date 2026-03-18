@@ -65,8 +65,6 @@ from sqlalchemy.orm import Mapped, lazyload, mapped_column, reconstructor, relat
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 
 from airflow import settings
-from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
-from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -85,6 +83,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.observability import stats
 from airflow.settings import task_instance_mutation_hook
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -1226,7 +1225,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         ti.pid = None
 
         if not ignore_all_deps and not ignore_ti_state and ti.state == TaskInstanceState.SUCCESS:
-            Stats.incr("previously_succeeded", tags=ti.stats_tags)
+            stats.incr("previously_succeeded", tags=ti.stats_tags)
 
         if not mark_success:
             # Firstly find non-runnable and non-requeueable tis.
@@ -1389,11 +1388,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
-        DualStatsManager.timing(
+        stats.timing(
             f"task.{metric_name}",
             timing,
             tags={},
-            extra_tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+            legacy_name_tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
         )
 
     def clear_next_method_args(self) -> None:
@@ -1610,12 +1609,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         ti.end_date = timezone.utcnow()
         ti.set_duration()
 
-        DualStatsManager.incr(
+        stats.incr(
             "operator_failures",
             tags=ti.stats_tags,
-            extra_tags={"operator_name": ti.operator},
+            legacy_name_tags={"operator_name": ti.operator},
         )
-        Stats.incr("ti_failures", tags=ti.stats_tags)
+        stats.incr("ti_failures", tags=ti.stats_tags)
 
         if not test_mode:
             session.add(Log(TaskInstanceState.FAILED.value, ti))

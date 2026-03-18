@@ -167,7 +167,7 @@ class TestCeleryExecutor:
 
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.sync")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.trigger_tasks")
-    @mock.patch("airflow.executors.base_executor.Stats.gauge")
+    @mock.patch("airflow.executors.base_executor.stats.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()

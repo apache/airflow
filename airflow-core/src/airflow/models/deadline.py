@@ -29,7 +29,6 @@ from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, in
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.models.callback import (
@@ -37,6 +36,7 @@ from airflow.models.callback import (
     ExecutorCallback,
     TriggererCallback,
 )
+from airflow.observability import stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
@@ -197,7 +197,7 @@ class Deadline(Base):
             if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
                 session.delete(deadline)
-                Stats.incr(
+                stats.incr(
                     "deadline_alerts.deadline_not_missed",
                     tags={"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id},
                 )
@@ -263,7 +263,7 @@ class Deadline(Base):
 
         self.missed = True
         session.add(self)
-        Stats.incr(
+        stats.incr(
             "deadline_alerts.deadline_missed",
             tags={"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id},
         )

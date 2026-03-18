@@ -1239,7 +1239,7 @@ def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_bu
 
 
 class TestTriggererJobRunner:
-    @patch("airflow.jobs.triggerer_job_runner.Stats.initialize")
+    @patch("airflow.jobs.triggerer_job_runner.stats.initialize")
     @patch.object(TriggerRunnerSupervisor, "start")
     def test_stats_initialize_called_on_execute(self, mock_supervisor_start, stats_init_mock, session):
         """Test that Stats.initialize() is called when TriggererJobRunner._execute() is executed."""
