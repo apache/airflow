@@ -985,7 +985,7 @@ repos:
         # Unless there is a conflict and uv will determine that the lock needs to be updated to resolve it
       - id: update-uv-lock
         name: Update uv.lock
-        entry: uv sync
+        entry: uv lock
         language: system
         files: >
           (?x)

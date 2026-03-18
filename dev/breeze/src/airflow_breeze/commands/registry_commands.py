@@ -91,8 +91,8 @@ def extract_data(python: str, provider: str | None):
     command = (
         f"{install_cmd}"
         f"python dev/registry/extract_metadata.py{provider_flag} && "
-        "python dev/registry/extract_parameters.py && "
-        "python dev/registry/extract_connections.py"
+        f"python dev/registry/extract_parameters.py{provider_flag} && "
+        f"python dev/registry/extract_connections.py{provider_flag}"
     )
 
     with ci_group("Extracting registry data"):
