@@ -114,7 +114,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-ibm-mq[common.compat]
+    pip install apache-airflow-providers-ibm-mq[common.messaging]
 
 
 ========================================================================================================================  ====================
