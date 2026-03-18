@@ -43,6 +43,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.cohere.hooks.cohere.CohereHook",
+                "hook-name": "Cohere",
                 "connection-type": "cohere",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "login", "port", "extra"],

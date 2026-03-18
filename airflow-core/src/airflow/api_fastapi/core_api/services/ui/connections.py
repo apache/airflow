@@ -241,10 +241,10 @@ class HookMetaService:
                 hook_name = raw_entry.hook_name
                 hook_class_name = raw_entry.hook_class_name
             elif provider_entry:
-                hook_name = conn_type
+                hook_name = pm._hook_name_dict.get(conn_type, conn_type)
                 hook_class_name = provider_entry.hook_class_name
             else:
-                hook_name = conn_type
+                hook_name = pm._hook_name_dict.get(conn_type, conn_type)
                 hook_class_name = None
 
             result.append(

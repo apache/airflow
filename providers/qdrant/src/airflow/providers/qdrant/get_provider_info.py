@@ -41,6 +41,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.qdrant.hooks.qdrant.QdrantHook",
+                "hook-name": "Qdrant",
                 "connection-type": "qdrant",
                 "conn-fields": {
                     "url": {

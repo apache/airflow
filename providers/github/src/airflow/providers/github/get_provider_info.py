@@ -46,6 +46,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.github.hooks.github.GithubHook",
+                "hook-name": "GitHub",
                 "connection-type": "github",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login", "extra"],

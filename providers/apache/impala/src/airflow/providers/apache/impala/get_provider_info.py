@@ -44,6 +44,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.impala.hooks.impala.ImpalaHook",
+                "hook-name": "Impala",
                 "connection-type": "impala",
             }
         ],

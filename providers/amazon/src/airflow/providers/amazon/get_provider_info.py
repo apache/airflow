@@ -1084,6 +1084,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
+                "hook-name": "Amazon Web Services",
                 "connection-type": "aws",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "port"],
@@ -1097,6 +1098,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook",
+                "hook-name": "Amazon Chime Webhook",
                 "connection-type": "chime",
                 "ui-field-behaviour": {
                     "hidden-fields": ["login", "port", "extra"],
@@ -1110,6 +1112,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.emr.EmrHook",
+                "hook-name": "Amazon Elastic MapReduce",
                 "connection-type": "emr",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "port", "login", "password"],
@@ -1121,11 +1124,13 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook",
+                "hook-name": "Amazon Redshift",
                 "connection-type": "redshift",
                 "ui-field-behaviour": {"relabeling": {"login": "User", "schema": "Database"}},
             },
             {
                 "hook-class-name": "airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook",
+                "hook-name": "Amazon Athena",
                 "connection-type": "athena",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "port"],

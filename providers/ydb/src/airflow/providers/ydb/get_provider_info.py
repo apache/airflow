@@ -40,6 +40,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.ydb.hooks.ydb.YDBHook",
+                "hook-name": "YDB",
                 "connection-type": "ydb",
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "extra"],

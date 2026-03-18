@@ -52,6 +52,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook",
+                "hook-name": "Apache WebHDFS",
                 "connection-type": "webhdfs",
             }
         ],

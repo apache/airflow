@@ -40,6 +40,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.openfaas.hooks.openfaas.OpenFaasHook",
+                "hook-name": "OpenFaaS",
                 "connection-type": "openfaas",
                 "ui-field-behaviour": {"hidden-fields": ["schema", "port", "login", "password", "extra"]},
             }
