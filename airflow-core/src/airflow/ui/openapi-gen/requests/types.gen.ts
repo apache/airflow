@@ -3674,6 +3674,10 @@ export type GetCalendarData = {
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    partitionDateGt?: string | null;
+    partitionDateGte?: string | null;
+    partitionDateLt?: string | null;
+    partitionDateLte?: string | null;
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;

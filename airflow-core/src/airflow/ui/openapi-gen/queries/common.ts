@@ -897,14 +897,18 @@ export const UseGanttServiceGetGanttDataKeyFn = ({ dagId, runId }: {
 export type CalendarServiceGetCalendarDefaultResponse = Awaited<ReturnType<typeof CalendarService.getCalendar>>;
 export type CalendarServiceGetCalendarQueryResult<TData = CalendarServiceGetCalendarDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useCalendarServiceGetCalendarKey = "CalendarServiceGetCalendar";
-export const UseCalendarServiceGetCalendarKeyFn = ({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte }: {
+export const UseCalendarServiceGetCalendarKeyFn = ({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }: {
   dagId: string;
   granularity?: "hourly" | "daily";
   logicalDateGt?: string;
   logicalDateGte?: string;
   logicalDateLt?: string;
   logicalDateLte?: string;
-}, queryKey?: Array<unknown>) => [useCalendarServiceGetCalendarKey, ...(queryKey ?? [{ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte }])];
+  partitionDateGt?: string;
+  partitionDateGte?: string;
+  partitionDateLt?: string;
+  partitionDateLte?: string;
+}, queryKey?: Array<unknown>) => [useCalendarServiceGetCalendarKey, ...(queryKey ?? [{ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }])];
 export type TeamsServiceListTeamsDefaultResponse = Awaited<ReturnType<typeof TeamsService.listTeams>>;
 export type TeamsServiceListTeamsQueryResult<TData = TeamsServiceListTeamsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTeamsServiceListTeamsKey = "TeamsServiceListTeams";
