@@ -84,7 +84,7 @@ describe("useTagFilter — initial state", () => {
     expect(result.current.tagFilterMode).toBe("all");
   });
 
-  it("defaults match mode to 'any' when saved tags has fewer than 2 tags", () => {
+  it("restores match mode from localStorage even with fewer than 2 tags", () => {
     localStorage.setItem("tags", JSON.stringify(["only-one"]));
     localStorage.setItem("tags_match_mode", JSON.stringify("all"));
 
@@ -92,7 +92,7 @@ describe("useTagFilter — initial state", () => {
       wrapper: createWrapper(),
     });
 
-    expect(result.current.tagFilterMode).toBe("any");
+    expect(result.current.tagFilterMode).toBe("all");
   });
 
   it("URL tags take precedence over localStorage", () => {
@@ -143,7 +143,7 @@ describe("useTagFilter — setSelectedTags", () => {
     expect(result.current.selectedTags).toEqual([]);
   });
 
-  it("resets match mode to 'any' when fewer than 2 tags", () => {
+  it("does not reset match mode when tags drop below 2", () => {
     const { result } = renderHook(() => useTagFilter(), {
       wrapper: createWrapper(["/?tags=a&tags=b&tags_match_mode=all"]),
     });
@@ -152,18 +152,6 @@ describe("useTagFilter — setSelectedTags", () => {
 
     act(() => {
       result.current.setSelectedTags(["only-one"]);
-    });
-
-    expect(result.current.tagFilterMode).toBe("any");
-  });
-
-  it("preserves match mode when 2 or more tags remain", () => {
-    const { result } = renderHook(() => useTagFilter(), {
-      wrapper: createWrapper(["/?tags=a&tags=b&tags=c&tags_match_mode=all"]),
-    });
-
-    act(() => {
-      result.current.setSelectedTags(["a", "b"]);
     });
 
     expect(result.current.tagFilterMode).toBe("all");
@@ -236,30 +224,8 @@ describe("useTagFilter — setTagFilterMode", () => {
   });
 });
 
-describe("useTagFilter — tag count transitions around threshold of 2", () => {
-  it("going from 1 tag to 2 tags allows match mode to be set", () => {
-    const { result } = renderHook(() => useTagFilter(), {
-      wrapper: createWrapper(),
-    });
-
-    act(() => {
-      result.current.setSelectedTags(["single"]);
-    });
-
-    expect(result.current.tagFilterMode).toBe("any");
-
-    act(() => {
-      result.current.setSelectedTags(["first", "second"]);
-    });
-
-    act(() => {
-      result.current.setTagFilterMode("all");
-    });
-
-    expect(result.current.tagFilterMode).toBe("all");
-  });
-
-  it("going from 2 tags to 1 tag resets match mode to 'any'", () => {
+describe("useTagFilter — tag count transitions preserve match mode", () => {
+  it("match mode is preserved when replacing tags", () => {
     const { result } = renderHook(() => useTagFilter(), {
       wrapper: createWrapper(),
     });
@@ -278,30 +244,16 @@ describe("useTagFilter — tag count transitions around threshold of 2", () => {
       result.current.setSelectedTags(["only-one"]);
     });
 
-    expect(result.current.tagFilterMode).toBe("any");
-  });
-
-  it("going from 3 tags to 2 tags preserves match mode", () => {
-    const { result } = renderHook(() => useTagFilter(), {
-      wrapper: createWrapper(),
-    });
+    expect(result.current.tagFilterMode).toBe("all");
 
     act(() => {
-      result.current.setSelectedTags(["a", "b", "c"]);
-    });
-
-    act(() => {
-      result.current.setTagFilterMode("all");
-    });
-
-    act(() => {
-      result.current.setSelectedTags(["a", "b"]);
+      result.current.setSelectedTags(["only-one", "new-second"]);
     });
 
     expect(result.current.tagFilterMode).toBe("all");
   });
 
-  it("going from 2 tags to 0 tags resets match mode to 'any'", () => {
+  it("match mode is preserved when clearing all tags", () => {
     const { result } = renderHook(() => useTagFilter(), {
       wrapper: createWrapper(),
     });
@@ -318,6 +270,6 @@ describe("useTagFilter — tag count transitions around threshold of 2", () => {
       result.current.setSelectedTags([]);
     });
 
-    expect(result.current.tagFilterMode).toBe("any");
+    expect(result.current.tagFilterMode).toBe("all");
   });
 });
