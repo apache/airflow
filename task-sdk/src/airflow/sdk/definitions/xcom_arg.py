@@ -102,8 +102,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         if isinstance(resolved, (str, bytes, dict)):
             yield resolved
         elif isinstance(resolved, Iterable):
-            for item in resolved:
-                yield from item
+            yield from resolved
         else:
             yield resolved
 
