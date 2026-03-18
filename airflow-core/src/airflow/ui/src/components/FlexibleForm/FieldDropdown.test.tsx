@@ -17,6 +17,7 @@
  * under the License.
  */
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
@@ -175,9 +176,6 @@ describe("FieldDropdown", () => {
       wrapper: Wrapper,
     });
 
-    // Simulate internal handleChange being called with the string "6" (as Select always returns strings)
-    // The component should store the number 6, not the string "6".
-    // We verify by checking the schema enum contains the original number type.
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const enumValues = mockParamsDict.test_param.schema.enum as Array<number | string | null>;
     const selectedString = "6";
@@ -185,5 +183,50 @@ describe("FieldDropdown", () => {
 
     expect(original).toBe(6);
     expect(typeof original).toBe("number");
+  });
+
+  it("renders a search input inside the dropdown content", () => {
+    mockParamsDict.test_param = {
+      schema: {
+        enum: ["apple", "banana", "cherry", "date", "elderberry"],
+        type: "string",
+      },
+      value: "apple",
+    };
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, {
+      wrapper: Wrapper,
+    });
+
+    // The search input is rendered inside the dropdown content
+    const searchInput = screen.getByPlaceholderText("Search options");
+
+    expect(searchInput).toBeDefined();
+  });
+
+  it("filters displayed options as the user types in the search input", async () => {
+    mockParamsDict.test_param = {
+      schema: {
+        enum: ["apple", "banana", "apricot", "cherry"],
+        type: "string",
+      },
+      value: "apple",
+    };
+
+    const user = userEvent.setup();
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, {
+      wrapper: Wrapper,
+    });
+
+    const searchInput = screen.getByPlaceholderText("Search options");
+
+    await user.type(searchInput, "ap");
+
+    // After typing "ap", only "apple" and "apricot" should be visible; "banana" and "cherry" should not
+    expect(screen.queryByText("banana")).toBeNull();
+    expect(screen.queryByText("cherry")).toBeNull();
+    expect(screen.getByText("apple")).toBeDefined();
+    expect(screen.getByText("apricot")).toBeDefined();
   });
 });
