@@ -57,34 +57,35 @@ class TestIterableOperator:
     def _mock_xcom_get_one(self, context):
         """Create a context manager that mocks XCom.get_one to retrieve from context values."""
         def mock_get_one(**kwargs):
-            key = f"{kwargs.get('task_id')}_{kwargs.get('dag_id')}_{kwargs.get('key', 'return_value')}"
-            if kwargs.get("map_index") is not None and kwargs.get("map_index") >= 0:
-                key += f"_{kwargs.get('map_index')}"
-            return context.get("values", {}).get(key)
+            kwargs["task_ids"] = kwargs.pop("task_id")
+            return context["ti"].xcom_pull(**kwargs)
 
         return mock.patch.object(XCom, "get_one", side_effect=mock_get_one)
 
     def _create_mapped_operator(
-        self, expand_input: dict | list, task_id: str = "my_task", do_xcom_push: bool = True
+        self, expand_input: ExpandInput, task_id: str = "my_task", do_xcom_push: bool = True
     ) -> MappedOperator:
-        """Create a MappedOperator without adding it to a DAG.
-
-        Args:
-            expand_input: The input to expand
-            task_id: Task ID for the operator
-            do_xcom_push: Whether to push XCom (default True)
         """
-        return MockOperator.partial(task_id=task_id, dag=None, do_xcom_push=do_xcom_push).expand(arg2=expand_input)
+        Create a MappedOperator without adding it to a DAG.
+
+        :param expand_input: The input to expand
+        :param task_id: Task ID for the operator
+        :param do_xcom_push: Whether to push XCom (default True)
+        """
+        return MockOperator.partial(task_id=task_id, dag=None, do_xcom_push=do_xcom_push)._expand(
+            expand_input, strict=True, apply_upstream_relationship=False,
+        )
 
     def _create_iterable_operator(
-        self, dag: DAG, expand_input: ExpandInput, task_id: str = "my_task", task_concurrency: int | None = None, do_xcom_push: bool = True
+        self,
+        dag: DAG,
+        expand_input: ExpandInput,
+        task_id: str = "my_task",
+        task_concurrency: int | None = None,
+        do_xcom_push: bool = True
     ) -> IterableOperator:
         """Create an IterableOperator with a MappedOperator and ExpandInput."""
-        expand_value = expand_input.value
-        if hasattr(expand_value, "__next__"):
-            expand_value = list(expand_value)
-
-        mapped_op = self._create_mapped_operator(expand_value, task_id=task_id, do_xcom_push=do_xcom_push)
+        mapped_op = self._create_mapped_operator(expand_input, task_id=task_id, do_xcom_push=do_xcom_push)
         return IterableOperator(
             operator=mapped_op,
             expand_input=expand_input,
@@ -194,7 +195,7 @@ class TestIterableOperator:
         with self._mock_xcom_get_one(context):
             result = iterable_op.execute(context=context)
             materialized = list(result)
-            assert isinstance(materialized, list)
+            assert materialized == [(1, None, None), (2, None, None)]
 
     def test_execute_dict_of_lists(self):
         """Test executing IterableOperator with DictOfListsExpandInput."""
@@ -206,7 +207,7 @@ class TestIterableOperator:
         with self._mock_xcom_get_one(context):
             result = iterable_op.execute(context=context)
             materialized = list(result)
-            assert isinstance(materialized, list)
+            assert materialized == [(1, None, None), (2, None, None), (3, None, None)]
 
     def test_execute_empty_list_of_dicts(self):
         """Test executing IterableOperator with empty ListOfDictsExpandInput."""
@@ -218,7 +219,7 @@ class TestIterableOperator:
         with self._mock_xcom_get_one(context):
             result = iterable_op.execute(context=context)
             materialized = list(result)
-            assert isinstance(materialized, list)
+            assert materialized == []
 
     def test_execute_multiple_key_dict_of_lists(self):
         """Test executing IterableOperator with multiple keys in DictOfListsExpandInput."""
@@ -230,7 +231,7 @@ class TestIterableOperator:
         with self._mock_xcom_get_one(context):
             result = iterable_op.execute(context=context)
             materialized = list(result)
-            assert isinstance(materialized, list)
+            assert materialized == [(1, 10, "x"), (2, 20, "y")]
 
     def test_execute_with_task_concurrency_setting(self):
         """Test executing IterableOperator with task_concurrency parameter."""
@@ -244,30 +245,33 @@ class TestIterableOperator:
         with self._mock_xcom_get_one(context):
             result = iterable_op.execute(context=context)
             materialized = list(result)
-            assert isinstance(materialized, list)
+            assert materialized == [(1, None, None), (2, None, None), (3, None, None)]
             assert iterable_op.max_workers == 2
 
     def test_execute_all_parameters(self):
         """Test executing IterableOperator with all arg1, arg2, arg3 parameters."""
         dag = self._get_dag()
-        expand_input = ListOfDictsExpandInput([
-            {"arg1": 1, "arg2": 10, "arg3": 100},
-            {"arg1": 2, "arg2": 20, "arg3": 200},
-        ])
+        expand_input = ListOfDictsExpandInput(
+            [
+                {"arg1": 1, "arg2": 10, "arg3": 100},
+                {"arg1": 2, "arg2": 20, "arg3": 200},
+            ]
+        )
         iterable_op = self._create_iterable_operator(dag, expand_input, task_id="exec_all_args")
 
         context = mock_context(task=iterable_op)
         with self._mock_xcom_get_one(context):
             result = iterable_op.execute(context=context)
             materialized = list(result)
-            assert isinstance(materialized, list)
-            assert len(materialized) == 2
+            assert materialized == [(1, 10, 100), (2, 20, 200)]
 
     def test_execute_with_do_xcom_push_false(self):
         """Test executing IterableOperator when do_xcom_push is False."""
         dag = self._get_dag()
         expand_input = ListOfDictsExpandInput([{"arg1": 1}, {"arg1": 2}])
-        iterable_op = self._create_iterable_operator(dag, expand_input, task_id="no_xcom_push", do_xcom_push=False)
+        iterable_op = self._create_iterable_operator(
+            dag, expand_input, task_id="no_xcom_push", do_xcom_push=False
+        )
 
         context = mock_context(task=iterable_op)
         result = iterable_op.execute(context=context)
