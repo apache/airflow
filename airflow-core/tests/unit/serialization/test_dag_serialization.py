@@ -3152,6 +3152,7 @@ def test_mapped_task_with_operator_extra_links_property():
         "partial_kwargs": {
             "retry_delay": {"__type": "timedelta", "__var": 300.0},
         },
+        "_apply_upstream_relationship": True,
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
         "_operator_extra_links": {"airflow": "_link_AirflowLink2"},
