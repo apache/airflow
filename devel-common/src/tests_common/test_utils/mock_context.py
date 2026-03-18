@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 def generate_run_id() -> str:
     if AIRFLOW_V_3_0_PLUS:
         return DagRun.generate_run_id(run_type=DagRunType.MANUAL, run_after=timezone.utcnow())
-    return DagRun.generate_run_id(run_type=DagRunType.MANUAL)
+    return DagRun.generate_run_id(run_type=DagRunType.MANUAL, execution_date=timezone.utcnow())
 
 
 def mock_context(task, run_id: str | None = None) -> Context:
