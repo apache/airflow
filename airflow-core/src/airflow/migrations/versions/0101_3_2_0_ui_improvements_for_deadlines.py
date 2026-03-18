@@ -30,6 +30,7 @@ Create Date: 2025-10-17 16:04:55.016272
 
 from __future__ import annotations
 
+import contextlib
 import json
 import zlib
 from collections import defaultdict
@@ -363,6 +364,34 @@ def _sort_serialized_dag_dict(serialized_dag: Any):
     return serialized_dag
 
 
+@contextlib.contextmanager
+def _begin_nested_transaction(conn):
+    """
+    Create an nested transaction.
+
+    On SQLite, this calls ``conn.begin_nested()`` and commit/rollback manually.
+    Anywhere else, the ``conn.engine.begin()`` context manager is used.
+
+    On additional feature is the inner code can use ``gen.send()`` to set a
+    truthy value to explicitly tell the session to rollback even if no error
+    was raised.
+    """
+    if conn.dialect.name != "sqlite":
+        with conn.engine.begin():
+            yield
+        return
+    try:
+        savepoint = conn.begin_nested()
+        rollback = yield
+    except Exception:
+        savepoint.rollback()
+        raise
+    if rollback:
+        savepoint.rollback()
+    else:
+        savepoint.commit()
+
+
 def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     """Extract DeadlineAlert data from serialized Dag data and populate deadline_alert table."""
     if context.is_offline_mode():
@@ -383,7 +412,6 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     last_dag_id = ""
 
     conn = op.get_bind()
-    engine = conn.engine
     dialect = conn.dialect.name
 
     total_dags = conn.execute(
@@ -437,102 +465,92 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
 
             # Validation that does not need a DB connection.
             try:
-                dag_data = get_dag_data(data, data_compressed)
+                dag_deadline = get_dag_data(data, data_compressed)[DAG_KEY].get(DEADLINE_KEY)
             except (json.JSONDecodeError, KeyError, TypeError) as e:
                 dags_with_errors[dag_id].append(f"Could not process serialized Dag: {e}")
                 continue
-
-            dag_deadline = (
-                dag_data.get(DAG_KEY, {}).get(DEADLINE_KEY)
-                if isinstance(dag_data.get(DAG_KEY), dict)
-                else None
-            )
             if not dag_deadline:
                 continue
 
             dags_with_deadlines.add(dag_id)
             deadline_alerts = dag_deadline if isinstance(dag_deadline, list) else [dag_deadline]
 
-            def _migrate_dag_deadlines(dag_conn: Connection) -> list[str]:
-                migrated_alert_ids = []
+            def _migrate_dag_deadlines(dag_conn: Connection) -> Iterable[str]:
                 for serialized_alert in deadline_alerts:
-                    if isinstance(serialized_alert, dict):
-                        try:
-                            alert_data = serialized_alert.get(Encoding.VAR, serialized_alert)
+                    if not isinstance(serialized_alert, dict):
+                        continue
+                    try:
+                        alert_data = serialized_alert.get(Encoding.VAR, serialized_alert)
 
-                            if not DEADLINE_ALERT_REQUIRED_FIELDS.issubset(alert_data):
-                                dags_with_errors[dag_id].append(
-                                    f"Invalid DeadlineAlert structure: {serialized_alert}"
-                                )
-                                continue
-
-                            reference_data = json.dumps(alert_data[REFERENCE_KEY], sort_keys=True)
-                            interval_data = float(alert_data.get(INTERVAL_KEY))
-                            callback_data = json.dumps(alert_data[CALLBACK_KEY], sort_keys=True)
-                            deadline_alert_id = str(uuid6.uuid7())
-
-                            dag_conn.execute(
-                                sa.text("""
-                                        INSERT INTO deadline_alert (
-                                            id,
-                                            created_at,
-                                            serialized_dag_id,
-                                            reference,
-                                            interval,
-                                            callback_def,
-                                            name,
-                                            description)
-                                        VALUES (
-                                            :id,
-                                            :created_at,
-                                            :serialized_dag_id,
-                                            :reference,
-                                            :interval,
-                                            :callback_def,
-                                            NULL,
-                                            NULL)
-                                        """),
-                                {
-                                    "id": deadline_alert_id,
-                                    "created_at": created_at or timezone.utcnow(),
-                                    "serialized_dag_id": serialized_dag_id,
-                                    "reference": reference_data,
-                                    "interval": interval_data,
-                                    "callback_def": callback_data,
-                                },
+                        if not DEADLINE_ALERT_REQUIRED_FIELDS.issubset(alert_data):
+                            dags_with_errors[dag_id].append(
+                                f"Invalid DeadlineAlert structure: {serialized_alert}"
                             )
-
-                            if not validate_written_data(
-                                dag_conn, deadline_alert_id, reference_data, interval_data, callback_data
-                            ):
-                                dags_with_errors[dag_id].append(
-                                    f"Invalid DeadlineAlert data: {serialized_alert}"
-                                )
-                                continue
-
-                            migrated_alert_ids.append(deadline_alert_id)
-                            dag_conn.execute(
-                                sa.text("""
-                                    UPDATE deadline
-                                    SET deadline_alert_id = :alert_id
-                                    WHERE dagrun_id IN (
-                                        SELECT dr.id
-                                        FROM dag_run dr
-                                             JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
-                                        WHERE sd.id = :serialized_dag_id)
-                                      AND deadline_alert_id IS NULL
-                                """),
-                                {"alert_id": deadline_alert_id, "serialized_dag_id": serialized_dag_id},
-                            )
-                        except Exception as e:
-                            dags_with_errors[dag_id].append(f"Failed to process {serialized_alert}: {e}")
                             continue
-                return migrated_alert_ids
 
-            if dialect == "sqlite":
-                savepoint = conn.begin_nested()
-                try:
-                    migrated_alert_ids = _migrate_dag_deadlines(conn)
+                        reference_data = json.dumps(alert_data[REFERENCE_KEY], sort_keys=True)
+                        interval_data = float(alert_data.get(INTERVAL_KEY))
+                        callback_data = json.dumps(alert_data[CALLBACK_KEY], sort_keys=True)
+                        deadline_alert_id = str(uuid6.uuid7())
+
+                        dag_conn.execute(
+                            sa.text("""
+                                    INSERT INTO deadline_alert (
+                                        id,
+                                        created_at,
+                                        serialized_dag_id,
+                                        reference,
+                                        interval,
+                                        callback_def,
+                                        name,
+                                        description)
+                                    VALUES (
+                                        :id,
+                                        :created_at,
+                                        :serialized_dag_id,
+                                        :reference,
+                                        :interval,
+                                        :callback_def,
+                                        NULL,
+                                        NULL)
+                                    """),
+                            {
+                                "id": deadline_alert_id,
+                                "created_at": created_at or timezone.utcnow(),
+                                "serialized_dag_id": serialized_dag_id,
+                                "reference": reference_data,
+                                "interval": interval_data,
+                                "callback_def": callback_data,
+                            },
+                        )
+
+                        if not validate_written_data(
+                            dag_conn, deadline_alert_id, reference_data, interval_data, callback_data
+                        ):
+                            dags_with_errors[dag_id].append(f"Invalid DeadlineAlert data: {serialized_alert}")
+                            continue
+
+                        yield deadline_alert_id
+                        dag_conn.execute(
+                            sa.text("""
+                                UPDATE deadline
+                                SET deadline_alert_id = :alert_id
+                                WHERE dagrun_id IN (
+                                    SELECT dr.id
+                                    FROM dag_run dr
+                                            JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
+                                    WHERE sd.id = :serialized_dag_id)
+                                    AND deadline_alert_id IS NULL
+                            """),
+                            {"alert_id": deadline_alert_id, "serialized_dag_id": serialized_dag_id},
+                        )
+                    except Exception as e:
+                        dags_with_errors[dag_id].append(f"Failed to process {serialized_alert}: {e}")
+                        continue
+
+            try:
+                with _begin_nested_transaction(conn):
+                    migrated_alert_ids = list(_migrate_dag_deadlines(conn))
                     if migrated_alert_ids:
                         uuid_strings = [str(uuid_id) for uuid_id in migrated_alert_ids]
                         update_dag_deadline_field(conn, serialized_dag_id, uuid_strings, dialect)
@@ -558,42 +576,9 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                                 {"new_hash": new_hash, "serialized_dag_id": serialized_dag_id},
                             )
                         migrated_alerts_count += len(migrated_alert_ids)
-                    savepoint.commit()
-                except Exception as e:
-                    savepoint.rollback()
-                    dags_with_errors[dag_id].append(f"Could not migrate deadline: {e}")
-            else:
-                try:
-                    with engine.begin() as dag_conn:
-                        migrated_alert_ids = _migrate_dag_deadlines(dag_conn)
-                        if migrated_alert_ids:
-                            migrated_alerts_count += len(migrated_alert_ids)
-                            uuid_strings = [str(uuid_id) for uuid_id in migrated_alert_ids]
-                            update_dag_deadline_field(dag_conn, serialized_dag_id, uuid_strings, dialect)
-                            updated_result = dag_conn.execute(
-                                sa.text(
-                                    "SELECT data, data_compressed "
-                                    "FROM serialized_dag "
-                                    "WHERE id = :serialized_dag_id"
-                                ),
-                                {"serialized_dag_id": serialized_dag_id},
-                            ).fetchone()
-                            if updated_result:
-                                updated_dag_data = get_dag_data(
-                                    updated_result.data, updated_result.data_compressed
-                                )
-                                new_hash = hash_dag(updated_dag_data)
-                                dag_conn.execute(
-                                    sa.text(
-                                        "UPDATE serialized_dag "
-                                        "SET dag_hash = :new_hash "
-                                        "WHERE id = :serialized_dag_id"
-                                    ),
-                                    {"new_hash": new_hash, "serialized_dag_id": serialized_dag_id},
-                                )
-                except Exception as e:
-                    log.error("Could not migrate deadline for dag %s: %s", dag_id, e)
-                    dags_with_errors[dag_id].append(f"Could not migrate deadline: {e}")
+            except (json.JSONDecodeError, KeyError, TypeError) as e:
+                log.exception("Could not migrate deadline for dag %s", dag_id)
+                dags_with_errors[dag_id].append(f"Could not migrate deadline: {e}")
 
         log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
 
@@ -632,7 +617,6 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
     last_dag_id = ""
 
     conn = op.get_bind()
-    engine = conn.engine
     dialect = conn.dialect.name
 
     # Count all dags - we'll filter in the loop for those with deadline data
@@ -707,9 +691,8 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
 
             dags_with_deadlines.add(dag_id)
 
-            if dialect == "sqlite":
-                savepoint = conn.begin_nested()
-                try:
+            try:
+                with (ctx := _begin_nested_transaction(conn)):
                     alert_result = conn.execute(
                         sa.select(
                             deadline_alert_table.c.reference,
@@ -725,7 +708,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                         dags_with_errors[dag_id].append(
                             f"Could not find deadline_alert for serialized_dag {serialized_dag_id}"
                         )
-                        savepoint.rollback()
+                        ctx.gen.send(True)  # Explicit rollback.
                     else:
                         restored_deadline_objects = []
                         for alert in alert_result:
@@ -743,49 +726,9 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                             update_dag_deadline_field(
                                 conn, serialized_dag_id, restored_deadline_objects, dialect
                             )
-                        savepoint.commit()
-                except Exception as e:
-                    savepoint.rollback()
-                    log.error("Could not restore deadline for dag %s: %s", dag_id, e)
-                    dags_with_errors[dag_id].append(f"Could not restore deadline: {e}")
-            else:
-                try:
-                    with engine.begin() as dag_conn:
-                        alert_result = dag_conn.execute(
-                            sa.text("""
-                                    SELECT reference, interval, callback_def
-                                    FROM deadline_alert
-                                    WHERE serialized_dag_id = :serialized_dag_id
-                                    """),
-                            {"serialized_dag_id": serialized_dag_id},
-                        ).fetchall()
-
-                        if not alert_result:
-                            dags_with_errors[dag_id].append(
-                                f"Could not find deadline_alert for serialized_dag {serialized_dag_id}"
-                            )
-                            continue
-
-                        restored_deadline_objects = []
-                        for alert in alert_result:
-                            deadline_object = {
-                                Encoding.TYPE: ENCODING_TYPE,
-                                Encoding.VAR: {
-                                    REFERENCE_KEY: alert.reference,
-                                    INTERVAL_KEY: float(alert.interval),
-                                    CALLBACK_KEY: alert.callback_def,
-                                },
-                            }
-                            restored_deadline_objects.append(deadline_object)
-                            restored_alerts_count += 1
-
-                        if restored_deadline_objects:
-                            update_dag_deadline_field(
-                                dag_conn, serialized_dag_id, restored_deadline_objects, dialect
-                            )
-                except Exception as e:
-                    log.error("Could not restore deadline for dag %s: %s", dag_id, e)
-                    dags_with_errors[dag_id].append(f"Could not restore deadline: {e}")
+            except Exception as e:
+                log.exception("Could not restore deadline for dag %s", dag_id)
+                dags_with_errors[dag_id].append(f"Could not restore deadline: {e}")
 
         log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
 
