@@ -25,7 +25,6 @@ import structlog
 from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
-from airflow._shared.observability.metrics.stats import Stats
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.listeners.types import AssetEvent as ListenerAssetEvent
@@ -42,6 +41,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.log import Log
+from airflow.observability import stats
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
@@ -283,7 +283,7 @@ class AssetManager(LoggingMixin):
             )
         )
 
-        Stats.incr("asset.updates")
+        stats.incr("asset.updates")
 
         dags_to_queue = (
             dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref

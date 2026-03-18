@@ -15,8 +15,39 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Re-exports from airflow._shared.observability.metrics.stats for compatibility."""
+"""Stats module — re-exports from airflow._shared.observability.metrics.stats."""
 
 from __future__ import annotations
 
-from airflow._shared.observability.metrics.stats import Stats as Stats
+from airflow._shared.observability.metrics.stats import (
+    decr,
+    gauge,
+    incr,
+    initialize,
+    normalize_name_for_stats,
+    timer,
+    timing,
+)
+
+
+class Stats:
+    """Backward-compatible namespace. Prefer importing the module directly."""
+
+    initialize = staticmethod(initialize)
+    incr = staticmethod(incr)
+    decr = staticmethod(decr)
+    gauge = staticmethod(gauge)
+    timing = staticmethod(timing)
+    timer = staticmethod(timer)
+
+
+__all__ = [
+    "Stats",
+    "decr",
+    "gauge",
+    "incr",
+    "initialize",
+    "normalize_name_for_stats",
+    "timer",
+    "timing",
+]

@@ -15,17 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Deprecated module - Stats moved to airflow.observability.stats but we have to retain compat."""
+"""Deprecated module - stats moved to airflow.observability.stats."""
 
 from __future__ import annotations
 
 import warnings
 
-from airflow.sdk.observability.stats import Stats as Stats
+from airflow.observability.stats import Stats as Stats
 from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 warnings.warn(
-    "Importing from 'airflow.stats' is deprecated. Please use 'airflow.sdk.observability.stats' instead.",
+    "Importing from 'airflow.stats' is deprecated. Please use 'airflow.observability.stats' instead.",
     DeprecatedImportWarning,
     stacklevel=2,
 )

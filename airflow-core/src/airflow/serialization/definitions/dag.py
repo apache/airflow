@@ -30,7 +30,6 @@ import attrs
 import structlog
 from sqlalchemy import func, or_, select, tuple_
 
-from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, NodeNotFound, TaskNotFound
@@ -41,6 +40,7 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
+from airflow.sdk.observability import stats
 from airflow.serialization.decoders import decode_deadline_alert
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
@@ -670,7 +670,7 @@ class SerializedDAG:
                             dag_id=orm_dagrun.dag_id,
                         )
                     )
-                    Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
+                    stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
 
     @provide_session
     def set_task_instance_state(

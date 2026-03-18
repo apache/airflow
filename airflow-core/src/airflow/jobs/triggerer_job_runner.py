@@ -44,8 +44,6 @@ from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
 from airflow._shared.module_loading import import_string
-from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
-from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
@@ -54,6 +52,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.dagbag import DBDagBag
 from airflow.models.trigger import Trigger
+from airflow.observability import stats
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
@@ -214,8 +213,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     def _execute(self) -> int | None:
         self.log.info("Starting the triggerer")
         self.register_signals()
-        stats_factory = stats_utils.get_stats_factory(Stats)
-        Stats.initialize(factory=stats_factory)
+        stats.initialize(factory=stats_utils.get_stats_factory())
         try:
             # Kick off runner sub-process without DB access
             self.trigger_runner = TriggerRunnerSupervisor.start(
@@ -640,7 +638,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
 
     def heartbeat_callback(self, session: Session | None = None) -> None:
-        Stats.incr("triggerer_heartbeat", 1, 1)
+        stats.incr("triggerer_heartbeat", 1, 1)
 
     def load_triggers(self) -> None:
         """Assign triggers to this triggerer and update the runner with the IDs it should run."""
@@ -666,7 +664,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # Tell the model to wake up its tasks
             self.on_trigger_event(trigger_id=trigger_id, event=event)
             # Emit stat event
-            Stats.incr("triggers.succeeded")
+            stats.incr("triggers.succeeded")
 
     def on_trigger_event(self, trigger_id: int, event: TriggerEvent) -> None:
         """Record that a trigger fired an event."""
@@ -687,7 +685,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             trigger_id, exc = self.failed_triggers.popleft()
             self.on_trigger_failure(trigger_id=trigger_id, exc=exc)
             # Emit stat event
-            Stats.incr("triggers.failed")
+            stats.incr("triggers.failed")
 
     def on_trigger_failure(self, trigger_id: int, exc: list[str] | None) -> None:
         """Record that a trigger failed."""
@@ -712,20 +710,20 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return {"hostname": hostname}
 
     def emit_metrics(self):
-        extra_tags = self.metric_tags()
-        DualStatsManager.gauge(
+        tags = self.metric_tags()
+        stats.gauge(
             "triggers.running",
             len(self.running_triggers),
             tags={},
-            extra_tags=extra_tags,
+            legacy_name_tags=tags,
         )
 
         capacity_left = self.capacity - len(self.running_triggers)
-        DualStatsManager.gauge(
+        stats.gauge(
             "triggerer.capacity_left",
             capacity_left,
             tags={},
-            extra_tags=extra_tags,
+            legacy_name_tags=tags,
         )
 
     def _create_workload(
@@ -1370,7 +1368,7 @@ class TriggerRunner:
                     time_elapsed,
                     self.blocked_main_thread_warning_threshold,
                 )
-                Stats.incr("triggers.blocked_main_thread")
+                stats.incr("triggers.blocked_main_thread")
 
     async def run_trigger(
         self,

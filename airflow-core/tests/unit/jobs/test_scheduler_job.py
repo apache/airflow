@@ -436,7 +436,7 @@ class TestSchedulerJob:
         assert total_runs_val > idle_runs_val, "Some runs should not be idle"
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
-    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.incr")
     def test_process_executor_events(self, mock_stats_incr, mock_task_callback, dag_maker):
         dag_id = "test_process_executor_events"
         task_id_1 = "dummy_task"
@@ -487,7 +487,7 @@ class TestSchedulerJob:
         )
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
-    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.incr")
     def test_process_executor_events_restarting_cleared_task(
         self, mock_stats_incr, mock_task_callback, dag_maker
     ):
@@ -554,7 +554,7 @@ class TestSchedulerJob:
         assert ti1.try_number == 4, "try_number should remain unchanged"
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
-    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.incr")
     def test_process_executor_events_with_no_callback(self, mock_stats_incr, mock_task_callback, dag_maker):
         dag_id = "test_process_executor_events_with_no_callback"
         task_id = "test_task"
@@ -657,7 +657,7 @@ class TestSchedulerJob:
         assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
-    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.incr")
     def test_process_executor_events_with_callback(
         self, mock_stats_incr, mock_task_callback, dag_maker, session
     ):
@@ -709,7 +709,7 @@ class TestSchedulerJob:
         )
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
-    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.incr")
     def test_process_executor_event_missing_dag(self, mock_stats_incr, mock_task_callback, dag_maker, caplog):
         dag_id = "test_process_executor_events_with_callback"
         task_id_1 = "dummy_task"
@@ -740,7 +740,7 @@ class TestSchedulerJob:
         assert ti1.state == State.FAILED
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
-    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.incr")
     def test_process_executor_events_ti_requeued(
         self, mock_stats_incr, mock_task_callback, dag_maker, caplog
     ):
@@ -807,7 +807,7 @@ class TestSchedulerJob:
         mock_stats_incr.assert_not_called()
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
-    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.incr")
     def test_process_executor_events_multiple_try_numbers_warns(
         self, mock_stats_incr, mock_task_callback, dag_maker, caplog
     ):
@@ -843,7 +843,7 @@ class TestSchedulerJob:
         mock_stats_incr.assert_not_called()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.incr")
     def test_process_executor_events_with_asset_events(self, mock_stats_incr, session, dag_maker):
         """
         Test that _process_executor_events handles asset events without DetachedInstanceError.
@@ -2351,7 +2351,7 @@ class TestSchedulerJob:
 
         session.rollback()
 
-    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.gauge")
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.gauge")
     def test_emit_pool_starving_tasks_metrics(self, mock_stats_gauge, dag_maker):
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -5035,7 +5035,7 @@ class TestSchedulerJob:
         assert session.scalars(adrq_q).one().target_dag_id == "consumer"
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
-    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.timing")
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.timing")
     def test_start_dagruns(self, stats_timing, dag_maker, session):
         """
         Test that _start_dagrun:
@@ -8007,7 +8007,7 @@ class TestSchedulerJob:
         def _fake_gauge(metric: str, value: int, *_, **__):
             recorded.append((metric, value))
 
-        monkeypatch.setattr("airflow.jobs.scheduler_job_runner.Stats.gauge", _fake_gauge, raising=True)
+        monkeypatch.setattr("airflow.jobs.scheduler_job_runner.stats.gauge", _fake_gauge, raising=True)
 
         with conf_vars({("metrics", "statsd_on"): "True"}):
             scheduler_job = Job()
