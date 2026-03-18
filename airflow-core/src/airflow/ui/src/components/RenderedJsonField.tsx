@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Code, Flex, type FlexProps, Text } from "@chakra-ui/react";
+import { Flex, type FlexProps } from "@chakra-ui/react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { useCallback, useState } from "react";
-import { useTranslation } from "react-i18next";
 
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
@@ -36,44 +35,28 @@ type Props = {
 const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true, ...rest }: Props) => {
   const contentFormatted = JSON.stringify(content, undefined, 2);
   const { colorMode } = useColorMode();
-  const { t: translate } = useTranslation();
   const lineCount = contentFormatted.split("\n").length;
   const initialHeight = Math.min(Math.max(lineCount * 19 + 10, MIN_HEIGHT), MAX_HEIGHT);
   const [editorHeight, setEditorHeight] = useState(initialHeight);
   const theme = colorMode === "dark" ? "vs-dark" : "vs-light";
 
-  const handleMount: OnMount = useCallback((editorInstance) => {
-    editorInstance.onDidContentSizeChange(() => {
-      const contentHeight = editorInstance.getContentHeight();
+  const handleMount: OnMount = useCallback(
+    (editorInstance) => {
+      editorInstance.onDidContentSizeChange(() => {
+        const contentHeight = editorInstance.getContentHeight();
 
-      setEditorHeight(Math.min(Math.max(contentHeight, MIN_HEIGHT), MAX_HEIGHT));
-    });
-  }, []);
+        setEditorHeight(Math.min(Math.max(contentHeight, MIN_HEIGHT), MAX_HEIGHT));
+      });
 
-  const clipboardButton = enableClipboard ? (
-    <ClipboardRoot value={contentFormatted}>
-      <ClipboardIconButton h={7} minW={7} />
-    </ClipboardRoot>
-  ) : undefined;
-
-  if (collapsed) {
-    const isArray = Array.isArray(content);
-    const count = isArray ? content.length : Object.keys(content).length;
-    const bracket = isArray ? "[...]" : "{...}";
-
-    return (
-      <Flex alignItems="center" gap={2} {...rest}>
-        <Code backgroundColor="transparent" fontSize="sm">
-          {bracket}
-        </Code>
-        <Text color="fg.subtle">{translate("item", { count })}</Text>
-        {clipboardButton}
-      </Flex>
-    );
-  }
+      if (collapsed) {
+        void editorInstance.getAction("editor.foldAll")?.run();
+      }
+    },
+    [collapsed],
+  );
 
   return (
-    <Flex flex={1} minW={200} {...rest}>
+    <Flex flex={1} gap={2} minW={200} {...rest}>
       <Editor
         height={`${editorHeight}px`}
         language="json"
@@ -97,7 +80,11 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
         theme={theme}
         value={contentFormatted}
       />
-      {clipboardButton}
+      {enableClipboard ? (
+        <ClipboardRoot value={contentFormatted}>
+          <ClipboardIconButton h={7} minW={7} />
+        </ClipboardRoot>
+      ) : undefined}
     </Flex>
   );
 };
