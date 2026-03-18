@@ -19,13 +19,20 @@ from __future__ import annotations
 from json import loads
 from typing import Any
 
-from fastapi import Depends, status
+from fastapi import Depends, HTTPException, status
 
+from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import UIAlert
+from airflow.api_fastapi.core_api.datamodels.config import (
+    Config,
+    ConfigOption,
+    ConfigSection,
+)
 from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_authenticated
+from airflow.api_fastapi.core_api.services.public.config import _response_based_on_accept
 from airflow.configuration import conf
 from airflow.settings import DASHBOARD_UIALERTS
 from airflow.utils.log.log_reader import TaskLogReader
@@ -67,3 +74,32 @@ def get_configs() -> ConfigResponse:
     config.update({key: value for key, value in additional_config.items()})
 
     return ConfigResponse.model_validate(config)
+
+
+@config_router.get(
+    "/backends_order",
+    responses={
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_406_NOT_ACCEPTABLE,
+            ]
+        ),
+    },
+    response_model=Config,
+    dependencies=[Depends(requires_authenticated())],
+)
+def get_backends_order_value(
+    accept: HeaderAcceptJsonOrText,
+):
+    section, option = "secrets", "backends_order"
+    if not conf.has_option(section, option):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Option [{section}/{option}] not found.",
+        )
+
+    value = conf.get(section, option)
+
+    config = Config(sections=[ConfigSection(name=section, options=[ConfigOption(key=option, value=value)])])
+    return _response_based_on_accept(accept, config)
