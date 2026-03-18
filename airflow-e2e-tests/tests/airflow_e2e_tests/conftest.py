@@ -33,6 +33,7 @@ from airflow_e2e_tests.constants import (
     DOCKER_IMAGE,
     E2E_DAGS_FOLDER,
     E2E_TEST_MODE,
+    ELASTICSEARCH_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     TEST_REPORT_FILE,
@@ -58,6 +59,11 @@ def _copy_localstack_files(tmp_dir):
     os.chmod(tmp_dir / "init-aws.sh", current_permissions | 0o111)
 
 
+def _copy_elasticsearch_files(tmp_dir):
+    """Copy Elasticsearch compose file into the temp directory."""
+    copyfile(ELASTICSEARCH_PATH, tmp_dir / "elasticsearch.yml")
+
+
 def _setup_s3_integration(dot_env_file, tmp_dir):
     _copy_localstack_files(tmp_dir)
 
@@ -70,6 +76,21 @@ def _setup_s3_integration(dot_env_file, tmp_dir):
         "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID=aws_s3_logs\n"
         "AIRFLOW__LOGGING__DELETE_LOCAL_LOGS=true\n"
         "AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=s3://test-airflow-logs\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def _setup_elasticsearch_integration(dot_env_file, tmp_dir):
+    _copy_elasticsearch_files(tmp_dir)
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        "AIRFLOW__LOGGING__REMOTE_LOGGING=true\n"
+        "AIRFLOW__ELASTICSEARCH__HOST=http://elasticsearch:9200\n"
+        "AIRFLOW__ELASTICSEARCH__WRITE_STDOUT=false\n"
+        "AIRFLOW__ELASTICSEARCH__JSON_FORMAT=true\n"
+        "AIRFLOW__ELASTICSEARCH__WRITE_TO_ES=true\n"
+        "AIRFLOW__ELASTICSEARCH__TARGET_INDEX=airflow-e2e-logs\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
@@ -124,6 +145,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     if E2E_TEST_MODE == "remote_log":
         compose_file_names.append("localstack.yml")
         _setup_s3_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "remote_log_elasticsearch":
+        compose_file_names.append("elasticsearch.yml")
+        _setup_elasticsearch_integration(dot_env_file, tmp_dir)
     elif E2E_TEST_MODE == "xcom_object_storage":
         compose_file_names.append("localstack.yml")
         _setup_xcom_object_storage_integration(dot_env_file, tmp_dir)
@@ -166,7 +190,7 @@ def _print_logs(compose_instance: DockerCompose):
         if service:
             stdout, _ = compose_instance.get_logs(service)
             console.print(f"::group:: {service} Logs")
-            console.print(f"[red]{stdout}")
+            console.print(stdout, style="red", soft_wrap=True)
             console.print("::endgroup::")
 
 
