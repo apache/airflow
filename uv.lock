@@ -2716,7 +2716,7 @@ dev = [
     { name = "apache-airflow-providers-ftp", editable = "providers/ftp" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
     { name = "apache-airflow-providers-http", editable = "providers/http" },
-    { name = "apache-airflow-providers-ibm-mq", extras = ["ibmmq"] editable = "providers/ibm/mq" },
+    { name = "apache-airflow-providers-ibm-mq", extras = ["ibmmq"], editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", editable = "providers/imap" },
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-mongo", editable = "providers/mongo" },
