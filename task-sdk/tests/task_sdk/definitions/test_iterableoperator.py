@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.sdk import BaseOperator, DAG, timezone
+from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -36,14 +37,18 @@ if TYPE_CHECKING:
 class MockOperator(BaseOperator):
     """Mock operator for testing IterableOperator expansion."""
 
-    def __init__(self, arg1=None, arg2=None, arg3=None, **kwargs):
+    def __init__(self, arg1=None, arg2=None, arg3=None, fail_on_first_attempt=False, **kwargs):
         super().__init__(**kwargs)
         self.arg1 = arg1
         self.arg2 = arg2
         self.arg3 = arg3
+        self.fail_on_first_attempt = fail_on_first_attempt
 
     def execute(self, context):
         """Execute the operator and return passed arguments as tuple if do_xcom_push is True."""
+        if self.fail_on_first_attempt:
+            self.fail_on_first_attempt = False
+            raise RuntimeError
         if not self.do_xcom_push:
             return None
         return self.arg1, self.arg2, self.arg3
@@ -63,7 +68,7 @@ class TestIterableOperator:
         return mock.patch.object(XCom, "get_one", side_effect=mock_get_one)
 
     def _create_mapped_operator(
-        self, expand_input: ExpandInput, task_id: str = "my_task", do_xcom_push: bool = True
+        self, expand_input: ExpandInput, task_id: str = "my_task", retries: int = DEFAULT_RETRIES, do_xcom_push: bool = True
     ) -> MappedOperator:
         """
         Create a MappedOperator without adding it to a DAG.
@@ -72,7 +77,7 @@ class TestIterableOperator:
         :param task_id: Task ID for the operator
         :param do_xcom_push: Whether to push XCom (default True)
         """
-        return MockOperator.partial(task_id=task_id, dag=None, do_xcom_push=do_xcom_push)._expand(
+        return MockOperator.partial(task_id=task_id, dag=None, retries=retries, do_xcom_push=do_xcom_push)._expand(
             expand_input, strict=True, apply_upstream_relationship=False,
         )
 
@@ -82,10 +87,11 @@ class TestIterableOperator:
         expand_input: ExpandInput,
         task_id: str = "my_task",
         task_concurrency: int | None = None,
+        retries: int = DEFAULT_RETRIES,
         do_xcom_push: bool = True
     ) -> IterableOperator:
         """Create an IterableOperator with a MappedOperator and ExpandInput."""
-        mapped_op = self._create_mapped_operator(expand_input, task_id=task_id, do_xcom_push=do_xcom_push)
+        mapped_op = self._create_mapped_operator(expand_input, task_id=task_id, retries=retries, do_xcom_push=do_xcom_push)
         return IterableOperator(
             operator=mapped_op,
             expand_input=expand_input,
@@ -277,3 +283,56 @@ class TestIterableOperator:
         result = iterable_op.execute(context=context)
 
         assert result is None
+
+    def test_execute_with_failed_tasks_but_no_retries(self):
+        """Test executing IterableOperator where tasks fail but no retries are available.
+
+        This test verifies that:
+        1. Tasks with fail_on_first_attempt=True raise an exception on first attempt
+        2. When no retries are configured (retries=0), the exception propagates and is not retried
+        3. The BaseExceptionGroup is raised containing the task failure
+        """
+        dag = self._get_dag()
+        # Create expand_input where arg1=2 will fail on first attempt
+        expand_input = ListOfDictsExpandInput([
+            {"arg1": 1, "arg2": 10},
+            {"arg1": 2, "arg2": 20, "fail_on_first_attempt": True},
+            {"arg1": 3, "arg2": 30},
+        ])
+        iterable_op = self._create_iterable_operator(
+            dag, expand_input, task_id="exec_with_failures", retries=0
+        )
+
+        context = mock_context(task=iterable_op)
+        with self._mock_xcom_get_one(context):
+            # Expect an exception to be raised since no retries are available
+            with pytest.raises(BaseExceptionGroup):
+                iterable_op.execute(context=context)
+
+    def test_execute_with_failed_tasks_and_expired_reschedule_date(self):
+        """Test executing IterableOperator where certain map_index tasks fail on first attempt and are retried.
+
+        This test verifies that:
+        1. Tasks with fail_on_first_attempt=True raise an exception on first attempt (try_number == 0)
+        2. Failed tasks are retried immediately without deferring (since reschedule_date is expired)
+        3. Retried tasks succeed on subsequent attempts (try_number > 0) and produce the expected output
+        """
+        dag = self._get_dag()
+        # Create expand_input where arg1=2 will fail on first attempt
+        expand_input = ListOfDictsExpandInput([
+            {"arg1": 1, "arg2": 10},
+            {"arg1": 2, "arg2": 20, "fail_on_first_attempt": True},
+            {"arg1": 3, "arg2": 30},
+        ])
+        iterable_op = self._create_iterable_operator(
+            dag, expand_input, task_id="exec_with_failures", retries=1,
+        )
+
+        context = mock_context(task=iterable_op)
+        with self._mock_xcom_get_one(context):
+            result = iterable_op.execute(context=context)
+            materialized = list(result)
+
+            # Verify all tasks completed successfully despite arg1=2 failing on first attempt
+            assert len(materialized) == 3
+            assert materialized == [(1, 10, None), (2, 20, None), (3, 30, None)]
