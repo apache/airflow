@@ -25,7 +25,7 @@ from pydantic import JsonValue
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
@@ -45,11 +45,44 @@ async def has_xcom_access(
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
     token=CurrentTIToken,
+    session: AsyncSessionDep = Depends(),
 ) -> bool:
     """Check if the task has access to the XCom."""
-    # TODO: Placeholder for actual implementation
+    from sqlalchemy import select
+
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.settings import ENABLE_EXECUTION_API_AUTHZ
 
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
+
+    # Authorization is optional and disabled by default for backward compatibility
+    if ENABLE_EXECUTION_API_AUTHZ:
+        # NOTE: Verifies TaskInstance existence and DAG run isolation.
+        # This is a minimal foundation for future fine-grained authorization.
+        ti = await session.scalar(
+            select(TaskInstance).where(TaskInstance.id == token.id)
+        )
+        if not ti:
+            log.debug("TaskInstance %s not found for XCom %s", token.id, xcom_key)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"reason": "access_denied"},
+            )
+
+        if write:
+            if ti.dag_id != dag_id or ti.run_id != run_id or ti.task_id != task_id:
+                log.debug("Task %s attempted to write XCom for %s/%s/%s", ti.id, dag_id, run_id, task_id)
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={"reason": "access_denied"},
+                )
+        else:
+            if ti.dag_id != dag_id or ti.run_id != run_id:
+                log.debug("Task %s attempted to read XCom for %s/%s", ti.id, dag_id, run_id)
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={"reason": "access_denied"},
+                )
 
     log.debug(
         "Checking %s XCom access for xcom from TaskInstance with key '%s' to XCom '%s'",

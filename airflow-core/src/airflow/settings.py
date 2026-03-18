@@ -760,3 +760,6 @@ DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
 # Prefix used by gunicorn workers to indicate they are ready to serve requests
 # Used by GunicornMonitor to track worker readiness via process titles
 GUNICORN_WORKER_READY_PREFIX: str = "[ready] "
+
+# Optional task-level authorization for Execution API (preparation for multi-team isolation)
+ENABLE_EXECUTION_API_AUTHZ: bool = False

@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import urllib.parse
+from unittest import mock
 
 import httpx
 import pytest
@@ -46,36 +47,7 @@ def reset_db():
         session.execute(delete(XComModel))
 
 
-@pytest.fixture
-def access_denied(client):
-    from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
-    from airflow.api_fastapi.execution_api.security import CurrentTIToken
 
-    last_route = client.app.routes[-1]
-    assert isinstance(last_route.app, FastAPI)
-    exec_app = last_route.app
-
-    async def _(
-        request: Request,
-        dag_id: str = Path(),
-        run_id: str = Path(),
-        task_id: str = Path(),
-        xcom_key: str = Path(alias="key"),
-        token=CurrentTIToken,
-    ):
-        await has_xcom_access(dag_id, run_id, task_id, xcom_key, request, token)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "reason": "access_denied",
-            },
-        )
-
-    exec_app.dependency_overrides[has_xcom_access] = _
-
-    yield
-
-    exec_app.dependency_overrides = {}
 
 
 class TestXComsGetEndpoint:
@@ -120,7 +92,7 @@ class TestXComsGetEndpoint:
             }
         }
 
-    @pytest.mark.usefixtures("access_denied")
+    @mock.patch("airflow.settings.ENABLE_EXECUTION_API_AUTHZ", True)
     def test_xcom_access_denied(self, client, caplog):
         with caplog.at_level(logging.DEBUG):
             response = client.get("/execution/xcoms/dag/runid/task/xcom_perms")
@@ -131,7 +103,64 @@ class TestXComsGetEndpoint:
                 "reason": "access_denied",
             }
         }
-        assert any(msg.startswith("Checking read XCom access") for msg in caplog.messages)
+
+    @mock.patch("airflow.settings.ENABLE_EXECUTION_API_AUTHZ", True)
+    def test_xcom_get_access_allowed(self, client, session, create_task_instance):
+        ti = create_task_instance()
+        x = XComModel(
+            key="xcom_1",
+            value="value1",
+            dag_run_id=ti.dag_run.id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            dag_id=ti.dag_id,
+        )
+        session.add(x)
+        session.commit()
+
+        from fastapi import Request
+
+        from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+        from airflow.api_fastapi.execution_api.security import _jwt_bearer
+
+        async def mock_jwt_bearer(request: Request):
+            return TIToken(id=ti.id, claims={"sub": str(ti.id), "scope": "execution"})
+
+        last_route = client.app.routes[-1]
+        exec_app = last_route.app
+        exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
+
+        response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
+
+        assert response.status_code == 200
+        assert response.json() == {"key": "xcom_1", "value": "value1"}
+
+        exec_app.dependency_overrides.pop(_jwt_bearer)
+
+    @mock.patch("airflow.settings.ENABLE_EXECUTION_API_AUTHZ", True)
+    def test_xcom_cross_dag_read_denied(self, client, session, create_task_instance):
+        ti = create_task_instance()
+        session.commit()
+
+        from fastapi import Request
+
+        from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+        from airflow.api_fastapi.execution_api.security import _jwt_bearer
+
+        async def mock_jwt_bearer(request: Request):
+            return TIToken(id=ti.id, claims={"sub": str(ti.id), "scope": "execution"})
+
+        last_route = client.app.routes[-1]
+        exec_app = last_route.app
+        exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
+
+        # Requesting XCom from a different DAG run
+        response = client.get(f"/execution/xcoms/different_dag/different_run/{ti.task_id}/xcom_1")
+
+        assert response.status_code == 403
+        assert response.json() == {"detail": {"reason": "access_denied"}}
+
+        exec_app.dependency_overrides.pop(_jwt_bearer)
 
     @pytest.mark.parametrize(
         ("offset", "expected_status", "expected_json"),
@@ -503,7 +532,7 @@ class TestXComsSetEndpoint:
             ).one_or_none()
             assert task_map.length == length
 
-    @pytest.mark.usefixtures("access_denied")
+    @mock.patch("airflow.settings.ENABLE_EXECUTION_API_AUTHZ", True)
     def test_xcom_access_denied(self, client, caplog):
         with caplog.at_level(logging.DEBUG):
             response = client.post(
@@ -517,7 +546,54 @@ class TestXComsSetEndpoint:
                 "reason": "access_denied",
             }
         }
-        assert any(msg.startswith("Checking write XCom access") for msg in caplog.messages)
+
+    @mock.patch("airflow.settings.ENABLE_EXECUTION_API_AUTHZ", True)
+    def test_xcom_set_access_allowed(self, client, session, create_task_instance):
+        ti = create_task_instance()
+        session.commit()
+
+        from fastapi import Request
+
+        from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+        from airflow.api_fastapi.execution_api.security import _jwt_bearer
+
+        async def mock_jwt_bearer(request: Request):
+            return TIToken(id=ti.id, claims={"sub": str(ti.id), "scope": "execution"})
+
+        last_route = client.app.routes[-1]
+        exec_app = last_route.app
+        exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
+
+        response = client.post(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1", json='"value1"')
+
+        assert response.status_code == 201
+
+        exec_app.dependency_overrides.pop(_jwt_bearer)
+
+    @mock.patch("airflow.settings.ENABLE_EXECUTION_API_AUTHZ", True)
+    def test_xcom_cross_task_write_denied(self, client, session, create_task_instance):
+        ti = create_task_instance()
+        session.commit()
+
+        from fastapi import Request
+
+        from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+        from airflow.api_fastapi.execution_api.security import _jwt_bearer
+
+        async def mock_jwt_bearer(request: Request):
+            return TIToken(id=ti.id, claims={"sub": str(ti.id), "scope": "execution"})
+
+        last_route = client.app.routes[-1]
+        exec_app = last_route.app
+        exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
+
+        # Attempt to write to a different task's XCom
+        response = client.post(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/different_task/xcom_1", json='"value1"')
+
+        assert response.status_code == 403
+        assert response.json() == {"detail": {"reason": "access_denied"}}
+
+        exec_app.dependency_overrides.pop(_jwt_bearer)
 
     @pytest.mark.parametrize(
         ("value", "expected_value"),

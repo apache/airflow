@@ -22,6 +22,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.variable import (
     VariablePostBody,
     VariableResponse,
@@ -34,10 +35,31 @@ async def has_variable_access(
     request: Request,
     variable_key: str = Path(),
     token=CurrentTIToken,
+    session: AsyncSessionDep = Depends(),
 ):
     """Check if the task has access to the variable."""
+    from sqlalchemy import select
+
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.settings import ENABLE_EXECUTION_API_AUTHZ
+
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
-    # TODO: Placeholder for actual implementation
+    # Authorization is optional and disabled by default for backward compatibility
+    if not ENABLE_EXECUTION_API_AUTHZ:
+        return True
+
+    # NOTE: Currently only verifies TaskInstance existence.
+    # This is a minimal foundation for future fine-grained authorization.
+    ti = await session.scalar(select(TaskInstance).where(TaskInstance.id == token.id))
+    if not ti:
+        log.debug("TaskInstance %s not found for variable %s", token.id, variable_key)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+            },
+        )
+
     log.debug(
         "Checking %s access for task instance with key '%s' to variable '%s'",
         "write" if write else "read",
