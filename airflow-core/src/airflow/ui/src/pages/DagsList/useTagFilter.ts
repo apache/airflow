@@ -37,7 +37,7 @@ export const useTagFilter = () => {
   const selectedTags = urlTags.length > 0 ? urlTags : savedTags;
   const tagFilterMode: TagMatchMode =
     urlMatchMode === null
-      ? urlTags.length === 0 && selectedTags.length >= 2
+      ? urlTags.length === 0
         ? savedTagMatchMode
         : "any"
       : (urlMatchMode as TagMatchMode);
@@ -47,10 +47,6 @@ export const useTagFilter = () => {
     tags.forEach((tag) => {
       searchParams.append(TAGS, tag);
     });
-    if (tags.length < 2) {
-      searchParams.delete(TAGS_MATCH_MODE);
-      setSavedTagMatchMode("any");
-    }
     searchParams.delete(OFFSET);
     setSearchParams(searchParams);
     setSavedTags(tags);
