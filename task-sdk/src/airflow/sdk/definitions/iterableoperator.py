@@ -244,7 +244,7 @@ class IterableOperator(BaseOperator):
                             exceptions.append(e)
 
                     if len(futures) < self.max_workers:
-                        chunked_tasks = chain(deferred_tasks, chunked_tasks)
+                        chunked_tasks = chain(list(deferred_tasks), chunked_tasks)
                         deferred_tasks.clear()
 
                         for task in next(chunked_tasks, []):
