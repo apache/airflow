@@ -74,7 +74,11 @@ class TestIterableOperator:
         return mock.patch.object(XCom, "get_one", side_effect=mock_get_one)
 
     def _create_mapped_operator(
-        self, expand_input: ExpandInput, task_id: str = "my_task", retries: int = DEFAULT_RETRIES, do_xcom_push: bool = True
+        self,
+        expand_input: ExpandInput,
+        task_id: str = "my_task",
+        retries: int = DEFAULT_RETRIES,
+        do_xcom_push: bool = True
     ) -> MappedOperator:
         """
         Create a MappedOperator without adding it to a DAG.
@@ -84,7 +88,9 @@ class TestIterableOperator:
         :param do_xcom_push: Whether to push XCom (default True)
         """
         return MockOperator.partial(task_id=task_id, dag=None, retries=retries, do_xcom_push=do_xcom_push)._expand(
-            expand_input, strict=True, apply_upstream_relationship=False,
+            expand_input,
+            strict=True,
+            apply_upstream_relationship=False,
         )
 
     def _create_iterable_operator(
@@ -94,10 +100,12 @@ class TestIterableOperator:
         task_id: str = "my_task",
         task_concurrency: int | None = None,
         retries: int = DEFAULT_RETRIES,
-        do_xcom_push: bool = True
+        do_xcom_push: bool = True,
     ) -> IterableOperator:
         """Create an IterableOperator with a MappedOperator and ExpandInput."""
-        mapped_op = self._create_mapped_operator(expand_input, task_id=task_id, retries=retries, do_xcom_push=do_xcom_push)
+        mapped_op = self._create_mapped_operator(
+            expand_input, task_id=task_id, retries=retries, do_xcom_push=do_xcom_push
+        )
         return IterableOperator(
             operator=mapped_op,
             expand_input=expand_input,
@@ -299,19 +307,22 @@ class TestIterableOperator:
         3. The BaseExceptionGroup is raised containing the task failure
         """
         dag = self._get_dag()
-        # Create expand_input where arg1=2 will fail on first attempt
-        expand_input = ListOfDictsExpandInput([
-            {"arg1": 1, "arg2": 10},
-            {"arg1": 2, "arg2": 20, "fail_on_first_attempt": True},
-            {"arg1": 3, "arg2": 30},
-        ])
+        expand_input = ListOfDictsExpandInput(
+            [
+                {"arg1": 1, "arg2": 10},
+                {"arg1": 2, "arg2": 20, "fail_on_first_attempt": True},
+                {"arg1": 3, "arg2": 30},
+            ]
+        )
         iterable_op = self._create_iterable_operator(
-            dag, expand_input, task_id="exec_with_failures", retries=0
+            dag,
+            expand_input,
+            task_id="exec_with_failures",
+            retries=0,
         )
 
         context = mock_context(task=iterable_op)
         with self._mock_xcom_get_one(context):
-            # Expect an exception to be raised since no retries are available
             with pytest.raises(BaseExceptionGroup):
                 iterable_op.execute(context=context)
 
@@ -324,14 +335,18 @@ class TestIterableOperator:
         3. Retried tasks succeed on subsequent attempts (try_number > 0) and produce the expected output
         """
         dag = self._get_dag()
-        # Create expand_input where arg1=2 will fail on first attempt
-        expand_input = ListOfDictsExpandInput([
-            {"arg1": 1, "arg2": 10},
-            {"arg1": 2, "arg2": 20, "fail_on_first_attempt": True},
-            {"arg1": 3, "arg2": 30},
-        ])
+        expand_input = ListOfDictsExpandInput(
+            [
+                {"arg1": 1, "arg2": 10},
+                {"arg1": 2, "arg2": 20, "fail_on_first_attempt": True},
+                {"arg1": 3, "arg2": 30},
+            ]
+        )
         iterable_op = self._create_iterable_operator(
-            dag, expand_input, task_id="exec_with_failures", retries=1,
+            dag,
+            expand_input,
+            task_id="exec_with_failures",
+            retries=1,
         )
 
         context = mock_context(task=iterable_op)
@@ -339,6 +354,5 @@ class TestIterableOperator:
             result = iterable_op.execute(context=context)
             materialized = list(result)
 
-            # Verify all tasks completed successfully despite arg1=2 failing on first attempt
             assert len(materialized) == 3
             assert materialized == [(1, 10, None), (2, 20, None), (3, 30, None)]
