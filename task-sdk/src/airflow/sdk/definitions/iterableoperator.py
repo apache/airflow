@@ -200,7 +200,7 @@ class IterableOperator(BaseOperator):
 
                             self.log.debug("result: %s", result)
 
-                            if result is not None and task.task.do_xcom_push:
+                            if result is not None and task.do_xcom_push:
                                 self._xcom_push(
                                     context=context,
                                     task=task,
