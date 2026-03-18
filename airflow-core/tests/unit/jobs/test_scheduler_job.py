@@ -4943,7 +4943,7 @@ class TestSchedulerJob:
         ).one_or_none()
         assert adrq_2 is not None
 
-        assert created_run.creating_job_id == scheduler_job.id
+        assert dr.creating_job_id == scheduler_job.id
 
     @pytest.mark.need_serialized_dag
     @conf_vars({("scheduler", "use_job_schedule"): "False"})
@@ -5018,8 +5018,6 @@ class TestSchedulerJob:
         # Time-based dag run should NOT be created when use_job_schedule=False
         created_run = session.scalars(select(DagRun).where(DagRun.dag_id == "time-based-dag")).one_or_none()
         assert created_run is None
-
-
 
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_alias_with_asset_event_attached(self, session, dag_maker):
