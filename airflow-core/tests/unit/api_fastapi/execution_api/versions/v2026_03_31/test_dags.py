@@ -28,7 +28,7 @@ def old_ver_client(client):
     return client
 
 
-def test_dag_state_endpoint_not_available_in_previous_version(old_ver_client):
-    response = old_ver_client.get("/execution/dags/test_dag/state")
+def test_dag_endpoint_not_available_in_previous_version(old_ver_client):
+    response = old_ver_client.get("/execution/dags/test_dag")
 
     assert response.status_code == 404

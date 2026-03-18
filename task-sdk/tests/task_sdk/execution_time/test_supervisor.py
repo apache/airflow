@@ -30,7 +30,7 @@ import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 from operator import attrgetter
 from random import randint
 from textwrap import dedent
@@ -71,9 +71,9 @@ from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagResult,
     DagRunResult,
     DagRunStateResult,
-    DagStateResult,
     DeferTask,
     DeleteVariable,
     DeleteXCom,
@@ -84,9 +84,9 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDag,
     GetDagRun,
     GetDagRunState,
-    GetDagState,
     GetDRCount,
     GetHITLDetailResponse,
     GetPreviousDagRun,
@@ -2502,16 +2502,35 @@ REQUEST_TEST_CASES = [
         test_id="get_task_breadcrumbs",
     ),
     RequestTestCase(
-        message=GetDagState(dag_id="test_dag"),
-        expected_body={"is_paused": False, "type": "DagStateResult"},
+        message=GetDag(dag_id="test_dag"),
+        expected_body={
+            "dag_id": "test_dag",
+            "is_paused": False,
+            "bundle_name": "dags-folder",
+            "bundle_version": "bundle-version",
+            "relative_fileloc": "dags/example.py",
+            "owners": "owner_1",
+            "tags": ["a_tag", "z_tag"],
+            "next_dagrun": datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            "type": "DagResult",
+        },
         client_mock=ClientMock(
-            method_path="dags.get_state",
+            method_path="dags.get",
             kwargs={
                 "dag_id": "test_dag",
             },
-            response=DagStateResult(is_paused=False),
+            response=DagResult(
+                dag_id="test_dag",
+                is_paused=False,
+                bundle_name="dags-folder",
+                bundle_version="bundle-version",
+                relative_fileloc="dags/example.py",
+                owners="owner_1",
+                tags=["a_tag", "z_tag"],
+                next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            ),
         ),
-        test_id="get_dag_state",
+        test_id="get_dag",
     ),
 ]
 

@@ -45,10 +45,10 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    DagResponse,
     DagRun,
     DagRunStateResponse,
     DagRunType,
-    DagStateResponse,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
@@ -779,10 +779,10 @@ class DagsOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get_state(self, dag_id: str) -> DagStateResponse:
-        """Get the state of a Dag via the API server."""
-        resp = self.client.get(f"dags/{dag_id}/state")
-        return DagStateResponse.model_validate_json(resp.read())
+    def get(self, dag_id: str) -> DagResponse:
+        """Get a DAG via the API server."""
+        resp = self.client.get(f"dags/{dag_id}")
+        return DagResponse.model_validate_json(resp.read())
 
 
 class HITLOperations:

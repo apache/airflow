@@ -20,9 +20,9 @@ from __future__ import annotations
 from cadwyn import VersionChange, endpoint
 
 
-class AddDagStateEndpoint(VersionChange):
-    """Add the `/dags/{dag_id}/state` endpoint."""
+class AddDagEndpoint(VersionChange):
+    """Add the `/dags/{dag_id}` endpoint."""
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (endpoint("/dags/{dag_id}/state", ["GET"]).didnt_exist,)
+    instructions_to_migrate_to_previous_version = (endpoint("/dags/{dag_id}", ["GET"]).didnt_exist,)

@@ -17,10 +17,19 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class DagStateResponse(BaseModel):
-    """Schema for DAG State response."""
+class DagResponse(BaseModel):
+    """Schema for DAG response."""
 
+    dag_id: str
     is_paused: bool
+    bundle_name: str | None
+    bundle_version: str | None
+    relative_fileloc: str | None
+    owners: str | None
+    tags: list[str]
+    next_dagrun: datetime | None

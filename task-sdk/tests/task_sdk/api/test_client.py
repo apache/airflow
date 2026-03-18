@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import pickle
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -37,9 +37,9 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    DagResponse,
     DagRunState,
     DagRunStateResponse,
-    DagStateResponse,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
@@ -1570,18 +1570,85 @@ class TestSSLContextCaching:
 
 
 class TestDagsOperations:
-    def test_get_state(self):
-        """Test that the client can get the state of a dag run"""
+    def test_get(self):
+        """Test that the client can get a dag."""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/dags/test_dag/state":
+            if request.url.path == "/dags/test_dag":
                 return httpx.Response(
                     status_code=200,
-                    json={"is_paused": False},
+                    json={
+                        "dag_id": "test_dag",
+                        "is_paused": False,
+                        "bundle_name": "dags-folder",
+                        "bundle_version": "bundle-version",
+                        "relative_fileloc": "dags/example.py",
+                        "owners": "owner_1",
+                        "tags": ["a_tag", "z_tag"],
+                        "next_dagrun": "2026-04-13T00:00:00Z",
+                    },
                 )
             return httpx.Response(status_code=200)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.dags.get_state(dag_id="test_dag")
+        result = client.dags.get(dag_id="test_dag")
 
-        assert result == DagStateResponse(is_paused=False)
+        assert result == DagResponse(
+            dag_id="test_dag",
+            is_paused=False,
+            bundle_name="dags-folder",
+            bundle_version="bundle-version",
+            relative_fileloc="dags/example.py",
+            owners="owner_1",
+            tags=["a_tag", "z_tag"],
+            next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+        )
+
+    def test_get_not_found(self):
+        """Test that getting a missing dag raises a server response error."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dags/missing_dag":
+                return httpx.Response(
+                    status_code=404,
+                    json={
+                        "detail": {
+                            "message": "The Dag with dag_id: `missing_dag` was not found",
+                            "reason": "not_found",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=200)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.dags.get(dag_id="missing_dag")
+
+        assert exc_info.value.response.status_code == 404
+        assert exc_info.value.detail == {
+            "detail": {
+                "message": "The Dag with dag_id: `missing_dag` was not found",
+                "reason": "not_found",
+            }
+        }
+
+    def test_get_server_error(self):
+        """Test that a server error while getting a dag."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dags/test_dag":
+                return httpx.Response(
+                    status_code=500,
+                    headers=[("content-Type", "application/json")],
+                    json={
+                        "reason": "internal_server_error",
+                        "message": "Internal Server Error",
+                    },
+                )
+            return httpx.Response(status_code=200)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError):
+            client.dags.get(dag_id="test_dag")

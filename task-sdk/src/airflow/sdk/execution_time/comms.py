@@ -71,9 +71,9 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     BundleInfo,
     ConnectionResponse,
+    DagResponse,
     DagRun,
     DagRunStateResponse,
-    DagStateResponse,
     HITLDetailRequest,
     InactiveAssetsResponse,
     PreviousTIResponse,
@@ -695,11 +695,11 @@ class HITLDetailRequestResult(HITLDetailRequest):
         return cls(**hitl_request.model_dump(exclude_defaults=True), type="HITLDetailRequestResult")
 
 
-class DagStateResult(DagStateResponse):
-    type: Literal["DagStateResult"] = "DagStateResult"
+class DagResult(DagResponse):
+    type: Literal["DagResult"] = "DagResult"
 
     @classmethod
-    def from_api_response(cls, dg_state_response: DagStateResponse) -> DagStateResult:
+    def from_api_response(cls, dag_response: DagResponse) -> DagResult:
         """
         Create result class from API Response.
 
@@ -707,7 +707,7 @@ class DagStateResult(DagStateResponse):
         for communication between the Supervisor and the task process since it needs a
         discriminator field.
         """
-        return cls(**dg_state_response.model_dump(exclude_defaults=True), type="DagStateResult")
+        return cls(**dag_response.model_dump(exclude_defaults=True), type="DagResult")
 
 
 ToTask = Annotated[
@@ -717,7 +717,7 @@ ToTask = Annotated[
     | DagRunResult
     | DagRunStateResult
     | DRCount
-    | DagStateResult
+    | DagResult
     | ErrorResponse
     | PrevSuccessfulDagRunResult
     | PreviousTIResult
@@ -1035,9 +1035,9 @@ class MaskSecret(BaseModel):
     type: Literal["MaskSecret"] = "MaskSecret"
 
 
-class GetDagState(BaseModel):
+class GetDag(BaseModel):
     dag_id: str
-    type: Literal["GetDagState"] = "GetDagState"
+    type: Literal["GetDag"] = "GetDag"
 
 
 ToSupervisor = Annotated[
@@ -1051,7 +1051,7 @@ ToSupervisor = Annotated[
     | GetDagRun
     | GetDagRunState
     | GetDRCount
-    | GetDagState
+    | GetDag
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
     | GetPreviousTI
