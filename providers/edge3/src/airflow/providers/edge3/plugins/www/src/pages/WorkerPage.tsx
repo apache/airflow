@@ -163,7 +163,7 @@ export const WorkerPage = () => {
                       <List.Root>
                         {worker.queues.map((queue) => (
                           <List.Item key={queue}>
-                            <Link to={`../jobs?queue=${encodeURIComponent(queue)}`}>{queue}</Link>
+                            <Link relative="path" to={`../jobs?queue=${encodeURIComponent(queue)}`}>{queue}</Link>
                           </List.Item>
                         ))}
                       </List.Root>
@@ -179,7 +179,7 @@ export const WorkerPage = () => {
                   </Table.Cell>
                   <Table.Cell>
                     {worker.jobs_active !== undefined && worker.jobs_active > 0 ? (
-                      <Link to={`../jobs?worker=${encodeURIComponent(worker.worker_name)}`}>
+                      <Link relative="path" to={`../jobs?worker=${encodeURIComponent(worker.worker_name)}`}>
                         {worker.jobs_active}
                       </Link>
                     ) : (
