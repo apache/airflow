@@ -29,6 +29,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
 
+from airflow.models import DagRun
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
@@ -268,8 +269,16 @@ class TaskMap(TaskInstanceDependencies):
             task.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)
-            if unmapped_ti.dag_run:
-                ti.context_carrier = _make_task_carrier(unmapped_ti.dag_run.context_carrier)
+            if unmapped_ti:
+                dr = unmapped_ti.dag_run
+            else:
+                dr = session.scalar(
+                    select(DagRun).where(
+                        DagRun.dag_id == task.dag_id,
+                        DagRun.run_id == run_id,
+                    )
+                )
+            ti.context_carrier = _make_task_carrier(dr.context_carrier)
             ti.refresh_from_task(task)  # session.merge() loses task information.
             all_expanded_tis.append(ti)
 
