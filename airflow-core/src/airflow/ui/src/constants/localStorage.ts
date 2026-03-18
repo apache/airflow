@@ -34,6 +34,8 @@ export const dagRunsLimitKey = (dagId: string) => `dag_runs_limit-${dagId}`;
 export const runTypeFilterKey = (dagId: string) => `run_type_filter-${dagId}`;
 export const triggeringUserFilterKey = (dagId: string) => `triggering_user_filter-${dagId}`;
 export const dagRunStateFilterKey = (dagId: string) => `dag_run_state_filter-${dagId}`;
+export const runAfterGteKey = (dagId: string) => `run_after_gte-${dagId}`;
+export const runAfterLteKey = (dagId: string) => `run_after_lte-${dagId}`;
 export const showGanttKey = (dagId: string) => `show_gantt-${dagId}`;
 export const dependenciesKey = (dagId: string) => `dependencies-${dagId}`;
 export const directionKey = (dagId: string) => `direction-${dagId}`;
