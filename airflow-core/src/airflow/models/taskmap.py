@@ -24,6 +24,8 @@ import enum
 from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
+from opentelemetry import trace
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,6 +40,7 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.mappedoperator import Operator
+tracer = trace.get_tracer(__name__)
 
 
 class TaskMapVariant(enum.Enum):
@@ -50,6 +53,17 @@ class TaskMapVariant(enum.Enum):
 
     DICT = "dict"
     LIST = "list"
+
+
+def _make_task_carrier(dag_run_context_carrier):
+    parent_context = (
+        TraceContextTextMapPropagator().extract(dag_run_context_carrier) if dag_run_context_carrier else None
+    )
+    span = tracer.start_span("notused", context=parent_context)  # intentionally never closed
+    new_ctx = trace.set_span_in_context(span)
+    carrier: dict[str, str] = {}
+    TraceContextTextMapPropagator().inject(carrier, context=new_ctx)
+    return carrier
 
 
 class TaskMap(TaskInstanceDependencies):
@@ -254,6 +268,7 @@ class TaskMap(TaskInstanceDependencies):
             task.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)
+            ti.context_carrier = _make_task_carrier(unmapped_ti.dag_run.context_carrier)
             ti.refresh_from_task(task)  # session.merge() loses task information.
             all_expanded_tis.append(ti)
 
