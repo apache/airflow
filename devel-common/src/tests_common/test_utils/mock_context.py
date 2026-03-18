@@ -25,7 +25,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import Context
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
@@ -34,6 +34,12 @@ else:
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+
+def generate_run_id() -> str:
+    if AIRFLOW_V_3_0_PLUS:
+        return DagRun.generate_run_id(run_type=DagRunType.MANUAL, run_after=timezone.utcnow())
+    return DagRun.generate_run_id(run_type=DagRunType.MANUAL)
 
 
 def mock_context(task, run_id: str | None = None) -> Context:
@@ -73,10 +79,6 @@ def mock_context(task, run_id: str | None = None) -> Context:
             values[key] = value
 
     values["ti"] = create_task_instance(task, dag_version_id=mock.MagicMock(), ti_type=MockedTaskInstance)
-    values["run_id"] = (
-        DagRun.generate_run_id(DagRunType.MANUAL, timezone.utcnow())
-        if run_id is None
-        else run_id
-    )
+    values["run_id"] = generate_run_id() if run_id is None else run_id
 
     return Context(values)  # type: ignore[misc]
