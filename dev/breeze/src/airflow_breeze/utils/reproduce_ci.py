@@ -112,10 +112,11 @@ def print_local_reproduction(commands: list[ReproductionCommand]) -> None:
     step_number = 0
     for command in commands:
         if command.comment:
+            if lines:
+                lines.append("")
             step_number += 1
             lines.append(f"# {step_number}. {command.comment}")
         lines.append(shlex.join(command.argv))
-        lines.append("")
-    rendered = "\n".join(lines).rstrip()
+    rendered = "\n".join(lines)
     get_console().print("\n[warning]HOW TO REPRODUCE LOCALLY[/]\n")
     get_console().print(f"[info]{escape(rendered)}[/]\n", soft_wrap=True)
