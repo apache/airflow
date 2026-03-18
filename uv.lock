@@ -74,6 +74,7 @@ members = [
     "apache-airflow-providers-grpc",
     "apache-airflow-providers-hashicorp",
     "apache-airflow-providers-http",
+    "apache-airflow-providers-ibm-mq",
     "apache-airflow-providers-imap",
     "apache-airflow-providers-influxdb",
     "apache-airflow-providers-informatica",
@@ -800,6 +801,7 @@ all = [
     { name = "apache-airflow-providers-grpc" },
     { name = "apache-airflow-providers-hashicorp" },
     { name = "apache-airflow-providers-http" },
+    { name = "apache-airflow-providers-ibm-mq" },
     { name = "apache-airflow-providers-imap" },
     { name = "apache-airflow-providers-influxdb" },
     { name = "apache-airflow-providers-informatica" },
@@ -1031,6 +1033,9 @@ hashicorp = [
 ]
 http = [
     { name = "apache-airflow-providers-http" },
+]
+ibm-mq = [
+    { name = "apache-airflow-providers-ibm-mq" },
 ]
 imap = [
     { name = "apache-airflow-providers-imap" },
@@ -1370,6 +1375,8 @@ requires-dist = [
     { name = "apache-airflow-providers-hashicorp", marker = "extra == 'hashicorp'", editable = "providers/hashicorp" },
     { name = "apache-airflow-providers-http", marker = "extra == 'all'", editable = "providers/http" },
     { name = "apache-airflow-providers-http", marker = "extra == 'http'", editable = "providers/http" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'all'", editable = "providers/ibm/mq" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibm-mq'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'all'", editable = "providers/imap" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'imap'", editable = "providers/imap" },
     { name = "apache-airflow-providers-influxdb", marker = "extra == 'all'", editable = "providers/influxdb" },
@@ -2570,6 +2577,9 @@ ftp = [
 google = [
     { name = "apache-airflow-providers-google" },
 ]
+ibm-mq = [
+    { name = "apache-airflow-providers-ibm-mq" },
+]
 imap = [
     { name = "apache-airflow-providers-imap" },
 ]
@@ -2620,6 +2630,7 @@ dev = [
     { name = "apache-airflow-providers-ftp" },
     { name = "apache-airflow-providers-google" },
     { name = "apache-airflow-providers-http" },
+    { name = "apache-airflow-providers-ibm-mq" },
     { name = "apache-airflow-providers-imap" },
     { name = "apache-airflow-providers-microsoft-azure" },
     { name = "apache-airflow-providers-mongo" },
@@ -2658,6 +2669,7 @@ requires-dist = [
     { name = "apache-airflow-providers-ftp", marker = "extra == 'ftp'", editable = "providers/ftp" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
     { name = "apache-airflow-providers-http", editable = "providers/http" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibm-mq'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'imap'", editable = "providers/imap" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-mongo", marker = "extra == 'mongo'", editable = "providers/mongo" },
@@ -2703,6 +2715,7 @@ dev = [
     { name = "apache-airflow-providers-ftp", editable = "providers/ftp" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
     { name = "apache-airflow-providers-http", editable = "providers/http" },
+    { name = "apache-airflow-providers-ibm-mq", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", editable = "providers/imap" },
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-mongo", editable = "providers/mongo" },
@@ -5185,6 +5198,54 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-ibm-mq"
+version = "0.1.0"
+source = { editable = "providers/ibm/mq" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-messaging" },
+    { name = "importlib-resources" },
+]
+
+[package.optional-dependencies]
+common-compat = [
+    { name = "apache-airflow-providers-common-compat" },
+]
+ibmmq = [
+    { name = "ibmmq" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-messaging" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", marker = "extra == 'common-compat'", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
+    { name = "ibmmq", marker = "extra == 'ibmmq'", specifier = ">=2.0.4" },
+    { name = "importlib-resources", specifier = ">=1.3" },
+]
+provides-extras = ["ibmmq", "common-compat"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
