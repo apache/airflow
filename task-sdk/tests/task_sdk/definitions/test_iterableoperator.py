@@ -28,7 +28,7 @@ except NameError:
 
 import pytest
 
-from airflow.sdk import BaseOperator, DAG, timezone
+from airflow.sdk import DAG, BaseOperator, timezone
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
@@ -78,7 +78,7 @@ class TestIterableOperator:
         expand_input: ExpandInput,
         task_id: str = "my_task",
         retries: int = DEFAULT_RETRIES,
-        do_xcom_push: bool = True
+        do_xcom_push: bool = True,
     ) -> MappedOperator:
         """
         Create a MappedOperator without adding it to a DAG.
@@ -87,7 +87,9 @@ class TestIterableOperator:
         :param task_id: Task ID for the operator
         :param do_xcom_push: Whether to push XCom (default True)
         """
-        return MockOperator.partial(task_id=task_id, dag=None, retries=retries, do_xcom_push=do_xcom_push)._expand(
+        return MockOperator.partial(
+            task_id=task_id, dag=None, retries=retries, do_xcom_push=do_xcom_push
+        )._expand(
             expand_input,
             strict=True,
             apply_upstream_relationship=False,
