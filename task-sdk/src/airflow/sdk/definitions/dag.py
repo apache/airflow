@@ -414,6 +414,9 @@ class DAG:
     :param allowed_run_types: An optional list or single DagRunType specifying which run types are
         permitted for this dag. When set, the scheduler and API will only allow runs of the specified types.
     :param dag_display_name: The display name of the Dag which appears on the UI.
+    :param rerun_with_latest_version: If True, cleared or rerun tasks will use the latest
+        available bundle version. If False, they use the original bundle version. If None
+        (default), inherits from the global config ``[core] rerun_with_latest_version``.
     """
 
     __serialized_fields: ClassVar[frozenset[str]]
@@ -544,6 +547,9 @@ class DAG:
     has_on_failure_callback: bool = attrs.field(init=False)
     disable_bundle_versioning: bool = attrs.field(
         factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
+    )
+    rerun_with_latest_version: bool | None = attrs.field(
+        default=None, converter=attrs.converters.optional(bool)
     )
 
     # TODO (GH-52141): This is never used in the sdk dag (it only makes sense
@@ -1568,6 +1574,7 @@ if TYPE_CHECKING:
         allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
+        rerun_with_latest_version: bool | None = None,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow Dag.

@@ -35,7 +35,7 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.common import Session, SessionDep, paginated_select
 from airflow.api_fastapi.common.db.dag_runs import eager_load_dag_run_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -90,6 +90,25 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 log = structlog.get_logger(__name__)
+
+
+def _resolve_run_on_latest_version(
+    explicit_value: bool | None,
+    dag_id: str,
+    session: Session,
+) -> bool:
+    """Resolve run_on_latest_version: explicit > DAG-level > global config > False."""
+    if explicit_value is not None:
+        return explicit_value
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    serialized = SerializedDagModel.get_dag(dag_id, session=session)
+    if serialized and serialized.rerun_with_latest_version is not None:
+        return serialized.rerun_with_latest_version
+    from airflow.configuration import conf
+
+    return conf.getboolean("core", "rerun_with_latest_version", fallback=False)
+
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
@@ -293,6 +312,8 @@ def clear_dag_run(
 
     dag = dag_bag.get_dag_for_run(dag_run, session=session)
 
+    resolved_run_on_latest = _resolve_run_on_latest_version(body.run_on_latest_version, dag_id, session)
+
     if body.dry_run:
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
@@ -300,7 +321,7 @@ def clear_dag_run(
             run_id=dag_run_id,
             task_ids=None,
             only_failed=body.only_failed,
-            run_on_latest_version=body.run_on_latest_version,
+            run_on_latest_version=resolved_run_on_latest,
             dry_run=True,
             session=session,
         )
@@ -315,7 +336,7 @@ def clear_dag_run(
         run_id=dag_run_id,
         task_ids=None,
         only_failed=body.only_failed,
-        run_on_latest_version=body.run_on_latest_version,
+        run_on_latest_version=resolved_run_on_latest,
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))

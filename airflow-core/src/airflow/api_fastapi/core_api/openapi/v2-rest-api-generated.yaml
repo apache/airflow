@@ -9895,11 +9895,13 @@ components:
           title: Include Past
           default: false
         run_on_latest_version:
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
           title: Run On Latest Version
           description: (Experimental) Run on the latest bundle version of the dag
-            after clearing the task instances.
-          default: false
+            after clearing the task instances. If not specified, uses the DAG-level
+            or global configuration default.
         prevent_running_task:
           type: boolean
           title: Prevent Running Task
@@ -10341,6 +10343,11 @@ components:
             type: object
           - type: 'null'
           title: Default Args
+        rerun_with_latest_version:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Rerun With Latest Version
         owner_links:
           anyOf:
           - additionalProperties:
@@ -10607,11 +10614,13 @@ components:
           title: Only Failed
           default: false
         run_on_latest_version:
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
           title: Run On Latest Version
           description: (Experimental) Run on the latest bundle version of the Dag
-            after clearing the Dag Run.
-          default: false
+            after clearing the Dag Run. If not specified, uses the DAG-level or global
+            configuration default.
       additionalProperties: false
       type: object
       title: DAGRunClearBody

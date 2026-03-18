@@ -162,10 +162,11 @@ class ClearTaskInstancesBody(StrictBaseModel):
     include_downstream: bool = False
     include_future: bool = False
     include_past: bool = False
-    run_on_latest_version: bool = Field(
-        default=False,
+    run_on_latest_version: bool | None = Field(
+        default=None,
         description="(Experimental) Run on the latest bundle version of the dag after "
-        "clearing the task instances.",
+        "clearing the task instances. "
+        "If not specified, uses the DAG-level or global configuration default.",
     )
     prevent_running_task: bool = False
 

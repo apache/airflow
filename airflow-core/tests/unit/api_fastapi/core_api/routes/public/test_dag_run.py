@@ -2027,6 +2027,50 @@ class TestTriggerDagRun:
         assert run.dag_id == custom_dag_id
 
 
+class TestResolveRunOnLatestVersion:
+    @pytest.mark.parametrize("explicit_value", [True, False])
+    def test_explicit_value_takes_precedence(self, explicit_value, dag_maker, session):
+        """Explicit value always wins, regardless of DAG or global config."""
+        from airflow.api_fastapi.core_api.routes.public.dag_run import _resolve_run_on_latest_version
+
+        with dag_maker("test_resolver_explicit", serialized=True, session=session):
+            ...
+
+        result = _resolve_run_on_latest_version(explicit_value, "test_resolver_explicit", session)
+        assert result is explicit_value
+
+    def test_dag_level_takes_precedence_over_global(self, dag_maker, session):
+        """DAG-level rerun_with_latest_version=True takes precedence over global False."""
+        from airflow.api_fastapi.core_api.routes.public.dag_run import _resolve_run_on_latest_version
+
+        with dag_maker("test_resolver_dag", serialized=True, session=session, rerun_with_latest_version=True):
+            ...
+
+        result = _resolve_run_on_latest_version(None, "test_resolver_dag", session)
+        assert result is True
+
+    def test_global_config_used_when_dag_not_set(self, dag_maker, session):
+        """Falls back to global config when DAG doesn't set rerun_with_latest_version."""
+        from airflow.api_fastapi.core_api.routes.public.dag_run import _resolve_run_on_latest_version
+
+        with dag_maker("test_resolver_global", serialized=True, session=session):
+            ...
+
+        with mock.patch("airflow.configuration.conf.getboolean", return_value=True):
+            result = _resolve_run_on_latest_version(None, "test_resolver_global", session)
+        assert result is True
+
+    def test_default_is_false(self, dag_maker, session):
+        """Returns False when no explicit value, no DAG config, no global config."""
+        from airflow.api_fastapi.core_api.routes.public.dag_run import _resolve_run_on_latest_version
+
+        with dag_maker("test_resolver_default", serialized=True, session=session):
+            ...
+
+        result = _resolve_run_on_latest_version(None, "test_resolver_default", session)
+        assert result is False
+
+
 class TestWaitDagRun:
     # The way we init async engine does not work well with FastAPI app init.
     # Creating the engine implicitly creates an event loop, which Airflow does
