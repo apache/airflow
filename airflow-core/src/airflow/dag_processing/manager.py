@@ -542,6 +542,7 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_names = [bundle.name for bundle in self._dag_bundles]
             query: Select[tuple[DbCallbackRequest]] = with_row_locks(
                 select(DbCallbackRequest)
+                .where(DbCallbackRequest.bundle_name.in_(bundle_names))
                 .order_by(DbCallbackRequest.priority_weight.desc())
                 .limit(self.max_callbacks_per_loop),
                 of=DbCallbackRequest,
@@ -553,8 +554,6 @@ class DagFileProcessorManager(LoggingMixin):
             ]
             for callback in callbacks:
                 req = callback.get_callback_request()
-                if req.bundle_name not in bundle_names:
-                    continue
                 try:
                     callback_queue.append(req)
                     session.delete(callback)

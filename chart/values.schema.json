@@ -1746,7 +1746,7 @@
                     "x-docsSection": null
                 },
                 "command": {
-                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated). Use workers.celery.command and/or workers.kubernetes.command to separate value between Celery workers and pod-template-file.",
+                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated) (deprecated, use ``workers.celery.command`` and/or ``workers.kubernetes.command`` instead).",
                     "type": [
                         "array",
                         "null"
@@ -2063,17 +2063,17 @@
                     }
                 },
                 "kerberosSidecar": {
-                    "description": "Kerberos sidecar for Airflow Celery workers and pods created with pod-template-file. Use `workers.celery.kerberosSidecar` and/or `workers.kubernetes.kerberosSidecar` to separate value between Celery workers and pod-template-file",
+                    "description": "Kerberos sidecar for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.kerberosSidecar`` and/or ``workers.kubernetes.kerberosSidecar`` instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable Kerberos sidecar.",
+                            "description": "Enable Kerberos sidecar (deprecated, use ``workers.celery.kerberosSidecar.enabled`` and/or ``workers.kubernetes.kerberosSidecar.enabled`` instead).",
                             "type": "boolean",
                             "default": false
                         },
                         "resources": {
-                            "description": "Resources on kerberos sidecar.",
+                            "description": "Resources on kerberos sidecar (deprecated, use ``workers.celery.kerberosSidecar.resources`` and/or ``workers.kubernetes.kerberosSidecar.resources`` instead).",
                             "type": "object",
                             "default": {},
                             "examples": [
@@ -2091,7 +2091,7 @@
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         },
                         "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the kerberos sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "description": "Container Lifecycle Hooks definition for the kerberos sidecar (deprecated, use ``workers.celery.kerberosSidecar.containerLifecycleHooks`` and/or ``workers.kubernetes.kerberosSidecar.containerLifecycleHooks`` instead). If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                             "default": {},
@@ -2120,12 +2120,12 @@
                             ]
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the kerberos sidecar. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the kerberos sidecar (deprecated, use ``workers.celery.kerberosSidecar.securityContexts`` and/or ``workers.kubernetes.kerberosSidecar.securityContexts`` instead). If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the kerberos sidecar.",
+                                    "description": "Container security context definition for the kerberos sidecar (deprecated, use ``workers.celery.kerberosSidecar.securityContexts.container`` and/or ``workers.kubernetes.kerberosSidecar.securityContexts.container`` instead).",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -2146,17 +2146,17 @@
                     }
                 },
                 "kerberosInitContainer": {
-                    "description": "Kerberos init container for Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Kerberos init container for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.kerberosInitContainer`` and/or ``workers.kubernetes.kerberosInitContainer`` instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable Kerberos init container.",
+                            "description": "Enable Kerberos init container (deprecated, use ``workers.celery.kerberosInitContainer.enabled`` and/or ``workers.kubernetes.kerberosInitContainer.enabled`` instead).",
                             "type": "boolean",
                             "default": false
                         },
                         "resources": {
-                            "description": "Resources on kerberos init container.",
+                            "description": "Resources on kerberos init container (deprecated, use ``workers.celery.kerberosInitContainer.resources`` and/or ``workers.kubernetes.kerberosInitContainer.resources`` instead).",
                             "type": "object",
                             "default": {},
                             "examples": [
@@ -2174,7 +2174,7 @@
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         },
                         "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the kerberos init container. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "description": "Container Lifecycle Hooks definition for the kerberos init container (deprecated, use ``workers.celery.kerberosInitContainer.containerLifecycleHooks`` and/or ``workers.kubernetes.kerberosInitContainer.containerLifecycleHooks`` instead). If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                             "default": {},
@@ -2203,12 +2203,12 @@
                             ]
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the kerberos init container. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the kerberos init container (deprecated, use ``workers.celery.kerberosInitContainer.securityContexts`` and/or ``workers.kubernetes.kerberosInitContainer.securityContexts`` instead). If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the kerberos init container.",
+                                    "description": "Container security context definition for the kerberos init container (deprecated, use ``workers.celery.kerberosInitContainer.securityContexts.container`` and/or ``workers.kubernetes.kerberosInitContainer.securityContexts.container`` instead).",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -2264,7 +2264,7 @@
                     }
                 },
                 "resources": {
-                    "description": "Resource configuration for Airflow Celery workers and pods created with pod-template-file (deprecated, use `workers.celery.resources` or/and `workers.kubernetes.resources` instead).",
+                    "description": "Resource configuration for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.resources`` or/and ``workers.kubernetes.resources`` instead).",
                     "type": "object",
                     "default": {},
                     "examples": [
@@ -2282,7 +2282,7 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
                 "terminationGracePeriodSeconds": {
-                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file. Use ``workers.celery.terminationGracePeriodSeconds`` and/or ``workers.kubernetes.terminationGracePeriodSeconds`` to separate value between Celery workers and pod-template-file",
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file (deprecated, use ``workers.celery.terminationGracePeriodSeconds`` or/and ``workers.kubernetes.terminationGracePeriodSeconds`` instead).",
                     "type": "integer",
                     "default": 600
                 },
@@ -2332,7 +2332,7 @@
                     }
                 },
                 "nodeSelector": {
-                    "description": "Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file. Use ``workers.celery.nodeSelector`` and/or ``workers.kubernetes.nodeSelector`` to separate value between Celery workers and pod-template-file.",
+                    "description": "Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.nodeSelector`` or/and ``workers.kubernetes.nodeSelector`` instead).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2439,7 +2439,7 @@
                     "description": "Configuration for Airflow Celery worker log groomer sidecar"
                 },
                 "securityContext": {
-                    "description": "Security context for the Airflow Celery worker pods and pods created with pod-template-file (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.securityContexts`` and/or ``workers.kubernetes.securityContexts`` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -2452,7 +2452,7 @@
                     ]
                 },
                 "containerLifecycleHooks": {
-                    "description": "Container Lifecycle Hooks definition for Airflow Celery workers and pods created with pod-template-file. If not set, the values from global `containerLifecycleHooks` will be used. Use `workers.celery.containerLifecycleHooks` and/or `workers.kubernetes.containerLifecycleHooks` to separate value between Celery workers and pod-template-file.",
+                    "description": "Container Lifecycle Hooks definition for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.containerLifecycleHooks`` and/or ``workers.kubernetes.containerLifecycleHooks`` instead). If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                     "default": {},
@@ -2481,12 +2481,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the Airflow Celery workers and pod-template-file. If not set, the values from global `securityContexts` will be used. Use workers.celery.securityContexts and/or workers.kubernetes.securityContexts to separate value between Celery workers and pod-template-file.",
+                    "description": "Security context definition for the Airflow Celery workers and pod-template-file (deprecated, use ``workers.celery.securityContexts`` and/or ``workers.kubernetes.securityContexts`` instead). If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition.",
+                            "description": "Pod security context definition (deprecated, use ``workers.celery.securityContexts.pod`` and/or ``workers.kubernetes.securityContexts.pod`` instead).",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -2500,7 +2500,7 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition.",
+                            "description": "Container security context definition (deprecated, use ``workers.celery.securityContexts.container`` and/or ``workers.kubernetes.securityContexts.container`` instead).",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
