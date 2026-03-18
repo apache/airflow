@@ -23,7 +23,7 @@ import inspect
 import logging
 import time
 from asyncio import AbstractEventLoop, Semaphore
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING, Any, cast
 
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import MappedTaskInstance
 
 
-def collect_futures(loop: AbstractEventLoop, futures: list[Any]):
+def collect_futures(loop: AbstractEventLoop, futures: list[Any]) -> Generator[Future | asyncio.Task, None, None]:
     """Yield futures as they complete (sync or async)."""
     yield from as_completed(f for f in futures if isinstance(f, Future))
 
@@ -58,8 +58,6 @@ def collect_futures(loop: AbstractEventLoop, futures: list[Any]):
             loop.run_until_complete(asyncio.gather(*async_tasks, return_exceptions=True)),
         ):
             yield task
-
-    return []
 
 
 class HybridExecutor:
