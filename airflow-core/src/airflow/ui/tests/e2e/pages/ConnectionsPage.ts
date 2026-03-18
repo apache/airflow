@@ -96,17 +96,11 @@ export class ConnectionsPage extends BasePage {
     this.rowsPerPageSelect = page.locator("select");
 
     // Sorting and filtering
-    this.tableHeader = page.locator('[role="columnheader"]').first();
+    this.tableHeader = page.getByRole("columnheader").first();
 
-    this.connectionIdHeader = page
-      .locator('[role="columnheader"]')
-      .filter({ hasText: "Connection ID" })
-      .first();
-    this.connectionTypeHeader = page
-      .locator('[role="columnheader"]')
-      .filter({ hasText: "Connection Type" })
-      .first();
-    this.hostHeader = page.locator('[role="columnheader"]').filter({ hasText: "Host" }).first();
+    this.connectionIdHeader = page.getByRole("columnheader", { name: "Connection ID" });
+    this.connectionTypeHeader = page.getByRole("columnheader", { name: "Connection Type" });
+    this.hostHeader = page.getByRole("columnheader", { name: "Host" });
 
     this.searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').first();
     // All table body rows (used by connectionRows for web-first assertions)
