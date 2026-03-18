@@ -4234,6 +4234,10 @@ export class CalendarService {
      * @param data.logicalDateGt
      * @param data.logicalDateLte
      * @param data.logicalDateLt
+     * @param data.partitionDateGte
+     * @param data.partitionDateGt
+     * @param data.partitionDateLte
+     * @param data.partitionDateLt
      * @returns CalendarTimeRangeCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -4249,7 +4253,11 @@ export class CalendarService {
                 logical_date_gte: data.logicalDateGte,
                 logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
-                logical_date_lt: data.logicalDateLt
+                logical_date_lt: data.logicalDateLt,
+                partition_date_gte: data.partitionDateGte,
+                partition_date_gt: data.partitionDateGt,
+                partition_date_lte: data.partitionDateLte,
+                partition_date_lt: data.partitionDateLt
             },
             errors: {
                 422: 'Validation Error'
