@@ -24,7 +24,7 @@ reaches a terminal state.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio_notebook import (
     SageMakerUnifiedStudioNotebookHook,
@@ -62,6 +62,7 @@ class SageMakerUnifiedStudioNotebookSensor(AwsBaseSensor[SageMakerUnifiedStudioN
     """
 
     aws_hook_class = SageMakerUnifiedStudioNotebookHook
+    template_fields: Sequence[str] = AwsBaseSensor.template_fields + ("notebook_run_id",)
 
     def __init__(
         self,
