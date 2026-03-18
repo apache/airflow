@@ -75,7 +75,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             return [sort_and_make_static_dict_recursively(item) for item in obj]
         if isinstance(obj, tuple):
             return tuple(sort_and_make_static_dict_recursively(item) for item in obj)
-        return obj
+        return str(obj)
 
     max_length = conf.getint("core", "max_templated_field_length")
 
