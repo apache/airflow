@@ -101,10 +101,6 @@ export const useClearTaskInstances = ({
       ),
     ];
 
-    // Check if this clear operation affects multiple DAG runs
-    const { include_future: includeFuture, include_past: includePast } = variables.requestBody;
-    const affectsMultipleRuns = includeFuture === true || includePast === true;
-
     const queryKeys = [
       ...taskInstanceKeys,
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
