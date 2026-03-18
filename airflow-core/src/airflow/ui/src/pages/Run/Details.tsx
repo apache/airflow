@@ -76,7 +76,7 @@ export const Details = () => {
           <Table.Cell>
             <HStack>
               <RunTypeIcon runType={dagRun.run_type} />
-              <Text>{dagRun.run_type}</Text>
+              <Text>{translate(`runTypes.${dagRun.run_type}`)}</Text>
             </HStack>
           </Table.Cell>
         </Table.Row>
