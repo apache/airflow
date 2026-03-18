@@ -231,7 +231,11 @@ export class DagsPage extends BasePage {
     }
 
     await this.page.keyboard.press("Escape");
-    await expect(dropdown).toHaveAttribute("data-state", "closed", { timeout: 5000 });
+    // Wait for the dropdown to close. On WebKit, the listbox may stay in the DOM
+    // with data-state="closed", while on other browsers it may be removed entirely.
+    await expect(dropdown).toBeHidden({ timeout: 5000 }).catch(() =>
+      expect(dropdown).toHaveAttribute("data-state", "closed", { timeout: 1000 }),
+    );
 
     return dataValues;
   }
@@ -496,9 +500,18 @@ export class DagsPage extends BasePage {
     const option = this.page.locator(`div[role="option"][data-value="${value}"]`);
 
     await expect(option).toBeVisible({ timeout: 5000 });
-    await option.dispatchEvent("click");
+    await option.click();
 
-    await expect(filter).toHaveAttribute("data-state", "closed", { timeout: 5000 });
+    // Ensure the dropdown closes after selection. Chakra Select may not auto-close
+    // reliably across browsers, so press Escape as a fallback.
+    const listbox = this.page.locator('div[role="listbox"]');
+
+    await expect(listbox)
+      .toBeHidden({ timeout: 5000 })
+      .catch(async () => {
+        await this.page.keyboard.press("Escape");
+        await expect(filter).toHaveAttribute("data-state", "closed", { timeout: 5000 });
+      });
   }
 
   /**
