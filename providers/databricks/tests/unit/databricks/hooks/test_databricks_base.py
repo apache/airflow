@@ -745,7 +745,11 @@ class TestBaseDatabricksHook:
         assert hook._get_error_code(exception) == "INVALID_REQUEST"
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.aget_connection")
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.aget_connection",
+        create=True,
+        new_callable=mock.AsyncMock,
+    )
     async def test_cached_a_databricks_conn(self, mock_aget_connection):
         """Verify aget_connection caching."""
         mock_aget_connection.return_value = Connection(login="foo", password="bar")
@@ -755,7 +759,11 @@ class TestBaseDatabricksHook:
         mock_aget_connection.assert_called_once()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.aget_connection")
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.aget_connection",
+        create=True,
+        new_callable=mock.AsyncMock,
+    )
     async def test_no_sync_get_connection(self, mock_aget_connection):
         """Ensure sync databricks_conn isn't referenced during async methods."""
         with mock.patch.object(
@@ -773,7 +781,11 @@ class TestBaseDatabricksHook:
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
-    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.aget_connection")
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.aget_connection",
+        create=True,
+        new_callable=mock.AsyncMock,
+    )
     async def test_no_sync_get_connection_federated_k8s(self, mock_aget_connection, mock_post):
         """Ensure sync databricks_conn isn't referenced during async federated K8s auth."""
         with mock.patch.object(
