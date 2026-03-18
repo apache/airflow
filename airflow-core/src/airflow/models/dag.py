@@ -348,7 +348,7 @@ class DagModel(Base):
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
-    is_paused: Mapped[bool] = mapped_column(Boolean, default=is_paused_at_creation)
+    is_paused: Mapped[bool | None] = mapped_column(Boolean, default=is_paused_at_creation)
     # Whether that DAG was seen on the last DagBag load
     is_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     exceeds_max_non_backfill: Mapped[bool] = mapped_column(
@@ -404,7 +404,7 @@ class DagModel(Base):
     max_consecutive_failed_dag_runs: Mapped[int] = mapped_column(Integer, nullable=False)
 
     has_task_concurrency_limits: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    has_import_errors: Mapped[bool] = mapped_column(Boolean(), default=False, server_default="0")
+    has_import_errors: Mapped[bool | None] = mapped_column(Boolean(), default=False, server_default="0")
     fail_fast: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     allowed_run_types: Mapped[list[str] | None] = mapped_column(sa.JSON(), nullable=True)
 

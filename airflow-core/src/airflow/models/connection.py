@@ -133,8 +133,8 @@ class Connection(Base, LoggingMixin):
     login: Mapped[str | None] = mapped_column(Text(), nullable=True)
     _password: Mapped[str | None] = mapped_column("password", Text(), nullable=True)
     port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
-    is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
-    is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    is_encrypted: Mapped[bool | None] = mapped_column(Boolean, unique=False, default=False)
+    is_extra_encrypted: Mapped[bool | None] = mapped_column(Boolean, unique=False, default=False)
     team_name: Mapped[str | None] = mapped_column(
         String(50),
         ForeignKey("team.name", ondelete="SET NULL"),

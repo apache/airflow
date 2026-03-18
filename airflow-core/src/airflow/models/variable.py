@@ -53,10 +53,10 @@ class Variable(Base, LoggingMixin):
     __NO_DEFAULT_SENTINEL = object()
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    key: Mapped[str] = mapped_column(String(ID_LEN), unique=True)
-    _val: Mapped[str] = mapped_column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
+    key: Mapped[str | None] = mapped_column(String(ID_LEN), unique=True, nullable=True)
+    _val: Mapped[str | None] = mapped_column("val", Text().with_variant(MEDIUMTEXT, "mysql"), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    is_encrypted: Mapped[bool | None] = mapped_column(Boolean, unique=False, default=False)
     team_name: Mapped[str | None] = mapped_column(
         String(50),
         ForeignKey("team.name", ondelete="SET NULL"),
