@@ -298,6 +298,13 @@
         "title": "Bulk Delete {{resourceName}} Request Submitted"
       }
     },
+    "bulkUpdate": {
+      "error": "Bulk Update {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully updated.",
+        "title": "Bulk Update {{resourceName}} Request Submitted"
+      }
+    },
     "create": {
       "error": "Create {{resourceName}} Request Failed",
       "success": {

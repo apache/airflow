@@ -28,6 +28,7 @@ import { Tooltip } from "src/components/ui";
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 
 type Props = {
+  readonly disabled?: boolean;
   readonly groupTaskInstance?: LightGridTaskInstanceSummary;
   readonly isHotkeyEnabled?: boolean;
   // Optional: allow parent to handle opening a stable, page-level dialog
@@ -36,6 +37,7 @@ type Props = {
 };
 
 const ClearTaskInstanceButton = ({
+  disabled,
   groupTaskInstance,
   isHotkeyEnabled = false,
   onOpen,
@@ -76,6 +78,7 @@ const ClearTaskInstanceButton = ({
             type: translate("taskInstance_one"),
           })}
           colorPalette="brand"
+          disabled={disabled}
           onClick={() => (onOpen && selectedInstance ? onOpen(selectedInstance) : onOpenInternal())}
           size="md"
           variant="ghost"

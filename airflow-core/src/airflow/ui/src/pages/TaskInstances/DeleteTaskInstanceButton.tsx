@@ -26,10 +26,11 @@ import { Tooltip } from "src/components/ui";
 import { useDeleteTaskInstance } from "src/queries/useDeleteTaskInstance";
 
 type DeleteTaskInstanceButtonProps = {
+  readonly disabled?: boolean;
   readonly taskInstance: TaskInstanceResponse;
 };
 
-const DeleteTaskInstanceButton = ({ taskInstance }: DeleteTaskInstanceButtonProps) => {
+const DeleteTaskInstanceButton = ({ disabled, taskInstance }: DeleteTaskInstanceButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
@@ -53,6 +54,7 @@ const DeleteTaskInstanceButton = ({ taskInstance }: DeleteTaskInstanceButtonProp
             type: translate("taskInstance_one"),
           })}
           colorPalette="danger"
+          disabled={disabled}
           onClick={onOpen}
           size="md"
           variant="ghost"

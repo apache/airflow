@@ -28,6 +28,24 @@
       "noItemsFound": "No tasks found.",
       "title": "Affected Tasks: {{count}}"
     },
+    "bulkDelete": {
+      "button": "Delete",
+      "dialog": {
+        "confirmMessage": "This action is permanent and cannot be undone. Are you sure?",
+        "title_one": "Delete {{count}} Task Instance",
+        "title_other": "Delete {{count}} Task Instances"
+      },
+      "selected": "Selected",
+      "tooltip": "Delete selected task instances"
+    },
+    "bulkMarkAs": {
+      "button": "Mark As...",
+      "dialog": {
+        "title_one": "Mark {{count}} Task Instance As",
+        "title_other": "Mark {{count}} Task Instances As"
+      },
+      "tooltip": "Mark selected task instances as success or failed"
+    },
     "clear": {
       "button": "Clear {{type}}",
       "buttonTooltip": "Press shift+c to clear",

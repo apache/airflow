@@ -31,11 +31,12 @@ import { allowedStates } from "../utils";
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
 
 type Props = {
+  readonly disabled?: boolean;
   readonly isHotkeyEnabled?: boolean;
   readonly taskInstance: TaskInstanceResponse;
 };
 
-const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Props) => {
+const MarkTaskInstanceAsButton = ({ disabled, isHotkeyEnabled = false, taskInstance }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
@@ -74,6 +75,7 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
                   type: translate("taskInstance_one"),
                 })}
                 colorPalette="brand"
+                disabled={disabled}
                 size="md"
                 variant="ghost"
               >
