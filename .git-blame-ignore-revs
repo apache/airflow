@@ -1,0 +1,14 @@
+# Black enabled.
+4e8f9cc8d02b29c325b8a5a76b4837671bdf5f68
+fdd9b6f65b608c516b8a062b058972d9a45ec9e3
+
+# PEP-563 (Postponed Evaluation of Annotations).
+d67ac5932dabbf06ae733fc57b48491a8029b8c2
+
+# Mass converting string literals to use double quotes.
+2a34dc9e8470285b0ed2db71109ef4265e29688b
+bfcae349b88fd959e32bfacd027a5be976fe2132
+01a819a42daa7990c30ab9776208b3dcb9f3a28b
+
+# Mass of newlines added after the module docstring.
+0a74928894fb57b0160208262ccacad12da23fc7

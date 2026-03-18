@@ -1,0 +1,201 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""This module contains Azure Data Lake Storage to Google Cloud Storage operator."""
+
+from __future__ import annotations
+
+import posixpath
+import warnings
+from collections.abc import Sequence
+from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING
+
+from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
+
+try:
+    from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
+    from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
+except ModuleNotFoundError as e:
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
+
+if TYPE_CHECKING:
+    from airflow.providers.common.compat.sdk import Context
+
+
+class ADLSToGCSOperator(ADLSListOperator):
+    """
+    Synchronizes an Azure Data Lake Storage path with a GCS bucket.
+
+    :param src_adls: The Azure Data Lake path to find the objects (templated)
+    :param dest_gcs: The Google Cloud Storage bucket and prefix to
+        store the objects. (templated)
+    :param file_system_name: Name of the file system (container) in ADLS Gen2.
+        This is passed via ``**kwargs`` to the parent ``ADLSListOperator``.
+    :param replace: If true, replaces same-named files in GCS
+    :param gzip: Option to compress file for upload
+    :param azure_data_lake_conn_id: The connection ID to use when
+        connecting to Azure Data Lake Storage.
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :param google_impersonation_chain: Optional Google service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param return_gcs_uris: If True, returns a list of GCS URIs (e.g., ``gs://bucket/path/file.csv``).
+        If False, returns the legacy list of ADLS file paths. Default (None) is equivalent to False
+        but emits a ``FutureWarning`` because the default will change to True in a future release.
+
+    **Examples**:
+        The following Operator would copy a single file named
+        ``hello/world.avro`` from ADLS to the GCS bucket ``mybucket``. Its full
+        resulting gcs path will be ``gs://mybucket/hello/world.avro`` ::
+
+            copy_single_file = AdlsToGoogleCloudStorageOperator(
+                task_id="copy_single_file",
+                src_adls="hello/world.avro",
+                dest_gcs="gs://mybucket",
+                replace=False,
+                azure_data_lake_conn_id="azure_data_lake_default",
+                gcp_conn_id="google_cloud_default",
+            )
+
+        The following Operator would copy all parquet files from ADLS
+        to the GCS bucket ``mybucket``. ::
+
+            copy_all_files = AdlsToGoogleCloudStorageOperator(
+                task_id='copy_all_files',
+                src_adls='*.parquet',
+                dest_gcs='gs://mybucket',
+                replace=False,
+                azure_data_lake_conn_id='azure_data_lake_default',
+                gcp_conn_id='google_cloud_default'
+            )
+
+         The following Operator would copy all parquet files from ADLS
+         path ``/hello/world``to the GCS bucket ``mybucket``. ::
+
+            copy_world_files = AdlsToGoogleCloudStorageOperator(
+                task_id='copy_world_files',
+                src_adls='hello/world/*.parquet',
+                dest_gcs='gs://mybucket',
+                replace=False,
+                azure_data_lake_conn_id='azure_data_lake_default',
+                gcp_conn_id='google_cloud_default'
+            )
+    """
+
+    template_fields: Sequence[str] = (
+        "src_adls",
+        "dest_gcs",
+        "google_impersonation_chain",
+    )
+    ui_color = "#f0eee4"
+
+    def __init__(
+        self,
+        *,
+        src_adls: str,
+        dest_gcs: str,
+        azure_data_lake_conn_id: str,
+        gcp_conn_id: str = "google_cloud_default",
+        replace: bool = False,
+        gzip: bool = False,
+        google_impersonation_chain: str | Sequence[str] | None = None,
+        return_gcs_uris: bool | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            path=src_adls,
+            azure_data_lake_conn_id=azure_data_lake_conn_id,
+            **self._validate_kwargs(kwargs),
+        )
+
+        self.src_adls = src_adls
+        self.dest_gcs = dest_gcs
+        self.replace = replace
+        self.gcp_conn_id = gcp_conn_id
+        self.gzip = gzip
+        self.google_impersonation_chain = google_impersonation_chain
+        if return_gcs_uris is None:
+            self.return_gcs_uris = False
+            warnings.warn(
+                "Returning a list of ADLS file paths from ADLSToGCSOperator is deprecated and will "
+                "change to list[str] of GCS URIs in a future release. Set return_gcs_uris=True to opt in.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        else:
+            self.return_gcs_uris = return_gcs_uris
+
+    @staticmethod
+    def _validate_kwargs(kwargs: dict) -> dict:
+        file_system_name = kwargs.pop("file_system_name", None)
+        if file_system_name is None:
+            raise TypeError(
+                "The 'file_system_name' parameter is required. "
+                "ADLSListOperator has been migrated from Azure Data Lake Storage Gen1 (retired) "
+                "to Gen2, which requires specifying a file system name. "
+                "Please add file_system_name='your-container-name' to your operator instantiation."
+            )
+        return {"file_system_name": file_system_name, **kwargs}
+
+    def execute(self, context: Context) -> list[str]:
+        # use the super to list all files in an Azure Data Lake path
+        files: list[str] = super().execute(context)
+        g_hook = GCSHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.google_impersonation_chain,
+        )
+
+        if not self.replace:
+            # if we are not replacing -> list all files in the ADLS path
+            # and only keep those files which are present in
+            # ADLS and not in Google Cloud Storage
+            bucket_name, prefix = _parse_gcs_url(self.dest_gcs)
+            existing_files = g_hook.list(bucket_name=bucket_name, prefix=prefix)
+            files = list(set(files) - set(existing_files))
+
+        destination_uris = []
+        if files:
+            hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
+            dest_gcs_bucket, dest_gcs_prefix = _parse_gcs_url(self.dest_gcs)
+
+            for obj in files:
+                with NamedTemporaryFile(mode="wb", delete=True) as f:
+                    hook.download_file(local_path=f.name, remote_path=obj)
+                    f.flush()
+                    dest_path = posixpath.join(dest_gcs_prefix, obj)
+                    self.log.info("Saving file to %s", dest_path)
+
+                    g_hook.upload(
+                        bucket_name=dest_gcs_bucket, object_name=dest_path, filename=f.name, gzip=self.gzip
+                    )
+                    destination_uris.append(f"gs://{dest_gcs_bucket}/{dest_path}")
+
+            self.log.info("All done, uploaded %d files to GCS", len(files))
+        else:
+            self.log.info("In sync, no files needed to be uploaded to GCS")
+
+        if self.return_gcs_uris:
+            return destination_uris
+        return files

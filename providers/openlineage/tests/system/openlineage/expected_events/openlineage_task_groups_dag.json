@@ -1,0 +1,94 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "downstream_group_ids": "['tg2']",
+                            "downstream_task_ids": "[]",
+                            "group_id": "tg1",
+                            "prefix_group_id": true,
+                            "tooltip": "",
+                            "upstream_group_ids": "[]",
+                            "upstream_task_ids": "['task_0']"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_groups_dag.tg1.task_1"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "downstream_group_ids": "['tg2']",
+                            "downstream_task_ids": "[]",
+                            "group_id": "tg1",
+                            "prefix_group_id": true,
+                            "tooltip": "",
+                            "upstream_group_ids": "[]",
+                            "upstream_task_ids": "['task_0']"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_groups_dag.tg1.task_1"
+        }
+    },
+        {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "downstream_group_ids": "[]",
+                            "downstream_task_ids": "['check_events']",
+                            "group_id": "tg2",
+                            "prefix_group_id": true,
+                            "tooltip": "",
+                            "upstream_group_ids": "['tg1']",
+                            "upstream_task_ids": "['tg1.task_1']"
+                      }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_groups_dag.tg2.task_2"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "task_group": {
+                            "downstream_group_ids": "[]",
+                            "downstream_task_ids": "['check_events']",
+                            "group_id": "tg2",
+                            "prefix_group_id": true,
+                            "tooltip": "",
+                            "upstream_group_ids": "['tg1']",
+                            "upstream_task_ids": "['tg1.task_1']"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_groups_dag.tg2.task_2"
+        }
+    }
+]

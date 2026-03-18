@@ -1,0 +1,38 @@
+{
+  "filters": {
+    "body": "內文",
+    "createdAt": "建立於",
+    "response": {
+      "all": "全部",
+      "pending": "待回應",
+      "received": "已回應"
+    }
+  },
+  "requiredAction_one": "待回應的任務實例",
+  "requiredAction_other": "待回應的任務實例",
+  "requiredActionCount_one": "待回應的任務實例數 ({{count}})",
+  "requiredActionCount_other": "待回應的任務實例數 ({{count}})",
+  "requiredActionState": "待回應的任務實例狀態",
+  "response": {
+    "created": "建立時間：",
+    "error": "回應失敗",
+    "optionsDescription": "請為此任務實例選擇一個選項",
+    "optionsLabel": "選項",
+    "received": "收到回應的時間：",
+    "respond": "送出回應",
+    "responded_by_user_name": "回應者名稱",
+    "success": "任務 {{taskId}} 回應成功",
+    "title": "人類參與流程任務實例 - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "已核准",
+    "approvalRequired": "需要核准",
+    "choiceReceived": "已選擇",
+    "choiceRequired": "需要選擇",
+    "noResponseReceived": "未收到回應",
+    "rejectionReceived": "已拒絕",
+    "responseReceived": "已回應",
+    "responseRequired": "需要回應"
+  },
+  "subject": "標題"
+}

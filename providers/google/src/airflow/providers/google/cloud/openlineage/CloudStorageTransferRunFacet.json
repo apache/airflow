@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "CloudStorageTransferRunFacet": {
+      "allOf": [
+        {
+          "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "jobName": {
+              "type": "string",
+              "description": "Transfer job name associated with this run."
+            },
+            "operationName": {
+              "type": "string",
+              "description": "Transfer operation name if available."
+            },
+            "status": {
+              "type": "string",
+              "description": "Run status if available."
+            },
+            "startTime": {
+              "type": "string",
+              "description": "Start time of the transfer operation."
+            },
+            "endTime": {
+              "type": "string",
+              "description": "End time of the transfer operation."
+            },
+            "wait": {
+              "type": "boolean",
+              "description": "Whether the operator waited for completion."
+            },
+            "timeout": {
+              "type": ["number", "null"],
+              "description": "Timeout in seconds."
+            },
+            "deferrable": {
+              "type": "boolean",
+              "description": "Whether the operator used deferrable mode."
+            },
+            "deleteJobAfterCompletion": {
+              "type": "boolean",
+              "description": "Whether the transfer job was deleted after completion."
+            }
+          }
+        }
+      ],
+      "type": "object"
+    }
+  },
+  "type": "object",
+  "properties": {
+    "cloudStorageTransferRun": {
+      "$ref": "#/$defs/CloudStorageTransferRunFacet"
+    }
+  }
+}

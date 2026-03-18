@@ -1,0 +1,322 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Save Rendered Template Fields."""
+
+from __future__ import annotations
+
+import os
+from typing import TYPE_CHECKING, Any
+
+import sqlalchemy as sa
+from sqlalchemy import (
+    ForeignKeyConstraint,
+    Integer,
+    PrimaryKeyConstraint,
+    delete,
+    select,
+)
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from airflow.configuration import conf
+from airflow.models.base import StringID, TaskInstanceDependencies
+from airflow.serialization.helpers import serialize_template_field
+from airflow.utils.retries import retry_db_transaction
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import get_dialect_name
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql.selectable import ScalarSelect
+
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+
+
+def _get_nested_value(obj: Any, path: str) -> Any:
+    """
+    Get a nested value from an object using a dot-separated path.
+
+    :param obj: The object to extract the value from
+    :param path: A dot-separated path (e.g., "configuration.query.sql")
+    :return: The value at the nested path, or None if the path doesn't exist
+    """
+    keys = path.split(".")
+    current = obj
+    for key in keys:
+        if isinstance(current, dict):
+            current = current.get(key)
+        elif hasattr(current, key):
+            current = getattr(current, key)
+        else:
+            return None
+        if current is None:
+            return None
+    return current
+
+
+def get_serialized_template_fields(task: SerializedBaseOperator):
+    """
+    Get and serialize the template fields for a task.
+
+    Used in preparing to store them in RTIF table.
+
+    :param task: Operator instance with rendered template fields
+
+    :meta private:
+    """
+    rendered_fields = {}
+
+    for field in task.template_fields:
+        rendered_fields[field] = serialize_template_field(getattr(task, field), field)
+
+    renderers = getattr(task, "template_fields_renderers", {})
+    for renderer_path in renderers:
+        if "." in renderer_path:
+            base_field = renderer_path.split(".", 1)[0]
+
+            if base_field in task.template_fields:
+                base_value = getattr(task, base_field)
+                nested_value = _get_nested_value(base_value, renderer_path[len(base_field) + 1 :])
+
+                if nested_value is not None:
+                    rendered_fields[renderer_path] = serialize_template_field(nested_value, renderer_path)
+
+    return rendered_fields
+
+
+class RenderedTaskInstanceFields(TaskInstanceDependencies):
+    """Save Rendered Template Fields."""
+
+    __tablename__ = "rendered_task_instance_fields"
+
+    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
+    task_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
+    run_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
+    map_index: Mapped[int] = mapped_column(Integer, primary_key=True, server_default="-1")
+    rendered_fields: Mapped[dict] = mapped_column(sa.JSON(), nullable=False)
+    k8s_pod_yaml: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
+
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "dag_id",
+            "task_id",
+            "run_id",
+            "map_index",
+            name="rendered_task_instance_fields_pkey",
+        ),
+        ForeignKeyConstraint(
+            [dag_id, task_id, run_id, map_index],
+            [
+                "task_instance.dag_id",
+                "task_instance.task_id",
+                "task_instance.run_id",
+                "task_instance.map_index",
+            ],
+            name="rtif_ti_fkey",
+            ondelete="CASCADE",
+        ),
+    )
+    task_instance = relationship(
+        "TaskInstance",
+        lazy="joined",
+        back_populates="rendered_task_instance_fields",
+    )
+
+    # We don't need a DB level FK here, as we already have that to TI (which has one to DR) but by defining
+    # the relationship we can more easily find the logical date for these rows
+    dag_run = relationship(
+        "DagRun",
+        primaryjoin="""and_(
+            RenderedTaskInstanceFields.dag_id == foreign(DagRun.dag_id),
+            RenderedTaskInstanceFields.run_id == foreign(DagRun.run_id),
+        )""",
+        viewonly=True,
+    )
+
+    logical_date = association_proxy("dag_run", "logical_date")
+
+    def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
+        self.dag_id = ti.dag_id
+        self.task_id = ti.task_id
+        self.run_id = ti.run_id
+        self.map_index = ti.map_index
+        self.ti = ti
+        if render_templates:
+            raise ValueError("render_templates=True is no longer supported")
+
+        if TYPE_CHECKING:
+            assert isinstance(ti.task, SerializedBaseOperator)
+
+        self.task = ti.task
+        if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
+            # we can safely import it here from provider. In Airflow 2.7.0+ you need to have new version
+            # of kubernetes provider installed to reach this place
+            from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
+
+            self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
+        self.rendered_fields = rendered_fields or get_serialized_template_fields(task=ti.task)
+
+        self._redact()
+
+    def __repr__(self):
+        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
+        if self.map_index != -1:
+            prefix += f" map_index={self.map_index}"
+        return prefix + ">"
+
+    def _redact(self):
+        from airflow._shared.secrets_masker import redact
+
+        if self.k8s_pod_yaml:
+            self.k8s_pod_yaml = redact(self.k8s_pod_yaml)
+
+        for field, rendered in self.rendered_fields.items():
+            self.rendered_fields[field] = redact(rendered, field)
+
+    @classmethod
+    @provide_session
+    def get_templated_fields(
+        cls,
+        ti: TaskInstance | TaskInstanceKey,
+        session: Session = NEW_SESSION,
+    ) -> dict | None:
+        """
+        Get templated field for a TaskInstance from the RenderedTaskInstanceFields table.
+
+        :param ti: Task Instance
+        :param session: SqlAlchemy Session
+        :return: Rendered Templated TI field
+        """
+        result = session.scalar(
+            select(cls).where(
+                cls.dag_id == ti.dag_id,
+                cls.task_id == ti.task_id,
+                cls.run_id == ti.run_id,
+                cls.map_index == ti.map_index,
+            )
+        )
+
+        if result:
+            rendered_fields = result.rendered_fields
+            return rendered_fields
+        return None
+
+    @classmethod
+    @provide_session
+    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
+        """
+        Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields table.
+
+        :param ti: Task Instance
+        :param session: SqlAlchemy Session
+        :return: Kubernetes Pod Yaml
+        """
+        result = session.scalar(
+            select(cls).where(
+                cls.dag_id == ti.dag_id,
+                cls.task_id == ti.task_id,
+                cls.run_id == ti.run_id,
+                cls.map_index == ti.map_index,
+            )
+        )
+        return result.k8s_pod_yaml if result else None
+
+    @provide_session
+    @retry_db_transaction
+    def write(self, session: Session):
+        """
+        Write instance to database.
+
+        :param session: SqlAlchemy Session
+        """
+        session.merge(self)
+
+    @classmethod
+    @provide_session
+    def delete_old_records(
+        cls,
+        task_id: str,
+        dag_id: str,
+        num_to_keep: int = conf.getint("core", "num_dag_runs_to_retain_rendered_fields", fallback=0),
+        session: Session = NEW_SESSION,
+    ) -> None:
+        """
+        Keep RTIF records from the most recent dag runs, deleting records from older runs.
+
+        Records are retained for the N most recent dag runs (ordered by run_after timestamp).
+        All mapped task instance records for a given run are kept or deleted together,
+        ensuring no partial data remains.
+
+        :param task_id: Task ID
+        :param dag_id: Dag ID
+        :param num_to_keep: Number of recent dag runs to retain RTIF records for
+        :param session: SqlAlchemy Session
+        """
+        if num_to_keep <= 0:
+            return
+
+        from airflow.models.dagrun import DagRun
+
+        # Find run_ids from the N most recent dag runs (no RTIF table scan needed).
+        # Use run_after instead of logical_date since logical_date can be NULL for manual runs.
+        run_ids_to_keep_query = (
+            select(DagRun.run_id)
+            .where(DagRun.dag_id == dag_id)
+            .order_by(DagRun.run_after.desc())
+            .limit(num_to_keep)
+        )
+
+        if get_dialect_name(session) == "mysql":
+            # MySQL doesn't support LIMIT in IN/NOT IN subqueries, so fetch IDs first
+            run_ids_to_keep: list[str] | ScalarSelect[str] = list(
+                session.scalars(run_ids_to_keep_query).all()
+            )
+        else:
+            run_ids_to_keep = run_ids_to_keep_query.scalar_subquery()
+
+        cls._do_delete_old_records(
+            dag_id=dag_id,
+            task_id=task_id,
+            run_ids_to_keep=run_ids_to_keep,
+            session=session,
+        )
+        session.flush()
+
+    @classmethod
+    @retry_db_transaction
+    def _do_delete_old_records(
+        cls,
+        *,
+        task_id: str,
+        dag_id: str,
+        run_ids_to_keep: list[str] | ScalarSelect[str],
+        session: Session,
+    ) -> None:
+        # This query might deadlock occasionally and it should be retried if fails (see decorator)
+        stmt = (
+            delete(cls)
+            .where(
+                cls.dag_id == dag_id,
+                cls.task_id == task_id,
+                cls.run_id.not_in(run_ids_to_keep),
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+        session.execute(stmt)

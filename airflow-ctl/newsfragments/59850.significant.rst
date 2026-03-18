@@ -1,0 +1,30 @@
+Remove ``airflowctl variables export`` command
+
+The ``airflowctl variables export`` command has been removed from the remote CLI. Variable export functionality is only available through the local Airflow CLI.
+
+**What changed:**
+
+- Removed ``airflowctl variables export`` command
+
+**Migration:**
+
+Use the local Airflow CLI command for exporting variables:
+
+.. code-block:: bash
+
+   # Old (no longer available)
+   airflowctl variables export variables.json
+
+   # New (use local CLI)
+   airflow variables export variables.json
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

@@ -1,0 +1,209 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# apiVersion v2 is Helm 3
+---
+apiVersion: v2
+name: airflow
+version: 1.20.0-dev
+appVersion: 3.1.8
+description: The official Helm chart to deploy Apache Airflow, a platform to
+  programmatically author, schedule, and monitor workflows
+home: https://airflow.apache.org/
+sources:
+  - https://github.com/apache/airflow
+icon: https://airflow.apache.org/images/airflow_dark_bg.png
+keywords:
+  - apache
+  - airflow
+  - workflow
+  - scheduler
+dependencies:
+  - name: postgresql
+    version: 13.2.24
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+maintainers:
+  - email: dev@airflow.apache.org
+    name: Apache Airflow PMC
+type: application
+annotations:
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://airflow.apache.org/docs/helm-chart/1.20.0/
+  artifacthub.io/screenshots: |
+    - title: Home Page
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.8/_images/home_dark.png
+    - title: DAG Overview Dashboard
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.8/_images/dag_overview_dashboard.png
+    - title: DAGs View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.8/_images/dags.png
+    - title: Assets View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.8/_images/asset_view.png
+    - title: Grid View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.8/_images/dag_overview_grid.png
+    - title: Graph View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.8/_images/dag_overview_graph.png
+    - title: Variable View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.8/_images/variable_hidden.png
+    - title: Code View
+      url: https://airflow.apache.org/docs/apache-airflow/3.1.8/_images/dag_overview_code.png
+  artifacthub.io/changes: |
+    - description: Add missing deprecation warnings for workers section
+      kind: changed
+      links:
+      - name: '#63659'
+        url: https://github.com/apache/airflow/pull/63659
+    - description: Remove automatic `KUBERNETES_ENVIRONMENT_VARIABLES` and `KUBERNETES_SECRETS`
+        prefixes from chart helpers
+      kind: changed
+      links:
+      - name: '#60750'
+        url: https://github.com/apache/airflow/pull/60750
+    - description: Remove JWT secrets from triggerer, worker and dag-processor
+      kind: changed
+      links:
+      - name: '#63204'
+        url: https://github.com/apache/airflow/pull/63204
+    - description: Add workers.celery.nodeSelector & workers.kubernetes.nodeSelector
+      kind: changed
+      links:
+      - name: '#61957'
+        url: https://github.com/apache/airflow/pull/61957
+    - description: >
+        Add workers.celery.terminationGracePeriodSeconds & workers.kubernetes.terminationGracePeriodSeconds
+      kind: changed
+      links:
+      - name: '#61892'
+        url: https://github.com/apache/airflow/pull/61892
+    - description: Add workers.celery.resources & workers.kubernetes.resources
+      kind: changed
+      links:
+      - name: '#61890'
+        url: https://github.com/apache/airflow/pull/61890
+    - description: Add workers.celery.keda section
+      kind: changed
+      links:
+      - name: '#61820'
+        url: https://github.com/apache/airflow/pull/61820
+    - description: Add workers.celery.podDisruptionBudget
+      kind: changed
+      links:
+      - name: '#61414'
+        url: https://github.com/apache/airflow/pull/61414
+    - description: Add workers.celery.containerLifecycleHooks & workers.kubernetes.containerLifecycleHooks
+      kind: changed
+      links:
+      - name: '#61369'
+        url: https://github.com/apache/airflow/pull/61369
+    - description: Refactor Git-Sync livenessProbe & deprecate readinessProbe & add startupProbe
+      kind: changed
+      links:
+      - name: '#62334'
+        url: https://github.com/apache/airflow/pull/62334
+    - description: Default airflow version to 3.1.8
+      kind: changed
+      links:
+      - name: '#63392'
+        url: https://github.com/apache/airflow/pull/63392
+    - description: Drop support for all Airflow versions below 2.11 in Helm Chart
+      kind: changed
+      links:
+      - name: '#61018'
+        url: https://github.com/apache/airflow/pull/61018
+    - description: Support Helm template expressions in podAnnotations
+      kind: changed
+      links:
+      - name: '#63019'
+        url: https://github.com/apache/airflow/pull/63019
+    - description: Warn on deprecated per-component securityContext values
+      kind: changed
+      links:
+      - name: '#62729'
+        url: https://github.com/apache/airflow/pull/62729
+    - description: Add *.iml to .gitignore in all distributions
+      kind: fixed
+      links:
+      - name: '#63636'
+        url: https://github.com/apache/airflow/pull/63636
+    - description: More restrictive chart rendering logic
+      kind: fixed
+      links:
+      - name: '#63464'
+        url: https://github.com/apache/airflow/pull/63464
+    - description: Omit api-server spec.replicas when HPA is enabled
+      kind: fixed
+      links:
+      - name: '#63187'
+        url: https://github.com/apache/airflow/pull/63187
+    - description: Add workers.celery.kerberosSidecar & workers.kubernetes.kerberosSidecar
+        sections
+      kind: fixed
+      links:
+      - name: '#61881'
+        url: https://github.com/apache/airflow/pull/61881
+    - description: Cleanup Helm Chart documentation
+      kind: fixed
+      links:
+      - name: '#62544'
+        url: https://github.com/apache/airflow/pull/62544
+    - description: Upgrade important CI environment
+      kind: fixed
+      links:
+      - name: '#62792'
+        url: https://github.com/apache/airflow/pull/62792
+    - description: Fix chart NOTES.txt showing deprecation warnings only without secret
+        key
+      kind: fixed
+      links:
+      - name: '#62722'
+        url: https://github.com/apache/airflow/pull/62722
+    - description: 'Fix tpl rendering for TLS hosts in ingress templates #62358'
+      kind: fixed
+      links:
+      - name: '#62548'
+        url: https://github.com/apache/airflow/pull/62548
+    - description: Upgrade important CI environment
+      kind: fixed
+      links:
+      - name: '#62610'
+        url: https://github.com/apache/airflow/pull/62610
+    - description: Fix all build-system/requires including transitive dependencies
+      kind: fixed
+      links:
+      - name: '#62570'
+        url: https://github.com/apache/airflow/pull/62570
+    - description: Add ingress deprecation warnings for apiServer, statsd, and pgbouncer
+      kind: fixed
+      links:
+      - name: '#62490'
+        url: https://github.com/apache/airflow/pull/62490
+    - description: 'Add missing support for:  securityContexts and containerLifecycleHooks'
+      kind: fixed
+      links:
+      - name: '#60677'
+        url: https://github.com/apache/airflow/pull/60677
+    - description: Fix webserver.defaultUser.enabled=false not honored
+      kind: fixed
+      links:
+      - name: '#62143'
+        url: https://github.com/apache/airflow/pull/62143
+    - description: Allow to use short SPDX licence identifier for selected files
+      kind: fixed
+      links:
+      - name: '#62073'
+        url: https://github.com/apache/airflow/pull/62073

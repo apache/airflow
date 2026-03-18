@@ -1,0 +1,253 @@
+{
+    "version": 2,
+    "waiters": {
+        "db_instance_stopped": {
+            "operation": "DescribeDBInstances",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "stopped",
+                    "state": "success"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "available",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "backing-up",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "creating",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "delete-precheck",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "deleting",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "inaccessible-encryption-credentials",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "inaccessible-encryption-credentials-recoverable",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "incompatible-network",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "incompatible-option-group",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "incompatible-parameters",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "incompatible-restore",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "insufficient-capacity",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "maintenance",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "modifying",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "rebooting",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "renaming",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "restore-error",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "starting",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "stopping",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "storage-full",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "upgrading",
+                    "state": "retry"
+                }
+            ]
+        },
+        "db_cluster_stopped": {
+            "operation": "DescribeDBClusters",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBClusters[].Status",
+                    "expected": "stopped",
+                    "state": "success"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "available",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "backing-up",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "cloning-failed",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "creating",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "deleting",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "failing-over",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "inaccessible-encryption-credentials",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "inaccessible-encryption-credentials-recoverable",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "maintenance",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "migrating",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "migration-failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "modifying",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "renaming",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "starting",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "DBInstances[].DBInstanceStatus",
+                    "expected": "stopping",
+                    "state": "retry"
+                }
+            ]
+        }
+    }
+}

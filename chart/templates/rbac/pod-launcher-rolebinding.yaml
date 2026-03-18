@@ -1,0 +1,84 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow Pod Launcher Role Binding
+#################################
+{{- if and .Values.rbac.create .Values.allowPodLaunching }}
+{{- $schedulerLaunchExecutors := list "LocalExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+{{- $workerLaunchExecutors := list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+{{- $executors := split "," .Values.executor }}
+apiVersion: rbac.authorization.k8s.io/v1
+{{- if .Values.multiNamespaceMode }}
+kind: ClusterRoleBinding
+{{- else }}
+kind: RoleBinding
+{{- end }}
+metadata:
+  {{- if not .Values.multiNamespaceMode }}
+  namespace: "{{ .Release.Namespace }}"
+  name: {{ include "airflow.fullname" . }}-pod-launcher-rolebinding
+  {{- else }}
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-rolebinding
+  {{- end }}
+  labels:
+    tier: airflow
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- if .Values.multiNamespaceMode }}
+    namespace: "{{ .Release.Namespace }}"
+    {{- end }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  {{- if .Values.multiNamespaceMode }}
+  kind: ClusterRole
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-role
+  {{- else }}
+  kind: Role
+  name: {{ include "airflow.fullname" . }}-pod-launcher-role
+  {{- end }}
+subjects:
+  {{- $schedulerAdded := false }}
+  {{- range $executor := $executors }}
+  {{- if and (has $executor $schedulerLaunchExecutors) (not $schedulerAdded) }}
+  {{- $schedulerAdded = true }}
+  - kind: ServiceAccount
+    name: {{ include "scheduler.serviceAccountName" $ }}
+    namespace: "{{ $.Release.Namespace }}"
+  {{- end }}
+  {{- end }}
+  {{- $workerAdded := false }}
+  {{- range $executor := $executors }}
+  {{- if and (has $executor $workerLaunchExecutors) (not $workerAdded) }}
+  {{- $workerAdded = true }}
+  - kind: ServiceAccount
+    name: {{ include "worker.serviceAccountName" $ }}
+    namespace: "{{ $.Release.Namespace }}"
+  {{- end }}
+  {{- end }}
+  {{- if .Values.triggerer.enabled }}
+  - kind: ServiceAccount
+    name: {{ include "triggerer.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  {{- end }}
+{{- end }}

@@ -1,16 +1,27 @@
 # Note: these patterns are applied to single files or directories, not full paths
 # coverage/* will ignore any coverage dir, but airflow/www/static/coverage/* will match nothing
 
+.git-blame-ignore-revs
+.github/*
 .gitignore
 .gitattributes
+.gitrepo
+.airflow_db_initialised
 .airflowignore
+.babelrc
 .coverage
-.coveragerc
 .codecov.yml
-.eslintrc
+.codespellignorelines
 .eslintignore
-.flake8
+.eslintrc
+.prettierignore
+.prettierrc
 .rat-excludes
+.stylelintignore
+.stylelintrc
+.env
+.venv
+requirements
 requirements.txt
 .*log
 .travis.yml
@@ -25,28 +36,43 @@ metastore_db
 .*sql
 .*svg
 .*csv
-CHANGELOG.txt
+.*md5
 .*zip
 .*lock
+logs
+.bash_aliases
+venv
+clients/*
+files/*
+dags/*
+generated/*
+.gitmodules
+prod_image_installed_providers.txt
+airflow_pre_installed_providers.txt
+Dockerfile.pmc
+
 # Generated doc files
 .*html
 _build/*
 _static/*
+_images/*
 .buildinfo
 searchindex.js
+_api/*
+
+# the word list for checking spellings
+spelling_wordlist.txt
 
 # Apache Rat does not detect BSD-2 clause properly
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
 kerberos_auth.py
 airflow_api_auth_backend_kerberos_auth_py.html
-licenses/*
+3rd-party-licenses/*
 parallel.js
 underscore.js
 jquery.dataTables.min.js
 jqClock.min.js
 dagre-d3.min.js
-bootstrap-toggle.min.js
-bootstrap-toggle.min.css
 d3.v3.min.js
 ace.js
 node_modules/*
@@ -54,11 +80,255 @@ node_modules/*
 coverage/*
 git_version
 flake8_diff.sh
-coverage.xml
+coverage*.xml
+_sources/*
 
+robots.txt
 rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
+PULL_REQUEST_TEMPLATE.md
+PROVIDER_CHANGES*.md
+manifests/*
+redirects.txt
+reproducible_build.yaml
 
-# vendored modules
-_vendor/*
+# Locally mounted files
+.*egg-info/*
+.bash_history
+.bash_aliases
+.inputrc
+
+# the example notebook is ASF 2 licensed but RAT cannot read this
+input_notebook.ipynb
+
+# .git might be a file in case of worktree
+.git
+tmp
+
+# Vendored-in code
+.*_vendor
+
+# generated doc-only-changes.txt
+.latest-doc-only-change.txt
+
+# Chart ignored files
+chart/.gitignore
+chart/values.schema.json
+chart/Chart.lock
+chart/values_schema.schema.json
+chart/Chart.yaml
+
+# Generated autocomplete files
+./dev/breeze/autocomplete/*
+
+# Generated devel_deps files
+devel_deps.txt
+
+# Newsfragments are snippets that will be, eventually, consumed into RELEASE_NOTES
+newsfragments/*
+
+# Warning file generated
+warnings.txt
+warn-summary-*.txt
+
+# Dev stuff
+tests/*
+scripts/*
+images/*
+dev/*
+.*\.iml
+out/*
+airflow-build-dockerfile*
+
+# Sha files
+.*sha256
+
+# DOAP file
+doap_airflow.rdf
+
+# pyenv
+.python-version
+
+# nvm (Node Version Manager)
+.nvmrc
+
+# PKG-INFO file
+PKG-INFO
+
+# checksum files
+.*\.md5sum
+
+# Openapi files
+.openapi-generator-ignore
+version.txt
+v2*.yaml
+_private_ui*.yaml
+
+# Front end generated files
+api-generated.ts
+openapi-gen
+pnpm-lock.yaml
+
+# python generated file
+generated.py
+auth_generated.py
+
+# hash files
+www-hash.txt
+
+# go setup files
+**/go.mod
+**/go.sum
+**/protov1/*
+
+# go mocks
+**/mocks/*
+
+# Generated protobuf files
+.*proto
+.*pb.go
+.*_grpc.pb.go
+
+# Kubernetes env
+.env
+
+# SVG files
+**/*.svg
+
+# Doc only change marker file
+**/.latest-doc-only-change.txt
+**/*-gen/*
+
+
+# Redirects
+**/redirects.txt
+
+# Ignore files
+
+**/.git-blame-ignore-revs
+**/.gitattributes
+**/.rat-excludes
+**/.gitignore
+**/.prettierignore
+**/.prettierrc
+**/.airflowignore
+**/.airflowignore_glob
+
+
+# Vendor includes
+**/_vendor/
+
+# Generated files
+**/*-generated.yaml
+**/*-generated.py
+**/generated.py
+**/generated/*
+**/auth_generated.py
+
+# Lock files
+**/pnpm-lock.yaml
+**/yarn.lock
+**/Chart.lock
+**/uv.lock
+
+# Generated UI files
+**/ui/index.html
+**/ui/dev/index.html
+**/ui/dist/index.html
+**/_private_ui.yaml
+**/dist/**
+**/www/index.html
+
+# Nunjucks template files (frontmatter must be at line 1, no room for license header)
+**/*.njk
+
+# PNG files
+**/*.png
+
+# CSV files
+**/*.csv
+
+# LICENCE files
+**/LICENCE*.txt
+**/LICENSE*.txt
+
+
+# Checksum files
+**/*.sha256
+**/*.md5sum
+
+# Requirement files
+**/requirements.txt
+
+# Hashes
+**/command_hashes.txt
+**/www-hash.txt
+
+# Spelling wordlist
+**/spelling_wordlist.txt
+**/dictionary.txt
+
+# Empty files
+**/empty.txt
+
+# Script files
+**/script
+**/script.bteq
+**/script_utf16.bteq
+
+# Reproducible build files
+**/reproducible_build.yaml
+
+# Other files
+**/test_notifier.txt
+**/email.html
+**/*.log
+**/example_upload.txt
+**/dummy.pdf
+**/java_streaming_src/*
+**/kube_config
+**/prod_image_installed_providers.txt
+**/text.txt
+**/newsfragments/**
+**/warnings.txt
+**/rtd-deprecation/404.html
+**/.env
+**/*.jsonl
+**/tdload_src_file.txt
+
+# API files
+**/_api/**
+**/node_modules/**
+
+# Doc files
+/docs/.latest-doc-only-change.txt
+/docs/redirects.txt
+/docs/integration-logos/*.svg
+/docs/img/*.md5sum
+/docs/img/*.svg
+
+# Log files
+*.log
+
+# md5 sum files
+.*\.md5sum
+
+# Generated files
+*generated.*
+/src/airflow/providers/keycloak/auth_manager/openapi/v2-keycloak-auth-manager-generated.yaml
+/src/airflow/providers/edge3/plugins/www/*
+/src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml
+/src/airflow/providers/fab/auth_manager/api_fastapi/openapi/v2-fab-auth-manager-generated.yaml
+/src/airflow/providers/fab/www/static/dist/*
+/any/dag_id=dag_for_testing_redis_task_handler/run_id=test/task_id=task_for_testing_redis_log_handler/attempt=1.log
+/src/airflow/providers/google/ads/.gitignore
+
+# Vendored-in code
+/src/airflow/providers/google/_vendor/*
+
+# Git ignore file
+.gitignore
+
+# Last release date is automatically generated
+**/.last_release_date.txt

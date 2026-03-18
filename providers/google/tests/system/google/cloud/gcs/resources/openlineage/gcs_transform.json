@@ -1,0 +1,64 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_transform.upload_file"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_transform.upload_file"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://airflow-system-tests-resources",
+                "name": "gcs/example_upload.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_gcs_transform_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "example_upload.txt"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_transform.transform_file"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_transform_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "example_upload.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_gcs_transform_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "example_upload.txt"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_transform.transform_file"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://bucket_gcs_transform_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "example_upload.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_gcs_transform_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "example_upload.txt"
+            }
+        ]
+    }
+]

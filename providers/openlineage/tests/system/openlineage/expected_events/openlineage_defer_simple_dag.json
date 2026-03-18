@@ -1,0 +1,32 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_defer_simple_dag.wait"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_defer_simple_dag.wait"
+        }
+    }
+]

@@ -1,0 +1,46 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "אירוע",
+      "extra": "תוכן",
+      "user": "משתמש",
+      "when": "מתי"
+    },
+    "filters": {
+      "eventType": "סוג אירוע"
+    },
+    "title": "יומן מערכת"
+  },
+  "xcom": {
+    "add": {
+      "error": "הוספת XCom נכשלה",
+      "errorTitle": "שגיאה",
+      "success": "XCom נוסף בהצלחה",
+      "successTitle": "XCom נוסף",
+      "title": "הוסף XCom"
+    },
+    "columns": {
+      "dag": "Dag",
+      "key": "מפתח",
+      "value": "ערך"
+    },
+    "delete": {
+      "error": "מחיקת XCom נכשלה",
+      "errorTitle": "שגיאה",
+      "success": "XCom נמחק בהצלחה",
+      "successTitle": "XCom נמחק",
+      "title": "מחק XCom",
+      "warning": "האם אתה בטוח שברצונך למחוק את ה-XCom הזה? פעולה זו אינה הפיכה."
+    },
+    "edit": {
+      "error": "עדכון XCom נכשל",
+      "errorTitle": "שגיאה",
+      "success": "XCom עודכן בהצלחה",
+      "successTitle": "XCom עודכן",
+      "title": "ערוך XCom"
+    },
+    "key": "מפתח",
+    "title": "XCom",
+    "value": "ערך"
+  }
+}

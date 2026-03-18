@@ -1,0 +1,44 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_docs_file_dag",
+            "facets": {
+                "documentation": {
+                  "description": "# MD doc file",
+                  "contentType": "text/markdown",
+                  "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                  "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/DocumentationJobFacet.json\\#\\/\\$defs\\/DocumentationJobFacet\") }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_docs_file_dag.do_nothing_task",
+            "facets": {
+                "documentation": {
+                  "description": "# MD doc file",
+                  "contentType": "text/markdown",
+                  "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                  "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/DocumentationJobFacet.json\\#\\/\\$defs\\/DocumentationJobFacet\") }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_docs_file_dag.do_nothing_task",
+            "facets": {
+                "documentation": {
+                  "description": "# MD doc file",
+                  "contentType": "text/markdown",
+                  "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                  "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/DocumentationJobFacet.json\\#\\/\\$defs\\/DocumentationJobFacet\") }}"
+                }
+            }
+        }
+    }
+]

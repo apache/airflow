@@ -1,0 +1,48 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+operators/athena.rst operators/athena/athena_boto.rst
+operators/s3_to_redshift.rst transfer/s3_to_redshift.rst
+operators/google_api_to_s3_transfer.rst transfer/google_api_to_s3.rst
+operators/imap_attachment_to_s3.rst transfer/imap_attachment_to_s3.rst
+operators/salesforce_to_s3.rst transfer/salesforce_to_s3.rst
+operators/sqs_publish.rst operators/sqs.rst
+operators/emr.rst operators/emr/emr.rst
+operators/emr_eks.rst operators/emr/emr_eks.rst
+operators/emr_serverless.rst operators/emr/emr_serverless.rst
+operators/redshift_sql.rst operators/redshift/redshift_sql.rst
+operators/redshift_data.rst operators/redshift/redshift_data.rst
+operators/redshift_cluster.rst operators/redshift/redshift_cluster.rst
+operators/s3.rst operators/s3/s3.rst
+operators/glacier.rst operators/s3/glacier.rst
+operators/transfer/dynamodb_to_s3.rst transfer/dynamodb_to_s3.rst
+operators/transfer/ftp_to_s3.rst transfer/ftp_to_s3.rst
+operators/transfer/gcs_to_s3.rst transfer/gcs_to_s3.rst
+operators/transfer/glacier_to_gcs.rst transfer/glacier_to_gcs.rst
+operators/transfer/google_api_to_s3.rst transfer/google_api_to_s3.rst
+operators/transfer/hive_to_dynamodb.rst transfer/hive_to_dynamodb.rst
+operators/transfer/imap_attachment_to_s3.rst transfer/imap_attachment_to_s3.rst
+operators/transfer/local_to_s3.rst transfer/local_to_s3.rst
+operators/transfer/mongo_to_s3.rst transfer/mongo_to_s3.rst
+operators/transfer/redshift_to_s3.rst transfer/redshift_to_s3.rst
+operators/transfer/s3_to_ftp.rst transfer/s3_to_ftp.rst
+operators/transfer/s3_to_redshift.rst transfer/s3_to_redshift.rst
+operators/transfer/s3_to_sftp.rst transfer/s3_to_sftp.rst
+operators/transfer/s3_to_sql.rst transfer/s3_to_sql.rst
+operators/transfer/salesforce_to_s3.rst transfer/salesforce_to_s3.rst
+operators/transfer/sftp_to_s3.rst transfer/sftp_to_s3.rst
+operators/transfer/sql_to_s3.rst transfer/sql_to_s3.rst

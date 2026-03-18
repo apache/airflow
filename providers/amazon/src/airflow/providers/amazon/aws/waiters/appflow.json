@@ -1,0 +1,30 @@
+{
+    "version": 2,
+    "waiters": {
+        "run_complete": {
+            "operation": "DescribeFlowExecutionRecords",
+            "delay": 15,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "expected": "Successful",
+                    "matcher": "path",
+                    "state": "success",
+                    "argument": "flowExecutions[?executionId=='{{EXECUTION_ID}}'].executionStatus | [0]"
+                },
+                {
+                    "expected": "Error",
+                    "matcher": "path",
+                    "state": "failure",
+                    "argument": "flowExecutions[?executionId=='{{EXECUTION_ID}}'].executionStatus | [0]"
+                },
+                {
+                    "expected": true,
+                    "matcher": "path",
+                    "state": "failure",
+                    "argument": "length(flowExecutions[?executionId=='{{EXECUTION_ID}}']) > `1`"
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "waiters": {
+    "mwaa_dag_run_complete": {
+      "delay": 60,
+      "maxAttempts": 20,
+      "operation": "InvokeRestApi",
+      "acceptors": [
+        {
+          "matcher": "path",
+          "argument": "RestApiResponse.state",
+          "expected": "queued",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "RestApiResponse.state",
+          "expected": "running",
+          "state": "retry"
+        },
+        {
+          "matcher": "path",
+          "argument": "RestApiResponse.state",
+          "expected": "success",
+          "state": "success"
+        },
+        {
+          "matcher": "path",
+          "argument": "RestApiResponse.state",
+          "expected": "failed",
+          "state": "failure"
+        }
+      ]
+    },
+    "mwaa_task_complete": {
+      "delay": 60,
+      "maxAttempts": 20,
+      "operation": "InvokeRestApi"
+    }
+  }
+}

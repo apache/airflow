@@ -1,0 +1,1 @@
+Pool names with invalid characters for stats reporting are now automatically normalized (invalid characters replaced with underscores) when emitting metrics, preventing ``InvalidStatsNameException``. A warning is logged when normalization occurs, suggesting the pool be renamed.

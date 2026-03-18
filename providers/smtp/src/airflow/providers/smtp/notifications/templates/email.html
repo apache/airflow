@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="viewport" content="width=device-width">
+    </head>
+<body>
+    <table role="presentation">
+        {% if ti is defined %}
+        <tr>
+            <td>Run ID:</td>
+            <td>{{ ti.run_id }}</td>
+        </tr>
+        <tr>
+            <td>Try:</td>
+            <td>{{ ti.try_number }} of {{ ti.max_tries + 1 }}</td>
+        </tr>
+        <tr>
+            <td>Task State:</td>
+            <td>{{ ti.state }}</td>
+        </tr>
+        <tr>
+            <td>Host:</td>
+            <td>{{ ti.hostname }}</td>
+        </tr>
+        <tr>
+            <td>Log Link:</td>
+            <td><a href="{{ ti.log_url }}" style="text-decoration:underline;">{{ ti.log_url }}</a></td>
+        </tr>
+        {% if ti.mark_success_url is defined %}
+        <tr>
+            <td>Mark Success Link:</td>
+            <td><a href="{{ ti.mark_success_url }}" style="text-decoration:underline;">{{ ti.mark_success_url }}</a></td>
+        </tr>
+        {% endif %}
+        {% elif slas is defined %}
+        <tr>
+            <td>Dag:</td>
+            <td>{{ dag.dag_id }}</td>
+        </tr>
+        <tr>
+            <td>Task List:</td>
+            <td>{{ task_list }}</td>
+        </tr>
+        <tr>
+            <td>Blocking Task List:</td>
+            <td>{{ blocking_task_list }}</td>
+        </tr>
+        <tr>
+            <td>SLAs:</td>
+            <td>{{ slas }}</td>
+        </tr>
+        <tr>
+            <td>Blocking TI's</td>
+            <td>{{ blocking_tis }}</td>
+        </tr>
+        {% endif %}
+    </table>
+</body>
+</html>

@@ -1,37 +1,42 @@
-Make sure you have checked _all_ steps below.
+ <!-- SPDX-License-Identifier: Apache-2.0
+      https://www.apache.org/licenses/LICENSE-2.0 -->
 
-### Jira
+<!--
+Thank you for contributing!
 
-- [ ] My PR addresses the following [Airflow Jira](https://issues.apache.org/jira/browse/AIRFLOW/) issues and references them in the PR title. For example, "\[AIRFLOW-XXX\] My Airflow PR"
-  - https://issues.apache.org/jira/browse/AIRFLOW-XXX
-  - In case you are fixing a typo in the documentation you can prepend your commit with \[AIRFLOW-XXX\], code changes always need a Jira issue.
-  - In case you are proposing a fundamental code change, you need to create an Airflow Improvement Proposal ([AIP](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvements+Proposals)).
-  - In case you are adding a dependency, check if the license complies with the [ASF 3rd Party License Policy](https://www.apache.org/legal/resolved.html#category-x).
+Please provide above a brief description of the changes made in this pull request.
+Write a good git commit message following this guide: http://chris.beams.io/posts/git-commit/
 
-### Description
+Please make sure that your code changes are covered with tests.
+And in case of new features or big changes remember to adjust the documentation.
 
-- [ ] Here are some details about my PR, including screenshots of any UI changes:
+Feel free to ping (in general) for the review if you do not see reaction for a few days
+(72 Hours is the minimum reaction time you can expect from volunteers) - we sometimes miss notifications.
 
-### Tests
+In case of an existing issue, reference it using one of the following:
 
-- [ ] My PR adds the following unit tests __OR__ does not need testing for this extremely good reason:
+* closes: #ISSUE
+* related: #ISSUE
+-->
 
-### Commits
+---
 
-- [ ] My commits all reference Jira issues in their subject lines, and I have squashed multiple commits if they address the same issue. In addition, my commits follow the guidelines from "[How to write a good git commit message](http://chris.beams.io/posts/git-commit/)":
-  1. Subject is separated from body by a blank line
-  1. Subject is limited to 50 characters (not including Jira issue reference)
-  1. Subject does not end with a period
-  1. Subject uses the imperative mood ("add", not "adding")
-  1. Body wraps at 72 characters
-  1. Body explains "what" and "why", not "how"
+##### Was generative AI tooling used to co-author this PR?
 
-### Documentation
+<!--
+If generative AI tooling has been used in the process of authoring this PR, please
+change below checkbox to `[X]` followed by the name of the tool, uncomment the "Generated-by".
+-->
 
-- [ ] In case of new functionality, my PR adds documentation that describes how to use it.
-  - All the public functions and the classes in the PR contain docstrings that explain what it does
-  - If you implement backwards incompatible changes, please leave a note in the [Updating.md](https://github.com/apache/airflow/blob/master/UPDATING.md) so we can assign it to a appropriate release
+- [ ] Yes (please specify the tool below)
 
-### Code Quality
+<!--
+Generated-by: [Tool Name] following [the guidelines](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#gen-ai-assisted-contributions)
+-->
 
-- [ ] Passes `flake8`
+---
+
+* Read the **[Pull Request Guidelines](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-guidelines)** for more information. Note: commit author/co-author name and email in commits become permanently public when merged.
+* For fundamental code changes, an Airflow Improvement Proposal ([AIP](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals)) is needed.
+* When adding dependency, check compliance with the [ASF 3rd Party License Policy](https://www.apache.org/legal/resolved.html#category-x).
+* For significant user-facing changes create newsfragment: `{pr_number}.significant.rst`, in [airflow-core/newsfragments](https://github.com/apache/airflow/tree/main/airflow-core/newsfragments). You can add this file in a follow-up commit after the PR is created so you know the PR number.

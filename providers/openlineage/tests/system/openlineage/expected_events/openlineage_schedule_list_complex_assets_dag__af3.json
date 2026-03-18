@@ -1,0 +1,206 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflowDagRun": {
+                    "dag": {
+                        "timetable": {
+                            "asset_condition": {
+                                "__type": "asset_all",
+                                "objects": [
+                                    {
+                                        "__type": "asset_all",
+                                        "objects": [
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket/file.txt",
+                                                "name": "s3://bucket/file.txt",
+                                                "group": "asset",
+                                                "extra": {
+                                                    "a": 1
+                                                }
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket2/file.txt",
+                                                "name": "s3://bucket2/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket3/file.txt",
+                                                "name": "s3://bucket3/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket4/file.txt",
+                                                "name": "s3://bucket4/file.txt",
+                                                "group": "asset",
+                                                "extra": {"b":  2}
+                                            }
+                                        ]
+                                    }
+                                ]
+                                    }
+                                ]
+
+                            }
+                        },
+                        "timetable_summary": "Asset"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_list_complex_assets_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "asset_condition": {
+                                "__type": "asset_all",
+                                "objects": [
+                                    {
+                                        "__type": "asset_all",
+                                        "objects": [
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket/file.txt",
+                                                "name": "s3://bucket/file.txt",
+                                                "group": "asset",
+                                                "extra": {
+                                                    "a": 1
+                                                }
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket2/file.txt",
+                                                "name": "s3://bucket2/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket3/file.txt",
+                                                "name": "s3://bucket3/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket4/file.txt",
+                                                "name": "s3://bucket4/file.txt",
+                                                "group": "asset",
+                                                "extra": {"b":  2}
+                                            }
+                                        ]
+                                    }
+                                ]
+                                    }
+                                ]
+
+                            }
+                        },
+                        "timetable_summary": "Asset"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_list_complex_assets_dag.do_nothing_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "asset_condition": {
+                                "__type": "asset_all",
+                                "objects": [
+                                    {
+                                        "__type": "asset_all",
+                                        "objects": [
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket/file.txt",
+                                                "name": "s3://bucket/file.txt",
+                                                "group": "asset",
+                                                "extra": {
+                                                    "a": 1
+                                                }
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket2/file.txt",
+                                                "name": "s3://bucket2/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "__type": "asset_any",
+                                        "objects": [
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket3/file.txt",
+                                                "name": "s3://bucket3/file.txt",
+                                                "group": "asset",
+                                                "extra": {}
+                                            },
+                                            {
+                                                "__type": "asset",
+                                                "uri": "s3://bucket4/file.txt",
+                                                "name": "s3://bucket4/file.txt",
+                                                "group": "asset",
+                                                "extra": {"b":  2}
+                                            }
+                                        ]
+                                    }
+                                ]
+                                    }
+                                ]
+
+                            }
+                        },
+                        "timetable_summary": "Asset"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_list_complex_assets_dag.do_nothing_task"
+        }
+    }
+]

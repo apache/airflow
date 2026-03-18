@@ -1,0 +1,305 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License
+---
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+    target-branch: v3-1-test
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+    target-branch: v2-11-test
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: pip
+    cooldown:
+      default-days: 4
+    directories:
+      - /airflow-core
+      - /airflow-ctl
+      - /clients/python
+      - /dev/breeze
+      - /docker-tests
+      - /kubernetes-tests
+      - /helm-tests
+      - /task-sdk
+      - /
+    schedule:
+      interval: daily
+    groups:
+      pip-dependency-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /airflow-core/src/airflow/ui
+    schedule:
+      interval: "weekly"
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      chakra-ui:
+        patterns:
+          - "@chakra-ui/*"
+          - "@emotion/*"
+          - "framer-motion"
+      eslint:
+        patterns:
+          - "eslint*"
+          - "@eslint/*"
+      typescript:
+        patterns:
+          - "typescript*"
+          - "@typescript-eslint/*"
+          - "@types/typescript"
+      core-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      core-ui-major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
+    schedule:
+      interval: "weekly"
+    groups:
+      auth-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      auth-ui-major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /dev/react-plugin-tools/react_plugin_template
+    schedule:
+      interval: "weekly"
+    groups:
+      ui-plugin-template-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /providers/edge3/src/airflow/providers/edge3/plugins/www
+    schedule:
+      interval: "weekly"
+    groups:
+      edge-ui-package-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /providers/fab/src/airflow/providers/fab/www
+    schedule:
+      interval: daily
+    groups:
+      fab-ui-package-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /registry
+    schedule:
+      interval: "weekly"
+    groups:
+      registry-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      registry-major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
+
+  # Repeat dependency updates on v3-1-test branch as well
+  - package-ecosystem: pip
+    cooldown:
+      default-days: 4
+    directories:
+      - /airflow-core
+      - /airflow-ctl
+      - /clients/python
+      - /dev/breeze
+      - /docker-tests
+      - /kubernetes-tests
+      - /helm-tests
+      - /task-sdk
+      - /
+    schedule:
+      interval: daily
+    target-branch: v3-1-test
+    groups:
+      pip-dependency-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /airflow-core/src/airflow/ui
+    schedule:
+      interval: "weekly"
+    target-branch: v3-1-test
+    groups:
+      3-1-core-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
+    schedule:
+      interval: "weekly"
+    target-branch: v3-1-test
+    groups:
+      3-1-auth-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Repeat dependency updates on 2.11 branch as well
+  - package-ecosystem: pip
+    cooldown:
+      default-days: 4
+    directories:
+      - /clients/python
+      - /dev/breeze
+      - /docker_tests
+      - /
+    schedule:
+      interval: "weekly"
+    target-branch: v2-11-test
+    groups:
+      pip-dependency-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /airflow/www/
+    schedule:
+      interval: "weekly"
+    target-branch: v2-11-test
+    groups:
+      legacy-ui-package-updates:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "uv"
+    cooldown:
+      default-days: 4
+    directory: "/dev/breeze"
+    schedule:
+      interval: "weekly"
+    groups:
+      uv-dependency-updates:
+        patterns:
+          - "*"

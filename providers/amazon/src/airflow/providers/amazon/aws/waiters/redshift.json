@@ -1,0 +1,55 @@
+{
+    "version": 2,
+    "waiters": {
+        "cluster_paused": {
+            "operation": "DescribeClusters",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "pathAll",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "paused",
+                    "state": "success"
+                },
+                {
+                    "matcher": "error",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "ClusterNotFound",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAny",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "deleting",
+                    "state": "failure"
+                }
+            ]
+        },
+        "cluster_resumed": {
+            "operation": "DescribeClusters",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "pathAll",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "available",
+                    "state": "success"
+                },
+                {
+                    "matcher": "error",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "ClusterNotFound",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "pathAny",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "deleting",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}

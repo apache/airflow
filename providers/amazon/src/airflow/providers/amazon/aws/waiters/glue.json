@@ -1,0 +1,183 @@
+{
+    "version": 2,
+    "waiters": {
+        "job_complete": {
+            "operation": "GetJobRun",
+            "delay": 60,
+            "maxAttempts": 75,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "JobRun.JobRunState",
+                    "expected": "STARTING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "JobRun.JobRunState",
+                    "expected": "RUNNING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "JobRun.JobRunState",
+                    "expected": "STOPPING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "JobRun.JobRunState",
+                    "expected": "STOPPED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "JobRun.JobRunState",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "JobRun.JobRunState",
+                    "expected": "ERROR",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "JobRun.JobRunState",
+                    "expected": "TIMEOUT",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "JobRun.JobRunState",
+                    "expected": "SUCCEEDED",
+                    "state": "success"
+                }
+            ]
+        },
+        "crawler_ready": {
+            "operation": "GetCrawler",
+            "delay": 5,
+            "maxAttempts": 1000,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Crawler.State == 'READY' && Crawler.LastCrawl.Status == 'FAILED'",
+                    "expected": true,
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Crawler.State == 'READY' && Crawler.LastCrawl.Status == 'CANCELLED'",
+                    "expected": true,
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Crawler.State",
+                    "expected": "READY",
+                    "state": "success"
+                }
+            ]
+        },
+        "data_quality_ruleset_evaluation_run_complete": {
+            "operation": "GetDataQualityRulesetEvaluationRun",
+            "delay": 60,
+            "maxAttempts": 75,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STARTING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "RUNNING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STOPPING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STOPPED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "TIMEOUT",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "SUCCEEDED",
+                    "state": "success"
+                }
+            ]
+        },
+        "data_quality_rule_recommendation_run_complete": {
+            "operation": "GetDataQualityRuleRecommendationRun",
+            "delay": 60,
+            "maxAttempts": 75,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STARTING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "RUNNING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STOPPING",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "STOPPED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "TIMEOUT",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Status",
+                    "expected": "SUCCEEDED",
+                    "state": "success"
+                }
+            ]
+        }
+    }
+}

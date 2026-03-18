@@ -1,0 +1,63 @@
+{
+    "kind": "bigquery#job",
+    "etag": "SCVmMFN/kToRoL/iZXznhg==",
+    "id": "job_5f3c370056c5ae9414ef45e7c9219f68",
+    "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/airflow-openlineage/jobs/job_5f3c370056c5ae9414ef45e7c9219f68?location=EU",
+    "user_email": "svc-account@airflow-openlineage.iam.gserviceaccount.com",
+    "configuration": {
+        "extract": {
+            "sourceTable": {
+                "projectId": "airflow-openlineage",
+                "datasetId": "new_dataset",
+                "tableId": "extract_job_source"
+            },
+            "destinationUri": "gs://airflow-openlineage/extract_job_source/pre*.csv",
+            "destinationUris": [
+                "gs://airflow-openlineage/extract_job_source/pre*.csv"
+            ],
+            "destinationFormat": "CSV"
+        },
+        "jobType": "EXTRACT"
+    },
+    "jobReference": {
+        "projectId": "airflow-openlineage",
+        "jobId": "job_5f3c370056c5ae9414ef45e7c9219f68",
+        "location": "EU"
+    },
+    "statistics": {
+        "creationTime": 1734541420811.0,
+        "startTime": 1734541420897.0,
+        "endTime": 1734541421686.0,
+        "query": {
+            "totalSlotMs": "958",
+            "performanceInsights": {
+                "avgPreviousExecutionMs": "338"
+            }
+        },
+        "extract": {
+            "destinationUriFileCounts": [
+                "2"
+            ],
+            "inputBytes": "1092",
+            "timeline": [
+                {
+                    "elapsedMs": "494",
+                    "totalSlotMs": "958",
+                    "pendingUnits": "0",
+                    "completedUnits": "2",
+                    "estimatedRunnableUnits": "0"
+                }
+            ]
+        },
+        "totalSlotMs": "958",
+        "reservation_id": "default-pipeline",
+        "finalExecutionDurationMs": "388"
+    },
+    "status": {
+        "state": "DONE"
+    },
+    "principal_subject": "serviceAccount:svc-account@airflow-openlineage.iam.gserviceaccount.com",
+    "jobCreationReason": {
+        "code": "REQUESTED"
+    }
+}
