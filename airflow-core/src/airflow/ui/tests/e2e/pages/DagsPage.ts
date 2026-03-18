@@ -498,7 +498,7 @@ export class DagsPage extends BasePage {
     await expect(option).toBeVisible({ timeout: 5000 });
     await option.click();
 
-    await expect(this.page.locator('div[role="listbox"]')).not.toBeVisible({ timeout: 5000 });
+    await expect(filter).toHaveAttribute("data-state", "closed", { timeout: 5000 });
   }
 
   /**
