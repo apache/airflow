@@ -220,3 +220,98 @@ class TestContextDetection:
             result = get_command("run-tests", test_path="tests/unit/test_foo.py")
             assert result["command"].startswith("pytest")
             assert "uv" not in result["command"]
+
+
+class TestRSTExtraction:
+    def test_extracts_skill_from_rst(self, tmp_path):
+        rst = tmp_path / "test.rst"
+        rst.write_text(
+            "Some text\n\n"
+            ".. agent-skill::\n"
+            "   :id: run-tests\n"
+            "   :context: host\n"
+            "   :local: uv run pytest\n"
+            "   :breeze: pytest\n\n"
+            "More text\n"
+        )
+        from ci.prek.extract_agent_skills import extract_skills_from_rst
+
+        skills = extract_skills_from_rst(rst)
+        assert len(skills) == 1
+        assert skills[0]["workflow"] == "run-tests"
+
+    def test_returns_empty_for_rst_without_skills(self, tmp_path):
+        rst = tmp_path / "test.rst"
+        rst.write_text("Just regular RST content\n")
+        from ci.prek.extract_agent_skills import extract_skills_from_rst
+
+        skills = extract_skills_from_rst(rst)
+        assert skills == []
+
+    def test_returns_empty_when_rst_not_found(self):
+        from pathlib import Path
+
+        from ci.prek.extract_agent_skills import extract_skills_from_rst
+
+        skills = extract_skills_from_rst(Path("nonexistent.rst"))
+        assert skills == []
+
+
+class TestE2EPipeline:
+    def test_full_pipeline_rst_to_command(self, tmp_path):
+        """
+        E2E: RST skill block -> extraction -> skills.json -> get_command()
+        Simulates a contributor adding a skill to contributing docs.
+        """
+        import json
+        import os
+
+        from ci.prek.breeze_context_detect import get_command
+        from ci.prek.extract_agent_skills import (
+            build_skills_json,
+            extract_skills_from_rst,
+            write_skills_json,
+        )
+
+        # Step 1: Contributor adds skill block to RST doc
+        rst_file = tmp_path / "03_contributors_quick_start.rst"
+        rst_file.write_text(
+            "Running tests\n\n"
+            ".. agent-skill::\n"
+            "   :id: run-tests\n"
+            "   :context: host\n"
+            "   :local: uv run --project {distribution_folder} pytest {test_path} -xvs\n"
+            "   :breeze: pytest {test_path} -xvs\n"
+            "   :prereqs: static-checks\n\n"
+            "More content here.\n"
+        )
+
+        # Step 2: Extractor parses RST
+        skills = extract_skills_from_rst(rst_file)
+        assert len(skills) == 1
+        assert skills[0]["workflow"] == "run-tests"
+
+        # Step 3: skills.json generated
+        output_json = tmp_path / "skills.json"
+        data = build_skills_json(skills)
+        write_skills_json(data, output_json)
+        assert output_json.exists()
+
+        parsed = json.loads(output_json.read_text())
+        assert len(parsed["skills"]) == 1
+        assert parsed["skills"][0]["workflow"] == "run-tests"
+
+        # Step 4: Agent calls get_command() on HOST
+        result = get_command("run-tests")
+        assert result["context"] == "host"
+        assert "uv run" in result["command"]
+
+        # Step 5: Agent calls get_command() inside Breeze
+        os.environ["AIRFLOW_BREEZE_CONTAINER"] = "true"
+        try:
+            result_breeze = get_command("run-tests")
+            assert result_breeze["context"] == "breeze"
+            assert "pytest" in result_breeze["command"]
+            assert "uv" not in result_breeze["command"]
+        finally:
+            del os.environ["AIRFLOW_BREEZE_CONTAINER"]
