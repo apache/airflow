@@ -25,7 +25,7 @@ from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from airflow._shared.secrets_masker import redact, should_hide_value_for_key
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
 
 
 # Response Models
@@ -193,3 +193,6 @@ class ConnectionBody(StrictBaseModel):
                 "but encountered non-JSON in `extra` field"
             )
         return v
+
+
+ConnectionBodyPartial = make_partial_model(ConnectionBody)

@@ -117,7 +117,10 @@ class Deadline(Base):
     )
     deadline_alert: Mapped[DeadlineAlert | None] = relationship("DeadlineAlert")
 
-    __table_args__ = (Index("deadline_missed_deadline_time_idx", missed, deadline_time, unique=False),)
+    __table_args__ = (
+        Index("deadline_missed_deadline_time_idx", missed, deadline_time, unique=False),
+        Index("deadline_callback_id_idx", callback_id, unique=False),
+    )
 
     def __init__(
         self,
@@ -314,7 +317,11 @@ class ReferenceModels:
                 )
 
             if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
-                self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
+                self.log.debug(
+                    "%s ignoring unexpected parameters: %s",
+                    self.reference_name,
+                    ", ".join(extra_kwargs),
+                )
 
             base_time = self._evaluate_with(session=session, **filtered_kwargs)
             return base_time + interval if base_time is not None else None

@@ -77,6 +77,12 @@ export const useFilterConfigs = () => {
       label: translate("hitl:filters.body"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.BUNDLE_VERSION]: {
+      hotkeyDisabled: true,
+      icon: <MdCode />,
+      label: translate("common:bundleVersion"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.CONF_CONTAINS]: {
       hotkeyDisabled: true,
       icon: <MdCode />,

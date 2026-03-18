@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 
 import click
+import yaml
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import option_dry_run, option_python, option_verbose
@@ -31,6 +33,23 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.docker_command_utils import execute_command_in_shell, fix_ownership_using_docker
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
+
+PROVIDERS_DIR = AIRFLOW_ROOT_PATH / "providers"
+
+
+def _get_suspended_provider_packages() -> list[str]:
+    """Return in-container pip-installable paths for providers with state: suspended."""
+    packages = []
+    for yaml_path in sorted(PROVIDERS_DIR.rglob("provider.yaml")):
+        if "src" in yaml_path.relative_to(PROVIDERS_DIR).parts:
+            continue
+        with open(yaml_path) as f:
+            data = yaml.safe_load(f)
+        if data.get("state") == "suspended":
+            # Use in-container path (providers/ is mounted at /opt/airflow/providers/)
+            rel = yaml_path.parent.relative_to(PROVIDERS_DIR)
+            packages.append(f"/opt/airflow/providers/{rel}")
+    return packages
 
 
 @click.group(cls=BreezeGroup, name="registry", help="Tools for the Airflow Provider Registry")
@@ -63,11 +82,17 @@ def extract_data(python: str, provider: str | None):
 
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
 
+    # Install suspended providers that aren't in the CI image so runtime
+    # discovery (issubclass) can find their classes.
+    suspended_packages = _get_suspended_provider_packages()
+    install_cmd = f"pip install --quiet {' '.join(suspended_packages)} && " if suspended_packages else ""
+
     provider_flag = f" --provider '{provider}'" if provider else ""
     command = (
+        f"{install_cmd}"
         f"python dev/registry/extract_metadata.py{provider_flag} && "
-        "python dev/registry/extract_parameters.py && "
-        "python dev/registry/extract_connections.py"
+        f"python dev/registry/extract_parameters.py{provider_flag} && "
+        f"python dev/registry/extract_connections.py{provider_flag}"
     )
 
     with ci_group("Extracting registry data"):
@@ -106,10 +131,7 @@ def publish_versions(s3_bucket: str, providers_json: str | None):
     _publish_versions(s3_bucket, providers_json_path=providers_path)
 
 
-PROVIDERS_DIR = AIRFLOW_ROOT_PATH / "providers"
 DEV_REGISTRY_DIR = AIRFLOW_ROOT_PATH / "dev" / "registry"
-
-PROVIDERS_JSON_PATH = DEV_REGISTRY_DIR / "providers.json"
 
 EXTRACT_SCRIPTS = [
     DEV_REGISTRY_DIR / "extract_parameters.py",
@@ -140,8 +162,6 @@ def _read_provider_yaml_info(provider_id: str) -> tuple[str, list[str]]:
     except ImportError:
         import tomli as tomllib
 
-    import yaml
-
     provider_yaml_path = _find_provider_yaml(provider_id)
     with open(provider_yaml_path) as f:
         data = yaml.safe_load(f)
@@ -166,61 +186,69 @@ def _build_pip_spec(package_name: str, extras: list[str], version: str) -> str:
     return f"{package_name}=={version}"
 
 
-def _ensure_providers_json(provider_id: str, package_name: str) -> Path:
-    """Ensure dev/registry/providers.json exists with the target provider.
+def _create_isolated_providers_json(provider_id: str, package_name: str, version: str, tmp_dir: Path) -> Path:
+    """Create a temp providers.json with only the target provider/version.
 
-    The extraction scripts read this to determine which version to tag output with.
-    If it exists (from a previous extract-data or S3 download), use it.
-    If the provider is missing from an existing file, append it rather than replacing.
-
-    NOTE: Does NOT touch registry/src/_data/providers.json, which is used by
-    the Eleventy build and must contain all providers.
+    This allows multiple providers to run in parallel without conflicting over
+    the shared dev/registry/providers.json file.
     """
-    PROVIDERS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    if PROVIDERS_JSON_PATH.exists():
-        with open(PROVIDERS_JSON_PATH) as f:
-            data = json.load(f)
-        if any(p["id"] == provider_id for p in data.get("providers", [])):
-            return PROVIDERS_JSON_PATH
-        # Provider not in file — append it rather than replacing
-        data["providers"].append({"id": provider_id, "package_name": package_name, "version": "0.0.0"})
-        click.echo(f"Added {provider_id} to existing {PROVIDERS_JSON_PATH}")
-    else:
-        data = {"providers": [{"id": provider_id, "package_name": package_name, "version": "0.0.0"}]}
-        click.echo(f"Created minimal {PROVIDERS_JSON_PATH}")
-
-    with open(PROVIDERS_JSON_PATH, "w") as f:
+    tmp_providers = tmp_dir / f"providers-{provider_id}-{version}.json"
+    data = {"providers": [{"id": provider_id, "package_name": package_name, "version": version}]}
+    with open(tmp_providers, "w") as f:
         json.dump(data, f, indent=2)
-    return PROVIDERS_JSON_PATH
+    return tmp_providers
 
 
-def _patch_providers_json(providers_json_path: Path, provider_id: str, version: str) -> str:
-    """Patch providers.json to set the target version. Returns the original version."""
-    with open(providers_json_path) as f:
-        data = json.load(f)
-    for p in data["providers"]:
-        if p["id"] == provider_id:
-            original_version = p["version"]
-            p["version"] = version
-            with open(providers_json_path, "w") as f:
-                json.dump(data, f, indent=2)
-            return original_version
-    raise click.ClickException(f"Provider '{provider_id}' not found in {providers_json_path}")
+def _run_extract_script(
+    script: Path,
+    pip_spec: str,
+    base_spec: str,
+    provider_id: str,
+    providers_json_path: Path,
+) -> int:
+    """Run an extraction script with --provider and --providers-json flags.
 
-
-# TODO: The backfill command processes versions sequentially because extract_parameters.py
-# and extract_connections.py write to shared files (modules.json, providers.json).
-# To parallelize, each provider would need its own isolated output directory so that
-# concurrent runs don't clobber each other. See also the registry-backfill.yml workflow
-# which uses a GitHub Actions matrix to run providers in parallel CI jobs.
+    Falls back to running without extras if the full spec fails.
+    Returns the exit code.
+    """
+    base_cmd = [
+        "uv",
+        "run",
+        "--with",
+        pip_spec,
+        "python",
+        str(script),
+        "--provider",
+        provider_id,
+        "--providers-json",
+        str(providers_json_path),
+    ]
+    result = run_command(base_cmd, check=False, cwd=str(AIRFLOW_ROOT_PATH))
+    if result.returncode != 0 and pip_spec != base_spec:
+        click.echo(f"Retrying {script.name} without extras...")
+        fallback_cmd = [
+            "uv",
+            "run",
+            "--with",
+            base_spec,
+            "python",
+            str(script),
+            "--provider",
+            provider_id,
+            "--providers-json",
+            str(providers_json_path),
+        ]
+        result = run_command(fallback_cmd, check=False, cwd=str(AIRFLOW_ROOT_PATH))
+    return result.returncode
 
 
 @registry_group.command(
     name="backfill",
-    help="Extract runtime parameters and connections for older provider versions. "
-    "Uses 'uv run --with' to install the specific version in a temporary environment "
-    "and runs extract_parameters.py + extract_connections.py. No Docker needed.",
+    help="Extract metadata, parameters, and connections for older provider versions. "
+    "Runs extract_versions.py (host, git tags) for metadata.json, then "
+    "extract_parameters.py + extract_connections.py via 'uv run --with'. "
+    "No Docker needed. Each version uses an isolated providers.json, so "
+    "multiple providers can be backfilled in parallel.",
 )
 @click.option(
     "--provider",
@@ -238,7 +266,6 @@ def _patch_providers_json(providers_json_path: Path, provider_id: str, version: 
 @option_dry_run
 def backfill(provider: str, versions: tuple[str, ...]):
     package_name, extras = _read_provider_yaml_info(provider)
-    providers_json_path = _ensure_providers_json(provider, package_name)
 
     click.echo(f"Provider: {provider} ({package_name})")
     click.echo(f"Versions: {', '.join(versions)}")
@@ -248,35 +275,47 @@ def backfill(provider: str, versions: tuple[str, ...]):
 
     failed: list[str] = []
 
+    # Step 1: extract_versions.py (host, reads git tags) → metadata.json
+    # Without metadata.json, Eleventy won't generate version pages.
+    click.echo("Step 1: Extracting version metadata from git tags...")
     for version in versions:
-        click.echo(f"{'=' * 60}")
-        click.echo(f"Extracting {provider} {version}")
-        click.echo(f"{'=' * 60}")
+        versions_cmd = [
+            "uv",
+            "run",
+            "python",
+            str(DEV_REGISTRY_DIR / "extract_versions.py"),
+            "--provider",
+            provider,
+            "--version",
+            version,
+        ]
+        result = run_command(versions_cmd, check=False, cwd=str(AIRFLOW_ROOT_PATH))
+        if result.returncode != 0:
+            click.echo(f"WARNING: extract_versions.py failed for {version} (exit {result.returncode})")
+            failed.append(f"{version}/extract_versions.py")
 
-        original_version = _patch_providers_json(providers_json_path, provider, version)
+    # Step 2: extract_parameters.py + extract_connections.py (uv run --with)
+    click.echo("\nStep 2: Extracting parameters and connections...")
+    with tempfile.TemporaryDirectory(prefix=f"backfill-{provider}-") as tmp_dir:
+        tmp_path = Path(tmp_dir)
 
-        try:
+        for version in versions:
+            click.echo(f"{'=' * 60}")
+            click.echo(f"Extracting {provider} {version}")
+            click.echo(f"{'=' * 60}")
+
+            # Each version gets its own isolated providers.json — no shared state
+            providers_json = _create_isolated_providers_json(provider, package_name, version, tmp_path)
+
             pip_spec = _build_pip_spec(package_name, extras, version)
             base_spec = f"{package_name}=={version}"
+
             for script in EXTRACT_SCRIPTS:
                 click.echo(f"\nRunning {script.name} with {pip_spec}...")
-                result = run_command(
-                    ["uv", "run", "--with", pip_spec, "python", str(script)],
-                    check=False,
-                    cwd=str(AIRFLOW_ROOT_PATH),
-                )
-                if result.returncode != 0 and pip_spec != base_spec:
-                    click.echo(f"Retrying {script.name} without extras...")
-                    result = run_command(
-                        ["uv", "run", "--with", base_spec, "python", str(script)],
-                        check=False,
-                        cwd=str(AIRFLOW_ROOT_PATH),
-                    )
-                if result.returncode != 0:
-                    click.echo(f"WARNING: {script.name} failed for {version} (exit {result.returncode})")
+                returncode = _run_extract_script(script, pip_spec, base_spec, provider, providers_json)
+                if returncode != 0:
+                    click.echo(f"WARNING: {script.name} failed for {version} (exit {returncode})")
                     failed.append(f"{version}/{script.name}")
-        finally:
-            _patch_providers_json(providers_json_path, provider, original_version)
 
     click.echo(f"\n{'=' * 60}")
     if failed:
@@ -286,6 +325,7 @@ def backfill(provider: str, versions: tuple[str, ...]):
         click.echo(f"Successfully extracted {len(versions)} version(s) for {provider}")
         click.echo(
             f"\nOutput written to:\n"
+            f"  registry/src/_data/versions/{provider}/<version>/metadata.json\n"
             f"  registry/src/_data/versions/{provider}/<version>/parameters.json\n"
             f"  registry/src/_data/versions/{provider}/<version>/connections.json"
         )

@@ -42,6 +42,7 @@
     :caption: Internal DB details
 
     Database Migrations <migrations-ref>
+    Database ERD Schema <database-erd-ref>
 
 .. toctree::
     :hidden:
@@ -120,6 +121,7 @@ PIP package                                 Version required
 ``werkzeug``                                ``>=2.2,<4``
 ``wtforms``                                 ``>=3.0,<4``
 ``cachetools``                              ``>=6.0``
+``marshmallow``                             ``>=3``
 ``flask_limiter``                           ``>3,!=3.13,<4``
 ==========================================  ==================
 

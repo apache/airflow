@@ -104,6 +104,7 @@ extensions.extend(
         "sphinx.ext.graphviz",
         "sphinxcontrib.httpdomain",
         "extra_files_with_substitutions",
+        "generate_erd",
     ]
 )
 

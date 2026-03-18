@@ -110,6 +110,17 @@ class TestTableauHook:
                 extra='{"auth": "jwt", "jwt_token": "fake_jwt_token", "site_id": ""}',
             )
         )
+        create_connection_without_db(
+            models.Connection(
+                conn_id="tableau_test_with_schema",
+                conn_type="tableau",
+                host="tableau",
+                schema="https",
+                login="user",
+                password="password",
+                extra='{"site_id": "my_site"}',
+            )
+        )
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
     @patch("airflow.providers.tableau.hooks.tableau.Server")
@@ -325,6 +336,26 @@ class TestTableauHook:
                 site_id="",
             )
             mock_server.return_value.auth.sign_in.assert_called_once_with(mock_tableau_auth.return_value)
+        mock_server.return_value.auth.sign_out.assert_called_once_with()
+
+    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
+    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    def test_get_conn_uses_schema_when_configured(self, mock_server, mock_tableau_auth):
+        """
+        Test that Server is constructed with the schema prepended to the host when schema is configured.
+        """
+        with TableauHook(tableau_conn_id="tableau_test_with_schema") as tableau_hook:
+            mock_server.assert_called_once_with(f"{tableau_hook.conn.schema}://{tableau_hook.conn.host}")
+        mock_server.return_value.auth.sign_out.assert_called_once_with()
+
+    @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")
+    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    def test_get_conn_uses_host_only_without_schema(self, mock_server, mock_tableau_auth):
+        """
+        Test that Server is constructed with the host only when no schema is configured (backward compatibility).
+        """
+        with TableauHook(tableau_conn_id="tableau_test_password") as tableau_hook:
+            mock_server.assert_called_once_with(tableau_hook.conn.host)
         mock_server.return_value.auth.sign_out.assert_called_once_with()
 
     @patch("airflow.providers.tableau.hooks.tableau.TableauAuth")

@@ -605,6 +605,16 @@ ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
     default="overwrite",
     choices=("overwrite", "fail", "skip"),
 )
+ARG_VAR_LIST_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help="Show variable values. By default only variable keys are listed.",
+)
+ARG_VAR_LIST_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="When used with --show-values, mask variable values.",
+)
 
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
@@ -660,6 +670,16 @@ ARG_DB_SQL_ONLY = Arg(
 ARG_DB_SKIP_INIT = Arg(
     ("-s", "--skip-init"),
     help="Only remove tables; do not perform db init.",
+    action="store_true",
+    default=False,
+)
+ARG_DB_USE_MIGRATION_FILES = Arg(
+    ("-m", "--use-migration-files"),
+    help=(
+        "Use migration files to create the database instead of the ORM. "
+        "This is useful for verifying that the migration files produce the "
+        "same schema as the ORM models."
+    ),
     action="store_true",
     default=False,
 )
@@ -811,6 +831,16 @@ ARG_CONN_OVERWRITE = Arg(
     help="Overwrite existing entries if a conflict occurs",
     required=False,
     action="store_true",
+)
+ARG_CONN_LIST_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help="Show connection values (host, login, URI, etc.). By default only connection IDs are listed.",
+)
+ARG_CONN_LIST_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="When used with --show-values, mask sensitive values (passwords, URI credentials, extra).",
 )
 
 # providers
@@ -1429,7 +1459,7 @@ VARIABLES_COMMANDS = (
         name="list",
         help="List variables",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_OUTPUT, ARG_VAR_LIST_SHOW_VALUES, ARG_VAR_LIST_HIDE_SENSITIVE, ARG_VERBOSE),
     ),
     ActionCommand(
         name="get",
@@ -1501,7 +1531,7 @@ DB_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command("airflow.cli.commands.db_command.resetdb"),
-        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="migrate",
@@ -1521,6 +1551,7 @@ DB_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),
@@ -1604,7 +1635,7 @@ CONNECTIONS_COMMANDS = (
         name="list",
         help="List connections",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_OUTPUT, ARG_CONN_LIST_SHOW_VALUES, ARG_CONN_LIST_HIDE_SENSITIVE, ARG_VERBOSE),
     ),
     ActionCommand(
         name="add",
@@ -1858,7 +1889,7 @@ DB_MANAGERS_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the specified external database",
         func=lazy_load_command("airflow.cli.commands.db_manager_command.resetdb"),
-        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_DB_MANAGER_PATH, ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="migrate",
@@ -1879,6 +1910,7 @@ DB_MANAGERS_COMMANDS = (
             ARG_DB_SQL_ONLY,
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
+            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),

@@ -109,6 +109,7 @@ atlassian
 attr
 attrs
 au
+auditability
 Auth
 auth
 authenticator
@@ -264,6 +265,7 @@ comparator
 compat
 Compute
 compute
+ComputeManagementClient
 Computenodes
 ComputeNodeState
 concat
@@ -406,6 +408,9 @@ dbt
 dbutils
 ddl
 de
+deallocate
+deallocated
+Debounce
 debuggability
 declaratively
 decommissioning
@@ -555,6 +560,7 @@ EnvVar
 envvar
 eof
 EOL
+equest
 errno
 errored
 eslint
@@ -577,6 +583,7 @@ exitcode
 expanduser
 explicit
 exportingmultiple
+Expr
 ext
 extensibility
 externalbrowser
@@ -1003,6 +1010,7 @@ middleware
 middlewares
 midnights
 milli
+millis
 milton
 minikube
 misconfigured
@@ -1215,6 +1223,7 @@ proc
 productionalize
 ProductSearchClient
 profiler
+Programmatic
 programmatically
 proj
 projectId
@@ -1509,6 +1518,7 @@ StoredInfoType
 storedInfoType
 str
 Streamable
+strftime
 Stringified
 stringified
 Struct

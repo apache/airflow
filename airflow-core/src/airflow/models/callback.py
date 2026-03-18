@@ -34,6 +34,7 @@ from airflow._shared.timezones import timezone
 from airflow.executors.workloads import BaseWorkload
 from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.models import Base
+from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import CallbackState
 
@@ -101,7 +102,6 @@ class Callback(Base, BaseWorkload):
     """Base class for callbacks."""
 
     __tablename__ = "callback"
-
     id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
 
     # This is used by SQLAlchemy to be able to deserialize DB rows to subclasses
@@ -116,6 +116,9 @@ class Callback(Base, BaseWorkload):
 
     # Used by subclasses to store information about how to run the callback
     data: Mapped[dict] = mapped_column(ExtendedJSON, nullable=False)
+
+    # Used to route dag-processor callbacks to filter by bundle name.
+    bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 
     # State of the Callback of type: CallbackState. Can be null for instances of DagProcessorCallback.
     state: Mapped[str | None] = mapped_column(String(10))
@@ -269,6 +272,7 @@ class DagProcessorCallback(Callback):
 
         self.fetch_method = CallbackFetchMethod.DAG_ATTRIBUTE
         self.state = None
+        self.bundle_name = callback.bundle_name
         self.data |= {"req_class": callback.__class__.__name__, "req_data": callback.to_json()}
 
     def get_callback_request(self) -> CallbackRequest:
