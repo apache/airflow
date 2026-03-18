@@ -5163,6 +5163,7 @@ class TestSchedulerJob:
             patch.object(
                 self.job_runner,
                 "_schedule_dag_run",
+                autospec=True,
                 side_effect=[
                     TypeError("simulated crash from corrupted task instance"),  # bad_run
                     None,  # good_run
@@ -5187,6 +5188,38 @@ class TestSchedulerJob:
                 msg == f"Error scheduling DAG run {bad_run.run_id} of {bad_run.dag_id}"
                 for msg in error_messages
             )
+
+    def test_schedule_all_dag_runs_reraises_db_errors(self, dag_maker, session):
+        """Test that _schedule_all_dag_runs does not catch DBAPIError, allowing
+        it to propagate to @retry_db_transaction for proper retry handling.
+        """
+        from sqlalchemy.exc import DBAPIError
+
+        with dag_maker(dag_id="db_error_dag", schedule="@once"):
+            EmptyOperator(task_id="task1")
+        run = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        with patch.object(
+            self.job_runner,
+            "_schedule_dag_run",
+            autospec=True,
+            side_effect=DBAPIError("select 1", None, Exception("connection lost")),
+        ) as mock_schedule:
+            from airflow.utils.sqlalchemy import prohibit_commit
+
+            with prohibit_commit(session) as guard:
+                # Bypass @retry_db_transaction to verify the exception escapes
+                # the inner function rather than being swallowed by except Exception.
+                with pytest.raises(DBAPIError):
+                    self.job_runner._schedule_all_dag_runs.__wrapped__(
+                        self.job_runner, guard, [run], session=session
+                    )
+
+            assert mock_schedule.call_count == 1
 
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """
