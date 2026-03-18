@@ -32,7 +32,7 @@ The result is a structured :class:`~airflow.providers.common.ai.operators.llm_sc
 containing a list of mismatches with severity levels, descriptions, and suggested actions.
 
 .. seealso::
-    :ref:`Connection configuration <howto/connection:pydantic_ai>`
+    :ref:`Connection configuration <howto/connection:pydanticai>`
 
 Basic Usage
 -----------

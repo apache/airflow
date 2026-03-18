@@ -82,7 +82,7 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
-    "cadwyn>=6.0.3",
+    "cadwyn>=6.0.4",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
@@ -253,6 +253,7 @@ exclude = [
 "../shared/listeners/src/airflow_shared/listeners" = "src/airflow/_shared/listeners"
 "../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/_shared/plugins_manager"
 "../shared/providers_discovery/src/airflow_shared/providers_discovery" = "src/airflow/_shared/providers_discovery"
+"../shared/template_rendering/src/airflow_shared/template_rendering" = "src/airflow/_shared/template_rendering"
 
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
