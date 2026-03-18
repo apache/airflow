@@ -37,6 +37,7 @@ from airflow.api_fastapi.auth.managers.base_auth_manager import (
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.batch_apis import (
     IsAuthorizedConnectionRequest,
+    IsAuthorizedDagRequest,
     IsAuthorizedPoolRequest,
     IsAuthorizedVariableRequest,
 )
@@ -62,6 +63,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDagRunBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
@@ -174,6 +176,41 @@ def requires_access_dag(
                 details=DagDetails(id=dag_id, team_name=team_name),
                 user=user,
             )
+        )
+
+    return inner
+
+
+def requires_access_dag_run_bulk() -> Callable[[str, BulkBody[BulkDagRunBody], BaseUser], None]:
+    def inner(
+        dag_id: str,
+        request: BulkBody[BulkDagRunBody],
+        user: GetUserDep,
+    ) -> None:
+        requests: list[IsAuthorizedDagRequest] = []
+        for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
+            for method in methods:
+                for entity in action.entities:
+                    normalized_dag_id: str | None
+                    if isinstance(entity, str):
+                        normalized_dag_id = dag_id if dag_id != "~" else None
+                    else:
+                        normalized_dag_id = entity.dag_id
+
+                    team_name = DagModel.get_team_name(normalized_dag_id) if normalized_dag_id else None
+                    req: IsAuthorizedDagRequest = {
+                        "method": method,
+                        "access_entity": DagAccessEntity.RUN,
+                        "details": DagDetails(id=normalized_dag_id, team_name=team_name),
+                    }
+                    requests.append(req)
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
+                requests=requests,
+                user=user,
+            ),
         )
 
     return inner

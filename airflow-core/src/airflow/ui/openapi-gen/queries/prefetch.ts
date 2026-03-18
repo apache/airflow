@@ -244,19 +244,6 @@ export const prefetchUseDagRunServiceGetDagRun = (queryClient: QueryClient, { da
   dagRunId: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }), queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) });
 /**
-* Get Upstream Asset Events
-* If dag run is asset-triggered, return the asset events that triggered it.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.dagRunId
-* @returns AssetEventCollectionResponse Successful Response
-* @throws ApiError
-*/
-export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (queryClient: QueryClient, { dagId, dagRunId }: {
-  dagId: string;
-  dagRunId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }), queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) });
-/**
 * Get Dag Runs
 * Get all DAG Runs.
 *
@@ -341,6 +328,19 @@ export const prefetchUseDagRunServiceGetDagRuns = (queryClient: QueryClient, { b
   updatedAtLt?: string;
   updatedAtLte?: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ bundleVersion, confContains, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }), queryFn: () => DagRunService.getDagRuns({ bundleVersion, confContains, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) });
+/**
+* Get Upstream Asset Events
+* If dag run is asset-triggered, return the asset events that triggered it.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @returns AssetEventCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (queryClient: QueryClient, { dagId, dagRunId }: {
+  dagId: string;
+  dagRunId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }), queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.

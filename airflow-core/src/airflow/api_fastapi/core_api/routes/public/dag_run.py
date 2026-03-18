@@ -60,7 +60,9 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDagRunBody,
     DAGRunClearBody,
     DAGRunCollectionResponse,
     DAGRunPatchBody,
@@ -79,8 +81,9 @@ from airflow.api_fastapi.core_api.security import (
     ReadableDagRunsFilterDep,
     requires_access_asset,
     requires_access_dag,
+    requires_access_dag_run_bulk,
 )
-from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
+from airflow.api_fastapi.core_api.services.public.dag_run import BulkDagRunService, DagRunWaiter
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
@@ -150,6 +153,22 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
         )
 
     session.delete(dag_run)
+
+
+@dag_run_router.patch(
+    "",
+    dependencies=[
+        Depends(requires_access_dag_run_bulk()),
+        Depends(action_logging()),
+    ],
+)
+def bulk_dag_runs(
+    dag_id: str,
+    request: BulkBody[BulkDagRunBody],
+    session: SessionDep,
+) -> BulkResponse:
+    """Run bulk operations on DAG runs; only delete is implemented."""
+    return BulkDagRunService(session=session, request=request, dag_id=dag_id).handle_request()
 
 
 @dag_run_router.patch(

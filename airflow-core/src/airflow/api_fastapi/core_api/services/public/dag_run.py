@@ -21,12 +21,23 @@ import asyncio
 import itertools
 import json
 import operator
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import attrs
-from sqlalchemy import select
+from fastapi import HTTPException, status
+from sqlalchemy import select, tuple_
 
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkActionNotOnExistence,
+    BulkActionResponse,
+    BulkBody,
+    BulkCreateAction,
+    BulkDeleteAction,
+    BulkUpdateAction,
+)
+from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDagRunBody, DAGRunPatchStates
+from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.session import create_session_async
@@ -36,6 +47,10 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
 
     from sqlalchemy import ScalarResult
+
+
+DagRunKey: TypeAlias = tuple[str, str]
+"""Unique identifier for a DagRun as (dag_id, dag_run_id)."""
 
 
 @attrs.define
@@ -89,3 +104,106 @@ class DagRunWaiter:
             await asyncio.sleep(self.interval)
             yield self._serialize_response(dag_run := await self._get_dag_run())
             yield "\n"
+
+
+class BulkDagRunService(BulkService[BulkDagRunBody]):
+    """Service for handling bulk operations on dag runs."""
+
+    def __init__(
+        self,
+        session: SessionDep,
+        request: BulkBody[BulkDagRunBody],
+        dag_id: str,
+    ):
+        super().__init__(session, request)
+        self.dag_id = dag_id
+
+    def _extract_dag_run_identifiers(self, entity: str | BulkDagRunBody) -> DagRunKey | None:
+        if isinstance(entity, str):
+            if self.dag_id == "~":
+                return None
+            return self.dag_id, entity
+
+        return entity.dag_id, entity.dag_run_id
+
+    def categorize_dag_runs(
+        self, dag_run_keys: set[DagRunKey]
+    ) -> tuple[dict[DagRunKey, DagRun], set[DagRunKey], set[DagRunKey]]:
+        dag_runs = self.session.scalars(
+            select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(list(dag_run_keys)))
+        ).all()
+        dag_runs_map = {(run.dag_id, run.run_id): run for run in dag_runs}
+        matched_keys = set(dag_runs_map.keys())
+        not_found_keys = dag_run_keys - matched_keys
+        return dag_runs_map, matched_keys, not_found_keys
+
+    def handle_bulk_create(
+        self, action: BulkCreateAction[BulkDagRunBody], results: BulkActionResponse
+    ) -> None:
+        results.errors.append(
+            {
+                "error": "Dag runs bulk create is not implemented",
+                "status_code": status.HTTP_501_NOT_IMPLEMENTED,
+            }
+        )
+
+    def handle_bulk_update(
+        self, action: BulkUpdateAction[BulkDagRunBody], results: BulkActionResponse
+    ) -> None:
+        results.errors.append(
+            {
+                "error": "Dag runs bulk update is not implemented",
+                "status_code": status.HTTP_501_NOT_IMPLEMENTED,
+            }
+        )
+
+    def handle_bulk_delete(
+        self, action: BulkDeleteAction[BulkDagRunBody], results: BulkActionResponse
+    ) -> None:
+        dag_run_keys: set[DagRunKey] = set()
+        for dag_run_entity in action.entities:
+            dag_run_key = self._extract_dag_run_identifiers(dag_run_entity)
+            if dag_run_key is None:
+                results.errors.append(
+                    {
+                        "error": (
+                            "When using wildcard in path, dag_id must be specified in BulkDagRunBody object, "
+                            f"not as string for dag_run_id: {dag_run_entity}"
+                        ),
+                        "status_code": status.HTTP_400_BAD_REQUEST,
+                    }
+                )
+                continue
+
+            dag_run_keys.add(dag_run_key)
+
+        dag_runs_map, matched_keys, not_found_keys = self.categorize_dag_runs(dag_run_keys)
+
+        try:
+            if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
+                not_found_list = [
+                    {"dag_id": dag_id, "dag_run_id": dag_run_id}
+                    for dag_id, dag_run_id in sorted(not_found_keys)
+                ]
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"The DagRuns with these identifiers were not found: {not_found_list}",
+                )
+
+            deletable_states = {state.value for state in DAGRunPatchStates}
+
+            for dag_id, dag_run_id in matched_keys:
+                dag_run = dag_runs_map[(dag_id, dag_run_id)]
+                if dag_run.state not in deletable_states:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` "
+                            f"cannot be deleted in {dag_run.state} state"
+                        ),
+                    )
+                self.session.delete(dag_run)
+                results.success.append(f"{dag_id}.{dag_run_id}")
+
+        except HTTPException as exc:
+            results.errors.append({"error": f"{exc.detail}", "status_code": exc.status_code})
