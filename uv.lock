@@ -801,7 +801,7 @@ all = [
     { name = "apache-airflow-providers-grpc" },
     { name = "apache-airflow-providers-hashicorp" },
     { name = "apache-airflow-providers-http" },
-    { name = "apache-airflow-providers-ibm-mq" },
+    { name = "apache-airflow-providers-ibm-mq", extra = ["ibmmq"] },
     { name = "apache-airflow-providers-imap" },
     { name = "apache-airflow-providers-influxdb" },
     { name = "apache-airflow-providers-informatica" },
@@ -1035,7 +1035,7 @@ http = [
     { name = "apache-airflow-providers-http" },
 ]
 ibm-mq = [
-    { name = "apache-airflow-providers-ibm-mq" },
+   { name = "apache-airflow-providers-ibm-mq", extra = ["ibmmq"] },
 ]
 imap = [
     { name = "apache-airflow-providers-imap" },
@@ -1376,7 +1376,8 @@ requires-dist = [
     { name = "apache-airflow-providers-http", marker = "extra == 'all'", editable = "providers/http" },
     { name = "apache-airflow-providers-http", marker = "extra == 'http'", editable = "providers/http" },
     { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'all'", editable = "providers/ibm/mq" },
-    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibm-mq'", editable = "providers/ibm/mq" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibmmq'", editable = "providers/ibm/mq" },
+    { name = "apache-airflow-providers-ibm-mq", extras = ["ibmmq"], marker = "extra == 'ibmmq'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'all'", editable = "providers/imap" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'imap'", editable = "providers/imap" },
     { name = "apache-airflow-providers-influxdb", marker = "extra == 'all'", editable = "providers/influxdb" },
@@ -2578,7 +2579,7 @@ google = [
     { name = "apache-airflow-providers-google" },
 ]
 ibm-mq = [
-    { name = "apache-airflow-providers-ibm-mq" },
+    { name = "apache-airflow-providers-ibm-mq", extra = ["ibmmq"] },
 ]
 imap = [
     { name = "apache-airflow-providers-imap" },
@@ -2630,7 +2631,7 @@ dev = [
     { name = "apache-airflow-providers-ftp" },
     { name = "apache-airflow-providers-google" },
     { name = "apache-airflow-providers-http" },
-    { name = "apache-airflow-providers-ibm-mq" },
+    { name = "apache-airflow-providers-ibm-mq", extra = ["ibmmq"] },
     { name = "apache-airflow-providers-imap" },
     { name = "apache-airflow-providers-microsoft-azure" },
     { name = "apache-airflow-providers-mongo" },
@@ -2669,7 +2670,7 @@ requires-dist = [
     { name = "apache-airflow-providers-ftp", marker = "extra == 'ftp'", editable = "providers/ftp" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
     { name = "apache-airflow-providers-http", editable = "providers/http" },
-    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibm-mq'", editable = "providers/ibm/mq" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibmmq'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'imap'", editable = "providers/imap" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-mongo", marker = "extra == 'mongo'", editable = "providers/mongo" },
@@ -2715,7 +2716,7 @@ dev = [
     { name = "apache-airflow-providers-ftp", editable = "providers/ftp" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
     { name = "apache-airflow-providers-http", editable = "providers/http" },
-    { name = "apache-airflow-providers-ibm-mq", editable = "providers/ibm/mq" },
+    { name = "apache-airflow-providers-ibm-mq", extras = ["ibmmq"] editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", editable = "providers/imap" },
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-mongo", editable = "providers/mongo" },
