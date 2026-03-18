@@ -106,7 +106,7 @@ def encode_relativedelta(var: relativedelta) -> dict[str, Any]:
     return encoded
 
 
-def encode_timezone(var: str | pendulum.Timezone | pendulum.FixedTimezone) -> str | int:
+def encode_timezone(var: str | pendulum.Timezone | pendulum.FixedTimezone | datetime.timezone) -> str | int:
     """
     Encode a Pendulum Timezone for serialization.
 
@@ -119,6 +119,15 @@ def encode_timezone(var: str | pendulum.Timezone | pendulum.FixedTimezone) -> st
     """
     if isinstance(var, str):
         return var
+    if isinstance(var, datetime.timezone):
+        # Handle standard library timezone objects (e.g., datetime.timezone.utc)
+        offset = var.utcoffset(None)
+        if offset is None:
+            raise ValueError(f"Cannot serialize timezone {var!r} without UTC offset")
+        offset_seconds = offset.total_seconds()
+        if offset_seconds == 0:
+            return "UTC"
+        return int(offset_seconds)
     if isinstance(var, pendulum.FixedTimezone):
         if var.offset == 0:
             return "UTC"

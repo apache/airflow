@@ -524,7 +524,7 @@ class BaseSerialization:
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
         elif isinstance(var, datetime.timedelta):
             return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
-        elif isinstance(var, (Timezone, FixedTimezone)):
+        elif isinstance(var, (Timezone, FixedTimezone, datetime.timezone)):
             return cls._encode(encode_timezone(var), type_=DAT.TIMEZONE)
         elif isinstance(var, relativedelta.relativedelta):
             return cls._encode(encode_relativedelta(var), type_=DAT.RELATIVEDELTA)
