@@ -148,7 +148,7 @@ class IterableOperator(BaseOperator):
         return self._operator.unmap(mapped_kwargs)
 
     def _xcom_push(self, context: Context, task: MappedTaskInstance, value: Any) -> None:
-        self.log.debug("Pushing XCom %s", task.map_index)
+        self.log.debug("Pushing XCom %s", task.xcom_key)
 
         context["ti"].xcom_push(key=task.xcom_key, value=value)
 
