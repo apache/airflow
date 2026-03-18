@@ -97,6 +97,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -129,6 +130,11 @@ from airflow_breeze.utils.path_utils import (
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
+from airflow_breeze.utils.reproduce_ci import (
+    ReproductionCommand,
+    build_local_reproduction_commands,
+    print_local_reproduction,
+)
 from airflow_breeze.utils.run_utils import (
     assert_prek_installed,
     run_command,
@@ -149,6 +155,52 @@ def is_wsl() -> bool:
             return "microsoft" in version_info or "wsl" in version_info
     except FileNotFoundError:
         return False
+
+
+def _build_docs_reproduction_command(
+    *,
+    clean_build: bool,
+    refresh_airflow_inventories: bool,
+    docs_only: bool,
+    github_repository: str,
+    include_not_ready_providers: bool,
+    include_removed_providers: bool,
+    include_commits: bool,
+    one_pass_only: bool,
+    package_filter: tuple[str, ...],
+    distributions_list: str,
+    spellcheck_only: bool,
+    doc_packages: tuple[str, ...],
+) -> ReproductionCommand:
+    command = ["breeze", "build-docs"]
+    effective_doc_packages = () if distributions_list else doc_packages
+    if github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
+        command.extend(["--github-repository", github_repository])
+    if clean_build:
+        command.append("--clean-build")
+    if refresh_airflow_inventories:
+        command.append("--refresh-airflow-inventories")
+    if docs_only:
+        command.append("--docs-only")
+    if include_commits:
+        command.append("--include-commits")
+    if include_not_ready_providers:
+        command.append("--include-not-ready-providers")
+    if include_removed_providers:
+        command.append("--include-removed-providers")
+    if one_pass_only:
+        command.append("--one-pass-only")
+    for item in package_filter:
+        command.extend(["--package-filter", item])
+    if distributions_list:
+        command.extend(["--distributions-list", distributions_list])
+    if spellcheck_only:
+        command.append("--spellcheck-only")
+    command.extend(effective_doc_packages)
+    return ReproductionCommand(
+        argv=command,
+        comment="Run the same Breeze command locally",
+    )
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -836,6 +888,25 @@ def build_docs(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         builder=builder,
+    )
+    print_local_reproduction(
+        build_local_reproduction_commands(
+            command_params=build_params,
+            main_command=_build_docs_reproduction_command(
+                clean_build=clean_build,
+                refresh_airflow_inventories=refresh_airflow_inventories,
+                docs_only=docs_only,
+                github_repository=github_repository,
+                include_not_ready_providers=include_not_ready_providers,
+                include_removed_providers=include_removed_providers,
+                include_commits=include_commits,
+                one_pass_only=one_pass_only,
+                package_filter=package_filter,
+                distributions_list=distributions_list,
+                spellcheck_only=spellcheck_only,
+                doc_packages=doc_packages,
+            ),
+        )
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
