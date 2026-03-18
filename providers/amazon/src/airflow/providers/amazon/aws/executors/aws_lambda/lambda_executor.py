@@ -231,15 +231,15 @@ class AwsLambdaExecutor(BaseExecutor):
     def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
         from airflow.executors import workloads
 
-        for w in workload_items:
+        for workload in workload_items:
             queue: str | None
             key: WorkloadKey
             command: CommandType
-            if isinstance(w, workloads.ExecuteTask):
-                command = [w]
-                key = w.ti.key
-                queue = w.ti.queue
-                executor_config = w.ti.executor_config or {}
+            if isinstance(workload, workloads.ExecuteTask):
+                command = [workload]
+                key = workload.ti.key
+                queue = workload.ti.queue
+                executor_config = workload.ti.executor_config or {}
 
                 del self.queued_tasks[key]
 
@@ -253,13 +253,13 @@ class AwsLambdaExecutor(BaseExecutor):
                 self.running.add(key)
                 continue
 
-            if AIRFLOW_V_3_2_PLUS and isinstance(w, workloads.ExecuteCallback):
-                command = [w]
-                key = w.callback.id
+            if AIRFLOW_V_3_2_PLUS and isinstance(workload, workloads.ExecuteCallback):
+                command = [workload]
+                key = workload.callback.id
                 queue = None
 
-                if isinstance(w.callback.data, dict) and "queue" in w.callback.data:
-                    queue = w.callback.data["queue"]
+                if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
+                    queue = workload.callback.data["queue"]
 
                 del self.queued_callbacks[key]
 
@@ -272,7 +272,7 @@ class AwsLambdaExecutor(BaseExecutor):
                 self.running.add(key)
                 continue
 
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
     def execute_async(
         self,
