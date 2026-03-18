@@ -770,7 +770,7 @@ def task_decorator_factory(
         multiple_outputs = cast("bool", attr.NOTHING)
     if python_callable is not None:
         if not callable(python_callable):
-            raise TypeError("No args allowed while using @task, use kwargs instead")
+            raise TypeError("No positional arguments allowed while using @task, use named arguments instead")
         decorator = _TaskDecorator(
             function=python_callable,
             multiple_outputs=multiple_outputs,
