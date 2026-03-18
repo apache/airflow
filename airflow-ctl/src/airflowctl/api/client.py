@@ -57,6 +57,7 @@ from airflowctl.api.operations import (
     PoolsOperations,
     ProvidersOperations,
     ServerResponseError,
+    TaskInstanceOperations,
     VariablesOperations,
     VersionOperations,
     XComOperations,
