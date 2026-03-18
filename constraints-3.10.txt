@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-17T19:55:24.153918
+# This constraints file was automatically generated on 2026-03-18T12:24:40.789343
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -67,7 +67,7 @@ adbc-driver-postgresql==1.10.0
 adbc-driver-sqlite==1.10.0
 adlfs==2026.2.0
 aenum==3.1.16
-aiobotocore==3.2.1
+aiobotocore==3.3.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
@@ -191,7 +191,7 @@ apache-airflow-providers-zendesk==4.11.1
 apispec==6.10.0
 apprise==1.9.8
 argcomplete==3.6.3
-asana==5.2.2
+asana==5.2.3
 asgiref==3.11.1
 asn1crypto==1.5.1
 asttokens==3.0.1
@@ -237,8 +237,8 @@ bitarray==3.8.0
 black==26.3.1
 bleach==6.3.0
 blinker==1.9.0
-boto3==1.42.61
-botocore==1.42.61
+boto3==1.42.70
+botocore==1.42.70
 cachelib==0.13.0
 cachetools==6.2.6
 cadwyn==6.0.4
@@ -366,7 +366,7 @@ google-cloud-videointelligence==2.18.0
 google-cloud-vision==3.12.1
 google-cloud-workflows==1.20.0
 google-crc32c==1.8.0
-google-genai==1.67.0
+google-genai==1.68.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.73.0
 graphviz==0.21
@@ -437,7 +437,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.8.0
 linkify-it-py==2.1.0
-litellm==1.82.3
+litellm==1.82.4
 lockfile==0.12.2
 logfire-api==4.29.0
 looker_sdk==26.4.0
@@ -551,9 +551,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.69.0
+pydantic-ai-slim==1.70.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.69.0
+pydantic-graph==1.70.0
 pydantic-settings==2.13.1
 pydantic==2.12.5
 pydantic_core==2.41.5
