@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,32 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Update the root uv.lock file by running ``uv lock --upgrade`` inside the Breeze CI image."""
-
-from __future__ import annotations
-
-import subprocess
-import sys
-from pathlib import Path
-
-AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
-
-
-def main() -> int:
-    print("Updating uv.lock inside the Breeze CI image ...")
-    result = subprocess.run(
-        [
-            "breeze",
-            "run",
-            "uv",
-            "lock",
-            "--upgrade",
-        ],
-        cwd=AIRFLOW_ROOT_PATH,
-        check=False,
-    )
-    return result.returncode
-
-
-if __name__ == "__main__":
-    sys.exit(main())

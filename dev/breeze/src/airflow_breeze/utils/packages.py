@@ -705,7 +705,7 @@ def get_provider_jinja_context(
     requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     # Most providers require the same python versions, but some may have exclusions
     for excluded_python_version in provider_details.excluded_python_versions:
-        requires_python_version += f",!={excluded_python_version}"
+        requires_python_version += f",!={excluded_python_version}.*"
 
     context: dict[str, Any] = {
         "PROVIDER_ID": provider_details.provider_id,
