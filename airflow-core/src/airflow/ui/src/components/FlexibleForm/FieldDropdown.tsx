@@ -16,12 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input } from "@chakra-ui/react";
-import { createListCollection } from "@chakra-ui/react/collection";
-import { useRef, useState } from "react";
+import { type SingleValue, Select as ReactSelect } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
-import { Select } from "src/components/ui";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
@@ -43,92 +40,62 @@ const labelLookup = (
 
 const enumTypes = ["string", "number", "integer"];
 
+type Option = {
+  label: string;
+  value: string;
+};
+
 export const FieldDropdown = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
-  const [searchQuery, setSearchQuery] = useState("");
 
-  const allItems =
-    param.schema.enum?.map((value) => {
-      // Convert null to string constant for zag-js compatibility
-      const stringValue = String(value ?? NULL_STRING_VALUE);
+  const options: Array<Option> =
+    param.schema.enum?.map((value) => ({
+      label: labelLookup(value, param.schema.values_display),
+      value: String(value ?? NULL_STRING_VALUE),
+    })) ?? [];
 
-      return {
-        label: labelLookup(value, param.schema.values_display),
-        value: stringValue,
-      };
-    }) ?? [];
+  const currentValue =
+    // eslint-disable-next-line unicorn/no-null
+    param.value === null
+      ? options.find((opt) => opt.value === NULL_STRING_VALUE) ?? null
+      : enumTypes.includes(typeof param.value)
+        ? options.find((opt) => opt.value === String(param.value)) ?? null
+        : // eslint-disable-next-line unicorn/no-null
+          null;
 
-  const selectOptions = createListCollection({ items: allItems });
-
-  const filteredItems = searchQuery
-    ? allItems.filter((opt) => opt.label.toLowerCase().includes(searchQuery.toLowerCase()))
-    : allItems;
-
-  const contentRef = useRef<HTMLDivElement | null>(null);
-
-  const handleChange = ([value]: Array<string>) => {
+  const handleChange = (selected: SingleValue<Option>) => {
     if (paramsDict[name]) {
-      if (value === NULL_STRING_VALUE || value === undefined) {
+      if (!selected || selected.value === NULL_STRING_VALUE) {
         // eslint-disable-next-line unicorn/no-null
         paramsDict[name].value = null;
       } else {
         // Map the string value back to the original typed enum value (e.g. number, string)
         // so that backend validation receives the correct type.
         const originalValue = param.schema.enum?.find(
-          (enumVal) => String(enumVal ?? NULL_STRING_VALUE) === value,
+          (enumVal) => String(enumVal ?? NULL_STRING_VALUE) === selected.value,
         );
 
-        paramsDict[name].value = originalValue ?? value;
+        paramsDict[name].value = originalValue ?? selected.value;
       }
     }
 
     setParamsDict(paramsDict);
-    onUpdate(value);
+    onUpdate(selected?.value ?? "");
   };
 
   return (
-    <Select.Root
-      collection={selectOptions}
-      disabled={disabled}
+    <ReactSelect<Option>
       id={`element_${name}`}
+      isClearable
+      isDisabled={disabled}
       name={`element_${name}`}
-      onOpenChange={({ open }) => {
-        if (!open) {
-          setSearchQuery("");
-        }
-      }}
-      onValueChange={(event) => handleChange(event.value)}
-      ref={contentRef}
+      onChange={handleChange}
+      options={options}
+      placeholder={translate("flexibleForm.placeholder")}
       size="sm"
-      value={
-        param.value === null
-          ? [NULL_STRING_VALUE]
-          : enumTypes.includes(typeof param.value)
-            ? [String(param.value as number | string)]
-            : undefined
-      }
-    >
-      <Select.Trigger clearable>
-        <Select.ValueText placeholder={translate("flexibleForm.placeholder")} />
-      </Select.Trigger>
-      <Select.Content portalRef={contentRef}>
-        <Input
-          mb={1}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-          placeholder={translate("flexibleForm.searchPlaceholder")}
-          size="sm"
-          value={searchQuery}
-        />
-        {filteredItems.map((option) => (
-          <Select.Item item={option} key={option.value}>
-            {option.label}
-          </Select.Item>
-        ))}
-      </Select.Content>
-    </Select.Root>
+      value={currentValue}
+    />
   );
 };
