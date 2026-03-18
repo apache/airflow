@@ -1053,8 +1053,8 @@ class TestDagFileProcessorManager:
                 assert len(session.scalars(select(DbCallbackRequest)).all()) == 1
 
     @conf_vars({("core", "load_examples"): "False"})
-    def test_fetch_callbacks_ignores_other_bundles(self, configure_testing_dag_bundle):
-        """Ensure callbacks for bundles not owned by current dag processor manager are ignored and not deleted."""
+    def test_fetch_callbacks_skips_other_bundles_with_warning(self, configure_testing_dag_bundle):
+        """Callbacks for bundles not served by this processor are skipped with a warning log."""
 
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
 
@@ -1090,10 +1090,9 @@ class TestDagFileProcessorManager:
                 # Only the matching callback should be returned
                 assert [c.run_id for c in callbacks] == ["match"]
 
-                # The non-matching callback should remain in the DB
+                # The non-matching callback should remain in the DB for the correct processor
                 remaining = session.scalars(select(DbCallbackRequest)).all()
                 assert len(remaining) == 1
-                # Decode remaining request and verify it's for the other bundle
                 remaining_req = remaining[0].get_callback_request()
                 assert remaining_req.bundle_name == "other-bundle"
 

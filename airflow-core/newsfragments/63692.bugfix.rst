@@ -1,0 +1,1 @@
+Fixed DAG-level on_failure_callback not firing when DagRunContext creation failed due to ORM session errors.

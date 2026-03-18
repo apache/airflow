@@ -554,6 +554,13 @@ class DagFileProcessorManager(LoggingMixin):
             for callback in callbacks:
                 req = callback.get_callback_request()
                 if req.bundle_name not in bundle_names:
+                    self.log.warning(
+                        "Callback for dag_id=%s has bundle_name=%r which is not served by "
+                        "this DAG processor (serving bundles: %s). Skipping.",
+                        getattr(req, "dag_id", "unknown"),
+                        req.bundle_name,
+                        bundle_names,
+                    )
                     continue
                 try:
                     callback_queue.append(req)

@@ -654,6 +654,46 @@ class TestDagRun:
             ),
         )
 
+    def test_produce_dag_callback_resilient_to_context_failure(self, testing_dag_bundle, dag_maker, session):
+        """produce_dag_callback should still return a callback even when DagRunContext creation fails."""
+
+        def on_failure_callable(context):
+            pass
+
+        relative_fileloc = "test_produce_dag_callback_resilient.py"
+        with dag_maker(
+            dag_id="test_produce_dag_callback_resilient",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            on_failure_callback=on_failure_callable,
+        ) as dag:
+            EmptyOperator(task_id="task1")
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.relative_fileloc = relative_fileloc
+        session.merge(dm)
+        session.commit()
+
+        initial_task_states = {"task1": TaskInstanceState.FAILED}
+        dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
+        session.commit()
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.dag_model = dm
+
+        # Patch DagRunContext to raise an exception during construction
+        with mock.patch(
+            "airflow.models.dagrun.DagRunContext", side_effect=RuntimeError("Simulated context failure")
+        ):
+            _, callback = dag_run.update_state(execute_callbacks=False)
+
+        assert dag_run.state == DagRunState.FAILED
+        # Callback should still be produced with context_from_server=None
+        assert callback is not None
+        assert callback.dag_id == "test_produce_dag_callback_resilient"
+        assert callback.is_failure_callback is True
+        assert callback.context_from_server is None
+
     def test_dagrun_set_state_end_date(self, dag_maker, session):
         with dag_maker(schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE):
             pass
