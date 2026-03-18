@@ -621,10 +621,7 @@ class TestBaseDatabricksHook:
             await hook._a_get_token()
 
     @pytest.mark.asyncio
-    @mock.patch(
-        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
-        new_callable=mock.PropertyMock,
-    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
     async def test_a_get_token_not_configured_raises(self, mock_conn):
         mock_conn.return_value = Connection(
             host="host",
@@ -782,12 +779,13 @@ class TestBaseDatabricksHook:
 
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
+    @mock.patch("ssl.create_default_context")
     @mock.patch(
         "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.aget_connection",
         create=True,
         new_callable=mock.AsyncMock,
     )
-    async def test_no_sync_get_connection_federated_k8s(self, mock_aget_connection, mock_post):
+    async def test_no_sync_get_connection_federated_k8s(self, mock_aget_connection, _mock_ssl_ctx, mock_post):
         """Ensure sync databricks_conn isn't referenced during async federated K8s auth."""
         with mock.patch.object(
             BaseDatabricksHook, "databricks_conn", new_callable=mock.PropertyMock
@@ -1761,17 +1759,17 @@ class TestBaseDatabricksHook:
 
     @pytest.mark.asyncio
     @mock.patch("ssl.create_default_context")
-    async def test_a_get_k8s_token_request_api_uses_ca_cert_for_tls(self, mock_ssl_ctx):
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
+    async def test_a_get_k8s_token_request_api_uses_ca_cert_for_tls(self, mock_conn, mock_ssl_ctx):
         """Verify async TokenRequest API call uses the in-cluster CA bundle for TLS verification."""
         import ssl
 
         fake_ctx = mock.MagicMock(spec=ssl.SSLContext)
         mock_ssl_ctx.return_value = fake_ctx
 
-        mock_conn = mock.Mock()
-        mock_conn.extra_dejson = {}
+        mock_conn.return_value = Connection(extra={})
         hook = BaseDatabricksHook()
-        hook.databricks_conn = mock_conn
+        hook._a_databricks_conn = mock_conn
 
         mock_response = mock.AsyncMock()
         mock_response.json = mock.AsyncMock(return_value={"status": {"token": "jwt_token"}})
@@ -1866,7 +1864,7 @@ class TestBaseDatabricksHook:
     @mock.patch("aiohttp.ClientSession.post")
     @mock.patch("ssl.create_default_context")
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
-    async def test_a_get_token_with_federated_k8s_login(self, _mock_ssl_ctx, mock_conn, mock_post):
+    async def test_a_get_token_with_federated_k8s_login(self, mock_conn, _mock_ssl_ctx, mock_post):
         """Test async _a_get_token with login='federated_k8s'."""
         mock_conn.return_value = Connection(
             host="my-workspace.cloud.databricks.com",
@@ -1921,7 +1919,7 @@ class TestBaseDatabricksHook:
     @mock.patch("aiohttp.ClientSession.post")
     @mock.patch("ssl.create_default_context")
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.a_databricks_conn")
-    async def test_a_get_token_with_federated_k8s_extra(self, _mock_ssl_ctx, mock_conn, mock_post):
+    async def test_a_get_token_with_federated_k8s_extra(self, mock_conn, _mock_ssl_ctx, mock_post):
         """Test async _a_get_token with federated_k8s in extras."""
         mock_conn.return_value = Connection(
             host="my-workspace.cloud.databricks.com",
