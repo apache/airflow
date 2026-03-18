@@ -42,7 +42,6 @@ export const useGridTiSummariesStream = ({
   states?: Array<TaskInstanceState | null | undefined>;
 }) => {
   const [summariesByRunId, setSummariesByRunId] = useState<Map<string, GridTISummaries>>(new Map());
-  const [isStreaming, setIsStreaming] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
 
   const baseRefetchInterval = useAutoRefresh({ dagId });
@@ -61,7 +60,6 @@ export const useGridTiSummariesStream = ({
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
     const fetchStream = async () => {
-      setIsStreaming(true);
       // Keep stale data visible while the new stream loads — columns update in
       // place as fresh lines arrive rather than flashing blank.
       try {
@@ -99,8 +97,6 @@ export const useGridTiSummariesStream = ({
           // eslint-disable-next-line no-console
           console.error("TI summaries stream error:", error);
         }
-      } finally {
-        setIsStreaming(false);
       }
     };
 
