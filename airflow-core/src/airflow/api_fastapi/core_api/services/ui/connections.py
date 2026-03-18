@@ -27,9 +27,8 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionHookMetaData,
     StandardHookFields,
 )
-from airflow.serialization.definitions.param import SerializedParam
-
 from airflow.providers_manager import HookInfo
+from airflow.serialization.definitions.param import SerializedParam
 
 if TYPE_CHECKING:
     from airflow.providers_manager import ConnectionFormWidgetInfo
