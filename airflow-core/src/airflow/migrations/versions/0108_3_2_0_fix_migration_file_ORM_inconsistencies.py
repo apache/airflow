@@ -39,6 +39,178 @@ down_revision = "6222ce48e289"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
+_TASK_INSTANCE_BATCH_SIZE = 10000
+_POOL_FIX_PREFIX = "__airflow_pool_fix_888b59e02a5b_"
+_VARIABLE_FIX_PREFIX = "__airflow_var_fix_888b59e02a5b_"
+_EXECUTOR_CONFIG_PICKLE_HEX = "80047d942e"
+
+
+def _build_connection_update_sql():
+    return """
+    UPDATE connection
+    SET
+        is_encrypted = COALESCE(is_encrypted, FALSE),
+        is_extra_encrypted = COALESCE(is_extra_encrypted, FALSE)
+    WHERE is_encrypted IS NULL OR is_extra_encrypted IS NULL
+    """
+
+
+def _build_dag_update_sql():
+    return """
+    UPDATE dag
+    SET
+        is_paused = COALESCE(is_paused, FALSE),
+        has_import_errors = COALESCE(has_import_errors, FALSE)
+    WHERE is_paused IS NULL OR has_import_errors IS NULL
+    """
+
+
+def _build_dag_run_update_sql():
+    return """
+    UPDATE dag_run
+    SET
+        state = COALESCE(state, 'queued'),
+        log_template_id = COALESCE(log_template_id, (SELECT max(id) FROM log_template)),
+        updated_at = COALESCE(updated_at, end_date, start_date, queued_at, logical_date, CURRENT_TIMESTAMP)
+    WHERE state IS NULL OR log_template_id IS NULL OR updated_at IS NULL
+    """
+
+
+def _build_log_update_sql():
+    return """
+    UPDATE log
+    SET dttm = COALESCE(dttm, logical_date, CURRENT_TIMESTAMP)
+    WHERE dttm IS NULL
+    """
+
+
+def _build_slot_pool_update_sql(dialect_name):
+    pool_fallback = (
+        f"CONCAT('{_POOL_FIX_PREFIX}', id)" if dialect_name == "mysql" else f"'{_POOL_FIX_PREFIX}' || id"
+    )
+    return f"""
+    UPDATE slot_pool
+    SET
+        slots = COALESCE(slots, 0),
+        pool = COALESCE(pool, {pool_fallback})
+    WHERE slots IS NULL OR pool IS NULL
+    """
+
+
+def _build_task_instance_update_sql(dialect_name):
+    executor_config_fallback = (
+        f"decode('{_EXECUTOR_CONFIG_PICKLE_HEX}', 'hex')"
+        if dialect_name == "postgresql"
+        else f"x'{_EXECUTOR_CONFIG_PICKLE_HEX}'"
+    )
+    return f"""
+    UPDATE task_instance
+    SET
+        try_number = COALESCE(try_number, 0),
+        max_tries = COALESCE(max_tries, -1),
+        hostname = COALESCE(hostname, ''),
+        unixname = COALESCE(unixname, ''),
+        queue = COALESCE(queue, 'default'),
+        priority_weight = COALESCE(priority_weight, 1),
+        custom_operator_name = COALESCE(custom_operator_name, COALESCE(operator, '')),
+        executor_config = COALESCE(executor_config, {executor_config_fallback})
+    WHERE
+        try_number IS NULL
+        OR max_tries IS NULL
+        OR hostname IS NULL
+        OR unixname IS NULL
+        OR queue IS NULL
+        OR priority_weight IS NULL
+        OR custom_operator_name IS NULL
+        OR executor_config IS NULL
+    """
+
+
+def _build_variable_update_sql(dialect_name):
+    key_column = "`key`" if dialect_name == "mysql" else "key"
+    key_fallback = (
+        f"CONCAT('{_VARIABLE_FIX_PREFIX}', id)"
+        if dialect_name == "mysql"
+        else f"'{_VARIABLE_FIX_PREFIX}' || id"
+    )
+    return f"""
+    UPDATE variable
+    SET
+        val = COALESCE(val, ''),
+        is_encrypted = COALESCE(is_encrypted, FALSE),
+        {key_column} = COALESCE({key_column}, {key_fallback})
+    WHERE val IS NULL OR is_encrypted IS NULL OR {key_column} IS NULL
+    """
+
+
+def _task_instance_null_filter(task_instance_table):
+    return sa.or_(
+        task_instance_table.c.try_number.is_(None),
+        task_instance_table.c.max_tries.is_(None),
+        task_instance_table.c.hostname.is_(None),
+        task_instance_table.c.unixname.is_(None),
+        task_instance_table.c.queue.is_(None),
+        task_instance_table.c.priority_weight.is_(None),
+        task_instance_table.c.custom_operator_name.is_(None),
+        task_instance_table.c.executor_config.is_(None),
+    )
+
+
+def _batch_update_task_instance():
+    """Backfill task_instance nulls in batches to reduce lock duration on large tables."""
+    conn = op.get_bind()
+    task_instance_table = sa.table(
+        "task_instance",
+        sa.column("id", sa.Uuid()),
+        sa.column("try_number", sa.Integer()),
+        sa.column("max_tries", sa.Integer()),
+        sa.column("hostname", sa.String()),
+        sa.column("unixname", sa.String()),
+        sa.column("queue", sa.String()),
+        sa.column("priority_weight", sa.Integer()),
+        sa.column("custom_operator_name", sa.String()),
+        sa.column("operator", sa.String()),
+        sa.column("executor_config", sa.LargeBinary()),
+    )
+
+    task_instance_null_filter = _task_instance_null_filter(task_instance_table)
+    executor_config_default = bytes.fromhex(_EXECUTOR_CONFIG_PICKLE_HEX)
+    last_seen_id = None
+
+    while True:
+        batch_query = (
+            sa.select(task_instance_table.c.id)
+            .where(task_instance_null_filter)
+            .order_by(task_instance_table.c.id)
+            .limit(_TASK_INSTANCE_BATCH_SIZE)
+        )
+        if last_seen_id is not None:
+            batch_query = batch_query.where(task_instance_table.c.id > last_seen_id)
+
+        batch_ids = conn.execute(batch_query).scalars().all()
+        if not batch_ids:
+            break
+
+        conn.execute(
+            task_instance_table.update()
+            .where(task_instance_table.c.id.in_(batch_ids))
+            .values(
+                try_number=sa.func.coalesce(task_instance_table.c.try_number, 0),
+                max_tries=sa.func.coalesce(task_instance_table.c.max_tries, -1),
+                hostname=sa.func.coalesce(task_instance_table.c.hostname, ""),
+                unixname=sa.func.coalesce(task_instance_table.c.unixname, ""),
+                queue=sa.func.coalesce(task_instance_table.c.queue, "default"),
+                priority_weight=sa.func.coalesce(task_instance_table.c.priority_weight, 1),
+                custom_operator_name=sa.func.coalesce(
+                    task_instance_table.c.custom_operator_name,
+                    sa.func.coalesce(task_instance_table.c.operator, ""),
+                ),
+                executor_config=sa.func.coalesce(
+                    task_instance_table.c.executor_config, executor_config_default
+                ),
+            )
+        )
+        last_seen_id = batch_ids[-1]
 
 
 def upgrade():
@@ -46,11 +218,8 @@ def upgrade():
     dialect_name = context.get_context().dialect.name
 
     # Use raw SQL so this migration remains usable in offline mode (--show-sql-only).
-    op.execute("UPDATE connection SET is_encrypted = FALSE WHERE is_encrypted IS NULL")
-    op.execute("UPDATE connection SET is_extra_encrypted = FALSE WHERE is_extra_encrypted IS NULL")
-
-    op.execute("UPDATE dag SET is_paused = FALSE WHERE is_paused IS NULL")
-    op.execute("UPDATE dag SET has_import_errors = FALSE WHERE has_import_errors IS NULL")
+    op.execute(_build_connection_update_sql())
+    op.execute(_build_dag_update_sql())
 
     op.execute(
         """
@@ -63,56 +232,18 @@ def upgrade():
         """
     )
 
-    op.execute("UPDATE dag_run SET state = 'queued' WHERE state IS NULL")
-    op.execute(
-        """
-        UPDATE dag_run
-        SET log_template_id = (SELECT max(id) FROM log_template)
-        WHERE log_template_id IS NULL
-        """
-    )
-    op.execute(
-        """
-        UPDATE dag_run
-        SET updated_at = COALESCE(end_date, start_date, queued_at, logical_date, CURRENT_TIMESTAMP)
-        WHERE updated_at IS NULL
-        """
-    )
+    op.execute(_build_dag_run_update_sql())
 
-    op.execute("UPDATE log SET dttm = COALESCE(logical_date, CURRENT_TIMESTAMP) WHERE dttm IS NULL")
+    op.execute(_build_log_update_sql())
 
-    op.execute("UPDATE slot_pool SET slots = 0 WHERE slots IS NULL")
-    if dialect_name == "mysql":
-        op.execute(
-            "UPDATE slot_pool SET pool = CONCAT('__airflow_pool_fix_888b59e02a5b_', id) WHERE pool IS NULL"
-        )
+    op.execute(_build_slot_pool_update_sql(dialect_name))
+
+    if context.is_offline_mode():
+        op.execute(_build_task_instance_update_sql(dialect_name))
     else:
-        op.execute("UPDATE slot_pool SET pool = '__airflow_pool_fix_888b59e02a5b_' || id WHERE pool IS NULL")
+        _batch_update_task_instance()
 
-    op.execute("UPDATE task_instance SET try_number = 0 WHERE try_number IS NULL")
-    op.execute("UPDATE task_instance SET max_tries = -1 WHERE max_tries IS NULL")
-    op.execute("UPDATE task_instance SET hostname = '' WHERE hostname IS NULL")
-    op.execute("UPDATE task_instance SET unixname = '' WHERE unixname IS NULL")
-    op.execute("UPDATE task_instance SET queue = 'default' WHERE queue IS NULL")
-    op.execute("UPDATE task_instance SET priority_weight = 1 WHERE priority_weight IS NULL")
-    op.execute(
-        "UPDATE task_instance SET custom_operator_name = COALESCE(operator, '') WHERE custom_operator_name IS NULL"
-    )
-    if dialect_name == "postgresql":
-        op.execute(
-            "UPDATE task_instance SET executor_config = decode('80047d942e', 'hex') WHERE executor_config IS NULL"
-        )
-    else:
-        op.execute("UPDATE task_instance SET executor_config = x'80047d942e' WHERE executor_config IS NULL")
-
-    op.execute("UPDATE variable SET val = '' WHERE val IS NULL")
-    op.execute("UPDATE variable SET is_encrypted = FALSE WHERE is_encrypted IS NULL")
-    if dialect_name == "mysql":
-        op.execute(
-            "UPDATE variable SET `key` = CONCAT('__airflow_var_fix_888b59e02a5b_', id) WHERE `key` IS NULL"
-        )
-    else:
-        op.execute("UPDATE variable SET key = '__airflow_var_fix_888b59e02a5b_' || id WHERE key IS NULL")
+    op.execute(_build_variable_update_sql(dialect_name))
 
     with op.batch_alter_table("connection", schema=None) as batch_op:
         batch_op.alter_column("is_encrypted", existing_type=sa.BOOLEAN(), nullable=False)
