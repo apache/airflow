@@ -40,12 +40,17 @@ class TestCliDb:
     def test_cli_resetdb(self, mock_resetdb):
         db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes"]))
 
-        mock_resetdb.assert_called_once_with(skip_init=False)
+        mock_resetdb.assert_called_once_with(skip_init=False, use_migration_files=False)
 
     @mock.patch("airflow.cli.commands.db_command.db.resetdb")
     def test_cli_resetdb_skip_init(self, mock_resetdb):
         db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes", "--skip-init"]))
-        mock_resetdb.assert_called_once_with(skip_init=True)
+        mock_resetdb.assert_called_once_with(skip_init=True, use_migration_files=False)
+
+    @mock.patch("airflow.cli.commands.db_command.db.resetdb")
+    def test_cli_resetdb_use_migration_files(self, mock_resetdb):
+        db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes", "--use-migration-files"]))
+        mock_resetdb.assert_called_once_with(skip_init=False, use_migration_files=True)
 
     def test_run_db_migrate_command_success_and_messages(self, capsys):
         class Args:
@@ -66,7 +71,12 @@ class TestCliDb:
         out = capsys.readouterr().out
         assert "Performing upgrade" in out
         assert "Database migration done!" in out
-        assert called == {"to_revision": None, "from_revision": None, "show_sql_only": False}
+        assert called == {
+            "to_revision": None,
+            "from_revision": None,
+            "show_sql_only": False,
+            "use_migration_files": False,
+        }
 
     def test_run_db_migrate_command_offline_generation(self, capsys):
         class Args:
@@ -86,7 +96,12 @@ class TestCliDb:
         db_command.run_db_migrate_command(Args(), fake_command, heads)
         out = capsys.readouterr().out
         assert "Generating sql for upgrade" in out
-        assert called == {"to_revision": None, "from_revision": None, "show_sql_only": True}
+        assert called == {
+            "to_revision": None,
+            "from_revision": None,
+            "show_sql_only": True,
+            "use_migration_files": False,
+        }
 
     @pytest.mark.parametrize(
         ("args", "match"),
@@ -185,6 +200,15 @@ class TestCliDb:
                 ),
             ),
             (
+                ["--use-migration-files"],
+                dict(
+                    to_revision=None,
+                    from_revision=None,
+                    show_sql_only=False,
+                    use_migration_files=True,
+                ),
+            ),
+            (
                 ["--to-revision", "abc"],
                 dict(
                     to_revision="abc",
@@ -246,11 +270,11 @@ class TestCliDb:
             ),
         ],
     )
-    @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
+    @mock.patch("airflow.cli.commands.db_command.db.upgradedb", autospec=True)
     def test_cli_upgrade_success(self, mock_upgradedb, args, called_with):
         # TODO(ephraimbuddy): Revisit this when we add more migration files and use other versions/revisions other than 2.10.0/22ed7efa9da2
         db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
-        mock_upgradedb.assert_called_once_with(**called_with)
+        mock_upgradedb.assert_called_once_with(**{"use_migration_files": False, **called_with})
 
     @pytest.mark.parametrize(
         ("args", "pattern"),
