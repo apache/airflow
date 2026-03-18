@@ -17,9 +17,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
+from airflow.models import DagRun
+from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import Context
 from tests_common.test_utils.taskinstance import create_task_instance
 
@@ -27,7 +30,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-def mock_context(task) -> Context:
+def mock_context(task, run_id: str | None = None) -> Context:
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
 
@@ -64,6 +67,6 @@ def mock_context(task) -> Context:
             values[key] = value
 
     values["ti"] = create_task_instance(task, dag_version_id=mock.MagicMock(), ti_type=MockedTaskInstance)
+    values["run_id"] =  DagRun.generate_run_id(run_type=DagRunType.MANUAL, run_after=datetime.now())
 
-    # See https://github.com/python/mypy/issues/8890 - mypy does not support passing typed dict to TypedDict
     return Context(values)  # type: ignore[misc]
