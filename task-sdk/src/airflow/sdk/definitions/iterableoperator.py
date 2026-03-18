@@ -156,7 +156,7 @@ class IterableOperator(BaseOperator):
         self,
         context: Context,
         tasks: Iterable[MappedTaskInstance],
-    ) -> XComIterable:
+    ) -> XComIterable | None:
         exceptions: list[BaseException] = []
         reschedule_date = timezone.utcnow()
         prev_futures_count = 0
@@ -164,6 +164,7 @@ class IterableOperator(BaseOperator):
         deferred_tasks: deque[MappedTaskInstance] = deque()
         failed_tasks: deque[MappedTaskInstance] = deque()
         chunked_tasks = batched(tasks, self.max_workers)
+        do_xcom_push = True
 
         self.log.info("Running tasks with %d workers", self.max_workers)
 
@@ -174,6 +175,7 @@ class IterableOperator(BaseOperator):
         with event_loop() as loop:
             with HybridExecutor(loop=loop, max_workers=self.max_workers) as executor:
                 for task in next(chunked_tasks, []):
+                    do_xcom_push = task.do_xcom_push
                     if task.is_async:
                         future = executor.submit(self._run_async_operator, context, task)
                     else:
@@ -255,13 +257,14 @@ class IterableOperator(BaseOperator):
         if not failed_tasks:
             if exceptions:
                 raise BaseExceptionGroup("Multiple sub-task failures", exceptions)
-            if self.do_xcom_push:
+            if do_xcom_push:
                 return XComIterable(
                     task_id=self.task_id,
                     dag_id=self.dag_id,
                     run_id=context["run_id"],
                     length=self._number_of_tasks,
                 )
+            return None
 
         # If the retry time is still in the future we defer the operator so the worker
         # slot is released. If the retry time has already passed we immediately re-run

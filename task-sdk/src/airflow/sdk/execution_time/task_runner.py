@@ -803,6 +803,10 @@ class MappedTaskInstance(RuntimeTaskInstance, LoggingMixin):
     def xcom_key(self) -> str:
         return f"{self.task_id}_{self.map_index}"
 
+    @property
+    def do_xcom_push(self) -> bool:
+        return self.task.do_xcom_push
+
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
