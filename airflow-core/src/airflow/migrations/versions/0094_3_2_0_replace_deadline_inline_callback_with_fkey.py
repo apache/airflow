@@ -27,10 +27,12 @@ Create Date: 2025-10-24 00:34:57.111239
 
 from __future__ import annotations
 
+import json
 from textwrap import dedent
 
 import sqlalchemy as sa
 from alembic import context, op
+from sqlalchemy import column, select, table
 
 # revision identifiers, used by Alembic.
 revision = "e812941398f4"
@@ -38,6 +40,8 @@ down_revision = "b87d2135fa50"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
+
+BATCH_SIZE = 5000
 
 # Hardcoded constants to avoid importing runtime modules in migrations.
 # Prior to 3.2.0, only AsyncCallback (triggerer) with import_path was supported.
@@ -71,50 +75,62 @@ def upgrade():
             # deserialization. The callback JSON is serde-wrapped:
             #   {"__data__": {"path": "...", "kwargs": {...}}, "__classname__": "...", ...}
             # We extract __data__ fields and merge in prefix + dag_id.
-            # A writable CTE handles both the INSERT into callback and the UPDATE of
-            # deadline in a single statement, so the generated UUID is shared.
-            conn.execute(
-                sa.text("""
-                    WITH new_callbacks AS (
-                        SELECT
-                            d.id AS deadline_id,
-                            gen_random_uuid() AS callback_id,
-                            jsonb_build_object(
-                                'path', d.callback->'__data__'->>'path',
-                                'kwargs', d.callback->'__data__'->'kwargs',
-                                'prefix', :prefix,
-                                'dag_id', dr.dag_id
-                            )::json AS callback_data,
-                            CASE
-                                WHEN d.callback_state IN ('failed', 'success') THEN d.callback_state
-                                ELSE :pending
-                            END AS cb_state,
-                            CASE
-                                WHEN d.callback_state IN ('failed', 'success') THEN true
-                                ELSE false
-                            END AS is_missed
-                        FROM deadline d
-                        JOIN dag_run dr ON d.dagrun_id = dr.id
-                        WHERE d.callback_id IS NULL
-                    ),
-                    inserted AS (
-                        INSERT INTO callback (id, type, fetch_method, data, state, priority_weight, created_at)
-                        SELECT
-                            callback_id, :cb_type, :fetch_method, callback_data, cb_state, 1, NOW()
-                        FROM new_callbacks
-                    )
-                    UPDATE deadline
-                    SET callback_id = nc.callback_id, missed = nc.is_missed
-                    FROM new_callbacks nc
-                    WHERE deadline.id = nc.deadline_id
-                """),
-                {
-                    "cb_type": _CALLBACK_TYPE_TRIGGERER,
-                    "fetch_method": _CALLBACK_FETCH_METHOD_IMPORT_PATH,
-                    "prefix": _CALLBACK_METRICS_PREFIX,
-                    "pending": _CALLBACK_STATE_PENDING,
-                },
-            )
+            # Batched via writable CTE with LIMIT to cap memory usage.
+            batch_num = 0
+            while True:
+                batch_num += 1
+                result = conn.execute(
+                    sa.text("""
+                        WITH batch AS (
+                            SELECT d.id AS deadline_id
+                            FROM deadline d
+                            WHERE d.callback_id IS NULL
+                            LIMIT :batch_size
+                        ),
+                        new_callbacks AS (
+                            SELECT
+                                d.id AS deadline_id,
+                                gen_random_uuid() AS callback_id,
+                                jsonb_build_object(
+                                    'path', d.callback->'__data__'->>'path',
+                                    'kwargs', d.callback->'__data__'->'kwargs',
+                                    'prefix', :prefix,
+                                    'dag_id', dr.dag_id
+                                )::json AS callback_data,
+                                CASE
+                                    WHEN d.callback_state IN ('failed', 'success') THEN d.callback_state
+                                    ELSE :pending
+                                END AS cb_state,
+                                CASE
+                                    WHEN d.callback_state IN ('failed', 'success') THEN true
+                                    ELSE false
+                                END AS is_missed
+                            FROM deadline d
+                            JOIN dag_run dr ON d.dagrun_id = dr.id
+                            WHERE d.id IN (SELECT deadline_id FROM batch)
+                        ),
+                        inserted AS (
+                            INSERT INTO callback (id, type, fetch_method, data, state, priority_weight, created_at)
+                            SELECT
+                                callback_id, :cb_type, :fetch_method, callback_data, cb_state, 1, NOW()
+                            FROM new_callbacks
+                        )
+                        UPDATE deadline
+                        SET callback_id = nc.callback_id, missed = nc.is_missed
+                        FROM new_callbacks nc
+                        WHERE deadline.id = nc.deadline_id
+                    """),
+                    {
+                        "cb_type": _CALLBACK_TYPE_TRIGGERER,
+                        "fetch_method": _CALLBACK_FETCH_METHOD_IMPORT_PATH,
+                        "prefix": _CALLBACK_METRICS_PREFIX,
+                        "pending": _CALLBACK_STATE_PENDING,
+                        "batch_size": BATCH_SIZE,
+                    },
+                )
+                if result.rowcount == 0:
+                    break
+                print(f"Migrated {result.rowcount} deadline records in batch {batch_num}")
         else:
             # MySQL / SQLite: use batched Python approach with SQL JSON extraction.
             # UUID generation requires Python (no reliable cross-dialect SQL UUID function
@@ -123,49 +139,46 @@ def upgrade():
 
     def _migrate_batched(conn, dialect):
         """Batch migration for MySQL/SQLite using Python UUIDs with SQL JSON extraction."""
-        import json
-
         import uuid6
 
         from airflow.utils.sqlalchemy import UtcDateTime
 
-        deadline_table = sa.table(
+        deadline_table = table(
             "deadline",
-            sa.column("id", sa.Uuid()),
-            sa.column("dagrun_id", sa.Integer()),
-            sa.column("callback", sa.JSON()),
-            sa.column("callback_state", sa.String(20)),
-            sa.column("missed", sa.Boolean()),
-            sa.column("callback_id", sa.Uuid()),
+            column("id", sa.Uuid()),
+            column("dagrun_id", sa.Integer()),
+            column("callback", sa.JSON()),
+            column("callback_state", sa.String(20)),
+            column("missed", sa.Boolean()),
+            column("callback_id", sa.Uuid()),
         )
 
-        dag_run_table = sa.table(
+        dag_run_table = table(
             "dag_run",
-            sa.column("id", sa.Integer()),
-            sa.column("dag_id", sa.String()),
+            column("id", sa.Integer()),
+            column("dag_id", sa.String()),
         )
 
-        callback_table = sa.table(
+        callback_table = table(
             "callback",
-            sa.column("id", sa.Uuid()),
-            sa.column("type", sa.String(20)),
-            sa.column("fetch_method", sa.String(20)),
-            sa.column("data", sa.JSON()),
-            sa.column("state", sa.String(10)),
-            sa.column("priority_weight", sa.Integer()),
-            sa.column("created_at", UtcDateTime(timezone=True)),
+            column("id", sa.Uuid()),
+            column("type", sa.String(20)),
+            column("fetch_method", sa.String(20)),
+            column("data", sa.JSON()),
+            column("state", sa.String(10)),
+            column("priority_weight", sa.Integer()),
+            column("created_at", UtcDateTime(timezone=True)),
         )
 
         from datetime import datetime, timezone
 
         timestamp = datetime.now(timezone.utc)
-        batch_size = 1000
         batch_num = 0
 
         while True:
             batch_num += 1
             batch = conn.execute(
-                sa.select(
+                select(
                     deadline_table.c.id,
                     deadline_table.c.callback,
                     deadline_table.c.callback_state,
@@ -173,7 +186,7 @@ def upgrade():
                 )
                 .join(dag_run_table, deadline_table.c.dagrun_id == dag_run_table.c.id)
                 .where(deadline_table.c.callback_id.is_(None))
-                .limit(batch_size)
+                .limit(BATCH_SIZE)
             ).fetchall()
 
             if not batch:
@@ -319,20 +332,20 @@ def downgrade():
 
         from airflow.utils.sqlalchemy import ExtendedJSON
 
-        deadline_table = sa.table(
+        deadline_table = table(
             "deadline",
-            sa.column("id", sa.Uuid()),
-            sa.column("callback_id", sa.Uuid()),
-            sa.column("callback", sa.JSON()),
-            sa.column("callback_state", sa.String(20)),
-            sa.column("trigger_id", sa.Integer()),
+            column("id", sa.Uuid()),
+            column("callback_id", sa.Uuid()),
+            column("callback", sa.JSON()),
+            column("callback_state", sa.String(20)),
+            column("trigger_id", sa.Integer()),
         )
 
-        callback_table = sa.table(
+        callback_table = table(
             "callback",
-            sa.column("id", sa.Uuid()),
-            sa.column("data", ExtendedJSON()),
-            sa.column("state", sa.String(10)),
+            column("id", sa.Uuid()),
+            column("data", ExtendedJSON()),
+            column("state", sa.String(10)),
         )
 
         conn = op.get_bind()
@@ -341,7 +354,7 @@ def downgrade():
         while True:
             batch_num += 1
             batch = conn.execute(
-                sa.select(
+                select(
                     deadline_table.c.id.label("deadline_id"),
                     deadline_table.c.callback_id,
                     callback_table.c.data.label("callback_data"),
@@ -349,7 +362,7 @@ def downgrade():
                 )
                 .join(callback_table, deadline_table.c.callback_id == callback_table.c.id)
                 .where(deadline_table.c.callback.is_(None))  # Only get rows that haven't been downgraded yet
-                .limit(1000)
+                .limit(BATCH_SIZE)
             ).fetchall()
 
             if not batch:
