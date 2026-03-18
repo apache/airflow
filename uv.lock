@@ -12888,6 +12888,16 @@ wheels = [
 ]
 
 [[package]]
+name = "ibmmq"
+version = "2.0.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ibmmq" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/80/76/7a7645e85a40357f47d23d43681c66d8a57f735006ef6e07bf85203173da/ibmmq-2.0.4.tar.gz", hash = "sha256:b4cd15c59137e0e5c987a3bf0a83dcb5e3e11b0316d7d79be4afcd0e2962be5c", size = 460494, upload-time = "2026-03-02T13:20:04.435Z" }
+wheels = []
+
+[[package]]
 name = "icalendar"
 version = "7.0.3"
 source = { registry = "https://pypi.org/simple" }
