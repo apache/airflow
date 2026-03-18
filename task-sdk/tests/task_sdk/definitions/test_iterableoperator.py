@@ -67,6 +67,7 @@ class TestIterableOperator:
 
     def _mock_xcom_get_one(self, context):
         """Create a context manager that mocks XCom.get_one to retrieve from context values."""
+
         def mock_get_one(**kwargs):
             kwargs["task_ids"] = kwargs.pop("task_id")
             return context["ti"].xcom_pull(**kwargs)
