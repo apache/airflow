@@ -62,7 +62,6 @@ def downgrade():
     conn = op.get_bind()
     dialect = conn.dialect.name
 
-    # Revert the value column back to LargeBinary
     if dialect == "postgresql":
         op.execute(
             """
