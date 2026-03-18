@@ -268,7 +268,8 @@ class TaskMap(TaskInstanceDependencies):
             task.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)
-            ti.context_carrier = _make_task_carrier(unmapped_ti.dag_run.context_carrier)
+            if unmapped_ti.dag_run:
+                ti.context_carrier = _make_task_carrier(unmapped_ti.dag_run.context_carrier)
             ti.refresh_from_task(task)  # session.merge() loses task information.
             all_expanded_tis.append(ti)
 

@@ -1020,7 +1020,7 @@ class DagRun(Base, LoggingMixin):
 
     def _emit_dagrun_span(self, state: DagRunState):
         # just to be safe
-        if not self.context_carrier:
+        if not isinstance(self.context_carrier, dict):
             return
 
         ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
