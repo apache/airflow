@@ -439,7 +439,11 @@ export class BackfillPage extends BasePage {
   public async selectReprocessBehavior(behavior: ReprocessBehaviorApi): Promise<void> {
     const label = REPROCESS_API_TO_UI[behavior];
 
-    await this.page.locator("label").getByText(label, { exact: true }).click({ timeout: 5000 });
+    await this.page
+      .getByRole("radiogroup", { name: "Reprocess Behavior" })
+      .locator("label")
+      .filter({ hasText: label })
+      .click({ timeout: 10_000 });
   }
 
   public async toggleColumn(columnName: string): Promise<void> {
