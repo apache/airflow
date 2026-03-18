@@ -20,9 +20,10 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from asgiref.sync import sync_to_async
 from contextlib import contextmanager, suppress
 from typing import Any
+
+from asgiref.sync import sync_to_async
 
 from airflow.sdk.bases.hook import BaseHook
 
@@ -192,9 +193,7 @@ class IBMMQHook(BaseHook):
         """
         stop_event = threading.Event()
         try:
-            return await sync_to_async(self._consume_sync)(
-                queue_name, poll_interval, stop_event
-            )
+            return await sync_to_async(self._consume_sync)(queue_name, poll_interval, stop_event)
         finally:
             # Signal background thread to exit cleanly when coroutine is canceled
             stop_event.set()
