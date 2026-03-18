@@ -191,7 +191,10 @@ class DagRun(Base, LoggingMixin):
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
-    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow)
+    # This is nullable because it's too costly to migrate dagruns created prior
+    # to this column's addition (Airflow 3.2.0). If you want a reasonable
+    # meaningful non-null value, use ``dr.created_at or dr.run_after``.
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=True, default=timezone.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
     )
