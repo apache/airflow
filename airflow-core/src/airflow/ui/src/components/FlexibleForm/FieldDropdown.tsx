@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Input } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Select } from "src/components/ui";
@@ -39,25 +40,31 @@ const labelLookup = (
 
   return key === null ? "null" : String(key);
 };
+
 const enumTypes = ["string", "number", "integer"];
 
 export const FieldDropdown = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const selectOptions = createListCollection({
-    items:
-      param.schema.enum?.map((value) => {
-        // Convert null to string constant for zag-js compatibility
-        const stringValue = String(value ?? NULL_STRING_VALUE);
+  const allItems =
+    param.schema.enum?.map((value) => {
+      // Convert null to string constant for zag-js compatibility
+      const stringValue = String(value ?? NULL_STRING_VALUE);
 
-        return {
-          label: labelLookup(value, param.schema.values_display),
-          value: stringValue,
-        };
-      }) ?? [],
-  });
+      return {
+        label: labelLookup(value, param.schema.values_display),
+        value: stringValue,
+      };
+    }) ?? [];
+
+  const selectOptions = createListCollection({ items: allItems });
+
+  const filteredItems = searchQuery
+    ? allItems.filter((opt) => opt.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    : allItems;
 
   const contentRef = useRef<HTMLDivElement | null>(null);
 
@@ -87,6 +94,11 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       disabled={disabled}
       id={`element_${name}`}
       name={`element_${name}`}
+      onOpenChange={({ open }) => {
+        if (!open) {
+          setSearchQuery("");
+        }
+      }}
       onValueChange={(event) => handleChange(event.value)}
       ref={contentRef}
       size="sm"
@@ -102,7 +114,16 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
         <Select.ValueText placeholder={translate("flexibleForm.placeholder")} />
       </Select.Trigger>
       <Select.Content portalRef={contentRef}>
-        {selectOptions.items.map((option) => (
+        <Input
+          mb={1}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          placeholder={translate("flexibleForm.searchPlaceholder")}
+          size="sm"
+          value={searchQuery}
+        />
+        {filteredItems.map((option) => (
           <Select.Item item={option} key={option.value}>
             {option.label}
           </Select.Item>
