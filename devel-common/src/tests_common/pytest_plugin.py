@@ -922,7 +922,11 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 class DAGProxy(lazy_object_proxy.Proxy):
                     """Wrapper to make test patterns work with serialized dag."""
 
-                    task = factory.dag.task  # Expose the @dag.task decorator.
+                    @property
+                    def task(self):
+                        # Forward explicitly so Proxy binding does not leak the proxy
+                        # instance into the decorator callable on Python 3.14.
+                        return factory.dag.task
 
                     # When adding a task to the dag, automatically re-serialize.
                     def add_task(self, task):

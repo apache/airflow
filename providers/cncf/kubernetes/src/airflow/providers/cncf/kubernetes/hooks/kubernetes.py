@@ -994,18 +994,21 @@ class AsyncKubernetesHook(KubernetesHook):
                 raise KubernetesApiError from e
 
     @generic_api_retry
-    async def delete_pod(self, name: str, namespace: str):
+    async def delete_pod(self, name: str, namespace: str, grace_period_seconds: int | None = None):
         """
         Delete pod's object.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
+        :param grace_period_seconds: Optional duration in seconds the pod needs to terminate gracefully.
         """
         async with self.get_conn() as connection:
             try:
                 v1_api = async_client.CoreV1Api(connection)
                 await v1_api.delete_namespaced_pod(
-                    name=name, namespace=namespace, body=client.V1DeleteOptions()
+                    name=name,
+                    namespace=namespace,
+                    body=client.V1DeleteOptions(grace_period_seconds=grace_period_seconds),
                 )
             except async_client.ApiException as e:
                 # If the pod is already deleted
