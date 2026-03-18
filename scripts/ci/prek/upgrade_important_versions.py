@@ -303,6 +303,20 @@ def get_latest_github_release_version(repo: str) -> str:
     return version
 
 
+def get_latest_sphinx_airflow_theme_version() -> str:
+    if not UPGRADE_SPHINX_AIRFLOW_THEME:
+        return ""
+    if VERBOSE:
+        console.print("[bright_blue]Fetching latest sphinx-airflow-theme version")
+    url = "https://airflow.apache.org/sphinx-airflow-theme/LATEST_VERSION.txt"
+    response = requests.get(url, headers={"User-Agent": "Python requests"})
+    response.raise_for_status()
+    latest_version = response.text.strip()
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for sphinx-airflow-theme: {latest_version}")
+    return latest_version
+
+
 def get_latest_openapi_generator_version() -> str:
     if not UPGRADE_OPENAPI_GENERATOR:
         return ""
@@ -439,6 +453,7 @@ UPGRADE_UV: bool = get_env_bool("UPGRADE_UV")
 UPGRADE_MYPY: bool = get_env_bool("UPGRADE_MYPY")
 UPGRADE_PROTOC: bool = get_env_bool("UPGRADE_PROTOC")
 UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
+UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
 
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
@@ -548,6 +563,12 @@ SIMPLE_VERSION_PATTERNS: dict[str, list[tuple[str, str]]] = {
     "openapi_generator": [
         (r"(OPENAPI_GENERATOR_CLI_VER = )(\"[0-9.]+\")", 'OPENAPI_GENERATOR_CLI_VER = "{version}"'),
     ],
+    "sphinx_airflow_theme": [
+        (
+            r"(sphinx-airflow-theme@https://airflow\.apache\.org/sphinx-airflow-theme/sphinx_airflow_theme-)([0-9.]+)(-py3-none-any\.whl)",
+            "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-{version}-py3-none-any.whl",
+        ),
+    ],
 }
 
 
@@ -580,6 +601,9 @@ def fetch_all_package_versions() -> dict[str, str]:
         "protoc": get_latest_image_version("rvolosatovs/protoc") if UPGRADE_PROTOC else "",
         "mprocs": get_latest_github_release_version("pvolok/mprocs") if UPGRADE_MPROCS else "",
         "openapi_generator": get_latest_openapi_generator_version() if UPGRADE_OPENAPI_GENERATOR else "",
+        "sphinx_airflow_theme": get_latest_sphinx_airflow_theme_version()
+        if UPGRADE_SPHINX_AIRFLOW_THEME
+        else "",
     }
 
 

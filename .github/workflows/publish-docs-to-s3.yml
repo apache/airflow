@@ -307,6 +307,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      packages: write
     runs-on: ubuntu-latest
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -416,6 +417,9 @@ jobs:
     needs: [publish-docs-to-s3, build-info]
     if: needs.build-info.outputs.registry-providers != ''
     name: "Update Provider Registry"
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/registry-build.yml
     with:
       destination: ${{ needs.build-info.outputs.destination }}
