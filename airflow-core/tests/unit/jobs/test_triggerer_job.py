@@ -1402,18 +1402,18 @@ class TestMakeTriggerSpan:
         ti = self._make_ti_dto(task_id="sensor_task", map_index=-1)
         with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
             pass
-        assert self.exporter.get_finished_spans()[0].name == "trigger_run.sensor_task"
+        assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task"
 
     def test_make_trigger_span_name_with_mapped_task(self):
         ti = self._make_ti_dto(task_id="sensor_task", map_index=2)
         with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
             pass
-        assert self.exporter.get_finished_spans()[0].name == "trigger_run.sensor_task_2"
+        assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task_2"
 
     def test_make_trigger_span_name_without_task_instance(self):
         with _make_trigger_span(ti=None, trigger_id=42, name="MySensor"):
             pass
-        assert self.exporter.get_finished_spans()[0].name == "trigger_run.42"
+        assert self.exporter.get_finished_spans()[0].name == "trigger.42"
 
     def test_make_trigger_span_uses_task_context_carrier(self):
         from opentelemetry import trace as otel_trace

@@ -109,7 +109,7 @@ def _make_trigger_span(
     parent_context = (
         TraceContextTextMapPropagator().extract(ti.context_carrier) if ti and ti.context_carrier else None
     )
-    span_name = f"trigger_run.{ti.task_id}" if ti else f"trigger_run.{trigger_id}"
+    span_name = f"trigger.{ti.task_id}" if ti else f"trigger.{trigger_id}"
     if ti and ti.map_index >= 0:
         span_name += f"_{ti.map_index}"
     attributes: dict[str, str | int] = {
