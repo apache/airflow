@@ -20,6 +20,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest import mock
 
+try:
+    # Python 3.11+
+    BaseExceptionGroup
+except NameError:
+    from exceptiongroup import BaseExceptionGroup
+
 import pytest
 
 from airflow.sdk import BaseOperator, DAG, timezone
