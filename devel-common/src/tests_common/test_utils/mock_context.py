@@ -17,14 +17,20 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 from airflow.models import DagRun
 from airflow.utils.types import DagRunType
+
 from tests_common.test_utils.compat import Context
 from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -68,7 +74,7 @@ def mock_context(task, run_id: str | None = None) -> Context:
 
     values["ti"] = create_task_instance(task, dag_version_id=mock.MagicMock(), ti_type=MockedTaskInstance)
     values["run_id"] = (
-        DagRun.generate_run_id(run_type=DagRunType.MANUAL, run_after=datetime.now())
+        DagRun.generate_run_id(DagRunType.MANUAL, timezone.utcnow())
         if run_id is None
         else run_id
     )
