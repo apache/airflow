@@ -1351,10 +1351,10 @@ class TestDagRun:
 
     @mock.patch.object(Deadline, "prune_deadlines")
     @mock.patch.object(DeadlineAlertModel, "get_by_id")
-    def test_dagrun_failure_prunes_dagrun_deadlines(
+    def test_dagrun_failure_does_not_prune_deadlines(
         self, mock_get_by_id, mock_prune, session, deadline_test_dag
     ):
-        """Deadlines should be pruned when a DAG run fails, not just on success."""
+        """On failure, deadlines should NOT be pruned — handle_miss fires instead."""
         mock_deadline_alert = mock.MagicMock()
         mock_deadline_alert.reference_class = SerializedReferenceModels.FixedDatetimeDeadline
         mock_get_by_id.return_value = mock_deadline_alert
@@ -1373,10 +1373,8 @@ class TestDagRun:
 
         dag_run.update_state(session=session)
 
-        assert mock_get_by_id.call_count == len(deadline_ids)
-        for deadline_id in deadline_ids:
-            mock_get_by_id.assert_any_call(deadline_id, session)
-        mock_prune.assert_called_once_with(session=session, conditions={DagRun.id: dag_run.id})
+        # prune should NOT be called on failure — only on success
+        mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.FAILED
 
 
