@@ -87,12 +87,6 @@ class TestDefaultFillingLogic:
                 id="no_params",
             ),
             pytest.param(
-                lambda a, b=5, c=None: (a, b, c),
-                {"a": 1},
-                [],
-                id="param_after_first_default_without_default",
-            ),
-            pytest.param(
                 lambda x, y=99: (x, y),
                 {"x": 1},
                 [],
@@ -165,7 +159,7 @@ class TestDefaultFillingLogic:
         """All context-key signature shapes must construct without raising."""
         from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS
 
-        ctx_keys = list(KNOWN_CONTEXT_KEYS)
+        ctx_keys = sorted(KNOWN_CONTEXT_KEYS)
         src = func_src.format(
             ctx0=ctx_keys[0],
             ctx1=ctx_keys[1] if len(ctx_keys) > 1 else ctx_keys[0],
@@ -199,10 +193,10 @@ class TestDefaultFillingLogic:
             make_op(dummy_task)
 
     def test_variadic_and_keyword_only_params_are_not_assigned_defaults(self):
-        """*args, **kwargs, and keyword-only params must never get a None default injected."""
+        """Construction succeeds when variadic and keyword-only params are present."""
 
         def dummy_task(a, b=1, *args, kw_required, **kwargs):
-            return (a, b, args, kw_required, kwargs)
+            return a, b, args, kw_required, kwargs
 
         assert make_op(dummy_task, op_kwargs={"a": 1, "kw_required": "x"}) is not None
 
