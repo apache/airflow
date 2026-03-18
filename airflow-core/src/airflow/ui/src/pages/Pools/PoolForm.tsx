@@ -111,9 +111,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           </Field.Root>
         )}
         rules={{
-          validate: (value: number) =>
-            (typeof value === "number" && Number.isFinite(value)) ||
-            translate("common:validation.mustBeValidNumber"),
+          validate: (value) => Number.isFinite(value) || translate("common:validation.mustBeValidNumber"),
         }}
       />
 
