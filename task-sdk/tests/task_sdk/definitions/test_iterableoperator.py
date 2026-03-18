@@ -32,13 +32,13 @@ from airflow.sdk import DAG, BaseOperator, timezone
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
-from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.execution_time.xcom import XCom
 
 from tests_common.test_utils.mock_context import mock_context
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
 
 
 class MockOperator(BaseOperator):
