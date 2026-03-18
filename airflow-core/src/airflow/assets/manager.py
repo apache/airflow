@@ -430,18 +430,25 @@ class AssetManager(LoggingMixin):
                     name=asset_model.name, uri=asset_model.uri
                 ).to_downstream(partition_key)
             except Exception as err:
-                msg = (
+                log.exception(
+                    "Could not map partition key for asset in target Dag. "
+                    "This likely indicates the target Dag's partition mapper "
+                    "is misconfigured, or does not support this partition key.",
+                    partition_key=partition_key,
+                    asset=asset_model,
+                    target_dag=target_dag,
+                )
+                log_extra = (
                     f"Could not map partition_key '{partition_key}' for asset "
                     f"(name='{asset_model.name}', uri='{asset_model.uri}') in target Dag "
                     f"'{target_dag.dag_id}'. This likely indicates that the partition "
                     f"mapper in the target Dag is misconfigured or does not support this "
-                    f"partition key."
+                    f"partition key.\n{type(err).__name__}: {err}"
                 )
-                log.exception(msg)
                 session.add(
                     Log(
                         event="failed to map partition_key",
-                        extra=(f"{msg}\n{type(err).__name__}: {err}"),
+                        extra=log_extra,
                         task_instance=task_instance,
                     )
                 )
