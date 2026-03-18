@@ -1,1 +1,0 @@
-Fix FileSyntaxError line number formatting in file parse errors.
