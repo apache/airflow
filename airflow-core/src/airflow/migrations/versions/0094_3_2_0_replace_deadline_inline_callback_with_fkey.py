@@ -200,7 +200,7 @@ def upgrade():
 
 def downgrade():
     """Restore Deadline table's inline callback fields from callback_id foreign key."""
-    from airflow.models.callback import CallbackState
+    from airflow.utils.state import CallbackState
 
     def migrate_batch(conn, deadline_table, callback_table, batch):
         deadline_updates = []
@@ -322,7 +322,7 @@ def downgrade():
         batch_op.alter_column("callback_id", existing_type=sa.Uuid(), nullable=True)
 
         batch_op.drop_constraint(batch_op.f("deadline_callback_id_fkey"), type_="foreignkey")
-        batch_op.drop_index("deadline_callback_id_idx")
+        # Note: deadline_callback_id_idx is kept here so it can speed up the JOIN in migrate_all_data()
 
     migrate_all_data()
 
@@ -334,5 +334,7 @@ def downgrade():
         batch_op.create_index(
             batch_op.f("deadline_callback_state_time_idx"), ["callback_state", "deadline_time"], unique=False
         )
+        # Drop the index after data migration so it can speed up the JOIN query in migrate_all_data()
+        batch_op.drop_index("deadline_callback_id_idx")
         batch_op.drop_column("callback_id")
         batch_op.drop_column("missed")
