@@ -18,10 +18,10 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { getHighlightColor } from "./utils";
+import { getHighlightColor, splitBySearchQuery } from "./utils";
 
 describe("getHighlightColor", () => {
-  it("returns orange.emphasized for the current search match", () => {
+  it("returns bg.muted for the current search match", () => {
     expect(
       getHighlightColor({
         currentMatchIndex: 3,
@@ -29,10 +29,10 @@ describe("getHighlightColor", () => {
         index: 3,
         searchMatchIndices: new Set([1, 3, 5]),
       }),
-    ).toBe("orange.emphasized");
+    ).toBe("bg.muted");
   });
 
-  it("returns yellow.emphasized for a non-current search match", () => {
+  it("returns transparent for a non-current search match (inline highlight only)", () => {
     expect(
       getHighlightColor({
         currentMatchIndex: 1,
@@ -40,7 +40,7 @@ describe("getHighlightColor", () => {
         index: 3,
         searchMatchIndices: new Set([1, 3, 5]),
       }),
-    ).toBe("yellow.emphasized");
+    ).toBe("transparent");
   });
 
   it("returns brand.emphasized for the URL-hash-linked line when no search is active", () => {
@@ -75,7 +75,6 @@ describe("getHighlightColor", () => {
   });
 
   it("current match takes priority over hash highlight on same line", () => {
-    // Line index 4 is both the current match and the hash-linked line (hash "5")
     expect(
       getHighlightColor({
         currentMatchIndex: 4,
@@ -83,11 +82,10 @@ describe("getHighlightColor", () => {
         index: 4,
         searchMatchIndices: new Set([4]),
       }),
-    ).toBe("orange.emphasized");
+    ).toBe("bg.muted");
   });
 
-  it("search match takes priority over hash highlight when not the current match", () => {
-    // Line 4 is a match but not the current one; hash also points to it
+  it("hash highlight shown when search match is not current on same line", () => {
     expect(
       getHighlightColor({
         currentMatchIndex: 0,
@@ -95,7 +93,7 @@ describe("getHighlightColor", () => {
         index: 4,
         searchMatchIndices: new Set([0, 4]),
       }),
-    ).toBe("yellow.emphasized");
+    ).toBe("brand.emphasized");
   });
 
   it("returns transparent when searchMatchIndices is an empty Set", () => {
@@ -107,5 +105,58 @@ describe("getHighlightColor", () => {
         searchMatchIndices: new Set(),
       }),
     ).toBe("transparent");
+  });
+});
+
+describe("splitBySearchQuery", () => {
+  it("returns the full text as a single non-highlight segment when query is empty", () => {
+    expect(splitBySearchQuery("hello world", "")).toEqual([{ highlight: false, text: "hello world" }]);
+  });
+
+  it("returns the full text when query does not match", () => {
+    expect(splitBySearchQuery("hello world", "xyz")).toEqual([{ highlight: false, text: "hello world" }]);
+  });
+
+  it("highlights a single match", () => {
+    expect(splitBySearchQuery("hello world", "world")).toEqual([
+      { highlight: false, text: "hello " },
+      { highlight: true, text: "world" },
+    ]);
+  });
+
+  it("highlights multiple matches", () => {
+    expect(splitBySearchQuery("foo bar foo", "foo")).toEqual([
+      { highlight: true, text: "foo" },
+      { highlight: false, text: " bar " },
+      { highlight: true, text: "foo" },
+    ]);
+  });
+
+  it("is case-insensitive", () => {
+    expect(splitBySearchQuery("Hello HELLO hello", "hello")).toEqual([
+      { highlight: true, text: "Hello" },
+      { highlight: false, text: " " },
+      { highlight: true, text: "HELLO" },
+      { highlight: false, text: " " },
+      { highlight: true, text: "hello" },
+    ]);
+  });
+
+  it("handles match at the start", () => {
+    expect(splitBySearchQuery("error: something", "error")).toEqual([
+      { highlight: true, text: "error" },
+      { highlight: false, text: ": something" },
+    ]);
+  });
+
+  it("handles match at the end", () => {
+    expect(splitBySearchQuery("something error", "error")).toEqual([
+      { highlight: false, text: "something " },
+      { highlight: true, text: "error" },
+    ]);
+  });
+
+  it("handles entire string as match", () => {
+    expect(splitBySearchQuery("error", "error")).toEqual([{ highlight: true, text: "error" }]);
   });
 });

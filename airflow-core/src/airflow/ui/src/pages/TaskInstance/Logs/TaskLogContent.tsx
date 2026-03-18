@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, VStack, IconButton } from "@chakra-ui/react";
+import { Box, Code, Mark, VStack, IconButton } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { type JSX, useLayoutEffect, useRef } from "react";
+import { type JSX, type ReactNode, useLayoutEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
@@ -27,7 +27,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar, Tooltip } from "src/components/ui";
 import { getMetaKey } from "src/utils";
 
-import { getHighlightColor, scrollToBottom, scrollToTop } from "./utils";
+import { getHighlightColor, scrollToBottom, scrollToTop, splitBySearchQuery } from "./utils";
 
 export type TaskLogContentProps = {
   readonly currentMatchIndex?: number;
@@ -36,6 +36,7 @@ export type TaskLogContentProps = {
   readonly logError: unknown;
   readonly parsedLogs: Array<JSX.Element | string | undefined>;
   readonly searchMatchIndices?: Set<number>;
+  readonly searchQuery?: string;
   readonly wrap: boolean;
 };
 
@@ -81,6 +82,29 @@ const ScrollToButton = ({
   );
 };
 
+const HighlightedText = ({ children, query }: { readonly children: ReactNode; readonly query?: string }) => {
+  if (typeof query !== "string" || query.length === 0 || typeof children !== "string") {
+    return children;
+  }
+
+  const segments = splitBySearchQuery(children, query);
+
+  return (
+    <span>
+      {segments.map((segment, idx) =>
+        segment.highlight ? (
+          // eslint-disable-next-line react/no-array-index-key
+          <Mark bg="bg.subtle" key={idx}>
+            {segment.text}
+          </Mark>
+        ) : (
+          segment.text
+        ),
+      )}
+    </span>
+  );
+};
+
 export const TaskLogContent = ({
   currentMatchIndex,
   error,
@@ -88,6 +112,7 @@ export const TaskLogContent = ({
   logError,
   parsedLogs,
   searchMatchIndices,
+  searchQuery,
   wrap,
 }: TaskLogContentProps) => {
   const hash = location.hash.replace("#", "");
@@ -186,7 +211,9 @@ export const TaskLogContent = ({
                 transform={`translateY(${virtualRow.start}px)`}
                 width={wrap ? "100%" : "max-content"}
               >
-                {parsedLogs[virtualRow.index] ?? undefined}
+                <HighlightedText query={searchMatchIndices?.has(virtualRow.index) ? searchQuery : undefined}>
+                  {parsedLogs[virtualRow.index] ?? undefined}
+                </HighlightedText>
               </Box>
             ))}
           </VStack>

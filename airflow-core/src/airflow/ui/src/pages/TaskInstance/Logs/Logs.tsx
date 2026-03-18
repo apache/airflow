@@ -234,6 +234,7 @@ export const Logs = () => {
     logError,
     parsedLogs: parsedData.parsedLogs ?? [],
     searchMatchIndices: searchQuery ? new Set(searchMatchIndices) : undefined,
+    searchQuery: searchQuery || undefined,
     wrap,
   };
 

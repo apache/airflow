@@ -145,7 +145,7 @@ export const TaskLogHeader = ({
           taskInstance={taskInstance}
         />
       )}
-      <HStack justifyContent="space-between">
+      <HStack flexWrap="wrap" gap={2} justifyContent="space-between">
         <Select.Root
           collection={logLevelOptions}
           maxW="250px"

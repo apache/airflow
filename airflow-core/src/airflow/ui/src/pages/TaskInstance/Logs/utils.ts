@@ -27,25 +27,57 @@ export type HighlightOptions = {
 
 /**
  * Returns the background color token for a virtualized log row.
- * Priority: current search match > any search match > URL hash line > transparent.
+ * Priority: current search match (bg.muted) > URL hash line > transparent.
+ * Non-current search matches no longer highlight the full line — only inline
+ * text highlighting via bg.subtle is used (see TaskLogContent).
  */
-export const getHighlightColor = ({
-  currentMatchIndex,
-  hash,
-  index,
-  searchMatchIndices,
-}: HighlightOptions): string => {
+export const getHighlightColor = ({ currentMatchIndex, hash, index }: HighlightOptions): string => {
   if (currentMatchIndex !== undefined && index === currentMatchIndex) {
-    return "orange.emphasized";
-  }
-  if (searchMatchIndices?.has(index)) {
-    return "yellow.emphasized";
+    return "bg.muted";
   }
   if (Boolean(hash) && index === Number(hash) - 1) {
     return "brand.emphasized";
   }
 
   return "transparent";
+};
+
+/**
+ * Wraps matching substrings in a log line with a highlight marker.
+ * Returns an array of strings and { text, highlight } objects for rendering.
+ */
+export type HighlightSegment = { highlight: boolean; text: string };
+
+export const splitBySearchQuery = (text: string, query: string): Array<HighlightSegment> => {
+  if (!query) {
+    return [{ highlight: false, text }];
+  }
+
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const segments: Array<HighlightSegment> = [];
+  let lastIndex = 0;
+
+  let matchIndex = lowerText.indexOf(lowerQuery, lastIndex);
+
+  while (matchIndex !== -1) {
+    if (matchIndex > lastIndex) {
+      segments.push({ highlight: false, text: text.slice(lastIndex, matchIndex) });
+    }
+    segments.push({ highlight: true, text: text.slice(matchIndex, matchIndex + query.length) });
+    lastIndex = matchIndex + query.length;
+    matchIndex = lowerText.indexOf(lowerQuery, lastIndex);
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ highlight: false, text: text.slice(lastIndex) });
+  }
+
+  if (segments.length === 0) {
+    return [{ highlight: false, text }];
+  }
+
+  return segments;
 };
 
 type VirtualizerInstance = Virtualizer<HTMLDivElement, Element>;
