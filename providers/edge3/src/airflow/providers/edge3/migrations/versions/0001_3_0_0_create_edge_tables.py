@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
 # revision identifiers, used by Alembic.
 revision = "9d34dfc2de06"
@@ -84,7 +85,7 @@ def upgrade() -> None:
         sa.Column("map_index", sa.Integer(), server_default=sa.text("-1"), nullable=False),
         sa.Column("try_number", sa.Integer(), nullable=False),
         sa.Column("log_chunk_time", sa.DateTime(), nullable=False),
-        sa.Column("log_chunk_data", sa.Text(), nullable=False),
+        sa.Column("log_chunk_data", sa.Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False),
         sa.PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", "try_number", "log_chunk_time"),
         if_not_exists=True,
     )
