@@ -65,7 +65,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import ValidationSource
     from airflow.sdk.definitions.taskgroup import TaskGroup
-    from airflow.sdk.definitions.xcom_arg import PlainXComArg
 
 
 class ExpandableFactory(Protocol):
