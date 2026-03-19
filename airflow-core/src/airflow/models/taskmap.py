@@ -29,7 +29,6 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
 
-from airflow.models import DagRun
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
@@ -272,6 +271,8 @@ class TaskMap(TaskInstanceDependencies):
             if unmapped_ti:
                 dr = unmapped_ti.dag_run
             else:
+                from airflow.models import DagRun
+
                 dr = session.scalar(
                     select(DagRun).where(
                         DagRun.dag_id == task.dag_id,
