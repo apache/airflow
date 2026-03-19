@@ -92,9 +92,7 @@ test.describe("Dags List Display", () => {
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
-    const dagExists = await dagsPage.verifyDagExists(testDagId);
-
-    expect(dagExists).toBe(true);
+    await dagsPage.verifyDagExists(testDagId);
   });
 });
 
@@ -111,20 +109,14 @@ test.describe("Dags View Toggle", () => {
     await dagsPage.verifyDagsListVisible();
 
     await dagsPage.switchToCardView();
-
-    const cardViewVisible = await dagsPage.verifyCardViewVisible();
-
-    expect(cardViewVisible).toBe(true);
+    await dagsPage.verifyCardViewVisible();
 
     const cardViewDagsCount = await dagsPage.getDagsCount();
 
     expect(cardViewDagsCount).toBeGreaterThan(0);
 
     await dagsPage.switchToTableView();
-
-    const tableViewVisible = await dagsPage.verifyTableViewVisible();
-
-    expect(tableViewVisible).toBe(true);
+    await dagsPage.verifyTableViewVisible();
 
     const tableViewDagsCount = await dagsPage.getDagsCount();
 
@@ -152,9 +144,7 @@ test.describe("Dags Search", () => {
 
     await dagsPage.searchDag(testDagId);
 
-    const dagExists = await dagsPage.verifyDagExists(testDagId);
-
-    expect(dagExists).toBe(true);
+    await dagsPage.verifyDagExists(testDagId);
 
     await dagsPage.clearSearch();
 
