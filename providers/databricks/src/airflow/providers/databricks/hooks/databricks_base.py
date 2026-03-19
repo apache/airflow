@@ -27,13 +27,13 @@ from __future__ import annotations
 
 import copy
 import platform
+import ssl
 import time
 from asyncio.exceptions import TimeoutError
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-import aiofiles
 import aiohttp
 import requests
 from aiohttp.client_exceptions import ClientConnectorError
@@ -77,6 +77,7 @@ K8S_TOKEN_SERVICE_URL = "https://kubernetes.default.svc"
 DEFAULT_K8S_AUDIENCE = "https://kubernetes.default.svc"
 DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 DEFAULT_K8S_NAMESPACE_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+K8S_CA_CERT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
 # RFC 8693 token exchange data template
 TOKEN_EXCHANGE_DATA = {
@@ -599,8 +600,28 @@ class BaseDatabricksHook(BaseHook):
         except PermissionError as e:
             raise AirflowException(f"Permission denied reading token from {projected_token_path}") from e
 
+    @staticmethod
+    def _get_aiofiles():
+        """
+        Lazy-import aiofiles for async Kubernetes in-cluster authentication.
+
+        :return: The aiofiles module.
+        :raises AirflowOptionalProviderFeatureException: If aiofiles is not installed.
+        """
+        try:
+            import aiofiles
+
+            return aiofiles
+        except ImportError as err:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'aiofiles' library is required for async Kubernetes in-cluster authentication. "
+                "Please install it with: pip install 'apache-airflow-providers-cncf-kubernetes'"
+            ) from err
+
     async def _a_get_k8s_projected_volume_token(self) -> str:
         """Async version of _get_k8s_projected_volume_token()."""
+        aiofiles = self._get_aiofiles()
+
         projected_token_path: str = self.databricks_conn.extra_dejson["k8s_projected_volume_token_path"]
 
         try:
@@ -677,7 +698,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/json",
                         },
                         json=self._build_k8s_token_request_payload(audience, expiration_seconds),
-                        verify=False,  # K8s in-cluster uses self-signed certs
+                        verify=K8S_CA_CERT_PATH,
                         timeout=self.token_timeout_seconds,
                     )
                     resp.raise_for_status()
@@ -710,6 +731,8 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_k8s_token_request_api(self) -> str:
         """Async version of _get_k8s_token_request_api()."""
+        aiofiles = self._get_aiofiles()
+
         audience = self.databricks_conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
         expiration_seconds = self.databricks_conn.extra_dejson.get("expiration_seconds", 3600)
         token_path = self.databricks_conn.extra_dejson.get(
@@ -730,6 +753,7 @@ class BaseDatabricksHook(BaseHook):
             token_request_url = (
                 f"{K8S_TOKEN_SERVICE_URL}/api/v1/namespaces/{namespace}/serviceaccounts/default/token"
             )
+            ssl_ctx = ssl.create_default_context(cafile=K8S_CA_CERT_PATH)
 
             async for attempt in self._a_get_retry_object():
                 with attempt:
@@ -740,7 +764,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/json",
                         },
                         json=self._build_k8s_token_request_payload(audience, expiration_seconds),
-                        ssl=False,  # K8s in-cluster uses self-signed certs
+                        ssl=ssl_ctx,
                         timeout=self.token_timeout_seconds,
                     ) as resp:
                         resp.raise_for_status()

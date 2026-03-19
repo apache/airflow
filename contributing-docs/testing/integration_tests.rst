@@ -47,13 +47,12 @@ NOTE: Every integration requires a separate container with the corresponding int
 These containers take precious resources on your PC, mainly the memory. The started integrations are not stopped
 until you stop the Breeze environment with the ``breeze down`` command.
 
-While you can run ``breeze`` or ``breeze shell` with one or multiple integrations enabled, some integrations
+While you can run ``breeze`` or ``breeze shell`` with one or multiple integrations enabled, some integrations
 are pure "provider" integrations, and some are "core" integration. Which means that some of the integrations
 have tests defined in the "providers" tests (because they are testing provider features), but other
-integrations are testing core features of Airflow (Fore example executors with CeleryExecutor).
+integrations are testing core features of Airflow (For example executors with CeleryExecutor).
 
-The following integrations are available ("Core tests ?" column indicates if the integration is a
-core or provider type of test.
+The following integrations are available.
 
 .. BEGIN AUTO-GENERATED INTEGRATION LIST
 
@@ -81,6 +80,8 @@ core or provider type of test.
 | mssql         | Integration required for mssql hooks.                 |
 +---------------+-------------------------------------------------------+
 | openlineage   | Integration required for Openlineage hooks.           |
++---------------+-------------------------------------------------------+
+| opensearch    | Integration required for OpenSearch hooks.            |
 +---------------+-------------------------------------------------------+
 | otel          | Integration required for OTEL/opentelemetry hooks.    |
 +---------------+-------------------------------------------------------+

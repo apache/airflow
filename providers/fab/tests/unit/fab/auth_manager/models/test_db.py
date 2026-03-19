@@ -20,6 +20,7 @@ import re
 from unittest import mock
 
 import pytest
+import sqlalchemy as sa
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
@@ -70,6 +71,15 @@ try:
                 },
             )
             diff = compare_metadata(mctx, all_meta_data)
+            ignores = [
+                # These are conditionally added in ORM by the event listener
+                lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_register_user_username",
+                lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_user_username",
+                lambda t: t[0] == "add_index" and t[1].name == "idx_ab_register_user_username",
+                lambda t: t[0] == "add_index" and t[1].name == "idx_ab_user_username",
+            ]
+            for ignore in ignores:
+                diff = [d for d in diff if not ignore(d)]
 
             assert not diff, "Database schema and SQLAlchemy model are not in sync: " + str(diff)
 
@@ -102,11 +112,42 @@ try:
         @mock.patch.object(FABDBManager, "get_current_revision")
         def test_sqlite_offline_upgrade_raises_with_revision(self, mock_gcr, session):
             with mock.patch(
-                "airflow.providers.fab.auth_manager.models.db.settings.engine.dialect"
-            ) as dialect:
-                dialect.name = "sqlite"
+                "airflow.providers.fab.auth_manager.models.db.settings.SQL_ALCHEMY_CONN",
+                "sqlite:////tmp/fab-test.db",
+            ):
                 with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
                     FABDBManager(session).upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
+
+        @mock.patch("alembic.command.upgrade")
+        @mock.patch.object(FABDBManager, "create_db_from_orm")
+        @mock.patch.object(FABDBManager, "get_current_revision", return_value=None)
+        def test_upgradedb_empty_db_without_migration_files_uses_create_db_from_orm(
+            self, mock_get_current_revision, mock_create_db_from_orm, mock_upgrade, session
+        ):
+            FABDBManager(session).upgradedb()
+
+            mock_create_db_from_orm.assert_called_once()
+            mock_upgrade.assert_not_called()
+            mock_get_current_revision.assert_called_once()
+
+        @mock.patch("alembic.command.upgrade")
+        @mock.patch.object(FABDBManager, "create_db_from_orm")
+        @mock.patch.object(FABDBManager, "get_current_revision", return_value=None)
+        @mock.patch.object(FABDBManager, "get_alembic_config", return_value=object())
+        def test_upgradedb_empty_db_with_use_migration_files_runs_alembic_upgrade(
+            self,
+            mock_get_alembic_config,
+            mock_get_current_revision,
+            mock_create_db_from_orm,
+            mock_upgrade,
+            session,
+        ):
+            FABDBManager(session).upgradedb(use_migration_files=True)
+
+            mock_create_db_from_orm.assert_not_called()
+            mock_get_current_revision.assert_called_once()
+            mock_get_alembic_config.assert_called_once()
+            mock_upgrade.assert_called_once_with(mock_get_alembic_config.return_value, revision="heads")
 
         @mock.patch("airflow.utils.db_manager.inspect")
         @mock.patch.object(FABDBManager, "metadata")
@@ -132,6 +173,26 @@ try:
                 mock_initdb.assert_not_called()
             else:
                 mock_initdb.assert_called_once()
+
+        @pytest.mark.backend("mysql")
+        def test_upgradedb_mysql_keeps_permission_view_role_indexes_after_fk_recreation(self, session):
+            manager = FABDBManager(session=session)
+            original_revision = manager.get_current_revision()
+
+            try:
+                manager.downgrade(to_revision="6709f7a774b9")
+                manager.upgradedb(to_revision="02ca36b0235b")
+
+                index_names = {
+                    index["name"] for index in sa.inspect(engine).get_indexes("ab_permission_view_role")
+                }
+
+                assert "idx_permission_view_id" in index_names
+                assert "idx_role_id" in index_names
+            finally:
+                current_revision = manager.get_current_revision()
+                if original_revision and current_revision != original_revision:
+                    manager.upgradedb(to_revision=original_revision)
 
 except ModuleNotFoundError:
     pass

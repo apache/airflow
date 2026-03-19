@@ -26,11 +26,8 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import yaml
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_ROOT_PATH, check_list_sorted, console
 
 BUG_REPORT_TEMPLATE = AIRFLOW_ROOT_PATH / ".github" / "ISSUE_TEMPLATE" / "3-airflow_providers_bug_report.yml"

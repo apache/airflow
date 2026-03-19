@@ -125,6 +125,15 @@ extraction:
    types, defaults, and docstrings. Writes
    `versions/{provider_id}/{version}/parameters.json`.
 
+**`registry_contract_models.py`** defines Pydantic models that validate the shape of
+every JSON payload the registry produces. Each extraction script calls
+`_validate(ModelType, payload)` before writing JSON — this catches schema drift at
+generation time without a separate jsonschema layer. The same models generate the
+OpenAPI 3.1 spec served at `/api/openapi.json`.
+
+**`export_registry_schemas.py`** generates `registry/schemas/openapi.json` from the
+contract models. It runs automatically via `pnpm prebuild` before Eleventy builds.
+
 **`extract_connections.py`** (runs inside breeze) reads `connection-types` from
 `provider.yaml`, falling back to runtime inspection of hook
 `get_connection_form_widgets()` and `get_ui_field_behaviour()`. Writes
@@ -177,6 +186,8 @@ the same Sphinx build that generates the docs.
 | `statsData.js` | Checked-in | Computed statistics (lifecycle counts, top providers, etc.) |
 | `providerVersions.js` | Checked-in | Builds the provider × version page collection |
 | `latestVersionData.js` | Checked-in | Latest version parameters/connections lookup |
+| `openapiSpec.js` | Checked-in | Builds OpenAPI 3.1 spec from Pydantic contract models |
+| `providerVersionPayloads.js` | Checked-in | Generates `/api/providers/{id}/versions.json` payloads |
 
 ### Pages
 
@@ -188,6 +199,7 @@ the same Sphinx build that generates the docs.
 | Statistics | `src/stats.njk` | `/stats/` |
 | Provider Detail | `src/provider-detail.njk` | `/providers/{id}/` (redirects to latest) |
 | Provider Version | `src/provider-version.njk` | `/providers/{id}/{version}/` |
+| API Explorer | `src/api-explorer.njk` | `/api-explorer/` |
 
 ### Client-Side JavaScript
 
@@ -272,6 +284,10 @@ providing programmatic access to provider and module data:
 - `/api/providers/{id}/{version}/modules.json` — Version-specific modules
 - `/api/providers/{id}/{version}/parameters.json` — Version-specific parameters
 - `/api/providers/{id}/{version}/connections.json` — Version-specific connections
+- `/api/openapi.json` — OpenAPI 3.1 spec (generated at build time from Pydantic contracts)
+
+An interactive **API Explorer** at `/api-explorer/` renders the OpenAPI spec using
+swagger-ui (vendored from `node_modules/swagger-ui-dist`).
 
 ## Incremental Builds
 
@@ -311,16 +327,30 @@ it triggers `registry-build.yml` with the provider ID. The incremental flow:
    metadata and PyPI stats; `extract_parameters.py` discovers modules for only the
    specified provider.
 3. **Merge** — `merge_registry_data.py` replaces the updated provider's entries in
-   the downloaded JSON while keeping all other providers intact.
+   the downloaded JSON while keeping all other providers intact. Only global files
+   (`providers.json`, `modules.json`) are merged — per-version files like
+   `connections.json` and `parameters.json` are not downloaded from S3.
 4. **Build site** — Eleventy builds all pages from the merged data; Pagefind indexes
-   all records.
-5. **S3 sync** — only changed pages are uploaded (S3 sync diffs).
+   all records. Because per-version data only exists for the target provider, Eleventy
+   emits empty fallback JSON for other providers' `connections.json` and
+   `parameters.json` API endpoints (see **Known limitation** below).
+5. **S3 sync (selective)** — the main sync excludes the entire `api/providers/`
+   subtree to avoid overwriting real data with incomplete/empty stubs. A second
+   sync uploads only the target provider's API files.
 6. **Publish versions** — `publish_versions.py` updates `api/providers/{id}/versions.json`.
 
 The merge script (`dev/registry/merge_registry_data.py`) handles edge cases:
 
 - First deploy (no existing data on S3): uses the single-provider output as-is.
 - Missing modules file: treated as empty.
+
+**Known limitation**: Eleventy's pagination templates generate API files for every
+provider in `providers.json`, even when per-version data (connections, parameters) only
+exists for the target provider. The templates emit empty fallback JSON
+(`{"connection_types":[]}`) for providers without data. The S3 sync step works around
+this with `--exclude` patterns during incremental builds. A proper template-level fix
+(skipping file generation) is tracked as a follow-up — `permalink: false` does not work
+with Eleventy 3.x pagination templates.
 
 To run an incremental build locally:
 

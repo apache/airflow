@@ -89,6 +89,7 @@ dependencies = [
     "werkzeug>=2.2,<4",
     "wtforms>=3.0,<4",
     "cachetools>=6.0",
+    "marshmallow>=3",
 
     # https://github.com/dpgaspar/Flask-AppBuilder/blob/release/4.6.3/setup.py#L54C8-L54C26
     # with an exclusion to account for https://github.com/alisaifee/flask-limiter/issues/479
