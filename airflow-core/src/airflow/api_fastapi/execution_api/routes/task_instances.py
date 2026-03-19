@@ -596,9 +596,27 @@ def ti_skip_downstream(
     task_ids = [task if isinstance(task, tuple) else (task, -1) for task in tasks]
     log.debug("Prepared task IDs for skipping", task_ids=task_ids)
 
+    # Don't overwrite tasks that are already executing or finished.
+    # See: https://github.com/apache/airflow/issues/59378
+    # Note: SQL NULL NOT IN (...) is falsy, so we need an explicit IS NULL check.
+    skippable_state_clause = or_(
+        TI.state.is_(None),
+        TI.state.not_in(
+            [
+                TaskInstanceState.RUNNING,
+                TaskInstanceState.SUCCESS,
+                TaskInstanceState.FAILED,
+            ]
+        ),
+    )
     query = (
         update(TI)
-        .where(TI.dag_id == dag_id, TI.run_id == run_id, tuple_(TI.task_id, TI.map_index).in_(task_ids))
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == run_id,
+            tuple_(TI.task_id, TI.map_index).in_(task_ids),
+            skippable_state_clause,
+        )
         .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
         .execution_options(synchronize_session=False)
     )
