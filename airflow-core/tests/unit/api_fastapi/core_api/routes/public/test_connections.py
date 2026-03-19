@@ -287,10 +287,17 @@ class TestPostConnection(TestConnectionEndpoint):
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
     def test_post_should_respond_201_with_team(self, test_client, session, testing_team):
-        response = test_client.post(
-            "/connections",
-            json={"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "team_name": testing_team.name},
-        )
+        with mock.patch(
+            "airflow.api_fastapi.core_api.datamodels.connections.conf.getboolean", return_value=True
+        ):
+            response = test_client.post(
+                "/connections",
+                json={
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "team_name": testing_team.name,
+                },
+            )
         assert response.status_code == 201
         assert response.json() == {
             "connection_id": TEST_CONN_ID,
@@ -337,6 +344,24 @@ class TestPostConnection(TestConnectionEndpoint):
                 }
             ]
         }
+
+    def test_post_rejects_team_name_when_multi_team_disabled(self, test_client, session, testing_team):
+        with mock.patch(
+            "airflow.api_fastapi.core_api.datamodels.connections.conf.getboolean", return_value=False
+        ):
+            response = test_client.post(
+                "/connections",
+                json={
+                    "connection_id": TEST_CONN_ID_2,
+                    "conn_type": TEST_CONN_TYPE_2,
+                    "team_name": testing_team.name,
+                },
+            )
+        assert response.status_code == 422
+        assert (
+            response.json()["detail"][0]["msg"]
+            == "Value error, team_name cannot be set when multi_team mode is disabled"
+        )
 
     @pytest.mark.parametrize(
         "body",
@@ -605,10 +630,13 @@ class TestPatchConnection(TestConnectionEndpoint):
     def test_patch_with_team_should_respond_200(self, test_client, testing_team, session):
         self.create_connection()
 
-        response = test_client.patch(
-            f"/connections/{TEST_CONN_ID}",
-            json={"connection_id": TEST_CONN_ID, "conn_type": "new_type", "team_name": testing_team.name},
-        )
+        with mock.patch(
+            "airflow.api_fastapi.core_api.datamodels.connections.conf.getboolean", return_value=True
+        ):
+            response = test_client.patch(
+                f"/connections/{TEST_CONN_ID}",
+                json={"connection_id": TEST_CONN_ID, "conn_type": "new_type", "team_name": testing_team.name},
+            )
         assert response.status_code == 200
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
 
@@ -965,6 +993,26 @@ class TestPatchConnection(TestConnectionEndpoint):
             params={"update_mask": ["host"]},
         )
         assert response.status_code == 422
+
+    def test_patch_rejects_team_name_when_multi_team_disabled(self, test_client, testing_team, session):
+        self.create_connection()
+
+        with mock.patch(
+            "airflow.api_fastapi.core_api.datamodels.connections.conf.getboolean", return_value=False
+        ):
+            response = test_client.patch(
+                f"/connections/{TEST_CONN_ID_2}",
+                json={
+                    "connection_id": TEST_CONN_ID_2,
+                    "conn_type": "new_type",
+                    "team_name": testing_team.name,
+                },
+            )
+        assert response.status_code == 422
+        assert (
+            response.json()["detail"][0]["msg"]
+            == "Value error, team_name cannot be set when multi_team mode is disabled"
+        )
 
 
 class TestConnection(TestConnectionEndpoint):
