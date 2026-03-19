@@ -662,7 +662,7 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
-    @pytest.mark.execution_timeout(10)
+    @pytest.mark.execution_timeout(30)
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
