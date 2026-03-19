@@ -1027,14 +1027,18 @@ class DagRun(Base, LoggingMixin):
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
         with override_ids(span_context.trace_id, span_context.span_id):
-            attributes = {
+            attributes: dict[str, str] = {
                 "airflow.dag_id": str(self.dag_id),
                 "airflow.dag_run.run_id": self.run_id,
-                "airflow.dag_run.start_date": self.start_date and str(self.start_date) or None,
-                "airflow.dag_run.end_date": self.end_date and str(self.end_date) or None,
-                "airflow.dag_run.queued_at": self.queued_at and str(self.queued_at) or None,
-                "airflow.dag_run.created_at": self.created_at and str(self.created_at) or None,
             }
+            if self.start_date:
+                attributes["airflow.dag_run.start_date"] = str(self.start_date)
+            if self.end_date:
+                attributes["airflow.dag_run.end_date"] = str(self.end_date)
+            if self.queued_at:
+                attributes["airflow.dag_run.queued_at"] = str(self.queued_at)
+            if self.created_at:
+                attributes["airflow.dag_run.created_at"] = str(self.created_at)
             if self.logical_date:
                 attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
