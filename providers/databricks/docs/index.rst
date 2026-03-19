@@ -98,9 +98,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ======================================
+==========================================  ==================================================================
 PIP package                                 Version required
-==========================================  ======================================
+==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
@@ -109,10 +109,12 @@ PIP package                                 Version required
 ``aiohttp``                                 ``>=3.9.2,<4``
 ``mergedeep``                               ``>=1.3.4``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
-``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
-==========================================  ======================================
+``pyarrow``                                 ``>=18.0.0; python_version >= "3.13" and python_version < "3.14"``
+``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
+==========================================  ==================================================================
 
 Cross provider package dependencies
 -----------------------------------

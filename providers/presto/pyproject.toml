@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -63,7 +64,8 @@ dependencies = [
     "apache-airflow-providers-common-sql>=1.32.0",
     "presto-python-client>=0.8.4",
     'pandas>=2.1.2; python_version <"3.13"',
-    'pandas>=2.2.3; python_version >="3.13"',
+    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3; python_version >="3.14"',
     'psycopg2-binary>=2.9.9; python_version < "3.13"',
     'psycopg2-binary>=2.9.10; python_version >= "3.13"',
 ]
