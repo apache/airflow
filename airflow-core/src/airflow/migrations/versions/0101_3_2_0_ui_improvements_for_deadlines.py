@@ -575,33 +575,74 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
 
                         if migrated_alert_ids:
                             uuid_strings = [str(uuid_id) for uuid_id in migrated_alert_ids]
-                            update_dag_deadline_field(conn, serialized_dag_id, uuid_strings, dialect)
 
-                            # Recalculate and update the dag_hash after modifying the deadline data
-                            # to ensure it matches what write_dag() will compute later and avoid
-                            # re-serialization.
-                            updated_result = conn.execute(
-                                sa.text(
-                                    "SELECT data, data_compressed "
-                                    "FROM serialized_dag "
-                                    "WHERE id = :serialized_dag_id"
-                                ),
-                                {"serialized_dag_id": serialized_dag_id},
-                            ).fetchone()
+                            # Update the deadline field in the already-parsed dag_data and
+                            # write back once, avoiding redundant decompression/recompression.
+                            dag_data[DAG_KEY][DEADLINE_KEY] = uuid_strings
+                            new_hash = hash_dag(dag_data)
 
-                            if updated_result:
-                                updated_dag_data = get_dag_data(
-                                    updated_result.data, updated_result.data_compressed
-                                )
-                                new_hash = hash_dag(updated_dag_data)
-
+                            if data_compressed:
+                                new_compressed = zlib.compress(json.dumps(dag_data).encode("utf-8"))
                                 conn.execute(
                                     sa.text(
                                         "UPDATE serialized_dag "
-                                        "SET dag_hash = :new_hash "
+                                        "SET data_compressed = :data, dag_hash = :new_hash "
                                         "WHERE id = :serialized_dag_id"
                                     ),
-                                    {"new_hash": new_hash, "serialized_dag_id": serialized_dag_id},
+                                    {
+                                        "data": new_compressed,
+                                        "new_hash": new_hash,
+                                        "serialized_dag_id": serialized_dag_id,
+                                    },
+                                )
+                            elif dialect == "postgresql":
+                                conn.execute(
+                                    sa.text("""
+                                        UPDATE serialized_dag
+                                        SET data = jsonb_set(
+                                            data::jsonb,
+                                            '{dag,deadline}',
+                                            CAST(:deadline_data AS jsonb)
+                                        )::json,
+                                        dag_hash = :new_hash
+                                        WHERE id = :serialized_dag_id
+                                    """),
+                                    {
+                                        "serialized_dag_id": serialized_dag_id,
+                                        "deadline_data": json.dumps(uuid_strings),
+                                        "new_hash": new_hash,
+                                    },
+                                )
+                            elif dialect == "mysql":
+                                conn.execute(
+                                    sa.text("""
+                                        UPDATE serialized_dag
+                                        SET data = JSON_SET(
+                                            data,
+                                            '$.dag.deadline',
+                                            CAST(:deadline_data AS JSON)
+                                        ),
+                                        dag_hash = :new_hash
+                                        WHERE id = :serialized_dag_id
+                                    """),
+                                    {
+                                        "serialized_dag_id": serialized_dag_id,
+                                        "deadline_data": json.dumps(uuid_strings),
+                                        "new_hash": new_hash,
+                                    },
+                                )
+                            else:
+                                conn.execute(
+                                    sa.text(
+                                        "UPDATE serialized_dag "
+                                        "SET data = :data, dag_hash = :new_hash "
+                                        "WHERE id = :serialized_dag_id"
+                                    ),
+                                    {
+                                        "data": json.dumps(dag_data),
+                                        "new_hash": new_hash,
+                                        "serialized_dag_id": serialized_dag_id,
+                                    },
                                 )
 
                     # Commit the savepoint if everything succeeded for this Dag.
