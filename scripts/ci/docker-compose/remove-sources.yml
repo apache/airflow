@@ -40,6 +40,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/impala/src
       - ../../../empty:/opt/airflow/providers/apache/kafka/src
       - ../../../empty:/opt/airflow/providers/apache/kylin/src
+      - ../../../empty:/opt/airflow/providers/apache/kyuubi/src
       - ../../../empty:/opt/airflow/providers/apache/livy/src
       - ../../../empty:/opt/airflow/providers/apache/pig/src
       - ../../../empty:/opt/airflow/providers/apache/pinot/src

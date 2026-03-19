@@ -132,6 +132,9 @@ packages = []
 "apache.kylin" = [
     "apache-airflow-providers-apache-kylin>=3.8.0"
 ]
+"apache.kyuubi" = [
+    "apache-airflow-providers-apache-kyuubi>=1.0.0" # Set from local provider pyproject.toml
+]
 "apache.livy" = [
     "apache-airflow-providers-apache-livy>=3.9.2"
 ]
@@ -403,6 +406,7 @@ packages = []
     "apache-airflow-providers-apache-impala>=1.5.2",
     "apache-airflow-providers-apache-kafka>=1.6.1",
     "apache-airflow-providers-apache-kylin>=3.8.0",
+    "apache-airflow-providers-apache-kyuubi>=1.0.0",
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
@@ -1071,6 +1075,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/apache/kafka/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/kylin/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/kylin/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/kyuubi/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/kyuubi/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/livy/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/livy/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pig/src",
@@ -1385,6 +1391,7 @@ apache-airflow-providers-apache-iceberg = { workspace = true }
 apache-airflow-providers-apache-impala = { workspace = true }
 apache-airflow-providers-apache-kafka = { workspace = true }
 apache-airflow-providers-apache-kylin = { workspace = true }
+apache-airflow-providers-apache-kyuubi = { workspace = true }
 apache-airflow-providers-apache-livy = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
@@ -1517,6 +1524,7 @@ members = [
     "providers/apache/impala",
     "providers/apache/kafka",
     "providers/apache/kylin",
+    "providers/apache/kyuubi",
     "providers/apache/livy",
     "providers/apache/pig",
     "providers/apache/pinot",
