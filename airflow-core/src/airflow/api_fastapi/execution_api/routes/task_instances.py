@@ -108,7 +108,7 @@ tracer = trace.get_tracer(__name__)
     },
     response_model_exclude_unset=True,
 )
-async def ti_run(
+def ti_run(
     task_instance_id: UUID,
     ti_run_payload: Annotated[TIEnterRunningPayload, Body()],
     response: Response,
@@ -294,17 +294,17 @@ async def ti_run(
             context.next_method = ti.next_method
             context.next_kwargs = ti.next_kwargs
             context.start_date = ti.start_date
-
-        generator: JWTGenerator = await services.aget(JWTGenerator)
-        execution_token = generator.generate(extras={"sub": str(task_instance_id)})
-        response.headers["X-Execution-Token"] = execution_token
-
-        return context
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
+
+    generator: JWTGenerator = services.get(JWTGenerator)
+    execution_token = generator.generate(extras={"sub": str(task_instance_id)})
+    response.headers["X-Execution-Token"] = execution_token
+
+    return context
 
 
 @ti_id_router.patch(

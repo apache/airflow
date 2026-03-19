@@ -418,6 +418,10 @@ class JWTGenerator:
 
     kid: str = attrs.field(default=attrs.Factory(_generate_kid, takes_self=True))
     valid_for: float
+    workload_valid_for: float = attrs.field(
+        factory=_conf_factory("execution_api", "jwt_workload_token_expiration_time", fallback="86400"),
+        converter=float,
+    )
     audience: str
     issuer: str | list[str] | None = attrs.field(
         factory=_conf_list_factory("api_auth", "jwt_issuer", first_only=True, fallback=None)
@@ -446,18 +450,6 @@ class JWTGenerator:
             # Already handled at in post_init
             assert self._secret_key
         return self._secret_key
-
-    def generate_workload_token(self, sub: str) -> str:
-        """Generate a long-lived workload token for executor queues."""
-        from airflow.configuration import conf
-
-        workload_valid_for = conf.getint(
-            "execution_api", "jwt_workload_token_expiration_time", fallback=86400
-        )
-        return self.generate(
-            extras={"sub": sub, "scope": "workload"},
-            valid_for=workload_valid_for,
-        )
 
     def generate(
         self,

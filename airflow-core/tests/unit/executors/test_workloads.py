@@ -20,9 +20,12 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from uuid import uuid4
 
+import jwt
+
+from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors import workloads
 from airflow.executors.workloads import TaskInstance, TaskInstanceDTO
-from airflow.executors.workloads.base import BundleInfo
+from airflow.executors.workloads.base import BaseWorkloadSchema, BundleInfo
 from airflow.executors.workloads.task import ExecuteTask
 
 
@@ -61,3 +64,21 @@ def test_token_excluded_from_workload_repr():
     assert fake_token not in workload_repr, f"JWT token leaked into repr! Found token in: {workload_repr}"
     # But token should still be accessible as an attribute
     assert workload.token == fake_token
+
+
+def test_generate_token_produces_workload_scope():
+    """generate_token should create a JWT with scope 'workload' and workload_valid_for expiry."""
+    generator = JWTGenerator(
+        secret_key="test-secret", audience="test", valid_for=60, workload_valid_for=86400
+    )
+    token = BaseWorkloadSchema.generate_token("ti-123", generator)
+
+    claims = jwt.decode(token, "test-secret", algorithms=["HS512"], audience="test")
+    assert claims["sub"] == "ti-123"
+    assert claims["scope"] == "workload"
+    assert claims["exp"] - claims["iat"] == 86400
+
+
+def test_generate_token_without_generator():
+    """generate_token should return empty string when no generator is provided."""
+    assert BaseWorkloadSchema.generate_token("ti-123", None) == ""
