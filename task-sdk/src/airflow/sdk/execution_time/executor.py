@@ -46,11 +46,17 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import MappedTaskInstance
 
 
-def collect_futures(loop: AbstractEventLoop, futures: list[Any]) -> Generator[Future | asyncio.Task, None, None]:
-    """Yield futures as they complete (sync or async)."""
+def collect_futures(loop: AbstractEventLoop, futures: list[Any]) -> Generator[Future | asyncio.futures.Future, None, None]:
+    """
+    Yield futures as they complete (sync or async).
+
+    :param loop: The asyncio event loop to use for async tasks
+    :param futures: List of Future or asyncio.futures.Future objects to collect
+    :return: Generator yielding Future or asyncio.futures.Future objects as they complete
+    """
     yield from as_completed(f for f in futures if isinstance(f, Future))
 
-    async_tasks = [f for f in futures if isinstance(f, asyncio.Task)]
+    async_tasks = [f for f in futures if isinstance(f, asyncio.futures.Future)]
 
     if async_tasks:
         for task, _ in zip(

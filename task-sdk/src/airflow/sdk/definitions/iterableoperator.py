@@ -160,7 +160,7 @@ class IterableOperator(BaseOperator):
         exceptions: list[BaseException] = []
         reschedule_date = timezone.utcnow()
         prev_futures_count = 0
-        futures: dict[Future, MappedTaskInstance] = {}
+        futures: dict[Future | asyncio.futures.Future, MappedTaskInstance] = {}
         deferred_tasks: deque[MappedTaskInstance] = deque()
         failed_tasks: deque[MappedTaskInstance] = deque()
         chunked_tasks = batched(tasks, self.max_workers)
