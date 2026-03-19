@@ -64,7 +64,7 @@ depends_on = None
 airflow_version = "3.2.0"
 
 
-CALLBACK_KEY = "callback_def"
+CALLBACK_KEY = "callback"
 DAG_KEY = "dag"
 DEADLINE_KEY = "deadline"
 INTERVAL_KEY = "interval"
@@ -72,6 +72,15 @@ REFERENCE_KEY = "reference"
 DEADLINE_ALERT_REQUIRED_FIELDS = {REFERENCE_KEY, CALLBACK_KEY, INTERVAL_KEY}
 DEFAULT_BATCH_SIZE = 1000
 ENCODING_TYPE = "deadline_alert"
+
+deadline_alert_table = sa.table(
+    "deadline_alert",
+    sa.column("reference"),
+    sa.column("interval"),
+    sa.column("callback_def"),
+    sa.column("id"),
+    sa.column("serialized_dag_id"),
+)
 
 
 def upgrade() -> None:
@@ -280,11 +289,11 @@ def validate_written_data(
     #   disable validation for large deployments where performance is critical??
 
     validation_result = conn.execute(
-        sa.text("""
-                SELECT reference, interval, callback_def
-                FROM deadline_alert
-                WHERE id = :alert_id
-                """),
+        sa.select(
+            deadline_alert_table.c.reference,
+            deadline_alert_table.c.interval,
+            deadline_alert_table.c.callback_def,
+        ).where(deadline_alert_table.c.id == sa.bindparam("alert_id")),
         {"alert_id": deadline_alert_id},
     ).fetchone()
 
@@ -503,15 +512,15 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                     INNER JOIN (
                         SELECT id, dag_id
                         FROM serialized_dag
-                        WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
-                          AND dag_id > :last_dag_id
+                        WHERE dag_id > :last_dag_id
                         ORDER BY dag_id
                         LIMIT :batch_size
                     ) AS subq ON sd.id = subq.id
-                    ORDER BY sd.dag_id
                 """),
                 {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
             )
+
+            batch_results = sorted(list(result), key=lambda r: r.dag_id)
         else:
             result = conn.execute(
                 sa.text("""
@@ -525,7 +534,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                 {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
             )
 
-        batch_results = list(result)
+            batch_results = list(result)
         if not batch_results:
             break
 
@@ -762,11 +771,11 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                 restored_deadline_objects = []
 
                 alert_result = conn.execute(
-                    sa.text("""
-                            SELECT reference, interval, callback_def
-                            FROM deadline_alert
-                            WHERE serialized_dag_id = :serialized_dag_id
-                            """),
+                    sa.select(
+                        deadline_alert_table.c.reference,
+                        deadline_alert_table.c.interval,
+                        deadline_alert_table.c.callback_def,
+                    ).where(deadline_alert_table.c.serialized_dag_id == sa.bindparam("serialized_dag_id")),
                     {"serialized_dag_id": serialized_dag_id},
                 ).fetchall()
 

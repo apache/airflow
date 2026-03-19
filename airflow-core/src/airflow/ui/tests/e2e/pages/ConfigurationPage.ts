@@ -37,49 +37,12 @@ export class ConfigurationPage extends BasePage {
     });
   }
 
-  public async getRowCount(): Promise<number> {
-    return this.rows.count();
-  }
-
-  public async getRowDetails(index: number) {
-    const row = this.rows.nth(index);
-    const cells = row.locator("td");
-
-    const section = await cells.nth(0).textContent();
-    const key = await cells.nth(1).textContent();
-    const value = await cells.nth(2).textContent();
-
-    return {
-      key: (key ?? "").trim(),
-      section: (section ?? "").trim(),
-      value: (value ?? "").trim(),
-    };
-  }
-
   public async navigate(): Promise<void> {
     await this.navigateTo("/configs");
   }
 
   public async waitForLoad(): Promise<void> {
     await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.waitForTableData();
-  }
-
-  private async waitForTableData(): Promise<void> {
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-
-        const cells = table.querySelectorAll("tbody tr td");
-
-        return cells.length > 0;
-      },
-      undefined,
-      { timeout: 30_000 },
-    );
+    await this.rows.first().waitFor({ state: "visible", timeout: 30_000 });
   }
 }

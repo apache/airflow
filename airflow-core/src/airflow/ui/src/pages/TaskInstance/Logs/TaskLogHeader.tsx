@@ -88,10 +88,10 @@ export const TaskLogHeader = ({
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const hasLogLevels = logLevels.length > 0;
 
-  // Have select zIndex greater than modal zIndex in fullscreen so that
-  // select options are displayed.
+  // Have select zIndex greater than dialog zIndex in fullscreen so that
+  // select options are displayed. Dialog uses zIndex.popover since Chakra 3.34.0.
   const zIndex = isFullscreen
-    ? Number(defaultSystem.tokens.categoryMap.get("zIndex")?.get("modal")?.value ?? 1400) + 1
+    ? Number(defaultSystem.tokens.categoryMap.get("zIndex")?.get("popover")?.value ?? 1500) + 1
     : undefined;
 
   const sourceOptionList = createListCollection<{

@@ -17,19 +17,12 @@
 
 from __future__ import annotations
 
-import warnings
+from cadwyn import VersionChange, endpoint
 
-from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
-from airflow.sdk.definitions.context import get_parsing_context
-from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
-# TODO: Remove this module in Airflow 3.2
+class AddDagEndpoint(VersionChange):
+    """Add the `/dags/{dag_id}` endpoint."""
 
-warnings.warn(
-    "Import from the airflow.utils.dag_parsing_context module is deprecated and "
-    "will be removed in Airflow 3.2. Please import it from 'airflow.sdk'.",
-    DeprecatedImportWarning,
-    stacklevel=2,
-)
+    description = __doc__
 
-__all__ = ["get_parsing_context", "_airflow_parsing_context_manager"]
+    instructions_to_migrate_to_previous_version = (endpoint("/dags/{dag_id}", ["GET"]).didnt_exist,)
