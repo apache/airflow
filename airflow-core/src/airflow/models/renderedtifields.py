@@ -252,13 +252,6 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         """
         dialect_name = get_dialect_name(session)
 
-        if dialect_name == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert
-        elif dialect_name == "mysql":
-            from sqlalchemy.dialects.mysql import insert
-        else:
-            from sqlalchemy.dialects.sqlite import insert
-
         values = {
             "dag_id": self.dag_id,
             "task_id": self.task_id,
@@ -267,17 +260,28 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             "rendered_fields": self.rendered_fields,
             "k8s_pod_yaml": self.k8s_pod_yaml,
         }
-
-        stmt = insert(RenderedTaskInstanceFields).values(**values)
-
         update_on_conflict = {
             "rendered_fields": self.rendered_fields,
             "k8s_pod_yaml": self.k8s_pod_yaml,
         }
 
-        if dialect_name == "mysql":
+        if dialect_name == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            stmt = pg_insert(RenderedTaskInstanceFields).values(**values)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["dag_id", "task_id", "run_id", "map_index"],
+                set_=update_on_conflict,
+            )
+        elif dialect_name == "mysql":
+            from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+            stmt = mysql_insert(RenderedTaskInstanceFields).values(**values)
             stmt = stmt.on_duplicate_key_update(**update_on_conflict)
         else:
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            stmt = sqlite_insert(RenderedTaskInstanceFields).values(**values)
             stmt = stmt.on_conflict_do_update(
                 index_elements=["dag_id", "task_id", "run_id", "map_index"],
                 set_=update_on_conflict,
