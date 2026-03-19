@@ -186,7 +186,7 @@ class _RunInfo(NamedTuple):
             log.info("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
-            log.info("Getting latest run for non-partitioned Gag", dag_id=dag.dag_id)
+            log.info("Getting latest run for non-partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         if latest_run:
             log.info(
