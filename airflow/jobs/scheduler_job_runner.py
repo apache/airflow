@@ -1489,21 +1489,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     events=dataset_events,
                 )
 
-                dag_run = dag.create_dagrun(
-                    run_id=run_id,
-                    run_type=DagRunType.DATASET_TRIGGERED,
-                    execution_date=exec_date,
-                    data_interval=data_interval,
-                    state=DagRunState.QUEUED,
-                    external_trigger=False,
-                    session=session,
-                    dag_hash=dag_hash,
-                    creating_job_id=self.job.id,
-                )
-                Stats.incr("dataset.triggered_dagruns")
-                dag_run.consumed_dataset_events.extend(dataset_events)
+                if dataset_events:
+                    dag_run = dag.create_dagrun(
+                        run_id=run_id,
+                        run_type=DagRunType.DATASET_TRIGGERED,
+                        execution_date=exec_date,
+                        data_interval=data_interval,
+                        state=DagRunState.QUEUED,
+                        external_trigger=False,
+                        session=session,
+                        dag_hash=dag_hash,
+                        creating_job_id=self.job.id,
+                    )
+                    Stats.incr("dataset.triggered_dagruns")
+                    dag_run.consumed_dataset_events.extend(dataset_events)
                 session.execute(
-                    delete(DatasetDagRunQueue).where(DatasetDagRunQueue.target_dag_id == dag_run.dag_id)
+                    delete(DatasetDagRunQueue).where(
+                        DatasetDagRunQueue.target_dag_id == dag.dag_id,
+                        DatasetDagRunQueue.created_at <= exec_date,
+                    )
                 )
 
     def _should_update_dag_next_dagruns(

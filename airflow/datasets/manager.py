@@ -37,6 +37,7 @@ from airflow.models.dataset import (
     DatasetModel,
 )
 from airflow.stats import Stats
+from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -184,7 +185,7 @@ class DatasetManager(LoggingMixin):
         cls, dataset_id: int, dags_to_queue: set[DagModel], session: Session
     ) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            item = DatasetDagRunQueue(target_dag_id=dag.dag_id, dataset_id=dataset_id)
+            item = DatasetDagRunQueue(target_dag_id=dag.dag_id, dataset_id=dataset_id, created_at=timezone.utcnow())
             # Don't error whole transaction when a single RunQueue item conflicts.
             # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
             try:
@@ -202,8 +203,13 @@ class DatasetManager(LoggingMixin):
     def _postgres_queue_dagruns(cls, dataset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
-        values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
-        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset_id).on_conflict_do_nothing()
+        values = [{"target_dag_id": dag.dag_id, "created_at": timezone.utcnow()} for dag in dags_to_queue]
+        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset_id)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["dataset_id", "target_dag_id"],
+            set_={"created_at": stmt.excluded.created_at},
+            where=(DatasetDagRunQueue.created_at < stmt.excluded.created_at),
+        )
         session.execute(stmt, values)
 
     @classmethod
