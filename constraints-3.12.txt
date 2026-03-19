@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-18T21:26:35.420478
+# This constraints file was automatically generated on 2026-03-19T11:20:01.086848
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -203,7 +203,7 @@ atlassian-python-api==4.0.7
 attrs==25.4.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.38.3
+azure-core==1.39.0
 azure-cosmos==4.15.0
 azure-datalake-store==0.0.53
 azure-identity==1.25.3
@@ -573,7 +573,7 @@ pyspnego==0.12.1
 python-arango==8.3.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.1.3
+python-discovery==1.2.0
 python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
