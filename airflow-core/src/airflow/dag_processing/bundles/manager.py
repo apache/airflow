@@ -504,9 +504,9 @@ class DagBundlesManager(LoggingMixin):
             return True
 
         # Check for modified files
-        for file_path, mtime in current_files.items():
-            if file_path in self._config_path_mtime and self._config_path_mtime[file_path] != mtime:
-                self.log.info("DAG bundle config file modified: %s", file_path)
+        for fpath, mtime in current_files.items():
+            if fpath in self._config_path_mtime and self._config_path_mtime[fpath] != mtime:
+                self.log.info("DAG bundle config file modified: %s", fpath)
                 return True
 
         return False
