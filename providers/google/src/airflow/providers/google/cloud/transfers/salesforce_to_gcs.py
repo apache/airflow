@@ -91,7 +91,7 @@ class SalesforceToGcsOperator(BaseOperator):
         self.include_deleted = include_deleted
         self.query_params = query_params
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list[str]:
         salesforce = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce.make_query(
             query=self.query, include_deleted=self.include_deleted, query_params=self.query_params
@@ -117,4 +117,4 @@ class SalesforceToGcsOperator(BaseOperator):
 
             gcs_uri = f"gs://{self.bucket_name}/{self.object_name}"
             self.log.info("%s uploaded to GCS", gcs_uri)
-            return gcs_uri
+            return [gcs_uri]
