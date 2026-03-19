@@ -372,9 +372,6 @@ def _begin_nested_transaction(conn):
     On SQLite, uses ``conn.begin_nested()`` with commit/rollback.
     On other backends, opens a new connection via ``conn.engine.begin()``
     and yields it so callers use the new connection for writes.
-    An additional feature is the inner code can use ``gen.send()`` to set a
-    truthy value to explicitly tell the session to rollback even if no error
-    was raised (SQLite only).
     """
     if conn.dialect.name != "sqlite":
         with conn.engine.begin() as new_conn:
@@ -382,14 +379,11 @@ def _begin_nested_transaction(conn):
         return
     try:
         savepoint = conn.begin_nested()
-        rollback = yield conn
+        yield conn
     except Exception:
         savepoint.rollback()
         raise
-    if rollback:
-        savepoint.rollback()
-    else:
-        savepoint.commit()
+    savepoint.commit()
 
 
 def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
