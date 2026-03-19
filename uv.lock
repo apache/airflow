@@ -4575,9 +4575,9 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "blinker", specifier = ">=1.6.2" },
     { name = "cachetools", specifier = ">=6.0" },
-    { name = "flask", specifier = ">=2.2.1,<2.3" },
+    { name = "flask", specifier = ">=2.2.1" },
     { name = "flask-appbuilder", specifier = "==5.2.0" },
-    { name = "flask-limiter", specifier = ">3,!=3.13,<4" },
+    { name = "flask-limiter", specifier = ">3,!=3.13" },
     { name = "flask-login", specifier = ">=0.6.2" },
     { name = "flask-session", specifier = ">=0.8.0" },
     { name = "flask-sqlalchemy", specifier = ">=3.0.5" },
@@ -4586,8 +4586,8 @@ requires-dist = [
     { name = "kerberos", marker = "extra == 'kerberos'", specifier = ">=1.3.0" },
     { name = "marshmallow", specifier = ">=3" },
     { name = "msgpack", specifier = ">=1.0.0" },
-    { name = "werkzeug", specifier = ">=2.2,<4" },
-    { name = "wtforms", specifier = ">=3.0,<4" },
+    { name = "werkzeug", specifier = ">=2.2" },
+    { name = "wtforms", specifier = ">=3.0" },
 ]
 provides-extras = ["kerberos"]
 
@@ -7536,6 +7536,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "requests" },
     { name = "rich" },
+    { name = "rich-click" },
     { name = "tabulate" },
     { name = "termcolor" },
 ]
@@ -7555,6 +7556,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "rich", specifier = ">=13.6.0" },
+    { name = "rich-click", specifier = ">=1.9.7" },
     { name = "tabulate", specifier = ">=0.9.0" },
     { name = "termcolor", specifier = ">=2.3.0" },
 ]
