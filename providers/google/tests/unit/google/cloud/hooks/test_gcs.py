@@ -858,21 +858,19 @@ class TestGCSHook:
         test_object_bytes = BytesIO(b"input")
         test_file = "test_file"
 
-        download_filename_method = (
-            mock_service.return_value.bucket.return_value.blob.return_value.download_to_filename
-        )
-        download_filename_method.return_value = None
+        mock_blob = mock.Mock()
+        mock_blob.size = 100
+        mock_blob.download_to_filename.return_value = None
+        mock_blob.download_as_bytes.return_value = test_object_bytes
 
-        download_as_a_bytes_method = (
-            mock_service.return_value.bucket.return_value.blob.return_value.download_as_bytes
-        )
-        download_as_a_bytes_method.return_value = test_object_bytes
+        mock_service.return_value.bucket.return_value.blob.return_value = mock_blob
+
         response = self.gcs_hook.download(
             bucket_name=test_bucket, object_name=test_object, filename=test_file
         )
 
         assert response == test_file
-        download_filename_method.assert_called_once_with(test_file, timeout=60)
+        mock_blob.download_to_filename.assert_called_once_with(test_file, timeout=60)
 
     @mock.patch("google.cloud.storage.Blob.download_to_filename")
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
@@ -883,9 +881,16 @@ class TestGCSHook:
 
         mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, source_bucket_name)
 
-        self.gcs_hook.download(
-            bucket_name=source_bucket_name, object_name=source_object_name, filename=file_name
-        )
+        # Mock the blob method on the Bucket class to return a mock blob with size
+        with mock.patch("google.cloud.storage.Bucket.blob") as mock_blob_method:
+            mock_blob = mock.Mock()
+            mock_blob.size = 100
+            mock_blob.name = source_object_name
+            mock_blob_method.return_value = mock_blob
+
+            self.gcs_hook.download(
+                bucket_name=source_bucket_name, object_name=source_object_name, filename=file_name
+            )
 
         assert len(hook_lineage_collector.collected_assets.inputs) == 1
         assert len(hook_lineage_collector.collected_assets.outputs) == 1
@@ -902,21 +907,19 @@ class TestGCSHook:
         test_object_bytes = BytesIO(b"input")
         test_file = "test_file"
 
-        download_filename_method = (
-            mock_service.return_value.bucket.return_value.blob.return_value.download_to_filename
-        )
-        download_filename_method.return_value = None
+        mock_blob = mock.Mock()
+        mock_blob.size = 100
+        mock_blob.download_to_filename.return_value = None
+        mock_blob.download_as_bytes.return_value = test_object_bytes
 
-        download_as_a_bytes_method = (
-            mock_service.return_value.bucket.return_value.blob.return_value.download_as_bytes
-        )
-        download_as_a_bytes_method.return_value = test_object_bytes
+        mock_service.return_value.bucket.return_value.blob.return_value = mock_blob
+
         mock_temp_file.return_value.__enter__.return_value = mock.MagicMock()
         mock_temp_file.return_value.__enter__.return_value.name = test_file
 
         with self.gcs_hook.provide_file(bucket_name=test_bucket, object_name=test_object) as response:
             assert test_file == response.name
-        download_filename_method.assert_called_once_with(test_file, timeout=60)
+        mock_blob.download_to_filename.assert_called_once_with(test_file, timeout=60)
         mock_temp_file.assert_has_calls(
             [
                 mock.call(suffix="test_object", dir=None),
@@ -1843,3 +1846,99 @@ class TestSyncGcsHook:
         assert "GCS object size (15) and local file size (9) differ." in logs_string
         assert f"Downloading dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
         self.gcs_hook.download.assert_called_once()
+
+
+class TestGCSDownloadDiskCheck:
+    @mock.patch(GCS_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id)
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    @mock.patch("shutil.disk_usage")
+    def test_download_raises_error_if_not_enough_space(self, mock_disk_usage, mock_get_conn):
+        hook = gcs.GCSHook(gcp_conn_id="test")
+
+        # Mock GCS connection and blob
+        mock_client = mock.Mock()
+        mock_get_conn.return_value = mock_client
+        mock_bucket = mock.Mock()
+        mock_client.bucket.return_value = mock_bucket
+        mock_blob = mock.Mock()
+        mock_bucket.blob.return_value = mock_blob
+
+        # Blob size 1000 bytes
+        mock_blob.size = 1000
+
+        # Free space 500 bytes
+        # shutil.disk_usage returns a named tuple (total, used, free)
+        mock_disk_usage.return_value = mock.Mock(total=2000, used=1500, free=500)
+
+        with pytest.raises(AirflowException, match="Insufficient disk space"):
+            hook.download(bucket_name="bucket", object_name="object", filename="/tmp/file")
+
+        # Verify blob.reload() was called to get the size
+        mock_blob.reload.assert_called_once()
+        mock_disk_usage.assert_called_once()
+        mock_blob.download_to_filename.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("blob_size", "free_space"),
+        [
+            (1000, 2000),  # Enough space
+            (1000, 1000),  # Exact space
+            (0, 1000),  # Empty file
+        ],
+    )
+    @mock.patch(GCS_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id)
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    @mock.patch("shutil.disk_usage")
+    def test_download_works_if_enough_space(self, mock_disk_usage, mock_get_conn, blob_size, free_space):
+        hook = gcs.GCSHook(gcp_conn_id="test")
+
+        # Mock GCS connection and blob
+        mock_client = mock.Mock()
+        mock_get_conn.return_value = mock_client
+        mock_bucket = mock.Mock()
+        mock_client.bucket.return_value = mock_bucket
+        mock_blob = mock.Mock()
+        mock_bucket.blob.return_value = mock_blob
+
+        # Blob size
+        mock_blob.size = blob_size
+        mock_blob.name = "test_blob"
+        mock_bucket.name = "test_bucket"
+
+        # Free space
+        mock_disk_usage.return_value = mock.Mock(total=4000, used=4000 - free_space, free=free_space)
+
+        filename = "/tmp/file"
+        hook.download(bucket_name="bucket", object_name="object", filename=filename)
+
+        # Verify blob.reload() was called
+        mock_blob.reload.assert_called_once()
+        mock_disk_usage.assert_called_once()
+        # Verify download was called
+        mock_blob.download_to_filename.assert_called_once_with(filename, timeout=mock.ANY)
+
+    @mock.patch(GCS_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id)
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    @mock.patch("shutil.disk_usage")
+    def test_download_skips_check_if_size_none(self, mock_disk_usage, mock_get_conn):
+        hook = gcs.GCSHook(gcp_conn_id="test")
+
+        mock_client = mock.Mock()
+        mock_get_conn.return_value = mock_client
+        mock_bucket = mock.Mock()
+        mock_client.bucket.return_value = mock_bucket
+        mock_blob = mock.Mock()
+        mock_bucket.blob.return_value = mock_blob
+
+        # Blob size None
+        mock_blob.size = None
+        mock_blob.name = "test_blob"
+        mock_bucket.name = "test_bucket"
+
+        filename = "/tmp/file"
+        hook.download(bucket_name="bucket", object_name="object", filename=filename)
+
+        mock_blob.reload.assert_called_once()
+        # mock_disk_usage should NOT be called because blob.size is None
+        mock_disk_usage.assert_not_called()
+        mock_blob.download_to_filename.assert_called_once()
