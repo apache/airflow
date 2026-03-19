@@ -80,7 +80,7 @@ class Pool(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     pool: Mapped[str | None] = mapped_column(String(256), unique=True, nullable=True)
     # -1 for infinite
-    slots: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True)
+    slots: Mapped[int] = mapped_column(Integer, default=0)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     include_deferred: Mapped[bool] = mapped_column(Boolean, nullable=False)
     team_name: Mapped[str | None] = mapped_column(
