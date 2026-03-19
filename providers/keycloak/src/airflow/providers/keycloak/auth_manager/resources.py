@@ -34,3 +34,4 @@ class KeycloakResource(Enum):
     TEAM = "Team"
     VARIABLE = "Variable"
     VIEW = "View"
+    XCOMS = "XCom"
