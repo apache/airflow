@@ -28,10 +28,10 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 from airflow.providers.amazon.aws.hooks.glue import (
-    DEFAULT_LOG_SUFFIX,
-    ERROR_LOG_SUFFIX,
     GlueDataQualityHook,
     GlueJobHook,
+    format_glue_logs,
+    get_glue_log_group_names,
 )
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -111,9 +111,7 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
         ):
             # Get log group name from job run metadata and initial state in one call
             job_run_resp = await glue_client.get_job_run(JobName=self.job_name, RunId=self.run_id)
-            log_group_prefix = job_run_resp["JobRun"].get("LogGroupName", "/aws-glue/jobs")
-            log_group_output = f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}"
-            log_group_error = f"{log_group_prefix}/{ERROR_LOG_SUFFIX}"
+            log_group_output, log_group_error = get_glue_log_group_names(job_run_resp["JobRun"])
 
             output_token: str | None = None
             error_token: str | None = None
@@ -190,11 +188,7 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
                 break
             next_token = response["nextForwardToken"]
 
-        if fetched_logs:
-            messages = "\t".join(line.rstrip() + "\n" for line in fetched_logs)
-            self.log.info("Glue Job Run %s Logs:\n\t%s", log_group, messages)
-        else:
-            self.log.info("No new log from the Glue Job in %s", log_group)
+        self.log.info(format_glue_logs(fetched_logs, log_group))
 
         return response.get("nextForwardToken")
 
