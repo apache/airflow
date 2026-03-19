@@ -83,7 +83,6 @@ def mock_xcom_get_one(monkeypatch: pytest.MonkeyPatch):
 
 
 class TestIterableOperator:
-
     @classmethod
     def get_dag(cls):
         """Create a fresh DAG for each test."""
