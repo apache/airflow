@@ -50,35 +50,17 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ==================
+==========================================  ========================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ========================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``oss2``                                    ``>=2.14.0``
 ``alibabacloud_adb20211201``                ``>=1.0.0``
 ``alibabacloud_tea_openapi``                ``>=0.3.7``
-``pyodps``                                  ``>=0.12.2.2``
-==========================================  ==================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-alibaba[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
+``pyodps``                                  ``>=0.12.2.2; python_version < "3.13"``
+``pyodps``                                  ``>=0.12.5.1; python_version >= "3.13"``
+==========================================  ========================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-alibaba/3.3.6/changelog.html>`_.

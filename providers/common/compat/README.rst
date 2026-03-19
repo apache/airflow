@@ -58,8 +58,8 @@ PIP package         Version required
 ``asgiref``         ``>=3.11.1; python_version >= "3.14"``
 ==================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
