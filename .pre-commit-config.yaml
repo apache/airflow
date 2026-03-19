@@ -747,6 +747,14 @@ repos:
         language: python
         files: ^LICENSE$
         pass_filenames: false
+      - id: check-metrics-synced-with-registry
+        name: Check that metrics in the codebase are in sync with the metrics registry YAML file.
+        entry: ./scripts/ci/prek/check_metrics_synced_with_the_registry.py
+        language: python
+        files: \.py$
+        exclude: ^(tests/|.*/tests/)
+        pass_filenames: true
+        additional_dependencies: ["PyYAML>=6.0", "rich>=13.6.0"]
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python
