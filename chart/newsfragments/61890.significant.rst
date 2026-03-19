@@ -1,1 +1,0 @@
-``workers.resources`` section is now deprecated in favor of ``workers.celery.resources`` and ``workers.kubernetes.resources``. Please update your configuration accordingly.

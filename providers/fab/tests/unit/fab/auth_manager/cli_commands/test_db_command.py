@@ -52,14 +52,20 @@ try:
         @mock.patch.object(FABDBManager, "resetdb")
         def test_cli_resetdb(self, mock_resetdb):
             db_command.resetdb(self.parser.parse_args(["fab-db", "reset", "--yes"]))
-
-            mock_resetdb.assert_called_once_with(skip_init=False)
+            if AIRFLOW_V_3_2_PLUS:
+                mock_resetdb.assert_called_once_with(skip_init=False, use_migration_files=False)
+            else:
+                mock_resetdb.assert_called_once_with(skip_init=False)
 
         @mock.patch.object(FABDBManager, "resetdb")
         def test_cli_resetdb_skip_init(self, mock_resetdb):
             db_command.resetdb(self.parser.parse_args(["fab-db", "reset", "--yes", "--skip-init"]))
-            mock_resetdb.assert_called_once_with(skip_init=True)
+            if AIRFLOW_V_3_2_PLUS:
+                mock_resetdb.assert_called_once_with(skip_init=True, use_migration_files=False)
+            else:
+                mock_resetdb.assert_called_once_with(skip_init=True)
 
+        @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="3.2+ reintroduced --use-migration-files")
         @pytest.mark.parametrize(
             ("args", "called_with"),
             [
@@ -69,6 +75,7 @@ try:
                         to_revision=None,
                         from_revision=None,
                         show_sql_only=False,
+                        use_migration_files=False,
                     ),
                 ),
                 (
@@ -77,6 +84,7 @@ try:
                         to_revision=None,
                         from_revision=None,
                         show_sql_only=True,
+                        use_migration_files=False,
                     ),
                 ),
                 (
@@ -85,11 +93,17 @@ try:
                         to_revision="abc",
                         from_revision=None,
                         show_sql_only=False,
+                        use_migration_files=False,
                     ),
                 ),
                 (
                     ["--to-revision", "abc", "--show-sql-only"],
-                    dict(to_revision="abc", from_revision=None, show_sql_only=True),
+                    dict(
+                        to_revision="abc",
+                        from_revision=None,
+                        show_sql_only=True,
+                        use_migration_files=False,
+                    ),
                 ),
                 (
                     ["--to-revision", "abc", "--from-revision", "abc123", "--show-sql-only"],
@@ -97,6 +111,7 @@ try:
                         to_revision="abc",
                         from_revision="abc123",
                         show_sql_only=True,
+                        use_migration_files=False,
                     ),
                 ),
             ],

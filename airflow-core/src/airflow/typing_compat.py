@@ -29,4 +29,5 @@ from typing import Literal, ParamSpec, TypeAlias, TypeGuard
 if sys.version_info >= (3, 11):
     from typing import Self, Unpack, assert_never
 else:
+    # TODO: Remove once Python 3.10 support is dropped (EOL 2026)
     from typing_extensions import Self, Unpack, assert_never
