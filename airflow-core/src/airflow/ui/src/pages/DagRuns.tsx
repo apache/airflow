@@ -30,6 +30,7 @@ import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
@@ -39,11 +40,14 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { ActionBar } from "src/components/ui/ActionBar";
+import { Checkbox } from "src/components/ui/Checkbox";
 import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
+
 const {
   BUNDLE_VERSION: BUNDLE_VERSION_PARAM,
   CONF_CONTAINS: CONF_CONTAINS_PARAM,
@@ -66,7 +70,41 @@ const {
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = (
+  translate: TFunction,
+  dagId?: string,
+  rowSelectionParams?: Omit<GetColumnsParams, "multiTeam">,
+): Array<ColumnDef<DAGRunResponse>> => [
+  ...(rowSelectionParams
+    ? [
+        {
+          accessorKey: "select",
+          cell: ({ row }: DagRunRow) => (
+            <Checkbox
+              borderWidth={1}
+              checked={rowSelectionParams.selectedRows.get(row.original.dag_run_id)}
+              colorPalette="brand"
+              onCheckedChange={(event) =>
+                rowSelectionParams.onRowSelect(row.original.dag_run_id, Boolean(event.checked))
+              }
+            />
+          ),
+          enableHiding: false,
+          enableSorting: false,
+          header: () => (
+            <Checkbox
+              borderWidth={1}
+              checked={rowSelectionParams.allRowsSelected}
+              colorPalette="brand"
+              onCheckedChange={(event) =>
+                rowSelectionParams.onSelectAll(Boolean(event.checked))
+              }
+            />
+          ),
+          meta: { skeletonWidth: 10 },
+        },
+      ]
+    : []),
   ...(Boolean(dagId)
     ? []
     : [
@@ -265,7 +303,18 @@ export const DagRuns = () => {
     },
   );
 
-  const columns = runColumns(translate, dagId);
+  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: data?.dag_runs,
+      getKey: (run) => run.dag_run_id,
+    });
+
+  const columns = runColumns(translate, dagId, {
+    allRowsSelected,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
+    selectedRows,
+  });
 
   return (
     <>
@@ -280,6 +329,15 @@ export const DagRuns = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
+      <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
+        <ActionBar.Content>
+          <ActionBar.SelectionTrigger>
+            {selectedRows.size} {translate("common:selected")}
+          </ActionBar.SelectionTrigger>
+          <ActionBar.Separator />
+          <ActionBar.CloseTrigger onClick={clearSelections} />
+        </ActionBar.Content>
+      </ActionBar.Root>
     </>
   );
 };
