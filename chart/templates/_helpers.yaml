@@ -385,7 +385,12 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
-{{/* This helper is like airflow_image, but it respects Celery worker image overrides via Values.workers.celery.image and Values.workers.celery.sets[].image */}}
+{{/*
+  Worker image helper. Users configure image at Values.workers.celery.image (or per-set via
+  Values.workers.celery.sets[].image). By the time this template is invoked, workersMergeValues
+  in worker-deployment.yaml has already merged celery/set values into Values.workers, so the
+  effective image is at Values.workers.image (post-merge).
+*/}}
 {{- define "airflow_worker_image" -}}
   {{- if .Values.workers.image -}}
     {{- $workerImage := .Values.workers.image -}}
