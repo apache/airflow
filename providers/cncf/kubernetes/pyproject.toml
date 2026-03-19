@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -61,7 +62,8 @@ dependencies = [
     "aiofiles>=23.2.0",
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.14.1",
-    "asgiref>=3.5.2",
+    "asgiref>=3.5.2; python_version < '3.14'",
+    "asgiref>=3.11.1; python_version >= '3.14'",
     # Cryptography could be upgraded to 46.0.5, but it does not have overlap with earlier versions
     # Of Airflow which were limited to <46.0.0 also earlier provider versions will not be compatible with newer
     # airflow if we do not have overlapping version. We could set minimum version to 46.0.0 when we drop
