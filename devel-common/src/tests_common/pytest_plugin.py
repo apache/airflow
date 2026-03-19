@@ -635,37 +635,6 @@ def skip_quarantined_test(item):
         )
 
 
-def skip_db_test(item):
-    if next(item.iter_markers(name="db_test"), None):
-        if next(item.iter_markers(name="non_db_test_override"), None):
-            # non_db_test can override the db_test set for example on module or class level
-            return
-        pytest.skip(
-            f"The test is skipped as it is DB test and --skip-db-tests is flag is passed to pytest. {item}"
-        )
-    if next(item.iter_markers(name="backend"), None):
-        # also automatically skip tests marked with `backend` marker as they are implicitly
-        # db tests
-        pytest.skip(
-            f"The test is skipped as it is DB test and --skip-db-tests is flag is passed to pytest. {item}"
-        )
-
-
-def only_run_db_test(item):
-    if next(item.iter_markers(name="db_test"), None) and not next(
-        item.iter_markers(name="non_db_test_override"), None
-    ):
-        # non_db_test at individual level can override the db_test set for example on module or class level
-        return
-    if next(item.iter_markers(name="backend"), None):
-        # Also do not skip the tests marked with `backend` marker - as it is implicitly a db test
-        return
-    pytest.skip(
-        f"The test is skipped as it is not a DB tests "
-        f"and --run-db-tests-only flag is passed to pytest. {item}"
-    )
-
-
 def skip_if_integration_disabled(marker, item):
     integration_name = marker.args[0]
     environment_variable_name = "INTEGRATION_" + integration_name.upper()
@@ -712,6 +681,43 @@ def skip_if_credential_file_missing(item):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
 
 
+def _is_db_test(item) -> bool:
+    """Check if a test item should be treated as a DB test."""
+    if next(item.iter_markers(name="db_test"), None):
+        if next(item.iter_markers(name="non_db_test_override"), None):
+            return False
+        return True
+    if next(item.iter_markers(name="backend"), None):
+        return True
+    return False
+
+
+def pytest_collection_modifyitems(config, items):
+    """Deselect DB/non-DB tests early so pytest-xdist workers never receive them.
+
+    Previously these tests were skipped at runtime via pytest_runtest_setup, which
+    still required every xdist worker to import the test modules. With thousands of
+    DB tests being skipped in non-DB runs, this caused excessive memory usage — enough
+    to OOM on Python 3.14 CI runners. Deselecting during collection avoids distributing
+    these items to workers entirely.
+    """
+    if not skip_db_tests and not run_db_tests_only:
+        return
+
+    selected = []
+    deselected = []
+    for item in items:
+        is_db = _is_db_test(item)
+        if (skip_db_tests and is_db) or (run_db_tests_only and not is_db):
+            deselected.append(item)
+        else:
+            selected.append(item)
+
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
+
+
 def pytest_runtest_setup(item):
     selected_integrations_list = item.config.option.integration
 
@@ -737,10 +743,6 @@ def pytest_runtest_setup(item):
         skip_long_running_test(item)
     if not include_quarantined:
         skip_quarantined_test(item)
-    if skip_db_tests:
-        skip_db_test(item)
-    if run_db_tests_only:
-        only_run_db_test(item)
     skip_if_credential_file_missing(item)
 
 
@@ -922,7 +924,11 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 class DAGProxy(lazy_object_proxy.Proxy):
                     """Wrapper to make test patterns work with serialized dag."""
 
-                    task = factory.dag.task  # Expose the @dag.task decorator.
+                    @property
+                    def task(self):
+                        # Forward explicitly so Proxy binding does not leak the proxy
+                        # instance into the decorator callable on Python 3.14.
+                        return factory.dag.task
 
                     # When adding a task to the dag, automatically re-serialize.
                     def add_task(self, task):

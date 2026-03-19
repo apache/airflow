@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -60,8 +61,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.8.0",
-    # Until this is fixed https://github.com/qdrant/qdrant-client/issues/1155
-    "qdrant_client>=1.15.1, !=1.17.0",
+    "qdrant_client>=1.17.1",
 ]
 
 [dependency-groups]

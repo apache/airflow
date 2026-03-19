@@ -48,7 +48,7 @@ import { GRID_BODY_OFFSET_PX } from "src/layouts/Details/Grid/constants";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
 import { useGridRuns } from "src/queries/useGridRuns";
 import { useGridStructure } from "src/queries/useGridStructure";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries";
+import { useGridTiSummariesStream } from "src/queries/useGridTISummaries";
 import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -131,12 +131,13 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   const refetchInterval = useAutoRefresh({ dagId });
 
   // Get grid summaries for groups and mapped tasks (which have min/max times)
-  const { data: gridTiSummaries, isLoading: summariesLoading } = useGridTiSummaries({
+  const { summariesByRunId } = useGridTiSummariesStream({
     dagId,
-    enabled: Boolean(selectedRun),
-    runId,
-    state: selectedRun?.state,
+    runIds: runId && selectedRun ? [runId] : [],
+    states: selectedRun ? [selectedRun.state] : [],
   });
+  const gridTiSummaries = summariesByRunId.get(runId);
+  const summariesLoading = Boolean(runId && selectedRun && !summariesByRunId.has(runId));
 
   // Single fetch for all Gantt data (individual task tries)
   const { data: ganttData, isLoading: ganttLoading } = useGanttServiceGetGanttData(
