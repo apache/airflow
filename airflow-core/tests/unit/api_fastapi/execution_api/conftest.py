@@ -59,9 +59,10 @@ def client(request: pytest.FixtureRequest):
     with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
         mock_generator = MagicMock(spec=JWTGenerator)
         mock_generator.generate.return_value = "mock-execution-token"
-        mock_generator.generate_workload_token.return_value = "mock-workload-token"
         lifespan.registry.register_value(JWTGenerator, mock_generator)
 
         yield client
+
+        lifespan.registry.close()
 
     exec_app.dependency_overrides.pop(_jwt_bearer, None)

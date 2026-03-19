@@ -3256,6 +3256,44 @@ class TestTokenTypeValidation:
         assert resp.status_code == 403
         assert "Invalid token scope" in resp.json()["detail"]
 
+    def test_workload_scope_accepted_on_run_endpoint(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """workload scoped tokens should be accepted on the /run endpoint."""
+        instant = timezone.parse("2024-10-31T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_workload_run",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        validator = mock.AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = lambda cred, validators: {
+            "sub": str(ti.id),
+            "scope": "workload",
+            "exp": 9999999999,
+            "iat": 1000000000,
+        }
+        lifespan.registry.register_value(JWTValidator, validator)
+
+        resp = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-host",
+                "unixname": "test-user",
+                "pid": 100,
+                "start_date": "2024-10-31T12:00:00Z",
+            },
+        )
+        assert resp.status_code == 200
+
     def test_no_scope_defaults_to_execution(self, client, session, create_task_instance):
         """Tokens without scope claim should default to 'execution'."""
         ti = create_task_instance(task_id="test_no_scope", state=State.RUNNING)

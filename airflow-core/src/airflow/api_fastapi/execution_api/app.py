@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import time
 from contextlib import AsyncExitStack
 from functools import cached_property
@@ -76,6 +77,7 @@ def _jwt_generator():
 
     generator = JWTGenerator(
         valid_for=conf.getint("execution_api", "jwt_expiration_time"),
+        workload_valid_for=conf.getint("execution_api", "jwt_workload_token_expiration_time", fallback=86400),
         audience=conf.get_mandatory_list_value("execution_api", "jwt_audience")[0],
         issuer=conf.get("api_auth", "jwt_issuer", fallback=None),
         # Since this one is used across components/server, there is no point trying to generate one, error
@@ -141,6 +143,11 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
                 async with svcs.Container(request.app.state.svcs_registry) as services:
                     validator: JWTValidator = await services.aget(JWTValidator)
                     claims = await validator.avalidated_claims(token, {})
+
+                    # Workload tokens are long-lived and meant to survive queue
+                    # wait times so avoid refreshing them.
+                    if claims.get("scope") == "workload":
+                        return response
 
                     now = int(time.time())
                     validity = conf.getint("execution_api", "jwt_expiration_time")
@@ -341,8 +348,14 @@ class InProcessExecutionAPI:
             # Cadwyn's versioned sub-apps don't inherit the main app's state,
             # so lookups raise ServiceNotFoundError. This registry provides
             # services needed by routes called during dag.test().
+            #
+            stub_generator = JWTGenerator(
+                secret_key=secrets.token_urlsafe(32),
+                audience="in-process",
+                valid_for=3600,
+            )
             registry = svcs.Registry()
-            registry.register_factory(JWTGenerator, _jwt_generator)
+            registry.register_value(JWTGenerator, stub_generator)
 
             async def _in_process_container(request: Request):
                 async with svcs.Container(registry) as cont:

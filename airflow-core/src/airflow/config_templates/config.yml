@@ -2074,7 +2074,7 @@ execution_api:
         Seconds until workload JWT tokens expire. These long-lived tokens are sent
         with task workloads to executors and can only call the /run endpoint.
         Set long enough to cover maximum expected queue wait time.
-      version_added: ~
+      version_added: 3.2.0
       type: integer
       example: ~
       default: "86400"
