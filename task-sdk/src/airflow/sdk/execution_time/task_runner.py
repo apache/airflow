@@ -1573,8 +1573,15 @@ def _send_error_email_notification(
     if subject_template_file and Path(subject_template_file).exists():
         subject = Path(subject_template_file).read_text()
     else:
-        # Fallback to default
-        subject = "Airflow alert: {{ti}}"
+        # Try to load from built-in template files
+        default_subject_template = (
+            Path(__file__).parent.parent / "templates" / "email" / "task_failure_subject.txt"
+        )
+        if default_subject_template.exists():
+            subject = default_subject_template.read_text()
+        else:
+            # Final fallback to inline default for backward compatibility
+            subject = "Airflow alert: {{ti}}"
 
     html_content_template_file = conf.get("email", "html_content_template", fallback=None)
 
@@ -1582,16 +1589,23 @@ def _send_error_email_notification(
     if html_content_template_file and Path(html_content_template_file).exists():
         html_content = Path(html_content_template_file).read_text()
     else:
-        # Fallback to default
-        # For reporting purposes, we report based on 1-indexed,
-        # not 0-indexed lists (i.e. Try 1 instead of Try 0 for the first attempt).
-        html_content = (
-            "Try {{try_number}} out of {{max_tries + 1}}<br>"
-            "Exception:<br>{{exception_html}}<br>"
-            'Log: <a href="{{ti.log_url}}">Link</a><br>'
-            "Host: {{ti.hostname}}<br>"
-            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+        # Try to load from built-in template files
+        default_html_template = (
+            Path(__file__).parent.parent / "templates" / "email" / "task_failure_body.html"
         )
+        if default_html_template.exists():
+            html_content = default_html_template.read_text()
+        else:
+            # Final fallback to inline default for backward compatibility
+            # For reporting purposes, we report based on 1-indexed,
+            # not 0-indexed lists (i.e. Try 1 instead of Try 0 for the first attempt).
+            html_content = (
+                "Try {{try_number}} out of {{max_tries + 1}}<br>"
+                "Exception:<br>{{exception_html}}<br>"
+                'Log: <a href="{{ti.log_url}}">Link</a><br>'
+                "Host: {{ti.hostname}}<br>"
+                'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+            )
 
     # Add exception_html to context for template rendering
     import html
