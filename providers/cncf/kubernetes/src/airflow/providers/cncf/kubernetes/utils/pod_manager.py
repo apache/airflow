@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Literal, cast
 
 import pendulum
 from kubernetes import client, watch
-from kubernetes.client.rest import ApiException
+from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
@@ -868,8 +868,18 @@ class PodManager(LoggingMixin):
         """Read POD information."""
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
+        except ApiException as e:
+            if e.status == 404:
+                self.log.warning("Pod %s not found (404)", pod.metadata.name)
+                raise
+
+            raise KubernetesApiException(
+                f"There was an error reading the kubernetes API: {e}"
+            ) from e
         except HTTPError as e:
-            raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
+            raise KubernetesApiException(
+                f"There was an error reading the kubernetes API: {e}"
+            ) from e
 
     def await_xcom_sidecar_container_start(
         self, pod: V1Pod, timeout: int = 900, log_interval: int = 30
