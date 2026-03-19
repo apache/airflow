@@ -429,6 +429,9 @@ labelPRBasedOnFilePath:
   translation:pt:
     - airflow-core/src/airflow/ui/public/i18n/locales/pt/*
 
+  translation:ru:
+    - airflow-core/src/airflow/ui/public/i18n/locales/ru/*
+
   translation:th:
     - airflow-core/src/airflow/ui/public/i18n/locales/th/*
 
