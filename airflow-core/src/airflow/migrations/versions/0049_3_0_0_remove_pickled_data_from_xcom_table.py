@@ -149,27 +149,42 @@ def upgrade():
             """
         )
     elif dialect == "mysql":
-        conn.execute(
-            text("""
-                UPDATE xcom
-                SET value = CONVERT(
-                    REGEXP_REPLACE(
-                        CONVERT(value USING utf8mb4),
-                        -- Same lookahead strategy as PostgreSQL (see above).
-                        -- Python string escaping: \\\\[ → SQL \\[ → regex \\[ → literal [
-                        -- and \\\\] inside the character class → SQL \\] → regex \\] → literal ]
-                        -- The 'c' flag enforces case-sensitive matching (NaN ≠ nan).
-                        -- NaN and Infinity are done in the same query to avoid another table scan.
-                        '(:|,|\\\\[|^)[ ]*(NaN|-?Infinity)(?=[ ]*[,}\\\\]]|$)',
-                        '$1"$2"',
-                        1,
-                        0,
-                        'c'
-                    ) USING BINARY
-                )
-                WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
-            """)
-        )
+        is_mariadb = getattr(conn.dialect, "is_mariadb", False)
+        if is_mariadb:
+            # MariaDB uses PCRE2 natively (case-sensitive by default, supports lookaheads)
+            # and only accepts 3 arguments: (subject, pattern, replacement).
+            conn.execute(
+                text("""
+                    UPDATE xcom
+                    SET value = CONVERT(
+                        REGEXP_REPLACE(
+                            CONVERT(value USING utf8mb4),
+                            '(:|,|\\\\[|^)[ ]*(NaN|-?Infinity)(?=[ ]*[,}\\\\]]|$)',
+                            '\\\\1"\\\\2"'
+                        ) USING BINARY
+                    )
+                    WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
+                """)
+            )
+        else:
+            # MySQL 8 REGEXP_REPLACE takes 6 args: (subject, pattern, replacement, pos, occurrence, match_type)
+            # The 'c' flag enforces case-sensitive matching (NaN ≠ nan).
+            conn.execute(
+                text("""
+                    UPDATE xcom
+                    SET value = CONVERT(
+                        REGEXP_REPLACE(
+                            CONVERT(value USING utf8mb4),
+                            '(:|,|\\\\[|^)[ ]*(NaN|-?Infinity)(?=[ ]*[,}\\\\]]|$)',
+                            '$1"$2"',
+                            1,
+                            0,
+                            'c'
+                        ) USING BINARY
+                    )
+                    WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
+                """)
+            )
 
         op.add_column("xcom", sa.Column("value_json", sa.JSON(), nullable=True))
         op.execute("UPDATE xcom SET value_json = CAST(value AS CHAR CHARACTER SET utf8mb4)")

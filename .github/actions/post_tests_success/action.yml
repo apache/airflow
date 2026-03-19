@@ -43,6 +43,10 @@ runs:
       run: |
         mkdir ./files/coverage-reports
         mv ./files/coverage*.xml ./files/coverage-reports/ || true
+    - name: "Sanitize BACKEND_VERSION"
+      shell: bash
+      # yamllint disable-line rule:line-length
+      run: echo "BACKEND_VERSION_SANITIZED=${BACKEND_VERSION//:/-}" >> "$GITHUB_ENV"  # zizmor: ignore[github-env]
     - name: "Upload all coverage reports to codecov"
       uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238
       env:
@@ -52,5 +56,6 @@ runs:
         && inputs.python-version != '3.13'
       with:
         name: coverage-${{env.JOB_ID}}
-        flags: python-${{ env.PYTHON_MAJOR_MINOR_VERSION }},${{ env.BACKEND }}-${{ env.BACKEND_VERSION }}
+        # yamllint disable-line rule:line-length
+        flags: python-${{ env.PYTHON_MAJOR_MINOR_VERSION }},${{ env.BACKEND }}-${{ env.BACKEND_VERSION_SANITIZED }}
         directory: "./files/coverage-reports/"

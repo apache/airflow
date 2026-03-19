@@ -331,10 +331,10 @@ def with_row_locks(
     Apply with_for_update to the SQLAlchemy query if row level locking is in use.
 
     This wrapper is needed so we don't use the syntax on unsupported database
-    engines. In particular, MySQL (prior to 8.0) and MariaDB do not support
-    row locking, where we do not support nor recommend running HA scheduler. If
-    a user ignores this and tries anyway, everything will still work, just
-    slightly slower in some circumstances.
+    engines.  MySQL 8+, MariaDB 10.6+, and PostgreSQL all
+    support FOR UPDATE with NOWAIT and SKIP LOCKED.  MariaDB does not support
+    FOR UPDATE OF <table> (MDEV-17514), but SQLAlchemy already guards that
+    clause internally.
 
     See https://jira.mariadb.org/browse/MDEV-13115
 
@@ -353,12 +353,7 @@ def with_row_locks(
     if not dialect_name:
         return query
 
-    # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
     if not USE_ROW_LEVEL_LOCKING:
-        return query
-    if dialect_name == "mysql" and not getattr(
-        session.bind.dialect if session.bind else None, "supports_for_update_of", False
-    ):
         return query
     if nowait:
         kwargs["nowait"] = True
