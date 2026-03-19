@@ -99,6 +99,12 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         return None
 
     @property
+    def task_id(self) -> str | None:
+        if self.task_instance:
+            return self.task_instance.task_id
+        return None
+
+    @property
     def task_instance(self) -> TaskInstance:
         return self._task_instance
 
@@ -122,25 +128,10 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         :param context: Context dict with values to apply on content.
         :param jinja_env: Jinja's environment to use for rendering.
         """
+        if not jinja_env:
+            jinja_env = self.get_template_env()
         # We only need to render templated fields if templated fields are part of the start_trigger_args
-        for attr_name in self.template_fields:
-            value = getattr(self, attr_name, None)
-
-            if value:
-                try:
-                    rendered_content = self.render_template(value, context, jinja_env)
-                except Exception:
-                    # TODO: Mask the value. Depends on https://github.com/apache/airflow/issues/45438
-                    if self.task:
-                        self.log.exception(
-                            "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
-                            self.task.task_id,
-                            attr_name,
-                            value,
-                        )
-                    raise
-                else:
-                    setattr(self, attr_name, rendered_content)
+        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
     @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:

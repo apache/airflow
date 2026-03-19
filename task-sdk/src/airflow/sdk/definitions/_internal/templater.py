@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 import logging
 import os
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -117,6 +117,48 @@ class Templater:
 
         return dag.render_template_as_native_obj if dag else False
 
+    def _iter_templated_fields(
+        self,
+        parent: Any,
+        template_fields: Iterable[str],
+    ) -> Iterator[tuple[str, Any]]:
+        """
+        Iterate over template fields yielding ``(attr_name, value)`` pairs for non-empty fields.
+
+        Fields whose value is falsy are skipped.  Objects that do not support
+        ``__bool__`` (e.g. Pandas DataFrames) are still yielded.
+        """
+        for attr_name in template_fields:
+            try:
+                value = getattr(parent, attr_name)
+            except AttributeError:
+                raise AttributeError(
+                    f"{attr_name!r} is configured as a template field "
+                    f"but {type(parent).__name__} does not have this attribute."
+                )
+            try:
+                if not value:
+                    continue
+            except Exception:
+                # This may happen if the templated field points to a class which does not support
+                # ``__bool__``, such as Pandas DataFrames:
+                # https://github.com/pandas-dev/pandas/blob/9135c3aaf12d26f857fcc787a5b64d521c51e379/pandas/core/generic.py#L1465
+                if hasattr(self, "task_id"):
+                    log.info(
+                        "Unable to check if the value of type '%s' is False for task '%s', field '%s'.",
+                        type(value).__name__,
+                        self.task_id,
+                        attr_name,
+                    )
+                else:
+                    log.info(
+                        "Unable to check if the value of type '%s' is False for field '%s'.",
+                        type(value).__name__,
+                        attr_name,
+                    )
+                # We may still want to render custom classes which do not support __bool__
+            yield attr_name, value
+
     def _do_render_template_fields(
         self,
         parent: Any,
@@ -125,15 +167,47 @@ class Templater:
         jinja_env: jinja2.Environment,
         seen_oids: set[int],
     ) -> None:
-        for attr_name in template_fields:
-            value = getattr(parent, attr_name)
-            rendered_content = self.render_template(
-                value,
-                context,
-                jinja_env,
-                seen_oids,
-            )
-            if rendered_content:
+        """
+        Render template fields on *parent* in-place.
+
+        For each non-empty field yielded by :meth:`_iter_templated_fields`, the value is
+        rendered (or called, when it is callable) and the result is written back via
+        ``setattr``.  Rendering errors are logged with masked values before being re-raised.
+
+        :param parent: The object whose attributes will be templated.
+        :param template_fields: Names of the attributes to render.
+        :param context: Context dict with values to apply on content.
+        :param jinja_env: Jinja2 environment to use for rendering.
+        :param seen_oids: Set of already-rendered object ids used to prevent infinite
+            recursion on circular references.
+        """
+        for attr_name, value in self._iter_templated_fields(parent, template_fields):
+            try:
+                if callable(value):
+                    rendered_content = value(context=context, jinja_env=jinja_env)
+                else:
+                    rendered_content = self.render_template(value, context, jinja_env, seen_oids)
+            except Exception:
+                # Mask sensitive values in the template before logging
+                from airflow.sdk._shared.secrets_masker import redact
+
+                masked_value = redact(value)
+                if hasattr(self, "task_id"):
+                    log.exception(
+                        "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
+                        self.task_id,
+                        attr_name,
+                        masked_value,
+                    )
+                else:
+                    log.exception(
+                        "Exception rendering Jinja template for %s, field '%s'. Template: %r",
+                        type(parent).__name__,
+                        attr_name,
+                        masked_value,
+                    )
+                raise
+            else:
                 setattr(parent, attr_name, rendered_content)
 
     def _render(self, template, context, dag=None) -> Any:
