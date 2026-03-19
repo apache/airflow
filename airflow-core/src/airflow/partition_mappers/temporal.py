@@ -18,9 +18,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from airflow._shared.timezones.timezone import parse_timezone
 from airflow.partition_mappers.base import PartitionMapper
+
+if TYPE_CHECKING:
+    from pendulum import FixedTimezone, Timezone
 
 
 class _BaseTemporalMapper(PartitionMapper, ABC):
@@ -30,14 +34,24 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
 
     def __init__(
         self,
-        input_format: str = "%Y-%m-%dT%H:%M:%S",
+        *,
+        timezone: str | Timezone | FixedTimezone,
+        input_format: str = "%Y-%m-%dT%H:%M:%S%z",
         output_format: str | None = None,
     ):
         self.input_format = input_format
         self.output_format = output_format or self.default_output_format
+        if isinstance(timezone, str):
+            timezone = parse_timezone(timezone)
+        self._timezone: Timezone | FixedTimezone = timezone
 
     def to_downstream(self, key: str) -> str:
         dt = datetime.strptime(key, self.input_format)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=self._timezone)
+        else:
+            dt = dt.astimezone(self._timezone)
+
         normalized = self.normalize(dt)
         return self.format(normalized)
 
@@ -50,7 +64,10 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
         return dt.strftime(self.output_format)
 
     def serialize(self) -> dict[str, Any]:
+        from airflow.serialization.encoders import encode_timezone
+
         return {
+            "timezone": encode_timezone(self._timezone),
             "input_format": self.input_format,
             "output_format": self.output_format,
         }
@@ -58,6 +75,7 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
         return cls(
+            timezone=parse_timezone(data["timezone"]),
             input_format=data["input_format"],
             output_format=data["output_format"],
         )
@@ -66,7 +84,7 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
 class HourlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to hour."""
 
-    default_output_format = "%Y-%m-%dT%H"
+    default_output_format = "%Y-%m-%dT%H%z"
 
     def normalize(self, dt: datetime) -> datetime:
         return dt.replace(minute=0, second=0, microsecond=0)
@@ -75,7 +93,7 @@ class HourlyMapper(_BaseTemporalMapper):
 class DailyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to day."""
 
-    default_output_format = "%Y-%m-%d"
+    default_output_format = "%Y-%m-%d%z"
 
     def normalize(self, dt: datetime) -> datetime:
         return dt.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -84,7 +102,7 @@ class DailyMapper(_BaseTemporalMapper):
 class WeeklyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to week."""
 
-    default_output_format = "%Y-%m-%d (W%V)"
+    default_output_format = "%Y-%m-%d (W%V)%z"
 
     def normalize(self, dt: datetime) -> datetime:
         start = dt - timedelta(days=dt.weekday())
@@ -94,7 +112,7 @@ class WeeklyMapper(_BaseTemporalMapper):
 class MonthlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to month."""
 
-    default_output_format = "%Y-%m"
+    default_output_format = "%Y-%m%z"
 
     def normalize(self, dt: datetime) -> datetime:
         return dt.replace(
@@ -109,7 +127,7 @@ class MonthlyMapper(_BaseTemporalMapper):
 class QuarterlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to quarter."""
 
-    default_output_format = "%Y-Q{quarter}"
+    default_output_format = "%Y-Q{quarter}%z"
 
     def normalize(self, dt: datetime) -> datetime:
         quarter = (dt.month - 1) // 3
@@ -131,7 +149,7 @@ class QuarterlyMapper(_BaseTemporalMapper):
 class YearlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to year."""
 
-    default_output_format = "%Y"
+    default_output_format = "%Y%z"
 
     def normalize(self, dt: datetime) -> datetime:
         return dt.replace(

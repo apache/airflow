@@ -431,6 +431,7 @@ class _Serializer:
         | YearlyMapper,
     ) -> dict[str, Any]:
         return {
+            "timezone": partition_mapper.timezone,
             "input_format": partition_mapper.input_format,
             "output_format": partition_mapper.output_format,
         }

@@ -33,12 +33,12 @@ class TestTemporalMappers:
     @pytest.mark.parametrize(
         ("mapper_cls", "expected_downstream_key"),
         [
-            (HourlyMapper, "2026-02-10T14"),
-            (DailyMapper, "2026-02-10"),
-            (WeeklyMapper, "2026-02-09 (W07)"),
-            (MonthlyMapper, "2026-02"),
-            (QuarterlyMapper, "2026-Q1"),
-            (YearlyMapper, "2026"),
+            (HourlyMapper, "2026-02-10T14+0000"),
+            (DailyMapper, "2026-02-10+0000"),
+            (WeeklyMapper, "2026-02-09 (W07)+0000"),
+            (MonthlyMapper, "2026-02+0000"),
+            (QuarterlyMapper, "2026-Q1+0000"),
+            (YearlyMapper, "2026+0000"),
         ],
     )
     def test_to_downstream(
@@ -46,25 +46,26 @@ class TestTemporalMappers:
         mapper_cls: type[_BaseTemporalMapper],
         expected_downstream_key: str,
     ):
-        pm = mapper_cls()
-        assert pm.to_downstream("2026-02-10T14:30:45") == expected_downstream_key
+        pm = mapper_cls(timezone="UTC")
+        assert pm.to_downstream("2026-02-10T14:30:45+0000") == expected_downstream_key
 
     @pytest.mark.parametrize(
         ("mapper_cls", "expected_outut_format"),
         [
-            (HourlyMapper, "%Y-%m-%dT%H"),
-            (DailyMapper, "%Y-%m-%d"),
-            (WeeklyMapper, "%Y-%m-%d (W%V)"),
-            (MonthlyMapper, "%Y-%m"),
-            (QuarterlyMapper, "%Y-Q{quarter}"),
-            (YearlyMapper, "%Y"),
+            (HourlyMapper, "%Y-%m-%dT%H%z"),
+            (DailyMapper, "%Y-%m-%d%z"),
+            (WeeklyMapper, "%Y-%m-%d (W%V)%z"),
+            (MonthlyMapper, "%Y-%m%z"),
+            (QuarterlyMapper, "%Y-Q{quarter}%z"),
+            (YearlyMapper, "%Y%z"),
         ],
     )
     def test_serialize(self, mapper_cls: type[_BaseTemporalMapper], expected_outut_format: str):
-        pm = mapper_cls()
+        pm = mapper_cls(timezone="UTC")
         assert pm.serialize() == {
-            "input_format": "%Y-%m-%dT%H:%M:%S",
+            "input_format": "%Y-%m-%dT%H:%M:%S%z",
             "output_format": expected_outut_format,
+            "timezone": "UTC",
         }
 
     @pytest.mark.parametrize(
@@ -73,11 +74,8 @@ class TestTemporalMappers:
     )
     def test_deserialize(self, mapper_cls):
         pm = mapper_cls.deserialize(
-            {
-                "input_format": "%Y-%m-%dT%H:%M:%S",
-                "output_format": "customized-format",
-            }
+            {"input_format": "%Y-%m-%dT%H:%M:%S%z", "output_format": "customized-format", "timezone": "UTC"}
         )
         assert isinstance(pm, mapper_cls)
-        assert pm.input_format == "%Y-%m-%dT%H:%M:%S"
+        assert pm.input_format == "%Y-%m-%dT%H:%M:%S%z"
         assert pm.output_format == "customized-format"

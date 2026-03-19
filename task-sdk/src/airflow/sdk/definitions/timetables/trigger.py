@@ -168,7 +168,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         run_offset: int | datetime.timedelta | relativedelta | None = None,
         run_immediately: bool | datetime.timedelta = False,
         # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
-        key_format: str = r"%Y-%m-%dT%H:%M:%S",
+        key_format: str = r"%Y-%m-%dT%H:%M:%S%z",
     ) -> None:
         if not isinstance(run_offset, (int, NoneType)):
             # todo: AIP-76 implement timedelta / relative delta?

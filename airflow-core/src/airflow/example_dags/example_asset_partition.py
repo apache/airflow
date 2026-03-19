@@ -77,7 +77,7 @@ with DAG(
     dag_id="clean_and_combine_player_stats",
     schedule=PartitionedAssetTimetable(
         assets=team_a_player_stats & team_b_player_stats & team_c_player_stats,
-        default_partition_mapper=HourlyMapper(),
+        default_partition_mapper=HourlyMapper(timezone="UTC"),
     ),
     catchup=False,
     tags=["player-stats", "cleanup"],
@@ -121,9 +121,9 @@ with DAG(
     schedule=PartitionedAssetTimetable(
         assets=(combined_player_stats & team_a_player_stats & Asset.ref(name="team_b_player_stats")),
         partition_mapper_config={
-            combined_player_stats: YearlyMapper(),  # incompatible on purpose
-            team_a_player_stats: HourlyMapper(),
-            Asset.ref(name="team_b_player_stats"): HourlyMapper(),
+            combined_player_stats: YearlyMapper(timezone="UTC"),  # incompatible on purpose
+            team_a_player_stats: HourlyMapper(timezone="UTC"),
+            Asset.ref(name="team_b_player_stats"): HourlyMapper(timezone="UTC"),
         },
     ),
     catchup=False,
