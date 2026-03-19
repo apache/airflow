@@ -406,6 +406,9 @@ def _migrate_deadline_alerts() -> None:
     migrated_alerts_count: int = 0
     dags_with_errors: ErrorDict = defaultdict(list)
     batch_num = 0
+    # Paginate by primary key (id) instead of dag_id because id is indexed (PK)
+    # while dag_id has no index — using dag_id would cause a full table scan + sort
+    # on every batch. UUID7 ids are time-ordered so the pagination order is stable.
     last_id = "00000000-0000-0000-0000-000000000000"
 
     conn = op.get_bind()
@@ -716,6 +719,9 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
     restored_alerts_count: int = 0
     dags_with_errors: ErrorDict = defaultdict(list)
     batch_num = 0
+    # Paginate by primary key (id) instead of dag_id because id is indexed (PK)
+    # while dag_id has no index — using dag_id would cause a full table scan + sort
+    # on every batch. UUID7 ids are time-ordered so the pagination order is stable.
     last_id = "00000000-0000-0000-0000-000000000000"
 
     conn = op.get_bind()
