@@ -328,7 +328,22 @@ class SnowflakeHook(DbApiHook):
         conn_config = dict(static_config)
 
         if conn_config.get("authenticator") == "oauth":
-            azure_conn_id = conn_config.get("azure_conn_id")
+           if conn_config.get("authenticator") == "oauth":
+    token = conn_config.get("token")
+
+    if token:
+        conn_config["access_token"] = token
+    else:
+        conn_config["access_token"] = self._get_valid_oauth_token(conn_config)
+
+
+           if token:
+                    conn_config["access_token"] = token
+            else:
+               conn_config["access_token"] = self._get_valid_oauth_token(conn_config)
+
+
+                 azure_conn_id = conn_config.get("azure_conn_id")
             if azure_conn_id:
                 conn_config["token"] = self.get_azure_oauth_token(azure_conn_id)
             else:
@@ -354,6 +369,14 @@ class SnowflakeHook(DbApiHook):
         time-sensitive values such as OAuth access tokens. This is used in
         ``_get_valid_oauth_token()`` and ``get_conn_params()``.
         """
+        static_token = self._get_field(extra_dict, "token")
+        refresh_token = self._get_field(extra_dict, "refresh_token")
+
+if static_token and refresh_token:
+    raise AirflowException(
+        "Cannot use both 'token' and 'refresh_token' in Snowflake connection."
+    )
+
         conn = self.get_connection(self.get_conn_id())
         extra_dict = conn.extra_dejson
         account = self._get_field(extra_dict, "account") or ""
@@ -907,3 +930,27 @@ class SnowflakeHook(DbApiHook):
             )
 
         return None
+        class TestSnowflakeHook:
+    
+       def test_static_token_authentication(monkeypatch):
+            from airflow.models.connection import Connection
+            from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+
+    conn = Connection(
+        conn_id="test_snowflake",
+        conn_type="snowflake",
+        login="user",
+        password="ignored",
+        extra='{"account": "test_account", "token": "STATIC_TOKEN"}',
+    )
+
+    hook = SnowflakeHook(snowflake_conn_id="test_snowflake")
+    monkeypatch.setattr(hook, "get_connection", lambda _: conn)
+
+    params = hook._get_static_conn_params
+
+    assert params["authenticator"] == "oauth"
+    assert params["token"] == "STATIC_TOKEN"
+    assert "password" not in params
+
+
