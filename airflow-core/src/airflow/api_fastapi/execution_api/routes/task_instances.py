@@ -28,7 +28,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, Security, status
+from fastapi import Body, HTTPException, Query, Response, Security, status
 from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
@@ -294,8 +294,9 @@ def ti_run(
     "/{task_instance_id}/state",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
+        status.HTTP_200_OK: {"description": "The TI was already in the requested state"},
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
+        status.HTTP_409_CONFLICT: {"description": "The TI is not in a valid state for this transition"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
 )
@@ -361,6 +362,19 @@ def ti_update_state(
                 "message": "Task Instance not found",
             },
         )
+
+    requested_state_value = str(ti_patch_payload.state)
+    previous_state_value = str(previous_state)
+
+    # TIStateUpdate only allows terminal states, so this idempotency check handles duplicate
+    # terminal updates (for example SUCCESS -> SUCCESS) and cannot match RUNNING.
+    if requested_state_value == previous_state_value:
+        log.info(
+            "Duplicate state update request received; state already set",
+            requested_state=requested_state_value,
+            previous_state=previous_state_value,
+        )
+        return Response(status_code=status.HTTP_200_OK)
 
     if previous_state != TaskInstanceState.RUNNING:
         log.warning(
