@@ -233,9 +233,9 @@ export class DagsPage extends BasePage {
     await this.page.keyboard.press("Escape");
     // Wait for the dropdown to close. On WebKit, the listbox may stay in the DOM
     // with data-state="closed", while on other browsers it may be removed entirely.
-    await expect(dropdown).toBeHidden({ timeout: 5000 }).catch(() =>
-      expect(dropdown).toHaveAttribute("data-state", "closed", { timeout: 1000 }),
-    );
+    await expect(dropdown)
+      .toBeHidden({ timeout: 5000 })
+      .catch(() => expect(dropdown).toHaveAttribute("data-state", "closed", { timeout: 1000 }));
 
     return dataValues;
   }
