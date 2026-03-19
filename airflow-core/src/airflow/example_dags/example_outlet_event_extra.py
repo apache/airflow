@@ -47,7 +47,7 @@ with DAG(
 with DAG(
     dag_id="asset_with_extra_by_context",
     catchup=False,
-    start_date=datetime.datetime(1970, 1, 1),
+    start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
     tags=["produces"],
 ):
