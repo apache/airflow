@@ -333,9 +333,30 @@ class GKEJobTrigger(BaseTrigger):
                     f"package {kubernetes_provider_name}=={kubernetes_provider_version} which doesn't "
                     f"support this feature. Please upgrade it to version higher than or equal to {min_version}."
                 )
+            # Re-discover pods for this job to handle retry scenarios
+            # where the original pod failed and a new pod was created
+            label_selector = f"job-name={self.job_name}"
+            current_pods = await self.hook.list_pods(
+                namespace=self.pod_namespace,
+                label_selector=label_selector,
+            )
+            succeeded_pods = [
+                p for p in current_pods
+                if p.status and p.status.phase == "Succeeded"
+            ]
+            if not succeeded_pods:
+                self.log.warning(
+                    "No succeeded pods found for job %s, falling back to original pod list",
+                    self.job_name,
+                )
+                succeeded_pods = [
+                    await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
+                    for pod_name in self.pod_names
+                ]
+
             xcom_results = []
-            for pod_name in self.pod_names:
-                pod = await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
+            for pod in succeeded_pods:
+                pod_name = pod.metadata.name
                 await self.hook.wait_until_container_complete(
                     name=pod_name,
                     namespace=self.pod_namespace,
