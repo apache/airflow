@@ -15,6 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+### Bash Decorator Example
+
+This example DAG demonstrates how to use the `@task.bash` decorator
+to define tasks that execute Bash commands in Apache Airflow.
+
+It shows:
+- Creating Bash tasks using the TaskFlow API
+- Passing parameters to Bash commands
+- Basic task execution within a decorator-based DAG
+
+This DAG is intended for learning and demonstration purposes.
+"""
 from __future__ import annotations
 
 import pendulum
@@ -26,7 +39,7 @@ from airflow.sdk import chain, dag, task
 from airflow.sdk.exceptions import AirflowSkipException
 
 
-@dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
+@dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False, doc_md=__doc__,)
 def example_bash_decorator():
     """
     ### Bash TaskFlow Decorator Example
