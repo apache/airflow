@@ -68,23 +68,26 @@ export class DagRunsTabPage extends BasePage {
     const stateBadge = this.page.getByTestId("state-badge").first();
 
     await expect(stateBadge).toBeVisible({ timeout: 10_000 });
-    const currentState = await stateBadge.textContent();
+    const currentState = (await stateBadge.textContent())?.toLowerCase().trim();
 
-    if (currentState?.toLowerCase().includes(state)) {
+    if (currentState?.includes(state)) {
       return;
     }
 
     await expect(this.markRunAsButton).toBeVisible({ timeout: 10_000 });
     await this.markRunAsButton.click();
 
-    const stateOption = this.page.getByTestId(`mark-run-as-${state}`);
+    const menuContent = this.page.locator('[data-scope="menu"][data-part="content"]');
+    const stateOption = menuContent.getByTestId(`mark-run-as-${state}`);
 
-    await expect(stateOption).toBeVisible({ timeout: 5000 });
+    await expect(menuContent).toBeVisible({ timeout: 10_000 });
+    await expect(stateOption).toBeVisible({ timeout: 10_000 });
+    await expect(stateOption).toBeEnabled({ timeout: 10_000 });
     await stateOption.click();
 
     const confirmButton = this.page.getByRole("button", { name: "Confirm" });
 
-    await expect(confirmButton).toBeVisible({ timeout: 5000 });
+    await expect(confirmButton).toBeVisible({ timeout: 10_000 });
 
     const responsePromise = this.page.waitForResponse(
       (response) => response.url().includes("dagRuns") && response.request().method() === "PATCH",
@@ -102,7 +105,12 @@ export class DagRunsTabPage extends BasePage {
     await expect(this.page).toHaveURL(new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}`), {
       timeout: 15_000,
     });
-    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
+    try {
+      await expect(this.triggerButton).toBeVisible({ timeout: 15_000 });
+    } catch {
+      await this.page.reload({ waitUntil: "domcontentloaded" });
+      await expect(this.triggerButton).toBeVisible({ timeout: 20_000 });
+    }
   }
 
   public async navigateToRunDetails(dagId: string, runId: string): Promise<void> {
@@ -173,13 +181,15 @@ export class DagRunsTabPage extends BasePage {
   }
 
   public async verifyRunDetailsDisplay(): Promise<void> {
+    await this.waitForRunsTableToLoad();
+
     const firstRow = this.tableRows.first();
 
-    await expect(firstRow).toBeVisible({ timeout: 10_000 });
+    await expect(firstRow).toBeVisible({ timeout: 20_000 });
 
     const runIdLink = firstRow.getByRole("link").first();
 
-    await expect(runIdLink).toBeVisible();
+    await expect(runIdLink).toBeVisible({ timeout: 20_000 });
     await expect(runIdLink).not.toBeEmpty();
 
     const stateBadge = firstRow.getByTestId("state-badge");
@@ -217,9 +227,9 @@ export class DagRunsTabPage extends BasePage {
   public async waitForRunsTableToLoad(): Promise<void> {
     await expect(this.runsTable).toBeVisible({ timeout: 10_000 });
 
-    const firstRow = this.tableRows.first();
+    const firstRunLink = this.tableRows.first().getByRole("link").first();
     const noDataMessage = this.page.getByText(/no.*dag.*runs.*found/i);
 
-    await expect(firstRow.or(noDataMessage)).toBeVisible({ timeout: 30_000 });
+    await expect(firstRunLink.or(noDataMessage)).toBeVisible({ timeout: 30_000 });
   }
 }

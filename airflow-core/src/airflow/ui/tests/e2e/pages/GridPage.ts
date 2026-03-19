@@ -97,11 +97,18 @@ export class GridPage extends BasePage {
     await this.waitForGridToLoad();
 
     const firstCell = this.gridCells.first();
+    const tooltipTrigger = firstCell.locator('[data-scope="tooltip"][data-part="trigger"]').first();
 
     await expect(firstCell).toBeVisible();
-    await firstCell.hover();
 
-    const tooltip = this.page.locator('[role="tooltip"], [data-scope="tooltip"]');
+    if ((await tooltipTrigger.count()) > 0) {
+      await expect(tooltipTrigger).toBeVisible({ timeout: 10_000 });
+      await tooltipTrigger.hover();
+    } else {
+      await firstCell.hover();
+    }
+
+    const tooltip = this.page.locator('[role="tooltip"], [data-scope="tooltip"][data-part="content"]');
 
     await expect(tooltip.first()).toBeVisible({ timeout: 10_000 });
   }

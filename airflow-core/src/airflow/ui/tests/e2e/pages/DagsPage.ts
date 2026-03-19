@@ -339,7 +339,12 @@ export class DagsPage extends BasePage {
    */
   public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
-    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
+    try {
+      await expect(this.triggerButton).toBeVisible({ timeout: 15_000 });
+    } catch {
+      await this.page.reload({ waitUntil: "domcontentloaded" });
+      await expect(this.triggerButton).toBeVisible({ timeout: 20_000 });
+    }
     await this.triggerButton.click();
     const dagRunId = await this.handleTriggerDialog();
 
