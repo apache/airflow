@@ -267,7 +267,7 @@ export class RequiredActionsPage extends BasePage {
       const detailsPanel = this.page.locator("#details-panel");
       const stateBadge = detailsPanel.getByTestId("state-badge").first();
 
-      await expect(stateBadge).toContainText(options.expectedState, { timeout: 5_000 });
+      await expect(stateBadge).toContainText(options.expectedState, { timeout: 5000 });
     }).toPass({ timeout: options.timeout ?? 120_000 });
   }
 }
