@@ -127,7 +127,7 @@ def _default_conn_name_from(mod_path, hook_name):
     # Try to set the default conn name from a hook, but don't error if something goes wrong at runtime
     from importlib import import_module
 
-    global DEFAULT_REMOTE_CONN_ID
+    global DEFAULT_REMOTE_CONN_ID  # noqa: PLW0603
 
     try:
         mod = import_module(mod_path)
