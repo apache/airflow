@@ -801,7 +801,7 @@ all = [
     { name = "apache-airflow-providers-grpc" },
     { name = "apache-airflow-providers-hashicorp" },
     { name = "apache-airflow-providers-http" },
-    { name = "apache-airflow-providers-ibm-mq", extra = ["ibmmq"] },
+    { name = "apache-airflow-providers-ibm-mq" },
     { name = "apache-airflow-providers-imap" },
     { name = "apache-airflow-providers-influxdb" },
     { name = "apache-airflow-providers-informatica" },
@@ -1035,7 +1035,7 @@ http = [
     { name = "apache-airflow-providers-http" },
 ]
 ibm-mq = [
-   { name = "apache-airflow-providers-ibm-mq", extra = ["ibmmq"] },
+    { name = "apache-airflow-providers-ibm-mq" },
 ]
 imap = [
     { name = "apache-airflow-providers-imap" },
@@ -1376,8 +1376,7 @@ requires-dist = [
     { name = "apache-airflow-providers-http", marker = "extra == 'all'", editable = "providers/http" },
     { name = "apache-airflow-providers-http", marker = "extra == 'http'", editable = "providers/http" },
     { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'all'", editable = "providers/ibm/mq" },
-    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibmmq'", editable = "providers/ibm/mq" },
-    { name = "apache-airflow-providers-ibm-mq", extras = ["ibmmq"], marker = "extra == 'ibmmq'", editable = "providers/ibm/mq" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibm-mq'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'all'", editable = "providers/imap" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'imap'", editable = "providers/imap" },
     { name = "apache-airflow-providers-influxdb", marker = "extra == 'all'", editable = "providers/influxdb" },
@@ -1486,7 +1485,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.10.10" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2577,9 +2576,6 @@ ftp = [
 google = [
     { name = "apache-airflow-providers-google" },
 ]
-ibm-mq = [
-    { name = "apache-airflow-providers-ibm-mq", extra = ["ibmmq"] },
-]
 imap = [
     { name = "apache-airflow-providers-imap" },
 ]
@@ -2630,7 +2626,6 @@ dev = [
     { name = "apache-airflow-providers-ftp" },
     { name = "apache-airflow-providers-google" },
     { name = "apache-airflow-providers-http" },
-    { name = "apache-airflow-providers-ibm-mq", extra = ["ibmmq"] },
     { name = "apache-airflow-providers-imap" },
     { name = "apache-airflow-providers-microsoft-azure" },
     { name = "apache-airflow-providers-mongo" },
@@ -2669,7 +2664,6 @@ requires-dist = [
     { name = "apache-airflow-providers-ftp", marker = "extra == 'ftp'", editable = "providers/ftp" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
     { name = "apache-airflow-providers-http", editable = "providers/http" },
-    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibmmq'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'imap'", editable = "providers/imap" },
     { name = "apache-airflow-providers-microsoft-azure", marker = "extra == 'microsoft-azure'", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-mongo", marker = "extra == 'mongo'", editable = "providers/mongo" },
@@ -2714,7 +2708,6 @@ dev = [
     { name = "apache-airflow-providers-ftp", editable = "providers/ftp" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
     { name = "apache-airflow-providers-http", editable = "providers/http" },
-    { name = "apache-airflow-providers-ibm-mq", extras = ["ibmmq"], editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", editable = "providers/imap" },
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-mongo", editable = "providers/mongo" },
@@ -5223,6 +5216,7 @@ ibmmq = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-messaging" },
     { name = "apache-airflow-task-sdk" },
 ]
@@ -5244,6 +5238,7 @@ provides-extras = ["ibmmq", "common-compat"]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
@@ -12892,11 +12887,7 @@ wheels = [
 name = "ibmmq"
 version = "2.0.4"
 source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "ibmmq" },
-]
 sdist = { url = "https://files.pythonhosted.org/packages/80/76/7a7645e85a40357f47d23d43681c66d8a57f735006ef6e07bf85203173da/ibmmq-2.0.4.tar.gz", hash = "sha256:b4cd15c59137e0e5c987a3bf0a83dcb5e3e11b0316d7d79be4afcd0e2962be5c", size = 460494, upload-time = "2026-03-02T13:20:04.435Z" }
-wheels = []
 
 [[package]]
 name = "icalendar"
