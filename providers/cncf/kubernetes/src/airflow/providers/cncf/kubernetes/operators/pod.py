@@ -233,7 +233,7 @@ class KubernetesPodOperator(BaseOperator):
     :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
-        only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod. "delete_active_pod" deletes
+        only failed pod will be kept. You can set to "keep_pod" to keep the pod. "delete_active_pod" deletes
         pods that are still active (Pending or Running).
     :param on_kill_action: What to do when the task is killed by the user (e.g. manually marked as
         success/failed from the Airflow UI). If "delete_pod" (default), the pod will be deleted.
@@ -1237,7 +1237,7 @@ class KubernetesPodOperator(BaseOperator):
                     or (
                         self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
                         and (
-                            pod.status.phase == PodPhase.SUCCEEDED
+                            pod.status.phase != PodPhase.FAILED
                             or container_is_succeeded(pod, self.base_container_name)
                         )
                     )

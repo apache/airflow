@@ -728,8 +728,8 @@ class TestKubernetesPodOperator:
             (OnFinishAction.DELETE_POD, PodPhase.RUNNING, True),
             (OnFinishAction.DELETE_POD, PodPhase.SUCCEEDED, True),
             (OnFinishAction.DELETE_POD, PodPhase.FAILED, True),
-            (OnFinishAction.DELETE_SUCCEEDED_POD, PodPhase.PENDING, False),
-            (OnFinishAction.DELETE_SUCCEEDED_POD, PodPhase.RUNNING, False),
+            (OnFinishAction.DELETE_SUCCEEDED_POD, PodPhase.PENDING, True),
+            (OnFinishAction.DELETE_SUCCEEDED_POD, PodPhase.RUNNING, True),
             (OnFinishAction.DELETE_SUCCEEDED_POD, PodPhase.SUCCEEDED, True),
             (OnFinishAction.DELETE_SUCCEEDED_POD, PodPhase.FAILED, False),
             (OnFinishAction.DELETE_ACTIVE_POD, PodPhase.PENDING, True),
@@ -966,7 +966,7 @@ class TestKubernetesPodOperator:
             ({"on_finish_action": "keep_pod"}, False, False),
             ({"on_finish_action": "keep_pod"}, True, False),
             ({"on_finish_action": "delete_succeeded_pod"}, False, True),
-            ({"on_finish_action": "delete_succeeded_pod"}, True, False),
+            ({"on_finish_action": "delete_succeeded_pod"}, True, True),
             ({"on_finish_action": "delete_active_pod"}, True, True),
             ({"on_finish_action": "delete_active_pod"}, False, True),
         ],
@@ -1044,7 +1044,7 @@ class TestKubernetesPodOperator:
         [
             pytest.param({}, True, id="default"),  # default values
             pytest.param({"on_finish_action": "delete_pod"}, True, id="delete-pod"),
-            pytest.param({"on_finish_action": "delete_succeeded_pod"}, False, id="delete-succeeded-pod"),
+            pytest.param({"on_finish_action": "delete_succeeded_pod"}, True, id="delete-succeeded-pod"),
             pytest.param({"on_finish_action": "keep_pod"}, False, id="keep-pod"),
             pytest.param({"on_finish_action": "delete_active_pod"}, False, id="delete-active-pod"),
         ],
