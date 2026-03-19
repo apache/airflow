@@ -46,7 +46,6 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagNotFound, DagRunTypeNotAllowed
 from airflow.models import DagRun
 from airflow.models.backfill import (
-    AlreadyRunningBackfill,
     Backfill,
     BackfillDagRun,
     DagNoScheduleException,
@@ -242,12 +241,6 @@ def create_backfill(
             run_on_latest_version=backfill_request.run_on_latest_version,
         )
         return BackfillResponse.model_validate(backfill_obj)
-
-    except AlreadyRunningBackfill:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
-        )
 
     except DagNotFound:
         raise HTTPException(

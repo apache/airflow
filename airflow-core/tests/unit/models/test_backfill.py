@@ -28,7 +28,6 @@ from sqlalchemy import select
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.backfill import (
-    AlreadyRunningBackfill,
     Backfill,
     BackfillDagRun,
     BackfillDagRunExceptionReason,
@@ -411,10 +410,17 @@ def test_params_stored_correctly(dag_maker, session):
     )
 
 
-def test_active_dag_run(dag_maker, session):
+def test_overlapping_backfills_skip_overlapping_dates(dag_maker, session):
+    """
+    Verify that when creating a backfill that overlaps with an active one,
+    we create a BackfillDagRun for every requested date. Dates in the other
+    backfill's range are marked IN_FLIGHT (no DagRun created), others are created.
+    """
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
     session.commit()
+
+    # Create first backfill (2021-01-01 to 2021-01-05)
     b1 = _create_backfill(
         dag_id=dag.dag_id,
         from_date=pendulum.parse("2021-01-01"),
@@ -425,16 +431,103 @@ def test_active_dag_run(dag_maker, session):
         dag_run_conf={"this": "param"},
     )
     assert b1 is not None
-    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for Dag"):
-        _create_backfill(
-            dag_id=dag.dag_id,
-            from_date=pendulum.parse("2021-02-01"),
-            to_date=pendulum.parse("2021-02-05"),
-            max_active_runs=10,
-            reverse=False,
-            triggering_user_name="pytest",
-            dag_run_conf={"this": "param"},
-        )
+
+    # Create overlapping backfill (2021-01-03 to 2021-01-07), should succeed
+    # All 5 dates get a BackfillDagRun. 01-03..01-05 are IN_FLIGHT, 01-06 and 01-07 get DagRuns
+    b2 = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-03"),
+        to_date=pendulum.parse("2021-01-07"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={"this": "param"},
+    )
+    assert b2 is not None
+    assert b1.id != b2.id
+
+    b2_runs = list(
+        session.scalars(
+            select(BackfillDagRun)
+            .where(BackfillDagRun.backfill_id == b2.id)
+            .order_by(BackfillDagRun.logical_date)
+        ).all()
+    )
+    assert len(b2_runs) == 5
+
+    in_flight_dates = {
+        bdr.logical_date.date().isoformat()
+        for bdr in b2_runs
+        if bdr.exception_reason == BackfillDagRunExceptionReason.IN_FLIGHT
+    }
+    created_dates = {bdr.logical_date.date().isoformat() for bdr in b2_runs if bdr.dag_run_id is not None}
+
+    assert in_flight_dates == {"2021-01-03", "2021-01-04", "2021-01-05"}
+    assert created_dates == {"2021-01-06", "2021-01-07"}
+
+
+def test_non_overlapping_backfills_can_be_created(dag_maker, session):
+    """
+    Verify that two non-overlapping backfills can be created for the same Dag.
+    """
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    # Create first backfill
+    b1 = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+    )
+    assert b1 is not None
+
+    # Create second non-overlapping backfill - should succeed
+    b2 = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-10"),  # No overlap with first backfill
+        to_date=pendulum.parse("2021-01-15"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+    )
+    assert b2 is not None
+    assert b1.id != b2.id
+
+    # Verify b1 has BackfillDagRun entries for all dates (2021-01-01 to 2021-01-05)
+    b1_runs = list(
+        session.scalars(
+            select(BackfillDagRun)
+            .where(BackfillDagRun.backfill_id == b1.id)
+            .order_by(BackfillDagRun.logical_date)
+        ).all()
+    )
+    assert len(b1_runs) == 5
+    b1_dates = {bdr.logical_date.date().isoformat() for bdr in b1_runs}
+    assert b1_dates == {"2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"}
+    # All should have dag_run_id set (no IN_FLIGHT)
+    assert all(bdr.dag_run_id is not None for bdr in b1_runs)
+    assert all(bdr.exception_reason is None for bdr in b1_runs)
+
+    # Verify b2 has BackfillDagRun entries for all dates (2021-01-10 to 2021-01-15)
+    b2_runs = list(
+        session.scalars(
+            select(BackfillDagRun)
+            .where(BackfillDagRun.backfill_id == b2.id)
+            .order_by(BackfillDagRun.logical_date)
+        ).all()
+    )
+    assert len(b2_runs) == 6
+    b2_dates = {bdr.logical_date.date().isoformat() for bdr in b2_runs}
+    assert b2_dates == {"2021-01-10", "2021-01-11", "2021-01-12", "2021-01-13", "2021-01-14", "2021-01-15"}
+    # All should have dag_run_id set (no IN_FLIGHT)
+    assert all(bdr.dag_run_id is not None for bdr in b2_runs)
+    assert all(bdr.exception_reason is None for bdr in b2_runs)
 
 
 def create_next_run(
