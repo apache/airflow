@@ -228,7 +228,7 @@ def execute_workload(input: str) -> None:
 
 if not AIRFLOW_V_3_0_PLUS:
 
-    @app.task
+    @app.task(name="execute_command")
     def execute_command(command_to_exec: CommandType) -> None:
         """Execute command."""
         EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not hasattr(os, "fork") or conf.getboolean(
