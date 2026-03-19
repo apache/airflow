@@ -78,7 +78,7 @@ export class RequiredActionsPage extends BasePage {
   private async clickOnTaskInGrid(dagRunId: string, taskId: string): Promise<void> {
     const taskLocator = this.page.getByTestId(`grid-${dagRunId}-${taskId}`);
 
-    await expect(taskLocator).toBeVisible({ timeout: 30_000 });
+    await expect(taskLocator).toBeVisible({ timeout: 5_000 });
     await taskLocator.click();
   }
 
