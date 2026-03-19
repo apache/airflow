@@ -45,7 +45,6 @@ from airflow.sdk.exceptions import (
     AirflowTaskTimeout,
     TaskDeferred,
 )
-from airflow.sdk.execution_time.context import context_to_airflow_vars
 from airflow.sdk.execution_time.executor import HybridExecutor, TaskExecutor, collect_futures
 from airflow.sdk.execution_time.lazy_sequence import XComIterable
 from airflow.sdk.execution_time.task_runner import MappedTaskInstance
@@ -167,10 +166,6 @@ class IterableOperator(BaseOperator):
         do_xcom_push = True
 
         self.log.info("Running tasks with %d workers", self.max_workers)
-
-        # Export context in os.environ to make it available for operators to use.
-        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-        os.environ.update(airflow_context_vars)
 
         with event_loop() as loop:
             with HybridExecutor(loop=loop, max_workers=self.max_workers) as executor:
