@@ -794,7 +794,7 @@ def upgrade(
         ),
         (
             "update-uv-lock",
-            "prek --all-files --show-diff-on-failure --color always --verbose --stage manual update-uv-lock",
+            "prek --all-files --show-diff-on-failure --color always --verbose update-uv-lock --stage manual",
         ),
     ]
     step_enabled = {

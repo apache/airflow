@@ -484,12 +484,14 @@ def main():
         # Write logos to dev/registry/logos/ — this directory is mounted in
         # breeze (unlike registry/public/) so copies survive the container.
         # Also copy to registry/public/logos/ for local dev convenience.
+        # Directories are created lazily (only when a logo is found) to avoid
+        # empty dirs that trip up glob-based cp in the CI workflow.
         logos_dest_dir = SCRIPT_DIR / "logos"
-        logos_dest_dir.mkdir(parents=True, exist_ok=True)
         registry_logos_dir = SCRIPT_DIR.parent.parent / "registry" / "public" / "logos"
-        registry_logos_dir.mkdir(parents=True, exist_ok=True)
 
         if integration_logos_dir.exists():
+            logos_dest_dir.mkdir(parents=True, exist_ok=True)
+
             # First, check for priority logos for known providers
             if provider_id in logo_priority_map:
                 for priority_logo in logo_priority_map[provider_id]:
@@ -538,6 +540,7 @@ def main():
             logo_filename = logo.split("/")[-1]
             src = logos_dest_dir / logo_filename
             if src.exists():
+                registry_logos_dir.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, registry_logos_dir / logo_filename)
 
         # Extract connection types from provider.yaml

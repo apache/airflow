@@ -14,21 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import warnings
+import pytest
 
-from airflow.timetables.assets import AssetOrTimeSchedule
-from airflow.utils.deprecation_tools import DeprecatedImportWarning
+pytestmark = pytest.mark.db_test
 
 
-class DatasetOrTimeSchedule:
-    """Deprecated alias for `AssetOrTimeSchedule`."""
+@pytest.fixture
+def old_ver_client(client):
+    client.headers["Airflow-API-Version"] = "2026-03-31"
+    return client
 
-    def __new__(cls, *, timetable, datasets) -> AssetOrTimeSchedule:  # type: ignore[misc]
-        warnings.warn(
-            "DatasetOrTimeSchedule is deprecated and will be removed in Airflow 3.2. Use `airflow.timetables.AssetOrTimeSchedule` instead.",
-            DeprecatedImportWarning,
-            stacklevel=2,
-        )
-        return AssetOrTimeSchedule(timetable=timetable, assets=datasets)
+
+def test_dag_endpoint_not_available_in_previous_version(old_ver_client):
+    response = old_ver_client.get("/execution/dags/test_dag")
+
+    assert response.status_code == 404
