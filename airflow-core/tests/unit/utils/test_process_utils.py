@@ -137,9 +137,10 @@ def my_sleep_subprocess():
     sleep(100)
 
 
-def my_sleep_subprocess_with_signals():
+def my_sleep_subprocess_with_signals(ready_event):
     signal.signal(signal.SIGINT, lambda signum, frame: None)
     signal.signal(signal.SIGTERM, lambda signum, frame: None)
+    ready_event.set()
     sleep(100)
 
 
@@ -161,9 +162,14 @@ class TestKillChildProcessesByPids:
         assert before_num_process == num_process
 
     def test_should_force_kill_process(self, caplog):
-        process = multiprocessing.Process(target=my_sleep_subprocess_with_signals, args=())
+        ready_event = multiprocessing.Event()
+        process = multiprocessing.Process(target=my_sleep_subprocess_with_signals, args=(ready_event,))
         process.start()
-        sleep(0)
+        # Wait until the child has installed its signal handlers, so that SIGTERM will be
+        # ignored and we actually exercise the SIGKILL path.  Without this, on non-fork
+        # start methods (forkserver/spawn) the child may still have the default SIGTERM
+        # handler when we send the signal.
+        ready_event.wait(timeout=10)
 
         all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
         assert str(process.pid) in (x.strip() for x in all_processes)
