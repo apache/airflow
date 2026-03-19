@@ -978,6 +978,23 @@ class TestSerializedBaseOperator:
         assert isinstance(result, datetime)
         assert result.timestamp() == timestamp
 
+    def test_deserialize_field_value_with_arg_not_set_for_date_fields(self):
+        """Test that _deserialize_field_value returns NOTSET for ARG_NOT_SET date fields."""
+        from airflow.serialization.definitions.notset import NOTSET
+        from airflow.serialization.serialized_objects import OperatorSerialization
+
+        # Test with ARG_NOT_SET value for a date field
+        value = {Encoding.TYPE: DAT.ARG_NOT_SET}
+        result = OperatorSerialization._deserialize_field_value("logical_date", value)
+        assert result is NOTSET
+
+        # Test with other date field names
+        result = OperatorSerialization._deserialize_field_value("start_date", value)
+        assert result is NOTSET
+
+        result = OperatorSerialization._deserialize_field_value("end_date", value)
+        assert result is NOTSET
+
 
 class TestKubernetesImportAvoidance:
     """Test that serialization doesn't import kubernetes unnecessarily."""
