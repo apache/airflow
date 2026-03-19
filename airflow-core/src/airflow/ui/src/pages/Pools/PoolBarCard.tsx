@@ -20,7 +20,7 @@ import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
-import { PoolBar } from "src/components/PoolBar";
+import { PoolBar, UNLIMITED_SLOTS } from "src/components/PoolBar";
 import { StateIcon } from "src/components/StateIcon";
 import { Tooltip } from "src/components/ui";
 
@@ -40,8 +40,8 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
         <VStack align="start" flex="1">
           <HStack justifyContent="space-between" width="100%">
             <Text fontSize="lg" fontWeight="bold" whiteSpace="normal" wordBreak="break-word">
-              {pool.name} ({pool.slots} {translate("pools.form.slots")})
-              {pool.team_name !== null && ` (${pool.team_name})`}
+              {pool.name} ({pool.slots === UNLIMITED_SLOTS ? "∞" : pool.slots} {translate("pools.form.slots")}
+              ){pool.team_name !== null && ` (${pool.team_name})`}
               {pool.include_deferred ? (
                 <Tooltip content={translate("pools.deferredSlotsIncluded")}>
                   <StateIcon size={18} state="deferred" style={{ display: "inline", marginLeft: 6 }} />

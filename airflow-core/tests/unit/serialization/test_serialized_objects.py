@@ -47,12 +47,12 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
 from airflow.partition_mappers.temporal import (
-    DailyMapper as CoreDailyMapper,
-    HourlyMapper as CoureHourlyMapper,
-    MonthlyMapper as CoreMonthlyMapper,
-    QuarterlyMapper as CoreQuarterlyMapper,
-    WeeklyMapper as CoreWeeklyMapper,
-    YearlyMapper as CoreYearlyMapper,
+    ToDailyMapper as CoreToDailyMapper,
+    ToHourlyMapper as CoreToHourlyMapper,
+    ToMonthlyMapper as CoreToMonthlyMapper,
+    ToQuarterlyMapper as CoreToQuarterlyMapper,
+    ToWeeklyMapper as CoreToWeeklyMapper,
+    ToYearlyMapper as CoreToYearlyMapper,
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -60,13 +60,13 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import (
     BaseOperator,
-    DailyMapper,
-    HourlyMapper,
     IdentityMapper,
-    MonthlyMapper,
-    QuarterlyMapper,
-    WeeklyMapper,
-    YearlyMapper,
+    ToDailyMapper,
+    ToHourlyMapper,
+    ToMonthlyMapper,
+    ToQuarterlyMapper,
+    ToWeeklyMapper,
+    ToYearlyMapper,
 )
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -656,6 +656,24 @@ def test_hash_property():
     assert lazy_serialized_dag.hash == SerializedDagModel.hash(data)
 
 
+def test_timetable_property_serialize():
+    data = {
+        "dag": {
+            "timetable": {
+                "__type": "airflow.timetables.trigger.DeltaTriggerTimetable",
+                "__var": {"delta": {"weekday": [6]}, "interval": 0.0},
+            }
+        }
+    }
+    lazy_serialized_dag = LazyDeserializedDAG(data=data)
+    before_get_timetable_property = json.dumps(lazy_serialized_dag.data["dag"]["timetable"]["__var"]["delta"])
+    _ = lazy_serialized_dag.timetable
+    assert (
+        json.dumps(lazy_serialized_dag.data["dag"]["timetable"]["__var"]["delta"])
+        == before_get_timetable_property
+    )
+
+
 @pytest.mark.parametrize(
     ("payload", "expected_cls"),
     [
@@ -750,39 +768,39 @@ def test_encode_timezone():
     [
         (IdentityMapper, [], "airflow.partition_mappers.identity.IdentityMapper", {}),
         (
-            HourlyMapper,
+            ToHourlyMapper,
             [],
-            "airflow.partition_mappers.temporal.HourlyMapper",
+            "airflow.partition_mappers.temporal.ToHourlyMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
         ),
         (
-            DailyMapper,
+            ToDailyMapper,
             [],
-            "airflow.partition_mappers.temporal.DailyMapper",
+            "airflow.partition_mappers.temporal.ToDailyMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
         ),
         (
-            WeeklyMapper,
+            ToWeeklyMapper,
             [],
-            "airflow.partition_mappers.temporal.WeeklyMapper",
+            "airflow.partition_mappers.temporal.ToWeeklyMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d (W%V)"},
         ),
         (
-            MonthlyMapper,
+            ToMonthlyMapper,
             [],
-            "airflow.partition_mappers.temporal.MonthlyMapper",
+            "airflow.partition_mappers.temporal.ToMonthlyMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
         ),
         (
-            QuarterlyMapper,
+            ToQuarterlyMapper,
             [],
-            "airflow.partition_mappers.temporal.QuarterlyMapper",
+            "airflow.partition_mappers.temporal.ToQuarterlyMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-Q{quarter}"},
         ),
         (
-            YearlyMapper,
+            ToYearlyMapper,
             [],
-            "airflow.partition_mappers.temporal.YearlyMapper",
+            "airflow.partition_mappers.temporal.ToYearlyMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
         ),
     ],
@@ -801,12 +819,12 @@ def test_encode_partition_mapper(cls, args, encode_type, encode_var):
     ("sdk_cls", "core_cls"),
     [
         (IdentityMapper, CoreIdentityMapper),
-        (HourlyMapper, CoureHourlyMapper),
-        (DailyMapper, CoreDailyMapper),
-        (WeeklyMapper, CoreWeeklyMapper),
-        (MonthlyMapper, CoreMonthlyMapper),
-        (QuarterlyMapper, CoreQuarterlyMapper),
-        (YearlyMapper, CoreYearlyMapper),
+        (ToHourlyMapper, CoreToHourlyMapper),
+        (ToDailyMapper, CoreToDailyMapper),
+        (ToWeeklyMapper, CoreToWeeklyMapper),
+        (ToMonthlyMapper, CoreToMonthlyMapper),
+        (ToQuarterlyMapper, CoreToQuarterlyMapper),
+        (ToYearlyMapper, CoreToYearlyMapper),
     ],
 )
 def test_decode_partition_mapper(sdk_cls, core_cls):
@@ -835,10 +853,10 @@ def test_decode_partition_mapper_not_exists():
 
 
 def test_encode_product_mapper():
-    from airflow.sdk import HourlyMapper, IdentityMapper, ProductMapper
+    from airflow.sdk import IdentityMapper, ProductMapper, ToHourlyMapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper(IdentityMapper(), HourlyMapper())
+    partition_mapper = ProductMapper(IdentityMapper(), ToHourlyMapper())
     assert encode_partition_mapper(partition_mapper) == {
         Encoding.TYPE: "airflow.partition_mappers.product.ProductMapper",
         Encoding.VAR: {
@@ -849,7 +867,7 @@ def test_encode_product_mapper():
                     Encoding.VAR: {},
                 },
                 {
-                    Encoding.TYPE: "airflow.partition_mappers.temporal.HourlyMapper",
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.ToHourlyMapper",
                     Encoding.VAR: {
                         "input_format": "%Y-%m-%dT%H:%M:%S",
                         "output_format": "%Y-%m-%dT%H",
@@ -862,11 +880,11 @@ def test_encode_product_mapper():
 
 def test_decode_product_mapper():
     from airflow.partition_mappers.product import ProductMapper as CoreProductMapper
-    from airflow.sdk import DailyMapper, HourlyMapper, ProductMapper
+    from airflow.sdk import ProductMapper, ToDailyMapper, ToHourlyMapper
     from airflow.serialization.decoders import decode_partition_mapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper(HourlyMapper(), DailyMapper())
+    partition_mapper = ProductMapper(ToHourlyMapper(), ToDailyMapper())
     encoded_pm = encode_partition_mapper(partition_mapper)
 
     core_pm = decode_partition_mapper(encoded_pm)

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.secrets_masker import redact
+from airflow._shared.template_rendering import truncate_rendered_value
 from airflow.configuration import conf
 from airflow.settings import json
 
@@ -83,10 +84,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
                 serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
-            return (
-                "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-                f"{rendered[: max_length - 79]!r}... "
-            )
+            return truncate_rendered_value(str(rendered), max_length)
         return serialized
     if not template_field and not isinstance(template_field, tuple):
         # Avoid unnecessary serialization steps for empty fields unless they are tuples
@@ -100,10 +98,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     serialized = str(template_field)
     if len(serialized) > max_length:
         rendered = redact(serialized, name)
-        return (
-            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-            f"{rendered[: max_length - 79]!r}... "
-        )
+        return truncate_rendered_value(str(rendered), max_length)
     return template_field
 
 

@@ -560,6 +560,7 @@ EnvVar
 envvar
 eof
 EOL
+equest
 errno
 errored
 eslint
@@ -582,6 +583,7 @@ exitcode
 expanduser
 explicit
 exportingmultiple
+Expr
 ext
 extensibility
 externalbrowser

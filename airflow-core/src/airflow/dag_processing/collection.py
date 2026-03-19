@@ -186,7 +186,7 @@ class _RunInfo(NamedTuple):
             log.info("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
-            log.info("Getting latest run for non-partitioned Gag", dag_id=dag.dag_id)
+            log.info("Getting latest run for non-partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         if latest_run:
             log.info(
@@ -407,6 +407,7 @@ def _update_import_errors(
             update(DagModel)
             .where(
                 DagModel.relative_fileloc == relative_fileloc,
+                DagModel.bundle_name == bundle_name_,
             )
             .values(
                 has_import_errors=True,

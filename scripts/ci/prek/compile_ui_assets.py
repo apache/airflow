@@ -29,8 +29,6 @@ from pathlib import Path
 # Cannot have additional Python dependencies installed. We should not import any of the libraries
 # here that are not available in stdlib! You should not import common_prek_utils.py here because
 # They are importing the rich library which is not available in the node environment.
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH
 
 MAIN_UI_DIRECTORY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"

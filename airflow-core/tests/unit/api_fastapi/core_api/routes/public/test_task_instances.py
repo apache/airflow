@@ -39,7 +39,8 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.trigger import Trigger
-from airflow.sdk import BaseOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import BaseOperator, TaskGroup
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -984,6 +985,36 @@ class TestGetMappedTaskInstances:
         assert response.status_code == 404
         assert response.json()["detail"] == "Task id nonexistent_task not found"
 
+    def test_no_duplicate_joins_in_get_mapped_task_instances_query(
+        self, one_task_with_mapped_tis, test_client
+    ):
+        """Regression test for #62027: the get_mapped_task_instances endpoint must not emit duplicate JOINs."""
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.get(
+                "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            )
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 200
+
+        ti_queries = [s for s in executed_statements if "FROM TASK_INSTANCE" in s and "JOIN DAG_RUN" in s]
+        assert ti_queries, "Expected at least one query selecting from task_instance with JOIN dag_run"
+        for q in ti_queries:
+            assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
+            if "JOIN DAG_VERSION" in q:
+                assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
+
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
@@ -1513,6 +1544,41 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             == f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}"
         )
 
+    def test_no_duplicate_joins_in_get_task_instances_query(self, test_client, session):
+        """Regression test for #62027: the get_task_instances endpoint must not emit duplicate JOINs.
+
+        Combining explicit join() with joinedload() on the same tables causes SQLAlchemy
+        to emit duplicate JOINs (dag_run twice, dag_version twice). By relying solely on
+        joinedload via eager_load_TI_and_TIH_for_validation, each table must appear
+        exactly once in the SQL emitted by the real endpoint.
+        """
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        self.create_task_instances(session)
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.get("/dags/~/dagRuns/~/taskInstances")
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 200
+
+        # Find all statements that query task_instance joined with dag_run
+        ti_queries = [s for s in executed_statements if "FROM TASK_INSTANCE" in s and "JOIN DAG_RUN" in s]
+        assert ti_queries, "Expected at least one query selecting from task_instance with JOIN dag_run"
+        for q in ti_queries:
+            assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
+            if "JOIN DAG_VERSION" in q:
+                assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
+
     def test_return_TI_only_from_readable_dags(self, test_client, session):
         task_instances = {
             "example_python_operator": 1,
@@ -1645,6 +1711,47 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response_batch1.json()["total_entries"] == response_batch2.json()["total_entries"] == ti_count
         assert (num_entries_batch1 + num_entries_batch2) == ti_count
         assert response_batch1 != response_batch2
+
+    def test_task_group_filter_uses_run_version_not_latest(self, test_client, dag_maker, session):
+        """
+        Task group lookup should use the DAG version from the run, not the latest version.
+
+        When a task group is renamed between versions, clicking on a historical run's
+        task group in the grid should still resolve correctly against the version
+        that run was created with — not the latest version where the group may have
+        a different name, i.e serialized_dag might not have that taskgroup anymore.
+        """
+        dag_id = "test_tg_version"
+
+        # Version 1: task group named "process_data"
+        with dag_maker(dag_id, session=session):
+            with TaskGroup(group_id="process_data"):
+                EmptyOperator(task_id="step_1")
+        dag_maker.create_dagrun(run_id="run_v1")
+        session.commit()
+
+        # Version 2: task group renamed to "process_data_v2"
+        with dag_maker(dag_id, session=session):
+            with TaskGroup(group_id="process_data_v2"):
+                EmptyOperator(task_id="step_1")
+        session.commit()
+
+        # The run was created with v1 which had "process_data".
+        # Querying with the old group name must succeed.
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
+            params={"task_group_id": "process_data"},
+        )
+        assert response.status_code == 200, response.json()
+        assert response.json()["total_entries"] == 1
+        assert response.json()["task_instances"][0]["task_id"] == "process_data.step_1"
+
+        # The new group name should NOT be found in the old run's version.
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
+            params={"task_group_id": "process_data_v2"},
+        )
+        assert response.status_code == 404
 
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
@@ -2057,6 +2164,34 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         num_entries_batch3 = len(response_batch3.json()["task_instances"])
         assert num_entries_batch3 == ti_count
         assert len(response_batch3.json()["task_instances"]) == ti_count
+
+    def test_no_duplicate_joins_in_get_task_instances_batch_query(self, test_client, session):
+        """Regression test for #62027: the get_task_instances_batch endpoint must not emit duplicate JOINs."""
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        self.create_task_instances(session)
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.post("/dags/~/dagRuns/~/taskInstances/list", json={})
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 200
+
+        ti_queries = [s for s in executed_statements if "FROM TASK_INSTANCE" in s and "JOIN DAG_RUN" in s]
+        assert ti_queries, "Expected at least one query selecting from task_instance with JOIN dag_run"
+        for q in ti_queries:
+            assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
+            if "JOIN DAG_VERSION" in q:
+                assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
 
 
 class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
