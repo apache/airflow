@@ -165,8 +165,9 @@ class BreezieContext:
         # Define all available skills
         skills = {
             "run-static-checks": {
+                # prek is available on both host and inside Breeze; same command in both contexts.
                 "host": "prek run {module}",
-                "breeze": "python -m pytest --doctest-modules {module}",
+                "breeze": "prek run {module}",
                 "preferred": "host",
                 "params": {"module": {"required": False}},
             },

@@ -87,14 +87,47 @@ If you also include `parameters`, ensure every parameter includes both:
 - `description`
 - `required` (boolean)
 
-## Future evolution
+## Design note: source of truth and future evolution
 
-The long-term direction is to make contributor documentation executable by
-embedding skill blocks into `contributing-docs/*.rst` (docs-first source of
-truth).
+Issue [#62500](https://github.com/apache/airflow/issues/62500) asks for auto-extraction
+of skill definitions from Breeze CLI docstrings. This PoC takes a **deliberate
+stepping-stone approach**:
 
-This PoC keeps the structured source in `.github/skills/...` as a stepping
-stone so the extraction and drift-check pipeline is validated early.
+### Current (MVP): human-authored SKILL.md
+
+`SKILL.md` is the structured source of truth. Skills are authored by hand, reviewed
+like any other code change, and extracted into `skills.json` via the pipeline in
+`scripts/ci/prek/extract_breeze_contribution_skills.py`.
+
+The `validate_skills.py --check` prek hook enforces that `SKILL.md` and `skills.json`
+never diverge — so the drift-detection mechanism is **production-ready now**.
+
+Benefits of this approach:
+
+- Skills are readable and reviewable in plain markdown.
+- The extraction and drift-check pipeline is fully exercised and tested.
+- Breeze CLI commands are encoded accurately (not inferred from docstrings that
+  may lag behind behavior).
+
+### Future evolution: auto-extraction from Breeze CLI docstrings
+
+The architecture is intentionally designed to support swapping the source:
+
+1. The extractor reads a markdown file and produces `skills.json`.
+2. That markdown file could be `SKILL.md` (human-authored) **or** generated from
+   Breeze CLI docstrings / `contributing-docs/*.rst` entries.
+3. The drift-check hook and `skills.json` contract remain unchanged.
+
+Concretely, a follow-up milestone can:
+
+- Parse `breeze --help` / Click command docstrings into the same JSON skill format.
+- Write the result into `SKILL.md` (or directly to `skills.json`).
+- The existing `validate_skills.py --check` hook catches any manual edits that
+  drift from the auto-generated source.
+
+This aligns with Jarek's feedback that contributor documentation
+(`contributing-docs/*.rst`) is a more durable source of truth than raw CLI
+docstrings — because docs are reviewed and kept current by committers.
 
 ## Example usage by agents
 

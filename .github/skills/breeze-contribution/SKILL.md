@@ -89,7 +89,7 @@ This PoC keeps `SKILL.md` under `.github/skills/` as the initial stepping stone.
   "description": "Run prek static checks (linting, formatting, type checks)",
   "commands": {
     "host": "prek run {--target module}",
-    "breeze": "python -m pytest --doctest-modules {module}"
+    "breeze": "prek run {--target module}"
   },
   "preferred_context": "host",
   "parameters": {
