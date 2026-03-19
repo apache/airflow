@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-15T13:58:24.007046
+# This constraints file was automatically generated on 2026-03-19T21:54:37.439612
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -13,7 +13,6 @@ Jinja2==3.1.6
 Mako==1.3.10
 MarkupSafe==3.0.3
 PyJWT==2.12.1
-PyYAML-ft==8.0.0
 PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy==2.0.48
@@ -31,7 +30,7 @@ babel==2.18.0
 cadwyn==6.0.4
 certifi==2026.2.25
 cffi==2.0.0
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
 click==8.3.1
 colorlog==6.10.1
 cron_descriptor==2.0.6
@@ -79,11 +78,10 @@ packaging==26.0
 pathlib_abc==0.5.2
 pathspec==1.0.4
 pendulum==3.2.0
-pluggy==1.6.0
 protobuf==5.29.6
 psutil==7.2.2
 pycparser==3.0
-pydantic-extra-types==2.11.0
+pydantic-extra-types==2.11.1
 pydantic-settings==2.13.1
 pydantic==2.12.5
 pydantic_core==2.41.5
@@ -120,7 +118,7 @@ universal_pathlib==0.3.10
 urllib3==2.6.3
 uuid6==2025.0.1
 uv==0.10.10
-uvicorn==0.41.0
+uvicorn==0.42.0
 uvloop==0.22.1
 watchfiles==1.1.1
 websockets==16.0

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-19T11:20:33.157149
+# This constraints file was automatically generated on 2026-03-19T22:04:35.102853
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -77,13 +77,16 @@ aiosmtplib==5.1.0
 aiosqlite==0.21.0
 airbyte-api==0.53.0
 alembic==1.18.4
-alibabacloud-adb20211201==3.7.1
+alibabacloud-adb20211201==3.7.0
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.8
-alibabacloud-tea-openapi==0.4.3
+alibabacloud-openapi-util==0.2.4
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
+alibabacloud_endpoint_util==0.0.4
 alibabacloud_gateway_spi==0.0.3
+alibabacloud_tea_openapi==0.3.16
+alibabacloud_tea_xml==0.0.3
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
@@ -198,7 +201,7 @@ asyncpg==0.31.0
 asyncssh==2.22.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
-attrs==25.4.0
+attrs==26.1.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.39.0
@@ -260,9 +263,8 @@ confluent-kafka==2.13.2
 crcmod==1.7
 cron_descriptor==2.0.6
 croniter==6.2.2
-cryptography==44.0.3
+cryptography==46.0.5
 curlify==3.0.0
-darabonba-core==1.0.5
 databricks-sql-connector==4.2.5
 dataclasses-json==0.6.7
 datadog==0.52.1
@@ -435,7 +437,7 @@ litellm==1.82.4
 lockfile==0.12.2
 logfire-api==4.29.0
 looker_sdk==26.4.0
-lxml==5.4.0
+lxml==6.0.2
 lz4==4.4.5
 markdown-it-py==4.0.0
 marshmallow-sqlalchemy==1.4.2
@@ -537,7 +539,7 @@ pure-sasl==0.6.2
 pure_eval==0.2.3
 py-spy==0.4.1
 py4j==0.10.9.9
-pyOpenSSL==25.1.0
+pyOpenSSL==25.3.0
 pyarrow==23.0.1
 pyasn1==0.6.3
 pyasn1_modules==0.4.2
@@ -554,7 +556,7 @@ pydantic_core==2.41.5
 pydata-google-auth==1.9.1
 pydruid==0.6.9
 pydynamodb==0.8.1
-pyexasol==1.1.0
+pyexasol==1.3.0
 pygtrie==2.5.0
 pyiceberg==0.11.1
 pykerberos==1.2.4
@@ -564,7 +566,7 @@ pyodbc==5.3.0
 pyodps==0.12.5.1
 pyparsing==3.3.2
 pypsrp==0.9.1
-pyroaring==1.0.3
+pyroaring==1.0.4
 pyspark==4.1.1
 pyspnego==0.12.1
 python-arango==8.3.0
@@ -587,7 +589,7 @@ qdrant-client==1.17.1
 ray==2.54.0
 reactivex==4.1.0
 redis==6.4.0
-redshift-connector==2.1.12
+redshift-connector==2.1.7
 referencing==0.37.0
 regex==2026.2.28
 requests-file==3.0.1
@@ -644,7 +646,7 @@ svcs==25.1.0
 tableauserverclient==0.40
 tabulate==0.10.0
 tenacity==9.1.4
-teradatasql==20.0.0.53
+teradatasql==20.0.0.54
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
 text-unidecode==1.3
@@ -673,7 +675,7 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
-uv==0.10.11
+uv==0.10.12
 uvicorn==0.42.0
 uvloop==0.22.1
 validators==0.35.0
@@ -685,7 +687,7 @@ watchtower==3.4.0
 wcwidth==0.6.0
 weaviate-client==4.20.4
 webencodings==0.5.1
-websocket-client==1.9.0
+websocket-client==1.8.0
 websockets==16.0
 wirerope==1.0.0
 wrapt==2.1.2
