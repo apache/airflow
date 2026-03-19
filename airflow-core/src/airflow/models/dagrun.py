@@ -23,7 +23,7 @@ import os
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
@@ -202,6 +202,8 @@ class DagRun(Base, LoggingMixin):
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
     clear_number: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    # Number of DAG-level retries used so far (for max_dag_retries). 0 = first run.
+    dag_try_number: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
     backfill_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("backfill.id"), nullable=True)
     """
     The backfill this DagRun is currently associated with.
@@ -371,7 +373,7 @@ class DagRun(Base, LoggingMixin):
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
         self.context_carrier: dict[str, str] = new_dagrun_trace_carrier()
-
+        self.dag_try_number = 0
         if not isinstance(partition_key, str | None):
             raise ValueError(
                 f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"
@@ -1109,8 +1111,38 @@ class DagRun(Base, LoggingMixin):
 
         tis_for_dagrun_state = self._tis_for_dagrun_state(dag=dag, tis=tis)
 
-        # if all tasks finished and at least one failed, the run failed
+        # if all tasks finished and at least one failed, the run failed (or retry)
         if not unfinished.tis and any(x.state in State.failed_states for x in tis_for_dagrun_state):
+            max_dag_retries = getattr(dag, "max_dag_retries", 0) or 0
+            if max_dag_retries > 0 and self.dag_try_number < max_dag_retries:
+                # `clear_task_instances()` updates DagRun state only for finished runs, so
+                # we temporarily mark this run as FAILED before clearing to get it back to QUEUED.
+                self.set_state(DagRunState.FAILED)
+                self.dag_try_number += 1
+                self.log.info(
+                    "DAG-level retry %s/%s for run %s, clearing failed tasks",
+                    self.dag_try_number,
+                    max_dag_retries,
+                    self,
+                )
+                dag.clear(run_id=self.run_id, only_failed=True, session=session)
+                delay = getattr(dag, "dag_retry_delay", None)
+                if delay is not None:
+                    if isinstance(delay, timedelta):
+                        computed_delay = delay
+                    elif isinstance(delay, (int, float)):
+                        computed_delay = timedelta(seconds=float(delay))
+                    else:
+                        raise TypeError(
+                            "Expected `dag_retry_delay` to be a timedelta or seconds (int/float), "
+                            f"but got {delay.__class__.__name__}"
+                        )
+                    self.run_after = timezone.utcnow() + computed_delay
+                self.set_state(DagRunState.QUEUED)
+                session.merge(self)
+                session.flush()
+                return [], None
+
             self.log.info("Marking run %s failed", self)
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="task_failure")

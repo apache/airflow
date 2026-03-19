@@ -113,6 +113,8 @@ class SerializedDAG:
     max_active_runs: int = 16
     max_active_tasks: int = 16
     max_consecutive_failed_dag_runs: int = 0
+    max_dag_retries: int = 0
+    dag_retry_delay: datetime.timedelta | None = None
     owner_links: dict[str, str] = attrs.field(factory=dict)
     params: SerializedParamsDict = attrs.field(factory=SerializedParamsDict)
     partial: bool = False
@@ -161,6 +163,8 @@ class SerializedDAG:
                 "max_active_runs",
                 "max_active_tasks",
                 "max_consecutive_failed_dag_runs",
+                "max_dag_retries",
+                "dag_retry_delay",
                 "owner_links",
                 "relative_fileloc",
                 "render_template_as_native_obj",

@@ -2222,6 +2222,8 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "max_active_tasks",
         "max_active_runs",
         "max_consecutive_failed_dag_runs",
+        "max_dag_retries",
+        "dag_retry_delay",
         "dagrun_timeout",
         "deadline",
         "allowed_run_types",
