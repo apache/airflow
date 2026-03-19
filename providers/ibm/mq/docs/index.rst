@@ -33,14 +33,7 @@
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/ibm/mq/index>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: System tests
-
-    System Tests <_api/tests/system/ibm/mq/index>
+    Connections <connections/mq>
 
 .. toctree::
     :hidden:

@@ -74,13 +74,13 @@ class IBMMQHook(BaseHook):
         """
         Return the symbolic MQ open option flags set in a given bitmask.
 
-        Each flag corresponds to a constant in `ibmmq.CMQC` that starts with 'MQOO_'.
+        Each flag corresponds to a constant in 'ibmmq.CMQC' that starts with 'MQOO_'.
 
         :param open_options: The integer bitmask used when opening an MQ queue
-                             (e.g., `MQOO_INPUT_EXCLUSIVE | MQOO_FAIL_IF_QUIESCING`).
+                             (e.g., 'MQOO_INPUT_EXCLUSIVE | MQOO_FAIL_IF_QUIESCING').
 
         :return: A list of the names of the MQ open flags that are set in the bitmask.
-                 For example, ['MQOO_INPUT_EXCLUSIVE', 'MQOO_FAIL_IF_QUIESCING'].
+                 For example, '['MQOO_INPUT_EXCLUSIVE', 'MQOO_FAIL_IF_QUIESCING']'.
 
         Example:
             >>> open_options = ibmmq.CMQC.MQOO_INPUT_SHARED | ibmmq.CMQC.MQOO_FAIL_IF_QUIESCING
@@ -175,21 +175,21 @@ class IBMMQHook(BaseHook):
         """
         Wait for a single message from the specified IBM MQ queue and return its decoded payload.
 
-        All blocking IBM MQ operations (connect, open queue, get, close, disconnect) run in a
-        separate thread via sync_to_async to satisfy the IBM MQ C client's thread-affinity
+        All blocking IBM MQ operations ('connect', 'open', 'get', 'close', 'disconnect') run in a
+        separate thread via 'sync_to_async' to satisfy the IBM MQ C client's thread-affinity
         requirement — every operation on a connection must happen from the thread that created it.
 
         A :class:`threading.Event` stop signal is passed to the worker so that, when this
         coroutine is canceled (e.g. because the Airflow triggerer reassigns the watcher to
-        another pod), the background thread exits cleanly after the current ``q.get`` call
-        times out (at most ``poll_interval`` seconds).  Without this, an orphaned thread could
+        another pod), the background thread exits cleanly after the current 'q.get' call
+        times out (at most 'poll_interval' seconds).  Without this, an orphaned thread could
         silently consume a message after cancellation, causing the event to be lost and the
         DAG never to run.
 
         :param queue_name: Name of the IBM MQ queue to consume messages from.
         :param poll_interval: Interval in seconds used to wait for messages and to control
-            how long the underlying MQ get operation blocks before checking again.
-        :return: The decoded message payload if a message is received, otherwise ``None``.
+            how long the underlying MQ 'get' operation blocks before checking again.
+        :return: The decoded message payload if a message is received, otherwise 'None'.
         """
         stop_event = threading.Event()
         try:
@@ -209,7 +209,7 @@ class IBMMQHook(BaseHook):
 
         All IBM MQ handles (queue manager connection, queue) are created **and used** within
         this method, satisfying the thread-affinity requirement of the IBM MQ C client library.
-        The ``stop_event`` is checked between ``q.get`` calls so the thread terminates promptly
+        The 'stop_event' is checked between 'q.get' calls so the thread terminates promptly
         after the coroutine side is canceled.
         """
         import ibmmq
@@ -278,7 +278,7 @@ class IBMMQHook(BaseHook):
         """
         Put a message onto the specified IBM MQ queue.
 
-        All blocking IBM MQ operations run in a separate thread via sync_to_async for the same
+        All blocking IBM MQ operations run in a separate thread via 'sync_to_async' for the same
         thread-safety reasons as :meth:`consume`.
 
         :param queue_name: Name of the IBM MQ queue to which the message should be sent.
