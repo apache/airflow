@@ -33,7 +33,7 @@ asset = Asset(uri="s3://output/1.txt", name="test-asset")
 with DAG(
     dag_id="asset_with_extra_by_yield",
     catchup=False,
-    start_date=datetime.datetime(1970, 1, 1),
+    start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
     tags=["produces"],
 ):
