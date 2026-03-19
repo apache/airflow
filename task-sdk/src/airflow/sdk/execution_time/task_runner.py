@@ -1460,6 +1460,10 @@ def _handle_trigger_dag_run(
     # be used when creating the extra link on the webserver.
     ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
 
+    # Push TriggerDagRunOperator's serialized extra link immediately so it is available
+    # while the parent task is still running/deferred.
+    _push_operator_extra_links_to_xcom(ti, log, link_class_names={"TriggerDagRunLink"})
+
     if drte.wait_for_completion:
         if drte.deferrable:
             from airflow.providers.standard.triggers.external_task import DagStateTrigger
@@ -1741,6 +1745,33 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
 
+def _push_operator_extra_links_to_xcom(
+    ti: RuntimeTaskInstance,
+    log: Logger,
+    *,
+    link_class_names: set[str] | None = None,
+) -> None:
+    task = ti.task
+    # Push link values to DB XCom for serialized operators. This allows webserver lookups
+    # through XComOperatorLink without requiring the task module to be imported.
+    for operator_extra_link in task.operator_extra_links:
+        if link_class_names and type(operator_extra_link).__name__ not in link_class_names:
+            continue
+        try:
+            link = operator_extra_link.get_link(operator=task, ti_key=ti)  # type: ignore[arg-type]
+            log.debug(
+                "Setting xcom for operator extra link", link=link, xcom_key=operator_extra_link.xcom_key
+            )
+            _xcom_push_to_db(ti, key=operator_extra_link.xcom_key, value=link)
+        except Exception:
+            log.exception(
+                "Failed to push an xcom for task operator extra link",
+                link_name=operator_extra_link.name,
+                xcom_key=operator_extra_link.xcom_key,
+                ti=ti,
+            )
+
+
 def finalize(
     ti: RuntimeTaskInstance,
     state: TaskInstanceState,
@@ -1757,19 +1788,7 @@ def finalize(
         Stats.timing("task.duration", duration_ms, tags=stats_tags)
 
     task = ti.task
-    # Pushing xcom for each operator extra links defined on the operator only.
-    for oe in task.operator_extra_links:
-        try:
-            link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
-            log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
-            _xcom_push_to_db(ti, key=xcom_key, value=link)
-        except Exception:
-            log.exception(
-                "Failed to push an xcom for task operator extra link",
-                link_name=oe.name,
-                xcom_key=oe.xcom_key,
-                ti=ti,
-            )
+    _push_operator_extra_links_to_xcom(ti, log)
 
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")

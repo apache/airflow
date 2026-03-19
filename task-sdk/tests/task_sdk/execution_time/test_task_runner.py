@@ -4371,6 +4371,16 @@ class TestTriggerDagRunOperator:
                     map_index=-1,
                 ),
             ),
+            mock.call.send(
+                msg=SetXCom(
+                    key="_link_TriggerDagRunLink",
+                    value=mock.ANY,
+                    dag_id="test_handle_trigger_dag_run",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+            ),
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
@@ -4463,6 +4473,8 @@ class TestTriggerDagRunOperator:
             OKResponse(ok=True),
             # Set XCOM,
             None,
+            # Set TriggerDagRunLink XCOM.
+            None,
             # Dag Run is still running
             DagRunStateResult(state=DagRunState.RUNNING),
             # Dag Run completes execution on the next poll
@@ -4488,6 +4500,16 @@ class TestTriggerDagRunOperator:
                 msg=SetXCom(
                     key="trigger_run_id",
                     value="test_run_id",
+                    dag_id="test_handle_trigger_dag_run_wait_for_completion",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+            ),
+            mock.call.send(
+                msg=SetXCom(
+                    key="_link_TriggerDagRunLink",
+                    value=mock.ANY,
                     dag_id="test_handle_trigger_dag_run_wait_for_completion",
                     task_id="test_task",
                     run_id="test_run",
