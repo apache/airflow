@@ -35,7 +35,6 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 
 # add logger to parameter of setproctitle to support logging
@@ -51,6 +50,19 @@ if TYPE_CHECKING:
 
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadResultType
+
+
+def _get_execution_api_server_url(team_conf) -> str:
+    """
+    Resolve the execution API server URL from team-specific configuration.
+
+    :param team_conf: Team-specific executor configuration (ExecutorConf or AirflowConfigParser)
+    """
+    base_url = team_conf.get("api", "base_url", fallback="/")
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+    return team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
 
 
 def _get_executor_process_title_prefix(team_name: str | None) -> str:
@@ -117,40 +129,13 @@ def _execute_workload(log: Logger, workload: ExecutorWorkload, team_conf) -> Non
     :param workload: The workload to execute (ExecuteTask or ExecuteCallback)
     :param team_conf: Team-specific executor configuration
     """
-    setproctitle(f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}", log)
+    from airflow.sdk.execution_time.supervisor import supervise_workload
 
-    if isinstance(workload, workloads.ExecuteTask):
-        from airflow.sdk.execution_time.supervisor import supervise
-
-        base_url = team_conf.get("api", "base_url", fallback="/")
-        # If it's a relative URL, use localhost:8080 as the default
-        if base_url.startswith("/"):
-            base_url = f"http://localhost:8080{base_url}"
-        default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-
-        # This will return the exit code of the task process, but we don't care about that, just if the
-        # _supervisor_ had an error reporting the state back (which will result in an exception.)
-        supervise(
-            # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-            ti=workload.ti,  # type: ignore[arg-type]
-            dag_rel_path=workload.dag_rel_path,
-            bundle_info=workload.bundle_info,
-            token=workload.token,
-            server=team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
-            log_path=workload.log_path,
-        )
-    elif isinstance(workload, workloads.ExecuteCallback):
-        from airflow.sdk.execution_time.callback_supervisor import supervise_callback
-
-        supervise_callback(
-            id=workload.callback.id,
-            callback_path=workload.callback.data.get("path", ""),
-            callback_kwargs=workload.callback.data.get("kwargs", {}),
-            log_path=workload.log_path,
-            bundle_info=workload.bundle_info,
-        )
-    else:
-        raise ValueError(f"LocalExecutor does not know how to execute {type(workload).__name__!r}")
+    supervise_workload(
+        workload,
+        server=_get_execution_api_server_url(team_conf),
+        proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
+    )
 
 
 class LocalExecutor(BaseExecutor):

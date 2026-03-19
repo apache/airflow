@@ -189,7 +189,6 @@ def on_celery_worker_ready(*args, **kwargs):
 def execute_workload(input: str) -> None:
     from pydantic import TypeAdapter
 
-    from airflow.configuration import conf
     from airflow.executors import workloads
 
     decoder = TypeAdapter[workloads.All](workloads.All)
@@ -199,36 +198,9 @@ def execute_workload(input: str) -> None:
 
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
-    base_url = conf.get("api", "base_url", fallback="/")
-    # If it's a relative URL, use localhost:8080 as the default
-    if base_url.startswith("/"):
-        base_url = f"http://localhost:8080{base_url}"
-    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+    from airflow.sdk.execution_time.supervisor import supervise_workload
 
-    if isinstance(workload, workloads.ExecuteTask):
-        from airflow.sdk.execution_time.supervisor import supervise
-
-        supervise(
-            # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-            ti=workload.ti,  # type: ignore[arg-type]
-            dag_rel_path=workload.dag_rel_path,
-            bundle_info=workload.bundle_info,
-            token=workload.token,
-            server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
-            log_path=workload.log_path,
-        )
-    elif isinstance(workload, workloads.ExecuteCallback) and AIRFLOW_V_3_2_PLUS:
-        from airflow.sdk.execution_time.callback_supervisor import supervise_callback
-
-        supervise_callback(
-            id=workload.callback.id,
-            callback_path=workload.callback.data.get("path", ""),
-            callback_kwargs=workload.callback.data.get("kwargs", {}),
-            log_path=workload.log_path,
-            bundle_info=workload.bundle_info,
-        )
-    else:
-        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
+    supervise_workload(workload)
 
 
 if not AIRFLOW_V_3_0_PLUS:
