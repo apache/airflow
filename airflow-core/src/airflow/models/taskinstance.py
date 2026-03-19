@@ -335,6 +335,7 @@ def clear_task_instances(
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
+    log.info("Clearing %d task instances", len(tis))
     for ti in tis:
         ti.prepare_db_for_next_try(session)
 
@@ -373,6 +374,17 @@ def clear_task_instances(
             ti.state = None
             ti.external_executor_id = None
             ti.clear_next_method_args()
+            # Reset scheduling metadata to ensure clean re-execution
+            # This is critical after backfill/backtracking operations
+            ti.queued_dttm = None
+            ti.scheduled_dttm = None
+            log.info(
+                "Cleared task instance %s.%s for run %s (map_index=%d). Reset state and scheduling metadata.",
+                ti.dag_id,
+                ti.task_id,
+                ti.run_id,
+                ti.map_index,
+            )
             session.merge(ti)
 
     if dag_run_state is not False and tis:
