@@ -22,6 +22,7 @@ import asyncio
 import collections.abc
 import contextlib
 import copy
+import functools
 import inspect
 import sys
 import warnings
@@ -1664,7 +1665,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         if next_kwargs:
-            return partial(execute_callable, **next_kwargs)
+            return functools.partial(execute_callable, **next_kwargs)
         return execute_callable
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
