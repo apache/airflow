@@ -526,8 +526,21 @@ Using Breeze
 
 1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
    In this case Python version and backend are picked up from last execution ``breeze --python 3.10 --backend postgres``)
-   It also automatically starts the API server (FastAPI api and UI), triggerer, dag processor and scheduler. It drops you in tmux with triggerer to the right, and
-   Scheduler, API server (FastAPI api and UI), Dag processor from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   It also automatically starts the API server (FastAPI api and UI), triggerer, dag processor and scheduler.
+
+you can run this in 2 types of terminal ``mprocs`` and ``tmux``.
+
+**Using mprocs**
+  By default, ``breeze start-airflow`` uses mprocs to manage Airflow components.
+
+
+**Using tmux**
+
+  .. code-block:: bash
+
+    breeze start-airflow --terminal-multiplexer tmux.
+
+  this drops you in ``tmux`` with triggerer to the right, and Scheduler, API server (FastAPI api and UI), Dag processor from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
 .. code-block:: bash
 
@@ -569,7 +582,7 @@ Using Breeze
       </div>
 
 
-- Alternatively you can start the same using the following commands
+- Alternatively you can start ``tmux`` using the following commands
 
   1. Start Breeze
 
@@ -577,7 +590,7 @@ Using Breeze
 
     breeze --python 3.10 --backend postgres
 
-  2. Open tmux
+  2. For Open tmux terminal
 
   .. code-block:: bash
 
@@ -641,23 +654,28 @@ Using Breeze
       </div>
 
 4. Stopping breeze
+  If you are in ``breeze start-airflow`` in ``mprocs``, this command will stop breeze and Airflow:
 
-If ``breeze`` was started with ``breeze start-airflow``, this command will stop breeze and Airflow:
+  .. code-block:: bash
 
-.. code-block:: bash
+    q
+    breeze down
 
-  [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# stop_airflow
-  breeze down
+  If you are in ``breeze start-airflow`` in ``tmux``, this command will stop breeze and Airflow:
 
-If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or similar):
+  .. code-block:: bash
 
-.. code-block:: bash
+    [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# stop_airflow
+    breeze down
 
-  [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# exit
-  breeze down
+  If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or similar):
 
-.. note::
-    ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow``.
+  .. code-block:: bash
+
+    [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# exit
+    breeze down
+
+
 
 Using tmux Instead of mprocs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -683,7 +701,7 @@ You can also switch terminal multiplexer via breeze config:
   breeze setup config --terminal_multiplexer tmux
   breeze setup config --terminal_multiplexer mprocs
 
-** Benefits of using tmux:**
+**Benefits of using tmux:**
 
 * Familiar terminal multiplexer for many developers
 * More control over panes and windows
