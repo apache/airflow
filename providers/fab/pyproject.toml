@@ -56,6 +56,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -77,13 +78,16 @@ dependencies = [
     # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==5.2.0",  # Whenever updating the version, run test_fab_alignment.py to verify.
-    "flask-login>=0.6.2",
+    "flask-login>=0.6.2; python_version < '3.14'",
+    "flask-login>=0.6.3; python_version >= '3.14'",
     "flask-session>=0.8.0",
     "msgpack>=1.0.0",
     "flask-sqlalchemy>=3.0.5",
-    "flask-wtf>=1.1.0",
+    "flask-wtf>=1.1.0; python_version < '3.14'",
+    "flask-wtf>=1.2.2; python_version >= '3.14'",
     "jmespath>=0.7.0",
-    "werkzeug>=2.2",
+    "werkzeug>=2.2; python_version <= '3.13'",
+    "werkzeug>=3.1.6; python_version >= '3.14'",
     "wtforms>=3.0",
     "cachetools>=6.0",
     "marshmallow>=3",
