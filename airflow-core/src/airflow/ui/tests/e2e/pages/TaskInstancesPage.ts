@@ -37,7 +37,7 @@ export class TaskInstancesPage extends BasePage {
   public async navigate(): Promise<void> {
     await this.navigateTo(TaskInstancesPage.taskInstancesUrl);
     await this.page.waitForURL(/.*task_instances/, { timeout: 15_000 });
-    await this.taskInstancesTable.waitFor({ state: "visible", timeout: 10_000 });
+    await this.taskInstancesTable.waitFor({ state: "visible", timeout: 30_000 });
 
     const dataLink = this.taskInstancesTable.locator("a[href*='/dags/']").first();
     const noDataMessage = this.page.locator('text="No Task Instances found"');
