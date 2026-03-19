@@ -464,22 +464,31 @@ Bad example:
 
 
     class CustomTimetable(CronDataIntervalTimetable):
+
         def __init__(self, *args, something=Variable.get("something"), **kwargs):
             self._something = something
             super().__init__(*args, **kwargs)
+
 
 Good example:
 
 .. code-block:: python
 
-    from airflow.sdk import Variable
     from airflow.timetables.interval import CronDataIntervalTimetable
 
 
     class CustomTimetable(CronDataIntervalTimetable):
+
         def __init__(self, *args, something="something", **kwargs):
-            self._something = Variable.get(something)
+            self._something = something
             super().__init__(*args, **kwargs)
+
+.. note::
+
+    Timetables are evaluated during DAG parsing. Accessing Airflow Variables,
+    Connections, or the metadata database inside a timetable (including during
+    ``__init__``) can negatively impact DAG parsing performance or cause failures.
+    Any database or network access should be handled during task execution time.
 
 
 Triggering Dags after changes
