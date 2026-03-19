@@ -385,6 +385,11 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     conn = op.get_bind()
     dialect = conn.dialect.name
 
+    # Create a temporary index on deadline.dagrun_id to speed up the per-alert UPDATE
+    # that joins dag_run to find matching deadline rows. Without this, every UPDATE
+    # requires a full table scan of the deadline table.
+    op.create_index("tmp_deadline_dagrun_id_idx", "deadline", ["dagrun_id"])
+
     total_dags = conn.execute(
         sa.text("SELECT COUNT(*) FROM serialized_dag WHERE data IS NOT NULL OR data_compressed IS NOT NULL")
     ).scalar()
@@ -392,176 +397,188 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
 
     log.info("Starting migration", batch_size=BATCH_SIZE, total_dags=total_dags, total_batches=total_batches)
 
-    while True:
-        batch_num += 1
+    try:
+        while True:
+            batch_num += 1
 
-        if dialect == "mysql":
-            # Avoid selecting large columns during ORDER BY to prevent sort buffer overflow
-            result = conn.execute(
-                sa.text("""
-                    SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed, sd.created_at
-                    FROM serialized_dag sd
-                    INNER JOIN (
-                        SELECT id
+            if dialect == "mysql":
+                # Avoid selecting large columns during ORDER BY to prevent sort buffer overflow
+                result = conn.execute(
+                    sa.text("""
+                        SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed, sd.created_at
+                        FROM serialized_dag sd
+                        INNER JOIN (
+                            SELECT id
+                            FROM serialized_dag
+                            WHERE id > :last_id
+                            ORDER BY id
+                            LIMIT :batch_size
+                        ) AS subq ON sd.id = subq.id
+                    """),
+                    {"last_id": last_id, "batch_size": BATCH_SIZE},
+                )
+
+                batch_results = sorted(list(result), key=lambda r: r.id)
+            else:
+                result = conn.execute(
+                    sa.text("""
+                        SELECT id, dag_id, data, data_compressed, created_at
                         FROM serialized_dag
-                        WHERE id > :last_id
+                        WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
+                          AND id > :last_id
                         ORDER BY id
                         LIMIT :batch_size
-                    ) AS subq ON sd.id = subq.id
-                """),
-                {"last_id": last_id, "batch_size": BATCH_SIZE},
-            )
+                    """),
+                    {"last_id": last_id, "batch_size": BATCH_SIZE},
+                )
 
-            batch_results = sorted(list(result), key=lambda r: r.id)
-        else:
-            result = conn.execute(
-                sa.text("""
-                    SELECT id, dag_id, data, data_compressed, created_at
-                    FROM serialized_dag
-                    WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
-                      AND id > :last_id
-                    ORDER BY id
-                    LIMIT :batch_size
-                """),
-                {"last_id": last_id, "batch_size": BATCH_SIZE},
-            )
+                batch_results = list(result)
+            if not batch_results:
+                break
 
-            batch_results = list(result)
-        if not batch_results:
-            break
+            log.info("Processing batch", batch_num=batch_num, total_batches=total_batches)
 
-        log.info("Processing batch", batch_num=batch_num, total_batches=total_batches)
+            for serialized_dag_id, dag_id, data, data_compressed, created_at in batch_results:
+                processed_dags.append(dag_id)
+                last_id = str(serialized_dag_id)
 
-        for serialized_dag_id, dag_id, data, data_compressed, created_at in batch_results:
-            processed_dags.append(dag_id)
-            last_id = str(serialized_dag_id)
+                # Create a savepoint for this Dag to allow rollback on error.
+                savepoint = conn.begin_nested()
 
-            # Create a savepoint for this Dag to allow rollback on error.
-            savepoint = conn.begin_nested()
+                try:
+                    dag_data = get_dag_data(data, data_compressed)
 
-            try:
-                dag_data = get_dag_data(data, data_compressed)
+                    if dag_deadline := dag_data[DAG_KEY][DEADLINE_KEY]:
+                        dags_with_deadlines.add(dag_id)
+                        deadline_alerts = dag_deadline if isinstance(dag_deadline, list) else [dag_deadline]
 
-                if dag_deadline := dag_data[DAG_KEY][DEADLINE_KEY]:
-                    dags_with_deadlines.add(dag_id)
-                    deadline_alerts = dag_deadline if isinstance(dag_deadline, list) else [dag_deadline]
+                        migrated_alert_ids = []
 
-                    migrated_alert_ids = []
+                        for serialized_alert in deadline_alerts:
+                            if isinstance(serialized_alert, dict):
+                                try:
+                                    alert_data = serialized_alert.get(Encoding.VAR, serialized_alert)
 
-                    for serialized_alert in deadline_alerts:
-                        if isinstance(serialized_alert, dict):
-                            try:
-                                alert_data = serialized_alert.get(Encoding.VAR, serialized_alert)
+                                    if not DEADLINE_ALERT_REQUIRED_FIELDS.issubset(alert_data):
+                                        dags_with_errors[dag_id].append(
+                                            f"Invalid DeadlineAlert structure: {serialized_alert}"
+                                        )
+                                        continue
 
-                                if not DEADLINE_ALERT_REQUIRED_FIELDS.issubset(alert_data):
+                                    reference_data = json.dumps(alert_data[REFERENCE_KEY], sort_keys=True)
+                                    interval_data = float(alert_data.get(INTERVAL_KEY))
+                                    callback_data = json.dumps(alert_data[CALLBACK_KEY], sort_keys=True)
+                                    deadline_alert_id = str(uuid6.uuid7())
+
+                                    conn.execute(
+                                        sa.text("""
+                                                INSERT INTO deadline_alert (
+                                                    id,
+                                                    created_at,
+                                                    serialized_dag_id,
+                                                    reference,
+                                                    interval,
+                                                    callback_def,
+                                                    name,
+                                                    description)
+                                                VALUES (
+                                                    :id,
+                                                    :created_at,
+                                                    :serialized_dag_id,
+                                                    :reference,
+                                                    :interval,
+                                                    :callback_def,
+                                                    NULL,
+                                                    NULL)
+                                                """),
+                                        {
+                                            "id": deadline_alert_id,
+                                            "created_at": created_at or timezone.utcnow(),
+                                            "serialized_dag_id": serialized_dag_id,
+                                            "reference": reference_data,
+                                            "interval": interval_data,
+                                            "callback_def": callback_data,
+                                        },
+                                    )
+
+                                    if not validate_written_data(
+                                        conn,
+                                        deadline_alert_id,
+                                        reference_data,
+                                        interval_data,
+                                        callback_data,
+                                    ):
+                                        dags_with_errors[dag_id].append(
+                                            f"Invalid DeadlineAlert data: {serialized_alert}"
+                                        )
+                                        continue
+
+                                    migrated_alert_ids.append(deadline_alert_id)
+                                    migrated_alerts_count += 1
+
+                                    conn.execute(
+                                        sa.text("""
+                                            UPDATE deadline
+                                            SET deadline_alert_id = :alert_id
+                                            WHERE dagrun_id IN (
+                                                SELECT dr.id
+                                                FROM dag_run dr
+                                                     JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
+                                                WHERE sd.id = :serialized_dag_id)
+                                              AND deadline_alert_id IS NULL
+                                        """),
+                                        {
+                                            "alert_id": deadline_alert_id,
+                                            "serialized_dag_id": serialized_dag_id,
+                                        },
+                                    )
+                                except Exception as e:
                                     dags_with_errors[dag_id].append(
-                                        f"Invalid DeadlineAlert structure: {serialized_alert}"
+                                        f"Failed to process {serialized_alert}: {e}"
                                     )
                                     continue
 
-                                reference_data = json.dumps(alert_data[REFERENCE_KEY], sort_keys=True)
-                                interval_data = float(alert_data.get(INTERVAL_KEY))
-                                callback_data = json.dumps(alert_data[CALLBACK_KEY], sort_keys=True)
-                                deadline_alert_id = str(uuid6.uuid7())
+                        if migrated_alert_ids:
+                            uuid_strings = [str(uuid_id) for uuid_id in migrated_alert_ids]
+                            update_dag_deadline_field(conn, serialized_dag_id, uuid_strings, dialect)
 
-                                conn.execute(
-                                    sa.text("""
-                                            INSERT INTO deadline_alert (
-                                                id,
-                                                created_at,
-                                                serialized_dag_id,
-                                                reference,
-                                                interval,
-                                                callback_def,
-                                                name,
-                                                description)
-                                            VALUES (
-                                                :id,
-                                                :created_at,
-                                                :serialized_dag_id,
-                                                :reference,
-                                                :interval,
-                                                :callback_def,
-                                                NULL,
-                                                NULL)
-                                            """),
-                                    {
-                                        "id": deadline_alert_id,
-                                        "created_at": created_at or timezone.utcnow(),
-                                        "serialized_dag_id": serialized_dag_id,
-                                        "reference": reference_data,
-                                        "interval": interval_data,
-                                        "callback_def": callback_data,
-                                    },
-                                )
-
-                                if not validate_written_data(
-                                    conn, deadline_alert_id, reference_data, interval_data, callback_data
-                                ):
-                                    dags_with_errors[dag_id].append(
-                                        f"Invalid DeadlineAlert data: {serialized_alert}"
-                                    )
-                                    continue
-
-                                migrated_alert_ids.append(deadline_alert_id)
-                                migrated_alerts_count += 1
-
-                                conn.execute(
-                                    sa.text("""
-                                        UPDATE deadline
-                                        SET deadline_alert_id = :alert_id
-                                        WHERE dagrun_id IN (
-                                            SELECT dr.id
-                                            FROM dag_run dr
-                                                 JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
-                                            WHERE sd.id = :serialized_dag_id)
-                                          AND deadline_alert_id IS NULL
-                                    """),
-                                    {"alert_id": deadline_alert_id, "serialized_dag_id": serialized_dag_id},
-                                )
-                            except Exception as e:
-                                dags_with_errors[dag_id].append(f"Failed to process {serialized_alert}: {e}")
-                                continue
-
-                    if migrated_alert_ids:
-                        uuid_strings = [str(uuid_id) for uuid_id in migrated_alert_ids]
-                        update_dag_deadline_field(conn, serialized_dag_id, uuid_strings, dialect)
-
-                        # Recalculate and update the dag_hash after modifying the deadline data to ensure
-                        # it matches what write_dag() will compute later and avoid re-serialization.
-                        updated_result = conn.execute(
-                            sa.text(
-                                "SELECT data, data_compressed "
-                                "FROM serialized_dag "
-                                "WHERE id = :serialized_dag_id"
-                            ),
-                            {"serialized_dag_id": serialized_dag_id},
-                        ).fetchone()
-
-                        if updated_result:
-                            updated_dag_data = get_dag_data(
-                                updated_result.data, updated_result.data_compressed
-                            )
-                            # Import here to avoid a circular dependency issue
-                            new_hash = hash_dag(updated_dag_data)
-
-                            conn.execute(
+                            # Recalculate and update the dag_hash after modifying the deadline data
+                            # to ensure it matches what write_dag() will compute later and avoid
+                            # re-serialization.
+                            updated_result = conn.execute(
                                 sa.text(
-                                    "UPDATE serialized_dag "
-                                    "SET dag_hash = :new_hash "
+                                    "SELECT data, data_compressed "
+                                    "FROM serialized_dag "
                                     "WHERE id = :serialized_dag_id"
                                 ),
-                                {"new_hash": new_hash, "serialized_dag_id": serialized_dag_id},
-                            )
+                                {"serialized_dag_id": serialized_dag_id},
+                            ).fetchone()
 
-                # Commit the savepoint if everything succeeded for this Dag.
-                savepoint.commit()
+                            if updated_result:
+                                updated_dag_data = get_dag_data(
+                                    updated_result.data, updated_result.data_compressed
+                                )
+                                new_hash = hash_dag(updated_dag_data)
 
-            except (json.JSONDecodeError, KeyError, TypeError) as e:
-                dags_with_errors[dag_id].append(f"Could not process serialized Dag: {e}")
-                savepoint.rollback()
+                                conn.execute(
+                                    sa.text(
+                                        "UPDATE serialized_dag "
+                                        "SET dag_hash = :new_hash "
+                                        "WHERE id = :serialized_dag_id"
+                                    ),
+                                    {"new_hash": new_hash, "serialized_dag_id": serialized_dag_id},
+                                )
 
-        log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
+                    # Commit the savepoint if everything succeeded for this Dag.
+                    savepoint.commit()
+
+                except (json.JSONDecodeError, KeyError, TypeError) as e:
+                    dags_with_errors[dag_id].append(f"Could not process serialized Dag: {e}")
+                    savepoint.rollback()
+
+            log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
+    finally:
+        op.drop_index("tmp_deadline_dagrun_id_idx", table_name="deadline")
 
     log.info(
         "Migration complete",
