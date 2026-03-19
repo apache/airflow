@@ -342,7 +342,9 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
   {{- end }}
   {{- if .Values.dags.gitSync.extraVolumeMounts }}
-    {{- tpl (toYaml .Values.dags.gitSync.extraVolumeMounts) . | nindent 2 }}
+  {{- range .Values.dags.gitSync.extraVolumeMounts }}
+  - {{ tpl (toYaml .) $ | nindent 4 | trim }}
+  {{- end }}
   {{- end }}
   {{- if and .Values.dags.gitSync.containerLifecycleHooks (not .is_init) }}
   lifecycle: {{- tpl (toYaml .Values.dags.gitSync.containerLifecycleHooks) . | nindent 4 }}
@@ -593,7 +595,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.dags.persistence.subPath }}
   subPath: {{ .Values.dags.persistence.subPath }}
   {{- end }}
-  readOnly: {{ .Values.dags.gitSync.enabled | ternary "True" "False" }}
+  readOnly: {{ .Values.dags.gitSync.enabled | ternary "true" "false" }}
 {{- end }}
 
 {{- define "airflow_config_path" -}}
@@ -612,7 +614,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 - name: webserver-config
   mountPath: {{ template "airflow_webserver_config_path" . }}
   subPath: webserver_config.py
-  readOnly: True
+  readOnly: true
 {{- end }}
 
 {{- define "airflow_api_server_config_configmap_name" -}}
@@ -623,7 +625,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 - name: api-server-config
   mountPath: {{ template "airflow_webserver_config_path" . }}
   subPath: webserver_config.py
-  readOnly: True
+  readOnly: true
 {{- end }}
 
 {{- define "airflow_local_setting_path" -}}
