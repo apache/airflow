@@ -1,0 +1,1 @@
+{"__version": 3, "dag": {"dag_id": "test_dag", "timezone": "UTC", "schedule": "@daily", "start_date": "2020-01-01T00:00:00+00:00"}}
