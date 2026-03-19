@@ -105,7 +105,7 @@ PIP package                                 Version required
 ``pydruid``                                 ``>=0.6.6``
 ==========================================  ==================
 
-Cross provider package dependencies
+Optional cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
@@ -118,13 +118,11 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-apache-druid[apache.hive]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-apache-hive <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive>`_      ``apache.hive``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-==================================================================================================================  =================
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-apache-hive <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive>`_  ``apache.hive``
+==============================================================================================================  ===============
 
 Downloading official packages
 -----------------------------

@@ -46,41 +46,24 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-hdfs``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-==========================================  ======================================
+==========================================  ==================================================================
 PIP package                                 Version required
-==========================================  ======================================
+==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``hdfs[avro,dataframe,kerberos]``           ``>=2.5.4; python_version < "3.12"``
 ``hdfs[avro,dataframe,kerberos]``           ``>=2.7.3; python_version >= "3.12"``
-``fastavro``                                ``>=1.10.0; python_version >= "3.13"``
+``fastavro``                                ``>=1.10.0; python_version >= "3.13" and python_version < "3.14"``
+``fastavro``                                ``>=1.12.1; python_version >= "3.14"``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
-==========================================  ======================================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-apache-hdfs[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
+==========================================  ==================================================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hdfs/4.11.3/changelog.html>`_.

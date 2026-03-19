@@ -127,31 +127,3 @@ PIP package                                 Version required
 ``aiofiles``                                ``>=23.2.0``
 ``aiohttp``                                 ``>=3.9.2``
 ==========================================  ===================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-edge3[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
-Downloading official packages
------------------------------
-
-You can download officially released packages and verify their checksums and signatures from the
-`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
-
-* `The apache-airflow-providers-edge3 3.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-3.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-3.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-3.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-edge3 3.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-3.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-3.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_edge3-3.2.0-py3-none-any.whl.sha512>`__)

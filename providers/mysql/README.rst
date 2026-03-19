@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-mysql``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -61,7 +61,7 @@ PIP package                                 Version required
 ``aiomysql``                                ``>=0.2.0``
 ==========================================  =====================================
 
-Cross provider package dependencies
+Optional cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
@@ -74,17 +74,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-mysql[amazon]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                ``amazon``
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-`apache-airflow-providers-presto <https://airflow.apache.org/docs/apache-airflow-providers-presto>`_                ``presto``
-`apache-airflow-providers-trino <https://airflow.apache.org/docs/apache-airflow-providers-trino>`_                  ``trino``
-`apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_              ``vertica``
-==================================================================================================================  =================
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_            ``amazon``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+`apache-airflow-providers-presto <https://airflow.apache.org/docs/apache-airflow-providers-presto>`_            ``presto``
+`apache-airflow-providers-trino <https://airflow.apache.org/docs/apache-airflow-providers-trino>`_              ``trino``
+`apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_          ``vertica``
+==============================================================================================================  ===============
 
 Optional dependencies
 ----------------------

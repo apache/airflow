@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-common-io``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -54,10 +54,10 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ==========================================  ==================
 
-Cross provider package dependencies
+Optional cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
@@ -67,25 +67,23 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-io[common.compat]
+    pip install apache-airflow-providers-common-io[openlineage]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-==================================================================================================================  =================
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
 
 Optional dependencies
 ----------------------
 
-=================  ==========================================
-Extra              Dependencies
-=================  ==========================================
-``common.compat``  ``apache-airflow-providers-common-compat``
-``openlineage``    ``apache-airflow-providers-openlineage``
-=================  ==========================================
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``openlineage``  ``apache-airflow-providers-openlineage``
+===============  ========================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-io/1.7.1/changelog.html>`_.
