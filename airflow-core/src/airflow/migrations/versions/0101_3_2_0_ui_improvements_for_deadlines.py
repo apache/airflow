@@ -380,7 +380,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     migrated_alerts_count: int = 0
     dags_with_errors: ErrorDict = defaultdict(list)
     batch_num = 0
-    last_dag_id = ""
+    last_id = "00000000-0000-0000-0000-000000000000"
 
     conn = op.get_bind()
     dialect = conn.dialect.name
@@ -402,28 +402,28 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                     SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed, sd.created_at
                     FROM serialized_dag sd
                     INNER JOIN (
-                        SELECT id, dag_id
+                        SELECT id
                         FROM serialized_dag
-                        WHERE dag_id > :last_dag_id
-                        ORDER BY dag_id
+                        WHERE id > :last_id
+                        ORDER BY id
                         LIMIT :batch_size
                     ) AS subq ON sd.id = subq.id
                 """),
-                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+                {"last_id": last_id, "batch_size": BATCH_SIZE},
             )
 
-            batch_results = sorted(list(result), key=lambda r: r.dag_id)
+            batch_results = sorted(list(result), key=lambda r: r.id)
         else:
             result = conn.execute(
                 sa.text("""
                     SELECT id, dag_id, data, data_compressed, created_at
                     FROM serialized_dag
                     WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
-                      AND dag_id > :last_dag_id
-                    ORDER BY dag_id
+                      AND id > :last_id
+                    ORDER BY id
                     LIMIT :batch_size
                 """),
-                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+                {"last_id": last_id, "batch_size": BATCH_SIZE},
             )
 
             batch_results = list(result)
@@ -434,7 +434,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
 
         for serialized_dag_id, dag_id, data, data_compressed, created_at in batch_results:
             processed_dags.append(dag_id)
-            last_dag_id = dag_id
+            last_id = str(serialized_dag_id)
 
             # Create a savepoint for this Dag to allow rollback on error.
             savepoint = conn.begin_nested()
@@ -595,7 +595,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
     restored_alerts_count: int = 0
     dags_with_errors: ErrorDict = defaultdict(list)
     batch_num = 0
-    last_dag_id = ""
+    last_id = "00000000-0000-0000-0000-000000000000"
 
     conn = op.get_bind()
     dialect = conn.dialect.name
@@ -619,16 +619,16 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                     SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed
                     FROM serialized_dag sd
                     INNER JOIN (
-                        SELECT id, dag_id
+                        SELECT id
                         FROM serialized_dag
                         WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
-                          AND dag_id > :last_dag_id
-                        ORDER BY dag_id
+                          AND id > :last_id
+                        ORDER BY id
                         LIMIT :batch_size
                     ) AS subq ON sd.id = subq.id
-                    ORDER BY sd.dag_id
+                    ORDER BY sd.id
                 """),
-                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+                {"last_id": last_id, "batch_size": BATCH_SIZE},
             )
         else:
             result = conn.execute(
@@ -636,11 +636,11 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                     SELECT id, dag_id, data, data_compressed
                     FROM serialized_dag
                     WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
-                      AND dag_id > :last_dag_id
-                    ORDER BY dag_id
+                      AND id > :last_id
+                    ORDER BY id
                     LIMIT :batch_size
                 """),
-                {"last_dag_id": last_dag_id, "batch_size": BATCH_SIZE},
+                {"last_id": last_id, "batch_size": BATCH_SIZE},
             )
 
         batch_results = list(result)
@@ -650,7 +650,7 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
 
         for serialized_dag_id, dag_id, data, data_compressed in batch_results:
             processed_dags.append(dag_id)
-            last_dag_id = dag_id
+            last_id = str(serialized_dag_id)
 
             # Create a savepoint for this Dag to allow rollback on error.
             savepoint = conn.begin_nested()
