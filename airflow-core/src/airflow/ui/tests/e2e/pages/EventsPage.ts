@@ -133,7 +133,11 @@ export class EventsPage extends BasePage {
       await filterPill.click();
     }
 
-    const filterInput = this.page.getByRole("textbox", { name: filterLabel });
+    const filterInput = this.page
+      .locator("div")
+      .filter({ has: this.page.getByText(`${filterLabel}:`) })
+      .locator("input")
+      .first();
 
     await expect(filterInput).toBeVisible({ timeout: 10_000 });
     await filterInput.fill(value);
