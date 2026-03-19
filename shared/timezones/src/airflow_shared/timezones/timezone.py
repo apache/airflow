@@ -308,7 +308,7 @@ def from_timestamp(timestamp: int | float, tz: str | FixedTimezone | Timezone = 
     :meta private:
     """
     result = coerce_datetime(dt.datetime.fromtimestamp(timestamp, tz=utc))
-    if tz != utc or tz != "UTC":
+    if tz != utc and tz != "UTC":
         if isinstance(tz, str) and tz.lower() == "local":
             tz = local_timezone()
         result = result.in_timezone(tz)
