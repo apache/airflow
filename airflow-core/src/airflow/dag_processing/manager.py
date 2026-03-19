@@ -335,21 +335,18 @@ class DagFileProcessorManager(LoggingMixin):
         """Sync configured DAG bundles to the metadata database."""
         # When this processor only parses a subset of bundles, it does not see the full
         # bundle configuration and must not deactivate bundles owned by other processors.
-        if self._bundles_manager is None:
-            self._bundles_manager = DagBundlesManager()
-        self._bundles_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
+        dag_bundle_manager = DagBundlesManager()
+        dag_bundle_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
         # Best-effort legacy repair: a failure here must not crash DFP startup.
         # Affected Dags self-heal on the next successful parse.
         try:
-            self._bundles_manager.reassign_dags_with_unconfigured_bundles()
+            dag_bundle_manager.reassign_dags_with_unconfigured_bundles()
         except Exception:
             self.log.exception("Failed to reassign Dags with unconfigured bundles during startup")
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
-        if self._bundles_manager is None:
-            self._bundles_manager = DagBundlesManager()
-        return list(self._bundles_manager.get_all_dag_bundles())
+        return list(DagBundlesManager().get_all_dag_bundles())
 
     def run(self):
         """
@@ -836,11 +833,12 @@ class DagFileProcessorManager(LoggingMixin):
         """Refresh DAG bundles, if required."""
         now = timezone.utcnow()
 
-        # Check if config path has changed and reload bundles if needed
+        # Check if config path has changed and reload bundles if needed.
+        # Lazily initialize _bundles_manager for config path tracking.
         if self._bundles_manager is None:
             self._bundles_manager = DagBundlesManager()
 
-        if self._bundles_manager.check_config_path_changes():
+        if self._bundles_manager.check_config_path_changes() is True:
             self.log.info("DAG bundle configuration changed, reloading bundles")
 
             # Track old bundles to detect removed ones
