@@ -76,6 +76,7 @@ members = [
     "apache-airflow-providers-grpc",
     "apache-airflow-providers-hashicorp",
     "apache-airflow-providers-http",
+    "apache-airflow-providers-ibm-mq",
     "apache-airflow-providers-imap",
     "apache-airflow-providers-influxdb",
     "apache-airflow-providers-informatica",
@@ -887,6 +888,7 @@ all = [
     { name = "apache-airflow-providers-grpc" },
     { name = "apache-airflow-providers-hashicorp" },
     { name = "apache-airflow-providers-http" },
+    { name = "apache-airflow-providers-ibm-mq" },
     { name = "apache-airflow-providers-imap" },
     { name = "apache-airflow-providers-influxdb" },
     { name = "apache-airflow-providers-informatica" },
@@ -1120,6 +1122,9 @@ hashicorp = [
 ]
 http = [
     { name = "apache-airflow-providers-http" },
+]
+ibm-mq = [
+    { name = "apache-airflow-providers-ibm-mq" },
 ]
 imap = [
     { name = "apache-airflow-providers-imap" },
@@ -1459,6 +1464,8 @@ requires-dist = [
     { name = "apache-airflow-providers-hashicorp", marker = "extra == 'hashicorp'", editable = "providers/hashicorp" },
     { name = "apache-airflow-providers-http", marker = "extra == 'all'", editable = "providers/http" },
     { name = "apache-airflow-providers-http", marker = "extra == 'http'", editable = "providers/http" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'all'", editable = "providers/ibm/mq" },
+    { name = "apache-airflow-providers-ibm-mq", marker = "extra == 'ibm-mq'", editable = "providers/ibm/mq" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'all'", editable = "providers/imap" },
     { name = "apache-airflow-providers-imap", marker = "extra == 'imap'", editable = "providers/imap" },
     { name = "apache-airflow-providers-influxdb", marker = "extra == 'all'", editable = "providers/influxdb" },
@@ -1567,7 +1574,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.10.10" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5308,6 +5315,54 @@ dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-ibm-mq"
+version = "0.1.0"
+source = { editable = "providers/ibm/mq" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "asgiref" },
+]
+
+[package.optional-dependencies]
+common-messaging = [
+    { name = "apache-airflow-providers-common-messaging" },
+]
+ibmmq = [
+    { name = "ibmmq" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-messaging" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
+    { name = "asgiref", specifier = ">=2.3.0" },
+    { name = "ibmmq", marker = "extra == 'ibmmq'", specifier = ">=2.0.4" },
+]
+provides-extras = ["ibmmq", "common-messaging"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-common-messaging", editable = "providers/common/messaging" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
@@ -13103,6 +13158,12 @@ wheels = [
 ]
 
 [[package]]
+name = "ibmmq"
+version = "2.0.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/80/76/7a7645e85a40357f47d23d43681c66d8a57f735006ef6e07bf85203173da/ibmmq-2.0.4.tar.gz", hash = "sha256:b4cd15c59137e0e5c987a3bf0a83dcb5e3e11b0316d7d79be4afcd0e2962be5c", size = 460494, upload-time = "2026-03-02T13:20:04.435Z" }
+
+[[package]]
 name = "icalendar"
 version = "7.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -20157,9 +20218,9 @@ name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", version = "44.0.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.12' and python_full_version < '3.14') or (python_full_version >= '3.15' and sys_platform != 'linux') or (python_full_version >= '3.12' and sys_platform == 'linux')" },
+    { name = "cryptography", version = "44.0.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.12' and python_full_version < '3.14') or (python_full_version >= '3.12' and sys_platform == 'linux') or (python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
     { name = "cryptography", version = "46.0.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "jeepney", marker = "python_full_version != '3.14.*' or sys_platform == 'linux'" },
+    { name = "jeepney", marker = "(python_full_version < '3.14' and sys_platform == 'emscripten') or (python_full_version < '3.14' and sys_platform == 'win32') or (python_full_version != '3.14.*' and sys_platform != 'emscripten' and sys_platform != 'win32') or sys_platform == 'linux'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
 wheels = [
