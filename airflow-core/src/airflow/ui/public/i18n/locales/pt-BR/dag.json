@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "Redefinir para a Última",
       "toggleGroup": "Alternar Grupo"
-    }
+    },
+    "runTypeLegend": "Legenda dos Tipos de Execução"
   },
   "header": {
     "buttons": {
@@ -81,24 +82,16 @@
   },
   "overview": {
     "buttons": {
-      "failedRun_many": "Execuções Falhadas",
       "failedRun_one": "Execução Falhada",
       "failedRun_other": "Execuções Falhadas",
-      "failedRun_zero": "Nenhuma execução falhada",
-      "failedTask_many": "Tarefas Falhadas",
       "failedTask_one": "Tarefa Falhada",
       "failedTask_other": "Tarefas Falhadas",
-      "failedTask_zero": "Nenhuma tarefa falhada",
-      "failedTaskInstance_many": "Instâncias de Tarefa Falhadas",
       "failedTaskInstance_one": "Instância de Tarefa Falhada",
-      "failedTaskInstance_other": "Instâncias de Tarefa Falhadas",
-      "failedTaskInstance_zero": "Nenhuma instância de tarefa falhada"
+      "failedTaskInstance_other": "Instâncias de Tarefa Falhadas"
     },
     "charts": {
-      "assetEvent_many": "Eventos de Asset Criados",
       "assetEvent_one": "Evento de Asset Criado",
-      "assetEvent_other": "Eventos de Asset Criados",
-      "assetEvent_zero": "Nenhum evento de asset criado"
+      "assetEvent_other": "Eventos de Asset Criados"
     },
     "failedLogs": {
       "hideLogs": "Ocultar Logs",
@@ -180,10 +173,8 @@
     "code": "Código",
     "details": "Detalhes",
     "logs": "Logs",
-    "mappedTaskInstances_many": "Instâncias de Tarefa [{{count}}]",
     "mappedTaskInstances_one": "Instância de Tarefa [{{count}}]",
     "mappedTaskInstances_other": "Instâncias de Tarefa [{{count}}]",
-    "mappedTaskInstances_zero": "Nenhuma instância de tarefa mapeada",
     "overview": "Visão Geral",
     "renderedTemplates": "Modelos Renderizados",
     "requiredActions": "Ações Necessárias",
