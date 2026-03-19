@@ -265,3 +265,23 @@ class TestIBMMQHook:
 
                 with pytest.raises(asyncio.CancelledError):
                     await self.hook.consume(queue_name="QUEUE1", poll_interval=0.1)
+
+    @patch("ibmmq.connect")
+    @patch("ibmmq.Queue")
+    @patch("airflow.providers.ibm.mq.hooks.mq.sync_to_async")
+    async def test_consume_sync_propagates_non_mq_exceptions(
+        self, mock_sync_to_async, mock_queue_class, mock_connect, mock_get_connection
+    ):
+        """Non-MQ exceptions (e.g. TypeError) in _consume_sync propagate instead of being swallowed."""
+        import threading
+
+        mock_qmgr = MagicMock()
+        mock_connect.return_value = mock_qmgr
+        mock_queue = MagicMock()
+        mock_queue_class.return_value = mock_queue
+        mock_queue.get.side_effect = TypeError("Unexpected programming bug")
+
+        stop_event = threading.Event()
+        with pytest.raises(TypeError, match="Unexpected programming bug"):
+            self.hook._consume_sync("QUEUE1", 0.1, stop_event)
+

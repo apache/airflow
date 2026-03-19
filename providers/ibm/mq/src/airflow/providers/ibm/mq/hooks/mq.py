@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import threading
 from contextlib import contextmanager, suppress
 from typing import Any
@@ -265,7 +264,7 @@ class IBMMQHook(BaseHook):
 
         try:
             with self.get_conn() as conn:
-                if self.log.isEnabledFor(logging.INFO) and self.open_options is not None:
+                if self.open_options is not None:
                     flag_names = self.get_open_options_flags(self.open_options)
                     self.log.info(
                         "Opening MQ queue '%s' with open_options=%s (%s)",
@@ -303,7 +302,7 @@ class IBMMQHook(BaseHook):
                 finally:
                     with suppress(Exception):
                         q.close()
-        except Exception:
+        except (ibmmq.MQMIError, ibmmq.PYIFError):
             self.log.exception(
                 "MQ consume failed on queue '%s'",
                 queue_name,
