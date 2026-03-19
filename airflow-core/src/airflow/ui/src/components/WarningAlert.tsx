@@ -33,7 +33,7 @@ export const WarningAlert = ({ warning }: Props) => {
 
   return (
     <Alert data-testid="warning-alert" status="warning">
-      <Flex align="center" whiteSpace="pre-wrap">
+      <Flex align="center" overflowWrap="break-word" whiteSpace="preserve">
         {warning?.message}
       </Flex>
     </Alert>
