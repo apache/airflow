@@ -851,6 +851,15 @@ class DeleteXCom(BaseModel):
     type: Literal["DeleteXCom"] = "DeleteXCom"
 
 
+class BulkDeleteXCom(BaseModel):
+    dag_id: str
+    run_id: str
+    task_id: str | None = None
+    key: str | None = None
+    map_index: int | None = None
+    type: Literal["BulkDeleteXCom"] = "BulkDeleteXCom"
+
+
 class GetConnection(BaseModel):
     conn_id: str
     type: Literal["GetConnection"] = "GetConnection"
@@ -1043,6 +1052,7 @@ class GetDag(BaseModel):
 ToSupervisor = Annotated[
     DeferTask
     | DeleteXCom
+    | BulkDeleteXCom
     | GetAssetByName
     | GetAssetByUri
     | GetAssetEventByAsset
