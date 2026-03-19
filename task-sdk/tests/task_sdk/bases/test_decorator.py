@@ -93,6 +93,12 @@ class TestDefaultFillingLogic:
                 id="param_after_first_default_is_given_none",
             ),
             pytest.param(
+                lambda a, b=5, c=None: (a, b, c),
+                {"a": 1},
+                [],
+                id="all_params_after_first_default_already_have_defaults",
+            ),
+            pytest.param(
                 lambda a, b, c=99: (a, b, c),
                 {},
                 [1, 2],
