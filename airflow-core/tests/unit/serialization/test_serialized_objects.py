@@ -48,7 +48,7 @@ from airflow.models.xcom_arg import XComArg
 from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
 from airflow.partition_mappers.temporal import (
     ToDailyMapper as CoreToDailyMapper,
-    ToHourlyMapper as CoureToHourlyMapper,
+    ToHourlyMapper as CoreToHourlyMapper,
     ToMonthlyMapper as CoreToMonthlyMapper,
     ToQuarterlyMapper as CoreToQuarterlyMapper,
     ToWeeklyMapper as CoreToWeeklyMapper,
@@ -819,7 +819,7 @@ def test_encode_partition_mapper(cls, args, encode_type, encode_var):
     ("sdk_cls", "core_cls"),
     [
         (IdentityMapper, CoreIdentityMapper),
-        (ToHourlyMapper, CoureToHourlyMapper),
+        (ToHourlyMapper, CoreToHourlyMapper),
         (ToDailyMapper, CoreToDailyMapper),
         (ToWeeklyMapper, CoreToWeeklyMapper),
         (ToMonthlyMapper, CoreToMonthlyMapper),
