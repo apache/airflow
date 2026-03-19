@@ -1089,6 +1089,33 @@
                             "default": "IfNotPresent"
                         }
                     }
+                },
+                "kubectl": {
+                    "description": "Configuration of the kubectl image.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "repository": {
+                            "description": "The kubectl image repository.",
+                            "type": "string",
+                            "default": "bitnami/kubectl"
+                        },
+                        "tag": {
+                            "description": "The kubectl image tag.",
+                            "type": "string",
+                            "default": "1.30.0"
+                        },
+                        "pullPolicy": {
+                            "description": "The kubectl image pull policy.",
+                            "type": "string",
+                            "enum": [
+                                "Always",
+                                "Never",
+                                "IfNotPresent"
+                            ],
+                            "default": "IfNotPresent"
+                        }
+                    }
                 }
             }
         },
@@ -6344,6 +6371,222 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                },
+                "rolloutRestart": {
+                    "description": "Configuration for the optional API server rollout restart CronJob.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable the API server rollout restart CronJob.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "schedule": {
+                            "description": "Rollout restart schedule (templated).",
+                            "type": "string",
+                            "default": "0 0 * * *"
+                        },
+                        "deploymentName": {
+                            "description": "Optional override for the deployment name to restart. Defaults to the chart's API server deployment name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "command": {
+                            "description": "Command to use when running the rollout restart cronjob (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running the rollout restart cronjob (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "jobAnnotations": {
+                            "description": "Annotations to add to the rollout restart cronjob.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "nodeSelector": {
+                            "description": "Select certain nodes for rollout restart pods.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "affinity": {
+                            "description": "Specify scheduling constraints for rollout restart pods.",
+                            "type": "object",
+                            "default": {},
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                        },
+                        "tolerations": {
+                            "description": "Specify tolerations for rollout restart pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                            }
+                        },
+                        "topologySpreadConstraints": {
+                            "description": "Specify topology spread constraints for rollout restart pods.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                            }
+                        },
+                        "priorityClassName": {
+                            "description": "Specify priority for rollout restart pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "podAnnotations": {
+                            "description": "Annotations to add to rollout restart pods.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "labels": {
+                            "description": "Labels to add to rollout restart pods.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "resources": {
+                            "description": "Resources for rollout restart pods.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
+                            "default": {},
+                            "examples": [
+                                {
+                                    "limits": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    },
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "128Mi"
+                                    }
+                                }
+                            ]
+                        },
+                        "serviceAccount": {
+                            "description": "Create ServiceAccount.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "automountServiceAccountToken": {
+                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "create": {
+                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "name": {
+                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to the rollout restart CronJob Kubernetes ServiceAccount.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the rollout restart CronJob. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "pod": {
+                                    "description": "Pod security context definition for the rollout restart CronJob.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "runAsUser": 50000,
+                                            "runAsGroup": 0,
+                                            "fsGroup": 0
+                                        }
+                                    ]
+                                },
+                                "container": {
+                                    "description": "Container security context definition for the rollout restart CronJob.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "failedJobsHistoryLimit": {
+                            "description": "Number of failed CronJob executions to retain.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "successfulJobsHistoryLimit": {
+                            "description": "Number of successful CronJob executions to retain.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },

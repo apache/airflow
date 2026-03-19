@@ -126,6 +126,10 @@ images:
     repository: registry.k8s.io/git-sync/git-sync
     tag: v4.4.2
     pullPolicy: IfNotPresent
+  kubectl:
+    repository: bitnami/kubectl
+    tag: 1.30.0
+    pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
 nodeSelector: {}
@@ -1875,6 +1879,64 @@ apiServer:
 
     # Annotations to add to Airflow API server kubernetes service account.
     annotations: {}
+
+  # Optional CronJob to periodically restart API server pods (via kubectl rollout restart).
+  rolloutRestart:
+    enabled: false
+    # Run every day at midnight (templated).
+    schedule: "0 0 * * *"
+    # Optional override for the deployment name to restart.
+    deploymentName: ~
+    # Command/args to use for the rollout restart (templated). When unset, defaults to kubectl rollout restart.
+    command: ~
+    args: ~
+
+    # jobAnnotations are annotations on the rollout restart CronJob
+    jobAnnotations: {}
+
+    # Select certain nodes for api server rollout restart pods.
+    nodeSelector: {}
+    affinity: {}
+    tolerations: []
+    topologySpreadConstraints: []
+    priorityClassName: ~
+
+    podAnnotations: {}
+
+    # Labels specific to api server rollout restart objects and pods
+    labels: {}
+
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+    # Create ServiceAccount
+    serviceAccount:
+      # default value is true
+      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      automountServiceAccountToken: true
+      # Specifies whether a ServiceAccount should be created
+      create: true
+      # The name of the ServiceAccount to use.
+      # If not set and create is true, a name is generated using the release name
+      name: ~
+
+      # Annotations to add to rollout restart cronjob kubernetes service account.
+      annotations: {}
+
+    # When not set, the values defined in the global securityContext will be used
+    securityContexts:
+      pod: {}
+      container: {}
+
+    # Specify history limit
+    # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
+    failedJobsHistoryLimit: ~
+    successfulJobsHistoryLimit: ~
   service:
     type: ClusterIP
     ## service annotations

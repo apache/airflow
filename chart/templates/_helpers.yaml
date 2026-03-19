@@ -409,6 +409,10 @@ If release name contains chart name it will be used as a full name.
   {{- printf "%s:%s" .Values.images.gitSync.repository .Values.images.gitSync.tag }}
 {{- end }}
 
+{{- define "kubectl_image" -}}
+  {{- printf "%s:%s" .Values.images.kubectl.repository .Values.images.kubectl.tag }}
+{{- end }}
+
 {{- define "fernet_key_secret" -}}
   {{- default (printf "%s-fernet-key" (include "airflow.fullname" .)) .Values.fernetKeySecretName }}
 {{- end }}
@@ -665,6 +669,16 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the API server service account to use */}}
 {{- define "apiServer.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "apiServer" "nameSuffix" "api-server" ) .) -}}
+{{- end }}
+
+{{/* Create the name of the API server rollout restart service account to use */}}
+{{- define "apiServerRolloutRestart.serviceAccountName" -}}
+  {{- $sa := .Values.apiServer.rolloutRestart.serviceAccount }}
+  {{- if $sa.create }}
+    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) "api-server-rollout-restart") $sa.name | quote }}
+  {{- else }}
+    {{- default "default" $sa.name | quote }}
+  {{- end }}
 {{- end }}
 
 {{/* Create the name of the redis service account to use */}}
