@@ -27,27 +27,45 @@ from airflow.providers.edge3.worker_api.routes.jobs import state
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-
-try:
-    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
-
-    stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
-    expected_call_count = 1
-except ImportError:
-    from airflow.providers.common.compat.sdk import Stats
-
-    stats_reference = f"{Stats.__module__}.Stats"
-    expected_call_count = 2
-
-pytestmark = pytest.mark.db_test
-
 
 DAG_ID = "my_dag"
 TASK_ID = "my_task"
 RUN_ID = "manual__2024-11-24T21:03:01+01:00"
 QUEUE = "test"
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
+
+    stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
+    expected_incr_kwargs = {
+        "tags": {},
+        "legacy_name_tags": {
+            "dag_id": DAG_ID,
+            "queue": QUEUE,
+            "state": TaskInstanceState.SUCCESS,
+            "task_id": TASK_ID,
+        },
+    }
+    expected_call_count = 1
+else:
+    from airflow.providers.common.compat.sdk import Stats
+
+    stats_reference = f"{Stats.__module__}.Stats"
+    expected_incr_kwargs = {
+        "tags": {
+            "dag_id": DAG_ID,
+            "queue": QUEUE,
+            "state": TaskInstanceState.SUCCESS,
+            "task_id": TASK_ID,
+        },
+    }
+    expected_call_count = 2
+
+pytestmark = pytest.mark.db_test
 
 
 class TestJobsApiRoutes:
@@ -94,15 +112,7 @@ class TestJobsApiRoutes:
                 session=session,
             )
 
-            mock_stats_incr.assert_called_with(
-                "edge_worker.ti.finish",
-                tags={
-                    "dag_id": DAG_ID,
-                    "queue": QUEUE,
-                    "state": TaskInstanceState.SUCCESS,
-                    "task_id": TASK_ID,
-                },
-            )
+            mock_stats_incr.assert_called_with("edge_worker.ti.finish", **expected_incr_kwargs)
             assert mock_stats_incr.call_count == expected_call_count
 
             db_job: EdgeJobModel | None = session.scalar(select(EdgeJobModel))

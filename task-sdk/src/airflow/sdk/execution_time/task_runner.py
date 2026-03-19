@@ -41,6 +41,7 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
@@ -1753,8 +1754,12 @@ def finalize(
         duration_ms = (ti.end_date - ti.start_date).total_seconds() * 1000
         stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
-        Stats.timing(f"dag.{ti.dag_id}.{ti.task_id}.duration", duration_ms)
-        Stats.timing("task.duration", duration_ms, tags=stats_tags)
+        DualStatsManager.timing(
+            "task.duration",
+            duration_ms,
+            tags=stats_tags,
+            legacy_name_tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+        )
 
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.

@@ -36,11 +36,7 @@ from openlineage.client.facet_v2 import (
 )
 
 from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
@@ -163,11 +159,13 @@ class OpenLineageAdapter(LoggingMixin):
 
         try:
             with ExitStack() as stack:
-                if DualStatsManager is not None:
+                if AIRFLOW_V_3_2_PLUS:
+                    from airflow.sdk.observability.stats import DualStatsManager
+
                     stack.enter_context(
                         DualStatsManager.timer(
                             "ol.emit.attempts",
-                            extra_tags={"event_type": event_type, "transport_type": transport_type},
+                            legacy_name_tags={"event_type": event_type, "transport_type": transport_type},
                         )
                     )
                 else:
