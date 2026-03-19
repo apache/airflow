@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 from typing import TYPE_CHECKING
 
 try:
@@ -54,12 +55,17 @@ class MockOperator(BaseOperator):
 
     def execute(self, context):
         """Execute the operator and return passed arguments as tuple if do_xcom_push is True."""
+        expected = copy.deepcopy(context)
+
         if self.fail_on_first_attempt:
             self.fail_on_first_attempt = False
             raise RuntimeError
         if not self.do_xcom_push:
             return None
-        return self.arg1, self.arg2, self.arg3
+        result = self.arg1, self.arg2, self.arg3
+
+        assert context == expected, "Context was unexpectedly mutated during task execution"
+        return result
 
 
 @pytest.fixture
