@@ -510,22 +510,7 @@ def _migrate_deadline_alerts() -> None:
                     dags_with_deadlines.add(dag_id)
                     deadline_alerts = dag_deadline if isinstance(dag_deadline, list) else [dag_deadline]
 
-                    # Fetch dagrun IDs once per DAG to avoid repeating the
-                    # expensive dag_run/serialized_dag JOIN for every alert.
-                    dagrun_ids = [
-                        row[0]
-                        for row in conn.execute(
-                            sa.text("""
-                                SELECT dr.id
-                                FROM dag_run dr
-                                JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
-                                WHERE sd.id = :serialized_dag_id
-                            """),
-                            {"serialized_dag_id": serialized_dag_id},
-                        ).fetchall()
-                    ]
-
-                    migrated_alert_ids = []
+                    migrated_alert_ids: list[str] = []
 
                     for serialized_alert in deadline_alerts:
                         if isinstance(serialized_alert, dict):
@@ -589,6 +574,20 @@ def _migrate_deadline_alerts() -> None:
                                 migrated_alert_ids.append(deadline_alert_id)
                                 migrated_alerts_count += 1
 
+                                # Fetch dagrun IDs once per DAG to avoid repeating the
+                                # expensive dag_run/serialized_dag JOIN for every alert.
+                                dagrun_ids = [
+                                    row[0]
+                                    for row in conn.execute(
+                                        sa.text("""
+                                            SELECT dr.id
+                                            FROM dag_run dr
+                                            JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
+                                            WHERE sd.id = :serialized_dag_id
+                                        """),
+                                        {"serialized_dag_id": serialized_dag_id},
+                                    ).fetchall()
+                                ]
                                 if dagrun_ids:
                                     conn.execute(
                                         sa.text("""
