@@ -41,10 +41,16 @@ from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_ma
 
 pytestmark = pytest.mark.db_test
 
-# Runtime is fine, we just can't run the tests on macOS
-skip_spawn_mp_start = pytest.mark.skipif(
-    multiprocessing.get_context().get_start_method() == "spawn",
-    reason="mock patching in test don't work with 'spawn' mode (default on macOS)",
+# Mock patching doesn't work across process boundaries with 'spawn' (default on macOS)
+# or 'forkserver' (default on Linux with Python 3.14+).
+skip_non_fork_mp_start = pytest.mark.skipif(
+    multiprocessing.get_start_method() != "fork",
+    reason="mock patching in test doesn't work with non-fork multiprocessing start methods",
+)
+
+skip_fork_mp_start = pytest.mark.skipif(
+    multiprocessing.get_start_method() == "fork",
+    reason="tests non-fork (lazy-spawning) behavior",
 )
 
 
@@ -68,7 +74,7 @@ class TestLocalExecutor:
     def test_serve_logs_default_value(self):
         assert LocalExecutor.serve_logs
 
-    @skip_spawn_mp_start
+    @skip_non_fork_mp_start
     @mock.patch.object(gc, "unfreeze")
     @mock.patch.object(gc, "freeze")
     def test_executor_worker_spawned(self, mock_freeze, mock_unfreeze):
@@ -82,6 +88,33 @@ class TestLocalExecutor:
 
         executor.end()
 
+    @skip_fork_mp_start
+    @mock.patch.object(gc, "unfreeze")
+    @mock.patch.object(gc, "freeze")
+    def test_executor_lazy_worker_spawning(self, mock_freeze, mock_unfreeze):
+        """On non-fork start methods, workers are spawned lazily and gc.freeze is not called."""
+        executor = LocalExecutor(parallelism=3)
+        executor.start()
+
+        try:
+            # No workers should be pre-spawned
+            assert len(executor.workers) == 0
+            mock_freeze.assert_not_called()
+            mock_unfreeze.assert_not_called()
+
+            # Simulate a queued message so _check_workers spawns one worker on demand
+            with executor._unread_messages:
+                executor._unread_messages.value = 1
+            executor.activity_queue.put(None)  # poison pill so the worker exits cleanly
+            executor._check_workers()
+
+            assert len(executor.workers) == 1
+            # gc.freeze is still not used for non-fork
+            mock_freeze.assert_not_called()
+        finally:
+            executor.end()
+
+    @skip_non_fork_mp_start
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
     def test_execution(self, mock_supervise):
         success_tis = [
@@ -182,7 +215,7 @@ class TestLocalExecutor:
         mock_stats_gauge.assert_has_calls(calls)
 
     @skip_if_force_lowest_dependencies_marker
-    @pytest.mark.execution_timeout(5)
+    @pytest.mark.execution_timeout(30)
     def test_clean_stop_on_signal(self):
         import signal
 
@@ -303,8 +336,15 @@ class TestLocalExecutor:
 
             # Verify each executor has its own workers dict
             assert team_a_executor.workers is not team_b_executor.workers
-            assert len(team_a_executor.workers) == 2
-            assert len(team_b_executor.workers) == 3
+
+            if LocalExecutor.is_mp_using_fork:
+                # fork pre-spawns all workers at start()
+                assert len(team_a_executor.workers) == 2
+                assert len(team_b_executor.workers) == 3
+            else:
+                # forkserver/spawn use lazy spawning
+                assert len(team_a_executor.workers) == 0
+                assert len(team_b_executor.workers) == 0
 
             # Verify each executor has its own unread_messages counter
             assert team_a_executor._unread_messages is not team_b_executor._unread_messages
@@ -327,8 +367,11 @@ class TestLocalExecutor:
 
         executor.start()
 
-        # Verify workers were created
-        assert len(executor.workers) == 2
+        if LocalExecutor.is_mp_using_fork:
+            assert len(executor.workers) == 2
+        else:
+            # forkserver/spawn use lazy spawning
+            assert len(executor.workers) == 0
 
         executor.end()
 
@@ -338,7 +381,7 @@ class TestLocalExecutorCallbackSupport:
         executor = LocalExecutor()
         assert executor.supports_callbacks is True
 
-    @skip_spawn_mp_start
+    @skip_non_fork_mp_start
     @mock.patch("airflow.executors.workloads.callback.execute_callback_workload")
     def test_process_callback_workload(self, mock_execute_callback):
         mock_execute_callback.return_value = (True, None)
