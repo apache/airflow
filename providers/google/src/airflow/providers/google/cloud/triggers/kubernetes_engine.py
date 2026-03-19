@@ -340,10 +340,7 @@ class GKEJobTrigger(BaseTrigger):
                 namespace=self.pod_namespace,
                 label_selector=label_selector,
             )
-            succeeded_pods = [
-                p for p in current_pods
-                if p.status and p.status.phase == "Succeeded"
-            ]
+            succeeded_pods = [p for p in current_pods if p.status and p.status.phase == "Succeeded"]
             if not succeeded_pods:
                 self.log.warning(
                     "No succeeded pods found for job %s, falling back to original pod list",
