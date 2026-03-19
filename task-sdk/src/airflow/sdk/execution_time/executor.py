@@ -46,7 +46,9 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import MappedTaskInstance
 
 
-def collect_futures(loop: AbstractEventLoop, futures: list[Any]) -> Generator[Future | asyncio.futures.Future, None, None]:
+def collect_futures(
+    loop: AbstractEventLoop, futures: list[Any]
+) -> Generator[Future | asyncio.futures.Future, None, None]:
     """
     Yield futures as they complete (sync or async).
 
