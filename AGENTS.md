@@ -38,6 +38,8 @@
 - **Build docs:** `breeze build-docs`
 - **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
 
+Agent skills (machine-readable) are in `.github/skills/breeze-contribution/`.
+
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
 
 ## Repository Structure
