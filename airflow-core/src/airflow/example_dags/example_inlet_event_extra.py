@@ -33,7 +33,7 @@ asset = Asset("s3://output/1.txt")
 with DAG(
     dag_id="read_asset_event",
     catchup=False,
-    start_date=datetime.datetime(1970, 1, 1),
+    start_date=datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc),
     schedule="@daily",
     tags=["consumes"],
 ):
