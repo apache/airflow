@@ -19,9 +19,9 @@
 """
 Add dag_try_number to dag_run for DAG-level automatic retries (issue #60866).
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: 72d8563c1e4b
 Revises: 1d6611b6ab7c
-Create Date: 2026-03-07 00:00:00.000000
+Create Date: 2026-03-19 12:00:00.000000
 
 """
 
@@ -31,7 +31,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "a1b2c3d4e5f6"
+revision = "72d8563c1e4b"
 down_revision = "1d6611b6ab7c"
 branch_labels = None
 depends_on = None
