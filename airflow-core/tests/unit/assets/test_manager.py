@@ -90,7 +90,6 @@ class TestAssetManager:
         # AssetDagRunQueue rows
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
-        mock_task_instance.log.warning.assert_called()
 
     @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
     def test_register_asset_change(self, session, mock_task_instance):
