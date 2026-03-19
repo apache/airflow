@@ -74,6 +74,64 @@ class ExternalDagLink(BaseOperatorLink):
 
     name = "External DAG"
 
+    @staticmethod
+    def _resolve_external_run_id(
+        operator: BaseOperator, ti_key: TaskInstanceKey, external_dag_id: str
+    ) -> str | None:
+        """
+        Resolve the run_id of the external DAG run that this operator targets.
+
+        When ``execution_delta`` or ``execution_date_fn`` is used, the external DAG's
+        logical date differs from the current DAG run's logical date, which means the
+        external DAG run has a different run_id. This method queries the database to
+        find the correct run_id for the external DAG run.
+
+        Returns None if the external run_id cannot be determined.
+        """
+        try:
+            from sqlalchemy import select
+
+            from airflow.models.dagrun import DagRun
+            from airflow.utils.session import create_session
+
+            with create_session() as session:
+                # Look up the current DAG run to find its logical_date
+                current_dr = session.scalar(
+                    select(DagRun).where(DagRun.dag_id == ti_key.dag_id, DagRun.run_id == ti_key.run_id)
+                )
+                if not current_dr or not current_dr.logical_date:
+                    return None
+
+                target_logical_date = current_dr.logical_date
+
+                # If the operator has an execution_delta, apply it to compute the
+                # target logical date for the external DAG
+                execution_delta = getattr(operator, "execution_delta", None)
+                if isinstance(execution_delta, datetime.timedelta):
+                    target_logical_date = target_logical_date - execution_delta
+
+                # If the operator has an execution_date_fn, call it to compute the
+                # target logical date for the external DAG
+                elif callable(getattr(operator, "execution_date_fn", None)):
+                    result = operator.execution_date_fn(target_logical_date)
+                    if isinstance(result, list):
+                        target_logical_date = result[0] if result else target_logical_date
+                    elif isinstance(result, datetime.datetime):
+                        target_logical_date = result
+
+                # Look up the external DAG run by logical_date to get its actual run_id
+                external_dr = session.scalar(
+                    select(DagRun).where(
+                        DagRun.dag_id == external_dag_id, DagRun.logical_date == target_logical_date
+                    )
+                )
+                if external_dr:
+                    return external_dr.run_id
+        except Exception:
+            pass
+
+        return None
+
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         if TYPE_CHECKING:
             assert isinstance(operator, (ExternalTaskMarker, ExternalTaskSensor))
@@ -98,10 +156,12 @@ class ExternalDagLink(BaseOperatorLink):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.helpers import build_airflow_dagrun_url
 
-            return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=ti_key.run_id)
+            external_run_id = self._resolve_external_run_id(operator, ti_key, external_dag_id)
+            return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=external_run_id or ti_key.run_id)
         from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
 
-        query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
+        external_run_id = self._resolve_external_run_id(operator, ti_key, external_dag_id)
+        query = {"dag_id": external_dag_id, "run_id": external_run_id or ti_key.run_id}
         return build_airflow_url_with_query(query)
 
 
