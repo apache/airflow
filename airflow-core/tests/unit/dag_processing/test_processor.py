@@ -1931,6 +1931,7 @@ class TestDagProcessingMessageTypes:
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
             "SetRenderedMapIndex",
+            "SetTaskInstanceNote",
         }
 
         in_task_runner_but_not_in_dag_processing_process = {
