@@ -32,7 +32,6 @@ from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, 
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
-from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
@@ -527,6 +526,8 @@ class Connection(Base, LoggingMixin):
                 if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
                     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
                 raise
+
+        from airflow.configuration import conf, ensure_secrets_loaded
 
         if team_name and not conf.getboolean("core", "multi_team"):
             raise ValueError(

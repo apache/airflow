@@ -87,6 +87,13 @@ export class DagRunsTabPage extends BasePage {
     const stateOption = this.page.getByTestId(`mark-run-as-${state}`);
 
     await expect(stateOption).toBeVisible({ timeout: 5000 });
+
+    if (await stateOption.isDisabled()) {
+      await this.page.keyboard.press("Escape");
+
+      return;
+    }
+
     await stateOption.click();
 
     const confirmButton = this.page.getByRole("button", { name: "Confirm" });
