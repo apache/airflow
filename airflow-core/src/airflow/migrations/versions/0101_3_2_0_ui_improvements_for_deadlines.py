@@ -367,22 +367,22 @@ def _sort_serialized_dag_dict(serialized_dag: Any):
 @contextlib.contextmanager
 def _begin_nested_transaction(conn):
     """
-    Create an nested transaction.
+    Create a nested transaction.
 
-    On SQLite, this calls ``conn.begin_nested()`` and commit/rollback manually.
-    Anywhere else, the ``conn.engine.begin()`` context manager is used.
-
-    On additional feature is the inner code can use ``gen.send()`` to set a
+    On SQLite, uses ``conn.begin_nested()`` with commit/rollback.
+    On other backends, opens a new connection via ``conn.engine.begin()``
+    and yields it so callers use the new connection for writes.
+    An additional feature is the inner code can use ``gen.send()`` to set a
     truthy value to explicitly tell the session to rollback even if no error
-    was raised.
+    was raised (SQLite only).
     """
     if conn.dialect.name != "sqlite":
-        with conn.engine.begin():
-            yield
+        with conn.engine.begin() as new_conn:
+            yield new_conn
         return
     try:
         savepoint = conn.begin_nested()
-        rollback = yield
+        rollback = yield conn
     except Exception:
         savepoint.rollback()
         raise
@@ -549,12 +549,12 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                         continue
 
             try:
-                with _begin_nested_transaction(conn):
-                    migrated_alert_ids = list(_migrate_dag_deadlines(conn))
+                with _begin_nested_transaction(conn) as dag_conn:
+                    migrated_alert_ids = list(_migrate_dag_deadlines(dag_conn))
                     if migrated_alert_ids:
                         uuid_strings = [str(uuid_id) for uuid_id in migrated_alert_ids]
-                        update_dag_deadline_field(conn, serialized_dag_id, uuid_strings, dialect)
-                        updated_result = conn.execute(
+                        update_dag_deadline_field(dag_conn, serialized_dag_id, uuid_strings, dialect)
+                        updated_result = dag_conn.execute(
                             sa.text(
                                 "SELECT data, data_compressed "
                                 "FROM serialized_dag "
@@ -567,7 +567,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                                 updated_result.data, updated_result.data_compressed
                             )
                             new_hash = hash_dag(updated_dag_data)
-                            conn.execute(
+                            dag_conn.execute(
                                 sa.text(
                                     "UPDATE serialized_dag "
                                     "SET dag_hash = :new_hash "
@@ -692,8 +692,8 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
             dags_with_deadlines.add(dag_id)
 
             try:
-                with (ctx := _begin_nested_transaction(conn)):
-                    alert_result = conn.execute(
+                with _begin_nested_transaction(conn) as dag_conn:
+                    alert_result = dag_conn.execute(
                         sa.select(
                             deadline_alert_table.c.reference,
                             deadline_alert_table.c.interval,
@@ -708,24 +708,24 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
                         dags_with_errors[dag_id].append(
                             f"Could not find deadline_alert for serialized_dag {serialized_dag_id}"
                         )
-                        ctx.gen.send(True)  # Explicit rollback.
-                    else:
-                        restored_deadline_objects = []
-                        for alert in alert_result:
-                            deadline_object = {
-                                Encoding.TYPE: ENCODING_TYPE,
-                                Encoding.VAR: {
-                                    REFERENCE_KEY: alert.reference,
-                                    INTERVAL_KEY: float(alert.interval),
-                                    CALLBACK_KEY: alert.callback_def,
-                                },
-                            }
-                            restored_deadline_objects.append(deadline_object)
-                            restored_alerts_count += 1
-                        if restored_deadline_objects:
-                            update_dag_deadline_field(
-                                conn, serialized_dag_id, restored_deadline_objects, dialect
-                            )
+                        continue
+
+                    restored_deadline_objects = []
+                    for alert in alert_result:
+                        deadline_object = {
+                            Encoding.TYPE: ENCODING_TYPE,
+                            Encoding.VAR: {
+                                REFERENCE_KEY: alert.reference,
+                                INTERVAL_KEY: float(alert.interval),
+                                CALLBACK_KEY: alert.callback_def,
+                            },
+                        }
+                        restored_deadline_objects.append(deadline_object)
+                        restored_alerts_count += 1
+                    if restored_deadline_objects:
+                        update_dag_deadline_field(
+                            dag_conn, serialized_dag_id, restored_deadline_objects, dialect
+                        )
             except Exception as e:
                 log.exception("Could not restore deadline for dag %s", dag_id)
                 dags_with_errors[dag_id].append(f"Could not restore deadline: {e}")
