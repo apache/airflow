@@ -266,11 +266,28 @@ class SnowflakeHook(DbApiHook):
         return account_identifier
 
     def get_oauth_token(
-        self,
-        conn_config: dict | None = None,
-        token_endpoint: str | None = None,
-        grant_type: str = "refresh_token",
-    ) -> str:
+    self,
+    conn_config: dict | None = None,
+    token_endpoint: str | None = None,
+    grant_type: str = "refresh_token",
+) -> str:
+    """
+    Generate temporary OAuth access token using refresh token in connection details.
+
+    Transient network and server-side errors are retried automatically.
+    """
+    if conn_config is None:
+        conn_config = self._get_static_conn_params  # FIXED
+
+    if token_endpoint is None:
+        token_endpoint = conn_config.get("token_endpoint")
+
+    return self._get_valid_oauth_token(
+        conn_config=conn_config,
+        token_endpoint=token_endpoint,
+        grant_type=grant_type,
+    )
+
         """
         Generate temporary OAuth access token using refresh token in connection details.
 
@@ -505,6 +522,7 @@ class SnowflakeHook(DbApiHook):
                 "refresh_token": conn_config["refresh_token"],
             }
 
+
         response = self._request_oauth_token(
             url=url,
             data=data,
@@ -512,8 +530,13 @@ class SnowflakeHook(DbApiHook):
             client_secret=conn_config["client_secret"],
         )
 
-        token = response.json()["access_token"]
-        expires_in = int(response.json()["expires_in"])
+        response_json = response.json()
+
+     if "access_token" not in response_json or "expires_in" not in response_json:
+                raise AirflowException("Invalid OAuth response: missing access_token or expires_in")
+
+     token = response_json["access_token"]
+     expires_in = int(response_json["expires_in"])
 
         # Capture issue timestamp after access token is retrieved.
         issued_at = timezone.utcnow()
@@ -770,7 +793,8 @@ class SnowflakeHook(DbApiHook):
         else:
             sql_list = sql
 
-        if sql_list:
+        if sql_list and any(stmt.strip() for stmt in sql_list):
+
             self.log.debug("Executing following statements against Snowflake DB: %s", sql_list)
         else:
             raise ValueError("List of SQL statements is empty")
