@@ -1673,7 +1673,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             next_kwargs = {}
 
         execute_callable = self.next_callable(next_method, next_kwargs)
-        return execute_callable(context, **next_kwargs)
+        return execute_callable(context)
 
     def dry_run(self) -> None:
         """Perform dry run for the operator - just render template fields."""
