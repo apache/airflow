@@ -132,7 +132,7 @@ This PoC keeps `SKILL.md` under `.github/skills/` as the initial stepping stone.
 
 These skills are consumed by:
 
-1. AI agents (Claude Code, Gemini, etc.)
+1. AI coding agents
 2. Human developers (for reference)
 3. Generated `skills.json` (for machines)
 
