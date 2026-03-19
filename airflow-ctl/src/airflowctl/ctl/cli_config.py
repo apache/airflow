@@ -410,11 +410,16 @@ class CommandFactory:
             args = []
             return_annotation: str = ""
 
-            for arg in node.args.args:
+            num_args = len(node.args.args)
+            num_defaults = len(node.args.defaults)
+            first_default_index = num_args - num_defaults
+
+            for idx, arg in enumerate(node.args.args):
                 arg_name = arg.arg
                 arg_type = ast.unparse(arg.annotation) if arg.annotation else "Any"
                 if arg_name != "self":
-                    args.append({arg_name: arg_type})
+                    has_default = idx >= first_default_index
+                    args.append({arg_name: arg_type, "has_default": has_default})
 
             if node.returns:
                 return_annotation = [
@@ -506,9 +511,9 @@ class CommandFactory:
         arg_flags: tuple,
         arg_type: type | Callable,
         arg_help: str,
-        arg_action: argparse.BooleanOptionalAction | None,
-        arg_dest: str | None = None,
-        arg_default: Any | None = None,
+        arg_action: type[argparse.BooleanOptionalAction] | None,
+        arg_dest=_UNSET,
+        arg_default=_UNSET,
     ) -> Arg:
         return Arg(
             flags=arg_flags,
@@ -532,15 +537,21 @@ class CommandFactory:
         for field, field_type in parameter_type_map.model_fields.items():
             if field in self.excluded_parameters:
                 continue
+
+            is_required = field_type.is_required()
+            sanitized_field = self._sanitize_arg_parameter_key(field)
             self.datamodels_extended_map[parameter_type].append(field)
+
             if type(field_type.annotation) is type:
+                is_bool = field_type.annotation is bool
+                arg_flags = (field,) if is_required and not is_bool else ("--" + sanitized_field,)
                 commands.append(
                     self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_flags=arg_flags,
                         arg_type=self._python_type_from_string(field_type.annotation),
-                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
+                        arg_action=argparse.BooleanOptionalAction if is_bool else None,
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
+                        arg_default=False if is_bool else None,
                     )
                 )
             else:
@@ -549,13 +560,15 @@ class CommandFactory:
                 except AttributeError:
                     annotation = field_type.annotation
 
+                is_bool = annotation is bool
+                arg_flags = (field,) if is_required and not is_bool else ("--" + sanitized_field,)
                 commands.append(
                     self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_flags=arg_flags,
                         arg_type=self._python_type_from_string(annotation),
-                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                        arg_action=argparse.BooleanOptionalAction if is_bool else None,
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
+                        arg_default=False if is_bool else None,
                     )
                 )
         return commands
@@ -565,12 +578,25 @@ class CommandFactory:
         for operation in self.operations:
             args = []
             for parameter in operation.get("parameters"):
-                for parameter_key, parameter_type in parameter.items():
+                for parameter_key, parameter_value in parameter.items():
+                    if parameter_key == "has_default":
+                        continue
+                    parameter_type = parameter_value
+                    has_default = parameter.get("has_default", False)
+
                     if self._is_primitive_type(type_name=parameter_type):
                         is_bool = parameter_type == "bool"
+                        sanitized_key = self._sanitize_arg_parameter_key(parameter_key)
+                        operation_name = operation.get("name")
+                        parent_name = operation.get("parent").name
+                        is_jobs_or_dagrun_list = operation_name == "list" and parent_name in [
+                            "JobsOperations",
+                            "DagRunOperations",
+                        ]
+                        is_positional = not is_bool and not has_default and not is_jobs_or_dagrun_list
                         args.append(
                             self._create_arg(
-                                arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
+                                arg_flags=(parameter_key,) if is_positional else ("--" + sanitized_key,),
                                 arg_type=self._python_type_from_string(parameter_type),
                                 arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
@@ -633,6 +659,8 @@ class CommandFactory:
             args_dict = vars(args)
             for parameter in api_operation["parameters"]:
                 for parameter_key, parameter_type in parameter.items():
+                    if parameter_key == "has_default":
+                        continue
                     if self._is_primitive_type(type_name=parameter_type):
                         method_params[self._sanitize_method_param_key(parameter_key)] = args_dict[
                             parameter_key
