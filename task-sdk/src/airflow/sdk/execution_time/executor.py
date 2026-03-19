@@ -66,7 +66,7 @@ def collect_futures(loop: AbstractEventLoop, futures: list[Any]) -> Generator[Fu
             yield task
 
 
-class HybridExecutor:
+class ConcurrentExecutor:
     """
     Executes both sync and async functions concurrently.
 

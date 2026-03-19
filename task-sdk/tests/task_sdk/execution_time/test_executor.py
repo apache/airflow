@@ -29,7 +29,7 @@ from airflow.sdk import BaseAsyncOperator, BaseOperator
 from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.bases.operator import event_loop
 from airflow.sdk.exceptions import AirflowRescheduleTaskInstanceException, TaskDeferred
-from airflow.sdk.execution_time.executor import HybridExecutor, TaskExecutor, collect_futures
+from airflow.sdk.execution_time.executor import ConcurrentExecutor, TaskExecutor, collect_futures
 from airflow.sdk.execution_time.task_runner import MappedTaskInstance
 
 from tests_common.test_utils.mock_context import mock_context
@@ -72,11 +72,11 @@ def _make_mapped_ti(
     )
 
 
-class TestHybridExecutor:
+class TestConcurrentExecutor:
     def test_submit_sync_function_returns_future(self):
         """Sync callables are dispatched to the thread pool and return a concurrent.futures.Future."""
         with event_loop() as loop:
-            with HybridExecutor(loop=loop, max_workers=2) as executor:
+            with ConcurrentExecutor(loop=loop, max_workers=2) as executor:
                 future = executor.submit(lambda: 42)
                 assert isinstance(future, Future)
                 assert future.result() == 42
@@ -84,7 +84,7 @@ class TestHybridExecutor:
     def test_submit_async_coroutine_function_returns_task(self):
         """Async callables are scheduled on the event loop and return an asyncio.Task."""
         with event_loop() as loop:
-            with HybridExecutor(loop=loop, max_workers=2) as executor:
+            with ConcurrentExecutor(loop=loop, max_workers=2) as executor:
 
                 async def async_fn():
                     return "async_result"
@@ -97,7 +97,7 @@ class TestHybridExecutor:
     def test_submit_coroutine_object_returns_task(self):
         """Passing a coroutine object (not a function) directly is also scheduled on the event loop."""
         with event_loop() as loop:
-            with HybridExecutor(loop=loop, max_workers=2) as executor:
+            with ConcurrentExecutor(loop=loop, max_workers=2) as executor:
 
                 async def async_fn():
                     return "coro_result"
@@ -111,7 +111,7 @@ class TestHybridExecutor:
     def test_submit_sync_function_propagates_exception(self):
         """Exceptions raised inside sync callables are propagated when the future is resolved."""
         with event_loop() as loop:
-            with HybridExecutor(loop=loop, max_workers=2) as executor:
+            with ConcurrentExecutor(loop=loop, max_workers=2) as executor:
                 future = executor.submit(lambda: (_ for _ in ()).throw(ValueError("boom")))
                 assert isinstance(future, Future)
                 with pytest.raises(ValueError, match="boom"):
@@ -120,7 +120,7 @@ class TestHybridExecutor:
     def test_submit_async_function_propagates_exception(self):
         """Exceptions raised inside async callables are propagated when the task is awaited."""
         with event_loop() as loop:
-            with HybridExecutor(loop=loop, max_workers=2) as executor:
+            with ConcurrentExecutor(loop=loop, max_workers=2) as executor:
 
                 async def failing():
                     raise RuntimeError("async boom")
@@ -143,7 +143,7 @@ class TestHybridExecutor:
 
         max_workers = 2
         with event_loop() as loop:
-            with HybridExecutor(loop=loop, max_workers=max_workers) as executor:
+            with ConcurrentExecutor(loop=loop, max_workers=max_workers) as executor:
                 tasks = [executor.submit(count_concurrent) for _ in range(6)]
                 loop.run_until_complete(asyncio.gather(*tasks))
 
@@ -152,7 +152,7 @@ class TestHybridExecutor:
     def test_exit_shuts_down_thread_pool(self):
         """__exit__ calls shutdown on the thread pool."""
         with event_loop() as loop:
-            executor = HybridExecutor(loop=loop, max_workers=2)
+            executor = ConcurrentExecutor(loop=loop, max_workers=2)
             with mock.patch.object(
                 executor._thread_pool, "shutdown", wraps=executor._thread_pool.shutdown
             ) as shutdown_mock:
@@ -163,7 +163,7 @@ class TestHybridExecutor:
     def test_context_manager_returns_self(self):
         """__enter__ returns the executor instance itself."""
         with event_loop() as loop:
-            executor = HybridExecutor(loop=loop, max_workers=2)
+            executor = ConcurrentExecutor(loop=loop, max_workers=2)
             with executor as ctx:
                 assert ctx is executor
 

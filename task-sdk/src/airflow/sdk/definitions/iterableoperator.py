@@ -45,7 +45,7 @@ from airflow.sdk.exceptions import (
     AirflowTaskTimeout,
     TaskDeferred,
 )
-from airflow.sdk.execution_time.executor import HybridExecutor, TaskExecutor, collect_futures
+from airflow.sdk.execution_time.executor import ConcurrentExecutor, TaskExecutor, collect_futures
 from airflow.sdk.execution_time.lazy_sequence import XComIterable
 from airflow.sdk.execution_time.task_runner import MappedTaskInstance
 
@@ -168,7 +168,7 @@ class IterableOperator(BaseOperator):
         self.log.info("Running tasks with %d workers", self.max_workers)
 
         with event_loop() as loop:
-            with HybridExecutor(loop=loop, max_workers=self.max_workers) as executor:
+            with ConcurrentExecutor(loop=loop, max_workers=self.max_workers) as executor:
                 for task in next(chunked_tasks, []):
                     do_xcom_push = task.do_xcom_push
                     if task.is_async:
