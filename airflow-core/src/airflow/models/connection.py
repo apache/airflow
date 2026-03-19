@@ -251,9 +251,10 @@ class Connection(Base, LoggingMixin):
             else:
                 for key, value in query.items():
                     try:
-                        query[key] = json.loads(value)
-                    except (JSONDecodeError, TypeError):
-                        self.log.info("Failed parsing the json for key %s", key)
+                        if value:
+                            query[key] = json.loads(value)
+                    except JSONDecodeError:
+                        self.log.debug("Failed parsing the json for key %s", key, exc_info=True)
                 self.extra = json.dumps(query)
 
     @staticmethod

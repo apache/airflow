@@ -345,6 +345,19 @@ class TestConnection:
             ),
             description="login only",
         ),
+        UriTestCaseConfig(
+            test_conn_uri="scheme://host/schema?valid_json=%7B%22key%22%3A%22val%22%7D&invalid_json=just_a_string&empty_val=",
+            test_conn_attributes=dict(
+                conn_type="scheme",
+                host="host",
+                schema="schema",
+                login=None,
+                password=None,
+                port=None,
+                extra_dejson={"valid_json": {"key": "val"}, "invalid_json": "just_a_string", "empty_val": ""},
+            ),
+            description="with valid json, invalid json fallback, and empty strings in extras",
+        ),
     ]
 
     @pytest.mark.parametrize("test_config", test_from_uri_params)
