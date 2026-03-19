@@ -1832,7 +1832,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @provide_session
     def get_num_running_task_instances(self, session: Session, same_dagrun: bool = False) -> int:
-        """Return Number of running TIs from the DB."""
+        """
+        Return number of active TIs for this task from the DB.
+
+        Counts task instances in running, queued, or deferred state.
+        Deferred TIs are included because they are still logically in-flight
+        and must count against max_active_tis_per_dag / max_active_tis_per_dagrun.
+        """
+        from airflow.ti_deps.dependencies_states import TASK_CONCURRENCY_EXECUTION_STATES
+
         # .count() is inefficient
         num_running_task_instances_query = (
             select(func.count())
@@ -1840,7 +1848,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             .where(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
-                TaskInstance.state == TaskInstanceState.RUNNING,
+                TaskInstance.state.in_(TASK_CONCURRENCY_EXECUTION_STATES),
             )
         )
         if same_dagrun:

@@ -23,6 +23,15 @@ EXECUTION_STATES = {
     TaskInstanceState.QUEUED,
 }
 
+# States counted for task-level concurrency limits (max_active_tis_per_dag /
+# max_active_tis_per_dagrun).  Includes DEFERRED because a deferred task
+# instance is still logically in-flight and must block additional instances
+# from being scheduled.  This is intentionally separate from EXECUTION_STATES
+# so that DAG-level max_active_tasks and pool slot calculations are unaffected.
+TASK_CONCURRENCY_EXECUTION_STATES = ACTIVE_STATES | {
+    TaskInstanceState.DEFERRED,
+}
+
 # In order to be able to get queued a task must have one of these states
 SCHEDULEABLE_STATES = {
     None,

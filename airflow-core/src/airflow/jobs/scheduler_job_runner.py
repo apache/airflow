@@ -88,7 +88,7 @@ from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureRea
 from airflow.observability.metrics import stats_utils
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
-from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.ti_deps.dependencies_states import EXECUTION_STATES, TASK_CONCURRENCY_EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -204,15 +204,22 @@ class ConcurrencyMap:
         self.dag_run_active_tasks_map.clear()
         self.task_concurrency_map.clear()
         self.task_dagrun_concurrency_map.clear()
+        # Use one grouped query on TASK_CONCURRENCY_EXECUTION_STATES to exclude DEFERRED from dag_run_active_tasks_map 
+        #while still counting it for task-level limits.
         query = session.execute(
-            select(TI.dag_id, TI.task_id, TI.run_id, func.count("*"))
-            .where(TI.state.in_(EXECUTION_STATES))
-            .group_by(TI.task_id, TI.run_id, TI.dag_id)
+            select(TI.dag_id, TI.task_id, TI.run_id, TI.state, func.count("*"))
+            .where(TI.state.in_(TASK_CONCURRENCY_EXECUTION_STATES))
+            .group_by(TI.dag_id, TI.task_id, TI.run_id, TI.state)
         )
-        for dag_id, task_id, run_id, c in query:
-            self.dag_run_active_tasks_map[dag_id, run_id] += c
-            self.task_concurrency_map[(dag_id, task_id)] += c
-            self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += c
+        for dag_id, task_id, run_id, state, count in query:
+            # Always count towards task-level concurrency (max_active_tis_per_dag /
+            # max_active_tis_per_dagrun), including DEFERRED.
+            self.task_concurrency_map[(dag_id, task_id)] += count
+            self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += count
+            # Only count non-deferred states towards DAG-run active tasks
+            # (max_active_tasks / worker slot accounting).
+            if state != TaskInstanceState.DEFERRED:
+                self.dag_run_active_tasks_map[dag_id, run_id] += count
 
 
 def _is_parent_process() -> bool:
