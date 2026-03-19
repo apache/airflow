@@ -228,6 +228,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
+    _bundles_manager: DagBundlesManager | None = attrs.field(default=None, init=False)
 
     _processors: dict[DagFileInfo, DagFileProcessorProcess] = attrs.field(factory=dict, init=False)
 
@@ -280,11 +281,15 @@ class DagFileProcessorManager(LoggingMixin):
 
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
-        DagBundlesManager().sync_bundles_to_db()
+        if self._bundles_manager is None:
+            self._bundles_manager = DagBundlesManager()
+        self._bundles_manager.sync_bundles_to_db()
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
-        return list(DagBundlesManager().get_all_dag_bundles())
+        if self._bundles_manager is None:
+            self._bundles_manager = DagBundlesManager()
+        return list(self._bundles_manager.get_all_dag_bundles())
 
     def run(self):
         """
@@ -594,6 +599,46 @@ class DagFileProcessorManager(LoggingMixin):
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""
         now = timezone.utcnow()
+
+        # Check if config path has changed and reload bundles if needed
+        if self._bundles_manager is None:
+            self._bundles_manager = DagBundlesManager()
+
+        if self._bundles_manager.check_config_path_changes():
+            self.log.info("DAG bundle configuration changed, reloading bundles")
+
+            # Track old bundles to detect removed ones
+            old_bundle_names = {bundle.name for bundle in self._dag_bundles}
+
+            # Reload configuration
+            self._bundles_manager.parse_config()
+            self._bundles_manager.sync_bundles_to_db()
+            self._dag_bundles = list(self._bundles_manager.get_all_dag_bundles())
+
+            # Identify removed bundles
+            new_bundle_names = {bundle.name for bundle in self._dag_bundles}
+            removed_bundles = old_bundle_names - new_bundle_names
+
+            # Clean up removed bundles
+            for bundle_name in removed_bundles:
+                self.log.info("Removing bundle %s and its files", bundle_name)
+                if bundle_name in known_files:
+                    for file_info in known_files[bundle_name]:
+                        self._file_stats.pop(file_info, None)
+                        if file_info in self._processors:
+                            processor = self._processors.pop(file_info)
+                            processor.kill(signal.SIGTERM)
+                            try:
+                                if hasattr(processor, "logger_filehandle") and processor.logger_filehandle:
+                                    processor.logger_filehandle.close()
+                            except (OSError, AttributeError):
+                                pass
+                    del known_files[bundle_name]
+                self._bundle_versions.pop(bundle_name, None)
+                self.deactivate_deleted_dags(bundle_name=bundle_name, present=set())
+
+            # Force refresh all bundles after config change
+            self._force_refresh_bundles = {bundle.name for bundle in self._dag_bundles}
 
         # we don't need to check if it's time to refresh every loop - that is way too often
         next_check = self._bundles_last_refreshed + self.bundle_refresh_check_interval

@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
+import time
 from contextlib import nullcontext
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -467,3 +470,259 @@ def test_multiple_bundles_one_fails(clear_db, session):
 
 def test_get_all_bundle_names():
     assert DagBundlesManager().get_all_bundle_names() == ["dags-folder", "example_dags"]
+
+
+class TestDagBundleConfigPath:
+    """Tests for dynamic DAG bundle configuration from path."""
+
+    def test_parse_config_from_path(self):
+        """Test parsing DAG bundle configs from JSON files in a directory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle1 = {
+                "name": "test-bundle-1",
+                "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                "kwargs": {"refresh_interval": 1},
+            }
+            bundle2 = {
+                "name": "test-bundle-2",
+                "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                "kwargs": {"refresh_interval": 2},
+            }
+
+            Path(tmpdir).joinpath("bundle1.json").write_text(json.dumps(bundle1))
+            Path(tmpdir).joinpath("bundle2.json").write_text(json.dumps(bundle2))
+
+            with conf_vars(
+                {
+                    ("dag_processor", "dag_bundle_config_path"): tmpdir,
+                    ("core", "LOAD_EXAMPLES"): "False",
+                }
+            ):
+                manager = DagBundlesManager()
+                bundle_names = {b.name for b in manager.get_all_dag_bundles()}
+                assert bundle_names == {"test-bundle-1", "test-bundle-2"}
+
+    def test_config_path_takes_precedence_over_list(self):
+        """Test that config path takes precedence over config list."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle = {
+                "name": "path-bundle",
+                "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                "kwargs": {"refresh_interval": 1},
+            }
+            Path(tmpdir).joinpath("bundle.json").write_text(json.dumps(bundle))
+
+            list_config = [
+                {
+                    "name": "list-bundle",
+                    "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                    "kwargs": {"refresh_interval": 1},
+                }
+            ]
+
+            with conf_vars(
+                {
+                    ("dag_processor", "dag_bundle_config_list"): json.dumps(list_config),
+                    ("dag_processor", "dag_bundle_config_path"): tmpdir,
+                    ("core", "LOAD_EXAMPLES"): "False",
+                }
+            ):
+                manager = DagBundlesManager()
+                bundle_names = {b.name for b in manager.get_all_dag_bundles()}
+                # Should only have bundle from path, not from list
+                assert bundle_names == {"path-bundle"}
+
+    def test_check_config_path_changes(self):
+        """Test detection of config file changes."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle_file = Path(tmpdir).joinpath("bundle.json")
+            bundle_config = {
+                "name": "test-bundle",
+                "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                "kwargs": {"refresh_interval": 1},
+            }
+            bundle_file.write_text(json.dumps(bundle_config))
+
+            with conf_vars(
+                {
+                    ("dag_processor", "dag_bundle_config_path"): tmpdir,
+                    ("core", "LOAD_EXAMPLES"): "False",
+                }
+            ):
+                manager = DagBundlesManager()
+
+                # No changes initially
+                assert not manager.check_config_path_changes()
+
+                # Modify the file
+                time.sleep(0.01)  # Ensure mtime changes
+                bundle_config["kwargs"]["refresh_interval"] = 99
+                bundle_file.write_text(json.dumps(bundle_config))
+
+                # Should detect the change
+                assert manager.check_config_path_changes()
+
+                # After reloading, no changes
+                manager.parse_config()
+                assert not manager.check_config_path_changes()
+
+    def test_config_path_file_addition_removal(self):
+        """Test detection of config file addition and removal."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle1_file = Path(tmpdir).joinpath("bundle1.json")
+            bundle1_config = {
+                "name": "bundle-1",
+                "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                "kwargs": {"refresh_interval": 1},
+            }
+            bundle1_file.write_text(json.dumps(bundle1_config))
+
+            with conf_vars(
+                {
+                    ("dag_processor", "dag_bundle_config_path"): tmpdir,
+                    ("core", "LOAD_EXAMPLES"): "False",
+                }
+            ):
+                manager = DagBundlesManager()
+                assert {b.name for b in manager.get_all_dag_bundles()} == {"bundle-1"}
+
+                # Add a new bundle file
+                bundle2_file = Path(tmpdir).joinpath("bundle2.json")
+                bundle2_config = {
+                    "name": "bundle-2",
+                    "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                    "kwargs": {"refresh_interval": 2},
+                }
+                bundle2_file.write_text(json.dumps(bundle2_config))
+
+                # Should detect the new file
+                assert manager.check_config_path_changes()
+                manager.parse_config()
+                assert {b.name for b in manager.get_all_dag_bundles()} == {"bundle-1", "bundle-2"}
+
+                # Remove a file
+                bundle1_file.unlink()
+
+                # Should detect the removal
+                assert manager.check_config_path_changes()
+                manager.parse_config()
+                assert {b.name for b in manager.get_all_dag_bundles()} == {"bundle-2"}
+
+    def test_invalid_json_file_ignored(self):
+        """Test that invalid JSON files are ignored."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            valid_file = Path(tmpdir).joinpath("valid.json")
+            valid_config = {
+                "name": "valid-bundle",
+                "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                "kwargs": {"refresh_interval": 1},
+            }
+            valid_file.write_text(json.dumps(valid_config))
+
+            invalid_file = Path(tmpdir).joinpath("invalid.json")
+            invalid_file.write_text("not valid json {")
+
+            with conf_vars(
+                {
+                    ("dag_processor", "dag_bundle_config_path"): tmpdir,
+                    ("core", "LOAD_EXAMPLES"): "False",
+                }
+            ):
+                manager = DagBundlesManager()
+                assert {b.name for b in manager.get_all_dag_bundles()} == {"valid-bundle"}
+
+    def test_non_existent_config_path(self):
+        """Test handling of non-existent config path."""
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_path"): "/non/existent/path",
+                ("core", "LOAD_EXAMPLES"): "False",
+            }
+        ):
+            manager = DagBundlesManager()
+            assert list(manager.get_all_dag_bundles()) == []
+
+    def test_config_path_not_directory(self):
+        """Test error when config path is not a directory."""
+        with tempfile.NamedTemporaryFile() as tmpfile:
+            with conf_vars(
+                {
+                    ("dag_processor", "dag_bundle_config_path"): tmpfile.name,
+                    ("core", "LOAD_EXAMPLES"): "False",
+                }
+            ):
+                with pytest.raises(AirflowConfigException, match="must be a directory"):
+                    DagBundlesManager()
+
+    def test_duplicate_bundle_names_ignored(self):
+        """Test that duplicate bundle names are detected and handled."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle1_file = Path(tmpdir).joinpath("bundle1.json")
+            bundle1_config = {
+                "name": "duplicate-bundle",
+                "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                "kwargs": {"refresh_interval": 1},
+            }
+            bundle1_file.write_text(json.dumps(bundle1_config))
+
+            bundle2_file = Path(tmpdir).joinpath("bundle2.json")
+            bundle2_config = {
+                "name": "duplicate-bundle",
+                "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                "kwargs": {"refresh_interval": 1},
+            }
+            bundle2_file.write_text(json.dumps(bundle2_config))
+
+            bundle3_file = Path(tmpdir).joinpath("bundle3.json")
+            bundle3_config = {
+                "name": "unique-bundle",
+                "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                "kwargs": {"refresh_interval": 1},
+            }
+            bundle3_file.write_text(json.dumps(bundle3_config))
+
+            with conf_vars(
+                {
+                    ("dag_processor", "dag_bundle_config_path"): tmpdir,
+                    ("core", "LOAD_EXAMPLES"): "False",
+                }
+            ):
+                manager = DagBundlesManager()
+                bundle_names = {b.name for b in manager.get_all_dag_bundles()}
+                assert "duplicate-bundle" in bundle_names
+                assert "unique-bundle" in bundle_names
+                assert len(bundle_names) == 2
+
+    def test_safe_bundle_access_methods(self):
+        """Test safe methods that don't raise errors for missing bundles."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bundle_file = Path(tmpdir).joinpath("bundle.json")
+            bundle_config = {
+                "name": "test-bundle",
+                "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+                "kwargs": {"refresh_interval": 1},
+            }
+            bundle_file.write_text(json.dumps(bundle_config))
+
+            with conf_vars(
+                {
+                    ("dag_processor", "dag_bundle_config_path"): tmpdir,
+                    ("core", "LOAD_EXAMPLES"): "False",
+                }
+            ):
+                manager = DagBundlesManager()
+
+                # Test with existing bundle — BasicBundle returns None for view_url
+                with pytest.warns(DeprecationWarning, match="'view_url' method is deprecated"):
+                    assert manager.view_url("test-bundle") is None
+                path = manager.get_bundle_path_safe("test-bundle")
+                assert path is not None
+
+                # Test with non-existent bundle
+                with pytest.warns(DeprecationWarning, match="'view_url' method is deprecated"):
+                    assert manager.view_url("non-existent") is None
+                assert manager.get_bundle_path_safe("non-existent") is None
+
+                # Test that get_bundle still raises error
+                with pytest.raises(ValueError, match="Requested bundle 'non-existent' is not configured"):
+                    manager.get_bundle("non-existent")
