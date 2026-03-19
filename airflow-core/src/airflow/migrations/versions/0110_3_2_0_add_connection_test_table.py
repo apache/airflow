@@ -20,7 +20,7 @@
 Add connection_test table for async connection testing.
 
 Revision ID: a7e6d4c3b2f1
-Revises: 888b59e02a5b
+Revises: 1d6611b6ab7c
 Create Date: 2026-02-22 00:00:00.000000
 
 """
@@ -34,7 +34,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
 revision = "a7e6d4c3b2f1"
-down_revision = "888b59e02a5b"
+down_revision = "1d6611b6ab7c"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
