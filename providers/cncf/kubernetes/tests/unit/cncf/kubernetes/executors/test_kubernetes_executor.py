@@ -19,6 +19,7 @@ from __future__ import annotations
 import random
 import re
 import string
+import time
 from datetime import datetime
 from unittest import mock
 
@@ -256,6 +257,7 @@ class TestKubernetesExecutor:
     def setup_method(self) -> None:
         self.kubernetes_executor = KubernetesExecutor()
         self.kubernetes_executor.job_id = 5
+        self.kubernetes_executor._last_completed_pod_adoption = time.monotonic()
 
     def test_resource_version_singleton(self):
         """Test that ResourceVersion returns the same instance."""

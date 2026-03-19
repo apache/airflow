@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/connection:pydantic_ai:
+.. _howto/connection:pydanticai:
 
 Pydantic AI Connection
 ======================

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -31,6 +32,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
@@ -65,6 +67,14 @@ _QUERY_SCHEMA: dict[str, Any] = {
     },
     "required": ["sql"],
 }
+
+# DataFusion python bindings don't expose any native exception types, it uses rust exceptions.
+# So we have to rely on error message parsing with regex.
+_RETRYABLE_IDENTIFIER = r"""(?:['"][^'"]+['"]|\w+)"""
+_RETRYABLE_QUERY_ERROR_PATTERNS = (
+    re.compile(rf"""column\s+{_RETRYABLE_IDENTIFIER}\s+not\s+found""", re.IGNORECASE),
+    re.compile(rf"""table\s+{_RETRYABLE_IDENTIFIER}\s+not\s+found""", re.IGNORECASE),
+)
 
 
 class DataFusionToolset(AbstractToolset[Any]):
@@ -204,4 +214,13 @@ class DataFusionToolset(AbstractToolset[Any]):
             log.warning("query failed SQL safety validation: %s", ex)
             raise
         except QueryExecutionException as ex:
+            if self._is_retryable_query_error(ex):
+                raise ModelRetry(
+                    f"error: {ex!s}, Use get_schema and list_tables tools for more details."
+                ) from ex
             return json.dumps({"error": str(ex), "query": sql})
+
+    @staticmethod
+    def _is_retryable_query_error(error: QueryExecutionException) -> bool:
+        message = str(error)
+        return any(pattern.search(message) for pattern in _RETRYABLE_QUERY_ERROR_PATTERNS)
