@@ -589,3 +589,74 @@ class TestGKEStartJobTrigger:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         assert hook_actual == hook_expected
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{GKE_TRIGGERS_PATH}.ProvidersManager")
+    @mock.patch(f"{TRIGGER_GKE_JOB_PATH}.pod_manager", new_callable=mock.PropertyMock)
+    @mock.patch(f"{TRIGGER_GKE_JOB_PATH}.hook")
+    async def test_run_do_xcom_push_uses_succeeded_retry_pod_not_original_failed_pod(
+        self, mock_hook, mock_pod_manager_prop, mock_providers_manager
+    ):
+        """When a job has a failed pod and a succeeded retry pod, use the succeeded pod for XCom."""
+        mock_providers_manager.return_value.providers = {
+            "apache-airflow-providers-cncf-kubernetes": mock.MagicMock(
+                data={"package-name": "apache-airflow-providers-cncf-kubernetes"},
+                version="8.4.1",
+            )
+        }
+
+        failed_pod = mock.MagicMock()
+        failed_pod.metadata.name = "original-failed-pod"
+        failed_pod.status.phase = "Failed"
+
+        succeeded_pod = mock.MagicMock()
+        succeeded_pod.metadata.name = "retry-succeeded-pod"
+        succeeded_pod.status.phase = "Succeeded"
+
+        mock_hook.list_pods = mock.AsyncMock(return_value=[failed_pod, succeeded_pod])
+        mock_hook.wait_until_container_complete = mock.AsyncMock()
+        mock_hook.wait_until_container_started = mock.AsyncMock()
+        mock_hook.wait_until_job_complete = mock.AsyncMock()
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = NAMESPACE
+        mock_job.to_dict.return_value = {"job": "dict"}
+        mock_hook.wait_until_job_complete.return_value = mock_job
+        mock_hook.is_job_failed = mock.MagicMock(return_value=False)
+
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager.extract_xcom.return_value = {"xcom": "result"}
+        mock_pod_manager_prop.return_value = mock_pod_manager
+
+        def run_in_executor(_executor, func, *args):
+            result = func(*args)
+            loop = asyncio.get_running_loop()
+            f = loop.create_future()
+            f.set_result(result)
+            return f
+
+        with mock.patch.object(asyncio.get_running_loop(), "run_in_executor", side_effect=run_in_executor):
+            trigger = GKEJobTrigger(
+                cluster_url=CLUSTER_URL,
+                ssl_ca_cert=SSL_CA_CERT,
+                job_name=JOB_NAME,
+                job_namespace=NAMESPACE,
+                pod_names=[POD_NAME],
+                pod_namespace=NAMESPACE,
+                base_container_name=BASE_CONTAINER_NAME,
+                gcp_conn_id=GCP_CONN_ID,
+                poll_interval=POLL_INTERVAL,
+                impersonation_chain=IMPERSONATION_CHAIN,
+                get_logs=GET_LOGS,
+                do_xcom_push=True,
+            )
+            event = await trigger.run().asend(None)
+
+        mock_hook.list_pods.assert_called_once_with(
+            namespace=NAMESPACE,
+            label_selector=f"job-name={JOB_NAME}",
+        )
+        assert mock_pod_manager.extract_xcom.call_count == 1
+        assert mock_pod_manager.extract_xcom.call_args[0][0] is succeeded_pod
+        assert mock_pod_manager.extract_xcom.call_args[0][0].metadata.name == "retry-succeeded-pod"
+        assert event.payload["xcom_result"] == [{"xcom": "result"}]
