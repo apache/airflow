@@ -19,16 +19,14 @@ from __future__ import annotations
 import rich
 
 from airflowctl import __version__ as airflowctl_version
-from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
+from airflowctl.api.client import ClientKind, get_client
 
 
-@provide_api_client(kind=ClientKind.CLI)
-def version_info(arg, api_client=NEW_API_CLIENT):
+def version_info(arg):
     """Get version information."""
     version_dict = {"airflowctl_version": airflowctl_version}
     if arg.remote:
-        version_response = api_client.version.get()
-        version_dict.update(version_response.model_dump())
-        rich.print(version_dict)
-    else:
-        rich.print(version_dict)
+        with get_client(kind=ClientKind.CLI, api_token=getattr(arg, "api_token", None)) as api_client:
+            version_response = api_client.version.get()
+            version_dict.update(version_response.model_dump())
+    rich.print(version_dict)

@@ -25,20 +25,32 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import tenacity
+from asgiref.sync import sync_to_async
 
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
     OnFinishAction,
+    OnKillAction,
     PodLaunchTimeoutException,
     PodPhase,
 )
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod
     from pendulum import DateTime
+    from sqlalchemy.orm.session import Session
+
+if not AIRFLOW_V_3_0_PLUS:
+    from sqlalchemy import select
+
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.session import provide_session
 
 
 class ContainerState(str, Enum):
@@ -75,6 +87,10 @@ class KubernetesPodTrigger(BaseTrigger):
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
+    :param on_kill_action: What to do when the trigger is cancelled (e.g. when a deferred task is
+        manually marked as success/failed). If "delete_pod" (default), the pod will be deleted.
+        If "keep_pod", the pod will not be deleted.
+    :param termination_grace_period: Optional grace period in seconds for pod termination during cleanup.
     :param logging_interval: number of seconds to wait before kicking it back to
         the operator to print latest logs. If ``None`` will wait until container done.
     :param last_log_time: where to resume logs from
@@ -98,6 +114,8 @@ class KubernetesPodTrigger(BaseTrigger):
         startup_check_interval: float = 5,
         schedule_timeout: int = 120,
         on_finish_action: str = "delete_pod",
+        on_kill_action: str = "delete_pod",
+        termination_grace_period: int | None = None,
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
         trigger_kwargs: dict | None = None,
@@ -120,7 +138,10 @@ class KubernetesPodTrigger(BaseTrigger):
         self.last_log_time = last_log_time
         self.logging_interval = logging_interval
         self.on_finish_action = OnFinishAction(on_finish_action)
+        self.on_kill_action = OnKillAction(on_kill_action)
+        self.termination_grace_period = termination_grace_period
         self.trigger_kwargs = trigger_kwargs or {}
+        self._fired_event = False
         self._since_time = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -143,6 +164,8 @@ class KubernetesPodTrigger(BaseTrigger):
                 "schedule_timeout": self.schedule_timeout,
                 "trigger_start_time": self.trigger_start_time,
                 "on_finish_action": self.on_finish_action.value,
+                "on_kill_action": self.on_kill_action.value,
+                "termination_grace_period": self.termination_grace_period,
                 "last_log_time": self.last_log_time,
                 "logging_interval": self.logging_interval,
                 "trigger_kwargs": self.trigger_kwargs,
@@ -181,10 +204,12 @@ class KubernetesPodTrigger(BaseTrigger):
                 )
             else:
                 event = await self._wait_for_container_completion()
+            self._fired_event = True
             yield event
             return
         except PodLaunchTimeoutException as e:
             message = self._format_exception_description(e)
+            self._fired_event = True
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
@@ -201,6 +226,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "Please ensure the triggerer's service account is included in the 'pod-launcher-role' as defined in the latest Airflow Helm chart. "
                 f"Original error: {e}"
             )
+            self._fired_event = True
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
@@ -217,6 +243,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 self.pod_name,
                 self.pod_namespace,
             )
+            self._fired_event = True
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
@@ -333,6 +360,100 @@ class KubernetesPodTrigger(BaseTrigger):
     @cached_property
     def pod_manager(self) -> AsyncPodManager:
         return AsyncPodManager(async_hook=self.hook)
+
+    if not AIRFLOW_V_3_0_PLUS:
+
+        @provide_session
+        def get_task_instance(self, session: Session) -> TaskInstance:
+            """Get the task instance for this trigger from the database (Airflow 2.x only)."""
+            task_instance = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == self.task_instance.dag_id,
+                    TaskInstance.task_id == self.task_instance.task_id,
+                    TaskInstance.run_id == self.task_instance.run_id,
+                    TaskInstance.map_index == self.task_instance.map_index,
+                )
+            )
+            if task_instance is None:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+            return task_instance
+
+    async def get_task_state(self):
+        """Get the current state of the task instance."""
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+            task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
+                dag_id=self.task_instance.dag_id,
+                task_ids=[self.task_instance.task_id],
+                run_ids=[self.task_instance.run_id],
+                map_index=self.task_instance.map_index,
+            )
+            try:
+                return task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+            except KeyError:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+        else:
+            task_instance = await sync_to_async(self.get_task_instance)()  # type: ignore[call-arg]
+            return task_instance.state
+
+    async def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the external job which is being executed by this trigger.
+
+        Cancel is NOT safe when the task is still in DEFERRED state, because it means the
+        triggerer is redistributing triggers and the trigger will be recreated on another triggerer.
+        Cancel IS safe when the task state has changed (e.g. user marked it as success/failed).
+        """
+        task_state = await self.get_task_state()
+        return task_state != TaskInstanceState.DEFERRED
+
+    async def cleanup(self) -> None:
+        """Clean up the pod when the trigger is cancelled."""
+        if self._fired_event:
+            self.log.debug("Skipping cleanup since an event has already been fired.")
+            return
+
+        if self.on_kill_action == OnKillAction.KEEP_POD:
+            self.log.debug("Skipping cleanup since on_kill_action is set to %r.", self.on_kill_action.value)
+            return
+
+        try:
+            safe = await self.safe_to_cancel()
+        except Exception:
+            self.log.warning(
+                "Could not determine task state during cleanup; skipping pod deletion to be safe.",
+                exc_info=True,
+            )
+            return
+
+        if not safe:
+            self.log.debug(
+                "Skipping cleanup since the task is still in deferred state (likely a triggerer restart)."
+            )
+            return
+
+        self.log.info("Deleting pod %s in namespace %s.", self.pod_name, self.pod_namespace)
+        try:
+            await self.hook.delete_pod(
+                name=self.pod_name,
+                namespace=self.pod_namespace,
+                grace_period_seconds=self.termination_grace_period,
+            )
+        except Exception:
+            self.log.exception("Unexpected error while deleting pod %s", self.pod_name)
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
         if pod.status is None or pod.status.container_statuses is None:
