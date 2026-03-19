@@ -672,6 +672,8 @@ class SerializedDagModel(Base):
     def latest_item_select_object(cls, dag_id):
         from airflow.settings import engine
 
+        log.warning("Dag id from latest_item_select_object:::::::::::::%s", dag_id)
+
         if engine.dialect.name == "mysql":
             # Prevent "Out of sort memory" caused by large values in cls.data column for MySQL.
             # Details in https://github.com/apache/airflow/pull/55589
@@ -679,6 +681,10 @@ class SerializedDagModel(Base):
                 select(cls.id).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
             )
             return select(cls).where(cls.id == latest_item_id)
+
+        res = select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc())
+        log.warning("SQLAlchemy Query:::::::::::::::::::::%s", res)
+
         return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
 
     @classmethod
@@ -784,6 +790,8 @@ class SerializedDagModel(Base):
     @provide_session
     def get_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDAG | None:
         row = cls.get(dag_id, session=session)
+        log.warning("Dag id:::::::::::::%s", dag_id)
+        log.warning("Row Value:::::::::::::%s", row)
         if row:
             return row.dag
         return None
@@ -797,6 +805,9 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to fetch
         :param session: ORM Session
         """
+        res = session.scalar(cls.latest_item_select_object(dag_id))
+        log.warning("Result from SQLAlchemy Query:::::::::::::::::::::%s", res)
+
         return session.scalar(cls.latest_item_select_object(dag_id))
 
     @classmethod
