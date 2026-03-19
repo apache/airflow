@@ -538,9 +538,6 @@ class DagRun(Base, LoggingMixin):
                 if state in State.finished_dr_states:
                     self.end_date = timezone.utcnow()
             self._state = state
-        else:
-            if state == DagRunState.QUEUED:
-                self.queued_at = timezone.utcnow()
 
     @declared_attr
     def state(self):
