@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Iterable, Sequence
+from datetime import datetime, timezone
 from typing import Any
 
 from google.api_core.exceptions import GoogleAPIError
@@ -42,6 +43,12 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
     :param project_id: GCP project id.
     :param poll_interval: Interval in seconds between polls.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param wait_for_operation_timeout: Maximum seconds to wait for a transfer operation to be created
+        for each job. This timeout governs only the operation *creation* phase, not the duration of the
+        transfer itself. Elapsed time is measured from each job's ``creation_time`` returned by the API,
+        so the timeout is stable across trigger restarts. If no operation appears within this window
+        (e.g. due to connectivity issues or unexpected API delays), the trigger fails with a clear error
+        rather than waiting indefinitely. Defaults to 5 minutes.
     """
 
     def __init__(
@@ -50,12 +57,14 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
         project_id: str = PROVIDE_PROJECT_ID,
         poll_interval: int = 10,
         gcp_conn_id: str = "google_cloud_default",
+        wait_for_operation_timeout: float = 60 * 5,
     ) -> None:
         super().__init__()
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.job_names = job_names
         self.poll_interval = poll_interval
+        self.wait_for_operation_timeout = wait_for_operation_timeout
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize StorageTransferJobsTrigger arguments and classpath."""
@@ -66,6 +75,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                 "job_names": self.job_names,
                 "poll_interval": self.poll_interval,
                 "gcp_conn_id": self.gcp_conn_id,
+                "wait_for_operation_timeout": self.wait_for_operation_timeout,
             },
         )
 
@@ -76,6 +86,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
         while True:
             self.log.info("Attempting to request jobs statuses")
             jobs_completed_successfully = 0
+            all_operations_found = True
             try:
                 jobs_pager = await async_hook.get_jobs(job_names=self.job_names)
                 jobs, awaitable_operations = [], []
@@ -88,13 +99,9 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
 
                 for job, operation in zip(jobs, operations):
                     if operation is None:
-                        yield TriggerEvent(
-                            {
-                                "status": "error",
-                                "message": f"Transfer job {job.name} has no latest operation.",
-                            }
-                        )
-                        return
+                        self.log.info("Transfer job %s has no latest operation yet, waiting.", job.name)
+                        all_operations_found = False
+                        continue
                     elif operation.status == TransferOperation.Status.SUCCESS:
                         jobs_completed_successfully += 1
                     elif operation.status in (
@@ -112,6 +119,28 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
             except (GoogleAPIError, AirflowException) as ex:
                 yield TriggerEvent({"status": "error", "message": str(ex)})
                 return
+
+            if not all_operations_found:
+                now = datetime.now(tz=timezone.utc)
+                oldest_job_age = max(
+                    (now - job.creation_time).total_seconds()  # type: ignore[operator]  # stubs say Timestamp, proto-plus returns datetime at runtime
+                    for job in jobs
+                    if job.creation_time
+                )
+                if oldest_job_age > self.wait_for_operation_timeout:
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "message": f"Timeout: The oldest transfer job was created {oldest_job_age:.2f}s ago "
+                            f"but still has no operation, which exceeds the configured timeout "
+                            f"of {self.wait_for_operation_timeout}s.",
+                        }
+                    )
+                    return
+
+                self.log.info("Not all transfer jobs have associated operations yet. Waiting.")
+                await asyncio.sleep(self.poll_interval)
+                continue
 
             jobs_total = len(self.job_names)
             self.log.info("Transfer jobs completed: %s of %s", jobs_completed_successfully, jobs_total)
