@@ -390,6 +390,40 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     # requires a full table scan of the deadline table.
     op.create_index("tmp_deadline_dagrun_id_idx", "deadline", ["dagrun_id"])
 
+    # Build dialect-specific filter to skip rows without deadline data at the SQL level.
+    # This avoids transferring and processing large data blobs for the majority of DAGs
+    # that have no deadline configuration. Compressed rows are always included since the
+    # DB cannot inspect their content.
+    if dialect == "postgresql":
+        deadline_filter = (
+            "AND ("
+            "  data_compressed IS NOT NULL"
+            "  OR (data IS NOT NULL"
+            "      AND (data::jsonb -> 'dag' -> 'deadline') IS NOT NULL"
+            "      AND (data::jsonb -> 'dag' -> 'deadline') != 'null'::jsonb"
+            "      AND (data::jsonb -> 'dag' -> 'deadline') != '[]'::jsonb)"
+            ")"
+        )
+    elif dialect == "mysql":
+        deadline_filter = (
+            "AND ("
+            "  data_compressed IS NOT NULL"
+            "  OR (data IS NOT NULL"
+            "      AND JSON_EXTRACT(data, '$.dag.deadline') IS NOT NULL"
+            "      AND IFNULL(JSON_LENGTH(JSON_EXTRACT(data, '$.dag.deadline')), 0) > 0)"
+            ")"
+        )
+    else:
+        deadline_filter = (
+            "AND ("
+            "  data_compressed IS NOT NULL"
+            "  OR (data IS NOT NULL"
+            "      AND json_extract(data, '$.dag.deadline') IS NOT NULL"
+            "      AND json_extract(data, '$.dag.deadline') != 'null'"
+            "      AND json_extract(data, '$.dag.deadline') != '[]')"
+            ")"
+        )
+
     total_dags = conn.execute(
         sa.text("SELECT COUNT(*) FROM serialized_dag WHERE data IS NOT NULL OR data_compressed IS NOT NULL")
     ).scalar()
@@ -404,13 +438,14 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
             if dialect == "mysql":
                 # Avoid selecting large columns during ORDER BY to prevent sort buffer overflow
                 result = conn.execute(
-                    sa.text("""
+                    sa.text(f"""
                         SELECT sd.id, sd.dag_id, sd.data, sd.data_compressed, sd.created_at
                         FROM serialized_dag sd
                         INNER JOIN (
                             SELECT id
                             FROM serialized_dag
                             WHERE id > :last_id
+                            {deadline_filter}
                             ORDER BY id
                             LIMIT :batch_size
                         ) AS subq ON sd.id = subq.id
@@ -421,11 +456,11 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                 batch_results = sorted(list(result), key=lambda r: r.id)
             else:
                 result = conn.execute(
-                    sa.text("""
+                    sa.text(f"""
                         SELECT id, dag_id, data, data_compressed, created_at
                         FROM serialized_dag
-                        WHERE (data IS NOT NULL OR data_compressed IS NOT NULL)
-                          AND id > :last_id
+                        WHERE id > :last_id
+                          {deadline_filter}
                         ORDER BY id
                         LIMIT :batch_size
                     """),
