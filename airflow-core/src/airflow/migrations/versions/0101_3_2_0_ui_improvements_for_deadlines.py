@@ -487,6 +487,21 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                         dags_with_deadlines.add(dag_id)
                         deadline_alerts = dag_deadline if isinstance(dag_deadline, list) else [dag_deadline]
 
+                        # Fetch dagrun IDs once per DAG to avoid repeating the
+                        # expensive dag_run/serialized_dag JOIN for every alert.
+                        dagrun_ids = [
+                            row[0]
+                            for row in conn.execute(
+                                sa.text("""
+                                    SELECT dr.id
+                                    FROM dag_run dr
+                                    JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
+                                    WHERE sd.id = :serialized_dag_id
+                                """),
+                                {"serialized_dag_id": serialized_dag_id},
+                            ).fetchall()
+                        ]
+
                         migrated_alert_ids = []
 
                         for serialized_alert in deadline_alerts:
@@ -551,22 +566,19 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                                     migrated_alert_ids.append(deadline_alert_id)
                                     migrated_alerts_count += 1
 
-                                    conn.execute(
-                                        sa.text("""
-                                            UPDATE deadline
-                                            SET deadline_alert_id = :alert_id
-                                            WHERE dagrun_id IN (
-                                                SELECT dr.id
-                                                FROM dag_run dr
-                                                     JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
-                                                WHERE sd.id = :serialized_dag_id)
-                                              AND deadline_alert_id IS NULL
-                                        """),
-                                        {
-                                            "alert_id": deadline_alert_id,
-                                            "serialized_dag_id": serialized_dag_id,
-                                        },
-                                    )
+                                    if dagrun_ids:
+                                        conn.execute(
+                                            sa.text("""
+                                                UPDATE deadline
+                                                SET deadline_alert_id = :alert_id
+                                                WHERE dagrun_id IN :dagrun_ids
+                                                  AND deadline_alert_id IS NULL
+                                            """).bindparams(sa.bindparam("dagrun_ids", expanding=True)),
+                                            {
+                                                "alert_id": deadline_alert_id,
+                                                "dagrun_ids": dagrun_ids,
+                                            },
+                                        )
                                 except Exception as e:
                                     dags_with_errors[dag_id].append(
                                         f"Failed to process {serialized_alert}: {e}"
