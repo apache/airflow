@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-14T15:07:32.368752
+# This constraints file was automatically generated on 2026-03-19T09:41:42.287168
 # via `uv sync --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -32,11 +32,11 @@ babel==2.18.0
 cadwyn==5.4.6
 certifi==2026.2.25
 cffi==2.0.0
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
 click==8.1.8
 colorlog==6.10.1
 cron_descriptor==2.0.6
-croniter==6.0.0
+croniter==6.2.2
 cryptography==44.0.3
 dill==0.4.1
 dnspython==2.8.0
@@ -80,7 +80,7 @@ packaging==26.0
 pathspec==1.0.4
 pendulum==3.2.0
 pluggy==1.6.0
-protobuf==6.33.5
+protobuf==6.33.6
 psutil==7.2.2
 pycparser==3.0
 pydantic==2.12.5
@@ -91,7 +91,6 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-multipart==0.0.22
 python-slugify==8.0.4
-pytz==2026.1.post1
 referencing==0.37.0
 requests==2.32.5
 rich-argparse==1.7.2
@@ -118,8 +117,8 @@ uc-micro-py==2.0.0
 universal_pathlib==0.2.6
 urllib3==2.6.3
 uuid6==2025.0.1
-uv==0.10.10
-uvicorn==0.41.0
+uv==0.10.11
+uvicorn==0.42.0
 uvloop==0.22.1
 watchfiles==1.1.1
 websockets==16.0

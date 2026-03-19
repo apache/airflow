@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-14T15:07:45.361285
+# This constraints file was automatically generated on 2026-03-19T09:41:26.052678
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -79,7 +79,7 @@ apispec==6.10.0
 apprise==1.9.8
 argcomplete==3.6.3
 arro3-core==0.8.0
-asana==5.2.2
+asana==5.2.3
 asgiref==3.11.1
 asn1crypto==1.5.1
 astroid==4.1.1
@@ -90,11 +90,11 @@ asyncssh==2.22.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.4.0
-aws-sam-translator==1.107.0
+aws-sam-translator==1.108.0
 aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.38.3
+azure-core==1.39.0
 azure-cosmos==4.15.0
 azure-datalake-store==0.0.53
 azure-identity==1.25.3
@@ -141,7 +141,7 @@ cffi==2.0.0
 cfgv==3.5.0
 cfn-lint==1.41.0
 chardet==6.0.0.post1
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
 checksumdir==1.3.0
 ciso8601==2.3.3
 click-didyoumean==0.3.1
@@ -157,10 +157,10 @@ colorlog==6.10.1
 comm==0.2.3
 confluent-kafka==2.13.2
 connexion==2.14.2
-coverage==7.13.4
+coverage==7.13.5
 crcmod==1.7
 cron_descriptor==2.0.6
-croniter==6.0.0
+croniter==6.2.2
 cryptography==42.0.8
 curlify==3.0.0
 darabonba-core==1.0.5
@@ -218,7 +218,7 @@ gitdb==4.0.12
 google-ads==29.2.0
 google-analytics-admin==0.27.0
 google-api-core==2.30.0
-google-api-python-client==2.192.0
+google-api-python-client==2.193.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.3.0
 google-auth==2.49.1
@@ -268,7 +268,7 @@ google-cloud-videointelligence==2.18.0
 google-cloud-vision==3.12.1
 google-cloud-workflows==1.20.0
 google-crc32c==1.8.0
-google-genai==1.67.0
+google-genai==1.68.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.73.0
 graphql-core==3.2.8
@@ -300,10 +300,10 @@ hvac==2.4.0
 hyperframe==6.1.0
 hyperlink==21.0.0
 ibm-cloud-sdk-core==3.24.4
-ibmcloudant==0.11.4
+ibmcloudant==0.11.5
 icdiff==2.0.10
 id==1.6.1
-identify==2.6.17
+identify==2.6.18
 idna==3.11
 ijson==3.4.0.post0
 imagesize==2.0.0
@@ -332,7 +332,7 @@ joserfc==1.5.0
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.8.0
-jsonpath-python==1.1.4
+jsonpath-python==1.1.5
 jsonpickle==3.4.2
 jsonpointer==3.0.0
 jsonschema-path==0.4.5
@@ -356,7 +356,7 @@ libcst==1.8.6
 librt==0.8.1
 limits==5.8.0
 linkify-it-py==2.1.0
-litellm==1.82.2
+litellm==1.82.4
 lockfile==0.12.2
 looker_sdk==26.4.0
 lxml==6.0.2
@@ -407,7 +407,7 @@ nodeenv==1.10.0
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==2.28.0
+openai==2.29.0
 openapi-schema-validator==0.8.1
 openapi-spec-validator==0.8.4
 opencensus-context==0.1.3
@@ -453,17 +453,17 @@ pexpect==4.9.0
 pgvector==0.4.2
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
-pinotdb==9.1.0
+pinotdb==9.1.1
 pipdeptree==2.31.0
 platformdirs==4.9.4
 pluggy==1.6.0
 plyvel==1.5.1
-polars-runtime-32==1.39.0
-polars==1.39.0
+polars-runtime-32==1.39.2
+polars==1.39.2
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.5.1
-prek==0.3.5
+prek==0.3.6
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.24.1
@@ -484,7 +484,7 @@ py4j==0.10.9.9
 pyOpenSSL==25.1.0
 pyarrow-hotfix==0.7
 pyarrow==18.1.0
-pyasn1==0.6.2
+pyasn1==0.6.3
 pyasn1_modules==0.4.2
 pybreaker==1.4.1
 pycountry==26.2.16
@@ -506,7 +506,7 @@ pyodbc==5.3.0
 pyodps==0.12.5.1
 pyparsing==3.3.2
 pyproject_hooks==1.2.0
-pypsrp==0.9.0
+pypsrp==0.9.1
 pyroaring==1.0.3
 pyspark==4.1.1
 pyspnego==0.12.1
@@ -524,7 +524,7 @@ pytest==9.0.2
 python-arango==8.3.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.1.3
+python-discovery==1.2.0
 python-dotenv==1.2.2
 python-http-client==3.3.7
 python-jenkins==1.8.3
@@ -533,7 +533,7 @@ python-ldap==3.4.5
 python-multipart==0.0.22
 python-on-whales==0.81.0
 python-slugify==8.0.4
-python-telegram-bot==22.6
+python-telegram-bot==22.7
 python3-saml==1.16.0
 pytokens==0.4.1
 pytz==2026.1.post1
@@ -578,7 +578,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.3
 semver==3.0.4
 sendgrid==6.11.0
-sentry-sdk==2.54.0
+sentry-sdk==2.55.0
 setproctitle==1.3.7
 setuptools==81.0.0
 shellingham==1.5.4
@@ -633,7 +633,7 @@ tenacity==9.1.4
 teradatasql==20.0.0.53
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
-testcontainers==4.14.1
+testcontainers==4.14.2
 text-unidecode==1.3
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
@@ -658,11 +658,11 @@ types-Markdown==3.10.2.20260211
 types-PyMySQL==1.1.0.20251220
 types-PyYAML==6.0.12.20250915
 types-aiofiles==25.1.0.20251011
-types-cachetools==6.2.0.20251022
+types-cachetools==6.2.0.20260317
 types-certifi==2021.10.8.3
-types-cffi==1.17.0.20260307
-types-croniter==6.0.0.20250809
-types-docutils==0.22.3.20260223
+types-cffi==2.0.0.20260316
+types-croniter==6.2.2.20260316
+types-docutils==0.22.3.20260316
 types-paramiko==3.5.0.20250801
 types-protobuf==6.32.1.20260221
 types-pyOpenSSL==24.1.0.20240722
@@ -685,8 +685,8 @@ uritemplate==4.2.0
 urllib3==2.6.3
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.10.10
-uvicorn==0.41.0
+uv==0.10.11
+uvicorn==0.42.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
@@ -708,8 +708,8 @@ yamllint==1.38.0
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.23.0
-ydb-dbapi==0.1.19
-ydb==3.26.6
+ydb-dbapi==0.1.20
+ydb==3.26.7
 zeep==4.3.2
 zenpy==2.0.57
 zipp==3.23.0
