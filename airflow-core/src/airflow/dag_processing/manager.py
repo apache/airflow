@@ -721,6 +721,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
 
         def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
+            """Yield absolute paths for DAG-like files inside a ZIP archive."""
             try:
                 with zipfile.ZipFile(abs_path) as z:
                     for info in z.infolist():
