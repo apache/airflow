@@ -194,6 +194,14 @@ Review & Merge
 Respond to reviewer comments, push updates (same commands as above).  Once
 CI is green and reviews are ✅, a committer will merge.  🎉
 
+Example Dag Review Checklist
+----------------------------
+
+To help maintain consistency and quality across example DAGs,
+please refer to the example DAG review checklist:
+
+:doc:`example_dag_review_checklist`
+
 Next Steps
 ----------
 * Need a full development environment? See the `Development Environments Guide <https://github.com/apache/airflow/blob/main/contributing-docs/06_development_environments.rst>`_.
