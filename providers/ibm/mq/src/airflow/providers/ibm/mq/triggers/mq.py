@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from airflow.providers.ibm.mq.hooks.mq import IBMMQHook
@@ -31,6 +30,18 @@ else:
 
 
 class AwaitMessageTrigger(BaseEventTrigger):
+    """
+    Trigger that polls an IBM MQ queue and fires a TriggerEvent when a message arrives.
+
+    Delegates to :meth:`IBMMQHook.consume` which retries with exponential
+    back-off on transient failures so that an AssetWatcher is never silently
+    killed by a broken connection or swallowed exception.
+
+    :param mq_conn_id: Airflow connection id for the IBM MQ broker.
+    :param queue_name: Name of the IBM MQ queue to consume from.
+    :param poll_interval: Seconds between MQ get attempts inside the hook.
+    """
+
     def __init__(
         self,
         mq_conn_id: str,
@@ -53,12 +64,8 @@ class AwaitMessageTrigger(BaseEventTrigger):
         )
 
     async def run(self):
-        try:
-            event = await IBMMQHook(self.mq_conn_id).consume(
-                queue_name=self.queue_name,
-                poll_interval=self.poll_interval,
-            )
-            if event:
-                yield TriggerEvent(event)
-        except asyncio.CancelledError:
-            return
+        event = await IBMMQHook(self.mq_conn_id).consume(
+            queue_name=self.queue_name,
+            poll_interval=self.poll_interval,
+        )
+        yield TriggerEvent(event)

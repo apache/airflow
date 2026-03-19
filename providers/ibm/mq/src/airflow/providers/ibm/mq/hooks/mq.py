@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import threading
@@ -26,6 +27,11 @@ from typing import Any
 from asgiref.sync import sync_to_async
 
 from airflow.sdk.bases.hook import BaseHook
+
+# Backoff parameters for transient consume failures
+_BACKOFF_BASE: float = 1.0
+_BACKOFF_MAX: float = 60.0
+_BACKOFF_FACTOR: float = 2.0
 
 
 class IBMMQHook(BaseHook):
@@ -171,9 +177,14 @@ class IBMMQHook(BaseHook):
             )
             return message.decode("utf-8", errors="ignore")
 
-    async def consume(self, queue_name: str, poll_interval: float = 5) -> str | None:
+    async def consume(self, queue_name: str, poll_interval: float = 5) -> str:
         """
         Wait for a single message from the specified IBM MQ queue and return its decoded payload.
+
+        The method retries with exponential back-off whenever the underlying
+        ``_consume_sync`` returns ``None`` (connection broken, timeout) or raises
+        an unexpected exception, so that an AssetWatcher is never silently killed
+        by a transient failure.
 
         All blocking IBM MQ operations ('connect', 'open', 'get', 'close', 'disconnect') run in a
         separate thread via 'sync_to_async' to satisfy the IBM MQ C client's thread-affinity
@@ -189,14 +200,40 @@ class IBMMQHook(BaseHook):
         :param queue_name: Name of the IBM MQ queue to consume messages from.
         :param poll_interval: Interval in seconds used to wait for messages and to control
             how long the underlying MQ 'get' operation blocks before checking again.
-        :return: The decoded message payload if a message is received, otherwise 'None'.
+        :return: The decoded message payload.
         """
-        stop_event = threading.Event()
-        try:
-            return await sync_to_async(self._consume_sync)(queue_name, poll_interval, stop_event)
-        finally:
-            # Signal background thread to exit cleanly when coroutine is canceled
-            stop_event.set()
+        backoff = _BACKOFF_BASE
+        while True:
+            stop_event = threading.Event()
+            try:
+                result = await sync_to_async(self._consume_sync)(
+                    queue_name, poll_interval, stop_event
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.log.warning(
+                    "IBM MQ consume encountered an error for queue '%s'; retrying in %.1fs",
+                    queue_name,
+                    backoff,
+                    exc_info=True,
+                )
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * _BACKOFF_FACTOR, _BACKOFF_MAX)
+                continue
+            finally:
+                stop_event.set()
+
+            if result is not None:
+                return result
+
+            self.log.warning(
+                "IBM MQ consume returned no event for queue '%s'; retrying in %.1fs",
+                queue_name,
+                backoff,
+            )
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * _BACKOFF_FACTOR, _BACKOFF_MAX)
 
     def _consume_sync(
         self,
@@ -252,7 +289,7 @@ class IBMMQHook(BaseHook):
                                 continue
                             if e.reason == ibmmq.CMQC.MQRC_CONNECTION_BROKEN:
                                 self.log.warning(
-                                    "MQ connection broken on queue '%s', will exit consume; next trigger instance will reconnect",
+                                    "MQ connection broken on queue '%s'; will reconnect",
                                     queue_name,
                                 )
                                 return None
@@ -268,7 +305,7 @@ class IBMMQHook(BaseHook):
                         q.close()
         except Exception:
             self.log.exception(
-                "MQ consume failed on queue '%s', exiting; next trigger instance will retry",
+                "MQ consume failed on queue '%s'",
                 queue_name,
             )
             return None
