@@ -4144,6 +4144,50 @@ class TestTaskRunnerCallsCallbacks:
         )
         assert callback_data["duration"] >= 0, f"duration should be >= 0, got {callback_data['duration']}"
 
+    def test_task_callback_context_has_callback_meta(self, create_runtime_ti):
+        """Task-level callbacks should receive callback.source=TASK in the context."""
+        from airflow.sdk.definitions.context import CallbackSource
+
+        captured = {}
+
+        def success_callback(context):
+            captured["callback"] = context.get("callback")
+
+        def failure_callback(context):
+            captured["callback"] = context.get("callback")
+
+        # -- success path
+        class SucceedingOperator(BaseOperator):
+            def execute(self, context):
+                return "ok"
+
+        task = SucceedingOperator(task_id="good_task", on_success_callback=success_callback)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert captured["callback"].source is CallbackSource.TASK
+
+        # -- failure path
+        captured.clear()
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowException("boom")
+
+        task = FailingOperator(task_id="bad_task", on_failure_callback=failure_callback)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == TaskInstanceState.FAILED
+        assert captured["callback"].source is CallbackSource.TASK
+
     def test_task_runner_both_callbacks_have_timing_info(self, create_runtime_ti):
         """Test that both success and failure callbacks receive accurate timing information."""
         import time

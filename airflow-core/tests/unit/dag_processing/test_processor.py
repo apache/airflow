@@ -806,6 +806,9 @@ class TestExecuteDagCallbacks:
         # Check that we have template context variables from RuntimeTaskInstance
         assert "ts" in context_received
         assert "params" in context_received
+        from airflow.sdk.definitions.context import CallbackSource
+
+        assert context_received["callback"].source is CallbackSource.DAG
 
     def test_execute_dag_callbacks_without_context_from_server(self, spy_agency):
         """Test _execute_dag_callbacks falls back to simple context when context_from_server is None"""
@@ -851,6 +854,9 @@ class TestExecuteDagCallbacks:
         # Should not have template context variables
         assert "ts" not in context_received
         assert "params" not in context_received
+        from airflow.sdk.definitions.context import CallbackSource
+
+        assert context_received["callback"].source is CallbackSource.DAG
 
     def test_execute_dag_callbacks_success_callback(self, spy_agency):
         """Test _execute_dag_callbacks executes success callback with context_from_server"""
@@ -1272,6 +1278,9 @@ class TestExecuteTaskCallbacks:
         assert context_received is not None
         assert context_received["dag"] == dag
         assert "ti" in context_received
+        from airflow.sdk.definitions.context import CallbackSource
+
+        assert context_received["callback"].source is CallbackSource.TASK
 
     def test_execute_task_callbacks_retry_callback(self, spy_agency):
         """Test _execute_task_callbacks executes retry callbacks"""

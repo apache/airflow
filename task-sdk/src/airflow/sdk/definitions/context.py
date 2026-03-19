@@ -18,11 +18,36 @@
 from __future__ import annotations
 
 import copy
+import enum
 import os
 from collections.abc import MutableMapping
 from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict, cast
 
 from typing_extensions import NotRequired
+
+
+class CallbackSource(str, enum.Enum):
+    """Whether a callback was triggered at the DAG level or the task level."""
+
+    DAG = "dag"
+    TASK = "task"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class CallbackMeta(NamedTuple):
+    """
+    Metadata about the callback that is being executed.
+
+    Present in the callback context as ``context["callback"]``.
+
+    ``source`` tells whether the callback was defined on the DAG or on a task.
+    More fields may be added in the future without breaking existing callbacks.
+    """
+
+    source: CallbackSource
+
 
 if TYPE_CHECKING:
     import jinja2
@@ -42,6 +67,7 @@ if TYPE_CHECKING:
 class Context(TypedDict, total=False):
     """Jinja2 template context for task rendering."""
 
+    callback: NotRequired[CallbackMeta]
     conn: Any
     dag: DAG
     dag_run: DagRunProtocol
