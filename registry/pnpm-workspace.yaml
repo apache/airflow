@@ -16,6 +16,8 @@
 # under the License.
 
 ---
+packages:
+  - '.'
 overrides:
   liquidjs@<10.25.0: '>=10.25.0'
   markdown-it@>=13.0.0 <14.1.1: '>=14.1.1'

@@ -110,7 +110,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.2``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``blinker``                                 ``>=1.6.2``
-``flask``                                   ``>=2.2.1,<2.3``
+``flask``                                   ``>=2.2.1``
 ``flask-appbuilder``                        ``==5.2.0``
 ``flask-login``                             ``>=0.6.2``
 ``flask-session``                           ``>=0.8.0``
@@ -118,10 +118,11 @@ PIP package                                 Version required
 ``flask-sqlalchemy``                        ``>=3.0.5``
 ``flask-wtf``                               ``>=1.1.0``
 ``jmespath``                                ``>=0.7.0``
-``werkzeug``                                ``>=2.2,<4``
-``wtforms``                                 ``>=3.0,<4``
+``werkzeug``                                ``>=2.2``
+``wtforms``                                 ``>=3.0``
 ``cachetools``                              ``>=6.0``
-``flask_limiter``                           ``>3,!=3.13,<4``
+``marshmallow``                             ``>=3``
+``flask_limiter``                           ``>3,!=3.13``
 ==========================================  ==================
 
 Cross provider package dependencies
