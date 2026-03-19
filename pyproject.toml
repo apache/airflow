@@ -325,6 +325,9 @@ packages = []
 "redis" = [
     "apache-airflow-providers-redis>=4.0.0"
 ]
+"sail" = [
+    "apache-airflow-providers-sail>=1.0.0"
+]
 "salesforce" = [
     "apache-airflow-providers-salesforce>=5.9.0"
 ]
@@ -468,6 +471,7 @@ packages = []
     "apache-airflow-providers-presto>=5.7.0",
     "apache-airflow-providers-qdrant>=1.3.0",
     "apache-airflow-providers-redis>=4.0.0",
+    "apache-airflow-providers-sail>=1.0.0",
     "apache-airflow-providers-salesforce>=5.9.0",
     "apache-airflow-providers-samba>=4.9.0",
     "apache-airflow-providers-segment>=3.7.0",
@@ -1200,6 +1204,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/qdrant/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/redis/src",
     "$MYPY_CONFIG_FILE_DIR/providers/redis/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/sail/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/sail/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/salesforce/src",
     "$MYPY_CONFIG_FILE_DIR/providers/salesforce/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/samba/src",
@@ -1451,6 +1457,7 @@ apache-airflow-providers-postgres = { workspace = true }
 apache-airflow-providers-presto = { workspace = true }
 apache-airflow-providers-qdrant = { workspace = true }
 apache-airflow-providers-redis = { workspace = true }
+apache-airflow-providers-sail = { workspace = true }
 apache-airflow-providers-salesforce = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
@@ -1597,6 +1604,7 @@ members = [
     "providers/presto",
     "providers/qdrant",
     "providers/redis",
+    "providers/sail",
     "providers/salesforce",
     "providers/samba",
     "providers/segment",

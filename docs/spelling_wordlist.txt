@@ -924,6 +924,8 @@ KYLIN
 Kylin
 kylin
 Kyverno
+LakeSail
+lakesail
 Lakehouse
 LanguageServiceClient
 lastname
@@ -1262,6 +1264,9 @@ pypa
 PyPI
 pyproject
 pypsrp
+PySail
+PySailOperator
+pysail
 pyspark
 pytest
 pythonic
