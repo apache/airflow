@@ -30,6 +30,7 @@ Create Date: 2025-10-17 16:04:55.016272
 
 from __future__ import annotations
 
+import contextlib
 import json
 import zlib
 from collections import defaultdict
@@ -72,6 +73,17 @@ REFERENCE_KEY = "reference"
 DEADLINE_ALERT_REQUIRED_FIELDS = {REFERENCE_KEY, CALLBACK_KEY, INTERVAL_KEY}
 DEFAULT_BATCH_SIZE = 1000
 ENCODING_TYPE = "deadline_alert"
+
+
+@contextlib.contextmanager
+def temporary_index(index_name, table_name, columns):
+    """Create an index before the block and drop it after, even on error."""
+    op.create_index(index_name, table_name, columns)
+    try:
+        yield
+    finally:
+        op.drop_index(index_name, table_name=table_name)
+
 
 deadline_alert_table = sa.table(
     "deadline_alert",
@@ -385,11 +397,6 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     conn = op.get_bind()
     dialect = conn.dialect.name
 
-    # Create a temporary index on deadline.dagrun_id to speed up the per-alert UPDATE
-    # that joins dag_run to find matching deadline rows. Without this, every UPDATE
-    # requires a full table scan of the deadline table.
-    op.create_index("tmp_deadline_dagrun_id_idx", "deadline", ["dagrun_id"])
-
     # Build dialect-specific filter to skip rows without deadline data at the SQL level.
     # This avoids transferring and processing large data blobs for the majority of DAGs
     # that have no deadline configuration. Compressed rows are always included since the
@@ -431,7 +438,9 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
 
     log.info("Starting migration", batch_size=BATCH_SIZE, total_dags=total_dags, total_batches=total_batches)
 
-    try:
+    # Temporary index on deadline.dagrun_id speeds up the per-alert UPDATE that finds
+    # matching deadline rows. Without it, every UPDATE full-scans the deadline table.
+    with temporary_index("tmp_deadline_dagrun_id_idx", "deadline", ["dagrun_id"]):
         while True:
             batch_num += 1
 
@@ -665,8 +674,6 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                     savepoint.rollback()
 
             log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
-    finally:
-        op.drop_index("tmp_deadline_dagrun_id_idx", table_name="deadline")
 
     log.info(
         "Migration complete",
