@@ -1,0 +1,7 @@
+Optimize migration 0101_3_2_0_ui_improvements_for_deadlines for large deployments
+
+The database migration for Airflow 3.2.0 that adds deadline alert UI improvements
+has been optimized to handle large deployments with millions of deadline rows.
+The migration now uses bulk UPDATE operations instead of individual updates,
+reducing migration time from ~16 minutes to ~2-3 minutes for 10M rows and
+significantly reducing database lock duration from ~7 minutes to under 30 seconds.

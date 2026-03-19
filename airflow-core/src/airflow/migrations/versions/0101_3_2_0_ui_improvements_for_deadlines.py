@@ -363,6 +363,111 @@ def _sort_serialized_dag_dict(serialized_dag: Any):
     return serialized_dag
 
 
+
+def bulk_update_deadline_alert_ids(
+    conn: Connection,
+    mappings: list[tuple[str, str]],
+    dialect: str,
+) -> None:
+    """
+    Efficiently update deadline.deadline_alert_id using bulk operations.
+    
+    :param conn: Database connection
+    :param mappings: List of (deadline_alert_id, serialized_dag_id) tuples
+    :param dialect: Database dialect (postgresql, mysql, sqlite)
+    """
+    if not mappings:
+        return
+
+    log.info("Performing bulk UPDATE of deadline_alert_id", mapping_count=len(mappings))
+    
+    if dialect == "postgresql":
+        # PostgreSQL: Use temporary table with UPDATE FROM
+        conn.execute(sa.text("""
+            CREATE TEMPORARY TABLE temp_deadline_mappings (
+                deadline_alert_id UUID,
+                serialized_dag_id UUID
+            ) ON COMMIT DROP
+        """))
+        
+        # Bulk insert mappings
+        for alert_id, dag_id in mappings:
+            conn.execute(
+                sa.text("""
+                    INSERT INTO temp_deadline_mappings (deadline_alert_id, serialized_dag_id)
+                    VALUES (:alert_id, :dag_id)
+                """),
+                {"alert_id": alert_id, "dag_id": dag_id}
+            )
+        
+        # Single UPDATE using JOIN
+        conn.execute(sa.text("""
+            UPDATE deadline d
+            SET deadline_alert_id = tdm.deadline_alert_id
+            FROM temp_deadline_mappings tdm,
+                 dag_run dr,
+                 serialized_dag sd
+            WHERE d.dagrun_id = dr.id
+              AND dr.dag_id = sd.dag_id
+              AND sd.id = tdm.serialized_dag_id
+              AND d.deadline_alert_id IS NULL
+        """))
+        
+    elif dialect == "mysql":
+        # MySQL: Use multi-table UPDATE with batching
+        # Process in batches to avoid query size limits
+        CHUNK_SIZE = 100
+        for i in range(0, len(mappings), CHUNK_SIZE):
+            chunk = mappings[i:i + CHUNK_SIZE]
+            
+            # Build CASE statement for batch update
+            case_parts = []
+            params = {}
+            dag_ids = []
+            
+            for idx, (alert_id, dag_id) in enumerate(chunk):
+                case_parts.append(f"WHEN sd.id = :dag_id_{idx} THEN :alert_id_{idx}")
+                params[f"dag_id_{idx}"] = dag_id
+                params[f"alert_id_{idx}"] = alert_id
+                dag_ids.append(f":dag_id_{idx}")
+            
+            case_stmt = " ".join(case_parts)
+            in_clause = ", ".join(dag_ids)
+            
+            conn.execute(
+                sa.text(f"""
+                    UPDATE deadline d
+                    JOIN dag_run dr ON d.dagrun_id = dr.id
+                    JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
+                    SET d.deadline_alert_id = CASE {case_stmt} END
+                    WHERE sd.id IN ({in_clause})
+                      AND d.deadline_alert_id IS NULL
+                """),
+                params
+            )
+            
+    else:  # SQLite or other
+        # For SQLite, use batched individual updates (still better than original)
+        CHUNK_SIZE = 50
+        for i in range(0, len(mappings), CHUNK_SIZE):
+            chunk = mappings[i:i + CHUNK_SIZE]
+            for alert_id, dag_id in chunk:
+                conn.execute(
+                    sa.text("""
+                        UPDATE deadline
+                        SET deadline_alert_id = :alert_id
+                        WHERE dagrun_id IN (
+                            SELECT dr.id
+                            FROM dag_run dr
+                            JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
+                            WHERE sd.id = :serialized_dag_id
+                        ) AND deadline_alert_id IS NULL
+                    """),
+                    {"alert_id": alert_id, "serialized_dag_id": dag_id},
+                )
+
+
+
 def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     """Extract DeadlineAlert data from serialized Dag data and populate deadline_alert table."""
     if context.is_offline_mode():
@@ -380,6 +485,9 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     migrated_alerts_count: int = 0
     dags_with_errors: ErrorDict = defaultdict(list)
     batch_num = 0
+
+    alert_to_dag_mappings: list[tuple[str, str]] = []
+
     last_dag_id = ""
 
     conn = op.get_bind()
@@ -506,19 +614,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                                 migrated_alert_ids.append(deadline_alert_id)
                                 migrated_alerts_count += 1
 
-                                conn.execute(
-                                    sa.text("""
-                                        UPDATE deadline
-                                        SET deadline_alert_id = :alert_id
-                                        WHERE dagrun_id IN (
-                                            SELECT dr.id
-                                            FROM dag_run dr
-                                                 JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
-                                            WHERE sd.id = :serialized_dag_id)
-                                          AND deadline_alert_id IS NULL
-                                    """),
-                                    {"alert_id": deadline_alert_id, "serialized_dag_id": serialized_dag_id},
-                                )
+                                alert_to_dag_mappings.append((deadline_alert_id, serialized_dag_id))
                             except Exception as e:
                                 dags_with_errors[dag_id].append(f"Failed to process {serialized_alert}: {e}")
                                 continue
@@ -562,6 +658,11 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                 savepoint.rollback()
 
         log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
+
+    if alert_to_dag_mappings:
+        log.info("Performing bulk UPDATE", mapping_count=len(alert_to_dag_mappings))
+        bulk_update_deadline_alert_ids(conn, alert_to_dag_mappings, dialect)
+        log.info("Bulk UPDATE complete")
 
     log.info(
         "Migration complete",
