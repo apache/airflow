@@ -208,7 +208,7 @@
         "max_active_runs": { "type" : "number", "default": 16},
         "max_consecutive_failed_dag_runs": { "type" : "number", "default": 0},
         "max_dag_retries": { "type": "number", "default": 0 },
-        "dag_retry_delay": { "$ref": "#/definitions/timedelta" },
+        "dag_retry_delay": { "anyOf": [{ "$ref": "#/definitions/timedelta" }, { "type": "null" }] },
         "default_args": { "$ref": "#/definitions/dict" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
