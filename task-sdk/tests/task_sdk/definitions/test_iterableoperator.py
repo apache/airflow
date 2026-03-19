@@ -64,7 +64,7 @@ class MockOperator(BaseOperator):
 
 @pytest.fixture
 def mock_xcom_get_one(monkeypatch: pytest.MonkeyPatch):
-    """"
+    """
     Fixture that mocks XCom.get_one using monkeypatch for proper cleanup.
 
     This fixture is used to retrieve XCom values from the context during IterableOperator execution.
