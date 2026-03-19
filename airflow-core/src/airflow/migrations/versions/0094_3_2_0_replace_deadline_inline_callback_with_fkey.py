@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -37,6 +36,7 @@ from sqlalchemy import column, select, table
 
 from airflow._shared.timezones.timezone import parse_timezone
 from airflow.configuration import conf
+from airflow.migrations.utils import disable_sqlite_fkeys, get_dialect_name, mysql_drop_foreignkey_if_exists
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -177,6 +177,26 @@ def _get_batch_size():
     return conf.getint("database", "migration_batch_size", fallback=1000)
 
 
+def _drop_deadline_trigger_fkey_if_exists() -> None:
+    """Drop deadline.trigger_id's foreign key if it still exists."""
+    constraint_name = op.f("deadline_trigger_id_fkey")
+    dialect_name = get_dialect_name(op)
+
+    if dialect_name == "postgresql":
+        op.execute(sa.text(f'ALTER TABLE "deadline" DROP CONSTRAINT IF EXISTS "{constraint_name}"'))
+        return
+
+    if dialect_name == "mysql":
+        mysql_drop_foreignkey_if_exists(constraint_name, "deadline", op)
+        return
+
+    if dialect_name == "sqlite":
+        return
+
+    with op.batch_alter_table("deadline") as batch_op:
+        batch_op.drop_constraint(constraint_name, type_="foreignkey")
+
+
 def upgrade():
     """Replace Deadline table's inline callback fields with callback_id foreign key."""
     import uuid6
@@ -307,21 +327,53 @@ def upgrade():
 
     migrate_all_data()
 
-    with op.batch_alter_table("deadline") as batch_op:
-        # Data for `missed` and `callback_id` has been migrated so make them non-nullable
-        batch_op.alter_column("missed", existing_type=sa.Boolean(), nullable=False)
-        batch_op.alter_column("callback_id", existing_type=sa.Uuid(), nullable=False)
+    if get_dialect_name(op) == "sqlite":
+        with disable_sqlite_fkeys(op), op.batch_alter_table("deadline") as batch_op:
+            # Data for `missed` and `callback_id` has been migrated so make them non-nullable
+            batch_op.alter_column("missed", existing_type=sa.Boolean(), nullable=False)
+            batch_op.alter_column("callback_id", existing_type=sa.Uuid(), nullable=False)
 
-        batch_op.create_index("deadline_missed_deadline_time_idx", ["missed", "deadline_time"], unique=False)
-        batch_op.create_index("deadline_callback_id_idx", ["callback_id"], unique=False)
-        batch_op.drop_index(batch_op.f("deadline_callback_state_time_idx"))
-        batch_op.create_foreign_key(
-            batch_op.f("deadline_callback_id_fkey"), "callback", ["callback_id"], ["id"], ondelete="CASCADE"
+            batch_op.create_index(
+                "deadline_missed_deadline_time_idx", ["missed", "deadline_time"], unique=False
+            )
+            batch_op.create_index("deadline_callback_id_idx", ["callback_id"], unique=False)
+            batch_op.drop_index(batch_op.f("deadline_callback_state_time_idx"))
+            batch_op.create_foreign_key(
+                batch_op.f("deadline_callback_id_fkey"),
+                "callback",
+                ["callback_id"],
+                ["id"],
+                ondelete="CASCADE",
+            )
+            try:
+                batch_op.drop_constraint(batch_op.f("deadline_trigger_id_fkey"), type_="foreignkey")
+            except ValueError:
+                pass
+            batch_op.drop_column("callback")
+            batch_op.drop_column("trigger_id")
+            batch_op.drop_column("callback_state")
+    else:
+        op.alter_column("deadline", "missed", existing_type=sa.Boolean(), nullable=False)
+        op.alter_column("deadline", "callback_id", existing_type=sa.Uuid(), nullable=False)
+        op.create_index(
+            "deadline_missed_deadline_time_idx", "deadline", ["missed", "deadline_time"], unique=False
         )
-        batch_op.drop_constraint(batch_op.f("deadline_trigger_id_fkey"), type_="foreignkey")
-        batch_op.drop_column("callback")
-        batch_op.drop_column("trigger_id")
-        batch_op.drop_column("callback_state")
+        op.create_index("deadline_callback_id_idx", "deadline", ["callback_id"], unique=False)
+        op.drop_index(op.f("deadline_callback_state_time_idx"), table_name="deadline")
+        op.create_foreign_key(
+            op.f("deadline_callback_id_fkey"),
+            "deadline",
+            "callback",
+            ["callback_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
+
+        _drop_deadline_trigger_fkey_if_exists()
+
+        op.drop_column("deadline", "callback")
+        op.drop_column("deadline", "trigger_id")
+        op.drop_column("deadline", "callback_state")
 
 
 def downgrade():
