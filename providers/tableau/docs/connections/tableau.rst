@@ -65,7 +65,11 @@ Password (optional)
 
 Host
     Specify the `Server URL
-    <https://tableau.github.io/server-client-python/docs/api-ref#server>`_ used for Tableau.
+    <https://tableau.github.io/server-client-python/docs/api-ref#server>`_ used for Tableau, including
+    the protocol (for example, ``https://my-tableau-server``).
+
+    .. note::
+       The ``schema`` connection field is not used by ``TableauHook``. Set the protocol in ``host``.
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
