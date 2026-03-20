@@ -48,6 +48,7 @@ from airflow.providers.amazon.aws.executors.ecs.ecs_executor import (
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
     EcsExecutorTask,
+    EcsQueuedTask,
     _recursive_flatten_dict,
     parse_assign_public_ip,
 )
@@ -60,7 +61,7 @@ from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -779,7 +780,7 @@ class TestAwsEcsExecutor:
         mock_executor.sync_running_tasks()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} failed due to {describe_tasks[i]['stoppedReason']}. Failure 1 out of 2"
+                f"Airflow workload {airflow_keys[i]} failed due to {describe_tasks[i]['stoppedReason']}. Failure 1 out of 2"
                 in caplog.messages[i]
             )
 
@@ -803,7 +804,7 @@ class TestAwsEcsExecutor:
         mock_executor.sync_running_tasks()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} has failed a maximum of 2 times. Marking as failed"
+                f"Airflow workload {airflow_keys[i]} has failed a maximum of 2 times. Marking as failed"
                 in caplog.messages[i]
             )
 
@@ -1976,3 +1977,135 @@ class TestEcsExecutorConfig:
         from airflow.providers.amazon.aws.executors.ecs import AwsEcsExecutor as AwsEcsExecutorShortPath
 
         assert AwsEcsExecutor is AwsEcsExecutorShortPath
+
+
+class TestEcsExecutorCallbackSupport:
+    """Tests for ExecuteCallback support in the ECS Executor."""
+
+    @pytest.fixture
+    def callback_workload(self):
+        """Create a mock ExecuteCallback workload for testing."""
+        from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import BundleInfo
+        from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
+
+        callback_data = CallbackDTO(
+            id="12345678-1234-5678-1234-567812345678",
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.module.alert_func", "kwargs": {}},
+        )
+        return ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path="test.py",
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
+    def test_supports_callbacks_attribute(self, mock_executor):
+        """Verify that the ECS executor declares callback support."""
+        assert mock_executor.supports_callbacks is True
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
+    def test_queue_callback_workload(self, mock_executor, callback_workload):
+        """Test that queue_workload correctly stores ExecuteCallback in queued_callbacks."""
+        mock_executor.queue_workload(callback_workload, session=None)
+
+        assert len(mock_executor.queued_callbacks) == 1
+        assert callback_workload.callback.id in mock_executor.queued_callbacks
+        assert mock_executor.queued_callbacks[callback_workload.callback.id] is callback_workload
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
+    def test_process_callback_workload(self, mock_executor, callback_workload):
+        """Test that _process_workloads handles ExecuteCallback correctly."""
+        callback_key = callback_workload.callback.id
+        mock_executor.queued_callbacks[callback_key] = callback_workload
+
+        mock_executor._process_workloads([callback_workload])
+
+        # Callback should be removed from queued_callbacks
+        assert callback_key not in mock_executor.queued_callbacks
+        # Callback should be added to running set
+        assert callback_key in mock_executor.running
+        # Callback should be added to pending_tasks for execution
+        assert len(mock_executor.pending_tasks) == 1
+        queued = mock_executor.pending_tasks[0]
+        assert queued.key == callback_key
+        assert queued.queue is None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
+    def test_execute_async_callback_workload(self, mock_executor, callback_workload):
+        """Test that execute_async serializes ExecuteCallback workloads correctly."""
+        callback_key = callback_workload.callback.id
+        mock_executor.execute_async(key=callback_key, command=[callback_workload], queue=None)
+
+        assert len(mock_executor.pending_tasks) == 1
+        queued = mock_executor.pending_tasks[0]
+        assert queued.key == callback_key
+        # Command should be serialized to the execute_workload entrypoint
+        assert queued.command[0] == "python"
+        assert queued.command[2] == "airflow.sdk.execution_time.execute_workload"
+        assert queued.command[3] == "--json-string"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
+    def test_callback_sync_running_success(self, mock_executor, callback_workload):
+        """Test that sync_running_tasks correctly handles successful callback ECS tasks."""
+        callback_key = callback_workload.callback.id
+        ecs_task = mock_task(ARN1, State.SUCCESS)
+        mock_cmd = _generate_mock_cmd()
+        mock_executor.active_workers.add_task(ecs_task, callback_key, None, mock_cmd, {}, 1)
+
+        mock_executor.ecs.describe_tasks.return_value = {
+            "tasks": [
+                {
+                    "taskArn": ARN1,
+                    "lastStatus": "STOPPED",
+                    "desiredStatus": "STOPPED",
+                    "containers": [{"name": "container-name", "exitCode": 0, "lastStatus": "STOPPED"}],
+                    "startedAt": "2024-01-01T00:00:00Z",
+                }
+            ],
+            "failures": [],
+        }
+
+        mock_executor.sync_running_tasks()
+
+        # Callback should be removed from active workers after success
+        assert len(mock_executor.active_workers) == 0
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
+    def test_attempt_task_runs_skips_log_task_event_for_callbacks(self, mock_executor, callback_workload):
+        """Test that attempt_task_runs skips log_task_event for callback string keys."""
+        callback_key = callback_workload.callback.id
+        mock_cmd = _generate_mock_cmd()
+        mock_executor.pending_tasks.append(EcsQueuedTask(callback_key, mock_cmd, None, {}, 4, utcnow()))
+        mock_executor.max_run_task_attempts = "3"
+
+        mock_executor.ecs.run_task.side_effect = Exception("test failure")
+
+        # Mock log_task_event to verify it's NOT called for callback keys
+        mock_executor.log_task_event = mock.Mock()
+
+        # Should not raise — log_task_event is skipped for string keys
+        mock_executor.attempt_task_runs()
+
+        # log_task_event should not be called for callback string keys
+        mock_executor.log_task_event.assert_not_called()
+        # Callback should have been removed from pending_tasks (max attempts exceeded)
+        assert len(mock_executor.pending_tasks) == 0
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
+    def test_collection_mixed_key_types(self):
+        """Test that EcsTaskCollection works with both TaskInstanceKey and callback string keys."""
+        collection = EcsTaskCollection()
+        mock_cmd = _generate_mock_cmd()
+        task_key = mock.Mock(spec=tuple)
+        callback_key = "12345678-1234-5678-1234-567812345678"
+
+        collection.add_task(mock_task(ARN1), task_key, "default", mock_cmd, {}, 1)
+        collection.add_task(mock_task(ARN2), callback_key, None, mock_cmd, {}, 1)
+
+        assert len(collection) == 2
+        assert collection.key_to_arn[task_key] == ARN1
+        assert collection.key_to_arn[callback_key] == ARN2
