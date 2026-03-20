@@ -23,7 +23,7 @@
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
     "distlib==0.4.0",
-    "filelock==3.25.0",
+    "filelock==3.25.2",
     "hatchling==1.29.0",
     "packaging==26.0",
     "pathspec==1.0.4",
@@ -32,7 +32,7 @@ requires = [
     "tomli==2.4.0; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
     "typing-extensions==4.15.0; python_version < '3.11'",
-    "virtualenv==21.1.0",
+    "virtualenv==21.2.0",
 ]
 build-backend = "hatchling.build"
 
