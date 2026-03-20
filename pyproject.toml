@@ -1476,7 +1476,8 @@ apache-airflow-providers-zendesk = { workspace = true }
 
 # Ray v3 nightly wheels – direct S3 URLs so uv doesn't need a parseable find-links index.
 ray = [
-    { url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/671390966dc4081d68c4cd5cdb359b0b5773cb56/ray-3.0.0.dev0-cp314-cp314-manylinux2014_x86_64.whl", marker = "python_version == '3.14' and sys_platform == 'linux'" },
+    { url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/671390966dc4081d68c4cd5cdb359b0b5773cb56/ray-3.0.0.dev0-cp314-cp314-manylinux2014_x86_64.whl", marker = "python_version == '3.14' and sys_platform == 'linux' and platform_machine == 'x86_64'" },
+    { url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/671390966dc4081d68c4cd5cdb359b0b5773cb56/ray-3.0.0.dev0-cp314-cp314-manylinux2014_aarch64.whl", marker = "python_version == '3.14' and sys_platform == 'linux' and platform_machine == 'aarch64'" },
 ]
 # cassandra-python-driver from GitHub trunk for Python 3.14 (no PyPI release yet)
 cassandra-driver = [
