@@ -52,7 +52,7 @@ log = logging.getLogger(__name__)
 
 
 @router.get(
-    "/{connection_id}",
+    "/{connection_id:path}",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the connection"},
