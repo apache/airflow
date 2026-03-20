@@ -74,7 +74,7 @@ jobs:
 
       - name: "Send Slack notification (new/changed failures)"
         if: steps.notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -95,7 +95,7 @@ jobs:
 
       - name: "Send Slack notification (still not fixed)"
         if: steps.notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -116,7 +116,7 @@ jobs:
 
       - name: "Send Slack notification (all passing)"
         if: steps.notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
