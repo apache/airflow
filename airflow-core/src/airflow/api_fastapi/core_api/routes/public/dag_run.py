@@ -36,7 +36,10 @@ from airflow.api.common.mark_tasks import (
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.db.dag_runs import eager_load_dag_run_for_validation
+from airflow.api_fastapi.common.db.dag_runs import (
+    earliest_deadline_subquery,
+    eager_load_dag_run_for_validation,
+)
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -367,7 +370,7 @@ def get_dag_runs(
                     "duration",
                 ],
                 DagRun,
-                {"dag_run_id": "run_id"},
+                {"dag_run_id": "run_id", "deadline": earliest_deadline_subquery},
             ).dynamic_depends(default="id")
         ),
     ],
@@ -632,7 +635,7 @@ def get_list_dag_runs_batch(
             "conf",
         ],
         DagRun,
-        {"dag_run_id": "run_id"},
+        {"dag_run_id": "run_id", "deadline": earliest_deadline_subquery},
     ).set_value([body.order_by] if body.order_by else None)
 
     base_query = select(DagRun).options(*eager_load_dag_run_for_validation())

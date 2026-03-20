@@ -24,6 +24,7 @@ from sqlalchemy.orm.interfaces import LoaderOption
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 
@@ -37,6 +38,13 @@ dagruns_select_with_state_count = (
     .join(DagModel, DagRun.__table__.c.dag_id == DagModel.__table__.c.dag_id)
     .group_by(DagRun.__table__.c.dag_id, DagRun.__table__.c.state, DagModel.__table__.c.dag_display_name)
     .order_by(DagRun.__table__.c.dag_id)
+)
+
+earliest_deadline_subquery = (
+    select(func.min(Deadline.deadline_time))
+    .where(Deadline.dagrun_id == DagRun.id)
+    .correlate(DagRun)
+    .scalar_subquery()
 )
 
 
