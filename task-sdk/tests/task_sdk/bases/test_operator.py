@@ -1249,7 +1249,7 @@ class TestDecoratedDeferredAsyncOperator:
         assert operator._task_deferred.trigger._payload == "deferred_2"
 
     @pytest.mark.parametrize(
-        "max_deferrals, expected",
+        ("max_deferrals", "expected"),
         [
             (0, "immediate"),
             (1, "after_one"),
