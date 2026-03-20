@@ -27,6 +27,7 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.execution_api.datamodels.common import MessageResponse
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
     XComSequenceIndexResponse,
@@ -348,7 +349,7 @@ def set_xcom(
     mapped_length: Annotated[
         int | None, Query(description="Number of mapped tasks this value expands into")
     ] = None,
-):
+) -> MessageResponse:
     """Set an Airflow XCom."""
     from airflow.configuration import conf
 
@@ -410,7 +411,7 @@ def set_xcom(
             },
         )
 
-    return {"message": "XCom successfully set"}
+    return MessageResponse(message="XCom successfully set")
 
 
 @router.delete(
@@ -425,7 +426,7 @@ def delete_xcom(
     task_id: str,
     key: Annotated[str, Path(min_length=1)],
     map_index: Annotated[int, Query()] = -1,
-):
+) -> MessageResponse:
     """Delete a single XCom Value."""
     query = delete(XComModel).where(
         XComModel.key == key,
@@ -436,4 +437,4 @@ def delete_xcom(
     )
     session.execute(query)
     session.commit()
-    return {"message": f"XCom with key: {key} successfully deleted."}
+    return MessageResponse(message=f"XCom with key: {key} successfully deleted.")
