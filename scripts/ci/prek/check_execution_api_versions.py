@@ -40,7 +40,7 @@ TARGET_BRANCH = "main"
 def get_changed_files_ci() -> list[str]:
     """Get changed files in CI by comparing against main."""
     fetch_result = subprocess.run(
-        ["git", "fetch", "upstream", TARGET_BRANCH],
+        ["git", "fetch", "origin", TARGET_BRANCH],
         capture_output=True,
         text=True,
         check=False,
