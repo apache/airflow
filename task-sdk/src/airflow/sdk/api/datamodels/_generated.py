@@ -156,6 +156,14 @@ class HITLUser(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
+class HTTPExceptionResponse(BaseModel):
+    """
+    HTTPException Model used for error response.
+    """
+
+    detail: Annotated[str | dict[str, Any], Field(title="Detail")]
+
+
 class InactiveAssetsResponse(BaseModel):
     """
     Response for inactive assets.
