@@ -40,17 +40,12 @@ const labelLookup = (
 
 const enumTypes = ["string", "number", "integer"];
 
-type Option = {
-  label: string;
-  value: string;
-};
-
 export const FieldDropdown = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
 
-  const options: Array<Option> =
+  const options =
     param.schema.enum?.map((value) => ({
       label: labelLookup(value, param.schema.values_display),
       value: String(value ?? NULL_STRING_VALUE),
@@ -65,7 +60,12 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
         : // eslint-disable-next-line unicorn/no-null
           null;
 
-  const handleChange = (selected: SingleValue<Option>) => {
+  const handleChange = (
+    selected: SingleValue<{
+      label: string;
+      value: string;
+    }>,
+  ) => {
     if (paramsDict[name]) {
       if (!selected || selected.value === NULL_STRING_VALUE) {
         // eslint-disable-next-line unicorn/no-null
@@ -86,7 +86,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
   };
 
   return (
-    <ReactSelect<Option>
+    <ReactSelect
       id={`element_${name}`}
       isClearable
       isDisabled={disabled}
