@@ -43,7 +43,7 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, BaseOperator
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -215,8 +215,10 @@ class TriggerDagRunOperator(BaseOperator):
                 f"Expected str, datetime.datetime, or None for parameter 'logical_date'. Got {type(logical_date).__name__}"
             )
 
-        if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS:
-            raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
+        if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS and not AIRFLOW_V_3_2_PLUS:
+            raise NotImplementedError(
+                "Setting `fail_when_dag_is_paused` is only supported for Airflow 3.2 and above"
+            )
 
     def execute(self, context: Context):
         if self.logical_date is NOTSET:
@@ -256,14 +258,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.trigger_run_id = run_id
 
         if self.fail_when_dag_is_paused:
-            dag_model = DagModel.get_current(self.trigger_dag_id)
-            if not dag_model:
-                raise ValueError(f"Dag {self.trigger_dag_id} is not found")
-            if dag_model.is_paused:
-                # TODO: enable this when dag state endpoint available from task sdk
-                # if AIRFLOW_V_3_0_PLUS:
-                #     raise DagIsPaused(dag_id=self.trigger_dag_id)
-                raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
+            self._raise_if_trigger_dag_is_paused(context)
 
         if AIRFLOW_V_3_0_PLUS:
             self._trigger_dag_af_3(
@@ -295,6 +290,19 @@ class TriggerDagRunOperator(BaseOperator):
             kwargs_accepted["note"] = self.note
 
         raise DagRunTriggerException(**kwargs_accepted)
+
+    def _raise_if_trigger_dag_is_paused(self, context: Context) -> None:
+        if AIRFLOW_V_3_0_PLUS:
+            dag = context["ti"].get_dag(dag_id=self.trigger_dag_id)
+            if dag.is_paused:
+                raise DagIsPaused(dag_id=self.trigger_dag_id)
+            return
+
+        dag_model = DagModel.get_current(self.trigger_dag_id)
+        if not dag_model:
+            raise ValueError(f"Dag {self.trigger_dag_id} is not found")
+        if dag_model.is_paused:
+            raise AirflowException(f"Dag {self.trigger_dag_id} is paused")
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
         try:
