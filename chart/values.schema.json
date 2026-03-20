@@ -10872,12 +10872,17 @@
                             }
                         },
                         "credentialsSecret": {
-                            "description": "Name of a Secret containing the repo `GIT_SYNC_USERNAME` and `GIT_SYNC_PASSWORD`.",
+                            "description": "Name of a Secret containing git credentials (`GIT_SYNC_USERNAME`/`GIT_SYNC_PASSWORD` and optionally `GITSYNC_USERNAME`/`GITSYNC_PASSWORD`).",
                             "type": [
                                 "string",
                                 "null"
                             ],
                             "default": null
+                        },
+                        "usePasswordFile": {
+                            "description": "When true and `credentialsSecret` is set, mount the credentials secret and pass password keys via `*_PASSWORD_FILE` env vars.",
+                            "type": "boolean",
+                            "default": false
                         },
                         "sshKey": {
                             "description": "SSH private key",

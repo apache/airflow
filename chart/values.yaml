@@ -3668,9 +3668,16 @@ dags:
     #     # For git-sync v4
     #     GITSYNC_USERNAME: <base64_encoded_git_username>
     #     GITSYNC_PASSWORD: <base64_encoded_git_password>
-    # and specify the name of the secret below
+    # and specify the name of the secret below.
     #
     # credentialsSecret: git-credentials
+    #
+    # If set to true, credentialsSecret will also be mounted into git-sync at
+    # /etc/git-secret/credentials and password keys will be passed via
+    # GIT_SYNC_PASSWORD_FILE/GITSYNC_PASSWORD_FILE.
+    #
+    # usePasswordFile: true
+    usePasswordFile: false
     #
     #
     # If you are using an ssh clone url, you can load

@@ -274,6 +274,9 @@ spec:
         {{- if and .Values.dags.gitSync.enabled (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) }}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.credentialsSecret .Values.dags.gitSync.usePasswordFile }}
+          {{- include "git_sync_credentials_volume" . | indent 8 }}
+        {{- end }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}

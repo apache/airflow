@@ -802,6 +802,40 @@ class TestDagProcessor:
             "secret": {"secretName": "release-name-ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
+    def test_should_set_password_file_env_variables_when_credentials_secret_is_configured(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {"enabled": True},
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "credentialsSecret": "user-pass-secret",
+                        "usePasswordFile": True,
+                    },
+                    "persistence": {"enabled": False},
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert {
+            "name": "GIT_SYNC_PASSWORD_FILE",
+            "value": "/etc/git-secret/credentials/GIT_SYNC_PASSWORD",
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        assert {
+            "name": "GITSYNC_PASSWORD_FILE",
+            "value": "/etc/git-secret/credentials/GITSYNC_PASSWORD",
+        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        assert {
+            "mountPath": "/etc/git-secret/credentials",
+            "name": "git-sync-credentials",
+            "readOnly": True,
+        } in jmespath.search("spec.template.spec.containers[1].volumeMounts", docs[0])
+        assert {
+            "name": "git-sync-credentials",
+            "secret": {"defaultMode": 288, "secretName": "user-pass-secret"},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+
 
 class TestDagProcessorLogGroomer(LogGroomerTestBase):
     """DAG processor log groomer."""
