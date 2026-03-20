@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, NonCallableMagicMock
 
 import jinja2
 import pytest
@@ -173,9 +173,7 @@ class TestTemplater:
         context = {"name": "world"}
         jinja_env = templater.get_template_env()
 
-        templater._do_render_template_fields(
-            parent, ["empty_str", "none_val"], context, jinja_env, set()
-        )
+        templater._do_render_template_fields(parent, ["empty_str", "none_val"], context, jinja_env, set())
 
         # Falsy values should not be touched
         assert parent.empty_str == ""
@@ -236,7 +234,7 @@ class TestTemplater:
         templater = Templater()
         templater.template_ext = []
 
-        inner = MagicMock(spec=["template_fields", "message"])
+        inner = NonCallableMagicMock(spec=["template_fields", "message"])
         inner.template_fields = ["message"]
         inner.message = "Hello {{ name }}"
 
@@ -266,12 +264,10 @@ class TestTemplater:
 
         templater._do_render_template_fields(parent, ["greeting"], context, jinja_env, seen_oids)
 
-        # The value should still be rendered because _do_render_template_fields
-        # passes seen_oids to render_template, which checks the *content* id,
-        # but the field itself is always processed. The render_template call
-        # will still render since the string is not in seen_oids at that point.
-        # Let's verify the field was rendered.
-        assert parent.greeting == "Hello world"
+        # The value should NOT be rendered because render_template checks
+        # `id(value) in seen_oids` and short-circuits, returning the original
+        # unrendered string.
+        assert parent.greeting == "Hello {{ name }}"
 
     def test_do_render_template_fields_renders_dict_values(self):
         """Test that dict field values have their inner templates rendered."""
