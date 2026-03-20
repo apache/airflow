@@ -946,9 +946,9 @@ class TriageTUI:
                 action_parts.append("[bold]Space[/] Toggle select")
                 action_parts.append("[bold]Enter[/] Review workflow")
                 if selected_count:
-                    action_parts.append(f"[bold green]a[/] [green]Approve selected ({selected_count})[/]")
+                    action_parts.append(f"[bold green]a[/] [green]Review & approve ({selected_count})[/]")
                 else:
-                    action_parts.append("[bold]a[/] Approve selected")
+                    action_parts.append("[bold]a[/] Review & approve")
             elif cat == PRCategory.PASSING:
                 action_parts.append("[bold]Enter[/] Triage PR")
             elif cat == PRCategory.ALREADY_TRIAGED:
@@ -970,6 +970,9 @@ class TriageTUI:
                     TUIAction.ACTION_REBASE: ("b", "Rebase"),
                     TUIAction.ACTION_READY: ("m", "Ready"),
                 }
+                # Context-sensitive labels
+                if cat == PRCategory.WORKFLOW_APPROVAL:
+                    _ACTION_LABELS[TUIAction.ACTION_RERUN] = ("r", "Approve")
                 for act in available:
                     key, label = _ACTION_LABELS[act]
                     direct_parts.append(f"[bold]{key}[/] {label}")

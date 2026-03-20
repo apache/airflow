@@ -3097,27 +3097,42 @@ def _execute_tui_direct_action(
         _read_char()
         return
 
-    # For workflow approval PRs, RERUN means approve pending workflows (or rerun completed)
+    # For workflow approval PRs, RERUN means show diff first, then approve pending workflows
     if entry.category == PRCategory.WORKFLOW_APPROVAL and triage_action == TriageAction.RERUN:
         get_console().print("\n" * 25)
         get_console().clear()
-        console_print(f"\n[info]Approving/rerunning workflows for PR {_pr_link(pr)}...[/]")
+
         pending_runs = _find_pending_workflow_runs(ctx.token, ctx.github_repository, pr.head_sha)
         if pending_runs:
-            approved = _approve_workflow_runs(ctx.token, ctx.github_repository, pending_runs)
-            if approved:
-                console_print(
-                    f"  [success]Approved {approved} workflow "
-                    f"{'runs' if approved != 1 else 'run'} for PR {_pr_link(pr)}.[/]"
-                )
-                ctx.stats.total_workflows_approved += 1
-                entry.action_taken = "approved"
+            get_console().rule(f"[cyan]PR {_pr_link(pr)}[/]", style="dim")
+            console_print(f"  [bold]{pr.title}[/] by {pr.author_login}\n")
+            confirm = _show_diff_and_confirm(
+                ctx.token, ctx.github_repository, pr, forced_answer=ctx.answer_triage
+            )
+            if confirm == ContinueAction.QUIT:
+                ctx.stats.quit_early = True
+                return
+            if confirm == ContinueAction.FLAG:
+                console_print(f"  [bold red]Flagged PR {_pr_link(pr)} as suspicious — skipping approval.[/]")
+                entry.action_taken = "suspicious"
                 if on_action:
-                    on_action(pr, "approved")
+                    on_action(pr, "suspicious")
             else:
-                console_print(f"  [error]Failed to approve workflow runs for PR {_pr_link(pr)}.[/]")
+                approved = _approve_workflow_runs(ctx.token, ctx.github_repository, pending_runs)
+                if approved:
+                    console_print(
+                        f"  [success]Approved {approved} workflow "
+                        f"{'runs' if approved != 1 else 'run'} for PR {_pr_link(pr)}.[/]"
+                    )
+                    ctx.stats.total_workflows_approved += 1
+                    entry.action_taken = "approved"
+                    if on_action:
+                        on_action(pr, "approved")
+                else:
+                    console_print(f"  [error]Failed to approve workflow runs for PR {_pr_link(pr)}.[/]")
         else:
-            # Try rerunning completed runs
+            # No pending runs — try rerunning completed runs (no diff needed)
+            console_print(f"\n[info]Rerunning workflows for PR {_pr_link(pr)}...[/]")
             rerun_count = 0
             if pr.head_sha:
                 completed_runs = _find_workflow_runs_by_status(
@@ -3739,43 +3754,36 @@ def _run_tui_triage(
             selected_entries = tui.get_selected_entries()
             if not selected_entries:
                 continue
-            # Batch approve all selected workflow PRs
+            # Batch approve selected workflow PRs — show diffs first
             tui.disable_mouse()
             get_console().print("\n" * 25)
             get_console().clear()
-            get_console().rule("[bold green]Batch workflow approval[/]", style="green")
+            get_console().rule("[bold green]Batch workflow approval — diff review[/]", style="green")
             get_console().print(
-                f"\n[info]Approving workflows for {len(selected_entries)} "
-                f"{'PRs' if len(selected_entries) != 1 else 'PR'}:[/]\n"
+                f"\n[info]Reviewing diffs for {len(selected_entries)} "
+                f"{'PRs' if len(selected_entries) != 1 else 'PR'} before approval.[/]"
             )
-            for sel_entry in selected_entries:
-                sel_pr = sel_entry.pr
-                get_console().print(f"  {_pr_link(sel_pr)} {sel_pr.title} [dim]by {sel_pr.author_login}[/]")
-            get_console().print()
+            get_console().print(
+                "[info]Press SPACE/Enter to approve, [f] to flag as suspicious, [q] to quit.[/]\n"
+            )
 
-            if not ctx.dry_run:
+            if ctx.dry_run:
+                get_console().print("[warning]Dry run — skipping batch approval.[/]")
                 for sel_entry in selected_entries:
+                    sel_entry.selected = False
+            else:
+                # Phase 1: Show diffs and collect approve/flag decisions
+                to_approve: list[tuple[PRListEntry, list[dict]]] = []
+                flagged_entries: list[PRListEntry] = []
+                for sel_entry in selected_entries:
+                    if ctx.stats.quit_early:
+                        break
                     sel_pr = sel_entry.pr
                     pending_runs = _find_pending_workflow_runs(
                         ctx.token, ctx.github_repository, sel_pr.head_sha
                     )
-                    if pending_runs:
-                        approved = _approve_workflow_runs(ctx.token, ctx.github_repository, pending_runs)
-                        if approved:
-                            get_console().print(
-                                f"  [success]Approved {approved} workflow "
-                                f"{'runs' if approved != 1 else 'run'} for "
-                                f"PR {_pr_link(sel_pr)}.[/]"
-                            )
-                            ctx.stats.total_workflows_approved += 1
-                            sel_entry.action_taken = "approved"
-                            _cache_action(sel_pr, "approved")
-                        else:
-                            get_console().print(
-                                f"  [error]Failed to approve workflow runs for PR {_pr_link(sel_pr)}.[/]"
-                            )
-                    else:
-                        # Try rerunning completed runs
+                    if not pending_runs:
+                        # No pending runs — rerun completed (no diff review needed)
                         if sel_pr.head_sha:
                             completed_runs = _find_workflow_runs_by_status(
                                 ctx.token, ctx.github_repository, sel_pr.head_sha, "completed"
@@ -3798,9 +3806,50 @@ def _run_tui_triage(
                                 get_console().print(
                                     f"  [warning]No workflow runs found for PR {_pr_link(sel_pr)}.[/]"
                                 )
-                    sel_entry.selected = False
-            else:
-                get_console().print("[warning]Dry run — skipping batch approval.[/]")
+                        sel_entry.selected = False
+                        continue
+
+                    # Show diff for this PR
+                    get_console().rule(f"[cyan]PR {_pr_link(sel_pr)}[/]", style="dim")
+                    get_console().print(f"  [bold]{sel_pr.title}[/] by {sel_pr.author_login}\n")
+                    confirm = _show_diff_and_confirm(
+                        ctx.token, ctx.github_repository, sel_pr, forced_answer=ctx.answer_triage
+                    )
+                    if confirm == ContinueAction.QUIT:
+                        ctx.stats.quit_early = True
+                        break
+                    if confirm == ContinueAction.FLAG:
+                        get_console().print(f"  [bold red]Flagged PR {_pr_link(sel_pr)} as suspicious.[/]")
+                        sel_entry.action_taken = "suspicious"
+                        _cache_action(sel_pr, "suspicious")
+                        flagged_entries.append(sel_entry)
+                        sel_entry.selected = False
+                    else:
+                        to_approve.append((sel_entry, pending_runs))
+
+                # Phase 2: Batch approve all confirmed PRs
+                if to_approve and not ctx.stats.quit_early:
+                    get_console().print()
+                    get_console().rule("[bold green]Approving workflows[/]", style="green")
+                    for sel_entry, pending_runs in to_approve:
+                        sel_pr = sel_entry.pr
+                        approved = _approve_workflow_runs(ctx.token, ctx.github_repository, pending_runs)
+                        if approved:
+                            get_console().print(
+                                f"  [success]Approved {approved} workflow "
+                                f"{'runs' if approved != 1 else 'run'} for "
+                                f"PR {_pr_link(sel_pr)}.[/]"
+                            )
+                            ctx.stats.total_workflows_approved += 1
+                            sel_entry.action_taken = "approved"
+                            _cache_action(sel_pr, "approved")
+                        else:
+                            get_console().print(
+                                f"  [error]Failed to approve workflows for PR {_pr_link(sel_pr)}.[/]"
+                            )
+                        sel_entry.selected = False
+
+                # Deselect any remaining entries
                 for sel_entry in selected_entries:
                     sel_entry.selected = False
 
@@ -4653,37 +4702,7 @@ def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRD
         get_console().rule(f"[cyan]PR {_pr_link(pr)}[/]", style="dim")
         console_print(f"  [bold]{pr.title}[/] by {pr.author_login}\n")
 
-        console_print(f"  Fetching diff for PR {_pr_link(pr)}...")
-        diff_text = _fetch_pr_diff(ctx.token, ctx.github_repository, pr.number)
-        if diff_text:
-            from rich.syntax import Syntax
-
-            console_print(
-                Panel(
-                    Syntax(diff_text, "diff", theme="monokai", word_wrap=True),
-                    title=f"Diff for PR {_pr_link(pr)}",
-                    border_style="bright_cyan",
-                )
-            )
-
-            # Warn about changes to sensitive directories (.github/, scripts/)
-            sensitive_files = _detect_sensitive_file_changes(diff_text)
-            if sensitive_files:
-                console_print()
-                console_print(
-                    "[bold red]WARNING: This PR contains changes to sensitive files "
-                    "— please review carefully![/]"
-                )
-                for f in sensitive_files:
-                    console_print(f"  [bold red]  - {f}[/]")
-                console_print()
-        else:
-            console_print(
-                f"  [warning]Could not fetch diff for PR {_pr_link(pr)}. "
-                f"Review manually at: {pr.url}/files[/]"
-            )
-
-        action = prompt_space_continue(forced_answer=ctx.answer_triage)
+        action = _show_diff_and_confirm(ctx.token, ctx.github_repository, pr, forced_answer=ctx.answer_triage)
         if action == ContinueAction.QUIT:
             console_print("[warning]Quitting.[/]")
             ctx.stats.quit_early = True
@@ -6076,6 +6095,45 @@ def _fetch_pr_diff(token: str, github_repository: str, pr_number: int) -> str | 
     if response.status_code != 200:
         return None
     return response.text
+
+
+def _show_diff_and_confirm(
+    token: str,
+    github_repository: str,
+    pr: PRData,
+    *,
+    forced_answer: str | None = None,
+) -> ContinueAction:
+    """Fetch and display a PR diff, warn about sensitive files, and prompt for confirmation.
+
+    Returns ContinueAction.CONTINUE to approve, FLAG to flag as suspicious, QUIT to quit.
+    """
+    console_print(f"  Fetching diff for PR {_pr_link(pr)}...")
+    diff_text = _fetch_pr_diff(token, github_repository, pr.number)
+    if diff_text:
+        from rich.syntax import Syntax
+
+        console_print(
+            Panel(
+                Syntax(diff_text, "diff", theme="monokai", word_wrap=True),
+                title=f"Diff for PR {_pr_link(pr)}",
+                border_style="bright_cyan",
+            )
+        )
+        sensitive_files = _detect_sensitive_file_changes(diff_text)
+        if sensitive_files:
+            console_print()
+            console_print(
+                "[bold red]WARNING: This PR contains changes to sensitive files — please review carefully![/]"
+            )
+            for f in sensitive_files:
+                console_print(f"  [bold red]  - {f}[/]")
+            console_print()
+    else:
+        console_print(
+            f"  [warning]Could not fetch diff for PR {_pr_link(pr)}. Review manually at: {pr.url}/files[/]"
+        )
+    return prompt_space_continue(forced_answer=forced_answer)
 
 
 def _detect_sensitive_file_changes(diff_text: str) -> list[str]:
