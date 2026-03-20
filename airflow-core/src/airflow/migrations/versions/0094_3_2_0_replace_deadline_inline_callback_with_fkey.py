@@ -32,8 +32,10 @@ import json
 from textwrap import dedent
 
 import sqlalchemy as sa
+import uuid6
 from alembic import context, op
-from sqlalchemy import column, select, table
+
+from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
 revision = "e812941398f4"
@@ -55,7 +57,7 @@ _CALLBACK_METRICS_PREFIX = "deadline_alerts"
 def upgrade():
     """Replace Deadline table's inline callback fields with callback_id foreign key."""
 
-    def migrate_all_data():
+    def _migrate_all_data():
         if context.is_offline_mode():
             print(
                 dedent("""
@@ -140,35 +142,31 @@ def upgrade():
 
     def _migrate_batched(conn, dialect):
         """Batch migration for MySQL/SQLite using Python UUIDs with SQL JSON extraction."""
-        import uuid6
-
-        from airflow.utils.sqlalchemy import UtcDateTime
-
-        deadline_table = table(
+        deadline_table = sa.table(
             "deadline",
-            column("id", sa.Uuid()),
-            column("dagrun_id", sa.Integer()),
-            column("callback", sa.JSON()),
-            column("callback_state", sa.String(20)),
-            column("missed", sa.Boolean()),
-            column("callback_id", sa.Uuid()),
+            sa.column("id", sa.Uuid()),
+            sa.column("dagrun_id", sa.Integer()),
+            sa.column("callback", sa.JSON()),
+            sa.column("callback_state", sa.String(20)),
+            sa.column("missed", sa.Boolean()),
+            sa.column("callback_id", sa.Uuid()),
         )
 
-        dag_run_table = table(
+        dag_run_table = sa.table(
             "dag_run",
-            column("id", sa.Integer()),
-            column("dag_id", sa.String()),
+            sa.column("id", sa.Integer()),
+            sa.column("dag_id", sa.String()),
         )
 
-        callback_table = table(
+        callback_table = sa.table(
             "callback",
-            column("id", sa.Uuid()),
-            column("type", sa.String(20)),
-            column("fetch_method", sa.String(20)),
-            column("data", sa.JSON()),
-            column("state", sa.String(10)),
-            column("priority_weight", sa.Integer()),
-            column("created_at", UtcDateTime(timezone=True)),
+            sa.column("id", sa.Uuid()),
+            sa.column("type", sa.String(20)),
+            sa.column("fetch_method", sa.String(20)),
+            sa.column("data", sa.JSON()),
+            sa.column("state", sa.String(10)),
+            sa.column("priority_weight", sa.Integer()),
+            sa.column("created_at", UtcDateTime(timezone=True)),
         )
 
         timestamp = datetime.datetime.now(datetime.timezone.utc)
@@ -177,7 +175,7 @@ def upgrade():
         while True:
             batch_num += 1
             batch = conn.execute(
-                select(
+                sa.select(
                     deadline_table.c.id,
                     deadline_table.c.callback,
                     deadline_table.c.callback_state,
@@ -235,7 +233,7 @@ def upgrade():
         batch_op.add_column(sa.Column("missed", sa.Boolean(), nullable=True))
         batch_op.add_column(sa.Column("callback_id", sa.Uuid(), nullable=True))
 
-    migrate_all_data()
+    _migrate_all_data()
 
     with op.batch_alter_table("deadline") as batch_op:
         # Data for `missed` and `callback_id` has been migrated so make them non-nullable
@@ -259,7 +257,7 @@ def downgrade():
     _CALLBACK_STATE_SUCCESS = "success"
     _CALLBACK_STATE_FAILED = "failed"
 
-    def migrate_batch(conn, deadline_table, callback_table, batch):
+    def _migrate_batched(conn, deadline_table, callback_table, batch):
         deadline_updates = []
         callback_ids_to_delete = []
 
@@ -314,7 +312,7 @@ def downgrade():
         )
         conn.execute(callback_table.delete().where(callback_table.c.id.in_(callback_ids_to_delete)))
 
-    def migrate_all_data():
+    def _migrate_all_data():
         if context.is_offline_mode():
             print(
                 dedent("""
@@ -329,20 +327,20 @@ def downgrade():
             op.execute("DELETE FROM deadline")
             return
 
-        deadline_table = table(
+        deadline_table = sa.table(
             "deadline",
-            column("id", sa.Uuid()),
-            column("callback_id", sa.Uuid()),
-            column("callback", sa.JSON()),
-            column("callback_state", sa.String(20)),
-            column("trigger_id", sa.Integer()),
+            sa.column("id", sa.Uuid()),
+            sa.column("callback_id", sa.Uuid()),
+            sa.column("callback", sa.JSON()),
+            sa.column("callback_state", sa.String(20)),
+            sa.column("trigger_id", sa.Integer()),
         )
 
-        callback_table = table(
+        callback_table = sa.table(
             "callback",
-            column("id", sa.Uuid()),
-            column("data", sa.JSON()),
-            column("state", sa.String(10)),
+            sa.column("id", sa.Uuid()),
+            sa.column("data", sa.JSON()),
+            sa.column("state", sa.String(10)),
         )
 
         conn = op.get_bind()
@@ -351,7 +349,7 @@ def downgrade():
         while True:
             batch_num += 1
             batch = conn.execute(
-                select(
+                sa.select(
                     deadline_table.c.id.label("deadline_id"),
                     deadline_table.c.callback_id,
                     callback_table.c.data.label("callback_data"),
@@ -365,7 +363,7 @@ def downgrade():
             if not batch:
                 break
 
-            migrate_batch(conn, deadline_table, callback_table, batch)
+            _migrate_batched(conn, deadline_table, callback_table, batch)
             print(f"Migrated {len(batch)} deadline records in batch {batch_num}")
 
     with op.batch_alter_table("deadline") as batch_op:
@@ -379,9 +377,9 @@ def downgrade():
         batch_op.alter_column("callback_id", existing_type=sa.Uuid(), nullable=True)
 
         batch_op.drop_constraint(batch_op.f("deadline_callback_id_fkey"), type_="foreignkey")
-        # Note: deadline_callback_id_idx is kept here so it can speed up the JOIN in migrate_all_data()
+        # Note: deadline_callback_id_idx is kept here so it can speed up the JOIN in _migrate_all_data()
 
-    migrate_all_data()
+    _migrate_all_data()
 
     with op.batch_alter_table("deadline") as batch_op:
         # Data for `callback` has been migrated so make it non-nullable
