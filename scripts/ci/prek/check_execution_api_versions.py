@@ -34,16 +34,24 @@ from common_prek_utils import console, get_remote_for_main
 
 DATAMODELS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/datamodels/"
 VERSIONS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/versions/"
-TARGET_BRANCH = "main"
+
+
+def get_target_branch() -> str:
+    """Branch to compare against. GITHUB_BASE_REF for PRs, DEFAULT_BRANCH in CI, else main."""
+    print("The target branch for schema comparison is determined in the following order of precedence:")
+    print(os.environ.get("GITHUB_BASE_REF"))
+    print(os.environ.get("DEFAULT_BRANCH"))
+    return os.environ.get("GITHUB_BASE_REF") or os.environ.get("DEFAULT_BRANCH") or "main"
 
 
 def get_changed_files_ci() -> list[str]:
-    """Get changed files in CI by comparing against main."""
+    """Get changed files in CI by comparing against target branch."""
+    target_branch = get_target_branch()
     remote = get_remote_for_main()
-    ref = f"{remote}/{TARGET_BRANCH}"
+    ref = f"{remote}/{target_branch}"
 
     fetch_result = subprocess.run(
-        ["git", "fetch", remote, TARGET_BRANCH],
+        ["git", "fetch", remote, target_branch],
         capture_output=True,
         text=True,
         check=False,
@@ -66,7 +74,7 @@ def get_changed_files_ci() -> list[str]:
             "retrying with deeper fetch...[/]"
         )
         subprocess.run(
-            ["git", "fetch", "--deepen=50", remote, TARGET_BRANCH],
+            ["git", "fetch", "--deepen=50", remote, target_branch],
             capture_output=True,
             text=True,
             check=False,
@@ -115,11 +123,12 @@ def generate_schema(cwd: Path) -> dict:
 
 
 def generate_schema_from_main() -> dict:
-    """Generate schema from main branch using worktree."""
+    """Generate schema from target branch using worktree."""
+    target_branch = get_target_branch()
     remote = get_remote_for_main()
-    ref = f"{remote}/{TARGET_BRANCH}"
+    ref = f"{remote}/{target_branch}"
     worktree_path = Path(tempfile.mkdtemp()) / "airflow-main"
-    subprocess.run(["git", "fetch", remote, TARGET_BRANCH], capture_output=True, check=False)
+    subprocess.run(["git", "fetch", remote, target_branch], capture_output=True, check=False)
     subprocess.run(["git", "worktree", "add", str(worktree_path), ref], capture_output=True, check=True)
     try:
         return generate_schema(worktree_path)
@@ -194,8 +203,9 @@ def main() -> int:
                 console.print(f"  - [magenta]{f}[/]")
             console.print("")
             remote = get_remote_for_main()
+            target_branch = get_target_branch()
             console.print(
-                f"Schema diff against [cyan]{remote}/{TARGET_BRANCH}[/] detected differences.\n"
+                f"Schema diff against [cyan]{remote}/{target_branch}[/] detected differences.\n"
                 "\n"
                 "Please add or update a version file under:\n"
                 f"  [cyan]{VERSIONS_PREFIX}[/]\n"
