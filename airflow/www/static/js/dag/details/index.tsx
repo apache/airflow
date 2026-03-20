@@ -260,7 +260,7 @@ const Details = ({
       : group?.instances.find((ti) => ti.runId === runId);
 
   return (
-    <Flex flexDirection="column" height="100%">
+    <Flex flexDirection="column" height="100%" minH={0}>
       <Flex alignItems="center" justifyContent="space-between" flexWrap="wrap">
         <Header
           mapIndex={
@@ -310,7 +310,11 @@ const Details = ({
         size="lg"
         isLazy
         lazyBehavior="keepMounted"
-        height="100%"
+        display="flex"
+        flexDirection="column"
+        flex={1}
+        minH={0}
+        overflow="hidden"
         index={tabIndex}
         onChange={onChangeTab}
       >
@@ -426,8 +430,8 @@ const Details = ({
             </Button>
           )}
         </TabList>
-        <TabPanels height="100%">
-          <TabPanel height="100%">
+        <TabPanels flex={1} overflow="hidden" minH={0}>
+          <TabPanel>
             {isDag && <DagContent />}
             {isDagRun && <DagRunContent runId={runId} />}
             {!!runId && !!taskId && (
@@ -461,10 +465,10 @@ const Details = ({
               runId={runId}
             />
           </TabPanel>
-          <TabPanel height="100%">
+          <TabPanel>
             <DagCode />
           </TabPanel>
-          <TabPanel height="100%">
+          <TabPanel>
             <EventLog
               taskId={isGroup || !taskId ? undefined : taskId}
               showMapped={isMapped || !taskId}
@@ -472,12 +476,12 @@ const Details = ({
             />
           </TabPanel>
           {isDag && (
-            <TabPanel height="100%">
+            <TabPanel>
               <RunDuration />
             </TabPanel>
           )}
           {isDag && (
-            <TabPanel height="80%">
+            <TabPanel>
               <Flex justifyContent="right" pr="30px">
                 <Checkbox
                   isChecked={showBar}
@@ -492,14 +496,18 @@ const Details = ({
             </TabPanel>
           )}
           {isDag && (
-            <TabPanel height="100%" width="100%" overflow="auto">
+            <TabPanel p={0} overflow="auto">
               <Calendar />
             </TabPanel>
           )}
           {isTaskInstance && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}
+              display="flex"
+              flexDirection="column"
               height="100%"
+              minH={0}
+              overflow="hidden"
             >
               <BackToTaskSummary
                 isMapIndexDefined={mapIndex !== undefined}
@@ -521,7 +529,7 @@ const Details = ({
             </TabPanel>
           )}
           {isMappedTaskSummary && (
-            <TabPanel height="100%">
+            <TabPanel>
               <MappedInstances
                 dagId={dagId}
                 runId={runId}
@@ -533,7 +541,7 @@ const Details = ({
             </TabPanel>
           )}
           {isTaskInstance && (
-            <TabPanel height="100%">
+            <TabPanel>
               <XcomCollection
                 dagId={dagId}
                 dagRunId={runId}
@@ -544,7 +552,7 @@ const Details = ({
             </TabPanel>
           )}
           {isTaskInstance && isK8sExecutor && (
-            <TabPanel height="100%">
+            <TabPanel>
               <RenderedK8s />
             </TabPanel>
           )}

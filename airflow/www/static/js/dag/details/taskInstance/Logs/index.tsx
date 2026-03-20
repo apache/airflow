@@ -153,9 +153,9 @@ const Logs = ({
   }, [data, fileSourceFilters, fileSources, selectedTryNumber, finalTryNumber]);
 
   return (
-    <>
+    <Flex flexDirection="column" flex={1} minH={0} overflow="hidden">
       {showExternalLogRedirect && externalLogName && (
-        <Box my={1}>
+        <Box my={1} flexShrink={0}>
           <Text>View Logs in {externalLogName} (by attempts):</Text>
           <Flex flexWrap="wrap">
             {Array.from({ length: finalTryNumber || 1 }, (_, i) => i + 1).map(
@@ -173,7 +173,7 @@ const Logs = ({
           </Flex>
         </Box>
       )}
-      <Box>
+      <Box flexShrink={0}>
         {!!taskInstance && (
           <TrySelector
             taskInstance={taskInstance}
@@ -250,6 +250,7 @@ const Logs = ({
           alignItems="center"
           p={2}
           mb={2}
+          flexShrink={0}
         >
           <Icon as={MdWarning} color="yellow.500" mr={2} />
           <Text fontSize="sm">{warning}</Text>
@@ -263,6 +264,7 @@ const Logs = ({
           alignItems="center"
           p={2}
           mb={2}
+          flexShrink={0}
         >
           <Icon as={MdInfo} color="blue.600" mr={2} />
           <Text fontSize="sm">
@@ -282,7 +284,7 @@ const Logs = ({
           />
         )
       )}
-    </>
+    </Flex>
   );
 };
 
