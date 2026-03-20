@@ -66,9 +66,7 @@ def _transparent_sync_to_async(func):
 @pytest.fixture
 def patch_sync_to_async():
     """Patch sync_to_async to call the wrapped function directly for testing."""
-    with patch(
-        "airflow.providers.ibm.mq.hooks.mq.sync_to_async", side_effect=_transparent_sync_to_async
-    ):
+    with patch("airflow.providers.ibm.mq.hooks.mq.sync_to_async", side_effect=_transparent_sync_to_async):
         yield
 
 
@@ -84,7 +82,6 @@ class TestIBMMQHook:
 
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
-        # Add a valid MQ connection
         create_connection_without_db(
             Connection(
                 conn_id="mq_conn",
@@ -105,21 +102,18 @@ class TestIBMMQHook:
     ):
         """Test consuming a single message."""
 
-        # Mock connection and queue
         mock_qmgr = MagicMock()
         mock_connect.return_value = mock_qmgr
 
-        # Mock queue instance
         mock_queue = MagicMock()
         mock_queue_class.return_value = mock_queue
         mock_queue.get.return_value = MQ_PAYLOAD.format("test message").encode()
-
 
         result = await self.hook.consume(queue_name="QUEUE1", poll_interval=0.1)
         assert isinstance(result, str)
         assert "test message" in result
 
-        mock_connect.assert_called_once()  # connection established
+        mock_connect.assert_called_once()
         mock_queue_class.assert_called_once_with(
             mock_qmgr,
             mock.ANY,
@@ -138,7 +132,6 @@ class TestIBMMQHook:
 
         mock_queue = MagicMock()
         mock_queue_class.return_value = mock_queue
-
 
         await self.hook.produce(queue_name="QUEUE1", payload="payload")
 
@@ -162,7 +155,6 @@ class TestIBMMQHook:
         mock_queue = MagicMock()
         mock_queue_class.return_value = mock_queue
         mock_queue.get.side_effect = fake_get
-
 
         # consume() retries on None, so we need to cancel after the first attempt
         with patch("airflow.providers.ibm.mq.hooks.mq.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
