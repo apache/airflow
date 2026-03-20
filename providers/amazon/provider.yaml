@@ -119,6 +119,9 @@ versions:
   - 1.1.0
   - 1.0.0
 
+excluded-python-versions:
+  - "3.14"
+
 integrations:
   - integration-name: Amazon Athena
     external-doc-url: https://aws.amazon.com/athena/

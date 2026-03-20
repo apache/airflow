@@ -451,6 +451,35 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
     return imports
 
 
+def get_remote_for_main() -> str:
+    """
+    Return the remote name to use when fetching main.
+    Prefers the remote that points to apache/airflow; otherwise uses origin.
+    """
+    result = subprocess.run(
+        ["git", "remote", "-v"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return "origin"
+
+    apache_remote = None
+    origin_remote = None
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            name, url = parts[0], parts[1]
+            if "apache/airflow" in url:
+                apache_remote = name
+                break
+            if name == "origin":
+                origin_remote = name
+
+    return apache_remote or origin_remote or "origin"
+
+
 def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str) -> str:
     if token:
         return token
