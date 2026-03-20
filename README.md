@@ -1,3 +1,18 @@
+## 🧑‍💻 My Fork — Harshad Khetpal (DevOps / MLOps Engineer)
+
+I use this fork of Apache Airflow to **orchestrate data engineering and ML pipelines** in production. Airflow is the backbone of my data platform, running hundreds of DAGs daily.
+
+### My Setup
+- CeleryExecutor on Kubernetes with Redis broker and PostgreSQL metadata DB
+- Dynamic DAG generation patterns for parameterized pipeline factories
+- Custom operators: BigQueryToGCSOperator extensions, MLflow trigger operators
+- Integration with dbt for transformation pipelines and Great Expectations for data quality
+
+### Why I forked this
+Developing custom sensors for ML pipeline triggers (model drift detection, data availability) and experimenting with the TaskFlow API for cleaner DAG authoring patterns.
+
+---
+
 <!--
  Licensed to the Apache Software Foundation (ASF) under one
  or more contributor license agreements.  See the NOTICE file
