@@ -22,6 +22,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
 from airflow.exceptions import AirflowNotFoundException
@@ -31,9 +32,30 @@ from airflow.models.connection import Connection
 async def has_connection_access(
     connection_id: str = Path(),
     token=CurrentTIToken,
+    session: AsyncSessionDep = Depends(),
 ) -> bool:
     """Check if the task has access to the connection."""
-    # TODO: Placeholder for actual implementation
+    from sqlalchemy import select
+
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.settings import ENABLE_EXECUTION_API_AUTHZ
+
+    # Authorization is optional and disabled by default for backward compatibility
+    if not ENABLE_EXECUTION_API_AUTHZ:
+        return True
+
+    # NOTE: Currently only verifies TaskInstance existence.
+    # This is a minimal foundation for future fine-grained authorization.
+    ti = await session.scalar(select(TaskInstance).where(TaskInstance.id == token.id))
+    if not ti:
+        log.debug("TaskInstance %s not found for connection %s", token.id, connection_id)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+                "message": f"Task does not have access to connection {connection_id}",
+            },
+        )
 
     log.debug(
         "Checking access for task instance with key '%s' to connection '%s'",

@@ -39,30 +39,7 @@ def setup_method():
     clear_db_variables()
 
 
-@pytest.fixture
-def access_denied(client):
-    from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
-    from airflow.api_fastapi.execution_api.security import CurrentTIToken
 
-    last_route = client.app.routes[-1]
-    assert isinstance(last_route, Mount)
-    assert isinstance(last_route.app, FastAPI)
-    exec_app = last_route.app
-
-    async def _(request: Request, variable_key: str, token=CurrentTIToken):
-        await has_variable_access(request, variable_key, token)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "reason": "access_denied",
-            },
-        )
-
-    exec_app.dependency_overrides[has_variable_access] = _
-
-    yield
-
-    exec_app.dependency_overrides = {}
 
 
 class TestGetVariable:
@@ -114,7 +91,7 @@ class TestGetVariable:
             }
         }
 
-    @pytest.mark.usefixtures("access_denied")
+    @mock.patch("airflow.settings.ENABLE_EXECUTION_API_AUTHZ", True)
     def test_variable_get_access_denied(self, client, caplog):
         with caplog.at_level(logging.DEBUG):
             response = client.get("/execution/variables/key1")
@@ -127,7 +104,32 @@ class TestGetVariable:
             }
         }
 
-        assert any(msg.startswith("Checking read access for task instance") for msg in caplog.messages)
+    @mock.patch("airflow.settings.ENABLE_EXECUTION_API_AUTHZ", True)
+    def test_variable_get_access_allowed(self, client, session, create_task_instance):
+        Variable.set(key="key_auth", value="value_auth", session=session)
+        ti = create_task_instance()
+        session.commit()
+
+        from fastapi import Request
+
+        from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+        from airflow.api_fastapi.execution_api.security import _jwt_bearer
+
+        async def mock_jwt_bearer(request: Request):
+            return TIToken(id=ti.id, claims={"sub": str(ti.id), "scope": "execution"})
+
+        last_route = client.app.routes[-1]
+        exec_app = last_route.app
+        exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
+
+        response = client.get("/execution/variables/key_auth")
+
+        assert response.status_code == 200
+        assert response.json() == {"key": "key_auth", "value": "value_auth"}
+
+        exec_app.dependency_overrides.pop(_jwt_bearer)
+        Variable.delete(key="key_auth", session=session)
+        session.commit()
 
 
 class TestPutVariable:
@@ -222,7 +224,7 @@ class TestPutVariable:
         assert var_from_db.key == key
         assert var_from_db.val == payload["value"]
 
-    @pytest.mark.usefixtures("access_denied")
+    @mock.patch("airflow.settings.ENABLE_EXECUTION_API_AUTHZ", True)
     def test_post_variable_access_denied(self, client, caplog):
         with caplog.at_level(logging.DEBUG):
             key = "var_create"
@@ -239,7 +241,6 @@ class TestPutVariable:
                 "reason": "access_denied",
             }
         }
-        assert any(msg.startswith("Checking write access for task instance") for msg in caplog.messages)
 
 
 class TestDeleteVariable:
