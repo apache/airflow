@@ -87,23 +87,32 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
       <Controller
         control={control}
         name="slots"
-        render={({ field }) => (
-          <Field.Root mt={4}>
+        render={({ field, fieldState }) => (
+          <Field.Root invalid={Boolean(fieldState.error)} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
             <Input
               min={-1}
+              onBlur={field.onBlur}
               onChange={(event) => {
-                const value = event.target.valueAsNumber;
+                const { value: raw, valueAsNumber } = event.target;
 
-                field.onChange(isNaN(value) ? field.value : value);
+                field.onChange(raw === "" ? Number.NaN : valueAsNumber);
               }}
+              ref={field.ref}
               size="sm"
               type="number"
-              value={field.value}
+              value={Number.isFinite(field.value) ? field.value : ""}
             />
-            <Field.HelperText>{translate("pools.form.slotsHelperText")}</Field.HelperText>
+            {fieldState.error ? (
+              <Field.ErrorText>{fieldState.error.message}</Field.ErrorText>
+            ) : (
+              <Field.HelperText>{translate("pools.form.slotsHelperText")}</Field.HelperText>
+            )}
           </Field.Root>
         )}
+        rules={{
+          validate: (value) => Number.isFinite(value) || translate("common:validation.mustBeValidNumber"),
+        }}
       />
 
       <Controller

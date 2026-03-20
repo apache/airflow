@@ -349,6 +349,9 @@
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",
+  "validation": {
+    "mustBeValidNumber": "Must be a valid number."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
