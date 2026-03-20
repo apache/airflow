@@ -27,8 +27,8 @@ export class TaskInstancePage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
-    this.confirmTriggerButton = page.locator('button:has-text("Trigger")').last();
+    this.triggerButton = page.getByTestId("trigger-dag-button");
+    this.confirmTriggerButton = page.getByTestId("trigger-dag-submit");
     this.stateBadge = page.getByTestId("state-badge").first();
   }
 
