@@ -345,7 +345,7 @@ class TestPostConnection(TestConnectionEndpoint):
             ]
         }
 
-    def test_post_rejects_team_name_when_multi_team_disabled(self, test_client, session, testing_team):
+    def test_post_rejects_team_name_when_multi_team_disabled(self, test_client, testing_team):
         with mock.patch(
             "airflow.api_fastapi.core_api.datamodels.connections.conf.getboolean", return_value=False
         ):
@@ -994,7 +994,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 422
 
-    def test_patch_rejects_team_name_when_multi_team_disabled(self, test_client, testing_team, session):
+    def test_patch_rejects_team_name_when_multi_team_disabled(self, test_client, testing_team):
         self.create_connection()
 
         with mock.patch(
