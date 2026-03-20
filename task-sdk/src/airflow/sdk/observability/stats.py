@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from airflow.sdk._shared.observability.metrics.stats import (
+    Stats,
     decr,
     gauge,
     incr,
@@ -28,18 +29,6 @@ from airflow.sdk._shared.observability.metrics.stats import (
     timer,
     timing,
 )
-
-
-class Stats:
-    """Backward-compatible namespace. Prefer importing the module directly."""
-
-    initialize = staticmethod(initialize)
-    incr = staticmethod(incr)
-    decr = staticmethod(decr)
-    gauge = staticmethod(gauge)
-    timing = staticmethod(timing)
-    timer = staticmethod(timer)
-
 
 __all__ = [
     "Stats",
