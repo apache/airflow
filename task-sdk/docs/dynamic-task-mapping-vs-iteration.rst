@@ -18,7 +18,7 @@
 .. _sdk-dynamic-task-mapping-vs-iteration:
 
 Dynamic Task Mapping vs Dynamic Task Iteration
-=============================================
+===============================================
 
 .. versionadded:: 3.2.0
 
@@ -51,6 +51,7 @@ Example:
 
    from datetime import datetime
    from airflow.sdk import DAG, task
+
 
    @task
    def make_list():
@@ -92,13 +93,14 @@ Conceptual example:
    from datetime import datetime
    from airflow.sdk import DAG, task
 
+
    @task
    async def make_list():
-      result = []
-      for item in ["a", "b", "c"]:
-          await asyncio.sleep(0.1)  # Simulate async I/O
-          result.append(item)
-      return result
+       result = []
+       for item in ["a", "b", "c"]:
+           await asyncio.sleep(0.1)  # Simulate async I/O
+           result.append(item)
+       return result
 
 
    @task
@@ -168,7 +170,7 @@ Comparison
      - High-throughput or streaming workloads
 
 When to Use Dynamic Task Mapping
--------------------------------
+--------------------------------
 
 Prefer DTM when:
 
@@ -179,7 +181,7 @@ Prefer DTM when:
 - Scheduling decisions should be made per item.
 
 When to Use Dynamic Task Iteration
----------------------------------
+-----------------------------------
 
 Prefer DTI when:
 
@@ -190,7 +192,7 @@ Prefer DTI when:
 - Fine-grained observability per item is not required.
 
 When **not** to use DTI
-----------------------
+-----------------------
 
 Avoid Dynamic Task Iteration when:
 
@@ -200,7 +202,7 @@ Avoid Dynamic Task Iteration when:
 - Work must be distributed across multiple worker nodes.
 
 Relationship with Async Operators
---------------------------------
+----------------------------------
 
 DTI complements async operators introduced in Airflow 3.2.
 
