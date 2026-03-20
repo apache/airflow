@@ -30,6 +30,7 @@ body:
         - airbyte
         - alibaba
         - amazon
+        - apache-arrow
         - apache-beam
         - apache-cassandra
         - apache-drill

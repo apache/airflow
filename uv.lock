@@ -30,6 +30,7 @@ members = [
     "apache-airflow-providers-airbyte",
     "apache-airflow-providers-alibaba",
     "apache-airflow-providers-amazon",
+    "apache-airflow-providers-apache-arrow",
     "apache-airflow-providers-apache-cassandra",
     "apache-airflow-providers-apache-drill",
     "apache-airflow-providers-apache-druid",
@@ -178,9 +179,9 @@ name = "adbc-driver-manager"
 version = "1.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9e/77/b6ffd112a67d133810d0027e9de4408a6e63e0e1c438f5866cc28eb3c213/adbc_driver_manager-1.10.0.tar.gz", hash = "sha256:f04407cf2f99bfde13dea0e136d87219c8a16678d43e322744dbd84cdd8eaac2", size = 208204, upload-time = "2026-01-09T07:13:45.803Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9e/77/b6ffd112a67d133810d0027e9de4408a6e63e0e1c438f5866cc28eb3c213/dbc-driver-manager_driver_manager-1.10.0.tar.gz", hash = "sha256:f04407cf2f99bfde13dea0e136d87219c8a16678d43e322744dbd84cdd8eaac2", size = 208204, upload-time = "2026-01-09T07:13:45.803Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8a/0e/95eae266a8d97f2f222e6db9047dc4c1fab6a3e1d5e6bd9c8efb29881ec4/adbc_driver_manager-1.10.0-cp310-cp310-macosx_10_15_x86_64.whl", hash = "sha256:b82d7ffab5ad4c892e2f3201cc3781db3f87ef0c5ce1938715fb39a5dc6671b0", size = 532926, upload-time = "2026-01-09T07:11:52.672Z" },
     { url = "https://files.pythonhosted.org/packages/bc/7c/c7234fe0e25ccd0fe23d8fa1e3f2682d407f49916e845e15869d262fc648/adbc_driver_manager-1.10.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:e124ad209bc7112d0c0778fcc2e727c4fdf733188403129a82c10e563e89252b", size = 513090, upload-time = "2026-01-09T07:11:54.807Z" },
@@ -240,8 +241,8 @@ name = "adbc-driver-sqlite"
 version = "1.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "adbc-driver-manager", marker = "python_full_version < '3.13'" },
-    { name = "importlib-resources", marker = "python_full_version < '3.13'" },
+    { name = "adbc-driver-manager" },
+    { name = "importlib-resources" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/72/34/f4924d98a340835988f135303c7e562f7a388308a3fbb949f357bcb94b04/adbc_driver_sqlite-1.10.0.tar.gz", hash = "sha256:064ed5f1372578d2063cd920514cd2597c6a6db3b0163c2116e373faeedffec6", size = 18298, upload-time = "2026-01-09T07:13:49.001Z" }
 wheels = [
@@ -841,6 +842,7 @@ all = [
     { name = "apache-airflow-providers-airbyte" },
     { name = "apache-airflow-providers-alibaba" },
     { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "python3-saml", "s3fs"], marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-apache-arrow" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
     { name = "apache-airflow-providers-apache-drill" },
     { name = "apache-airflow-providers-apache-druid" },
@@ -955,6 +957,9 @@ amazon = [
 ]
 amazon-aws-auth = [
     { name = "apache-airflow-providers-amazon", extra = ["python3-saml"], marker = "python_full_version != '3.14.*'" },
+]
+apache-arrow = [
+    { name = "apache-airflow-providers-apache-arrow" },
 ]
 apache-atlas = [
     { name = "atlasclient" },
@@ -1362,6 +1367,8 @@ requires-dist = [
     { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], marker = "python_full_version != '3.14.*' and extra == 'aiobotocore'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["python3-saml"], marker = "python_full_version != '3.14.*' and extra == 'amazon-aws-auth'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["s3fs"], marker = "python_full_version != '3.14.*' and extra == 's3fs'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-apache-arrow", marker = "extra == 'all'", editable = "providers/apache/arrow" },
+    { name = "apache-airflow-providers-apache-arrow", marker = "extra == 'apache-arrow'", editable = "providers/apache/arrow" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'all'", editable = "providers/apache/drill" },
@@ -1567,7 +1574,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.10.12" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-arrow", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2818,6 +2825,50 @@ dev = [
     { name = "opensearch-py", specifier = ">=2.2.0" },
     { name = "responses", specifier = ">=0.25.0" },
     { name = "s3fs", specifier = ">=2023.10.0" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-apache-arrow"
+version = "0.1.0"
+source = { editable = "providers/apache/arrow" }
+dependencies = [
+    { name = "adbc-driver-manager" },
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "importlib-resources" },
+    { name = "pyarrow" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "adbc-driver-sqlite" },
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "adbc-driver-manager", specifier = ">=1.7.0" },
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "importlib-resources", specifier = ">=1.3" },
+    { name = "pyarrow", marker = "python_full_version < '3.13'", specifier = ">=16.1.0" },
+    { name = "pyarrow", marker = "python_full_version >= '3.13'", specifier = ">=18.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "adbc-driver-sqlite" },
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
