@@ -150,6 +150,7 @@ class TriageAction(Enum):
     READY = "m"
     SKIP = "s"
     QUIT = "q"
+    BACK = "ESC"
 
 
 def _show_pr_diff(token: str, github_repository: str, pr_number: int, pr_url: str | None) -> None:
@@ -267,6 +268,7 @@ def prompt_triage_action(
     token: str | None = None,
     github_repository: str | None = None,
     pr_number: int | None = None,
+    allow_back: bool = False,
 ) -> TriageAction:
     """Prompt the user to choose a triage action for a flagged PR.
 
@@ -281,6 +283,7 @@ def prompt_triage_action(
     :param token: GitHub token (used by SHOW action to fetch diff)
     :param github_repository: GitHub repository (used by SHOW action to fetch diff)
     :param pr_number: PR number (used by SHOW action to fetch diff)
+    :param allow_back: if True, show Esc/back option to return to TUI (default False)
     """
     import webbrowser
 
@@ -293,6 +296,7 @@ def prompt_triage_action(
         TriageAction.PING: "ping reviewer",
         TriageAction.OPEN: "open in browser",
         TriageAction.SHOW: "show diff",
+        TriageAction.BACK: "back to TUI",
         TriageAction.READY: "mark as ready",
         TriageAction.SKIP: "skip",
         TriageAction.QUIT: "quit",
@@ -314,8 +318,11 @@ def prompt_triage_action(
         return default
 
     excluded = exclude or set()
-    available_actions = [a for a in TriageAction if a not in excluded]
+    if not allow_back:
+        excluded = excluded | {TriageAction.BACK}
+    available_actions = [a for a in TriageAction if a not in excluded and a != TriageAction.BACK]
     action_by_key = {a.value.upper(): a for a in available_actions}
+    show_back = TriageAction.BACK not in excluded
 
     while True:
         # Build choice display: uppercase the default letter
@@ -328,6 +335,8 @@ def prompt_triage_action(
                 choices.append(f"\\[{letter.upper()}]{label}")
             else:
                 choices.append(f"\\[{letter}]{label}")
+        if show_back:
+            choices.append("\\[Esc]back to TUI")
         choices_str = " / ".join(choices)
 
         console_print(f"\n{message}")
@@ -343,6 +352,11 @@ def prompt_triage_action(
         if len(ch) > 1:
             console_print()
             continue
+
+        # Esc key (bare \x1b) returns BACK if available
+        if ch == "\x1b" and TriageAction.BACK not in excluded:
+            console_print("back")
+            return TriageAction.BACK
 
         console_print(ch)
 

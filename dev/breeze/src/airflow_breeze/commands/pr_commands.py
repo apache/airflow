@@ -21,6 +21,7 @@ import re
 import sys
 import time
 from collections import Counter
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -43,6 +44,7 @@ from airflow_breeze.utils.confirm import (
     Answer,
     ContinueAction,
     TriageAction,
+    _has_tty,
     prompt_space_continue,
     prompt_triage_action,
     user_confirm,
@@ -54,6 +56,7 @@ from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 if TYPE_CHECKING:
     from airflow_breeze.utils.github import PRAssessment
+    from airflow_breeze.utils.tui_display import PRListEntry, TriageTUI, TUIAction
 
 QUALITY_CRITERIA_LINK = (
     "[Pull Request quality criteria](https://github.com/apache/airflow/blob/main/"
@@ -82,140 +85,126 @@ _TRIAGE_COMMENT_MARKER = "Pull Request quality criteria"
 _NEARBY_LINE_THRESHOLD = 5
 
 
-def _get_review_cache_dir(github_repository: str) -> Path:
-    """Return the directory for storing cached LLM review results."""
-    from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
+class _CacheStore:
+    """Generic file-based JSON cache keyed by github_repository and a cache name.
 
-    safe_name = github_repository.replace("/", "_")
-    cache_dir = Path(BUILD_CACHE_PATH) / "review_cache" / safe_name
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir
+    Consolidates the repeated pattern of cache-dir creation, get, and save.
+    """
+
+    def __init__(self, cache_name: str, *, ttl_seconds: int = 0):
+        self._cache_name = cache_name
+        self._ttl_seconds = ttl_seconds
+
+    def _dir(self, github_repository: str) -> Path:
+        from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
+
+        safe_name = github_repository.replace("/", "_")
+        cache_dir = Path(BUILD_CACHE_PATH) / self._cache_name / safe_name
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return cache_dir
+
+    def _file(self, github_repository: str, key: str) -> Path:
+        return self._dir(github_repository) / f"{key}.json"
+
+    def get(self, github_repository: str, key: str, *, match: dict[str, str] | None = None) -> Any:
+        """Load cached data. If *match* is given, each key/value must match the stored data."""
+        cache_file = self._file(github_repository, key)
+        if not cache_file.exists():
+            return None
+        try:
+            data = json.loads(cache_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            return None
+        if self._ttl_seconds:
+            if time.time() - data.get("cached_at", 0) >= self._ttl_seconds:
+                return None
+        if match:
+            for k, v in match.items():
+                if data.get(k) != v:
+                    return None
+        return data
+
+    def save(self, github_repository: str, key: str, data: dict) -> None:
+        """Save *data* as JSON. Automatically adds ``cached_at`` when TTL is configured."""
+        if self._ttl_seconds:
+            data = {**data, "cached_at": time.time()}
+        self._file(github_repository, key).write_text(json.dumps(data, indent=2))
+
+
+# Concrete cache stores — one per domain
+_review_cache = _CacheStore("review_cache")
+_classification_cache = _CacheStore("classification_cache")
+_triage_cache = _CacheStore("triage_cache")
+_status_cache = _CacheStore("status_cache", ttl_seconds=4 * 3600)
+
+
+# Thin wrappers preserve the original public signatures so all callers keep working.
+def _get_review_cache_dir(github_repository: str) -> Path:
+    return _review_cache._dir(github_repository)
 
 
 def _get_cached_review(github_repository: str, pr_number: int, head_sha: str) -> dict | None:
-    """Load a cached LLM review result if it exists and matches the current commit hash."""
-    cache_file = _get_review_cache_dir(github_repository) / f"pr_{pr_number}.json"
-    if not cache_file.exists():
-        return None
-    try:
-        data = json.loads(cache_file.read_text())
-        if data.get("head_sha") == head_sha:
-            return data.get("review")
-        return None
-    except (json.JSONDecodeError, KeyError):
-        return None
+    data = _review_cache.get(github_repository, f"pr_{pr_number}", match={"head_sha": head_sha})
+    return data.get("review") if data else None
 
 
 def _save_review_cache(github_repository: str, pr_number: int, head_sha: str, review: dict) -> None:
-    """Save an LLM review result to the cache."""
-    cache_file = _get_review_cache_dir(github_repository) / f"pr_{pr_number}.json"
-    cache_file.write_text(json.dumps({"head_sha": head_sha, "review": review}, indent=2))
+    _review_cache.save(github_repository, f"pr_{pr_number}", {"head_sha": head_sha, "review": review})
 
 
-def _get_triage_cache_dir(github_repository: str) -> Path:
-    """Return the directory for storing cached LLM triage assessment results."""
-    from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
+def _get_cached_classification(
+    github_repository: str, pr_number: int, head_sha: str, viewer_login: str
+) -> tuple[str | None, str | None]:
+    data = _classification_cache.get(
+        github_repository, f"pr_{pr_number}", match={"head_sha": head_sha, "viewer": viewer_login}
+    )
+    if data is None:
+        return None, None
+    return data.get("classification"), data.get("action")
 
-    safe_name = github_repository.replace("/", "_")
-    cache_dir = Path(BUILD_CACHE_PATH) / "triage_cache" / safe_name
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir
+
+def _save_classification_cache(
+    github_repository: str,
+    pr_number: int,
+    head_sha: str,
+    viewer_login: str,
+    classification: str,
+    action: str | None = None,
+) -> None:
+    entry: dict[str, str] = {"head_sha": head_sha, "viewer": viewer_login, "classification": classification}
+    if action:
+        entry["action"] = action
+    _classification_cache.save(github_repository, f"pr_{pr_number}", entry)
 
 
 def _get_cached_assessment(github_repository: str, pr_number: int, head_sha: str) -> dict | None:
-    """Load a cached LLM triage assessment if it exists and matches the current commit hash."""
-    cache_file = _get_triage_cache_dir(github_repository) / f"pr_{pr_number}.json"
-    if not cache_file.exists():
-        return None
-    try:
-        data = json.loads(cache_file.read_text())
-        if data.get("head_sha") == head_sha:
-            return data.get("assessment")
-        return None
-    except (json.JSONDecodeError, KeyError):
-        return None
+    data = _triage_cache.get(github_repository, f"pr_{pr_number}", match={"head_sha": head_sha})
+    return data.get("assessment") if data else None
 
 
 def _save_assessment_cache(github_repository: str, pr_number: int, head_sha: str, assessment: dict) -> None:
-    """Save an LLM triage assessment result to the cache."""
-    cache_file = _get_triage_cache_dir(github_repository) / f"pr_{pr_number}.json"
-    cache_file.write_text(json.dumps({"head_sha": head_sha, "assessment": assessment}, indent=2))
-
-
-def _get_log_cache_dir(github_repository: str) -> Path:
-    """Return the directory for storing cached CI log snippets."""
-    from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
-
-    safe_name = github_repository.replace("/", "_")
-    cache_dir = Path(BUILD_CACHE_PATH) / "log_cache" / safe_name
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir
-
-
-def _get_cached_log_snippets(
-    github_repository: str, head_sha: str, failed_check_names: list[str]
-) -> dict[str, dict] | None:
-    """Load cached CI log snippets if they exist and match the commit hash and check names."""
-    cache_file = _get_log_cache_dir(github_repository) / f"sha_{head_sha}.json"
-    if not cache_file.exists():
-        return None
-    try:
-        data = json.loads(cache_file.read_text())
-        if data.get("head_sha") != head_sha:
-            return None
-        cached_snippets = data.get("snippets", {})
-        # Only return cache if it covers all requested check names
-        if all(name in cached_snippets for name in failed_check_names):
-            return cached_snippets
-        return None
-    except (json.JSONDecodeError, KeyError, OSError):
-        return None
-
-
-def _save_log_cache(github_repository: str, head_sha: str, snippets: dict[str, Any]) -> None:
-    """Save CI log snippets to cache keyed by commit SHA."""
-    cache_file = _get_log_cache_dir(github_repository) / f"sha_{head_sha}.json"
-    serializable = {
-        name: {"snippet": info.snippet, "job_url": info.job_url} for name, info in snippets.items()
-    }
-    cache_file.write_text(json.dumps({"head_sha": head_sha, "snippets": serializable}, indent=2))
-
-
-_STATUS_CACHE_TTL_SECONDS = 4 * 3600  # 4 hours
-
-
-def _get_status_cache_dir(github_repository: str) -> Path:
-    """Return the directory for storing cached PR/main status results."""
-    from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
-
-    safe_name = github_repository.replace("/", "_")
-    cache_dir = Path(BUILD_CACHE_PATH) / "status_cache" / safe_name
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir
+    _triage_cache.save(github_repository, f"pr_{pr_number}", {"head_sha": head_sha, "assessment": assessment})
 
 
 def _get_cached_status(github_repository: str, cache_key: str) -> Any:
-    """Load a cached status result if it exists and is within the TTL.
-
-    Uses wall-clock time (``time.time()``) because this cache persists across process restarts.
-    """
-    cache_file = _get_status_cache_dir(github_repository) / f"{cache_key}.json"
-    if not cache_file.exists():
-        return None
-    try:
-        data = json.loads(cache_file.read_text())
-        cached_at = data.get("cached_at", 0)
-        if time.time() - cached_at < _STATUS_CACHE_TTL_SECONDS:
-            return data.get("payload")
-        return None
-    except (json.JSONDecodeError, KeyError, OSError):
-        return None
+    data = _status_cache.get(github_repository, cache_key)
+    return data.get("payload") if data else None
 
 
 def _save_status_cache(github_repository: str, cache_key: str, payload: dict | list) -> None:
-    """Save a status result to the cache with a wall-clock timestamp."""
-    cache_file = _get_status_cache_dir(github_repository) / f"{cache_key}.json"
-    cache_file.write_text(json.dumps({"cached_at": time.time(), "payload": payload}))
+    _status_cache.save(github_repository, cache_key, {"payload": payload})
+
+
+def _get_triage_cache_dir(github_repository: str) -> Path:
+    return _triage_cache._dir(github_repository)
+
+
+def _get_status_cache_dir(github_repository: str) -> Path:
+    return _status_cache._dir(github_repository)
+
+
+def _get_classification_cache_dir(github_repository: str) -> Path:
+    return _classification_cache._dir(github_repository)
 
 
 def _cached_fetch_recent_pr_failures(
@@ -247,62 +236,15 @@ def _cached_fetch_recent_pr_failures(
 def _cached_fetch_main_canary_builds(
     token: str, github_repository: str, *, branch: str = "main", count: int = 4
 ) -> list[dict]:
-    """Return cached canary build data with failed jobs pre-fetched.
-
-    The cache stores builds together with their failed jobs so that
-    ``_display_canary_builds_status`` can render instantly without
-    additional API calls.
-    """
+    """Return cached canary build data, fetching fresh data when the cache expires."""
     cache_key = f"canary_builds_{branch}"
     cached = _get_cached_status(github_repository, cache_key)
     if cached is not None:
-        # Verify cached builds have failed-jobs data; if any failed build is
-        # missing the key, invalidate the cache and re-fetch.
-        needs_refetch = any(b.get("conclusion") == "failure" and "_failed_jobs" not in b for b in cached)
-        if not needs_refetch:
-            get_console().print("[dim]Using cached canary build data (expires after 4 h).[/]")
-            return cached
-        get_console().print("[dim]Cached canary builds missing failed-job details, re-fetching...[/]")
-
-    get_console().print("[info]Fetching canary builds from GitHub...[/]")
-    builds = _fetch_main_canary_builds(token, github_repository, branch=branch, count=count)
-
-    # Pre-fetch failed jobs for all failed builds in parallel so they are
-    # available in the cache and don't block display later.
-    failed_builds = [b for b in builds if b.get("conclusion") == "failure" and b.get("id")]
-    if failed_builds:
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        get_console().print(
-            f"[info]Fetching failed jobs for {len(failed_builds)} "
-            f"failed {'builds' if len(failed_builds) != 1 else 'build'}...[/]"
-        )
-        with ThreadPoolExecutor(max_workers=min(len(failed_builds), 4)) as executor:
-            futures = {
-                executor.submit(_fetch_failed_jobs_for_run, token, github_repository, b["id"]): b["id"]
-                for b in failed_builds
-            }
-            jobs_by_run: dict[int, list[dict]] = {}
-            done_count = 0
-            for future in as_completed(futures):
-                run_id = futures[future]
-                done_count += 1
-                try:
-                    jobs_by_run[run_id] = future.result()
-                except Exception:
-                    jobs_by_run[run_id] = []
-                get_console().print(
-                    f"  [dim]({done_count}/{len(failed_builds)}) fetched jobs for run {run_id}[/]"
-                )
-
-        # Embed the failed-jobs list directly in each build dict so the
-        # display function can use it without making extra API calls.
-        for build in builds:
-            if build.get("id") in jobs_by_run:
-                build["_failed_jobs"] = jobs_by_run[build["id"]]
-
-    _save_status_cache(github_repository, cache_key, builds)
-    return builds
+        get_console().print("[dim]Using cached canary build data (expires after 4 h).[/]")
+        return cached
+    result = _fetch_main_canary_builds(token, github_repository, branch=branch, count=count)
+    _save_status_cache(github_repository, cache_key, result)
+    return result
 
 
 def _cached_assess_pr(
@@ -716,19 +658,6 @@ class StaleReviewInfo:
 
 
 @dataclass
-class BatchPrefetchResult:
-    """Result from a background prefetch of the next page of PRs."""
-
-    all_prs: list[PRData]
-    has_next_page: bool
-    next_cursor: str | None
-    candidate_prs: list[PRData]
-    accepted_prs: list[PRData]
-    triaged_classification: dict[str, set[int]]
-    reclassified_count: int
-
-
-@dataclass
 class ReviewComment:
     """A single line-level review comment proposed by the LLM."""
 
@@ -886,24 +815,46 @@ def _refresh_collaborators_cache_in_background(token: str, github_repository: st
     thread.start()
 
 
-def _graphql_request(token: str, query: str, variables: dict) -> dict:
-    """Execute a GitHub GraphQL request. Returns the 'data' dict or exits on error."""
+def _graphql_request(token: str, query: str, variables: dict, *, max_retries: int = 3) -> dict:
+    """Execute a GitHub GraphQL request with automatic retry on transient errors.
+
+    Returns the 'data' dict or exits on persistent error.
+    """
     import requests
 
-    response = requests.post(
-        "https://api.github.com/graphql",
-        json={"query": query, "variables": variables},
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        timeout=60,
-    )
-    if response.status_code != 200:
-        console_print(f"[error]GraphQL request failed: {response.status_code} {response.text}[/]")
-        sys.exit(1)
-    result = response.json()
-    if "errors" in result:
-        console_print(f"[error]GraphQL errors: {result['errors']}[/]")
-        sys.exit(1)
-    return result["data"]
+    last_exc: Exception | None = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.post(
+                "https://api.github.com/graphql",
+                json={"query": query, "variables": variables},
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                timeout=60,
+            )
+        except (requests.ConnectionError, requests.Timeout) as exc:
+            last_exc = exc
+            if attempt < max_retries:
+                time.sleep(2 * attempt)
+                continue
+            console_print(f"[error]GraphQL request failed after {max_retries} attempts: {exc}[/]")
+            sys.exit(1)
+
+        if response.status_code == 502 or response.status_code == 503:
+            if attempt < max_retries:
+                time.sleep(2 * attempt)
+                continue
+        if response.status_code != 200:
+            console_print(f"[error]GraphQL request failed: {response.status_code} {response.text}[/]")
+            sys.exit(1)
+        result = response.json()
+        if "errors" in result:
+            console_print(f"[error]GraphQL errors: {result['errors']}[/]")
+            sys.exit(1)
+        return result["data"]
+
+    # Should not reach here, but just in case
+    console_print(f"[error]GraphQL request failed after {max_retries} attempts: {last_exc}[/]")
+    sys.exit(1)
 
 
 _CHECK_FAILURE_CONCLUSIONS = {"FAILURE", "TIMED_OUT", "ACTION_REQUIRED"}
@@ -1172,7 +1123,12 @@ def _fetch_failed_checks(token: str, github_repository: str, head_sha: str) -> l
     return failed
 
 
-def _fetch_check_details_batch(token: str, github_repository: str, prs: list[PRData]) -> None:
+def _fetch_check_details_batch(
+    token: str,
+    github_repository: str,
+    prs: list[PRData],
+    on_progress: Callable[[int, int], None] | None = None,
+) -> None:
     """Fetch detailed check contexts for PRs in chunked GraphQL queries.
 
     Updates each PR's check_summary, checks_state, and failed_checks in-place.
@@ -1238,12 +1194,19 @@ def _fetch_check_details_batch(token: str, github_repository: str, prs: list[PRD
             pr.checks_state = rollup_state
             pr.check_summary = summary
             pr.failed_checks = failed
+        if on_progress:
+            on_progress(min(chunk_start + len(chunk), len(eligible)), len(eligible))
 
 
 _REVIEW_THREADS_BATCH_SIZE = 10
 
 
-def _fetch_unresolved_comments_batch(token: str, github_repository: str, prs: list[PRData]) -> None:
+def _fetch_unresolved_comments_batch(
+    token: str,
+    github_repository: str,
+    prs: list[PRData],
+    on_progress: Callable[[int, int], None] | None = None,
+) -> None:
     """Fetch unresolved review thread details for PRs in chunked GraphQL queries.
 
     Fetches only threads started by collaborators/members/owners (maintainers).
@@ -1348,9 +1311,16 @@ def _fetch_unresolved_comments_batch(token: str, github_repository: str, prs: li
             # Also count unresolved threads from collaborators as engagement
             if unresolved:
                 pr.has_collaborator_review = True
+        if on_progress:
+            on_progress(min(chunk_start + len(chunk), len(prs)), len(prs))
 
 
-def _fetch_commits_behind_batch(token: str, github_repository: str, prs: list[PRData]) -> dict[int, int]:
+def _fetch_commits_behind_batch(
+    token: str,
+    github_repository: str,
+    prs: list[PRData],
+    on_progress: Callable[[int, int], None] | None = None,
+) -> dict[int, int]:
     """Fetch how many commits each PR is behind its base branch in chunked GraphQL queries.
 
     Uses aliased ref.compare fields batched into chunks of _COMMITS_BEHIND_BATCH_SIZE
@@ -1392,6 +1362,8 @@ def _fetch_commits_behind_batch(token: str, github_repository: str, prs: list[PR
             ref_data = repo_data.get(alias) or {}
             compare = ref_data.get("compare") or {}
             result[pr.number] = compare.get("behindBy", 0)
+        if on_progress:
+            on_progress(min(chunk_start + len(chunk), len(eligible)), len(eligible))
 
     return result
 
@@ -1426,6 +1398,7 @@ def _classify_already_triaged_prs(
     viewer_login: str,
     *,
     require_marker: bool = True,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> dict[str, set[int]]:
     """Classify already-triaged PRs into waiting vs responded.
 
@@ -1443,9 +1416,29 @@ def _classify_already_triaged_prs(
 
     owner, repo = github_repository.split("/", 1)
 
-    # Batch fetch last 10 comments + last commit date for each PR
-    for chunk_start in range(0, len(prs), _COMMITS_BEHIND_BATCH_SIZE):
-        chunk = prs[chunk_start : chunk_start + _COMMITS_BEHIND_BATCH_SIZE]
+    # Check cache first — only fetch uncached PRs
+    uncached_prs: list[PRData] = []
+    for pr in prs:
+        if pr.head_sha and require_marker:
+            cached_cls, _cached_act = _get_cached_classification(
+                github_repository, pr.number, pr.head_sha, viewer_login
+            )
+            if cached_cls in ("waiting", "responded", "acted"):
+                result[cached_cls if cached_cls != "acted" else "waiting"].add(pr.number)
+                continue
+            if cached_cls == "none":
+                continue  # Known not-triaged, skip API call
+        uncached_prs.append(pr)
+
+    if on_progress and uncached_prs:
+        # Report cache hits as progress
+        cache_hits = len(prs) - len(uncached_prs)
+        if cache_hits:
+            on_progress(cache_hits, len(prs))
+
+    # Batch fetch last 10 comments + last commit date for uncached PRs
+    for chunk_start in range(0, len(uncached_prs), _COMMITS_BEHIND_BATCH_SIZE):
+        chunk = uncached_prs[chunk_start : chunk_start + _COMMITS_BEHIND_BATCH_SIZE]
 
         pr_fields = []
         for pr in chunk:
@@ -1500,6 +1493,11 @@ def _classify_already_triaged_prs(
                     break
 
             if not triage_comment_date:
+                # Not triaged — cache this negative result too (avoids re-fetching)
+                if pr.head_sha and require_marker:
+                    _save_classification_cache(
+                        github_repository, pr.number, pr.head_sha, viewer_login, "none"
+                    )
                 continue
 
             # Check if the PR author responded after our triage comment
@@ -1511,10 +1509,16 @@ def _classify_already_triaged_prs(
                     author_responded = True
                     break
 
-            if author_responded:
-                result["responded"].add(pr.number)
-            else:
-                result["waiting"].add(pr.number)
+            classification = "responded" if author_responded else "waiting"
+            result[classification].add(pr.number)
+            # Cache the classification result (keyed by head_sha — invalidated on new commits)
+            if pr.head_sha and require_marker:
+                _save_classification_cache(
+                    github_repository, pr.number, pr.head_sha, viewer_login, classification
+                )
+        if on_progress:
+            cache_hits = len(prs) - len(uncached_prs)
+            on_progress(min(cache_hits + chunk_start + len(chunk), len(prs)), len(prs))
 
     return result
 
@@ -1682,10 +1686,11 @@ def _fetch_prs_graphql(
     review_requested: str | None = None,
     reviewed_by: str | None = None,
     after_cursor: str | None = None,
-) -> tuple[list[PRData], bool, str | None]:
+    quiet: bool = False,
+) -> tuple[list[PRData], bool, str | None, int]:
     """Fetch a single batch of matching PRs via GraphQL.
 
-    Returns (prs, has_next_page, end_cursor).
+    Returns (prs, has_next_page, end_cursor, total_issue_count).
     """
     query_parts = [f"repo:{github_repository}", "type:pr", "is:open"]
     if filter_user:
@@ -1716,7 +1721,7 @@ def _fetch_prs_graphql(
     sort_field, sort_direction = sort.rsplit("-", 1)
     search_query += f" sort:{sort_field}-{sort_direction}"
 
-    if not after_cursor:
+    if not after_cursor and not quiet:
         console_print(f"[info]Searching PRs: {search_query}[/]")
 
     variables: dict = {"query": search_query, "first": batch_size}
@@ -1729,12 +1734,13 @@ def _fetch_prs_graphql(
     has_next_page = page_info.get("hasNextPage", False)
     end_cursor = page_info.get("endCursor")
 
-    console_print(
-        f"[info]Found {search_data['issueCount']} matching "
-        f"{'PRs' if search_data['issueCount'] != 1 else 'PR'}, "
-        f"fetched {len(search_data['nodes'])}"
-        f"{' (more available)' if has_next_page else ''}.[/]"
-    )
+    if not quiet:
+        console_print(
+            f"[info]Found {search_data['issueCount']} matching "
+            f"{'PRs' if search_data['issueCount'] != 1 else 'PR'}, "
+            f"fetched {len(search_data['nodes'])}"
+            f"{' (more available)' if has_next_page else ''}.[/]"
+        )
 
     prs: list[PRData] = []
     for node in search_data["nodes"]:
@@ -1766,7 +1772,7 @@ def _fetch_prs_graphql(
             )
         )
 
-    return prs, has_next_page, end_cursor
+    return prs, has_next_page, end_cursor, search_data["issueCount"]
 
 
 def _fetch_single_pr_graphql(token: str, github_repository: str, pr_number: int) -> PRData:
@@ -1917,40 +1923,64 @@ def _is_bot_account(login: str) -> bool:
     return login.lower() in _BOT_ACCOUNT_LOGINS or login.endswith("[bot]")
 
 
-def _convert_pr_to_draft(token: str, node_id: str) -> bool:
-    """Convert a PR to draft using GitHub GraphQL API."""
+def _graphql_mutation(token: str, mutation: str, variables: dict) -> bool:
+    """Execute a GraphQL mutation, returning True on success, False on failure."""
     try:
-        _graphql_request(token, _CONVERT_TO_DRAFT_MUTATION, {"prId": node_id})
+        _graphql_request(token, mutation, variables)
         return True
     except SystemExit:
         return False
+
+
+def _convert_pr_to_draft(token: str, node_id: str) -> bool:
+    """Convert a PR to draft using GitHub GraphQL API."""
+    return _graphql_mutation(token, _CONVERT_TO_DRAFT_MUTATION, {"prId": node_id})
 
 
 def _mark_pr_ready_for_review(token: str, node_id: str) -> bool:
     """Mark a draft PR as ready for review using GitHub GraphQL API."""
-    try:
-        _graphql_request(token, _MARK_READY_FOR_REVIEW_MUTATION, {"prId": node_id})
-        return True
-    except SystemExit:
-        return False
+    return _graphql_mutation(token, _MARK_READY_FOR_REVIEW_MUTATION, {"prId": node_id})
 
 
 def _close_pr(token: str, node_id: str) -> bool:
     """Close a PR using GitHub GraphQL API."""
-    try:
-        _graphql_request(token, _CLOSE_PR_MUTATION, {"prId": node_id})
-        return True
-    except SystemExit:
-        return False
+    return _graphql_mutation(token, _CLOSE_PR_MUTATION, {"prId": node_id})
 
 
 def _post_comment(token: str, node_id: str, body: str) -> bool:
     """Post a comment on a PR using GitHub GraphQL API."""
-    try:
-        _graphql_request(token, _ADD_COMMENT_MUTATION, {"subjectId": node_id, "body": body})
+    return _graphql_mutation(token, _ADD_COMMENT_MUTATION, {"subjectId": node_id, "body": body})
+
+
+def _github_rest(
+    token: str,
+    method: str,
+    url: str,
+    *,
+    json_payload: dict | None = None,
+    ok_codes: tuple[int, ...] = (200, 201),
+    fail_message: str = "",
+) -> bool:
+    """Make a GitHub REST API request, returning True on success.
+
+    Consolidates the repeated pattern of POST/PUT with auth headers, status check,
+    and optional failure message.
+    """
+    import requests
+
+    fn = getattr(requests, method.lower())
+    kwargs: dict[str, Any] = {
+        "headers": {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+        "timeout": 30,
+    }
+    if json_payload is not None:
+        kwargs["json"] = json_payload
+    response = fn(url, **kwargs)
+    if response.status_code in ok_codes:
         return True
-    except SystemExit:
-        return False
+    if fail_message:
+        get_console().print(f"[warning]{fail_message}: {response.status_code} {response.text[:200]}[/]")
+    return False
 
 
 def _post_review_comment(
@@ -1963,30 +1993,14 @@ def _post_review_comment(
     body: str,
 ) -> bool:
     """Post a single review comment on a specific line of a PR via REST API."""
-    import requests
-
     owner, repo = github_repository.split("/", 1)
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/comments"
-    payload = {
-        "commit_id": commit_id,
-        "path": path,
-        "line": line,
-        "side": "RIGHT",
-        "body": body,
-    }
-    response = requests.post(
-        url,
-        json=payload,
-        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
-        timeout=30,
+    return _github_rest(
+        token,
+        "post",
+        f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/comments",
+        json_payload={"commit_id": commit_id, "path": path, "line": line, "side": "RIGHT", "body": body},
+        fail_message=f"Failed to post review comment on {path}:{line}",
     )
-    if response.status_code in (200, 201):
-        return True
-    get_console().print(
-        f"[warning]Failed to post review comment on {path}:{line}: "
-        f"{response.status_code} {response.text[:200]}[/]"
-    )
-    return False
 
 
 def _submit_pr_review(
@@ -1998,44 +2012,26 @@ def _submit_pr_review(
     event: str = "COMMENT",
 ) -> bool:
     """Submit an overall PR review (APPROVE, REQUEST_CHANGES, or COMMENT) via REST API."""
-    import requests
-
     owner, repo = github_repository.split("/", 1)
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/reviews"
-    payload = {
-        "commit_id": commit_id,
-        "body": body,
-        "event": event,
-    }
-    response = requests.post(
-        url,
-        json=payload,
-        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
-        timeout=30,
+    return _github_rest(
+        token,
+        "post",
+        f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/reviews",
+        json_payload={"commit_id": commit_id, "body": body, "event": event},
+        fail_message="Failed to submit review",
     )
-    if response.status_code in (200, 201):
-        return True
-    get_console().print(f"[warning]Failed to submit review: {response.status_code} {response.text[:200]}[/]")
-    return False
 
 
 def _update_pr_branch(token: str, github_repository: str, pr_number: int) -> bool:
     """Update (rebase) a PR branch to the latest base branch via GitHub REST API."""
-    import requests
-
     owner, repo = github_repository.split("/", 1)
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/update-branch"
-    response = requests.put(
-        url,
-        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
-        timeout=30,
+    return _github_rest(
+        token,
+        "put",
+        f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/update-branch",
+        ok_codes=(200, 202),
+        fail_message="Failed to update PR branch",
     )
-    if response.status_code in (200, 202):
-        return True
-    get_console().print(
-        f"[warning]Failed to update PR branch: {response.status_code} {response.text[:200]}[/]"
-    )
-    return False
 
 
 _label_id_cache: dict[str, str | None] = {}
@@ -2465,8 +2461,14 @@ def _print_pr_header(pr: PRData, index: int | None = None, total: int | None = N
     console.print()
 
 
-def _display_pr_info_panels(pr: PRData, author_profile: dict | None, *, open_in_browser: bool = False):
-    """Display PR info and author panels (shared by flagged-PR and workflow-approval flows)."""
+def _display_pr_info_panels(
+    pr: PRData, author_profile: dict | None, *, open_in_browser: bool = False, compact: bool = False
+):
+    """Display PR info and author panels (shared by flagged-PR and workflow-approval flows).
+
+    When compact=True, the PR description is truncated more aggressively and the
+    author panel is condensed (used when advancing through PRs in TUI mode).
+    """
     import webbrowser
 
     from rich.markdown import Markdown
@@ -2476,16 +2478,15 @@ def _display_pr_info_panels(pr: PRData, author_profile: dict | None, *, open_in_
     console.rule(style="dim")
     console.print()
 
-    status_info = ""
+    status_parts_inline = []
     if pr.is_draft:
-        status_info += "\n[yellow]Draft PR[/]"
+        status_parts_inline.append("[yellow]Draft[/]")
     if pr.commits_behind > 0:
-        status_info += (
-            f"\n[yellow]{pr.commits_behind} commit{'s' if pr.commits_behind != 1 else ''} "
-            f"behind {pr.base_ref}[/]"
-        )
+        status_parts_inline.append(f"[yellow]{pr.commits_behind} behind {pr.base_ref}[/]")
     if pr.mergeable == "CONFLICTING":
-        status_info += "\n[red]Has merge conflicts[/]"
+        status_parts_inline.append("[red]Conflicts[/]")
+    status_info = ("  |  " + " | ".join(status_parts_inline)) if status_parts_inline else ""
+
     pr_info = (
         f"[link={pr.url}][cyan]#{pr.number}[/][/link] {pr.title}\n"
         f"Author: [link=https://github.com/{pr.author_login}][bold]{pr.author_login}[/][/link]  |  "
@@ -2497,10 +2498,10 @@ def _display_pr_info_panels(pr: PRData, author_profile: dict | None, *, open_in_
 
     # Display PR description as rendered markdown
     if pr.body and pr.body.strip():
-        # Truncate very long descriptions
         body_text = pr.body.strip()
-        if len(body_text) > 3000:
-            body_text = body_text[:3000] + "\n\n*... (truncated)*"
+        max_body = 1000 if compact else 3000
+        if len(body_text) > max_body:
+            body_text = body_text[:max_body] + "\n\n*... (truncated)*"
         body_text = _linkify_commit_hashes(body_text)
         console.print(Panel(Markdown(body_text), title="PR Description", border_style="dim"))
 
@@ -2609,10 +2610,10 @@ def _display_unresolved_threads_panel(pr: PRData) -> None:
     )
 
 
-def _display_pr_panel(pr: PRData, author_profile: dict | None, assessment):
+def _display_pr_panel(pr: PRData, author_profile: dict | None, assessment, *, compact: bool = False):
     """Display Rich panels with PR details, author info, and violations."""
     console = get_console()
-    _display_pr_info_panels(pr, author_profile)
+    _display_pr_info_panels(pr, author_profile, compact=compact)
 
     violation_lines = []
     if getattr(assessment, "should_report", False):
@@ -2644,7 +2645,9 @@ def _display_pr_panel(pr: PRData, author_profile: dict | None, assessment):
     _display_unresolved_threads_panel(pr)
 
 
-def _display_log_snippets_panel(log_snippets: dict[str, LogSnippetInfo], pr: PRData | None = None) -> None:
+def _display_log_snippets_panel(
+    log_snippets: dict[str, LogSnippetInfo], pr: PRData | None = None, *, compact: bool = False
+) -> None:
     """Display Rich panel(s) with log snippets from failed CI checks."""
     from rich.console import Group
     from rich.text import Text
@@ -2653,8 +2656,9 @@ def _display_log_snippets_panel(log_snippets: dict[str, LogSnippetInfo], pr: PRD
     for check_name, info in log_snippets.items():
         # Truncate very long snippets for display
         display_snippet = info.snippet
-        if len(display_snippet) > 2000:
-            display_snippet = display_snippet[:2000] + "\n... (truncated)"
+        max_len = 800 if compact else 2000
+        if len(display_snippet) > max_len:
+            display_snippet = display_snippet[:max_len] + "\n... (truncated)"
 
         # Build content: clickable links header + pre-formatted log text
         renderables: list[Any] = []
@@ -2707,8 +2711,8 @@ def _launch_background_log_fetching(
 
     pr_word = "PRs" if len(prs_with_failures) != 1 else "PR"
     get_console().print(
-        f"[info]Downloading CI failure logs for {len(prs_with_failures)} {pr_word} "
-        f"in background (concurrency: {llm_concurrency}).[/]"
+        f"[info]Launched CI log fetching for {len(prs_with_failures)} {pr_word} "
+        f"with failures in background (concurrency: {llm_concurrency}).[/]"
     )
     return log_futures
 
@@ -2718,10 +2722,12 @@ def _display_workflow_approval_panel(
     author_profile: dict | None,
     pending_runs: list[dict],
     check_counts: dict[str, int] | None = None,
+    *,
+    compact: bool = False,
 ):
     """Display Rich panels for a PR needing workflow approval."""
     console = get_console()
-    _display_pr_info_panels(pr, author_profile)
+    _display_pr_info_panels(pr, author_profile, compact=compact)
 
     run_lines = []
     if pending_runs:
@@ -2752,7 +2758,12 @@ def _display_workflow_approval_panel(
     console.print(Panel(info_text, title="Workflow Approval Needed", border_style="bright_cyan"))
 
 
-def _resolve_unknown_mergeable(token: str, github_repository: str, prs: list[PRData]) -> int:
+def _resolve_unknown_mergeable(
+    token: str,
+    github_repository: str,
+    prs: list[PRData],
+    on_progress: Callable[[int, int], None] | None = None,
+) -> int:
     """Resolve UNKNOWN mergeable status for PRs via REST API.
 
     GitHub's GraphQL API computes mergeability lazily and often returns UNKNOWN.
@@ -2772,7 +2783,7 @@ def _resolve_unknown_mergeable(token: str, github_repository: str, prs: list[PRD
     resolved = 0
     still_unknown: list[PRData] = []
 
-    for pr in unknown_prs:
+    for idx, pr in enumerate(unknown_prs):
         url = f"https://api.github.com/repos/{github_repository}/pulls/{pr.number}"
         response = requests.get(
             url,
@@ -2793,6 +2804,8 @@ def _resolve_unknown_mergeable(token: str, github_repository: str, prs: list[PRD
                 still_unknown.append(pr)
         else:
             still_unknown.append(pr)
+        if on_progress:
+            on_progress(idx + 1, len(unknown_prs))
 
     if still_unknown:
         # Give GitHub a moment to compute mergeability, then retry
@@ -2839,6 +2852,7 @@ def _collect_llm_results(
     llm_errors: list[int],
     llm_passing: list,
     block: bool = False,
+    quiet: bool = False,
 ) -> None:
     """Collect completed LLM futures. If block=False, only collect already-done futures."""
     from concurrent.futures import wait
@@ -2859,17 +2873,19 @@ def _collect_llm_results(
         assessment = future.result()
         if assessment.error:
             llm_errors.append(pr.number)
-            msg = f"  [warning]PR {_pr_link(pr)} LLM assessment failed ({assessment.summary})."
-            if assessment.error_debug_file:
-                msg += f" Raw response saved to {assessment.error_debug_file}"
-            console_print(f"{msg}[/]")
+            if not quiet:
+                msg = f"  [warning]PR {_pr_link(pr)} LLM assessment failed ({assessment.summary})."
+                if assessment.error_debug_file:
+                    msg += f" Raw response saved to {assessment.error_debug_file}"
+                console_print(f"{msg}[/]")
             continue
         if not assessment.should_flag:
             llm_passing.append(pr)
-            console_print(f"  [success]PR {_pr_link(pr)} passes LLM quality check.[/]")
+            if not quiet:
+                console_print(f"  [success]PR {_pr_link(pr)} passes LLM quality check.[/]")
             continue
         llm_assessments[pr.number] = assessment
-        if assessment.should_report:
+        if assessment.should_report and not quiet:
             console_print(
                 f"  [yellow]PR {_pr_link(pr)} potentially flagged for reporting to GitHub.[/yellow]"
             )
@@ -2914,16 +2930,20 @@ class TriageContext:
     # Background CI log fetching: PR number -> Future[dict[str, LogSnippetInfo]]
     log_futures: dict[int, Future[dict[str, LogSnippetInfo]]] = field(default_factory=dict)
 
-    def collect_llm_progress(self) -> None:
-        """Collect completed LLM results and print progress status."""
+    def collect_llm_progress(self, quiet: bool = False) -> str:
+        """Collect completed LLM results and optionally print progress status.
+
+        Returns the progress status string (useful for TUI status panel).
+        """
         if not self.llm_future_to_pr:
-            return
+            return ""
         _collect_llm_results(
             self.llm_future_to_pr,
             self.llm_assessments,
             self.llm_completed,
             self.llm_errors,
             self.llm_passing,
+            quiet=quiet,
         )
         progress = _llm_progress_status(
             len(self.llm_completed),
@@ -2931,8 +2951,9 @@ class TriageContext:
             len(self.llm_assessments),
             len(self.llm_errors),
         )
-        if progress:
+        if progress and not quiet:
             console_print(progress)
+        return progress
 
 
 def _confirm_action(pr: PRData, description: str, forced_answer: str | None = None) -> bool:
@@ -3139,11 +3160,20 @@ def _prompt_and_execute_flagged_pr(
     assessment,
     *,
     comment_only_text: str | None = None,
-) -> None:
-    """Display a flagged PR panel, prompt user for action, and execute it. Mutates ctx.stats."""
+    allow_back: bool = False,
+    compact: bool = False,
+    default_skip: bool = False,
+) -> bool:
+    """Display a flagged PR panel, prompt user for action, and execute it. Mutates ctx.stats.
+
+    When default_skip=True, the default action is overridden to SKIP (used when
+    re-opening a previously skipped PR — all actions remain available).
+
+    Returns True if the user chose to go back to the TUI without taking action.
+    """
     author_profile = _fetch_author_profile(ctx.token, pr.author_login, ctx.github_repository)
 
-    _display_pr_panel(pr, author_profile, assessment)
+    _display_pr_panel(pr, author_profile, assessment, compact=compact)
 
     # Display log snippets from failed CI checks (fetched in background)
     if pr.failed_checks and pr.head_sha:
@@ -3152,25 +3182,41 @@ def _prompt_and_execute_flagged_pr(
             if log_future.done():
                 log_snippets = log_future.result()
                 if log_snippets:
-                    _display_log_snippets_panel(log_snippets, pr=pr)
+                    _display_log_snippets_panel(log_snippets, pr=pr, compact=compact)
             else:
-                # Logs are still being fetched — wait automatically
-                get_console().print("  [dim]Downloading CI failure logs...[/]")
+                # Logs are still being fetched — offer user to wait or cancel
+                from airflow_breeze.utils.confirm import _read_char
+
+                get_console().print("  [dim]CI failure logs are still being fetched in the background...[/]")
+                get_console().print(
+                    "  Press any key to [bold]wait[/] or [bold]\\[c]ancel[/] log retrieval for this PR: ",
+                    end="",
+                )
                 try:
-                    log_snippets = log_future.result(timeout=120)
-                    if log_snippets:
-                        _display_log_snippets_panel(log_snippets, pr=pr)
-                except TimeoutError:
-                    get_console().print("  [warning]CI log retrieval timed out.[/]")
-                except Exception:
-                    get_console().print("  [warning]CI log retrieval failed.[/]")
+                    ch = _read_char()
+                except (KeyboardInterrupt, EOFError):
+                    ch = "c"
+                get_console().print(ch if len(ch) == 1 else "")
+
+                if ch.lower() != "c":
+                    get_console().print("  [dim]Waiting for CI logs...[/]")
+                    try:
+                        log_snippets = log_future.result(timeout=120)
+                        if log_snippets:
+                            _display_log_snippets_panel(log_snippets, pr=pr, compact=compact)
+                    except TimeoutError:
+                        get_console().print("  [warning]CI log retrieval timed out.[/]")
+                    except Exception:
+                        get_console().print("  [warning]CI log retrieval failed.[/]")
+                else:
+                    get_console().print("  [dim]Skipping CI log display for this PR.[/]")
         else:
-            # No background future — fetch inline as fallback (progress shown by the function)
+            # No background future — fetch inline as fallback
             log_snippets = _fetch_failed_job_log_snippets(
                 ctx.token, ctx.github_repository, pr.head_sha, pr.failed_checks
             )
             if log_snippets:
-                _display_log_snippets_panel(log_snippets, pr=pr)
+                _display_log_snippets_panel(log_snippets, pr=pr, compact=compact)
 
     # Check if PR failures match main branch failures
     main_matching: list[str] = []
@@ -3182,6 +3228,9 @@ def _prompt_and_execute_flagged_pr(
     default_action, reason = _compute_default_action(
         pr, assessment, ctx.author_flagged_count, ctx.main_failures
     )
+    if default_skip:
+        default_action = TriageAction.SKIP
+        reason = f"Previously skipped (original suggestion: {reason})"
     # If PR is already a draft, don't offer converting to draft — use comment instead
     exclude_actions: set[TriageAction] = set()
     if pr.is_draft and default_action == TriageAction.DRAFT:
@@ -3208,7 +3257,7 @@ def _prompt_and_execute_flagged_pr(
             TriageAction.SKIP: "skip",
         }.get(default_action, str(default_action))
         console_print(f"[warning]Dry run — would default to: {action_label}[/]")
-        return
+        return False
 
     action = prompt_triage_action(
         f"Action for PR {_pr_link(pr)}?",
@@ -3219,12 +3268,16 @@ def _prompt_and_execute_flagged_pr(
         token=ctx.token,
         github_repository=ctx.github_repository,
         pr_number=pr.number,
+        allow_back=allow_back,
     )
+
+    if action == TriageAction.BACK:
+        return True
 
     if action == TriageAction.QUIT:
         console_print("[warning]Quitting.[/]")
         ctx.stats.quit_early = True
-        return
+        return False
 
     # If user takes action on a should_report PR (anything other than skip),
     # downgrade it from "report" to regular "flagged" — user has reviewed and decided.
@@ -3283,6 +3336,7 @@ def _prompt_and_execute_flagged_pr(
         close_comment=close_comment,
         comment_only_text=comment_only_text,
     )
+    return False
 
 
 def _display_pr_overview_table(
@@ -3374,6 +3428,1016 @@ def _display_pr_overview_table(
     console_print()
 
 
+def _execute_tui_direct_action(
+    ctx: TriageContext,
+    tui: TriageTUI,
+    entry: PRListEntry,
+    action: TUIAction,
+    assessment_map: dict[int, PRAssessment],
+    on_action: Callable[[PRData, str], None] | None = None,
+) -> None:
+    """Execute a direct triage action from the TUI without entering detailed review.
+
+    Maps TUIAction.ACTION_* to TriageAction and executes it, building any
+    required comments from the assessment automatically.
+    """
+    from airflow_breeze.utils.tui_display import PRCategory, TUIAction
+
+    _TUI_TO_TRIAGE: dict[TUIAction, TriageAction] = {
+        TUIAction.ACTION_DRAFT: TriageAction.DRAFT,
+        TUIAction.ACTION_COMMENT: TriageAction.COMMENT,
+        TUIAction.ACTION_CLOSE: TriageAction.CLOSE,
+        TUIAction.ACTION_RERUN: TriageAction.RERUN,
+        TUIAction.ACTION_REBASE: TriageAction.REBASE,
+        TUIAction.ACTION_READY: TriageAction.READY,
+    }
+
+    triage_action = _TUI_TO_TRIAGE.get(action)
+    if triage_action is None:
+        return
+
+    pr = entry.pr
+
+    if ctx.dry_run:
+        get_console().print("\n" * 25)
+        get_console().clear()
+        console_print(f"[warning]Dry run — would execute: {triage_action.name} on PR #{pr.number}[/]")
+        from airflow_breeze.utils.confirm import _read_char
+
+        console_print("[dim]Press any key to return...[/]")
+        _read_char()
+        return
+
+    # For workflow approval PRs, RERUN means approve pending workflows (or rerun completed)
+    if entry.category == PRCategory.WORKFLOW_APPROVAL and triage_action == TriageAction.RERUN:
+        get_console().print("\n" * 25)
+        get_console().clear()
+        console_print(f"\n[info]Approving/rerunning workflows for PR {_pr_link(pr)}...[/]")
+        pending_runs = _find_pending_workflow_runs(ctx.token, ctx.github_repository, pr.head_sha)
+        if pending_runs:
+            approved = _approve_workflow_runs(ctx.token, ctx.github_repository, pending_runs)
+            if approved:
+                console_print(
+                    f"  [success]Approved {approved} workflow "
+                    f"{'runs' if approved != 1 else 'run'} for PR {_pr_link(pr)}.[/]"
+                )
+                ctx.stats.total_workflows_approved += 1
+                entry.action_taken = "approved"
+                if on_action:
+                    on_action(pr, "approved")
+            else:
+                console_print(f"  [error]Failed to approve workflow runs for PR {_pr_link(pr)}.[/]")
+        else:
+            # Try rerunning completed runs
+            rerun_count = 0
+            if pr.head_sha:
+                completed_runs = _find_workflow_runs_by_status(
+                    ctx.token, ctx.github_repository, pr.head_sha, "completed"
+                )
+                if completed_runs:
+                    for run in completed_runs:
+                        if _rerun_workflow_run(ctx.token, ctx.github_repository, run):
+                            rerun_count += 1
+            if rerun_count:
+                console_print(
+                    f"  [success]Rerun {rerun_count} workflow "
+                    f"{'runs' if rerun_count != 1 else 'run'} for PR {_pr_link(pr)}.[/]"
+                )
+                ctx.stats.total_rerun += 1
+                entry.action_taken = "rerun"
+                if on_action:
+                    on_action(pr, "rerun")
+            else:
+                console_print(f"  [warning]No workflow runs found for PR {_pr_link(pr)}.[/]")
+        from airflow_breeze.utils.confirm import _read_char
+
+        console_print("[dim]Press any key to return...[/]")
+        _read_char()
+        if entry.action_taken:
+            tui.move_cursor(1)
+        return
+
+    # Build comments for actions that need them (draft, comment, close)
+    draft_comment = ""
+    close_comment = ""
+    comment_only_text: str | None = None
+    assessment = assessment_map.get(pr.number)
+
+    if triage_action in (TriageAction.DRAFT, TriageAction.COMMENT, TriageAction.CLOSE):
+        violations = assessment.violations if assessment else []
+        is_collab = pr.author_association in _COLLABORATOR_ASSOCIATIONS
+        draft_comment = _build_comment(
+            pr.author_login,
+            violations,
+            pr.number,
+            pr.commits_behind,
+            pr.base_ref,
+            is_collaborator=is_collab,
+        )
+        close_comment = _build_close_comment(
+            pr.author_login,
+            violations,
+            pr.number,
+            ctx.author_flagged_count.get(pr.author_login, 0),
+            is_collaborator=is_collab,
+        )
+        comment_only_text = _build_comment(
+            pr.author_login,
+            violations,
+            pr.number,
+            pr.commits_behind,
+            pr.base_ref,
+            comment_only=True,
+            is_collaborator=is_collab,
+        )
+
+    # Show a brief confirmation before executing
+    get_console().print("\n" * 25)
+    get_console().clear()
+    action_label = {
+        TriageAction.DRAFT: "Convert to draft",
+        TriageAction.COMMENT: "Post comment",
+        TriageAction.CLOSE: "Close PR",
+        TriageAction.RERUN: "Rerun checks",
+        TriageAction.REBASE: "Update/rebase branch",
+        TriageAction.READY: "Mark ready for review",
+    }.get(triage_action, str(triage_action))
+    console_print(f"\n[bold]{action_label}[/] for PR {_pr_link(pr)} — [bold]{pr.title}[/]")
+
+    # Show comment preview for comment-posting actions
+    if triage_action == TriageAction.CLOSE and close_comment:
+        console_print(Panel(close_comment, title="Comment to be posted", border_style="red"))
+    elif triage_action == TriageAction.COMMENT and comment_only_text:
+        console_print(Panel(comment_only_text, title="Comment to be posted", border_style="green"))
+    elif triage_action == TriageAction.DRAFT and draft_comment:
+        console_print(Panel(draft_comment, title="Comment to be posted", border_style="green"))
+
+    _execute_triage_action(
+        ctx,
+        pr,
+        triage_action,
+        draft_comment=draft_comment,
+        close_comment=close_comment,
+        comment_only_text=comment_only_text,
+    )
+
+    # Map triage action to action_taken label
+    _ACTION_LABELS: dict[TriageAction, str] = {
+        TriageAction.DRAFT: "drafted",
+        TriageAction.COMMENT: "commented",
+        TriageAction.CLOSE: "closed",
+        TriageAction.RERUN: "rerun",
+        TriageAction.REBASE: "rebased",
+        TriageAction.READY: "ready",
+        TriageAction.SKIP: "skipped",
+    }
+    entry.action_taken = _ACTION_LABELS.get(triage_action, triage_action.name.lower())
+    if on_action and entry.action_taken:
+        on_action(entry.pr, entry.action_taken)
+
+    from airflow_breeze.utils.confirm import _read_char
+
+    console_print("[dim]Press any key to return to TUI...[/]")
+    _read_char()
+    tui.move_cursor(1)
+
+
+def _run_tui_triage(
+    ctx: TriageContext,
+    all_prs: list[PRData],
+    *,
+    pending_approval: list[PRData],
+    det_flagged_prs: list[tuple[PRData, PRAssessment]],
+    llm_candidates: list[PRData],
+    passing_prs: list[PRData],
+    accepted_prs: list[PRData],
+    already_triaged_nums: set[int],
+    mode_desc: str = "",
+    selection_criteria: str = "",
+    total_matching_prs: int = 0,
+    viewer_login: str = "",
+    load_more_fn: Callable[
+        [],
+        tuple[list[PRData], list[tuple[PRData, PRAssessment]], list[PRData], list[PRData], set[int], bool]
+        | None,
+    ]
+    | None = None,
+) -> None:
+    """Run the full-screen TUI triage interface.
+
+    Displays all PRs in a full-screen view. When the user selects a PR,
+    drops into the existing review flow for that PR, then returns to the TUI.
+    """
+    import webbrowser
+
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
+
+    from airflow_breeze.utils.confirm import _read_char
+    from airflow_breeze.utils.tui_display import (
+        PRCategory,
+        PRListEntry,
+        TriageTUI,
+        TUIAction,
+    )
+
+    _tui_progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[bold]{task.description}"),
+        BarColumn(bar_width=20),
+        TextColumn("[dim]{task.fields[status]}"),
+        TimeElapsedColumn(),
+        console=get_console(),
+    )
+    _tui_steps = [
+        ("build_list", "Build PR list"),
+        ("sort", "Sort entries"),
+        ("fill_pages", "Fill initial pages"),
+        ("init_tui", "Initialize TUI"),
+        ("fetch_diff", "Fetch first diff"),
+        ("prefetch", "Prefetch diffs"),
+    ]
+    _tui_tasks: dict[str, TaskID] = {}
+    for key, desc in _tui_steps:
+        _tui_tasks[key] = _tui_progress.add_task(desc, total=1, status="waiting")
+    _tui_progress.start()
+
+    def _tui_step_start(key: str, status: str = "running") -> None:
+        _tui_progress.update(_tui_tasks[key], status=status)
+
+    def _tui_step_done(key: str, status: str = "done") -> None:
+        _tui_progress.update(_tui_tasks[key], completed=1, status=status)
+
+    # Build categorization sets
+    _tui_step_start("build_list")
+    pending_nums = {pr.number for pr in pending_approval}
+    flagged_nums = {pr.number for pr, _ in det_flagged_prs}
+    # LLM flagged will be populated as they arrive
+    llm_flagged_nums: set[int] = set()
+    passing_nums = {pr.number for pr in passing_prs}
+
+    # Map PR number to assessment for flagged PRs
+    assessment_map: dict[int, PRAssessment] = {pr.number: asmt for pr, asmt in det_flagged_prs}
+
+    # Build entries
+    entries: list[PRListEntry] = []
+    pr_map: dict[int, PRData] = {}
+    for pr in all_prs:
+        if pr.author_association in _COLLABORATOR_ASSOCIATIONS:
+            continue
+        pr_map[pr.number] = pr
+
+        if pr.number in flagged_nums:
+            cat = PRCategory.FLAGGED
+        elif pr.number in pending_nums:
+            cat = PRCategory.WORKFLOW_APPROVAL
+        elif pr.number in passing_nums:
+            cat = PRCategory.PASSING
+        elif pr.number in already_triaged_nums:
+            cat = PRCategory.ALREADY_TRIAGED
+        else:
+            cat = PRCategory.SKIPPED
+        entry = PRListEntry(pr, cat)
+        # Restore cached action for already-triaged PRs
+        if cat == PRCategory.ALREADY_TRIAGED and viewer_login and pr.head_sha:
+            _cached_cls, cached_act = _get_cached_classification(
+                ctx.github_repository, pr.number, pr.head_sha, viewer_login
+            )
+            if cached_act:
+                entry.action_taken = cached_act
+        entries.append(entry)
+
+    _tui_step_done("build_list", f"{len(entries)} entries")
+    _tui_step_start("sort")
+
+    # Sort: page first (keep batch order), then category, then author, PR#
+    _ORDER = {
+        PRCategory.WORKFLOW_APPROVAL: 0,
+        PRCategory.FLAGGED: 1,
+        PRCategory.LLM_ERRORS: 2,
+        PRCategory.LLM_FLAGGED: 3,
+        PRCategory.PASSING: 4,
+        PRCategory.STALE_REVIEW: 5,
+        PRCategory.ALREADY_TRIAGED: 6,
+        PRCategory.SKIPPED: 7,
+    }
+    entries.sort(
+        key=lambda e: (
+            e.page,
+            _ORDER.get(e.category, 99),
+            e.pr.author_login.lower(),
+            e.pr.number,
+        )
+    )
+    # Filter out skipped PRs from the TUI list (they may be promoted later by LLM results)
+    skipped_entries = [e for e in entries if e.category == PRCategory.SKIPPED]
+    entries = [e for e in entries if e.category != PRCategory.SKIPPED]
+
+    has_more_batches = load_more_fn is not None
+
+    # Pre-fill: keep loading batches until we have enough visible entries
+    # to fill the first page. Estimate visible rows from terminal size.
+    _tui_step_start("fill_pages")
+    if has_more_batches:
+        import shutil as _shutil
+
+        _term_h = _shutil.get_terminal_size().lines
+        _est_header = 6 if selection_criteria else 5
+        _est_avail = _term_h - _est_header - 5 - 2  # header + footer + borders
+        _est_bottom = max(5, _est_avail // 2)
+        _est_list = max(5, _est_avail - _est_bottom)
+        _est_visible = _est_list - 3
+        _target = _est_visible  # fill first page only
+        _pages_loaded = 0
+
+        while has_more_batches and len(entries) < _target:
+            result = load_more_fn()
+            if result is None:
+                has_more_batches = False
+                break
+            new_all_prs, new_det_flagged, new_pending, new_passing, new_triaged_nums, more_available = result
+            has_more_batches = more_available
+            if not new_all_prs:
+                break
+
+            new_flagged_nums = {pr.number for pr, _ in new_det_flagged}
+            new_pending_nums = {pr.number for pr in new_pending}
+            new_passing_nums = {pr.number for pr in new_passing}
+            existing_nums = {e.pr.number for e in entries} | {e.pr.number for e in skipped_entries}
+
+            for pr in new_all_prs:
+                if pr.number in existing_nums:
+                    continue
+                if pr.author_association in _COLLABORATOR_ASSOCIATIONS:
+                    continue
+                if pr.number in new_flagged_nums:
+                    cat = PRCategory.FLAGGED
+                elif pr.number in new_pending_nums:
+                    cat = PRCategory.WORKFLOW_APPROVAL
+                elif pr.number in new_passing_nums:
+                    cat = PRCategory.PASSING
+                elif pr.number in new_triaged_nums:
+                    cat = PRCategory.ALREADY_TRIAGED
+                else:
+                    cat = PRCategory.SKIPPED
+                entry = PRListEntry(pr, cat, page=_pages_loaded + 1)
+                if cat == PRCategory.SKIPPED:
+                    skipped_entries.append(entry)
+                else:
+                    entries.append(entry)
+
+            for pr, asmt in new_det_flagged:
+                assessment_map[pr.number] = asmt
+
+            _pages_loaded += 1
+
+        if _pages_loaded > 0:
+            entries.sort(
+                key=lambda e: (
+                    e.page,
+                    _ORDER.get(e.category, 99),
+                    e.pr.author_login.lower(),
+                    e.pr.number,
+                )
+            )
+        _tui_step_done("fill_pages", f"{_pages_loaded} extra pages, {len(entries)} visible")
+    else:
+        _pages_loaded = 0
+        _tui_step_done("fill_pages", "skipped")
+
+    def _cache_action(pr: PRData, action: str) -> None:
+        """Update the classification cache when a triage action is taken on a PR."""
+        if viewer_login and pr.head_sha and action and action != "skipped":
+            _save_classification_cache(
+                ctx.github_repository, pr.number, pr.head_sha, viewer_login, "acted", action=action
+            )
+
+    # Background page loading state
+    _next_page_num = _pages_loaded + 1 if has_more_batches else 1
+    _page_load_future: Future | None = None
+
+    def _start_loading_next_page() -> bool:
+        """Start loading the next page of PRs in the background.
+
+        Returns True if a load was started, False if already loading or no more data.
+        """
+        nonlocal _page_load_future
+        if _page_load_future is not None:
+            return False  # Already loading
+        if not load_more_fn or not has_more_batches:
+            return False
+        tui._loading_status = "Loading more PRs…"
+        tui.render()
+        _page_load_future = diff_executor.submit(load_more_fn)
+        return True
+
+    def _check_page_load_complete() -> bool:
+        """Check if background page load is done. If so, merge results into entries.
+
+        Returns True if new entries were merged, False otherwise.
+        """
+        nonlocal _page_load_future, has_more_batches, _next_page_num
+        if _page_load_future is None or not _page_load_future.done():
+            return False
+
+        fut = _page_load_future
+        _page_load_future = None
+        tui._loading_status = ""
+
+        try:
+            result = fut.result()
+        except Exception:
+            has_more_batches = False
+            tui.has_more_pages = False
+            return False
+
+        if result is None:
+            has_more_batches = False
+            tui.has_more_pages = False
+            return False
+
+        new_all_prs, new_det_flagged, new_pending, new_passing, new_triaged_nums, more_available = result
+        has_more_batches = more_available
+        tui.has_more_pages = more_available
+
+        if not new_all_prs:
+            return False
+
+        new_flagged_nums = {pr.number for pr, _ in new_det_flagged}
+        new_pending_nums = {pr.number for pr in new_pending}
+        new_passing_nums = {pr.number for pr in new_passing}
+        existing_nums = {e.pr.number for e in entries} | {e.pr.number for e in skipped_entries}
+
+        new_entries: list[PRListEntry] = []
+        for pr in new_all_prs:
+            if pr.number in existing_nums:
+                continue
+            if pr.author_association in _COLLABORATOR_ASSOCIATIONS:
+                continue
+
+            if pr.number in new_flagged_nums:
+                cat = PRCategory.FLAGGED
+            elif pr.number in new_pending_nums:
+                cat = PRCategory.WORKFLOW_APPROVAL
+            elif pr.number in new_passing_nums:
+                cat = PRCategory.PASSING
+            elif pr.number in new_triaged_nums:
+                cat = PRCategory.ALREADY_TRIAGED
+            else:
+                cat = PRCategory.SKIPPED
+            new_entries.append(PRListEntry(pr, cat, page=_next_page_num))
+
+        # Update assessment map for new flagged PRs
+        for pr, asmt in new_det_flagged:
+            assessment_map[pr.number] = asmt
+
+        # Separate skipped from visible
+        new_skipped = [e for e in new_entries if e.category == PRCategory.SKIPPED]
+        new_visible = [e for e in new_entries if e.category != PRCategory.SKIPPED]
+
+        skipped_entries.extend(new_skipped)
+        _next_page_num += 1
+        tui.total_loaded_prs = len(entries) + len(new_visible) + len(skipped_entries)
+        if new_visible:
+            entries.extend(new_visible)
+            entries.sort(
+                key=lambda e: (
+                    e.page,
+                    _ORDER.get(e.category, 99),
+                    e.pr.author_login.lower(),
+                    e.pr.number,
+                )
+            )
+            return True
+        return False
+
+    _tui_step_done("sort", "sorted")
+    _tui_step_start("init_tui")
+
+    tui = TriageTUI(
+        title="Auto-Triage",
+        mode_desc=mode_desc,
+        github_repository=ctx.github_repository,
+        selection_criteria=selection_criteria,
+        total_matching_prs=total_matching_prs,
+    )
+    tui.has_more_pages = has_more_batches
+    tui.total_loaded_prs = len(entries) + len(skipped_entries)
+    tui.set_entries(entries)
+    tui.set_assessments(assessment_map)
+
+    # --- Diff cache and background fetching ---
+    diff_cache: dict[int, str] = {}  # pr_number → diff text (or error message)
+    diff_pending: dict[int, Future] = {}  # pr_number → in-flight Future
+    diff_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="diff-fetch")
+
+    def _submit_diff_fetch(pr_number: int, pr_url: str) -> None:
+        """Submit a background diff fetch if not already cached or in-flight."""
+        if pr_number in diff_cache or pr_number in diff_pending:
+            return
+        diff_pending[pr_number] = diff_executor.submit(
+            _fetch_pr_diff, ctx.token, ctx.github_repository, pr_number
+        )
+
+    def _collect_diff_results(tui_ref: TriageTUI) -> None:
+        """Move completed diff futures into the cache and update the TUI if relevant."""
+        done = [num for num, fut in diff_pending.items() if fut.done()]
+        for num in done:
+            fut = diff_pending.pop(num)
+            try:
+                result = fut.result()
+            except Exception:
+                result = None
+            if result:
+                diff_cache[num] = result
+            else:
+                # Look up the PR URL for the error message
+                pr_entry = pr_map.get(num)
+                fallback_url = pr_entry.url if pr_entry else ""
+                diff_cache[num] = f"Could not fetch diff. Review at: {fallback_url}/files"
+            # Update TUI if this is the currently viewed PR
+            cur = tui_ref.get_selected_entry()
+            if cur and cur.pr.number == num:
+                tui_ref.set_diff(num, diff_cache[num])
+
+    def _ensure_diff_for_pr(tui_ref: TriageTUI, pr_number: int, pr_url: str) -> None:
+        """Ensure a diff is available (from cache or pending). Update TUI immediately if cached."""
+        if pr_number in diff_cache:
+            tui_ref.set_diff(pr_number, diff_cache[pr_number])
+        else:
+            _submit_diff_fetch(pr_number, pr_url)
+
+    _tui_step_done("init_tui", "ready")
+
+    # Prefetch diff for first PR (blocking, since user sees it immediately)
+    if entries:
+        first_pr = entries[0].pr
+        _tui_step_start("fetch_diff", f"PR #{first_pr.number}")
+        diff_text = _fetch_pr_diff(ctx.token, ctx.github_repository, first_pr.number)
+        if diff_text:
+            diff_cache[first_pr.number] = diff_text
+            tui.set_diff(first_pr.number, diff_text)
+        else:
+            fallback = f"Could not fetch diff. Review at: {first_pr.url}/files"
+            diff_cache[first_pr.number] = fallback
+            tui.set_diff(first_pr.number, fallback)
+        _tui_step_done("fetch_diff", "loaded")
+        # Prefetch diffs for next few PRs in background
+        _tui_step_start("prefetch")
+        for prefetch_entry in entries[1:4]:
+            _submit_diff_fetch(prefetch_entry.pr.number, prefetch_entry.pr.url)
+        _tui_step_done("prefetch", f"{min(3, len(entries) - 1)} queued")
+    else:
+        _tui_step_done("fetch_diff", "no PRs")
+        _tui_step_done("prefetch", "skipped")
+
+    _tui_progress.stop()
+
+    # Print whitespace before TUI takes over, so scrolling back
+    # shows a clear boundary between the startup output and the TUI
+    import shutil
+
+    term_lines = shutil.get_terminal_size().lines
+    get_console().print("\n" * (term_lines * 3))
+
+    # Start background loading of second page if we only filled the first
+    if has_more_batches and _page_load_future is None:
+        _start_loading_next_page()
+
+    # Pre-build LLM passing set (updated incrementally)
+    llm_passing_nums: set[int] = {p.number for p in ctx.llm_passing}
+
+    while not ctx.stats.quit_early:
+        # Check if background page load completed — merge results
+        if _check_page_load_complete():
+            tui.update_entries(entries)
+            tui.set_assessments(assessment_map)
+
+        # Collect LLM results if available (quiet in TUI — shown in status panel)
+        llm_status = ctx.collect_llm_progress(quiet=True)
+        if llm_status:
+            tui.llm_progress = llm_status
+
+        # Collect any completed diff fetches
+        _collect_diff_results(tui)
+
+        # Update LLM-flagged entries
+        # Refresh the passing set incrementally
+        for p in ctx.llm_passing:
+            llm_passing_nums.add(p.number)
+
+        # Promote skipped entries when LLM results arrive
+        newly_promoted = []
+        remaining_skipped = []
+        for entry in skipped_entries:
+            pr = entry.pr
+            if pr.number in ctx.llm_assessments:
+                assessment = ctx.llm_assessments[pr.number]
+                if getattr(assessment, "should_report", False):
+                    entry.category = PRCategory.LLM_ERRORS
+                else:
+                    entry.category = PRCategory.LLM_FLAGGED
+                llm_flagged_nums.add(pr.number)
+                assessment_map[pr.number] = assessment
+                newly_promoted.append(entry)
+            elif pr.number in llm_passing_nums:
+                entry.category = PRCategory.PASSING
+                passing_nums.add(pr.number)
+                newly_promoted.append(entry)
+            else:
+                remaining_skipped.append(entry)
+        if newly_promoted:
+            entries.extend(newly_promoted)
+            entries.sort(
+                key=lambda e: (
+                    e.page,
+                    _ORDER.get(e.category, 99),
+                    e.pr.author_login.lower(),
+                    e.pr.number,
+                )
+            )
+            tui.update_entries(entries)
+            # Invalidate detail cache for promoted PRs
+            for entry in newly_promoted:
+                if tui._detail_pr_number == entry.pr.number:
+                    tui._detail_pr_number = None
+        skipped_entries = remaining_skipped
+
+        entry, action = tui.run_interactive()
+
+        # Auto-fetch diff when cursor moves to a different PR (non-blocking)
+        if tui.cursor_changed() and tui.needs_diff_fetch():
+            current_entry = tui.get_selected_entry()
+            if current_entry:
+                _ensure_diff_for_pr(tui, current_entry.pr.number, current_entry.pr.url)
+                # Prefetch a few PRs ahead of the cursor
+                for i in range(tui.cursor + 1, min(tui.cursor + 4, len(entries))):
+                    _submit_diff_fetch(entries[i].pr.number, entries[i].pr.url)
+
+        if action == TUIAction.QUIT:
+            tui.disable_mouse()
+            ctx.stats.quit_early = True
+            break
+
+        if action in (
+            TUIAction.UP,
+            TUIAction.DOWN,
+            TUIAction.PAGE_UP,
+            TUIAction.PAGE_DOWN,
+            TUIAction.NEXT_PAGE,
+            TUIAction.PREV_PAGE,
+            TUIAction.NEXT_SECTION,
+            TUIAction.TOGGLE_SELECT,
+            TUIAction.SHOW_DIFF,
+        ):
+            # Check if background page load completed — merge results
+            if _check_page_load_complete():
+                tui.update_entries(entries)
+                tui.set_assessments(assessment_map)
+
+            # Lazy pagination: start loading next page in the background when
+            # remaining entries can't fill current + next page
+            if has_more_batches and _page_load_future is None and tui._visible_rows > 0:
+                active_below = sum(1 for e in entries[tui.cursor :] if not e.action_taken)
+                if active_below < tui._visible_rows * 2:
+                    _start_loading_next_page()
+            continue
+
+        if action == TUIAction.APPROVE_SELECTED:
+            selected_entries = tui.get_selected_entries()
+            if not selected_entries:
+                continue
+            # Batch approve all selected workflow PRs
+            tui.disable_mouse()
+            get_console().print("\n" * 25)
+            get_console().clear()
+            get_console().rule("[bold green]Batch workflow approval[/]", style="green")
+            get_console().print(
+                f"\n[info]Approving workflows for {len(selected_entries)} "
+                f"{'PRs' if len(selected_entries) != 1 else 'PR'}:[/]\n"
+            )
+            for sel_entry in selected_entries:
+                sel_pr = sel_entry.pr
+                get_console().print(f"  {_pr_link(sel_pr)} {sel_pr.title} [dim]by {sel_pr.author_login}[/]")
+            get_console().print()
+
+            if not ctx.dry_run:
+                for sel_entry in selected_entries:
+                    sel_pr = sel_entry.pr
+                    pending_runs = _find_pending_workflow_runs(
+                        ctx.token, ctx.github_repository, sel_pr.head_sha
+                    )
+                    if pending_runs:
+                        approved = _approve_workflow_runs(ctx.token, ctx.github_repository, pending_runs)
+                        if approved:
+                            get_console().print(
+                                f"  [success]Approved {approved} workflow "
+                                f"{'runs' if approved != 1 else 'run'} for "
+                                f"PR {_pr_link(sel_pr)}.[/]"
+                            )
+                            ctx.stats.total_workflows_approved += 1
+                            sel_entry.action_taken = "approved"
+                            _cache_action(sel_pr, "approved")
+                        else:
+                            get_console().print(
+                                f"  [error]Failed to approve workflow runs for PR {_pr_link(sel_pr)}.[/]"
+                            )
+                    else:
+                        # Try rerunning completed runs
+                        if sel_pr.head_sha:
+                            completed_runs = _find_workflow_runs_by_status(
+                                ctx.token, ctx.github_repository, sel_pr.head_sha, "completed"
+                            )
+                            rerun_count = 0
+                            if completed_runs:
+                                for run in completed_runs:
+                                    if _rerun_workflow_run(ctx.token, ctx.github_repository, run):
+                                        rerun_count += 1
+                            if rerun_count:
+                                get_console().print(
+                                    f"  [success]Rerun {rerun_count} workflow "
+                                    f"{'runs' if rerun_count != 1 else 'run'} for "
+                                    f"PR {_pr_link(sel_pr)}.[/]"
+                                )
+                                ctx.stats.total_rerun += 1
+                                sel_entry.action_taken = "rerun"
+                                _cache_action(sel_pr, "rerun")
+                            else:
+                                get_console().print(
+                                    f"  [warning]No workflow runs found for PR {_pr_link(sel_pr)}.[/]"
+                                )
+                    sel_entry.selected = False
+            else:
+                get_console().print("[warning]Dry run — skipping batch approval.[/]")
+                for sel_entry in selected_entries:
+                    sel_entry.selected = False
+
+            get_console().print("\n[dim]Press any key to return to TUI...[/]")
+            _read_char()
+            continue
+
+        if entry is None:
+            continue
+
+        pr = entry.pr
+
+        if action == TUIAction.OPEN:
+            webbrowser.open(pr.url)
+            continue
+
+        if action == TUIAction.SKIP:
+            # Already marked as skipped by the TUI
+            ctx.stats.total_skipped_action += 1
+            continue
+
+        # Direct triage actions from TUI (without entering detailed review)
+        if isinstance(action, TUIAction) and action.name.startswith("ACTION_"):
+            tui.disable_mouse()
+            _execute_tui_direct_action(ctx, tui, entry, action, assessment_map, on_action=_cache_action)
+            if ctx.stats.quit_early:
+                break
+            continue
+
+        if action == TUIAction.SELECT:
+            # Drop into detailed review — disable mouse while outside TUI
+            tui.disable_mouse()
+            while not ctx.stats.quit_early:
+                cur_entry = tui.get_selected_entry()
+                if cur_entry is None:
+                    break
+                cur_pr = cur_entry.pr
+
+                # Print whitespace so each PR review is visually separated when scrolling up
+                get_console().print("\n" * 25)
+                get_console().clear()
+
+                go_back = False
+                was_skipped = cur_entry.action_taken == "skipped"
+                if cur_entry.category in (PRCategory.FLAGGED, PRCategory.LLM_FLAGGED, PRCategory.LLM_ERRORS):
+                    assessment = assessment_map.get(cur_pr.number)
+                    if assessment:
+                        go_back = _prompt_and_execute_flagged_pr(
+                            ctx,
+                            cur_pr,
+                            assessment,
+                            allow_back=True,
+                            compact=True,
+                            default_skip=was_skipped,
+                        )
+                        if not go_back:
+                            cur_entry.action_taken = _infer_last_action(ctx.stats)
+                            _cache_action(cur_pr, cur_entry.action_taken)
+                    else:
+                        get_console().print(f"[warning]No assessment available for PR #{cur_pr.number}[/]")
+                        get_console().print("[dim]Press any key to continue...[/]")
+                        _read_char()
+                elif cur_entry.category == PRCategory.WORKFLOW_APPROVAL:
+                    go_back = _review_single_workflow_pr(
+                        ctx, cur_pr, allow_back=True, compact=True, default_skip=was_skipped
+                    )
+                    if not go_back:
+                        cur_entry.action_taken = _infer_last_action(ctx.stats)
+                        _cache_action(cur_pr, cur_entry.action_taken)
+                elif cur_entry.category == PRCategory.PASSING:
+                    author_profile = _fetch_author_profile(
+                        ctx.token, cur_pr.author_login, ctx.github_repository
+                    )
+                    _display_pr_info_panels(cur_pr, author_profile, compact=True)
+                    console_print("[success]This looks like a PR that is ready for review.[/]")
+
+                    if not ctx.dry_run:
+                        passing_default = TriageAction.SKIP if was_skipped else TriageAction.READY
+                        act = prompt_triage_action(
+                            f"Action for PR {_pr_link(cur_pr)}?",
+                            default=passing_default,
+                            forced_answer=ctx.answer_triage,
+                            exclude={TriageAction.DRAFT} if cur_pr.is_draft else None,
+                            pr_url=cur_pr.url,
+                            token=ctx.token,
+                            github_repository=ctx.github_repository,
+                            pr_number=cur_pr.number,
+                            allow_back=True,
+                        )
+                        if act == TriageAction.BACK:
+                            go_back = True
+                        elif act == TriageAction.QUIT:
+                            ctx.stats.quit_early = True
+                        elif act == TriageAction.READY:
+                            _execute_triage_action(ctx, cur_pr, act, draft_comment="", close_comment="")
+                            cur_entry.action_taken = "ready"
+                            _cache_action(cur_pr, "ready")
+                        elif act == TriageAction.SKIP:
+                            cur_entry.action_taken = "skipped"
+                        else:
+                            _execute_triage_action(ctx, cur_pr, act, draft_comment="", close_comment="")
+                            cur_entry.action_taken = act.value
+                            _cache_action(cur_pr, act.value)
+                elif cur_entry.category == PRCategory.ALREADY_TRIAGED:
+                    get_console().print(
+                        f"[dim]PR #{cur_pr.number} was already triaged. "
+                        f"Press Esc to go back or any key to continue...[/]"
+                    )
+                    ch = _read_char()
+                    if ch == "\x1b":
+                        go_back = True
+                elif cur_entry.category == PRCategory.SKIPPED:
+                    get_console().print(
+                        f"[dim]PR #{cur_pr.number} — no action available. "
+                        f"Press Esc to go back or any key to continue...[/]"
+                    )
+                    ch = _read_char()
+                    if ch == "\x1b":
+                        go_back = True
+                else:
+                    get_console().print(
+                        f"[dim]PR #{cur_pr.number} — press Esc to go back or any key to continue...[/]"
+                    )
+                    ch = _read_char()
+                    if ch == "\x1b":
+                        go_back = True
+
+                if go_back or ctx.stats.quit_early:
+                    break
+
+                # Print the action taken so it's visible when scrolling back
+                if cur_entry.action_taken:
+                    get_console().print(
+                        f"\n[bold]>>> PR #{cur_pr.number}: {cur_entry.action_taken.upper()} <<<[/]\n"
+                    )
+
+                # Advance to next PR
+                old_cursor = tui.cursor
+                tui.move_cursor(1)
+
+                # If cursor didn't move, we're at the end of the list
+                if tui.cursor == old_cursor:
+                    break
+
+    # Cleanup background diff fetcher
+    diff_executor.shutdown(wait=False, cancel_futures=True)
+
+    # Final clear
+    get_console().clear()
+
+
+def _infer_last_action(stats: TriageStats) -> str:
+    """Try to infer the last action from stats changes.
+
+    This is a heuristic — we check which stat counter was last incremented.
+    """
+    # We can't perfectly determine this, but we can use the stats object fields
+    # Just return a generic marker
+    if stats.total_converted > getattr(stats, "_prev_converted", 0):
+        stats._prev_converted = stats.total_converted  # type: ignore[attr-defined]
+        return "drafted"
+    if stats.total_commented > getattr(stats, "_prev_commented", 0):
+        stats._prev_commented = stats.total_commented  # type: ignore[attr-defined]
+        return "commented"
+    if stats.total_closed > getattr(stats, "_prev_closed", 0):
+        stats._prev_closed = stats.total_closed  # type: ignore[attr-defined]
+        return "closed"
+    if stats.total_rebased > getattr(stats, "_prev_rebased", 0):
+        stats._prev_rebased = stats.total_rebased  # type: ignore[attr-defined]
+        return "rebased"
+    if stats.total_rerun > getattr(stats, "_prev_rerun", 0):
+        stats._prev_rerun = stats.total_rerun  # type: ignore[attr-defined]
+        return "rerun"
+    if stats.total_ready > getattr(stats, "_prev_ready", 0):
+        stats._prev_ready = stats.total_ready  # type: ignore[attr-defined]
+        return "ready"
+    if stats.total_skipped_action > getattr(stats, "_prev_skipped", 0):
+        stats._prev_skipped = stats.total_skipped_action  # type: ignore[attr-defined]
+        return "skipped"
+    return ""
+
+
+def _review_single_workflow_pr(
+    ctx: TriageContext,
+    pr: PRData,
+    *,
+    allow_back: bool = False,
+    compact: bool = False,
+    default_skip: bool = False,
+) -> bool:
+    """Review a single PR that needs workflow approval (used by TUI mode).
+
+    Returns True if the user chose to go back to the TUI without taking action.
+    """
+    author_profile = _fetch_author_profile(ctx.token, pr.author_login, ctx.github_repository)
+    pending_runs = _find_pending_workflow_runs(ctx.token, ctx.github_repository, pr.head_sha)
+
+    check_counts: dict[str, int] = {}
+    if pr.head_sha:
+        check_counts = _fetch_check_status_counts(ctx.token, ctx.github_repository, pr.head_sha)
+
+    _display_workflow_approval_panel(pr, author_profile, pending_runs, check_counts, compact=compact)
+
+    if ctx.dry_run:
+        console_print("[warning]Dry run — skipping workflow approval.[/]")
+        return False
+
+    if default_skip:
+        default_action = TriageAction.SKIP
+    elif not pending_runs:
+        console_print(
+            f"  [info]No pending workflow runs for PR {_pr_link(pr)}. "
+            f"Attempting to rerun completed workflows...[/]"
+        )
+        default_action = TriageAction.RERUN
+    else:
+        default_action = TriageAction.RERUN
+
+    action = prompt_triage_action(
+        f"Action for PR {_pr_link(pr)}?",
+        default=default_action,
+        forced_answer=ctx.answer_triage,
+        exclude={TriageAction.DRAFT} if pr.is_draft else None,
+        pr_url=pr.url,
+        token=ctx.token,
+        github_repository=ctx.github_repository,
+        pr_number=pr.number,
+        allow_back=allow_back,
+    )
+
+    if action == TriageAction.BACK:
+        return True
+
+    if action == TriageAction.QUIT:
+        ctx.stats.quit_early = True
+        return False
+    if action == TriageAction.SKIP:
+        console_print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
+        return False
+
+    if action == TriageAction.RERUN:
+        if pending_runs:
+            approved = _approve_workflow_runs(ctx.token, ctx.github_repository, pending_runs)
+            if approved:
+                console_print(
+                    f"  [success]Approved {approved} workflow "
+                    f"{'runs' if approved != 1 else 'run'} for PR {_pr_link(pr)}.[/]"
+                )
+                ctx.stats.total_workflows_approved += 1
+        else:
+            # Try rerunning completed runs
+            if pr.head_sha:
+                completed_runs = _find_workflow_runs_by_status(
+                    ctx.token, ctx.github_repository, pr.head_sha, "completed"
+                )
+                rerun_count = 0
+                if completed_runs:
+                    for run in completed_runs:
+                        if _rerun_workflow_run(ctx.token, ctx.github_repository, run):
+                            console_print(f"  [success]Rerun triggered for: {run.get('name', run['id'])}[/]")
+                            rerun_count += 1
+                if rerun_count:
+                    ctx.stats.total_rerun += 1
+                else:
+                    console_print(f"  [warning]No workflow runs found to rerun for PR {_pr_link(pr)}.[/]")
+    else:
+        _execute_triage_action(ctx, pr, action, draft_comment="", close_comment="")
+    return False
+
+
 def _filter_candidate_prs(
     all_prs: list[PRData],
     *,
@@ -3383,6 +4447,7 @@ def _filter_candidate_prs(
     min_commits_behind: int,
     max_num: int,
     also_accepted: set[int] | None = None,
+    quiet: bool = False,
 ) -> tuple[list[PRData], list[PRData], int, int, int]:
     """Filter PRs to candidates. Returns (candidates, accepted_prs, skipped_collaborator, skipped_bot, skipped_accepted).
 
@@ -3463,194 +4528,76 @@ def _filter_candidate_prs(
     if total_skipped_commits_behind:
         skipped_parts.append(f"{total_skipped_commits_behind} below min-commits-behind")
     skipped_text = f"skipped {', '.join(skipped_parts)}, " if skipped_parts else ""
-    console_print(
-        f"\n[info]Fetched {len(all_prs)} {'PRs' if len(all_prs) != 1 else 'PR'}, "
-        f"{skipped_text}"
-        f"assessing {len(candidate_prs)} {'PRs' if len(candidate_prs) != 1 else 'PR'}"
-        f"{f' (capped at {max_num})' if max_num else ''}...[/]\n"
-    )
+    if not quiet:
+        console_print(
+            f"\n[info]Fetched {len(all_prs)} {'PRs' if len(all_prs) != 1 else 'PR'}, "
+            f"{skipped_text}"
+            f"assessing {len(candidate_prs)} {'PRs' if len(candidate_prs) != 1 else 'PR'}"
+            f"{f' (capped at {max_num})' if max_num else ''}...[/]\n"
+        )
     return candidate_prs, accepted_prs, total_skipped_collaborator, total_skipped_bot, total_skipped_accepted
 
 
 def _enrich_candidate_details(
-    token: str, github_repository: str, candidate_prs: list[PRData], *, run_api: bool
+    token: str,
+    github_repository: str,
+    candidate_prs: list[PRData],
+    *,
+    run_api: bool,
+    quiet: bool = False,
+    on_check_progress: Callable[[int, int], None] | None = None,
+    on_merge_progress: Callable[[int, int], None] | None = None,
+    on_review_progress: Callable[[int, int], None] | None = None,
 ) -> None:
     """Fetch check details, resolve unknown mergeable status, and fetch review comments."""
     if not candidate_prs:
         return
 
-    n = len(candidate_prs)
-    pr_word = "PRs" if n != 1 else "PR"
-    total_steps = 2 + (1 if run_api else 0)
-    step = 0
-
-    step += 1
-    t_step = time.monotonic()
-    console_print(f"  [info][{step}/{total_steps}] Fetching check details for {n} candidate {pr_word}...[/]")
-    _fetch_check_details_batch(token, github_repository, candidate_prs)
+    if not quiet:
+        console_print(
+            f"[info]Fetching check details for {len(candidate_prs)} "
+            f"{'PRs' if len(candidate_prs) != 1 else 'PR'}...[/]"
+        )
+    _fetch_check_details_batch(token, github_repository, candidate_prs, on_progress=on_check_progress)
 
     for pr in candidate_prs:
         if pr.checks_state == "FAILURE" and not pr.failed_checks and pr.head_sha:
-            console_print(
-                f"    [dim]Fetching full check details for PR {_pr_link(pr)} "
-                f"(failures beyond first 100 checks)...[/]"
-            )
+            if not quiet:
+                console_print(
+                    f"  [dim]Fetching full check details for PR {_pr_link(pr)} "
+                    f"(failures beyond first 100 checks)...[/]"
+                )
             pr.failed_checks = _fetch_failed_checks(token, github_repository, pr.head_sha)
-    console_print(f"    [dim]done ({_fmt_duration(time.monotonic() - t_step)})[/]")
 
-    step += 1
-    t_step = time.monotonic()
     unknown_count = sum(1 for pr in candidate_prs if pr.mergeable == "UNKNOWN")
     if unknown_count:
-        console_print(
-            f"  [info][{step}/{total_steps}] Resolving merge conflict status "
-            f"for {unknown_count} {pr_word}...[/]"
-        )
-        resolved = _resolve_unknown_mergeable(token, github_repository, candidate_prs)
-        remaining = unknown_count - resolved
-        if remaining:
+        if not quiet:
             console_print(
-                f"    [dim]{resolved} resolved, {remaining} still unknown "
-                f"({_fmt_duration(time.monotonic() - t_step)})[/]"
+                f"[info]Resolving merge conflict status for {unknown_count} "
+                f"{'PRs' if unknown_count != 1 else 'PR'} with unknown status...[/]"
             )
-        else:
-            console_print(f"    [dim]All {resolved} resolved ({_fmt_duration(time.monotonic() - t_step)})[/]")
-    else:
-        console_print(f"  [info][{step}/{total_steps}] Merge conflict status: all known (skip)[/]")
+        resolved = _resolve_unknown_mergeable(
+            token, github_repository, candidate_prs, on_progress=on_merge_progress
+        )
+        remaining = unknown_count - resolved
+        if not quiet:
+            if remaining:
+                console_print(
+                    f"  [dim]{resolved} resolved, {remaining} still unknown "
+                    f"(GitHub hasn't computed mergeability yet).[/]"
+                )
+            else:
+                console_print(f"  [dim]All {resolved} resolved.[/]")
 
     if run_api:
-        step += 1
-        t_step = time.monotonic()
-        console_print(
-            f"  [info][{step}/{total_steps}] Fetching review thread details for {n} candidate {pr_word}...[/]"
+        if not quiet:
+            console_print(
+                f"[info]Fetching review thread details for {len(candidate_prs)} "
+                f"{'PRs' if len(candidate_prs) != 1 else 'PR'}...[/]"
+            )
+        _fetch_unresolved_comments_batch(
+            token, github_repository, candidate_prs, on_progress=on_review_progress
         )
-        _fetch_unresolved_comments_batch(token, github_repository, candidate_prs)
-        console_print(f"    [dim]done ({_fmt_duration(time.monotonic() - t_step)})[/]")
-
-
-def _prefetch_next_batch(
-    *,
-    token: str,
-    github_repository: str,
-    exact_labels: tuple[str, ...],
-    exact_exclude_labels: tuple[str, ...],
-    filter_user: str | None,
-    sort: str,
-    batch_size: int,
-    created_after: str | None,
-    created_before: str | None,
-    updated_after: str | None,
-    updated_before: str | None,
-    review_requested_user: str | None,
-    next_cursor: str | None,
-    wildcard_labels: list[str],
-    wildcard_exclude_labels: list[str],
-    include_collaborators: bool,
-    include_drafts: bool,
-    checks_state: str,
-    min_commits_behind: int,
-    max_num: int,
-    viewer_login: str,
-) -> BatchPrefetchResult | None:
-    """Prefetch and prepare the next page of PRs in a background thread.
-
-    Performs GraphQL fetch, wildcard filtering, commits-behind resolution,
-    mergeable status resolution, NOT_RUN reclassification, candidate filtering,
-    and triage classification — everything up to the point where interactive
-    review begins.
-
-    Returns None if no PRs are found.
-    """
-    from fnmatch import fnmatch
-
-    all_prs, has_next_page, new_cursor = _fetch_prs_graphql(
-        token,
-        github_repository,
-        labels=exact_labels,
-        exclude_labels=exact_exclude_labels,
-        filter_user=filter_user,
-        sort=sort,
-        batch_size=batch_size,
-        created_after=created_after,
-        created_before=created_before,
-        updated_after=updated_after,
-        updated_before=updated_before,
-        review_requested=review_requested_user,
-        after_cursor=next_cursor,
-    )
-    if not all_prs:
-        return None
-
-    # Apply wildcard label filters client-side
-    if wildcard_labels:
-        all_prs = [
-            pr for pr in all_prs if any(fnmatch(lbl, pat) for pat in wildcard_labels for lbl in pr.labels)
-        ]
-    if wildcard_exclude_labels:
-        all_prs = [
-            pr
-            for pr in all_prs
-            if not any(fnmatch(lbl, pat) for pat in wildcard_exclude_labels for lbl in pr.labels)
-        ]
-
-    if not all_prs:
-        return None
-
-    # Enrich: commits behind
-    behind_map = _fetch_commits_behind_batch(token, github_repository, all_prs)
-    for pr in all_prs:
-        pr.commits_behind = behind_map.get(pr.number, 0)
-
-    # Resolve unknown mergeable status
-    unknown_count = sum(1 for pr in all_prs if pr.mergeable == "UNKNOWN")
-    if unknown_count:
-        _resolve_unknown_mergeable(token, github_repository, all_prs)
-
-    # Detect NOT_RUN reclassification
-    non_collab_success = [
-        pr
-        for pr in all_prs
-        if pr.checks_state == "SUCCESS"
-        and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
-        and not _is_bot_account(pr.author_login)
-    ]
-    reclassified_count = 0
-    if non_collab_success:
-        _fetch_check_details_batch(token, github_repository, non_collab_success)
-        reclassified_count = sum(1 for pr in non_collab_success if pr.checks_state == "NOT_RUN")
-
-    # Filter candidates
-    candidate_prs, accepted_prs, _, _, _ = _filter_candidate_prs(
-        all_prs,
-        include_collaborators=include_collaborators,
-        include_drafts=include_drafts,
-        checks_state=checks_state,
-        min_commits_behind=min_commits_behind,
-        max_num=max_num,
-    )
-
-    # Classify already triaged
-    triaged_classification = _classify_already_triaged_prs(
-        token, github_repository, candidate_prs, viewer_login
-    )
-
-    return BatchPrefetchResult(
-        all_prs=all_prs,
-        has_next_page=has_next_page,
-        next_cursor=new_cursor,
-        candidate_prs=candidate_prs,
-        accepted_prs=accepted_prs,
-        triaged_classification=triaged_classification,
-        reclassified_count=reclassified_count,
-    )
-
-
-def _start_next_batch_prefetch(
-    executor: ThreadPoolExecutor,
-    **kwargs,
-) -> Future[BatchPrefetchResult | None]:
-    """Submit a background prefetch of the next batch to the given executor."""
-    return executor.submit(_prefetch_next_batch, **kwargs)
 
 
 def _review_workflow_approval_prs(ctx: TriageContext, pending_approval: list[PRData]) -> None:
@@ -5423,54 +6370,34 @@ def _has_in_progress_workflows(token: str, github_repository: str, head_sha: str
     return False
 
 
+def _post_workflow_run_action(token: str, github_repository: str, run: dict, action: str) -> bool:
+    """POST to a workflow run endpoint (approve/cancel/rerun). Returns True on success."""
+    run_id = run["id"]
+    url = f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/{action}"
+    return _github_rest(token, "post", url, ok_codes=(201, 202, 204))
+
+
 def _approve_workflow_runs(token: str, github_repository: str, pending_runs: list[dict]) -> int:
     """Approve pending workflow runs. Returns number successfully approved."""
-    import requests
-
     approved = 0
     for run in pending_runs:
-        run_id = run["id"]
-        url = f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/approve"
-        response = requests.post(
-            url,
-            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
-            timeout=30,
-        )
-        if response.status_code in (201, 204):
+        if _post_workflow_run_action(token, github_repository, run, "approve"):
             approved += 1
         else:
             console_print(
-                f"  [warning]Failed to approve run {run.get('name', run_id)}: {response.status_code}[/]"
+                f"  [warning]Failed to approve run {run.get('name', run['id'])}: check permissions[/]"
             )
     return approved
 
 
 def _cancel_workflow_run(token: str, github_repository: str, run: dict) -> bool:
     """Cancel a single workflow run. Returns True if successful."""
-    import requests
-
-    run_id = run["id"]
-    url = f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/cancel"
-    response = requests.post(
-        url,
-        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
-        timeout=30,
-    )
-    return response.status_code in (202, 204)
+    return _post_workflow_run_action(token, github_repository, run, "cancel")
 
 
 def _rerun_workflow_run(token: str, github_repository: str, run: dict) -> bool:
     """Rerun a complete workflow run (all jobs). Returns True if successful."""
-    import requests
-
-    run_id = run["id"]
-    url = f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/rerun"
-    response = requests.post(
-        url,
-        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
-        timeout=30,
-    )
-    return response.status_code in (201, 204)
+    return _post_workflow_run_action(token, github_repository, run, "rerun")
 
 
 def _rerun_failed_workflow_runs(
@@ -5518,22 +6445,7 @@ def _fetch_failed_job_log_snippets(
 
     Returns a dict mapping failed check name -> LogSnippetInfo (snippet + job URL).
     Only fetches logs for checks in ``failed_check_names`` to limit API calls.
-    Results are cached by commit SHA so repeated runs skip the download.
     """
-    # Check cache first
-    cached = _get_cached_log_snippets(github_repository, head_sha, failed_check_names)
-    if cached is not None:
-        get_console().print(f"[dim]Using cached CI logs for {head_sha[:8]} ({len(cached)} checks).[/]")
-        return {
-            name: LogSnippetInfo(snippet=info["snippet"], job_url=info["job_url"])
-            for name, info in cached.items()
-        }
-
-    check_word = "check" if len(failed_check_names) == 1 else "checks"
-    get_console().print(
-        f"[info]Downloading CI failure logs for {head_sha[:8]} "
-        f"({len(failed_check_names)} failed {check_word})...[/]"
-    )
     import io
     import zipfile
 
@@ -5635,10 +6547,6 @@ def _fetch_failed_job_log_snippets(
         # Stop if we have snippets for all checks
         if all(name in snippets for name in failed_check_names):
             break
-
-    # Cache results for future runs with the same commit
-    if snippets:
-        _save_log_cache(github_repository, head_sha, snippets)
 
     return snippets
 
@@ -5867,21 +6775,6 @@ def _fetch_main_canary_builds(
     return [r for r in runs if r.get("name") == "Tests"][:count]
 
 
-def _platform_from_name(name: str) -> str:
-    """Determine platform (ARM/AMD) from the job name.
-
-    Airflow CI job names typically contain 'ARM' or 'AMD' as a segment,
-    e.g. ``Tests / AMD Python 3.9 / ...`` or ``Tests / ARM Python 3.9 / ...``.
-    Falls back to ``AMD`` when the name does not contain a clear indicator.
-    """
-    upper = name.upper()
-    if "ARM" in upper or "AARCH64" in upper:
-        return "ARM"
-    if "AMD" in upper or "X86" in upper or "X64" in upper:
-        return "AMD"
-    return ""
-
-
 def _platform_from_labels(labels: list[str]) -> str:
     """Determine platform (ARM/AMD) from GitHub Actions job runner labels."""
     for label in labels:
@@ -5920,25 +6813,18 @@ def _fetch_failed_jobs_for_run(token: str, github_repository: str, run_id: int) 
     failed = []
     for job in all_jobs:
         if job.get("conclusion") == "failure":
-            job_name = job.get("name", "unknown")
-            # Prefer platform detection from job name; fall back to runner labels
-            platform = _platform_from_name(job_name) or _platform_from_labels(job.get("labels") or [])
             failed.append(
                 {
-                    "name": job_name,
-                    "platform": platform,
+                    "name": job.get("name", "unknown"),
+                    "platform": _platform_from_labels(job.get("labels") or []),
                     "html_url": job.get("html_url", ""),
                 }
             )
     return failed
 
 
-def _display_canary_builds_status(builds: list[dict]) -> None:
-    """Display a Rich table showing the status of recent scheduled Tests builds.
-
-    Failed jobs are expected to be pre-fetched and embedded in each build dict
-    under the ``_failed_jobs`` key by ``_cached_fetch_main_canary_builds``.
-    """
+def _display_canary_builds_status(builds: list[dict], token: str, github_repository: str) -> None:
+    """Display a Rich table showing the status of recent scheduled Tests builds."""
     from rich.table import Table
 
     console = get_console()
@@ -5950,7 +6836,6 @@ def _display_canary_builds_status(builds: list[dict]) -> None:
     table = Table(title="Main Branch Tests Builds (scheduled)", expand=False)
     table.add_column("Status", justify="center")
     table.add_column("Started", justify="right")
-    table.add_column("Arch", justify="center")
     table.add_column("Failed Jobs", style="red")
     table.add_column("Link", style="dim")
 
@@ -5984,22 +6869,17 @@ def _display_canary_builds_status(builds: list[dict]) -> None:
         # Clickable link to the workflow run page
         link = f"[link={html_url}]checks[/link]" if html_url else str(run_id)
 
-        # Use pre-fetched failed jobs (embedded by _cached_fetch_main_canary_builds)
+        # Fetch failed jobs for failed builds
         failed_jobs_display = ""
-        failed_jobs = build.get("_failed_jobs", [])
-        # Determine unique architectures from failed jobs
-        archs: set[str] = set()
-        if failed_jobs:
-            parts = []
-            for fj in failed_jobs:
-                platform = fj.get("platform", "")
-                if platform:
-                    archs.add(platform)
-                parts.append(fj["name"])
-            failed_jobs_display = "\n".join(parts)
-        arch_display = ", ".join(sorted(archs)) if archs else ""
+        if conclusion == "failure" and run_id:
+            failed_jobs = _fetch_failed_jobs_for_run(token, github_repository, run_id)
+            if failed_jobs:
+                parts = []
+                for fj in failed_jobs:
+                    parts.append(f"{fj['name']} ({fj['platform']})")
+                failed_jobs_display = "\n".join(parts)
 
-        table.add_row(status_display, age, arch_display, failed_jobs_display, link)
+        table.add_row(status_display, age, failed_jobs_display, link)
 
     console.print(table)
     console.print()
@@ -6317,13 +7197,13 @@ def _display_recent_pr_failure_panel(
 @click.option(
     "--llm-concurrency",
     type=int,
-    default=8,
+    default=4,
     show_default=True,
     help="Number of concurrent LLM assessment calls.",
 )
 @option_llm_model
 @click.option(
-    "--clear-llm-cache",
+    "--clear-cache",
     is_flag=True,
     default=False,
     help="Clear the LLM review and triage caches before running.",
@@ -6362,7 +7242,7 @@ def auto_triage(
     check_mode: str,
     llm_concurrency: int,
     llm_model: str,
-    clear_llm_cache: bool,
+    clear_cache: bool,
     answer_triage: str | None,
 ):
     from airflow_breeze.utils.github import (
@@ -6390,14 +7270,14 @@ def auto_triage(
 
     console = get_console()
 
-    if clear_llm_cache:
+    if clear_cache:
         import shutil
 
         for label, get_dir in [
             ("review", _get_review_cache_dir),
             ("triage", _get_triage_cache_dir),
             ("status", _get_status_cache_dir),
-            ("log", _get_log_cache_dir),
+            ("classification", _get_classification_cache_dir),
         ]:
             cache_dir = get_dir(github_repository)
             if cache_dir.exists():
@@ -6406,18 +7286,24 @@ def auto_triage(
                 console.print(f"[info]Cleared LLM {label} cache ({count} entries) at {cache_dir}.[/]")
             else:
                 console.print(f"[info]LLM {label} cache is already empty.[/]")
+    dry_run = get_dry_run()
+
+    # Determine TUI mode early so we can suppress all console output
+    use_tui = _has_tty() and not dry_run and not answer_triage
+
     mode_desc = {"both": "API + LLM", "api": "API only", "llm": "LLM only"}
-    console.print(
-        f"[info]Check mode: [bold]{check_mode}[/bold] ({mode_desc.get(check_mode, check_mode)}). "
-        f"Change with --check-mode (api|llm|both).[/]"
-    )
     review_mode = triage_mode == "review"
-    if review_mode:
+    if not use_tui:
         console.print(
-            f"[info]Mode: [bold]review[/bold] — selecting PRs with '{_READY_FOR_REVIEW_LABEL}' label"
-            f"{' and PRs with your previous reviews' if my_reviews or reviewers else ''}. "
-            f"Deterministic checks run first; passing PRs get LLM code review if enabled.[/]"
+            f"[info]Check mode: [bold]{check_mode}[/bold] ({mode_desc.get(check_mode, check_mode)}). "
+            f"Change with --check-mode (api|llm|both).[/]"
         )
+        if review_mode:
+            console.print(
+                f"[info]Mode: [bold]review[/bold] — selecting PRs with '{_READY_FOR_REVIEW_LABEL}' label"
+                f"{' and PRs with your previous reviews' if my_reviews or reviewers else ''}. "
+                f"Deterministic checks run first; passing PRs get LLM code review if enabled.[/]"
+            )
 
     # Validate CLI tool is available and safe early (only when LLM checks are enabled)
     if run_llm:
@@ -6428,30 +7314,93 @@ def auto_triage(
         else:
             _validate_llm_safety(github_repository, answer_triage)
 
-    dry_run = get_dry_run()
-
     # Validate --reviews-for-me and --reviews-for are mutually exclusive
     if my_reviews and reviewers:
         console_print("[error]--reviews-for-me and --reviews-for are mutually exclusive.[/]")
         sys.exit(1)
 
+    if not use_tui:
+        console.print(f"[info]Repository: [bold]{github_repository}[/bold][/]")
+        console.print("[info]Display mode: [bold]sequential[/bold][/]")
+
+    # Progress bar for startup phases (shown in both TUI and sequential mode)
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn, TimeElapsedColumn
+
+    _progress_tasks: dict[str, TaskID] = {}
+    _progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[bold]{task.description}"),
+        BarColumn(bar_width=20),
+        TextColumn("[dim]{task.fields[status]}"),
+        TimeElapsedColumn(),
+        console=console,
+    )
+    _step_names = [
+        ("auth", "Authenticate"),
+        ("ci_failures", "Load CI failures"),
+        ("fetch_prs", "Fetch PRs"),
+        ("branch_status", "Check branch status"),
+        ("merge_status", "Resolve merge status"),
+        ("verify_ci", "Verify CI status"),
+        ("classify", "Filter & classify"),
+        ("triage_check", "Check prior triage"),
+    ]
+    for key, desc in _step_names:
+        _progress_tasks[key] = _progress.add_task(desc, total=1, status="waiting")
+    _progress.start()
+
+    def _step_start(key: str, status: str = "running", total: int = 1) -> None:
+        if _progress and key in _progress_tasks:
+            _progress.update(_progress_tasks[key], total=total, status=status)
+
+    def _step_done(key: str, status: str = "done") -> None:
+        if _progress and key in _progress_tasks:
+            task = _progress_tasks[key]
+            # Set completed to total to fill the bar
+            _progress.update(task, completed=_progress.tasks[task].total, status=status)
+
+    def _make_progress_cb(key: str) -> Callable[[int, int], None] | None:
+        """Create a callback that updates the progress bar for a step with real item counts."""
+        if not _progress or key not in _progress_tasks:
+            return None
+        progress = _progress
+        task_id = _progress_tasks[key]
+
+        def _cb(completed: int, total: int) -> None:
+            progress.update(task_id, completed=completed, total=total, status=f"{completed}/{total}")
+
+        return _cb
+
     # Resolve the authenticated user login (used for --reviews-for-me and triage comment detection)
+    _step_start("auth")
+    t_step = time.monotonic()
     viewer_login = _resolve_viewer_login(token)
+    _step_done("auth", f"as {viewer_login}")
+    if not use_tui:
+        console.print(
+            f"[info]Authenticated as: [bold]{viewer_login}[/bold] "
+            f"({_fmt_duration(time.monotonic() - t_step)})[/]"
+        )
 
     # Refresh collaborators cache in the background on every run
     _refresh_collaborators_cache_in_background(token, github_repository)
 
-    # Preload main branch CI failure information and canary builds in parallel (both cached for 4 hours)
-    with ThreadPoolExecutor(max_workers=2) as startup_executor:
-        main_failures_future = startup_executor.submit(
-            _cached_fetch_recent_pr_failures, token, github_repository
+    # Preload main branch CI failure information (cached for 4 hours)
+    _step_start("ci_failures")
+    t_step = time.monotonic()
+    main_failures = _cached_fetch_recent_pr_failures(token, github_repository)
+    _step_done("ci_failures", f"{len(main_failures.failing_check_names)} known failures")
+    if not use_tui:
+        console.print(
+            f"[info]Main branch CI failures: "
+            f"[bold]{len(main_failures.failing_check_names)}[/bold] known failing checks "
+            f"({_fmt_duration(time.monotonic() - t_step)})[/]"
         )
-        canary_builds_future = startup_executor.submit(
-            _cached_fetch_main_canary_builds, token, github_repository
-        )
-        main_failures = main_failures_future.result()
-        canary_builds = canary_builds_future.result()
-    _display_canary_builds_status(canary_builds)
+
+    # Show status of recent scheduled (canary) builds on main branch (cached for 4 hours)
+    canary_builds = _cached_fetch_main_canary_builds(token, github_repository)
+    if not use_tui:
+        _display_canary_builds_status(canary_builds, token, github_repository)
 
     # Resolve review-requested filter: --reviews-for-me uses authenticated user, --reviews-for uses specified users
     review_requested_user: str | None = None
@@ -6459,11 +7408,13 @@ def auto_triage(
     if my_reviews:
         review_requested_user = viewer_login
         review_requested_users = [viewer_login]
-        console_print(f"[info]Filtering PRs with review requested for: {review_requested_user}[/]")
+        if not use_tui:
+            console_print(f"[info]Filtering PRs with review requested for: {review_requested_user}[/]")
     elif reviewers:
         review_requested_users = list(reviewers)
         review_requested_user = reviewers[0]
-        console_print(f"[info]Filtering PRs with review requested for: {', '.join(reviewers)}[/]")
+        if not use_tui:
+            console_print(f"[info]Filtering PRs with review requested for: {', '.join(reviewers)}[/]")
 
     # Phase 1: Fetch PRs via GraphQL
     from fnmatch import fnmatch
@@ -6481,29 +7432,28 @@ def auto_triage(
 
     t_total_start = time.monotonic()
 
-    # Phase 1: Fetch and prepare PRs
-    console.print("\n[bold]Phase 1: Fetching and preparing PRs[/bold]")
+    # Phase 1: Lightweight fetch of PRs via GraphQL (no check contexts — fast)
+    _step_start("fetch_prs")
+    if not use_tui:
+        console.print()
+        console.rule("[bold]Phase 1: Fetch PRs[/]")
     t_phase1_start = time.monotonic()
     has_next_page = False
     next_cursor: str | None = None
-    step_num = 0
-
-    # Step 1: Fetch PRs via GraphQL
-    step_num += 1
-    t_step = time.monotonic()
+    total_matching_prs = 0
     if pr_number:
-        console_print(f"  [info][{step_num}/7] Fetching PR #{pr_number} via GraphQL...[/]")
+        if not use_tui:
+            console_print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
         all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
+        total_matching_prs = 1
     elif len(review_requested_users) > 1:
         # Multiple reviewers: fetch PRs for each reviewer and merge (deduplicate)
-        console_print(
-            f"  [info][{step_num}/7] Fetching PRs via GraphQL "
-            f"for {len(review_requested_users)} reviewers...[/]"
-        )
+        if not use_tui:
+            console_print("[info]Fetching PRs via GraphQL for multiple reviewers...[/]")
         seen_numbers: set[int] = set()
         all_prs = []
         for reviewer in review_requested_users:
-            batch_prs, _, _ = _fetch_prs_graphql(
+            batch_prs, _, _, _ = _fetch_prs_graphql(
                 token,
                 github_repository,
                 labels=exact_labels,
@@ -6516,6 +7466,7 @@ def auto_triage(
                 updated_after=updated_after,
                 updated_before=updated_before,
                 review_requested=reviewer,
+                quiet=use_tui,
             )
             for pr in batch_prs:
                 if pr.number not in seen_numbers:
@@ -6523,9 +7474,11 @@ def auto_triage(
                     all_prs.append(pr)
         # Disable pagination for multi-reviewer queries
         has_next_page = False
+        total_matching_prs = len(all_prs)
     else:
-        console_print(f"  [info][{step_num}/7] Fetching PRs via GraphQL...[/]")
-        all_prs, has_next_page, next_cursor = _fetch_prs_graphql(
+        if not use_tui:
+            console_print("[info]Fetching PRs via GraphQL...[/]")
+        all_prs, has_next_page, next_cursor, total_matching_prs = _fetch_prs_graphql(
             token,
             github_repository,
             labels=exact_labels,
@@ -6538,11 +7491,20 @@ def auto_triage(
             updated_after=updated_after,
             updated_before=updated_before,
             review_requested=review_requested_user,
+            quiet=use_tui,
         )
-    console_print(
-        f"    [dim]{len(all_prs)} PRs fetched"
-        f"{' (more pages available)' if has_next_page else ''} ({_fmt_duration(time.monotonic() - t_step)})[/]"
-    )
+    t_fetch = time.monotonic() - t_phase1_start
+    collab_count = sum(1 for pr in all_prs if pr.author_association in _COLLABORATOR_ASSOCIATIONS)
+    non_collab_count = len(all_prs) - collab_count
+    _step_done("fetch_prs", f"{len(all_prs)} PRs")
+    if not use_tui:
+        console.print(
+            f"[info]Fetched [bold]{len(all_prs)}[/bold] PRs "
+            f"({non_collab_count} non-collaborator, {collab_count} collaborator) "
+            f"in {_fmt_duration(t_fetch)}[/]"
+        )
+        if has_next_page:
+            console.print(f"[info]More pages available (batch size: {batch_size})[/]")
 
     # Apply wildcard label filters client-side
     if wildcard_labels:
@@ -6565,7 +7527,7 @@ def auto_triage(
         # Use base labels (without the ready-for-review label) for the reviewed-by query
         base_exact_labels = tuple(lbl for lbl in labels if "*" not in lbl and "?" not in lbl)
         for reviewer in review_requested_users:
-            batch_prs, _, _ = _fetch_prs_graphql(
+            batch_prs, _, _, _ = _fetch_prs_graphql(
                 token,
                 github_repository,
                 labels=base_exact_labels,
@@ -6578,56 +7540,74 @@ def auto_triage(
                 updated_after=updated_after,
                 updated_before=updated_before,
                 reviewed_by=reviewer,
+                quiet=use_tui,
             )
             for pr in batch_prs:
                 if pr.number not in seen_numbers:
                     seen_numbers.add(pr.number)
                     all_prs.append(pr)
                     reviewed_by_prs.add(pr.number)
-        if reviewed_by_prs:
+        if reviewed_by_prs and not use_tui:
             console.print(
-                f"    [dim]Also found {len(reviewed_by_prs)} "
+                f"[info]Also found {len(reviewed_by_prs)} "
                 f"{'PRs' if len(reviewed_by_prs) != 1 else 'PR'} "
                 f"previously reviewed by {', '.join(review_requested_users)}.[/]"
             )
 
-    # Step 2: Resolve how far behind base branch each PR is
-    step_num += 1
+    # Resolve how far behind base branch each PR is
+    _step_start("branch_status", total=len(all_prs))
+    if not use_tui:
+        console.print()
+        console.rule("[bold]Phase 2: Enrich PR data[/]")
+        console_print("[info]Checking how far behind base branch each PR is...[/]")
     t_step = time.monotonic()
-    console_print(f"  [info][{step_num}/7] Checking how far behind base branch each PR is...[/]")
-    behind_map = _fetch_commits_behind_batch(token, github_repository, all_prs)
+    behind_map = _fetch_commits_behind_batch(
+        token, github_repository, all_prs, on_progress=_make_progress_cb("branch_status")
+    )
     for pr in all_prs:
         pr.commits_behind = behind_map.get(pr.number, 0)
-    max_behind = max(behind_map.values()) if behind_map else 0
-    console_print(
-        f"    [dim]done (max {max_behind} commits behind) ({_fmt_duration(time.monotonic() - t_step)})[/]"
-    )
+    behind_count = sum(1 for pr in all_prs if pr.commits_behind > 0)
+    _step_done("branch_status", f"{behind_count} behind")
+    if not use_tui:
+        console.print(
+            f"  [dim]{behind_count} PRs behind base branch ({_fmt_duration(time.monotonic() - t_step)})[/]"
+        )
 
-    # Step 3: Resolve UNKNOWN mergeable status before displaying the overview table
-    step_num += 1
-    t_step = time.monotonic()
+    # Resolve UNKNOWN mergeable status before displaying the overview table
     unknown_count = sum(1 for pr in all_prs if pr.mergeable == "UNKNOWN")
     if unknown_count:
-        console_print(
-            f"  [info][{step_num}/7] Resolving merge conflict status "
-            f"for {unknown_count} {'PRs' if unknown_count != 1 else 'PR'}...[/]"
-        )
-        resolved = _resolve_unknown_mergeable(token, github_repository, all_prs)
-        remaining = unknown_count - resolved
-        if remaining:
+        _step_start("merge_status", total=unknown_count)
+        t_step = time.monotonic()
+        if not use_tui:
             console_print(
-                f"    [dim]{resolved} resolved, {remaining} still unknown "
-                f"({_fmt_duration(time.monotonic() - t_step)})[/]"
+                f"[info]Resolving merge conflict status for {unknown_count} "
+                f"{'PRs' if unknown_count != 1 else 'PR'} with unknown status...[/]"
             )
-        else:
-            console_print(f"    [dim]All {resolved} resolved ({_fmt_duration(time.monotonic() - t_step)})[/]")
+        resolved = _resolve_unknown_mergeable(
+            token, github_repository, all_prs, on_progress=_make_progress_cb("merge_status")
+        )
+        remaining = unknown_count - resolved
+        if not use_tui:
+            if remaining:
+                console_print(
+                    f"  [dim]{resolved} resolved, {remaining} still unknown "
+                    f"(GitHub hasn't computed mergeability yet) "
+                    f"({_fmt_duration(time.monotonic() - t_step)})[/]"
+                )
+            else:
+                console_print(
+                    f"  [dim]All {resolved} resolved ({_fmt_duration(time.monotonic() - t_step)})[/]"
+                )
+    conflict_count = sum(1 for pr in all_prs if pr.mergeable == "CONFLICTING")
+    if unknown_count:
+        _step_done("merge_status", f"{conflict_count} conflicts")
     else:
-        console_print(f"  [info][{step_num}/7] Merge conflict status: all known (skip)[/]")
+        _step_done("merge_status", "none unknown")
+    if conflict_count and not use_tui:
+        console.print(f"  [dim]{conflict_count} PRs have merge conflicts[/]")
 
-    # Step 4: Detect PRs whose rollup state is SUCCESS but only have bot/labeler checks (no real CI).
+    # Detect PRs whose rollup state is SUCCESS but only have bot/labeler checks (no real CI).
     # These need to be reclassified as NOT_RUN so they get routed to workflow approval.
-    step_num += 1
-    t_step = time.monotonic()
     non_collab_success = [
         pr
         for pr in all_prs
@@ -6636,24 +7616,38 @@ def auto_triage(
         and not _is_bot_account(pr.author_login)
     ]
     if non_collab_success:
-        console_print(
-            f"  [info][{step_num}/7] Verifying CI status for {len(non_collab_success)} "
-            f"{'PRs' if len(non_collab_success) != 1 else 'PR'} showing SUCCESS...[/]"
-        )
-        _fetch_check_details_batch(token, github_repository, non_collab_success)
-        reclassified = sum(1 for pr in non_collab_success if pr.checks_state == "NOT_RUN")
-        if reclassified:
+        _step_start("verify_ci", total=len(non_collab_success))
+        t_step = time.monotonic()
+        if not use_tui:
             console_print(
-                f"    [warning]{reclassified} reclassified to NOT_RUN "
-                f"(only bot/labeler checks) ({_fmt_duration(time.monotonic() - t_step)})[/]"
+                f"[info]Verifying CI status for {len(non_collab_success)} "
+                f"{'PRs' if len(non_collab_success) != 1 else 'PR'} "
+                f"showing SUCCESS (checking for real test checks)...[/]"
             )
-        else:
-            console_print(f"    [dim]All verified ({_fmt_duration(time.monotonic() - t_step)})[/]")
+        _fetch_check_details_batch(
+            token, github_repository, non_collab_success, on_progress=_make_progress_cb("verify_ci")
+        )
+        reclassified = sum(1 for pr in non_collab_success if pr.checks_state == "NOT_RUN")
+        _step_done("verify_ci", f"{reclassified} reclassified" if reclassified else "all real CI")
+        if not use_tui:
+            if reclassified:
+                console_print(
+                    f"  [warning]{reclassified} {'PRs' if reclassified != 1 else 'PR'} "
+                    f"reclassified to NOT_RUN (only bot/labeler checks, no real CI) "
+                    f"({_fmt_duration(time.monotonic() - t_step)})[/]"
+                )
+            else:
+                console.print(
+                    f"  [dim]All verified as real CI ({_fmt_duration(time.monotonic() - t_step)})[/]"
+                )
     else:
-        console_print(f"  [info][{step_num}/7] CI status verification: none needed (skip)[/]")
+        _step_done("verify_ci", "none to verify")
 
-    # Step 5: Filter candidates
-    step_num += 1
+    # Filter candidates first
+    _step_start("classify")
+    if not use_tui:
+        console.print()
+        console.rule("[bold]Phase 3: Filter & classify[/]")
     candidate_prs, accepted_prs, total_skipped_collaborator, total_skipped_bot, total_skipped_accepted = (
         _filter_candidate_prs(
             all_prs,
@@ -6663,24 +7657,28 @@ def auto_triage(
             min_commits_behind=min_commits_behind,
             max_num=max_num,
             also_accepted=reviewed_by_prs if review_mode else None,
+            quiet=use_tui,
         )
     )
-    console_print(
-        f"  [info][{step_num}/7] Filtering candidates: "
-        f"{len(candidate_prs)} candidates, {len(accepted_prs)} accepted "
-        f"(skipped: {total_skipped_collaborator} collaborators, "
-        f"{total_skipped_bot} bots, {total_skipped_accepted} already accepted)[/]"
-    )
+    if not use_tui:
+        console.print(
+            f"[info]Candidates: [bold]{len(candidate_prs)}[/bold] "
+            f"(skipped {total_skipped_collaborator} collaborator, "
+            f"{total_skipped_bot} bot"
+            f"{f', {total_skipped_accepted} accepted' if total_skipped_accepted else ''})[/]"
+        )
 
-    # Step 6: Exclude PRs that already have a triage comment posted after the last commit
-    step_num += 1
+    _step_done("classify", f"{len(candidate_prs)} candidates")
+
+    # Exclude PRs that already have a triage comment posted after the last commit
+    _step_start("triage_check", total=len(candidate_prs))
     t_step = time.monotonic()
-    console_print(
-        f"  [info][{step_num}/7] Checking for already-triaged PRs "
-        f"(no new commits since last triage comment)...[/]"
-    )
+    if not use_tui:
+        console_print(
+            "[info]Checking for PRs already triaged (no new commits since last triage comment)...[/]"
+        )
     triaged_classification = _classify_already_triaged_prs(
-        token, github_repository, candidate_prs, viewer_login
+        token, github_repository, candidate_prs, viewer_login, on_progress=_make_progress_cb("triage_check")
     )
     already_triaged_nums = triaged_classification["waiting"] | triaged_classification["responded"]
     triaged_waiting_count = len(triaged_classification["waiting"])
@@ -6689,29 +7687,35 @@ def auto_triage(
     if already_triaged_nums:
         already_triaged = [pr for pr in candidate_prs if pr.number in already_triaged_nums]
         candidate_prs = [pr for pr in candidate_prs if pr.number not in already_triaged_nums]
-        console_print(
-            f"    [dim]Skipped {len(already_triaged)} already-triaged "
-            f"({triaged_waiting_count} commented, "
-            f"{triaged_responded_count} author responded) "
-            f"({_fmt_duration(time.monotonic() - t_step)})[/]"
-        )
-    else:
-        console_print(f"    [dim]None found ({_fmt_duration(time.monotonic() - t_step)})[/]")
+        if not use_tui:
+            console_print(
+                f"[info]Skipped {len(already_triaged)} already-triaged "
+                f"{'PRs' if len(already_triaged) != 1 else 'PR'} "
+                f"({triaged_waiting_count} commented, "
+                f"{triaged_responded_count} author responded) "
+                f"({_fmt_duration(time.monotonic() - t_step)})[/]"
+            )
+    elif not use_tui:
+        console_print(f"  [dim]None found ({_fmt_duration(time.monotonic() - t_step)})[/]")
+    triage_status = f"{len(already_triaged)} skipped" if already_triaged_nums else "none found"
+    _step_done("triage_check", triage_status)
 
-    # Step 7: Display overview table
-    step_num += 1
-    console_print(f"  [info][{step_num}/7] Displaying overview table[/]")
-    _display_pr_overview_table(
-        all_prs,
-        triaged_waiting_nums=triaged_classification["waiting"],
-        triaged_responded_nums=triaged_classification["responded"],
-    )
+    # Display overview table only in sequential mode (TUI shows PRs itself)
+    if not use_tui:
+        _display_pr_overview_table(
+            all_prs,
+            triaged_waiting_nums=triaged_classification["waiting"],
+            triaged_responded_nums=triaged_classification["responded"],
+        )
 
     t_phase1_end = time.monotonic()
-    console.print(
-        f"[bold]Phase 1 complete:[/bold] {len(candidate_prs)} PRs to triage, "
-        f"{len(accepted_prs)} accepted ({_fmt_duration(t_phase1_end - t_phase1_start)})\n"
-    )
+    if _progress:
+        _progress.stop()
+        _progress = None
+    if not use_tui:
+        console.print(
+            f"\n[info]Startup complete in [bold]{_fmt_duration(t_phase1_end - t_total_start)}[/bold].[/]"
+        )
 
     # --- Review mode: early exit into review flow for accepted PRs ---
     if review_mode:
@@ -6847,7 +7851,56 @@ def auto_triage(
 
     # Enrich candidate PRs with check details, mergeable status, and review comments
     t_enrich_start = time.monotonic()
-    _enrich_candidate_details(token, github_repository, candidate_prs, run_api=run_api)
+    _enrich_progress = None
+    _enrich_tasks: dict[str, TaskID] = {}
+    if candidate_prs:
+        _enrich_progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold]{task.description}"),
+            BarColumn(bar_width=20),
+            TextColumn("[dim]{task.fields[status]}"),
+            TimeElapsedColumn(),
+            console=console,
+        )
+        _enrich_steps = [
+            ("enrich_checks", "Fetch check details"),
+            ("enrich_merge", "Resolve merge status"),
+            ("enrich_reviews", "Fetch review threads"),
+            ("enrich_classify", "Classify PRs"),
+        ]
+        for key, desc in _enrich_steps:
+            _enrich_tasks[key] = _enrich_progress.add_task(desc, total=len(candidate_prs), status="waiting")
+        _enrich_progress.start()
+
+    def _enrich_cb(key: str) -> Callable[[int, int], None] | None:
+        if not _enrich_progress or key not in _enrich_tasks:
+            return None
+        progress = _enrich_progress
+        task_id = _enrich_tasks[key]
+
+        def _cb(completed: int, total: int) -> None:
+            progress.update(task_id, completed=completed, total=total, status=f"{completed}/{total}")
+
+        return _cb
+
+    def _enrich_done(key: str, status: str = "done") -> None:
+        if _enrich_progress and key in _enrich_tasks:
+            task = _enrich_tasks[key]
+            _enrich_progress.update(task, completed=_enrich_progress.tasks[task].total, status=status)
+
+    _enrich_candidate_details(
+        token,
+        github_repository,
+        candidate_prs,
+        run_api=run_api,
+        quiet=use_tui,
+        on_check_progress=_enrich_cb("enrich_checks"),
+        on_merge_progress=_enrich_cb("enrich_merge"),
+        on_review_progress=_enrich_cb("enrich_reviews"),
+    )
+    _enrich_done("enrich_checks")
+    _enrich_done("enrich_merge")
+    _enrich_done("enrich_reviews")
     t_enrich_end = time.monotonic()
 
     # Phase 3: Deterministic checks + categorize PRs
@@ -6878,8 +7931,11 @@ def auto_triage(
         else:
             llm_candidates.append(pr)
 
+    _classify_cb = _enrich_cb("enrich_classify")
     if run_api:
-        for pr in candidate_prs:
+        for pr_idx, pr in enumerate(candidate_prs):
+            if _classify_cb:
+                _classify_cb(pr_idx, len(candidate_prs))
             t_det_start = time.monotonic()
             ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
 
@@ -6947,29 +8003,34 @@ def auto_triage(
         for pr in candidate_prs:
             _categorize_pr(pr)
 
-    if skipped_drafts:
-        console_print(
-            f"[info]Skipped {len(skipped_drafts)} draft "
-            f"{'PRs' if len(skipped_drafts) != 1 else 'PR'} "
-            f"with existing issues (CI failures, conflicts, or unresolved comments).[/]"
-        )
-    if workflows_in_progress:
-        console_print(
-            f"[info]Excluded {len(workflows_in_progress)} "
-            f"{'PRs' if len(workflows_in_progress) != 1 else 'PR'} "
-            f"with workflows already in progress.[/]"
-        )
-    if recent_failures_skipped:
-        get_console().print(
-            f"[info]Skipped {len(recent_failures_skipped)} "
-            f"{'PRs' if len(recent_failures_skipped) != 1 else 'PR'} "
-            f"with recent CI failures within grace period "
-            f"(giving authors time to address at their own pace):[/]"
-        )
-        for pr in recent_failures_skipped:
-            grace = pr.ci_grace_period_hours
-            engaged = " (collaborator engaged)" if pr.has_collaborator_review else ""
-            get_console().print(f"  [dim]{_pr_link(pr)} — {pr.title[:70]} [<{grace}h{engaged}][/]")
+    _enrich_done("enrich_classify", f"{total_deterministic_flags} flagged")
+    if _enrich_progress:
+        _enrich_progress.stop()
+
+    if not use_tui:
+        if skipped_drafts:
+            console_print(
+                f"[info]Skipped {len(skipped_drafts)} draft "
+                f"{'PRs' if len(skipped_drafts) != 1 else 'PR'} "
+                f"with existing issues (CI failures, conflicts, or unresolved comments).[/]"
+            )
+        if workflows_in_progress:
+            console_print(
+                f"[info]Excluded {len(workflows_in_progress)} "
+                f"{'PRs' if len(workflows_in_progress) != 1 else 'PR'} "
+                f"with workflows already in progress.[/]"
+            )
+        if recent_failures_skipped:
+            get_console().print(
+                f"[info]Skipped {len(recent_failures_skipped)} "
+                f"{'PRs' if len(recent_failures_skipped) != 1 else 'PR'} "
+                f"with recent CI failures within grace period "
+                f"(giving authors time to address at their own pace):[/]"
+            )
+            for pr in recent_failures_skipped:
+                grace = pr.ci_grace_period_hours
+                engaged = " (collaborator engaged)" if pr.has_collaborator_review else ""
+                get_console().print(f"  [dim]{_pr_link(pr)} — {pr.title[:70]} [<{grace}h{engaged}][/]")
 
     # Filter out pending_approval PRs that already have a comment from the viewer
     # (triage or rebase comment) with no new commits since — no point re-approving
@@ -6980,11 +8041,12 @@ def auto_triage(
         if already_commented_nums:
             already_triaged.extend(pr for pr in pending_approval if pr.number in already_commented_nums)
             pending_approval = [pr for pr in pending_approval if pr.number not in already_commented_nums]
-            console_print(
-                f"[info]Skipped {len(already_commented_nums)} workflow-approval "
-                f"{'PRs' if len(already_commented_nums) != 1 else 'PR'} "
-                f"already commented on (no new commits since).[/]"
-            )
+            if not use_tui:
+                console_print(
+                    f"[info]Skipped {len(already_commented_nums)} workflow-approval "
+                    f"{'PRs' if len(already_commented_nums) != 1 else 'PR'} "
+                    f"already commented on (no new commits since).[/]"
+                )
 
     # If --pending-approval-only, discard all assessment results and only keep pending_approval
     if pending_approval_only:
@@ -7009,28 +8071,30 @@ def auto_triage(
 
     if not run_llm:
         if llm_candidates:
-            console_print(
-                f"\n[info]--check-mode=api: skipping LLM assessment for {len(llm_candidates)} "
-                f"{'PRs' if len(llm_candidates) != 1 else 'PR'}.[/]\n"
-            )
+            if not use_tui:
+                console_print(
+                    f"\n[info]--check-mode=api: skipping LLM assessment for {len(llm_candidates)} "
+                    f"{'PRs' if len(llm_candidates) != 1 else 'PR'}.[/]\n"
+                )
             passing_prs.extend(llm_candidates)
     elif llm_candidates:
-        skipped_detail = f"{total_deterministic_flags} CI/conflicts/comments"
-        if skipped_drafts:
-            skipped_detail += f", {len(skipped_drafts)} drafts with issues"
-        if recent_failures_skipped:
-            skipped_detail += f", {len(recent_failures_skipped)} recent CI failures"
-        if already_triaged:
-            skipped_detail += f", {len(already_triaged)} already triaged"
-        if pending_approval:
-            skipped_detail += f", {len(pending_approval)} awaiting workflow approval"
-        if workflows_in_progress:
-            skipped_detail += f", {len(workflows_in_progress)} workflows in progress"
-        console_print(
-            f"\n[info]Starting LLM assessment for {len(llm_candidates)} "
-            f"{'PRs' if len(llm_candidates) != 1 else 'PR'} in background "
-            f"(skipped {skipped_detail})...[/]\n"
-        )
+        if not use_tui:
+            skipped_detail = f"{total_deterministic_flags} CI/conflicts/comments"
+            if skipped_drafts:
+                skipped_detail += f", {len(skipped_drafts)} drafts with issues"
+            if recent_failures_skipped:
+                skipped_detail += f", {len(recent_failures_skipped)} recent CI failures"
+            if already_triaged:
+                skipped_detail += f", {len(already_triaged)} already triaged"
+            if pending_approval:
+                skipped_detail += f", {len(pending_approval)} awaiting workflow approval"
+            if workflows_in_progress:
+                skipped_detail += f", {len(workflows_in_progress)} workflows in progress"
+            console_print(
+                f"\n[info]Starting LLM assessment for {len(llm_candidates)} "
+                f"{'PRs' if len(llm_candidates) != 1 else 'PR'} in background "
+                f"(skipped {skipped_detail})...[/]\n"
+            )
         llm_executor = ThreadPoolExecutor(max_workers=llm_concurrency)
         llm_future_to_pr = {
             llm_executor.submit(
@@ -7072,56 +8136,227 @@ def auto_triage(
         log_futures=log_futures,
     )
 
-    # Start prefetching next page in background while user reviews current batch
-    prefetch_executor = ThreadPoolExecutor(max_workers=1) if has_next_page and not pr_number else None
-    next_batch_future: Future[BatchPrefetchResult | None] | None = None
-    prefetch_kwargs = dict(
-        token=token,
-        github_repository=github_repository,
-        exact_labels=exact_labels,
-        exact_exclude_labels=exact_exclude_labels,
-        filter_user=filter_user,
-        sort=sort,
-        batch_size=batch_size,
-        created_after=created_after,
-        created_before=created_before,
-        updated_after=updated_after,
-        updated_before=updated_before,
-        review_requested_user=review_requested_user,
-        wildcard_labels=wildcard_labels,
-        wildcard_exclude_labels=wildcard_exclude_labels,
-        include_collaborators=include_collaborators,
-        include_drafts=include_drafts,
-        checks_state=checks_state,
-        min_commits_behind=min_commits_behind,
-        max_num=max_num,
-        viewer_login=viewer_login,
-    )
-    if prefetch_executor and has_next_page:
-        next_batch_future = _start_next_batch_prefetch(
-            prefetch_executor, next_cursor=next_cursor, **prefetch_kwargs
-        )
+    det_flagged_prs = [(pr, assessments[pr.number]) for pr in candidate_prs if pr.number in assessments]
+    det_flagged_prs.sort(key=lambda pair: (pair[0].author_login.lower(), pair[0].number))
 
     try:
-        # Phase 4b: Present NOT_RUN PRs for workflow approval (LLM runs in background)
-        _review_workflow_approval_prs(ctx, pending_approval)
+        if use_tui:
+            # Full-screen TUI mode: show all PRs in an interactive full-screen view
+            # Build selection criteria description for TUI header
+            criteria_parts: list[str] = []
+            if pr_number:
+                criteria_parts.append(f"PR #{pr_number}")
+            if labels:
+                criteria_parts.append(f"labels={','.join(labels)}")
+            if exclude_labels:
+                criteria_parts.append(f"exclude={','.join(exclude_labels)}")
+            if filter_user:
+                criteria_parts.append(f"user={filter_user}")
+            if review_requested_users:
+                criteria_parts.append(f"reviewer={','.join(review_requested_users)}")
+            if created_after:
+                criteria_parts.append(f"created>={created_after}")
+            if created_before:
+                criteria_parts.append(f"created<={created_before}")
+            if updated_after:
+                criteria_parts.append(f"updated>={updated_after}")
+            if updated_before:
+                criteria_parts.append(f"updated<={updated_before}")
+            if checks_state != "all":
+                criteria_parts.append(f"checks={checks_state}")
+            if min_commits_behind > 0:
+                criteria_parts.append(f"behind>={min_commits_behind}")
+            if include_drafts:
+                criteria_parts.append("include_drafts")
+            if include_collaborators:
+                criteria_parts.append("include_collaborators")
+            if sort != "created":
+                criteria_parts.append(f"sort={sort}")
+            criteria_parts.append(f"batch={batch_size}")
+            if triage_mode != "triage":
+                criteria_parts.append(f"mode={triage_mode}")
+            selection_criteria = " | ".join(criteria_parts) if criteria_parts else "defaults"
 
-        # Phase 5a: Present deterministically flagged PRs
-        det_flagged_prs = [(pr, assessments[pr.number]) for pr in candidate_prs if pr.number in assessments]
-        det_flagged_prs.sort(key=lambda pair: (pair[0].author_login.lower(), pair[0].number))
-        _review_deterministic_flagged_prs(ctx, det_flagged_prs)
+            # Build a closure that fetches + enriches + categorizes the next page of PRs
+            _batch_cursor: list[str | None] = [next_cursor]
+            _batch_has_more: list[bool] = [has_next_page]
 
-        # Phase 5b: Present LLM-flagged PRs as they become ready (streaming)
-        _review_llm_flagged_prs(ctx, llm_candidates)
+            def _load_more_batch():
+                if not _batch_has_more[0] or not _batch_cursor[0]:
+                    return None
 
-        # Add LLM passing PRs to the passing list
-        passing_prs.extend(llm_passing)
+                new_prs, more, cursor, _ = _fetch_prs_graphql(
+                    token,
+                    github_repository,
+                    labels=exact_labels,
+                    exclude_labels=exact_exclude_labels,
+                    filter_user=filter_user,
+                    sort=sort,
+                    batch_size=batch_size,
+                    created_after=created_after,
+                    created_before=created_before,
+                    updated_after=updated_after,
+                    updated_before=updated_before,
+                    review_requested=review_requested_user,
+                    after_cursor=_batch_cursor[0],
+                    quiet=True,
+                )
+                _batch_cursor[0] = cursor
+                _batch_has_more[0] = more
 
-        # Phase 5c: Present passing PRs for optional ready-for-review marking
-        _review_passing_prs(ctx, passing_prs)
+                if not new_prs:
+                    return None
 
-        # Phase 5d: Check accepted PRs for stale CHANGES_REQUESTED reviews
-        _review_stale_review_requests(ctx, accepted_prs)
+                # Enrich: branch status
+                behind_map = _fetch_commits_behind_batch(token, github_repository, new_prs)
+                for pr in new_prs:
+                    pr.commits_behind = behind_map.get(pr.number, 0)
+
+                # Enrich: verify CI for non-collab SUCCESS PRs
+                new_success = [
+                    pr
+                    for pr in new_prs
+                    if pr.checks_state == "SUCCESS"
+                    and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+                    and not _is_bot_account(pr.author_login)
+                ]
+                if new_success:
+                    _fetch_check_details_batch(token, github_repository, new_success)
+
+                # Filter candidates
+                new_candidates, new_accepted, _, _, _ = _filter_candidate_prs(
+                    new_prs,
+                    include_collaborators=include_collaborators,
+                    include_drafts=include_drafts,
+                    checks_state=checks_state,
+                    min_commits_behind=min_commits_behind,
+                    max_num=0,
+                    quiet=True,
+                )
+
+                # Check already triaged
+                new_triaged_class = _classify_already_triaged_prs(
+                    token, github_repository, new_candidates, viewer_login
+                )
+                new_triaged_nums = new_triaged_class["waiting"] | new_triaged_class["responded"]
+                new_candidates = [pr for pr in new_candidates if pr.number not in new_triaged_nums]
+
+                # Enrich candidate details
+                if new_candidates:
+                    _enrich_candidate_details(
+                        token, github_repository, new_candidates, run_api=run_api, quiet=True
+                    )
+
+                # Categorize
+                new_assessments_map: dict[int, PRAssessment] = {}
+                new_pending: list[PRData] = []
+                new_passing: list[PRData] = []
+                new_det_flagged: list[tuple[PRData, PRAssessment]] = []
+
+                if run_api:
+                    for pr in new_candidates:
+                        ci_a = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
+                        if (
+                            ci_a
+                            and pr.head_sha
+                            and _has_in_progress_workflows(token, github_repository, pr.head_sha)
+                        ):
+                            continue
+                        if (
+                            ci_a
+                            and pr.head_sha
+                            and _are_failures_recent(
+                                token, github_repository, pr.head_sha, pr.ci_grace_period_hours
+                            )
+                        ):
+                            ci_a = None
+                        conf_a = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
+                        cmt_a = assess_pr_unresolved_comments(
+                            pr.number, pr.unresolved_review_comments, pr.unresolved_threads
+                        )
+                        if ci_a or conf_a or cmt_a:
+                            if not pr.is_draft:
+                                violations = []
+                                summaries = []
+                                for a in (conf_a, ci_a, cmt_a):
+                                    if a:
+                                        violations.extend(a.violations)
+                                        summaries.append(a.summary)
+                                asmt = PRAssessment(
+                                    should_flag=True,
+                                    violations=violations,
+                                    summary=" ".join(summaries),
+                                )
+                                new_assessments_map[pr.number] = asmt
+                                new_det_flagged.append((pr, asmt))
+                        elif pr.checks_state == "NOT_RUN":
+                            new_pending.append(pr)
+                        else:
+                            # Submit for LLM assessment in background
+                            if run_llm and llm_executor:
+                                fut = llm_executor.submit(
+                                    _cached_assess_pr,
+                                    github_repository=github_repository,
+                                    head_sha=pr.head_sha,
+                                    pr_number=pr.number,
+                                    pr_title=pr.title,
+                                    pr_body=pr.body,
+                                    check_status_summary=pr.check_summary,
+                                    llm_model=llm_model,
+                                )
+                                ctx.llm_future_to_pr[fut] = pr
+                            else:
+                                new_passing.append(pr)
+                else:
+                    for pr in new_candidates:
+                        if pr.checks_state == "NOT_RUN":
+                            new_pending.append(pr)
+                        else:
+                            new_passing.append(pr)
+
+                return (
+                    new_prs,
+                    new_det_flagged,
+                    new_pending,
+                    new_passing,
+                    new_triaged_nums,
+                    more,
+                )
+
+            _run_tui_triage(
+                ctx,
+                all_prs,
+                pending_approval=pending_approval,
+                det_flagged_prs=det_flagged_prs,
+                llm_candidates=llm_candidates,
+                passing_prs=passing_prs,
+                accepted_prs=accepted_prs,
+                already_triaged_nums=already_triaged_nums,
+                mode_desc=mode_desc.get(check_mode, check_mode),
+                selection_criteria=selection_criteria,
+                total_matching_prs=total_matching_prs,
+                viewer_login=viewer_login,
+                load_more_fn=_load_more_batch if has_next_page else None,
+            )
+        else:
+            # Sequential mode (CI / forced answer / no TTY)
+            # Phase 4b: Present NOT_RUN PRs for workflow approval (LLM runs in background)
+            _review_workflow_approval_prs(ctx, pending_approval)
+
+            # Phase 5a: Present deterministically flagged PRs
+            _review_deterministic_flagged_prs(ctx, det_flagged_prs)
+
+            # Phase 5b: Present LLM-flagged PRs as they become ready (streaming)
+            _review_llm_flagged_prs(ctx, llm_candidates)
+
+            # Add LLM passing PRs to the passing list
+            passing_prs.extend(llm_passing)
+
+            # Phase 5c: Present passing PRs for optional ready-for-review marking
+            _review_passing_prs(ctx, passing_prs)
+
+            # Phase 5d: Check accepted PRs for stale CHANGES_REQUESTED reviews
+            _review_stale_review_requests(ctx, accepted_prs)
     except KeyboardInterrupt:
         console_print("\n[warning]Interrupted — shutting down.[/]")
         stats.quit_early = True
@@ -7130,62 +8365,97 @@ def auto_triage(
         if llm_executor is not None:
             llm_executor.shutdown(wait=False, cancel_futures=True)
 
-    # Process subsequent batches using prefetched data
-    while not stats.quit_early and not pr_number and next_batch_future is not None:
+    # Fetch and process next batch if available and user hasn't quit
+    while has_next_page and not stats.quit_early and not pr_number:
         batch_num = getattr(stats, "_batch_count", 1) + 1
         stats._batch_count = batch_num  # type: ignore[attr-defined]
-
-        # Wait for the prefetched result (should already be done or nearly done)
-        t_wait_start = time.monotonic()
-        was_ready = next_batch_future.done()
-        prefetch_result = next_batch_future.result()
-        t_wait = time.monotonic() - t_wait_start
-        if was_ready:
-            console_print(f"\n[info]Batch {batch_num}: next page already prefetched.[/]")
-        else:
-            console_print(
-                f"\n[info]Batch {batch_num}: waited {_fmt_duration(t_wait)} "
-                f"for background prefetch to complete.[/]"
-            )
-        next_batch_future = None
-
-        if prefetch_result is None:
+        console_print(f"\n[info]Batch complete. Fetching next batch (page {batch_num})...[/]\n")
+        all_prs, has_next_page, next_cursor, _ = _fetch_prs_graphql(
+            token,
+            github_repository,
+            labels=exact_labels,
+            exclude_labels=exact_exclude_labels,
+            filter_user=filter_user,
+            sort=sort,
+            batch_size=batch_size,
+            created_after=created_after,
+            created_before=created_before,
+            updated_after=updated_after,
+            updated_before=updated_before,
+            review_requested=review_requested_user,
+            after_cursor=next_cursor,
+        )
+        if not all_prs:
             console_print("[info]No more PRs to process.[/]")
             break
 
-        all_prs = prefetch_result.all_prs
-        has_next_page = prefetch_result.has_next_page
-        next_cursor = prefetch_result.next_cursor
-        candidate_prs = prefetch_result.candidate_prs
-        batch_accepted = prefetch_result.accepted_prs
-        accepted_prs.extend(batch_accepted)
+        # Apply wildcard label filters client-side
+        if wildcard_labels:
+            all_prs = [
+                pr for pr in all_prs if any(fnmatch(lbl, pat) for pat in wildcard_labels for lbl in pr.labels)
+            ]
+        if wildcard_exclude_labels:
+            all_prs = [
+                pr
+                for pr in all_prs
+                if not any(fnmatch(lbl, pat) for pat in wildcard_exclude_labels for lbl in pr.labels)
+            ]
 
-        console_print(
-            f"[info]Batch {batch_num}: {len(all_prs)} PRs fetched, "
-            f"{len(candidate_prs)} candidates"
-            f"{' (more pages available)' if has_next_page else ''}"
-            f" (wait: {_fmt_duration(t_wait)})[/]"
-        )
+        # Enrich: commits behind, mergeable status
+        behind_map = _fetch_commits_behind_batch(token, github_repository, all_prs)
+        for pr in all_prs:
+            pr.commits_behind = behind_map.get(pr.number, 0)
+        unknown_count = sum(1 for pr in all_prs if pr.mergeable == "UNKNOWN")
+        if unknown_count:
+            _resolve_unknown_mergeable(token, github_repository, all_prs)
 
-        if prefetch_result.reclassified_count:
+        # Detect PRs whose rollup state is SUCCESS but only have bot/labeler checks
+        batch_non_collab_success = [
+            pr
+            for pr in all_prs
+            if pr.checks_state == "SUCCESS"
+            and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+            and not _is_bot_account(pr.author_login)
+        ]
+        if batch_non_collab_success:
             console_print(
-                f"  [warning]{prefetch_result.reclassified_count} "
-                f"{'PRs' if prefetch_result.reclassified_count != 1 else 'PR'} "
-                f"reclassified to NOT_RUN (only bot/labeler checks).[/]"
+                f"[info]Verifying CI status for {len(batch_non_collab_success)} "
+                f"{'PRs' if len(batch_non_collab_success) != 1 else 'PR'} "
+                f"showing SUCCESS...[/]"
             )
+            _fetch_check_details_batch(token, github_repository, batch_non_collab_success)
+            reclassified = sum(1 for pr in batch_non_collab_success if pr.checks_state == "NOT_RUN")
+            if reclassified:
+                console_print(
+                    f"  [warning]{reclassified} {'PRs' if reclassified != 1 else 'PR'} "
+                    f"reclassified to NOT_RUN (only bot/labeler checks).[/]"
+                )
+
+        (
+            candidate_prs,
+            batch_accepted,
+            _,
+            _,
+            _,
+        ) = _filter_candidate_prs(
+            all_prs,
+            include_collaborators=include_collaborators,
+            include_drafts=include_drafts,
+            checks_state=checks_state,
+            min_commits_behind=min_commits_behind,
+            max_num=max_num,
+        )
+        accepted_prs.extend(batch_accepted)
 
         if not candidate_prs:
             console_print("[info]No PRs to assess in this batch.[/]")
             _display_pr_overview_table(all_prs)
-            # Start prefetching the next page if available
-            if has_next_page and prefetch_executor:
-                next_batch_future = _start_next_batch_prefetch(
-                    prefetch_executor, next_cursor=next_cursor, **prefetch_kwargs
-                )
             continue
 
-        # Apply triage classification from prefetch
-        batch_triaged_cls = prefetch_result.triaged_classification
+        # Check already-triaged
+        batch_triaged_cls = _classify_already_triaged_prs(
+            token, github_repository, candidate_prs, viewer_login
+        )
         batch_triaged_nums = batch_triaged_cls["waiting"] | batch_triaged_cls["responded"]
         if batch_triaged_nums:
             candidate_prs = [pr for pr in candidate_prs if pr.number not in batch_triaged_nums]
@@ -7198,11 +8468,6 @@ def auto_triage(
 
         if not candidate_prs:
             console_print("[info]All PRs in this batch already triaged.[/]")
-            # Start prefetching the next page if available
-            if has_next_page and prefetch_executor:
-                next_batch_future = _start_next_batch_prefetch(
-                    prefetch_executor, next_cursor=next_cursor, **prefetch_kwargs
-                )
             continue
 
         # Enrich and assess
@@ -7330,12 +8595,6 @@ def auto_triage(
             log_futures=batch_log_futures,
         )
 
-        # Start prefetching the NEXT page before entering interactive review
-        if has_next_page and prefetch_executor:
-            next_batch_future = _start_next_batch_prefetch(
-                prefetch_executor, next_cursor=next_cursor, **prefetch_kwargs
-            )
-
         try:
             _review_workflow_approval_prs(batch_ctx, batch_pending)
 
@@ -7356,13 +8615,6 @@ def auto_triage(
         finally:
             if batch_executor is not None:
                 batch_executor.shutdown(wait=False, cancel_futures=True)
-
-    # Clean up prefetch executor
-    if prefetch_executor is not None:
-        # Cancel any pending prefetch if user quit early
-        if next_batch_future is not None and not next_batch_future.done():
-            next_batch_future.cancel()
-        prefetch_executor.shutdown(wait=False, cancel_futures=True)
 
     # Display summary
     _display_triage_summary(

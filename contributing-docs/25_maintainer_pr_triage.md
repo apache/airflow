@@ -244,7 +244,7 @@ and code review. Several safety measures are in place:
 
 - **Caching** — LLM results are cached by PR number and commit SHA, so re-running
   triage on the same PR state does not incur redundant LLM calls. The cache can be
-  cleared with `--clear-llm-cache`.
+  cleared with `--clear-cache`.
 
 - **Safety validation** — The tool checks for dangerous environment variables that could
   bypass LLM sandboxing and blocks them. The maintainer must confirm before LLM
@@ -308,7 +308,7 @@ breeze pr auto-triage --dry-run
 Clear cached LLM assessments and start fresh:
 
 ```bash
-breeze pr auto-triage --clear-llm-cache
+breeze pr auto-triage --clear-cache
 ```
 
 ## For contributors
