@@ -80,6 +80,30 @@ Long-term we want to embed structured blocks directly into contributor
 documentation (for example `contributing-docs/*.rst`) and extract from there.
 This PoC keeps `SKILL.md` under `.github/skills/` as the initial stepping stone.
 
+## Skill: stage-changes
+
+```json
+{
+  "id": "stage-changes",
+  "name": "Stage Changes",
+  "description": "Stage modified files using git add before running static checks",
+  "commands": {
+    "host": "git add {path}",
+    "breeze": null
+  },
+  "preferred_context": "host",
+  "parameters": {
+    "path": {
+      "type": "string",
+      "required": true,
+      "description": "Path to the file or directory to stage"
+    }
+  },
+  "prerequisites": [],
+  "success_criteria": "exit_code == 0"
+}
+```
+
 ## Skill: run-static-checks
 
 ```json
@@ -99,7 +123,7 @@ This PoC keeps `SKILL.md` under `.github/skills/` as the initial stepping stone.
       "description": "Target module (e.g., airflow/api)"
     }
   },
-  "prerequisites": [],
+  "prerequisites": ["stage-changes"],
   "success_criteria": "exit_code == 0"
 }
 ```

@@ -54,8 +54,20 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+from typing import Any, TypedDict
 
 logger = logging.getLogger(__name__)
+
+
+class SkillParam(TypedDict):
+    required: bool
+
+
+class SkillDef(TypedDict):
+    host: str
+    breeze: str | None
+    preferred: str
+    params: dict[str, SkillParam]
 
 
 class BreezieContext:
@@ -163,7 +175,15 @@ class BreezieContext:
         context = "breeze" if is_breeze else "host"
 
         # Define all available skills
-        skills = {
+        skills: dict[str, Any] = {
+            "stage-changes": {
+                # git add operates on the host working tree — not inside the container.
+                # This is explicitly a host-only operation per the contributor workflow.
+                "host": "git add {path}",
+                "breeze": None,
+                "preferred": "host",
+                "params": {"path": {"required": True}},
+            },
             "run-static-checks": {
                 # prek is available on both host and inside Breeze; same command in both contexts.
                 "host": "prek run {module}",
@@ -184,18 +204,27 @@ class BreezieContext:
             available = ", ".join(sorted(skills.keys()))
             raise ValueError(f"Skill not found: {skill_id}. Available skills: {available}")
 
-        skill = skills[skill_id]
+        skill: SkillDef = skills[skill_id]
 
         # Validate required parameters
-        for param_name, param_info in skill["params"].items():
-            if param_info.get("required") and param_name not in kwargs:
+        params = skill["params"]
+        for param_name, param_info in params.items():
+            if param_info["required"] and param_name not in kwargs:
                 raise ValueError(f"Missing required parameter: {param_name} for skill {skill_id!r}")
 
-        # Choose context
-        command_template = skill[context]
+        # Choose context; guard host-only skills
+        if context == "breeze":
+            command_template = skill["breeze"]
+        else:
+            command_template = skill["host"]
+        if command_template is None:
+            raise ValueError(
+                f"Skill {skill_id!r} is host-only and cannot be run inside Breeze. "
+                f"Run this command from your host terminal before switching to Breeze."
+            )
 
         # Substitute parameters
-        command = command_template
+        command: str = command_template
         for param_name, param_value in kwargs.items():
             placeholder = "{" + param_name + "}"
             command = command.replace(placeholder, str(param_value))

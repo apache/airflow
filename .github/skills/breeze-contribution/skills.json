@@ -2,6 +2,25 @@
   "version": "1.0",
   "skills": [
     {
+      "id": "stage-changes",
+      "name": "Stage Changes",
+      "description": "Stage modified files using git add before running static checks",
+      "commands": {
+        "host": "git add {path}",
+        "breeze": null
+      },
+      "preferred_context": "host",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "required": true,
+          "description": "Path to the file or directory to stage"
+        }
+      },
+      "prerequisites": [],
+      "success_criteria": "exit_code == 0"
+    },
+    {
       "id": "run-static-checks",
       "name": "Run Static Checks",
       "description": "Run prek static checks (linting, formatting, type checks)",
@@ -17,7 +36,9 @@
           "description": "Target module (e.g., airflow/api)"
         }
       },
-      "prerequisites": [],
+      "prerequisites": [
+        "stage-changes"
+      ],
       "success_criteria": "exit_code == 0"
     },
     {
