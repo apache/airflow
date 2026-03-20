@@ -30,7 +30,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from common_prek_utils import console
+from common_prek_utils import console, get_remote_for_main
 
 DATAMODELS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/datamodels/"
 VERSIONS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/versions/"
@@ -39,19 +39,20 @@ TARGET_BRANCH = "main"
 
 def get_changed_files_ci() -> list[str]:
     """Get changed files in CI by comparing against main."""
+    remote = get_remote_for_main()
+    ref = f"{remote}/{TARGET_BRANCH}"
+
     fetch_result = subprocess.run(
-        ["git", "fetch", "upstream", TARGET_BRANCH],
+        ["git", "fetch", remote, TARGET_BRANCH],
         capture_output=True,
         text=True,
         check=False,
     )
     if fetch_result.returncode != 0:
-        console.print(
-            f"[yellow]WARNING: Failed to fetch origin/{TARGET_BRANCH}: {fetch_result.stderr.strip()}[/]"
-        )
+        console.print(f"[yellow]WARNING: Failed to fetch {ref}: {fetch_result.stderr.strip()}[/]")
 
     is_main = not os.environ.get("GITHUB_BASE_REF")
-    diff_target = "HEAD~1" if is_main else f"origin/{TARGET_BRANCH}...HEAD"
+    diff_target = "HEAD~1" if is_main else f"{ref}...HEAD"
 
     result = subprocess.run(
         ["git", "diff", "--name-only", diff_target],
@@ -61,18 +62,18 @@ def get_changed_files_ci() -> list[str]:
     )
     if result.returncode != 0:
         console.print(
-            f"[yellow]WARNING: git diff against origin/{TARGET_BRANCH} failed (exit {result.returncode}), "
+            f"[yellow]WARNING: git diff against {ref} failed (exit {result.returncode}), "
             "retrying with deeper fetch...[/]"
         )
         subprocess.run(
-            ["git", "fetch", "--deepen=50", "origin", TARGET_BRANCH],
+            ["git", "fetch", "--deepen=50", remote, TARGET_BRANCH],
             capture_output=True,
             text=True,
             check=False,
         )
         try:
             result = subprocess.run(
-                ["git", "diff", "--name-only", f"origin/{TARGET_BRANCH}...HEAD"],
+                ["git", "diff", "--name-only", f"{ref}...HEAD"],
                 capture_output=True,
                 text=True,
                 check=True,
@@ -115,9 +116,10 @@ def generate_schema(cwd: Path) -> dict:
 
 def generate_schema_from_main() -> dict:
     """Generate schema from main branch using worktree."""
+    remote = get_remote_for_main()
+    ref = f"{remote}/{TARGET_BRANCH}"
     worktree_path = Path(tempfile.mkdtemp()) / "airflow-main"
-    ref = f"origin/{TARGET_BRANCH}"
-    subprocess.run(["git", "fetch", "origin", TARGET_BRANCH], capture_output=True, check=False)
+    subprocess.run(["git", "fetch", remote, TARGET_BRANCH], capture_output=True, check=False)
     subprocess.run(["git", "worktree", "add", str(worktree_path), ref], capture_output=True, check=True)
     try:
         return generate_schema(worktree_path)
@@ -191,8 +193,9 @@ def main() -> int:
             for f in datamodel_files:
                 console.print(f"  - [magenta]{f}[/]")
             console.print("")
+            remote = get_remote_for_main()
             console.print(
-                f"Schema diff against [cyan]origin/{TARGET_BRANCH}[/] detected differences.\n"
+                f"Schema diff against [cyan]{remote}/{TARGET_BRANCH}[/] detected differences.\n"
                 "\n"
                 "Please add or update a version file under:\n"
                 f"  [cyan]{VERSIONS_PREFIX}[/]\n"
