@@ -2042,6 +2042,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             triggered_date: DateTime = timezone.coerce_datetime(queued_adrqs[0].created_at)
+            self.log.debug(
+                "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
+                dag.dag_id,
+                len(queued_adrqs),
+                triggered_date,
+            )
             cte = (
                 select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
                 .where(
@@ -2090,14 +2096,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             Stats.incr("asset.triggered_dagruns")
             dag_run.consumed_asset_events.extend(asset_events)
+            self.log.info(
+                "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                dag.dag_id,
+                dag_run.run_id,
+                len(asset_events),
+            )
 
             # Delete only consumed ADRQ rows to avoid dropping newly queued events
             # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
             adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
-            session.execute(
+            result = session.execute(
                 delete(AssetDagRunQueue).where(
                     tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
                 )
+            )
+            self.log.info(
+                "Deleted %d ADRQ rows for '%s'",
+                result.rowcount,
+                dag.dag_id,
             )
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
