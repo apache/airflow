@@ -31,7 +31,6 @@ Create Date: 2025-10-17 16:04:55.016272
 from __future__ import annotations
 
 import contextlib
-import functools
 import json
 import zlib
 from collections import defaultdict
@@ -74,82 +73,6 @@ REFERENCE_KEY = "reference"
 DEADLINE_ALERT_REQUIRED_FIELDS = {REFERENCE_KEY, CALLBACK_KEY, INTERVAL_KEY}
 DEFAULT_BATCH_SIZE = 1000
 ENCODING_TYPE = "deadline_alert"
-
-
-def _has_matching_index(conn: Connection, table_name: str, columns: Iterable[str]) -> bool:
-    log.debug("Targeting index check", table=table_name, columns=list(columns))
-    target_columns = list(columns)
-    inspector = sa.inspect(conn)
-
-    for index in inspector.get_indexes(table_name):
-        index_columns = index.get("column_names") or []
-        log.debug("Checking index", table=table_name, index=index.get("name"), columns=index_columns)
-        if index_columns[: len(target_columns)] == target_columns:
-            return True
-
-    primary_key = inspector.get_pk_constraint(table_name) or {}
-    primary_key_columns = primary_key.get("constrained_columns") or []
-    log.info("Checking primary key", table=table_name, columns=primary_key_columns)
-    if primary_key_columns[: len(target_columns)] == target_columns:
-        return True
-
-    with contextlib.suppress(Exception):
-        for constraint in inspector.get_unique_constraints(table_name):
-            constraint_columns = constraint.get("column_names") or []
-            log.debug(
-                "Checking unique constraint",
-                table=table_name,
-                constraint=constraint.get("name"),
-                columns=constraint_columns,
-            )
-            if constraint_columns[: len(target_columns)] == target_columns:
-                return True
-
-    return False
-
-
-def _is_mysql_foreign_key_index_error(conn: Connection, exc: sa.exc.OperationalError) -> bool:
-    if conn.dialect.name != "mysql":
-        return False
-
-    error_args = getattr(exc.orig, "args", ())
-    return bool(error_args) and error_args[0] == 1553
-
-
-def temporary_index(index_name, table_name, columns):
-    """Create an index before the wrapped function runs and drop it after, even on error."""
-
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            conn = op.get_bind()
-            if _has_matching_index(conn, table_name, columns):
-                log.info(
-                    "Matching index already exists, skipping creation of temporary index",
-                    index_name=index_name,
-                    table_name=table_name,
-                    columns=columns,
-                )
-                return func(*args, **kwargs)
-
-            op.create_index(index_name, table_name, columns)
-            try:
-                return func(*args, **kwargs)
-            finally:
-                try:
-                    op.drop_index(index_name, table_name=table_name)
-                except sa.exc.OperationalError as exc:
-                    if not _is_mysql_foreign_key_index_error(conn, exc):
-                        raise
-                    log.warning(
-                        "Keeping temporary index because MySQL bound it to a foreign key",
-                        index_name=index_name,
-                        table_name=table_name,
-                    )
-
-        return wrapper
-
-    return decorator
 
 
 deadline_alert_table = sa.table(
@@ -477,16 +400,99 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     _migrate_deadline_alerts()
 
 
-# Temporary index on deadline.dagrun_id speeds up the per-alert UPDATE that finds
-# matching deadline rows. Without it, every UPDATE full-scans the deadline table.
-@temporary_index("tmp_deadline_dagrun_id_idx", "deadline", ["dagrun_id"])
+def _backfill_deadline_alert_ids(
+    conn: Connection,
+    dag_first_alert_ids: dict[str, str],
+    batch_size: int,
+    dags_with_errors: ErrorDict,
+) -> int:
+    """Populate deadline.deadline_alert_id in primary-key order to avoid dagrun_id table scans."""
+    if not dag_first_alert_ids:
+        log.info("No deadline alerts migrated; skipping deadline backfill")
+        return 0
+
+    last_deadline_id = "00000000-0000-0000-0000-000000000000"
+    updated_deadlines = 0
+    missing_alert_dag_ids: set[str] = set()
+
+    total_deadlines = conn.execute(
+        sa.text("SELECT COUNT(*) FROM deadline WHERE deadline_alert_id IS NULL")
+    ).scalar()
+    total_batches = (total_deadlines + batch_size - 1) // batch_size
+    batch_num = 0
+
+    log.info(
+        "Starting deadline backfill",
+        batch_size=batch_size,
+        total_deadlines=total_deadlines,
+        total_batches=total_batches,
+    )
+
+    while True:
+        batch_num += 1
+        batch_rows = list(
+            conn.execute(
+                sa.text("""
+                    SELECT d.id, dr.dag_id
+                    FROM deadline d
+                    JOIN dag_run dr ON dr.id = d.dagrun_id
+                    WHERE d.deadline_alert_id IS NULL
+                      AND d.id > :last_deadline_id
+                    ORDER BY d.id
+                    LIMIT :batch_size
+                """),
+                {"last_deadline_id": last_deadline_id, "batch_size": batch_size},
+            )
+        )
+
+        if not batch_rows:
+            break
+
+        last_deadline_id = str(batch_rows[-1].id)
+        deadline_ids_by_alert: dict[str, list[Any]] = defaultdict(list)
+
+        for deadline_id, dag_id in batch_rows:
+            alert_id = dag_first_alert_ids.get(dag_id)
+            if alert_id is None:
+                missing_alert_dag_ids.add(dag_id)
+                continue
+            deadline_ids_by_alert[alert_id].append(deadline_id)
+
+        with _begin_nested_transaction(conn) as batch_conn:
+            for alert_id, deadline_ids in deadline_ids_by_alert.items():
+                batch_conn.execute(
+                    sa.text("""
+                        UPDATE deadline
+                        SET deadline_alert_id = :alert_id
+                        WHERE deadline_alert_id IS NULL
+                          AND id IN :deadline_ids
+                    """).bindparams(sa.bindparam("deadline_ids", expanding=True)),
+                    {"alert_id": alert_id, "deadline_ids": deadline_ids},
+                )
+                updated_deadlines += len(deadline_ids)
+
+        log.info(
+            "Deadline backfill batch complete",
+            batch_num=batch_num,
+            total_batches=total_batches,
+            updated_deadlines=updated_deadlines,
+        )
+
+    for dag_id in sorted(missing_alert_dag_ids):
+        dags_with_errors[dag_id].append("Could not find migrated deadline alert for historical deadlines")
+
+    return updated_deadlines
+
+
 def _migrate_deadline_alerts() -> None:
     BATCH_SIZE = conf.getint("database", "migration_batch_size", fallback=DEFAULT_BATCH_SIZE)
 
     processed_dags: list[str] = []
     dags_with_deadlines: set[str] = set()
     migrated_alerts_count: int = 0
+    updated_deadlines_count: int = 0
     dags_with_errors: ErrorDict = defaultdict(list)
+    dag_first_alert_ids: dict[str, str] = {}
     batch_num = 0
     # Paginate by primary key (id) instead of dag_id because id is indexed (PK)
     # while dag_id has no index — using dag_id would cause a full table scan + sort
@@ -654,33 +660,6 @@ def _migrate_deadline_alerts() -> None:
                             continue
 
                         yield deadline_alert_id
-                        # Fetch dagrun IDs once per DAG to avoid repeating the
-                        # expensive dag_run/serialized_dag JOIN for every alert.
-                        dagrun_ids = [
-                            row[0]
-                            for row in dag_conn.execute(
-                                sa.text("""
-                                    SELECT dr.id
-                                    FROM dag_run dr
-                                    JOIN serialized_dag sd ON dr.dag_id = sd.dag_id
-                                    WHERE sd.id = :serialized_dag_id
-                                """),
-                                {"serialized_dag_id": serialized_dag_id},
-                            ).fetchall()
-                        ]
-                        if dagrun_ids:
-                            dag_conn.execute(
-                                sa.text("""
-                                    UPDATE deadline
-                                    SET deadline_alert_id = :alert_id
-                                    WHERE dagrun_id IN :dagrun_ids
-                                        AND deadline_alert_id IS NULL
-                                """).bindparams(sa.bindparam("dagrun_ids", expanding=True)),
-                                {
-                                    "alert_id": deadline_alert_id,
-                                    "dagrun_ids": dagrun_ids,
-                                },
-                            )
                     except Exception as e:
                         dags_with_errors[dag_id].append(f"Failed to process {serialized_alert}: {e}")
                         continue
@@ -692,6 +671,7 @@ def _migrate_deadline_alerts() -> None:
                         continue
 
                     uuid_strings = [str(uuid_id) for uuid_id in migrated_alert_ids]
+                    dag_first_alert_ids.setdefault(dag_id, uuid_strings[0])
 
                     # Update the deadline field in the already-parsed dag_data and
                     # write back once, avoiding redundant decompression/recompression.
@@ -768,12 +748,17 @@ def _migrate_deadline_alerts() -> None:
 
         log.info("Batch complete", batch_num=batch_num, total_batches=total_batches)
 
+    updated_deadlines_count = _backfill_deadline_alert_ids(
+        conn, dag_first_alert_ids, BATCH_SIZE, dags_with_errors
+    )
+
     log.info(
         "Migration complete",
         processed_records=len(processed_dags),
         unique_dags=len(set(processed_dags)),
         dags_with_deadlines=len(dags_with_deadlines),
         migrated_alerts=migrated_alerts_count,
+        updated_deadlines=updated_deadlines_count,
     )
     report_errors(dags_with_errors, "migration")
 
