@@ -194,31 +194,34 @@ class Deadline(Base):
         if not deadline_dagrun_pairs:
             return 0
 
-        deleted_count = 0
+        pruned_count = 0
         dagruns_to_refresh = set()
 
         for deadline, dagrun in deadline_dagrun_pairs:
             if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
+                # Mark the deadline as met since the DagRun completed before the deadline time.
                 deadline.met = True
                 session.add(deadline)
                 Stats.incr(
                     "deadline_alerts.deadline_not_missed",
                     tags={"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id},
                 )
-                deleted_count += 1
+                pruned_count += 1
                 dagruns_to_refresh.add(dagrun)
         session.flush()
 
         logger.debug(
-            "%d deadline records were marked as met matching the conditions %s", deleted_count, conditions
+            "%d deadline records were marked as met matching the conditions %s",
+            pruned_count,
+            conditions,
         )
 
         # Refresh any affected DAG runs.
         for dagrun in dagruns_to_refresh:
             session.refresh(dagrun)
 
-        return deleted_count
+        return pruned_count
 
     def handle_miss(self, session: Session):
         """Handle a missed deadline by queueing the callback."""
