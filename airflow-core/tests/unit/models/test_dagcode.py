@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import nullcontext
 from unittest.mock import patch
 
 import pendulum
@@ -26,6 +27,7 @@ from sqlalchemy.exc import IntegrityError
 
 import airflow.example_dags as example_dags_module
 from airflow.dag_processing.dagbag import DagBag
+from airflow.exceptions import DagCodeNotFound
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.sdk import task as task_decorator
@@ -210,3 +212,20 @@ class TestDagCode:
         DagCode.update_source_code(dag.dag_id, dag.fileloc)
         dag_code3 = DagCode.get_latest_dagcode(dag.dag_id)
         assert dag_code3.source_code_hash != 2
+
+    @pytest.mark.parametrize(
+        ("dag_exists", "expectation"),
+        [
+            (True, nullcontext()),
+            (False, pytest.raises(DagCodeNotFound)),
+        ],
+    )
+    def test_get_code_from_db(self, session, dag_exists, expectation):
+        """Test DagCode is returned from db."""
+        example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
+        if dag_exists:
+            sync_dag_to_db(example_dag)
+        with expectation:
+            result = DagCode._get_code_from_db(example_dag.dag_id)
+            if dag_exists:
+                assert "example_bash_operator" in result
