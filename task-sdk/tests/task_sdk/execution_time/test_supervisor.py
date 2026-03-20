@@ -487,6 +487,102 @@ class TestWatchedSubprocess:
         captured = capfd.readouterr()
         assert "On kill hook called!" in captured.out
 
+    def test_on_kill_hook_called_when_supervisor_receives_sigterm(
+        self,
+        client_with_ti_start,
+        mocked_parse,
+        make_ti_context,
+        mock_supervisor_comms,
+        create_runtime_ti,
+        make_ti_context_dict,
+        capfd,
+    ):
+        """Test that SIGTERM to the supervisor process is forwarded to the task subprocess.
+
+        This simulates what happens when Kubernetes sends SIGTERM to the worker pod:
+        the supervisor should forward the signal to the child process so that the
+        operator's on_kill() hook is triggered for resource cleanup.
+        """
+        import threading
+
+        ti_id = "4d828a62-a417-4936-a7a6-2b3fabacecab"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(200, json=make_ti_context_dict())
+            return httpx.Response(status_code=204)
+
+        def subprocess_main():
+            CommsDecoder()._get_response()
+
+            class CustomOperator(BaseOperator):
+                def execute(self, context):
+                    for i in range(30):
+                        print(f"Iteration {i}")
+                        sleep(1)
+
+                def on_kill(self) -> None:
+                    print("On kill hook called via signal forwarding!")
+
+            task = CustomOperator(task_id="test-signal-forward")
+            runtime_ti = create_runtime_ti(
+                dag_id="c",
+                task=task,
+                conf={},
+            )
+            run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=ti_id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+            ),
+            client=make_client(transport=httpx.MockTransport(handle_request)),
+            target=subprocess_main,
+        )
+
+        # Install signal forwarding handler (same mechanism as supervise() does)
+        prev_sigterm = signal.getsignal(signal.SIGTERM)
+
+        def _forward_signal(signum, frame):
+            try:
+                os.kill(proc.pid, signum)
+            except ProcessLookupError:
+                pass
+
+        signal.signal(signal.SIGTERM, _forward_signal)
+
+        # Send SIGTERM to ourselves (the supervisor) from a background thread,
+        # giving the subprocess time to start executing first. Then forcefully
+        # terminate the subprocess so the test does not hang.
+        def send_signals():
+            sleep(2)
+            os.kill(os.getpid(), signal.SIGTERM)
+            # Give the child time to handle the signal and call on_kill()
+            sleep(2)
+            # Terminate the subprocess so proc.wait() returns
+            try:
+                os.kill(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+        t = threading.Thread(target=send_signals, daemon=True)
+        t.start()
+
+        try:
+            proc.wait()
+        finally:
+            signal.signal(signal.SIGTERM, prev_sigterm)
+
+        captured = capfd.readouterr()
+        assert "On kill hook called via signal forwarding!" in captured.out
+
     def test_subprocess_sigkilled(self, client_with_ti_start):
         main_pid = os.getpid()
 

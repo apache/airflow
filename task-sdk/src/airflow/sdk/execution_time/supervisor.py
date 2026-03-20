@@ -2104,7 +2104,34 @@ def supervise(
             sentry_integration=sentry_integration,
         )
 
-        exit_code = process.wait()
+        # Forward termination signals to the task subprocess so that the operator's
+        # on_kill() hook is invoked on graceful shutdown (e.g. K8s pod SIGTERM).
+        # Without this, the supervisor exits on SIGTERM without notifying the child,
+        # leaving spawned resources (pods, subprocesses, etc.) running.
+        prev_sigterm = signal.getsignal(signal.SIGTERM)
+        prev_sigint = signal.getsignal(signal.SIGINT)
+
+        def _forward_signal(signum, frame):
+            log.info(
+                "Received signal, forwarding to task subprocess",
+                signal=signal.Signals(signum).name,
+                pid=process.pid,
+            )
+            try:
+                os.kill(process.pid, signum)
+            except ProcessLookupError:
+                # Child process may have already exited during shutdown races.
+                log.debug("Child already exited, signal not forwarded", pid=process.pid)
+
+        signal.signal(signal.SIGTERM, _forward_signal)
+        signal.signal(signal.SIGINT, _forward_signal)
+
+        try:
+            exit_code = process.wait()
+        finally:
+            signal.signal(signal.SIGTERM, prev_sigterm)
+            signal.signal(signal.SIGINT, prev_sigint)
+
         end = time.monotonic()
         log.info(
             "Task finished",
