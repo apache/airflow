@@ -17,14 +17,15 @@
 
 
 > [!IMPORTANT]
-> **Host vs. Container:** `uv run` commands work **only on the host** (outside Breeze).
+> **Host vs. Container:** Some commands (like `uv run`) work only on the **host** (outside Breeze),
+> while others (like `breeze run pytest`) run via Docker and can be invoked from the host.
 > If a test requires system-level dependencies (databases, service containers, etc.)
-> or you are unsure, always use `breeze run pytest <tests>` instead.
+> or you are unsure, always use `breeze run pytest <tests>` instead of `uv run pytest`.
 > To detect your context: the file `/.dockerenv` exists inside the Breeze container;
-> the env var `AIRFLOW_CI_IMAGE_NAME` is set in CI; and `BREEZE`
-> is set inside a running container.
+> CI environments typically set standard env vars such as `CI` or `GITHUB_ACTIONS`;
+> and `BREEZE="true"` is set inside a running Breeze container.
 - **Run a single test (host, no system deps):** `uv run --project <PROJECT> pytest path/to/test.py::TestClass::test_method -xvs`
-**Run a single test (inside Breeze or with system deps):** `breeze run pytest path/to/test.py::TestClass::test_method -xvs`
+- **Run a single test (inside Breeze or with system deps):** `breeze run pytest path/to/test.py::TestClass::test_method -xvs`
 
 - **Run a Python script:** `uv run --project <PROJECT> python dev/my_script.py`
 - **Run core or provider tests suite in parallel:** `breeze testing <test_group> --run-in-parallel` (test groups: `core-tests`, `providers-tests`)
@@ -38,7 +39,7 @@
 - **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`
 - **Run Airflow CLI:** `breeze run airflow dags list`
 - **Type-check:** `breeze run mypy path/to/code`
-- **Lint with ruff only:** `prek run ruff --from-ref <target_branch>`If uv tests fail with missing system dependencies
+- Lint with ruff only: `pre-commit run ruff --from-ref <target_branch>`
 - **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
 - **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
 - **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
