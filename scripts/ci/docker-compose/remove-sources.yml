@@ -76,6 +76,7 @@ services:
       - ../../../empty:/opt/airflow/providers/grpc/src
       - ../../../empty:/opt/airflow/providers/hashicorp/src
       - ../../../empty:/opt/airflow/providers/http/src
+      - ../../../empty:/opt/airflow/providers/ibm/mq/src
       - ../../../empty:/opt/airflow/providers/imap/src
       - ../../../empty:/opt/airflow/providers/influxdb/src
       - ../../../empty:/opt/airflow/providers/informatica/src
