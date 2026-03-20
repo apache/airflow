@@ -34,6 +34,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_logs, clear_test_connections
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -287,9 +288,7 @@ class TestPostConnection(TestConnectionEndpoint):
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
     def test_post_should_respond_201_with_team(self, test_client, session, testing_team):
-        with mock.patch(
-            "airflow.api_fastapi.core_api.datamodels.connections.conf.getboolean", return_value=True
-        ):
+        with conf_vars({("core", "multi_team"): "True"}):
             response = test_client.post(
                 "/connections",
                 json={
@@ -346,9 +345,7 @@ class TestPostConnection(TestConnectionEndpoint):
         }
 
     def test_post_rejects_team_name_when_multi_team_disabled(self, test_client, testing_team):
-        with mock.patch(
-            "airflow.api_fastapi.core_api.datamodels.connections.conf.getboolean", return_value=False
-        ):
+        with conf_vars({("core", "multi_team"): "False"}):
             response = test_client.post(
                 "/connections",
                 json={
@@ -630,9 +627,7 @@ class TestPatchConnection(TestConnectionEndpoint):
     def test_patch_with_team_should_respond_200(self, test_client, testing_team, session):
         self.create_connection()
 
-        with mock.patch(
-            "airflow.api_fastapi.core_api.datamodels.connections.conf.getboolean", return_value=True
-        ):
+        with conf_vars({("core", "multi_team"): "True"}):
             response = test_client.patch(
                 f"/connections/{TEST_CONN_ID}",
                 json={"connection_id": TEST_CONN_ID, "conn_type": "new_type", "team_name": testing_team.name},
@@ -997,9 +992,7 @@ class TestPatchConnection(TestConnectionEndpoint):
     def test_patch_rejects_team_name_when_multi_team_disabled(self, test_client, testing_team):
         self.create_connection()
 
-        with mock.patch(
-            "airflow.api_fastapi.core_api.datamodels.connections.conf.getboolean", return_value=False
-        ):
+        with conf_vars({("core", "multi_team"): "False"}):
             response = test_client.patch(
                 f"/connections/{TEST_CONN_ID_2}",
                 json={
