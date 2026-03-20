@@ -787,7 +787,6 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 "dev/registry/tests/*" = ["S101"]
-"scripts/tests/*" = ["S101"]
 
 # Shared distributions SHOULD use relative imports when referencing each other
 # This one disables 'ban-relative-imports'.
