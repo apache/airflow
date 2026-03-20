@@ -321,7 +321,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -337,7 +337,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -353,7 +353,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -417,7 +417,7 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
       - name: "Download docs prepared as artifacts"
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3  # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           name: airflow-docs
           path: './generated/_build'
