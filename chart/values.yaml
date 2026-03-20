@@ -2027,6 +2027,7 @@ webserver:
     initialDelaySeconds: 15
     timeoutSeconds: 5
     failureThreshold: 5
+    # path: "{{ .Values.config.webserver.base_url }}"
     periodSeconds: 10
     scheme: HTTP
 
@@ -2034,6 +2035,7 @@ webserver:
     initialDelaySeconds: 15
     timeoutSeconds: 5
     failureThreshold: 5
+    # path: "{{ .Values.config.webserver.base_url }}"
     periodSeconds: 10
     scheme: HTTP
 
@@ -2043,6 +2045,7 @@ webserver:
     initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
+    # path: "{{ .Values.config.webserver.base_url }}"
     periodSeconds: 10
     scheme: HTTP
 
