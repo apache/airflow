@@ -25,7 +25,7 @@ from typing import Any
 
 from asgiref.sync import sync_to_async
 
-from airflow.sdk.bases.hook import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 # Backoff parameters for transient consume failures
 _BACKOFF_BASE: float = 1.0

@@ -5325,6 +5325,7 @@ version = "0.1.0"
 source = { editable = "providers/ibm/mq" }
 dependencies = [
     { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
     { name = "asgiref" },
 ]
 
@@ -5351,8 +5352,10 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-messaging", marker = "extra == 'common-messaging'", editable = "providers/common/messaging" },
-    { name = "asgiref", specifier = ">=2.3.0" },
+    { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=2.3.0" },
+    { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "ibmmq", marker = "extra == 'ibmmq'", specifier = ">=2.0.4" },
 ]
 provides-extras = ["ibmmq", "common-messaging"]
