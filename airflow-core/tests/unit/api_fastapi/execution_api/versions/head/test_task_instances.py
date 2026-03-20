@@ -674,6 +674,11 @@ class TestTIRunState:
         assert response.status_code == 409
         assert response.json() == {
             "detail": {
+                "type": "https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html#section/Errors/Conflict",
+                "title": "Task Instance Conflict",
+                "status": 409,
+                "detail": "TI was not in a state where it could be marked as running",
+                "instance": str(ti.id),
                 "message": "TI was not in a state where it could be marked as running",
                 "previous_state": initial_ti_state,
                 "reason": "invalid_state",
