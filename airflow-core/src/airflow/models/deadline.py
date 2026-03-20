@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 import uuid6
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, inspect, select, text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, false, func, inspect, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -106,7 +106,7 @@ class Deadline(Base):
     missed: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     # Whether the deadline was met
-    met: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    met: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
 
     # Callback that will run when this deadline is missed
     callback_id: Mapped[UUID] = mapped_column(
