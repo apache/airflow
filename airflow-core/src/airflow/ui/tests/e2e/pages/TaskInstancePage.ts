@@ -33,7 +33,10 @@ export class TaskInstancePage extends BasePage {
   }
 
   public async navigateToDag(dagId: string): Promise<void> {
-    await this.navigateTo(`/dags/${dagId}`);
+    await expect(async () => {
+      await this.navigateTo(`/dags/${dagId}`);
+      await expect(this.triggerButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async navigateToTaskInstance(dagId: string, runId: string, taskId: string): Promise<void> {
