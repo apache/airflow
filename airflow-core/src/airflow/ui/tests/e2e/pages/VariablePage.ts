@@ -36,7 +36,7 @@ export class VariablePage extends BasePage {
     this.importButton = page.getByRole("button", { name: "Import Variables" });
     this.table = page.getByTestId("table-list");
     this.tableRows = this.table.locator("tbody tr");
-    this.selectAllCheckbox = page.locator("thead input[type='checkbox']");
+    this.selectAllCheckbox = page.locator("thead").getByRole("checkbox");
   }
 
   public async getVariableKeys(): Promise<Array<string>> {
@@ -56,7 +56,7 @@ export class VariablePage extends BasePage {
   }
 
   public rowByKey(key: string): Locator {
-    return this.page.locator(`tr:has-text("${key}")`);
+    return this.tableRows.filter({ hasText: key });
   }
 
   public async search(key: string) {
@@ -65,9 +65,8 @@ export class VariablePage extends BasePage {
 
   public async selectRow(key: string) {
     const row = this.rowByKey(key);
-    const checkbox = row.locator('[id^="checkbox"][id$=":control"]');
 
-    await checkbox.click();
+    await row.getByRole("checkbox").click();
   }
 
   public async waitForLoad(): Promise<void> {
@@ -76,26 +75,12 @@ export class VariablePage extends BasePage {
   }
 
   private async waitForTableData(): Promise<void> {
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
+    const noData = this.page.getByText("No variables found");
+    const firstKeyCell = this.tableRows.first().locator("td:nth-child(2)");
 
-        if (!table) return false;
-
-        if (document.body.textContent.includes("No variables found")) {
-          return true;
-        }
-
-        const rows = table.querySelectorAll("tbody tr");
-
-        if (rows.length === 0) return false;
-
-        const keyCells = table.querySelectorAll("tbody tr td:nth-child(2)");
-
-        return [...keyCells].some((cell) => Boolean(cell.textContent.trim()));
-      },
-      undefined,
-      { timeout: 60_000 },
-    );
+    await Promise.race([
+      noData.waitFor({ state: "visible", timeout: 60_000 }),
+      firstKeyCell.waitFor({ state: "visible", timeout: 60_000 }),
+    ]);
   }
 }
