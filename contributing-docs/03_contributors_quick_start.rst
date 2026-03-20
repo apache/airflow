@@ -762,6 +762,23 @@ The following agent-skill documents the recommended way to run tests (uv first, 
 
       PASSED
 
+.. agent-skill::
+   :id: run-static-checks-prek
+   :context: host
+   :category: linting
+   :prereqs: setup-breeze-environment
+   :validates: static-checks-pass
+   :description: Run fast pre-commit static checks
+                 on changed files using prek
+
+   .. code-block:: bash
+
+      prek run --from-ref main --stage pre-commit
+
+   .. agent-skill-expected-output::
+
+      All checks passed.
+
 - Running Unit tests inside Breeze environment.
 
   Just run ``pytest filepath+filename`` to run the tests.

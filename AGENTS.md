@@ -227,14 +227,17 @@ generated manifest.
    :category: testing
    :prereqs: setup-breeze-environment
    :validates: tests-pass
+   :fallback: breeze run pytest {test_path} -xvs
+   :fallback_condition: missing_system_deps
    :description: Run a single test with uv, falling back
                  to breeze if system deps are missing
 
    .. code-block:: bash
 
-      uv run --project <PROJECT> pytest <test_path> -xvs
-      # fallback if missing system deps:
-      breeze run pytest <test_path> -xvs
+      # Primary: uv (no Docker needed, faster)
+      uv run --project {project} pytest {test_path} -xvs
+      # Fallback: only when system deps missing
+      # breeze run pytest {test_path} -xvs
 
    .. agent-skill-expected-output::
 

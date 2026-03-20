@@ -16,14 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Tests for extract_agent_skills.py."""
+
 from __future__ import annotations
 
 import json
 import subprocess
 import sys
 from pathlib import Path
-
-import pytest
 
 # Add parent so we can import extract_agent_skills
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
@@ -428,6 +427,14 @@ def test_rst_skill_appears_in_manifest():
     skills = extract_all_skills(root, "AGENTS.md", "contributing-docs/")
     ids = [s["id"] for s in skills]
     assert "run-tests-uv-first" in ids
+
+
+def test_second_rst_skill_extracted():
+    """The additional RST skill block is also extracted into skills.json."""
+    root = SCRIPT_DIR.resolve().parents[2]  # repo root (pre_commit -> ci -> scripts -> root)
+    skills = extract_all_skills(root, "AGENTS.md", "contributing-docs/")
+    ids = [s["id"] for s in skills]
+    assert "run-static-checks-prek" in ids
 
 
 def test_multiple_skills_extracted():

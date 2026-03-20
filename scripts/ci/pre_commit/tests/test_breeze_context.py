@@ -44,12 +44,39 @@ def test_get_context_returns_host_by_default(monkeypatch: pytest.MonkeyPatch) ->
     original_exists = pathlib.Path.exists
 
     def fake_exists(self: pathlib.Path) -> bool:  # type: ignore[override]
-        if str(self) in {"/.dockerenv", "/opt/airflow"}:
+        if self.as_posix() in {"/.dockerenv", "/opt/airflow"}:
             return False
         return original_exists(self)
 
     monkeypatch.setattr(pathlib.Path, "exists", fake_exists)
     assert breeze_context.get_context() == "host"
+
+
+def test_get_context_returns_breeze_with_containerenv(monkeypatch: pytest.MonkeyPatch) -> None:
+    """If /.containerenv exists (Podman marker), context should be breeze."""
+    monkeypatch.delenv("AIRFLOW_BREEZE_CONTAINER", raising=False)
+    original_exists = pathlib.Path.exists
+
+    def fake_exists(self: pathlib.Path) -> bool:  # type: ignore[override]
+        if self.as_posix() == "/.containerenv":
+            return True
+        if self.as_posix() in {"/.dockerenv", "/opt/airflow"}:
+            return False
+        return original_exists(self)
+
+    monkeypatch.setattr(pathlib.Path, "exists", fake_exists)
+    assert breeze_context.get_context() == "breeze"
+
+
+def test_force_context_overrides_detection(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With force set, get_context() should bypass filesystem detection entirely."""
+    monkeypatch.delenv("AIRFLOW_BREEZE_CONTAINER", raising=False)
+
+    def bomb_exists(self: pathlib.Path) -> bool:  # type: ignore[override]
+        raise AssertionError("Filesystem detection should have been skipped when force is set")
+
+    monkeypatch.setattr(pathlib.Path, "exists", bomb_exists)
+    assert breeze_context.get_context(force="host") == "host"
 
 
 def _write_skills(tmp_path: Path, skills: list[dict]) -> Path:
@@ -136,4 +163,3 @@ def test_list_skills_for_context_filters_correctly(tmp_path: Path, monkeypatch: 
 
     result = breeze_context.list_skills_for_context()
     assert all(s["context"] in ("host", "either") for s in result)
-
