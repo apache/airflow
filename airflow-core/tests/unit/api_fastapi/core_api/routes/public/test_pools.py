@@ -416,7 +416,7 @@ class TestPatchPool(TestPoolsEndpoint):
         assert response.json() == expected_response
         check_last_log(session, dag_id=None, event="patch_pool", logical_date=None)
 
-    def test_patch_pool_rejects_team_name_when_multi_team_disabled(self, test_client, session):
+    def test_patch_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
         self.create_pools()
         with mock.patch("airflow.api_fastapi.core_api.datamodels.pools.conf.getboolean", return_value=False):
             response = test_client.patch(
@@ -543,7 +543,7 @@ class TestPostPool(TestPoolsEndpoint):
         )
         assert response.status_code == 422
 
-    def test_post_pool_rejects_team_name_when_multi_team_disabled(self, test_client, session):
+    def test_post_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
         with mock.patch("airflow.api_fastapi.core_api.datamodels.pools.conf.getboolean", return_value=False):
             response = test_client.post(
                 "/pools",
