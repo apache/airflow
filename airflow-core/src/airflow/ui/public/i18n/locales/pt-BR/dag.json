@@ -1,0 +1,190 @@
+{
+  "allRuns": "Todas as Execuções",
+  "blockingDeps": {
+    "dependency": "Dependência",
+    "reason": "Motivo",
+    "title": "Dependências Bloqueando Tarefa de Ser Agendada"
+  },
+  "calendar": {
+    "daily": "Diário",
+    "hourly": "Por Hora",
+    "legend": {
+      "less": "Menos",
+      "mixed": "Misturado",
+      "more": "Mais"
+    },
+    "navigation": {
+      "nextMonth": "Próximo mês",
+      "nextYear": "Próximo ano",
+      "previousMonth": "Mês anterior",
+      "previousYear": "Ano anterior"
+    },
+    "noData": "Nenhum dado disponível",
+    "noFailedRuns": "Nenhuma execução com falha",
+    "noRuns": "Nenhuma execução",
+    "totalRuns": "Total de Execuções",
+    "week": "Semana {{weekNumber}}",
+    "weekdays": {
+      "friday": "Sex",
+      "monday": "Seg",
+      "saturday": "Sáb",
+      "sunday": "Dom",
+      "thursday": "Qui",
+      "tuesday": "Ter",
+      "wednesday": "Qua"
+    }
+  },
+  "code": {
+    "bundleUrl": "URL do Bundle",
+    "noCode": "Nenhum Código Encontrado",
+    "parseDuration": "Duração do Processamento:",
+    "parsedAt": "Processado em:"
+  },
+  "extraLinks": "Links Extra",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Redefinir para a Última",
+      "toggleGroup": "Alternar Grupo"
+    },
+    "runTypeLegend": "Legenda dos Tipos de Execução"
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Avançado",
+      "dagDocs": "Documentação do Dag"
+    }
+  },
+  "logs": {
+    "allLevels": "Todos os Níveis de Log",
+    "allSources": "Todas as Fontes",
+    "critical": "CRÍTICO",
+    "debug": "DEBUG",
+    "error": "ERRO",
+    "fullscreen": {
+      "button": "Tela cheia",
+      "tooltip": "Pressione {{hotkey}} para tela cheia"
+    },
+    "info": "INFO",
+    "noTryNumber": "Nenhum número de tentativa",
+    "settings": "Configurações",
+    "viewInExternal": "Ver logs em {{name}} (tentativa {{attempt}})",
+    "warning": "AVISO"
+  },
+  "navigation": {
+    "navigation": "Navegação: Shift+{{arrow}}",
+    "toggleGroup": "Alternar grupo: Espaço"
+  },
+  "notFound": {
+    "back": "Voltar",
+    "backToDags": "Voltar aos DAGs",
+    "message": "O DAG \"{{dagId}}\" não existe.",
+    "title": "DAG não encontrado"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Execução Falhada",
+      "failedRun_other": "Execuções Falhadas",
+      "failedTask_one": "Tarefa Falhada",
+      "failedTask_other": "Tarefas Falhadas",
+      "failedTaskInstance_one": "Instância de Tarefa Falhada",
+      "failedTaskInstance_other": "Instâncias de Tarefa Falhadas"
+    },
+    "charts": {
+      "assetEvent_one": "Evento de Asset Criado",
+      "assetEvent_other": "Eventos de Asset Criados"
+    },
+    "failedLogs": {
+      "hideLogs": "Ocultar Logs",
+      "showLogs": "Mostrar Logs",
+      "title": "Logs Recentes de Tarefas Falhadas",
+      "viewFullLogs": "Ver logs completos"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opções",
+      "showGantt": "Mostrar Gantt",
+      "showGraphShortcut": "Mostrar Gráfico (Pressione g)",
+      "showGridShortcut": "Mostrar Grade (Pressione g)"
+    },
+    "dagRuns": {
+      "label": "Número de Execuções do Dag"
+    },
+    "dependencies": {
+      "label": "Dependências",
+      "options": {
+        "allDagDependencies": "Todas as Dependências do Dag",
+        "externalConditions": "Condições Externas",
+        "onlyTasks": "Somente Tarefas"
+      },
+      "placeholder": "Dependências"
+    },
+    "graphDirection": {
+      "label": "Direção do Gráfico"
+    },
+    "showVersionIndicator": {
+      "label": "Mostrar indicador de versão",
+      "options": {
+        "hideAll": "Ocultar tudo",
+        "showAll": "Mostrar tudo",
+        "showBundleVersion": "Mostrar versão do bundle",
+        "showDagVersion": "Mostrar versão do DAG"
+      }
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Filtro ativo",
+      "clearFilter": "Limpar filtro",
+      "clickTask": "Clique em uma tarefa para selecioná-la como raiz do filtro",
+      "depth": "Profundidade",
+      "direction": "Direção",
+      "label": "Filtro",
+      "mode": "Modo",
+      "modeTooltip": "O modo estático mantém a visualização atual ao navegar entre tarefas; o modo percorrer atualiza o filtro ativo para a tarefa clicada para facilitar a navegação no DAG.",
+      "modes": {
+        "static": "Estático",
+        "traverse": "Percorrer"
+      },
+      "options": {
+        "both": "Upstream e downstream",
+        "downstream": "Downstream",
+        "upstream": "Upstream"
+      },
+      "selectedTask": "Tarefa selecionada"
+    }
+  },
+  "paramsFailed": "Falha ao carregar parâmetros",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Falha ao processar o Dag. Pode haver solicitações de processamento pendentes ainda não processadas.",
+        "title": "Falha ao Reprocessar o Dag"
+      },
+      "success": {
+        "description": "O Dag deve ser reprocessado em breve.",
+        "title": "Solicitação de Reprocessamento Enviada com Sucesso"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Asset Events",
+    "auditLog": "Log de Auditoria",
+    "backfills": "Backfills",
+    "calendar": "Calendário",
+    "code": "Código",
+    "details": "Detalhes",
+    "logs": "Logs",
+    "mappedTaskInstances_one": "Instância de Tarefa [{{count}}]",
+    "mappedTaskInstances_other": "Instâncias de Tarefa [{{count}}]",
+    "overview": "Visão Geral",
+    "renderedTemplates": "Modelos Renderizados",
+    "requiredActions": "Ações Necessárias",
+    "runs": "Execuções",
+    "taskInstances": "Instâncias de Tarefa",
+    "tasks": "Tarefas",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Recolher todos os grupos de tarefas",
+    "expandAll": "Expandir todos os grupos de tarefas"
+  }
+}
