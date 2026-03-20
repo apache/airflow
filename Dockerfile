@@ -73,7 +73,7 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.10.10
+ARG AIRFLOW_UV_VERSION=0.10.12
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -810,7 +810,15 @@ function common::get_constraints_location() {
         echo
         echo "${COLOR_BLUE}Downloading constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
         echo
-        curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"
+        if ! curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"; then
+            echo
+            echo "${COLOR_YELLOW}Constraints file not found at ${AIRFLOW_CONSTRAINTS_LOCATION} (new Python version being bootstrapped?).${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Falling back to no-constraints installation.${COLOR_RESET}"
+            echo
+            AIRFLOW_CONSTRAINTS_LOCATION=""
+            # Create an empty constraints file so --constraint flag still works
+            touch "${HOME}/constraints.txt"
+        fi
     else
         echo
         echo "${COLOR_BLUE}Copying constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"

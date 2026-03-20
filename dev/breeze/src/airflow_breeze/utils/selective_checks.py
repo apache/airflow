@@ -45,6 +45,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
+    NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
@@ -1199,7 +1200,10 @@ class SelectiveChecks:
         if not self.run_unit_tests:
             return None
         current_test_types = sorted(set(self._get_core_test_types_to_run()))
-        return json.dumps(_get_test_list_as_json([current_test_types]))
+        if len(current_test_types) <= NUMBER_OF_CORE_SLICES:
+            return json.dumps(_get_test_list_as_json([current_test_types]))
+        list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_CORE_SLICES)
+        return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
     def providers_test_types_list_as_strings_in_json(self) -> str:
