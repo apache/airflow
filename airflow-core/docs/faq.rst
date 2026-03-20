@@ -574,3 +574,34 @@ such as the following Airflow 3 example:
           "aws_default",
       ]:
           test_connection.override(task_id="test_" + conn_id)(conn_id)
+
+
+Dag Versioning
+^^^^^^^^^^^^^^
+
+What is Dag versioning and when was it introduced?
+---------------------------------------------------
+
+Dag versioning was introduced in Airflow 3.0. It automatically tracks changes to your Dag definitions over
+time, so you can view the exact structure and code of a Dag as it existed when any historical run executed.
+See :ref:`concepts-dag-versioning` for full details.
+
+Why do some tasks show empty status cells in the grid view?
+------------------------------------------------------------
+
+Those tasks existed in an older Dag version but were removed in a newer version. The empty cells indicate
+that the task was not part of the Dag structure for that particular run.
+
+Can I rerun a task that was removed in a newer Dag version?
+------------------------------------------------------------
+
+No. The clear button is disabled for tasks that no longer exist in the current Dag version. A tooltip
+explains why. You need to re-add the task to the Dag definition first, which will create a new Dag version,
+and then you can clear and rerun it.
+
+What happens when I clear a task from an older Dag version?
+------------------------------------------------------------
+
+The task reruns using the latest Dag version code and structure. This means the task will execute with the
+current Dag definition, not the version it originally ran with. Any downstream tasks will also use the
+latest Dag structure when queued.

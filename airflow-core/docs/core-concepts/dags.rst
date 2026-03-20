@@ -24,6 +24,10 @@ Dags
     :start-after: .. dag-definition-start
     :end-before: .. dag-definition-end
 
+Airflow automatically tracks changes to your Dags over time through
+:ref:`Dag versioning <concepts-dag-versioning>`. This allows you to view the
+exact structure and code of a Dag as it existed when any historical run executed.
+
 Here's a basic example Dag:
 
 .. image:: /img/ui-light/basic_dag.png
