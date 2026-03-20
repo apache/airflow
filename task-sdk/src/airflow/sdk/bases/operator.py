@@ -1763,32 +1763,34 @@ class DecoratedDeferredAsyncOperator(BaseAsyncOperator):
         from airflow.sdk.execution_time.callback_runner import create_executable_runner
         from airflow.sdk.execution_time.context import context_get_outlet_events
 
-        event = await run_trigger(self._task_deferred.trigger)
+        while True:
+            event = await run_trigger(self._task_deferred.trigger)
 
-        self.log.debug("event: %s", event)
+            self.log.debug("event: %s", event)
 
-        if event:
+            if not event:
+                return None
+
             self.log.debug("next_method: %s", self._task_deferred.method_name)
 
-            if self._task_deferred.method_name:
-                try:
-                    next_method = self._operator.next_callable(
-                        self._task_deferred.method_name,
-                        self._task_deferred.kwargs,
-                    )
+            if not self._task_deferred.method_name:
+                return None
 
-                    outlet_events = context_get_outlet_events(context)
-                    runner = create_executable_runner(
-                        func=next_method,
-                        outlet_events=outlet_events,
-                        logger=self.log,
-                    )
-                    return runner.run(context, event.payload)
-                except TaskDeferred as task_deferred:
-                    self._task_deferred = task_deferred
-                    # Recursively handle nested deferrals
-                    return await self.aexecute(context=context)
-        return None
+            try:
+                next_method = self._operator.next_callable(
+                    self._task_deferred.method_name,
+                    self._task_deferred.kwargs,
+                )
+                outlet_events = context_get_outlet_events(context)
+                runner = create_executable_runner(
+                    func=next_method,
+                    outlet_events=outlet_events,
+                    logger=self.log,
+                )
+                return runner.run(context, event.payload)
+            except TaskDeferred as task_deferred:
+                self._task_deferred = task_deferred
+                continue
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

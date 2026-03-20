@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 import uuid
@@ -34,6 +35,7 @@ from airflow.sdk._shared.secrets_masker import _secrets_masker, mask_secret
 from airflow.sdk.bases.operator import (
     BaseOperator,
     BaseOperatorMeta,
+    DecoratedDeferredAsyncOperator,
     ExecutorSafeguard,
     chain,
     chain_linear,
@@ -41,6 +43,7 @@ from airflow.sdk.bases.operator import (
 )
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.definitions.template import literal
+from airflow.triggers.base import BaseTrigger
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -1117,3 +1120,146 @@ def test_partial_default_args():
     assert op.arg2 == "b"
     assert op.arg3 == 3
     assert op.queue == "THIS"
+
+
+class MockTrigger(BaseTrigger):
+    """A minimal trigger stub that yields a single TriggerEvent-like object."""
+
+    def __init__(self, payload=None, **kwargs):
+        super().__init__(**kwargs)
+        self._payload = payload
+
+    async def run(self):
+        if self._payload is not None:
+            yield mock.Mock(payload=self._payload)
+
+    def serialize(self):
+        return ("tests.MockTrigger", {"payload": self._payload})
+
+
+class MockDeferredOperator(BaseOperator):
+    """
+    Operator that simulates deferral behavior.
+
+    On each call to ``execute_complete``, it can either return a result or
+    raise ``TaskDeferred`` again (up to ``max_deferrals`` times).
+    """
+
+    template_fields = ()
+
+    def __init__(self, *, max_deferrals: int = 0, final_result: str = "done", **kwargs):
+        super().__init__(**kwargs)
+        self.max_deferrals = max_deferrals
+        self.final_result = final_result
+        self._deferral_count = 0
+
+    def execute(self, context):
+        self.defer(
+            trigger=MockTrigger(payload="initial"),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context, event=None):
+        from airflow.sdk.exceptions import TaskDeferred
+
+        self._deferral_count += 1
+        if self._deferral_count <= self.max_deferrals:
+            raise TaskDeferred(
+                trigger=MockTrigger(payload=f"deferred_{self._deferral_count}"),
+                method_name="execute_complete",
+            )
+        return self.final_result
+
+
+class TestDecoratedDeferredAsyncOperator:
+    """Tests for DecoratedDeferredAsyncOperator.aexecute."""
+
+    @staticmethod
+    def _make_operator(task_id="test_task", max_deferrals=0, final_result="done"):
+        """Create a DecoratedDeferredAsyncOperator wrapping a MockDeferredOperator."""
+        from airflow.sdk.exceptions import TaskDeferred
+
+        with DAG(dag_id="test_dag"):
+            inner = MockDeferredOperator(
+                task_id=task_id,
+                max_deferrals=max_deferrals,
+                final_result=final_result,
+            )
+
+        task_deferred = TaskDeferred(
+            trigger=MockTrigger(payload="initial"),
+            method_name="execute_complete",
+        )
+
+        return DecoratedDeferredAsyncOperator(operator=inner, task_deferred=task_deferred)
+
+    def test_single_deferral_returns_result(self):
+        """A single deferral cycle should return the final result from execute_complete."""
+        operator = self._make_operator(final_result="success")
+        result = asyncio.run(operator.aexecute(context={}))
+        assert result == "success"
+
+    def test_returns_none_when_trigger_yields_no_event(self):
+        """When the trigger yields nothing, aexecute should return None."""
+        from airflow.sdk.exceptions import TaskDeferred
+
+        with DAG(dag_id="test_dag"):
+            inner = MockDeferredOperator(task_id="no_event_task")
+
+        # Use a trigger whose run() yields nothing
+        empty_trigger = MockTrigger(payload=None)
+        task_deferred = TaskDeferred(trigger=empty_trigger, method_name="execute_complete")
+        operator = DecoratedDeferredAsyncOperator(operator=inner, task_deferred=task_deferred)
+
+        result = asyncio.run(operator.aexecute(context={}))
+        assert result is None
+
+    def test_returns_none_when_method_name_is_none(self):
+        """When method_name is falsy, aexecute should return None even if trigger fires."""
+        from airflow.sdk.exceptions import TaskDeferred
+
+        with DAG(dag_id="test_dag"):
+            inner = MockDeferredOperator(task_id="no_method_task")
+
+        task_deferred = TaskDeferred(trigger=MockTrigger(payload="event"), method_name="")
+        operator = DecoratedDeferredAsyncOperator(operator=inner, task_deferred=task_deferred)
+
+        result = asyncio.run(operator.aexecute(context={}))
+        assert result is None
+
+    def test_multiple_consecutive_deferrals(self):
+        """Consecutive deferrals should be handled iteratively, not recursively."""
+        operator = self._make_operator(max_deferrals=5, final_result="after_5")
+        result = asyncio.run(operator.aexecute(context={}))
+        assert result == "after_5"
+
+    def test_many_deferrals_do_not_cause_recursion_error(self):
+        """A large number of deferrals must not blow the stack (no unbounded recursion)."""
+        operator = self._make_operator(max_deferrals=200, final_result="survived")
+        # This would hit RecursionError with the old recursive implementation
+        result = asyncio.run(operator.aexecute(context={}))
+        assert result == "survived"
+
+    def test_deferral_updates_task_deferred_state(self):
+        """Each deferral should update _task_deferred on the operator."""
+        operator = self._make_operator(max_deferrals=2, final_result="final")
+        result = asyncio.run(operator.aexecute(context={}))
+        assert result == "final"
+        # After completion, _task_deferred should reflect the last deferral's trigger
+        assert operator._task_deferred.trigger._payload == "deferred_2"
+
+    @pytest.mark.parametrize(
+        "max_deferrals, expected",
+        [
+            (0, "immediate"),
+            (1, "after_one"),
+            (3, "after_three"),
+        ],
+        ids=["no-redeferral", "one-redeferral", "three-redeferrals"],
+    )
+    def test_parametrized_deferral_counts(self, max_deferrals, expected):
+        """Varying numbers of deferrals should all resolve correctly."""
+        operator = self._make_operator(max_deferrals=max_deferrals, final_result=expected)
+        result = asyncio.run(operator.aexecute(context={}))
+        assert result == expected
+
