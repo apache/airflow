@@ -105,6 +105,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/openlineage/ @mobuchowski
 /providers/smtp/ @hussein-awala
 /providers/snowflake/ @potiuk
+/providers/vespa/ @potiuk # + @radu-gheorghe @thomasht86
 
 
 # Generated metadata
