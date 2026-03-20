@@ -107,9 +107,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  =====================================
+==========================================  ======================================
 PIP package                                 Version required
-==========================================  =====================================
+==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
@@ -120,13 +120,13 @@ PIP package                                 Version required
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
 ``redshift_connector``                      ``>=2.1.3``
-``asgiref``                                 ``>=2.3.0``
+``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
+``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``PyAthena``                                ``>=3.10.0``
 ``jmespath``                                ``>=0.7.0``
-``sagemaker-studio``                        ``>=1.0.9``
-``pydynamodb``                              ``>=0.8.1; python_version >= "3.13"``
+``sagemaker-studio``                        ``>=1.0.25,<1.1.0``
 ``marshmallow``                             ``>=3``
-==========================================  =====================================
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------

@@ -810,7 +810,15 @@ function common::get_constraints_location() {
         echo
         echo "${COLOR_BLUE}Downloading constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
         echo
-        curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"
+        if ! curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"; then
+            echo
+            echo "${COLOR_YELLOW}Constraints file not found at ${AIRFLOW_CONSTRAINTS_LOCATION} (new Python version being bootstrapped?).${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Falling back to no-constraints installation.${COLOR_RESET}"
+            echo
+            AIRFLOW_CONSTRAINTS_LOCATION=""
+            # Create an empty constraints file so --constraint flag still works
+            touch "${HOME}/constraints.txt"
+        fi
     else
         echo
         echo "${COLOR_BLUE}Copying constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
@@ -1114,14 +1122,34 @@ from __future__ import annotations
 
 import os
 import sys
+import zipfile
+from email.parser import HeaderParser
 from pathlib import Path
 
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.utils import (
     InvalidSdistFilename,
     InvalidWheelFilename,
     parse_sdist_filename,
     parse_wheel_filename,
 )
+
+_CURRENT_PYTHON = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+
+def _compatible_with_current_python(wheel_path: str) -> bool:
+    """Return False if the wheel's Requires-Python excludes the running interpreter."""
+    try:
+        with zipfile.ZipFile(wheel_path) as zf:
+            for name in zf.namelist():
+                if name.endswith(".dist-info/METADATA"):
+                    requires = HeaderParser().parsestr(zf.read(name).decode("utf-8")).get("Requires-Python")
+                    if requires:
+                        return _CURRENT_PYTHON in SpecifierSet(requires)
+                    return True
+    except (zipfile.BadZipFile, InvalidSpecifier, KeyError) as exc:
+        print(f"Warning: could not check Requires-Python for {wheel_path}: {exc}", file=sys.stderr)
+    return True
 
 
 def print_package_specs(extras: str = "") -> None:
@@ -1134,6 +1162,12 @@ def print_package_specs(extras: str = "") -> None:
             except InvalidSdistFilename:
                 print(f"Could not parse package name from {package_path}", file=sys.stderr)
                 continue
+        if package_path.endswith(".whl") and not _compatible_with_current_python(package_path):
+            print(
+                f"Skipping {package} (Requires-Python not satisfied by {_CURRENT_PYTHON})",
+                file=sys.stderr,
+            )
+            continue
         print(f"{package}{extras} @ file://{package_path}")
 
 

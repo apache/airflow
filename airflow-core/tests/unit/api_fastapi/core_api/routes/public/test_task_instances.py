@@ -985,6 +985,36 @@ class TestGetMappedTaskInstances:
         assert response.status_code == 404
         assert response.json()["detail"] == "Task id nonexistent_task not found"
 
+    def test_no_duplicate_joins_in_get_mapped_task_instances_query(
+        self, one_task_with_mapped_tis, test_client
+    ):
+        """Regression test for #62027: the get_mapped_task_instances endpoint must not emit duplicate JOINs."""
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.get(
+                "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            )
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 200
+
+        ti_queries = [s for s in executed_statements if "FROM TASK_INSTANCE" in s and "JOIN DAG_RUN" in s]
+        assert ti_queries, "Expected at least one query selecting from task_instance with JOIN dag_run"
+        for q in ti_queries:
+            assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
+            if "JOIN DAG_VERSION" in q:
+                assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
+
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
@@ -1513,6 +1543,41 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             response.json()["detail"]
             == f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}"
         )
+
+    def test_no_duplicate_joins_in_get_task_instances_query(self, test_client, session):
+        """Regression test for #62027: the get_task_instances endpoint must not emit duplicate JOINs.
+
+        Combining explicit join() with joinedload() on the same tables causes SQLAlchemy
+        to emit duplicate JOINs (dag_run twice, dag_version twice). By relying solely on
+        joinedload via eager_load_TI_and_TIH_for_validation, each table must appear
+        exactly once in the SQL emitted by the real endpoint.
+        """
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        self.create_task_instances(session)
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.get("/dags/~/dagRuns/~/taskInstances")
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 200
+
+        # Find all statements that query task_instance joined with dag_run
+        ti_queries = [s for s in executed_statements if "FROM TASK_INSTANCE" in s and "JOIN DAG_RUN" in s]
+        assert ti_queries, "Expected at least one query selecting from task_instance with JOIN dag_run"
+        for q in ti_queries:
+            assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
+            if "JOIN DAG_VERSION" in q:
+                assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
 
     def test_return_TI_only_from_readable_dags(self, test_client, session):
         task_instances = {
@@ -2099,6 +2164,34 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         num_entries_batch3 = len(response_batch3.json()["task_instances"])
         assert num_entries_batch3 == ti_count
         assert len(response_batch3.json()["task_instances"]) == ti_count
+
+    def test_no_duplicate_joins_in_get_task_instances_batch_query(self, test_client, session):
+        """Regression test for #62027: the get_task_instances_batch endpoint must not emit duplicate JOINs."""
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        self.create_task_instances(session)
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.post("/dags/~/dagRuns/~/taskInstances/list", json={})
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 200
+
+        ti_queries = [s for s in executed_statements if "FROM TASK_INSTANCE" in s and "JOIN DAG_RUN" in s]
+        assert ti_queries, "Expected at least one query selecting from task_instance with JOIN dag_run"
+        for q in ti_queries:
+            assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
+            if "JOIN DAG_VERSION" in q:
+                assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
 
 
 class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):

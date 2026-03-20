@@ -404,7 +404,7 @@ class DagModel(Base):
     max_consecutive_failed_dag_runs: Mapped[int] = mapped_column(Integer, nullable=False)
 
     has_task_concurrency_limits: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    has_import_errors: Mapped[bool] = mapped_column(Boolean(), default=False, server_default="0")
+    has_import_errors: Mapped[bool | None] = mapped_column(Boolean(), default=False, server_default="0")
     fail_fast: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     allowed_run_types: Mapped[list[str] | None] = mapped_column(sa.JSON(), nullable=True)
 

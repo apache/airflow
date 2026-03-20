@@ -158,7 +158,8 @@ Once the release notes have been built, run the script to generate the changelog
 ./dev/chart/build_changelog_annotations.py
 ```
 
-Verify the output looks right (only entries from this release), then put them in `Chart.yaml`, for example:
+Verify the output looks right (only entries from this release), then put them below `artifacthub.io/changes` in `Chart.yaml`,
+replace previous change logs if a new release, append if another RC. Should look like for example:
 
 ```yaml
 annotations:
