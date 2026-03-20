@@ -100,6 +100,26 @@ class IBMMQHook(BaseHook):
             if name.startswith("MQOO_") and (open_options & value)
         ]
 
+    @staticmethod
+    def _connect(queue_manager: str, channel: str, conn_info: str, csp):
+        """
+        Connect to the IBM MQ queue manager.
+
+        Connection errors from the C client are caught and re-raised as a
+        :class:`ConnectionError` with a human-readable message.
+
+        :return: IBM MQ connection object
+        """
+        import ibmmq
+
+        try:
+            return ibmmq.connect(queue_manager, channel, conn_info, csp=csp)
+        except (ibmmq.MQMIError, ibmmq.PYIFError) as e:
+            raise ConnectionError(
+                f"Failed to connect to IBM MQ queue manager '{queue_manager}' "
+                f"at {conn_info} on channel '{channel}': {e}"
+            ) from e
+
     @contextmanager
     def get_conn(self):
         """
@@ -134,19 +154,13 @@ class IBMMQHook(BaseHook):
         csp.CSPUserId = connection.login
         csp.CSPPassword = connection.password
 
-        conn = None
+        conn_info = f"{connection.host}({connection.port})"
+        conn = self._connect(queue_manager, channel, conn_info, csp)
         try:
-            conn = ibmmq.connect(
-                queue_manager,
-                channel,
-                f"{connection.host}({connection.port})",
-                csp=csp,
-            )
             yield conn
         finally:
-            if conn:
-                with suppress(Exception):
-                    conn.disconnect()
+            with suppress(Exception):
+                conn.disconnect()
 
     def _process_message(self, message: bytes) -> str:
         """
