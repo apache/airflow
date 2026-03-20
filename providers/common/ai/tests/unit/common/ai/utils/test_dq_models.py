@@ -1,0 +1,200 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+from airflow.providers.common.ai.utils.dq_models import (
+    DQCheck,
+    DQCheckGroup,
+    DQCheckResult,
+    DQPlan,
+    DQReport,
+    UnexpectedResult,
+)
+
+
+def _build_plan() -> DQPlan:
+    return DQPlan(
+        groups=[
+            DQCheckGroup(
+                group_id="nulls",
+                query="SELECT COUNT(*) AS null_email_count FROM customers WHERE email IS NULL",
+                checks=[
+                    DQCheck(
+                        check_name="null_emails",
+                        metric_key="null_email_count",
+                        group_id="nulls",
+                    )
+                ],
+            ),
+            DQCheckGroup(
+                group_id="dupes",
+                query=(
+                    "SELECT COUNT(*) AS dup_id_count FROM ("
+                    "SELECT id FROM customers GROUP BY id HAVING COUNT(*) > 1) sub"
+                ),
+                checks=[
+                    DQCheck(
+                        check_name="dup_ids",
+                        metric_key="dup_id_count",
+                        group_id="dupes",
+                    )
+                ],
+            ),
+        ]
+    )
+
+
+class TestDQPlan:
+    def test_check_names_flattens_all_group_checks(self):
+        plan = _build_plan()
+
+        assert plan.check_names == ["null_emails", "dup_ids"]
+
+    def test_plan_hash_defaults_to_empty_string(self):
+        plan = _build_plan()
+
+        assert plan.plan_hash == ""
+
+
+class TestDQReport:
+    def test_build_returns_passed_report_when_all_checks_pass(self):
+        results = [
+            DQCheckResult(
+                check_name="null_emails",
+                metric_key="null_email_count",
+                value=0,
+                passed=True,
+            ),
+            DQCheckResult(
+                check_name="dup_ids",
+                metric_key="dup_id_count",
+                value=0,
+                passed=True,
+            ),
+        ]
+
+        report = DQReport.build(results)
+
+        assert report.passed is True
+        assert report.results == results
+        assert report.failure_summary == ""
+
+    def test_build_includes_failure_details_for_failed_checks(self):
+        results = [
+            DQCheckResult(
+                check_name="null_emails",
+                metric_key="null_email_count",
+                value=1,
+                passed=False,
+                failure_reason="null count must be zero",
+            ),
+            DQCheckResult(
+                check_name="dup_ids",
+                metric_key="dup_id_count",
+                value=0,
+                passed=True,
+            ),
+        ]
+
+        report = DQReport.build(results)
+
+        assert report.passed is False
+        assert "Data quality checks failed (1/2):" in report.failure_summary
+        assert "null_emails" in report.failure_summary
+        assert "null_email_count" in report.failure_summary
+        assert "null count must be zero" in report.failure_summary
+
+    def test_build_uses_default_reason_when_failure_reason_is_missing(self):
+        results = [
+            DQCheckResult(
+                check_name="dup_ids",
+                metric_key="dup_id_count",
+                value=10,
+                passed=False,
+                failure_reason=None,
+            )
+        ]
+
+        report = DQReport.build(results)
+
+        assert report.passed is False
+        assert "validator returned False" in report.failure_summary
+
+
+class TestDQCheckCategory:
+    def test_check_category_defaults_to_empty_string(self):
+        check = DQCheck(check_name="c", metric_key="m", group_id="g")
+        assert check.check_category == ""
+
+    def test_check_category_set_explicitly(self):
+        check = DQCheck(check_name="c", metric_key="m", group_id="g", check_category="validity")
+        assert check.check_category == "validity"
+
+    def test_unexpected_query_defaults_to_none(self):
+        check = DQCheck(check_name="c", metric_key="m", group_id="g")
+        assert check.unexpected_query is None
+
+    def test_unexpected_query_set_explicitly(self):
+        query = "SELECT id, phone FROM customers WHERE phone !~ '^\\d{4}' LIMIT 100"
+        check = DQCheck(check_name="c", metric_key="m", group_id="g", unexpected_query=query)
+        assert check.unexpected_query == query
+
+
+class TestDQCheckResultWithUnexpected:
+    def test_unexpected_defaults_to_none(self):
+        r = DQCheckResult(check_name="c", metric_key="m", value=5, passed=True)
+        assert r.unexpected is None
+
+    def test_unexpected_attached(self):
+        ur = UnexpectedResult(check_name="c", unexpected_records=["val1"], sample_size=100)
+        r = DQCheckResult(check_name="c", metric_key="m", value=5, passed=False, unexpected=ur)
+        assert r.unexpected is ur
+        assert r.unexpected.unexpected_records == ["val1"]
+
+
+class TestDQReportUnexpectedSummary:
+    def test_failure_summary_includes_unexpected_count(self):
+        ur = UnexpectedResult(
+            check_name="phone_fmt",
+            unexpected_records=[str(i) for i in range(3)],
+            sample_size=100,
+        )
+        results = [
+            DQCheckResult(
+                check_name="phone_fmt",
+                metric_key="invalid_phone_count",
+                value=3,
+                passed=False,
+                failure_reason="too many invalid phones",
+                unexpected=ur,
+            )
+        ]
+        report = DQReport.build(results)
+        assert "3 unexpected row(s) sampled" in report.failure_summary
+
+    def test_failure_summary_no_unexpected_when_none(self):
+        results = [
+            DQCheckResult(
+                check_name="null_emails",
+                metric_key="null_email_count",
+                value=1,
+                passed=False,
+                failure_reason="nulls found",
+            )
+        ]
+        report = DQReport.build(results)
+        assert "unexpected row(s) sampled" not in report.failure_summary
