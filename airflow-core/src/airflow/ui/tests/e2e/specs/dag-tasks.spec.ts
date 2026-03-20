@@ -46,7 +46,7 @@ test.describe("Dag Tasks Tab", () => {
 
     const firstRow = dagPage.taskRows.first();
 
-    await expect(firstRow.locator("a").first()).toBeVisible();
+    await expect(firstRow.getByRole("link").first()).toBeVisible();
     await expect(firstRow).toContainText("BashOperator");
     await expect(firstRow).toContainText("all_success");
   });
@@ -56,7 +56,7 @@ test.describe("Dag Tasks Tab", () => {
 
     await dagPage.navigateToDagTasks(testDagId);
 
-    const firstTaskLink = dagPage.taskRows.first().locator("a").first();
+    const firstTaskLink = dagPage.taskRows.first().getByRole("link").first();
     const taskName = await firstTaskLink.textContent();
 
     if (taskName === null) {
@@ -160,7 +160,7 @@ test.describe("Dag Tasks Tab", () => {
     await dagPage.navigateToDagTasks(testDagId);
 
     const firstCard = dagPage.taskRows.first();
-    const taskLink = firstCard.locator("a").first();
+    const taskLink = firstCard.getByRole("link").first();
 
     await taskLink.click();
     await expect(page).toHaveURL(new RegExp(`/dags/${testDagId}/tasks/.*`));
