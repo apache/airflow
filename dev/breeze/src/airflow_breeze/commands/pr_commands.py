@@ -3241,6 +3241,10 @@ def _run_tui_triage(
     passing_prs: list[PRData],
     accepted_prs: list[PRData],
     already_triaged_nums: set[int],
+    run_api: bool = True,
+    run_llm: bool = True,
+    llm_model: str = "",
+    llm_executor: ThreadPoolExecutor | None = None,
     mode_desc: str = "",
     selection_criteria: str = "",
     total_matching_prs: int = 0,
@@ -3901,13 +3905,121 @@ def _run_tui_triage(
                             cur_entry.action_taken = act.value
                             _cache_action(cur_pr, act.value)
                 elif cur_entry.category == PRCategory.ALREADY_TRIAGED:
-                    get_console().print(
-                        f"[dim]PR #{cur_pr.number} was already triaged. "
-                        f"Press Esc to go back or any key to continue...[/]"
+                    # Re-evaluate: enrich with fresh data and run deterministic checks
+                    get_console().print(f"[info]Re-evaluating PR #{cur_pr.number}...[/]")
+                    det = _reevaluate_triaged_pr(
+                        cur_pr,
+                        token=ctx.token,
+                        github_repository=ctx.github_repository,
+                        run_api=run_api,
                     )
-                    ch = _read_char()
-                    if ch == "\x1b":
-                        go_back = True
+                    if det.category == "flagged" and det.assessment:
+                        # Deterministic issues found — show flagged review
+                        cur_entry.category = PRCategory.FLAGGED
+                        assessment_map[cur_pr.number] = det.assessment
+                        tui.set_assessments(assessment_map)
+                        go_back = _prompt_and_execute_flagged_pr(
+                            ctx,
+                            cur_pr,
+                            det.assessment,
+                            allow_back=True,
+                            compact=True,
+                        )
+                        if not go_back:
+                            cur_entry.action_taken = _infer_last_action(ctx.stats)
+                            _cache_action(cur_pr, cur_entry.action_taken)
+                    elif det.category == "llm_candidate":
+                        # No deterministic issues — submit for LLM in background
+                        if run_llm and llm_executor:
+                            fut = llm_executor.submit(
+                                _cached_assess_pr,
+                                github_repository=ctx.github_repository,
+                                head_sha=cur_pr.head_sha,
+                                pr_number=cur_pr.number,
+                                pr_title=cur_pr.title,
+                                pr_body=cur_pr.body,
+                                check_status_summary=cur_pr.check_summary,
+                                llm_model=llm_model,
+                            )
+                            ctx.llm_future_to_pr[fut] = cur_pr
+                            # Move to SKIPPED so the LLM promotion loop picks it up
+                            cur_entry.category = PRCategory.SKIPPED
+                            cur_entry.action_taken = ""
+                            skipped_entries.append(cur_entry)
+                            entries.remove(cur_entry)
+                            tui.update_entries(entries)
+                            get_console().print(
+                                f"[info]PR #{cur_pr.number} passes deterministic checks. "
+                                f"LLM assessment submitted — status will update automatically.[/]"
+                            )
+                            get_console().print("[dim]Press any key to continue...[/]")
+                            _read_char()
+                        else:
+                            # No LLM — treat as passing
+                            cur_entry.category = PRCategory.PASSING
+                            passing_nums.add(cur_pr.number)
+                            tui.update_entries(entries)
+                            # Show passing review
+                            author_profile = _fetch_author_profile(
+                                ctx.token, cur_pr.author_login, ctx.github_repository
+                            )
+                            _display_pr_info_panels(cur_pr, author_profile, compact=True)
+                            console_print("[success]Re-evaluation: this PR passes all checks.[/]")
+                            if not ctx.dry_run:
+                                act = prompt_triage_action(
+                                    f"Action for PR {_pr_link(cur_pr)}?",
+                                    default=TriageAction.READY,
+                                    forced_answer=ctx.answer_triage,
+                                    exclude={TriageAction.DRAFT} if cur_pr.is_draft else None,
+                                    pr_url=cur_pr.url,
+                                    token=ctx.token,
+                                    github_repository=ctx.github_repository,
+                                    pr_number=cur_pr.number,
+                                    allow_back=True,
+                                )
+                                if act == TriageAction.BACK:
+                                    go_back = True
+                                elif act == TriageAction.QUIT:
+                                    ctx.stats.quit_early = True
+                                elif act == TriageAction.SKIP:
+                                    cur_entry.action_taken = "skipped"
+                                else:
+                                    _execute_triage_action(
+                                        ctx, cur_pr, act, draft_comment="", close_comment=""
+                                    )
+                                    cur_entry.action_taken = (
+                                        "ready" if act == TriageAction.READY else act.value
+                                    )
+                                    _cache_action(cur_pr, cur_entry.action_taken)
+                    elif det.category == "pending_approval":
+                        cur_entry.category = PRCategory.WORKFLOW_APPROVAL
+                        tui.update_entries(entries)
+                        go_back = _review_single_workflow_pr(
+                            ctx,
+                            cur_pr,
+                            allow_back=True,
+                            compact=True,
+                        )
+                        if not go_back:
+                            cur_entry.action_taken = _infer_last_action(ctx.stats)
+                            _cache_action(cur_pr, cur_entry.action_taken)
+                    elif det.category == "in_progress":
+                        get_console().print(
+                            f"[info]PR #{cur_pr.number} has workflows in progress. "
+                            f"Press Esc to go back or any key to continue...[/]"
+                        )
+                        ch = _read_char()
+                        if ch == "\x1b":
+                            go_back = True
+                    else:
+                        # grace_period, draft_skipped, etc.
+                        get_console().print(
+                            f"[dim]PR #{cur_pr.number} — {det.category.replace('_', ' ')}. "
+                            f"Press Esc to go back or any key to continue...[/]"
+                        )
+                        ch = _read_char()
+                        if ch == "\x1b":
+                            go_back = True
                 elif cur_entry.category == PRCategory.SKIPPED:
                     get_console().print(
                         f"[dim]PR #{cur_pr.number} — no action available. "
@@ -5037,6 +5149,79 @@ def _review_stale_review_requests(
         else:
             console_print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
             ctx.stats.total_skipped_action += 1
+
+
+def _review_already_triaged_prs(
+    ctx: TriageContext,
+    already_triaged: list[PRData],
+    *,
+    run_api: bool,
+) -> None:
+    """Present already-triaged PRs for optional re-evaluation in sequential mode."""
+    if ctx.stats.quit_early or not already_triaged:
+        return
+
+    already_triaged.sort(key=lambda p: (p.author_login.lower(), p.number))
+    console_print(
+        f"\n[info]{len(already_triaged)} already-triaged "
+        f"{'PRs' if len(already_triaged) != 1 else 'PR'} "
+        f"— press Enter to re-evaluate or s to skip:[/]\n"
+    )
+    for pr in already_triaged:
+        if ctx.stats.quit_early:
+            break
+        _print_pr_header(pr)
+        console_print("[dim]Previously triaged — re-evaluate to check for changes.[/]")
+        action = prompt_triage_action(
+            f"Re-evaluate PR {_pr_link(pr)}?",
+            default=TriageAction.SKIP,
+            forced_answer=ctx.answer_triage,
+            pr_url=pr.url,
+            token=ctx.token,
+            github_repository=ctx.github_repository,
+            pr_number=pr.number,
+        )
+        if action == TriageAction.QUIT:
+            ctx.stats.quit_early = True
+            break
+        if action == TriageAction.SKIP:
+            ctx.stats.total_skipped_action += 1
+            continue
+
+        # Re-evaluate
+        console_print(f"[info]Re-evaluating PR #{pr.number}...[/]")
+        det = _reevaluate_triaged_pr(
+            pr,
+            token=ctx.token,
+            github_repository=ctx.github_repository,
+            run_api=run_api,
+        )
+        if det.category == "flagged" and det.assessment:
+            _prompt_and_execute_flagged_pr(ctx, pr, det.assessment)
+        elif det.category == "llm_candidate":
+            console_print("[success]Re-evaluation: this PR passes all deterministic checks.[/]")
+            pass_action = prompt_triage_action(
+                f"Action for PR {_pr_link(pr)}?",
+                default=TriageAction.READY,
+                forced_answer=ctx.answer_triage,
+                exclude={TriageAction.DRAFT} if pr.is_draft else None,
+                pr_url=pr.url,
+                token=ctx.token,
+                github_repository=ctx.github_repository,
+                pr_number=pr.number,
+            )
+            if pass_action == TriageAction.QUIT:
+                ctx.stats.quit_early = True
+            elif pass_action != TriageAction.SKIP:
+                _execute_triage_action(ctx, pr, pass_action, draft_comment="", close_comment="")
+            else:
+                ctx.stats.total_skipped_action += 1
+        elif det.category == "pending_approval":
+            console_print(f"[info]PR #{pr.number} needs workflow approval.[/]")
+        elif det.category == "in_progress":
+            console_print(f"[info]PR #{pr.number} has workflows in progress.[/]")
+        else:
+            console_print(f"[dim]PR #{pr.number} — {det.category.replace('_', ' ')}.[/]")
 
 
 def _display_json_fix_info(fix_info: dict) -> None:
@@ -7864,6 +8049,30 @@ def _run_startup_enrichment(
     )
 
 
+def _reevaluate_triaged_pr(
+    pr: PRData,
+    *,
+    token: str,
+    github_repository: str,
+    run_api: bool,
+) -> DeterministicResult:
+    """Re-evaluate a previously triaged PR: enrich it and run deterministic checks.
+
+    Enriches the PR with fresh check details, merge status, and review comments,
+    then runs deterministic assessment. Returns the DeterministicResult so the
+    caller can re-categorize the entry.
+    """
+    # Enrich with latest data
+    _enrich_candidate_details(token, github_repository, [pr], run_api=run_api, quiet=True)
+    # Run deterministic checks
+    if run_api:
+        return _assess_pr_deterministic(pr, token=token, github_repository=github_repository)
+    # Without API checks, categorize by check state
+    if pr.checks_state == "NOT_RUN":
+        return DeterministicResult(category="pending_approval")
+    return DeterministicResult(category="llm_candidate")
+
+
 def _enrich_and_categorize_candidates(
     token: str,
     github_repository: str,
@@ -8834,6 +9043,10 @@ def auto_triage(
                 passing_prs=passing_prs,
                 accepted_prs=accepted_prs,
                 already_triaged_nums=already_triaged_nums,
+                run_api=run_api,
+                run_llm=run_llm,
+                llm_model=llm_model,
+                llm_executor=llm_executor,
                 mode_desc=mode_desc.get(check_mode, check_mode),
                 selection_criteria=selection_criteria,
                 total_matching_prs=total_matching_prs,
@@ -8859,6 +9072,9 @@ def auto_triage(
 
             # Phase 5d: Check accepted PRs for stale CHANGES_REQUESTED reviews
             _review_stale_review_requests(ctx, accepted_prs)
+
+            # Phase 5e: Present already-triaged PRs for optional re-evaluation
+            _review_already_triaged_prs(ctx, already_triaged, run_api=run_api)
     except KeyboardInterrupt:
         console_print("\n[warning]Interrupted — shutting down.[/]")
         stats.quit_early = True

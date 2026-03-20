@@ -952,7 +952,7 @@ class TriageTUI:
             elif cat == PRCategory.PASSING:
                 action_parts.append("[bold]Enter[/] Triage PR")
             elif cat == PRCategory.ALREADY_TRIAGED:
-                action_parts.append("[bold]Enter[/] View (triaged)")
+                action_parts.append("[bold]Enter[/] Re-evaluate")
             else:
                 action_parts.append("[bold]Enter[/] View")
             action_parts.append("[bold]o[/] Open  [bold]s[/] Skip  [bold]q[/] Quit")
