@@ -1010,7 +1010,7 @@ export class DagRunService {
      * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.partitionKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
-     * @param data.consumingAsset Filter by consuming asset name or URI
+     * @param data.consumingAssetPattern Filter by consuming asset name or URI using pattern matching
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1058,7 +1058,7 @@ export class DagRunService {
                 triggering_user_name_pattern: data.triggeringUserNamePattern,
                 dag_id_pattern: data.dagIdPattern,
                 partition_key_pattern: data.partitionKeyPattern,
-                consuming_asset: data.consumingAsset
+                consuming_asset_pattern: data.consumingAssetPattern
             },
             errors: {
                 401: 'Unauthorized',
