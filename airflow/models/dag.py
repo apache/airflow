@@ -4105,6 +4105,7 @@ class DagModel(Base):
             for dag_id in missing_from_serialized:
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
+        del missing_from_serialized
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
