@@ -35,11 +35,11 @@ import sys
 from pathlib import Path
 
 
-def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str]]:
+def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str], frozenset[str]]:
     """
-    Extract all names from _IMPORT_MAP, _RENAME_MAP, and _MODULE_MAP.
+    Extract all names from _IMPORT_MAP, _RENAME_MAP, _MODULE_MAP, and _LEGACY_COMPAT_ONLY.
 
-    Returns tuple of (import_names, rename_names, module_names)
+    Returns tuple of (import_names, rename_names, module_names, legacy_compat_only)
     """
     content = py_file.read_text()
     tree = ast.parse(content)
@@ -47,6 +47,7 @@ def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str]]:
     import_map = set()
     rename_map = set()
     module_map = set()
+    legacy_compat_only: frozenset[str] = frozenset()
 
     for node in tree.body:
         # Handle both annotated assignments and regular assignments
@@ -73,8 +74,11 @@ def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str]]:
             elif target.id == "_MODULE_MAP" and value:
                 data = ast.literal_eval(value)
                 module_map = set(data.keys())
+            elif target.id == "_LEGACY_COMPAT_ONLY" and value:
+                data = ast.literal_eval(value)
+                legacy_compat_only = frozenset(data)
 
-    return import_map, rename_map, module_map
+    return import_map, rename_map, module_map, legacy_compat_only
 
 
 def extract_type_checking_names(py_file: Path) -> set[str]:
@@ -130,8 +134,8 @@ def main():
         sys.exit(1)
 
     # Extract runtime maps
-    import_names, rename_names, module_names = extract_runtime_maps(sdk_py)
-    runtime_names = import_names | rename_names | module_names
+    import_names, rename_names, module_names, legacy_compat_only = extract_runtime_maps(sdk_py)
+    runtime_names = (import_names | rename_names | module_names) - legacy_compat_only
 
     # Extract TYPE_CHECKING imports
     type_checking_names = extract_type_checking_names(sdk_py)

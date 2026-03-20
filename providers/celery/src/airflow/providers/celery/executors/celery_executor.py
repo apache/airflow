@@ -43,7 +43,7 @@ from airflow.providers.celery.executors import (
     celery_executor_utils as _celery_executor_utils,  # noqa: F401 # Needed to register Celery tasks at worker startup, see #63043.
 )
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
-from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout
 from airflow.utils.state import TaskInstanceState
 
 log = logging.getLogger(__name__)
@@ -210,7 +210,14 @@ class CeleryExecutor(BaseExecutor):
             ):
                 retries = self.workload_publish_retries[key]
                 if retries < self.workload_publish_max_retries:
-                    Stats.incr("celery.task_timeout_error")
+                    if AIRFLOW_V_3_2_PLUS:
+                        from airflow.sdk.observability import stats
+
+                        stats.incr("celery.task_timeout_error")
+                    else:
+                        from airflow.stats import Stats
+
+                        Stats.incr("celery.task_timeout_error")
                     self.log.info(
                         "[Try %s of %s] Celery Task Timeout Error for Workload: (%s).",
                         self.workload_publish_retries[key] + 1,

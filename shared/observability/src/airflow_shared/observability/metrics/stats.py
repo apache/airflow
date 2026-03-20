@@ -287,14 +287,3 @@ def timer(
         return stack
 
     return _get_backend().timer(stat, **modern_kw)
-
-
-class Stats:
-    """Backward-compatible namespace for Airflow < 3.2. Prefer importing module functions directly."""
-
-    initialize = staticmethod(initialize)
-    incr = staticmethod(incr)
-    decr = staticmethod(decr)
-    gauge = staticmethod(gauge)
-    timing = staticmethod(timing)
-    timer = staticmethod(timer)

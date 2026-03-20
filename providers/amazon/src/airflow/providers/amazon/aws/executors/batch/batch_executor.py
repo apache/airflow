@@ -34,7 +34,8 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
+from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -490,7 +491,15 @@ class AwsBatchExecutor(BaseExecutor):
 
         Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
         """
-        with Stats.timer("batch_executor.adopt_task_instances.duration"):
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.sdk.observability import stats
+
+            ctx = stats.timer("batch_executor.adopt_task_instances.duration")
+        else:
+            from airflow.stats import Stats
+
+            ctx = Stats.timer("batch_executor.adopt_task_instances.duration")
+        with ctx:
             adopted_tis: list[TaskInstance] = []
 
             if job_ids := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
