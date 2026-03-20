@@ -41,6 +41,9 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
+    from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
+    from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
+    from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.selectable import ScalarSelect
 
@@ -239,13 +242,57 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @provide_session
     @retry_db_transaction
-    def write(self, session: Session):
+    def write(self, session: Session = NEW_SESSION):
         """
         Write instance to database.
 
+        Uses a database-level upsert (INSERT ... ON CONFLICT DO UPDATE) to
+        atomically insert or update the record, avoiding race conditions that
+        can occur with session.merge() when concurrent requests (e.g. from
+        client-side timeout retries) target the same primary key.
+
         :param session: SqlAlchemy Session
         """
-        session.merge(self)
+        dialect_name = get_dialect_name(session)
+
+        values = {
+            "dag_id": self.dag_id,
+            "task_id": self.task_id,
+            "run_id": self.run_id,
+            "map_index": self.map_index,
+            "rendered_fields": self.rendered_fields,
+            "k8s_pod_yaml": self.k8s_pod_yaml,
+        }
+        update_on_conflict = {
+            "rendered_fields": self.rendered_fields,
+            "k8s_pod_yaml": self.k8s_pod_yaml,
+        }
+
+        stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+
+        if dialect_name == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            pg_stmt = pg_insert(RenderedTaskInstanceFields).values(**values)
+            stmt = pg_stmt.on_conflict_do_update(
+                index_elements=["dag_id", "task_id", "run_id", "map_index"],
+                set_=update_on_conflict,
+            )
+        elif dialect_name == "mysql":
+            from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+            mysql_stmt = mysql_insert(RenderedTaskInstanceFields).values(**values)
+            stmt = mysql_stmt.on_duplicate_key_update(**update_on_conflict)
+        else:
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            sqlite_stmt = sqlite_insert(RenderedTaskInstanceFields).values(**values)
+            stmt = sqlite_stmt.on_conflict_do_update(
+                index_elements=["dag_id", "task_id", "run_id", "map_index"],
+                set_=update_on_conflict,
+            )
+
+        session.execute(stmt)
 
     @classmethod
     @provide_session
