@@ -18,18 +18,14 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
 from airflow.providers.ibm.mq.triggers.mq import AwaitMessageTrigger
-from airflow.providers.ibm.mq.version_compat import AIRFLOW_V_3_0_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
+if TYPE_CHECKING:
     from airflow.triggers.base import BaseEventTrigger
-else:
-    from airflow.triggers.base import BaseTrigger as BaseEventTrigger  # type: ignore
-
 
 # [START queue_regexp]
 QUEUE_REGEXP = r"^mq://"
@@ -66,7 +62,7 @@ class IBMMQMessageQueueProvider(BaseMessageQueueProvider):
         return bool(re.match(QUEUE_REGEXP, queue))
 
     def trigger_class(self) -> type[BaseEventTrigger]:
-        return AwaitMessageTrigger
+        return AwaitMessageTrigger  # type: ignore[return-value]
 
     def trigger_kwargs(self, queue: str, **kwargs) -> dict[str, Any]:
         """
