@@ -444,10 +444,10 @@ metrics:
     legacy_name: "ti.deferred.{queue}.{dag_id}.{task_id}"
     name_variables: ["queue", "dag_id", "task_id"]
 
-  - name: "ol.event.size.{event_type}.{operator_name}"
+  - name: "ol.event.size"
     description: "Size in bytes of an OpenLineage event by event type and operator."
     type: "gauge"
-    legacy_name: "-"
+    legacy_name: "ol.event.size.{event_type}.{operator_name}"
     name_variables: ["event_type", "operator_name"]
 
   - name: "edge_worker.connected"
@@ -628,10 +628,10 @@ metrics:
     legacy_name: "ol.emit.attempts.{event_type}.{transport_type}"
     name_variables: ["event_type", "transport_type"]
 
-  - name: "ol.extract.{event_type}.{operator_name}"
+  - name: "ol.extract"
     description: "Milliseconds taken to extract an OpenLineage event by event type and operator."
     type: "timer"
-    legacy_name: "-"
+    legacy_name: "ol.extract.{event_type}.{operator_name}"
     name_variables: ["event_type", "operator_name"]
 
   - name: "airflow.io.load_filesystems"

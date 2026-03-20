@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import warnings
 
-from airflow.observability.stats import Stats as Stats
 from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 warnings.warn(

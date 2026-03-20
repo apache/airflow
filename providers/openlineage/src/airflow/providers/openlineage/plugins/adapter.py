@@ -35,7 +35,7 @@ from openlineage.client.facet_v2 import (
     tags_job,
 )
 
-from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
+from airflow.providers.common.compat.sdk import conf as airflow_conf
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
@@ -166,6 +166,8 @@ class OpenLineageAdapter(LoggingMixin):
                     legacy_name_tags={"event_type": event_type, "transport_type": transport_type},
                 )
             else:
+                from airflow.stats import Stats
+
                 stack = ExitStack()
                 stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
                 stack.enter_context(Stats.timer("ol.emit.attempts"))
@@ -178,7 +180,14 @@ class OpenLineageAdapter(LoggingMixin):
                     event.run.runId,
                 )
         except Exception as e:
-            Stats.incr("ol.emit.failed")
+            if AIRFLOW_V_3_2_PLUS:
+                from airflow.sdk.observability import stats
+
+                stats.incr("ol.emit.failed")
+            else:
+                from airflow.stats import Stats
+
+                Stats.incr("ol.emit.failed")
             self.log.warning(
                 "Failed to emit OpenLineage `%s` event of id `%s` with the following exception: `%s`",
                 event_type.upper(),
