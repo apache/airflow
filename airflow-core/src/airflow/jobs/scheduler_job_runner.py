@@ -1903,7 +1903,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
 
-        for dag_model in dag_models:
+        for i, dag_model in enumerate(dag_models):
+            # We might have expunged the session in the previous iteration, so we need to merge
+            # the object back into the session.
+            session.add(dag_model)
             if dag_model.exceeds_max_non_backfill:
                 self.log.warning(
                     "Dag run cannot be created; max active runs exceeded.",
@@ -1936,6 +1939,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # We opted to check DagRun existence instead
             # of catching an Integrity error and rolling back the session i.e
             if dr := existing_dagruns.get((dag_model.dag_id, dag_model.next_dagrun)):
+                session.add(dr)
                 self.log.warning(
                     "run already exists; skipping dagrun creation",
                     dag_id=dag_model.dag_id,
@@ -1999,8 +2003,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 #  commit after every dag run or use savepoints.
                 #  https://github.com/apache/airflow/issues/59120
 
-            # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
-            #  memory for larger dags? or expunge_all()
+            if (i + 1) % 50 == 0:
+                session.flush()
+                session.expunge_all()
 
     def _create_dag_runs_asset_triggered(
         self,
