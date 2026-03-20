@@ -70,6 +70,13 @@ from airflow_breeze.utils.pr_comments import (
     build_comment as _build_comment,
     build_review_nudge_comment as _build_review_nudge_comment,
 )
+from airflow_breeze.utils.pr_display import (
+    fmt_duration as _fmt_duration,
+    human_readable_age as _human_readable_age,
+    linkify_commit_hashes as _linkify_commit_hashes,
+    pr_link as _pr_link,
+    print_pr_header as _print_pr_header,
+)
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -1692,35 +1699,6 @@ def _fetch_single_pr_graphql(token: str, github_repository: str, pr_number: int)
     )
 
 
-def _human_readable_age(iso_date: str) -> str:
-    """Convert an ISO date string to a human-readable relative age (e.g. '2 years, 3 months ago')."""
-    from datetime import datetime, timezone
-
-    try:
-        created = datetime.fromisoformat(iso_date.replace("Z", "+00:00"))
-        now = datetime.now(timezone.utc)
-        delta = now - created
-        total_days = delta.days
-
-        years = total_days // 365
-        remaining_days = total_days % 365
-        months = remaining_days // 30
-
-        parts: list[str] = []
-        if years:
-            parts.append(f"{years} year{'s' if years != 1 else ''}")
-        if months:
-            parts.append(f"{months} month{'s' if months != 1 else ''}")
-        if not parts:
-            if total_days > 0:
-                parts.append(f"{total_days} day{'s' if total_days != 1 else ''}")
-            else:
-                return "today"
-        return ", ".join(parts) + " ago"
-    except (ValueError, TypeError):
-        return "unknown"
-
-
 _author_profile_cache: dict[str, dict] = {}
 
 
@@ -2079,19 +2057,6 @@ def _compute_default_action(
     return action, f"{reason} — suggesting {action_label}"
 
 
-def _fmt_duration(seconds: float) -> str:
-    """Format a duration in seconds to a human-friendly string like '2m 05s' or '3.2s'."""
-    if seconds < 60:
-        return f"{seconds:.1f}s"
-    minutes = int(seconds) // 60
-    secs = int(seconds) % 60
-    if minutes < 60:
-        return f"{minutes}m {secs:02d}s"
-    hours = minutes // 60
-    mins = minutes % 60
-    return f"{hours}h {mins:02d}m {secs:02d}s"
-
-
 def _select_violations(violations: list) -> list | None:
     """Prompt the user to select which violations to include in the comment.
 
@@ -2123,46 +2088,6 @@ def _select_violations(violations: list) -> list | None:
             if 0 <= idx < len(violations):
                 selected.append(violations[idx])
     return selected if selected else violations
-
-
-def _linkify_commit_hashes(text: str, github_repository: str = "apache/airflow") -> str:
-    """Convert commit hashes in text to inline GitHub links.
-
-    Replaces full 40-char and abbreviated 7+ char hex hashes with clickable
-    Markdown-style links pointing to the commit on GitHub.  Hashes that are
-    already part of a URL are left untouched.
-    """
-    repo_url = f"https://github.com/{github_repository}"
-
-    def _replace(m: re.Match) -> str:
-        sha = m.group(0)
-        # Skip if the hash is already inside a URL (preceded by '/').
-        start = m.start()
-        if start > 0 and text[start - 1] == "/":
-            return sha
-        short = sha[:10]
-        return f"[{short}]({repo_url}/commit/{sha})"
-
-    # Match 7-40 hex-char sequences on word boundaries
-    return re.sub(r"\b[0-9a-f]{7,40}\b", _replace, text)
-
-
-def _pr_link(pr: PRData) -> str:
-    """Return a Rich-markup clickable link for a PR: [link=url]#number[/link]."""
-    return f"[link={pr.url}]#{pr.number}[/link]"
-
-
-def _print_pr_header(pr: PRData, index: int | None = None, total: int | None = None) -> None:
-    """Print a highly visible separator and header for a PR section."""
-    console = get_console()
-    console.print()
-    console.print()
-    counter = f" ({index}/{total})" if index is not None and total is not None else ""
-    console.rule(
-        f"[bold cyan]PR #{pr.number}[/] — {pr.title[:70]} — by [bold]{pr.author_login}[/]{counter}",
-        style="cyan",
-    )
-    console.print()
 
 
 def _display_pr_info_panels(
@@ -5970,7 +5895,6 @@ def _fetch_pr_diff(token: str, github_repository: str, pr_number: int) -> str | 
 
 def _detect_sensitive_file_changes(diff_text: str) -> list[str]:
     """Parse a unified diff and return paths under .github/ or scripts/ that were changed."""
-    import re
 
     sensitive_paths: list[str] = []
     seen: set[str] = set()

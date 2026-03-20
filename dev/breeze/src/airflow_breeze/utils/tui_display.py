@@ -628,7 +628,7 @@ class TriageTUI:
 
     def _build_detail_lines(self, entry: PRListEntry) -> list[str]:
         """Build the full list of detail lines for a PR entry (not truncated)."""
-        from airflow_breeze.commands.pr_commands import _human_readable_age
+        from airflow_breeze.utils.pr_display import human_readable_age as _human_readable_age
 
         pr = entry.pr
         lines: list[str] = []
