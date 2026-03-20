@@ -115,7 +115,6 @@ export default defineConfig({
     "**/dag-runs-tab.spec.ts",
     "**/dag-runs.spec.ts",
     "**/dag-grid-view.spec.ts",
-    "**/task-logs.spec.ts",
     "**/dag-tasks.spec.ts",
     "**/variable.spec.ts",
   ],
