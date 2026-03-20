@@ -6679,6 +6679,207 @@ def _display_recent_pr_failure_panel(
     )
 
 
+def _clear_triage_caches(github_repository: str) -> None:
+    """Clear all triage-related caches."""
+    import shutil
+
+    console = get_console()
+    for label, get_dir in [
+        ("review", _get_review_cache_dir),
+        ("triage", _get_triage_cache_dir),
+        ("status", _get_status_cache_dir),
+        ("classification", _get_classification_cache_dir),
+    ]:
+        cache_dir = get_dir(github_repository)
+        if cache_dir.exists():
+            count = len(list(cache_dir.glob("*.json")))
+            shutil.rmtree(cache_dir)
+            console.print(f"[info]Cleared LLM {label} cache ({count} entries) at {cache_dir}.[/]")
+        else:
+            console.print(f"[info]LLM {label} cache is already empty.[/]")
+
+
+def _enrich_pr_batch(
+    token: str,
+    github_repository: str,
+    all_prs: list[PRData],
+    *,
+    use_tui: bool = False,
+    on_branch_progress: Callable | None = None,
+    on_merge_progress: Callable | None = None,
+    on_ci_progress: Callable | None = None,
+) -> None:
+    """Enrich PRs with branch status, merge status, and CI verification (Phase 2)."""
+    # Branch status
+    behind_map = _fetch_commits_behind_batch(
+        token, github_repository, all_prs, on_progress=on_branch_progress
+    )
+    for pr in all_prs:
+        pr.commits_behind = behind_map.get(pr.number, 0)
+
+    # Merge status
+    unknown_count = sum(1 for pr in all_prs if pr.mergeable == "UNKNOWN")
+    if unknown_count:
+        _resolve_unknown_mergeable(token, github_repository, all_prs, on_progress=on_merge_progress)
+
+    # Verify CI for non-collab SUCCESS PRs (detect bot-only checks)
+    non_collab_success = [
+        pr
+        for pr in all_prs
+        if pr.checks_state == "SUCCESS"
+        and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+        and not _is_bot_account(pr.author_login)
+    ]
+    if non_collab_success:
+        _fetch_check_details_batch(token, github_repository, non_collab_success, on_progress=on_ci_progress)
+
+
+def _build_selection_criteria(
+    *,
+    pr_number: int | None,
+    labels: tuple[str, ...],
+    exclude_labels: tuple[str, ...],
+    filter_user: str | None,
+    review_requested_users: list[str],
+    created_after: str | None,
+    created_before: str | None,
+    updated_after: str | None,
+    updated_before: str | None,
+    checks_state: str,
+    min_commits_behind: int,
+    include_drafts: bool,
+    include_collaborators: bool,
+    sort: str,
+    batch_size: int,
+    triage_mode: str,
+) -> str:
+    """Build a human-readable selection criteria string for the TUI header."""
+    parts: list[str] = []
+    if pr_number:
+        parts.append(f"PR #{pr_number}")
+    if labels:
+        parts.append(f"labels={','.join(labels)}")
+    if exclude_labels:
+        parts.append(f"exclude={','.join(exclude_labels)}")
+    if filter_user:
+        parts.append(f"user={filter_user}")
+    if review_requested_users:
+        parts.append(f"reviewer={','.join(review_requested_users)}")
+    if created_after:
+        parts.append(f"created>={created_after}")
+    if created_before:
+        parts.append(f"created<={created_before}")
+    if updated_after:
+        parts.append(f"updated>={updated_after}")
+    if updated_before:
+        parts.append(f"updated<={updated_before}")
+    if checks_state != "all":
+        parts.append(f"checks={checks_state}")
+    if min_commits_behind > 0:
+        parts.append(f"behind>={min_commits_behind}")
+    if include_drafts:
+        parts.append("include_drafts")
+    if include_collaborators:
+        parts.append("include_collaborators")
+    if sort != "created":
+        parts.append(f"sort={sort}")
+    parts.append(f"batch={batch_size}")
+    if triage_mode != "triage":
+        parts.append(f"mode={triage_mode}")
+    return " | ".join(parts) if parts else "defaults"
+
+
+def _display_review_mode_summary(
+    stats: TriageStats,
+    accepted_prs: list[PRData],
+    pr_timings: dict[int, float],
+    pr_actions: dict[int, str],
+    total_elapsed: float,
+    t_phase1_elapsed: float,
+    all_prs_count: int,
+) -> None:
+    """Display the summary tables for review mode."""
+    console = get_console()
+
+    console.print(f"\n[info]Review mode complete in {_fmt_duration(total_elapsed)}.[/]")
+
+    summary_table = Table(title="Review Mode Summary")
+    summary_table.add_column("Metric", style="bold")
+    summary_table.add_column("Count", justify="right")
+    summary_table.add_row("PRs assessed", str(len(accepted_prs)))
+    summary_table.add_row("PRs converted to draft", str(stats.total_converted))
+    summary_table.add_row("PRs commented (triage)", str(stats.total_commented))
+    summary_table.add_row("PRs closed", str(stats.total_closed))
+    summary_table.add_row("PRs rebased", str(stats.total_rebased))
+    summary_table.add_row("Review comments posted", str(stats.total_review_comments))
+    summary_table.add_row("Overall reviews submitted", str(stats.total_reviews_submitted))
+    summary_table.add_row("PRs skipped", str(stats.total_skipped_action))
+    console.print(summary_table)
+
+    timing_table = Table(title="Timing Summary")
+    timing_table.add_column("Phase", style="bold")
+    timing_table.add_column("Total", justify="right")
+    timing_table.add_column("PRs", justify="right")
+    timing_table.add_column("Avg/PR", justify="right")
+
+    num_all = all_prs_count or 1
+    timing_table.add_row(
+        "Fetch PRs + overview",
+        _fmt_duration(t_phase1_elapsed),
+        str(all_prs_count),
+        _fmt_duration(t_phase1_elapsed / num_all),
+    )
+
+    interactive_total = total_elapsed - t_phase1_elapsed
+    timing_table.add_row(
+        "Interactive review",
+        _fmt_duration(interactive_total),
+        str(len(accepted_prs)),
+        _fmt_duration(interactive_total / len(accepted_prs)) if accepted_prs else "[dim]—[/]",
+    )
+
+    timing_table.add_row("", "", "", "")
+    prs_with_timing = len(pr_timings)
+    avg_per_pr = _fmt_duration(total_elapsed / prs_with_timing) if prs_with_timing else "[dim]—[/]"
+    timing_table.add_row(
+        "[bold]Total[/]",
+        f"[bold]{_fmt_duration(total_elapsed)}[/]",
+        str(prs_with_timing) if prs_with_timing else "",
+        f"[bold]{avg_per_pr}[/]" if prs_with_timing else "",
+    )
+    console.print(timing_table)
+
+    if pr_timings:
+        action_styles = {
+            "reviewed": "[success]reviewed[/]",
+            "drafted": "[yellow]drafted[/]",
+            "commented": "[yellow]commented[/]",
+            "closed": "[red]closed[/]",
+            "skipped": "[dim]skipped[/]",
+            "llm-error": "[red]llm-error[/]",
+            "quit": "[dim]quit[/]",
+        }
+        pr_map = {pr.number: pr for pr in accepted_prs}
+        pr_timing_table = Table(title="Per-PR Timing")
+        pr_timing_table.add_column("PR", style="bold")
+        pr_timing_table.add_column("Title")
+        pr_timing_table.add_column("Action")
+        pr_timing_table.add_column("Time", justify="right")
+
+        for pr_num in sorted(pr_timings, key=lambda n: pr_timings[n], reverse=True):
+            pr_entry = pr_map.get(pr_num)
+            title = (pr_entry.title[:60] if pr_entry else "") or ""
+            action_raw = pr_actions.get(pr_num, "")
+            action_display = action_styles.get(action_raw, f"[dim]{action_raw or '—'}[/]")
+            pr_timing_table.add_row(
+                f"#{pr_num}",
+                title,
+                action_display,
+                _fmt_duration(pr_timings[pr_num]),
+            )
+        console.print(pr_timing_table)
+
+
 @pr_group.command(
     name="auto-triage",
     help="Find open PRs from non-collaborators that don't meet quality criteria and convert to draft.",
@@ -6899,21 +7100,7 @@ def auto_triage(
     console = get_console()
 
     if clear_cache:
-        import shutil
-
-        for label, get_dir in [
-            ("review", _get_review_cache_dir),
-            ("triage", _get_triage_cache_dir),
-            ("status", _get_status_cache_dir),
-            ("classification", _get_classification_cache_dir),
-        ]:
-            cache_dir = get_dir(github_repository)
-            if cache_dir.exists():
-                count = len(list(cache_dir.glob("*.json")))
-                shutil.rmtree(cache_dir)
-                console.print(f"[info]Cleared LLM {label} cache ({count} entries) at {cache_dir}.[/]")
-            else:
-                console.print(f"[info]LLM {label} cache is already empty.[/]")
+        _clear_triage_caches(github_repository)
     dry_run = get_dry_run()
 
     # Determine TUI mode early so we can suppress all console output
@@ -7384,97 +7571,15 @@ def auto_triage(
                 stats.quit_early = True
 
         t_total_end = time.monotonic()
-        total_elapsed = t_total_end - t_total_start
-        console.print(f"\n[info]Review mode complete in {_fmt_duration(total_elapsed)}.[/]")
-
-        # Simple summary for review mode
-        summary_table = Table(title="Review Mode Summary")
-        summary_table.add_column("Metric", style="bold")
-        summary_table.add_column("Count", justify="right")
-        summary_table.add_row("PRs assessed", str(len(accepted_prs)))
-        summary_table.add_row("PRs converted to draft", str(stats.total_converted))
-        summary_table.add_row("PRs commented (triage)", str(stats.total_commented))
-        summary_table.add_row("PRs closed", str(stats.total_closed))
-        summary_table.add_row("PRs rebased", str(stats.total_rebased))
-        summary_table.add_row("Review comments posted", str(stats.total_review_comments))
-        summary_table.add_row("Overall reviews submitted", str(stats.total_reviews_submitted))
-        summary_table.add_row("PRs skipped", str(stats.total_skipped_action))
-        console.print(summary_table)
-
-        # Timing summary
-        timing_table = Table(title="Timing Summary")
-        timing_table.add_column("Phase", style="bold")
-        timing_table.add_column("Total", justify="right")
-        timing_table.add_column("PRs", justify="right")
-        timing_table.add_column("Avg/PR", justify="right")
-        timing_table.add_column("Min/PR", justify="right")
-        timing_table.add_column("Max/PR", justify="right")
-
-        phase1_total = t_phase1_end - t_total_start
-        num_all = len(all_prs) or 1
-        timing_table.add_row(
-            "Fetch PRs + overview",
-            _fmt_duration(phase1_total),
-            str(len(all_prs)),
-            _fmt_duration(phase1_total / num_all),
-            "[dim]—[/]",
-            "[dim]—[/]",
+        _display_review_mode_summary(
+            stats,
+            accepted_prs,
+            pr_timings,
+            pr_actions,
+            total_elapsed=t_total_end - t_total_start,
+            t_phase1_elapsed=t_phase1_end - t_total_start,
+            all_prs_count=len(all_prs),
         )
-
-        interactive_total = t_total_end - t_phase1_end
-        timing_table.add_row(
-            "Interactive review",
-            _fmt_duration(interactive_total),
-            str(len(accepted_prs)),
-            _fmt_duration(interactive_total / len(accepted_prs)) if accepted_prs else "[dim]—[/]",
-            "[dim]—[/]",
-            "[dim]—[/]",
-        )
-
-        timing_table.add_row("", "", "", "", "", "")
-        prs_with_timing = len(pr_timings)
-        avg_per_pr = _fmt_duration(total_elapsed / prs_with_timing) if prs_with_timing else "[dim]—[/]"
-        timing_table.add_row(
-            "[bold]Total[/]",
-            f"[bold]{_fmt_duration(total_elapsed)}[/]",
-            str(prs_with_timing) if prs_with_timing else "",
-            f"[bold]{avg_per_pr}[/]" if prs_with_timing else "",
-            "",
-            "",
-        )
-        console.print(timing_table)
-
-        # Per-PR timing table
-        if pr_timings:
-            action_styles = {
-                "reviewed": "[success]reviewed[/]",
-                "drafted": "[yellow]drafted[/]",
-                "commented": "[yellow]commented[/]",
-                "closed": "[red]closed[/]",
-                "skipped": "[dim]skipped[/]",
-                "llm-error": "[red]llm-error[/]",
-                "quit": "[dim]quit[/]",
-            }
-            pr_map = {pr.number: pr for pr in accepted_prs}
-            pr_timing_table = Table(title="Per-PR Timing")
-            pr_timing_table.add_column("PR", style="bold")
-            pr_timing_table.add_column("Title")
-            pr_timing_table.add_column("Action")
-            pr_timing_table.add_column("Time", justify="right")
-
-            for pr_num in sorted(pr_timings, key=lambda n: pr_timings[n], reverse=True):
-                pr_entry = pr_map.get(pr_num)
-                title = (pr_entry.title[:60] if pr_entry else "") or ""
-                action_raw = pr_actions.get(pr_num, "")
-                action_display = action_styles.get(action_raw, f"[dim]{action_raw or '—'}[/]")
-                pr_timing_table.add_row(
-                    f"#{pr_num}",
-                    title,
-                    action_display,
-                    _fmt_duration(pr_timings[pr_num]),
-                )
-            console.print(pr_timing_table)
-
         return
 
     # Enrich candidate PRs with check details, mergeable status, and review comments
@@ -7770,40 +7875,24 @@ def auto_triage(
     try:
         if use_tui:
             # Full-screen TUI mode: show all PRs in an interactive full-screen view
-            # Build selection criteria description for TUI header
-            criteria_parts: list[str] = []
-            if pr_number:
-                criteria_parts.append(f"PR #{pr_number}")
-            if labels:
-                criteria_parts.append(f"labels={','.join(labels)}")
-            if exclude_labels:
-                criteria_parts.append(f"exclude={','.join(exclude_labels)}")
-            if filter_user:
-                criteria_parts.append(f"user={filter_user}")
-            if review_requested_users:
-                criteria_parts.append(f"reviewer={','.join(review_requested_users)}")
-            if created_after:
-                criteria_parts.append(f"created>={created_after}")
-            if created_before:
-                criteria_parts.append(f"created<={created_before}")
-            if updated_after:
-                criteria_parts.append(f"updated>={updated_after}")
-            if updated_before:
-                criteria_parts.append(f"updated<={updated_before}")
-            if checks_state != "all":
-                criteria_parts.append(f"checks={checks_state}")
-            if min_commits_behind > 0:
-                criteria_parts.append(f"behind>={min_commits_behind}")
-            if include_drafts:
-                criteria_parts.append("include_drafts")
-            if include_collaborators:
-                criteria_parts.append("include_collaborators")
-            if sort != "created":
-                criteria_parts.append(f"sort={sort}")
-            criteria_parts.append(f"batch={batch_size}")
-            if triage_mode != "triage":
-                criteria_parts.append(f"mode={triage_mode}")
-            selection_criteria = " | ".join(criteria_parts) if criteria_parts else "defaults"
+            selection_criteria = _build_selection_criteria(
+                pr_number=pr_number,
+                labels=labels,
+                exclude_labels=exclude_labels,
+                filter_user=filter_user,
+                review_requested_users=review_requested_users,
+                created_after=created_after,
+                created_before=created_before,
+                updated_after=updated_after,
+                updated_before=updated_before,
+                checks_state=checks_state,
+                min_commits_behind=min_commits_behind,
+                include_drafts=include_drafts,
+                include_collaborators=include_collaborators,
+                sort=sort,
+                batch_size=batch_size,
+                triage_mode=triage_mode,
+            )
 
             # Build a closure that fetches + enriches + categorizes the next page of PRs
             _batch_cursor: list[str | None] = [next_cursor]
