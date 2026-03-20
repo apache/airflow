@@ -29,7 +29,7 @@ from airflow.models.connection import Connection
 
 
 async def has_connection_access(
-    connection_id: str = Path(),
+    connection_id: Annotated[str, Path(min_length=1)],
     token=CurrentTIToken,
 ) -> bool:
     """Check if the task has access to the connection."""
@@ -59,7 +59,8 @@ log = logging.getLogger(__name__)
     },
 )
 def get_connection(
-    connection_id: str, team_name: Annotated[str | None, Depends(get_team_name_dep)]
+    connection_id: Annotated[str, Path(min_length=1)],
+    team_name: Annotated[str | None, Depends(get_team_name_dep)],
 ) -> ConnectionResponse:
     """Get an Airflow connection."""
     try:
