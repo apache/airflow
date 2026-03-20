@@ -32,14 +32,6 @@ Changelog
    Previously this would create a job that would never complete and always fail the task.
    Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
 
-10.15.0
-.......
-
-Features
-~~~~~~~~
-
-* ``Add SPARK_APPLICATION_NAME env variable to driver and executor pods in SparkKubernetesOperator (#43801)``
-
 10.14.0
 .......
 
