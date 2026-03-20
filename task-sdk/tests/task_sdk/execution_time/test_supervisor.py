@@ -113,6 +113,7 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetXCom,
@@ -1024,6 +1025,69 @@ class TestWatchedSubprocess:
             mock_logger.warning.assert_not_called()
 
     @pytest.mark.parametrize(
+        ("timeout_seconds", "start_monotonic", "terminal_state", "expected_kill"),
+        [
+            pytest.param(None, None, None, False, id="no_timeout_set"),
+            pytest.param(30.0, 5.0, None, False, id="within_timeout"),
+            pytest.param(10.0, 5.0, None, True, id="timeout_exceeded"),
+            pytest.param(10.0, 5.0, TaskInstanceState.DEFERRED, False, id="deferred_no_kill"),
+            pytest.param(10.0, 5.0, TaskInstanceState.SUCCESS, False, id="succeeded_no_kill"),
+        ],
+    )
+    def test_execution_timeout_handling(
+        self,
+        mocker,
+        timeout_seconds,
+        start_monotonic,
+        terminal_state,
+        expected_kill,
+    ):
+        """Test supervisor enforcement of execution_timeout as a safety net."""
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+
+        # Current time is 20.0; with start_monotonic=5.0, elapsed=15s
+        mocker.patch("time.monotonic", return_value=20.0)
+
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+
+        proc._execution_timeout_seconds = timeout_seconds
+        proc._execution_start_monotonic = start_monotonic
+        proc._terminal_state = terminal_state
+
+        proc._handle_execution_timeout_if_needed()
+
+        if expected_kill:
+            mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
+        else:
+            mock_kill.assert_not_called()
+
+    def test_set_execution_timeout_message_handling(self, mocker):
+        """Test that SetExecutionTimeout message sets the fields on the subprocess."""
+        mocker.patch("time.monotonic", return_value=100.0)
+
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+
+        msg = SetExecutionTimeout(execution_timeout=60.0)
+        proc._handle_request(msg, log=mocker.MagicMock(), req_id=1)
+
+        assert proc._execution_timeout_seconds == 60.0
+        assert proc._execution_start_monotonic == 100.0
+
+    @pytest.mark.parametrize(
         ("signal_to_raise", "log_pattern", "level"),
         (
             pytest.param(
@@ -1681,6 +1745,10 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         test_id="set_rendered_map_index",
+    ),
+    RequestTestCase(
+        message=SetExecutionTimeout(execution_timeout=60.0),
+        test_id="set_execution_timeout",
     ),
     RequestTestCase(
         message=SucceedTask(
