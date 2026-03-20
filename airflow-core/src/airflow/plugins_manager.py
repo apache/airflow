@@ -128,7 +128,16 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
         if not settings.LAZY_LOAD_PROVIDERS:
             __register_plugins(*_load_providers_plugins())
 
-    log.debug("Loading %d plugin(s) took %.2f ms", len(plugins), timer.duration)
+    if import_errors:
+        log.warning(
+            "Failed to load %d plugin(s): %s",
+            len(import_errors),
+            list(import_errors.keys()),
+        )
+    elif not plugins:
+        log.debug("No plugins loaded (plugins folder is empty or contains no Airflow plugins)")
+    else:
+        log.debug("Loading %d plugin(s) took %.2f ms", len(plugins), timer.duration)
     return plugins, import_errors
 
 
