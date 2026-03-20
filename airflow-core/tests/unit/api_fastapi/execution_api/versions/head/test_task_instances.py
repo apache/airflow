@@ -1633,6 +1633,95 @@ class TestTISkipDownstream:
         assert ti1.state == State.SKIPPED
 
 
+class TestTISkipDownstreamRaceCondition:
+    """Regression tests for #59378: state guard in ti_skip_downstream()."""
+
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    @pytest.mark.parametrize(
+        "initial_state",
+        [
+            State.RUNNING,
+            State.SUCCESS,
+            State.FAILED,
+        ],
+    )
+    def test_skip_downstream_does_not_overwrite_terminal_or_running_ti(
+        self, client, session, dag_maker, initial_state
+    ):
+        with dag_maker(f"skip_race_dag_{initial_state}", session=session):
+            branch = EmptyOperator(task_id="branch")
+            downstream = EmptyOperator(task_id="downstream")
+            branch >> downstream
+        dr = dag_maker.create_dagrun(run_id="run")
+
+        ti_branch = dr.get_task_instance("branch")
+        ti_branch.set_state(State.SUCCESS)
+
+        ti_downstream = dr.get_task_instance("downstream")
+        ti_downstream.set_state(initial_state)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_branch.id}/skip-downstream",
+            json={"tasks": ["downstream"]},
+        )
+        assert response.status_code == 204
+
+        session.expire_all()
+        ti_downstream = dr.get_task_instance("downstream")
+        assert ti_downstream.state == initial_state
+
+    def test_skip_downstream_does_skip_queued_ti(self, client, session, dag_maker):
+        with dag_maker("skip_race_dag_queued", session=session):
+            branch = EmptyOperator(task_id="branch")
+            downstream = EmptyOperator(task_id="downstream")
+            branch >> downstream
+        dr = dag_maker.create_dagrun(run_id="run")
+
+        ti_branch = dr.get_task_instance("branch")
+        ti_branch.set_state(State.SUCCESS)
+
+        ti_downstream = dr.get_task_instance("downstream")
+        ti_downstream.set_state(TaskInstanceState.QUEUED)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_branch.id}/skip-downstream",
+            json={"tasks": ["downstream"]},
+        )
+        assert response.status_code == 204
+
+        session.expire_all()
+        ti_downstream = dr.get_task_instance("downstream")
+        assert ti_downstream.state == State.SKIPPED
+
+    def test_skip_downstream_still_skips_none_state_ti(self, client, session, dag_maker):
+        with dag_maker("skip_race_dag_normal", session=session):
+            branch = EmptyOperator(task_id="branch")
+            downstream = EmptyOperator(task_id="downstream")
+            branch >> downstream
+        dr = dag_maker.create_dagrun(run_id="run")
+
+        ti_branch = dr.get_task_instance("branch")
+        ti_branch.set_state(State.SUCCESS)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_branch.id}/skip-downstream",
+            json={"tasks": ["downstream"]},
+        )
+        assert response.status_code == 204
+
+        session.expire_all()
+        ti_downstream = dr.get_task_instance("downstream")
+        assert ti_downstream.state == State.SKIPPED
+
+
 class TestTIHealthEndpoint:
     def setup_method(self):
         clear_db_runs()

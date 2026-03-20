@@ -1322,6 +1322,7 @@ class TestTriggererMessageTypes:
             "ResendLoggingFD",
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
+            "GetDag",
         }
 
         in_task_but_not_in_trigger_runner = {
@@ -1341,6 +1342,7 @@ class TestTriggererMessageTypes:
             "PreviousDagRunResult",
             "PreviousTIResult",
             "HITLDetailRequestResult",
+            "DagResult",
         }
 
         supervisor_diff = (
