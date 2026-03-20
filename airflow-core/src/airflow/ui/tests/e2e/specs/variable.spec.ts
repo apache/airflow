@@ -133,7 +133,7 @@ test.describe("Variables Page", () => {
       },
     });
 
-    expect(response.ok()).toBeTruthy();
+    await expect(response).toBeOK();
     expect(response.status()).toBe(201);
 
     await variablesPage.navigate();
