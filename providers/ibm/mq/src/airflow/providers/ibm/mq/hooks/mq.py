@@ -168,7 +168,7 @@ class IBMMQHook(BaseHook):
             payload = message[payload_offset:]
 
             decoded = payload.decode("utf-8", errors="ignore")
-            self.log.info("Message received from MQ (RFH2 decoded): %s", decoded)
+            self.log.debug("Message received from MQ (RFH2 decoded): %s", decoded)
             return decoded
         except ibmmq.PYIFError as error:  # RFH2 header not present or unpack failed
             self.log.warning(
