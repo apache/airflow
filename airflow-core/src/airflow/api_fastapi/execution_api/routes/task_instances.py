@@ -286,7 +286,11 @@ def ti_run(
     except SQLAlchemyError:
         log.exception("Error marking Task Instance state as running")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "reason": "database_error",
+                "message": "Database error occurred",
+            },
         )
 
 
@@ -427,7 +431,11 @@ def ti_update_state(
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "reason": "database_error",
+                "message": "Database error occurred",
+            },
         )
 
 
@@ -728,6 +736,10 @@ def ti_put_rtif(
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": "Task Instance not found",
+            },
         )
     task_instance.update_rtif(put_rtif_payload, session)
     log.debug("RenderedTaskInstanceFields updated successfully")
@@ -755,7 +767,10 @@ def ti_patch_rendered_map_index(
         log.error("rendered_map_index cannot be empty")
         raise HTTPException(
             status_code=HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="rendered_map_index cannot be empty",
+            detail={
+                "reason": "invalid_request",
+                "message": "rendered_map_index cannot be empty",
+            },
         )
 
     log.debug("Updating rendered_map_index", length=len(rendered_map_index))
@@ -768,7 +783,10 @@ def ti_patch_rendered_map_index(
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task Instance not found",
+            detail={
+                "reason": "not_found",
+                "message": "Task Instance not found",
+            },
         )
 
 
