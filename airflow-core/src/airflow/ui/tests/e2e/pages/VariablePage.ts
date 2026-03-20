@@ -36,7 +36,7 @@ export class VariablePage extends BasePage {
     this.importButton = page.getByRole("button", { name: "Import Variables" });
     this.table = page.getByTestId("table-list");
     this.tableRows = this.table.locator("tbody tr");
-    this.selectAllCheckbox = page.locator("thead").getByRole("checkbox");
+    this.selectAllCheckbox = page.locator("thead input[type='checkbox']");
   }
 
   public async getVariableKeys(): Promise<Array<string>> {
@@ -65,8 +65,9 @@ export class VariablePage extends BasePage {
 
   public async selectRow(key: string) {
     const row = this.rowByKey(key);
+    const checkbox = row.locator('[id^="checkbox"][id$=":control"]');
 
-    await row.getByRole("checkbox").click();
+    await checkbox.click();
   }
 
   public async waitForLoad(): Promise<void> {
