@@ -82,7 +82,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                 kwargs["poke_interval"] = kwargs["polling_interval"]
                 warnings.warn(
                     "Argument `poll_interval` is deprecated and will be removed "
-                    "in a future release.  Please use `poke_interval` instead.",
+                    "in a future release.  Please use `poke_interval` instead. Planned removal date: October 5, 2026.",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
