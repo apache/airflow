@@ -61,6 +61,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.models.pool import Pool
 from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
@@ -1024,6 +1025,9 @@ class DagFileProcessorManager(LoggingMixin):
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
 
+        # TODO: This is a blocking DB call, we should probably cache this or move it elsewhere
+        known_pools = {p.pool for p in Pool.get_pools()}
+
         return DagFileProcessorProcess.start(
             id=id,
             path=dag_file.absolute_path,
@@ -1034,6 +1038,7 @@ class DagFileProcessorManager(LoggingMixin):
             logger=logger,
             logger_filehandle=logger_filehandle,
             client=self.client,
+            known_pools=known_pools,
         )
 
     def _start_new_processes(self):
