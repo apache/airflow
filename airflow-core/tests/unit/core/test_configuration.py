@@ -64,6 +64,9 @@ conf.deprecated_options[("scheduler", "parsing_cleanup_interval")] = (
     "deactivate_stale_dags_interval",
     "2.5.0",
 )
+# Invalidate cached properties that depend on deprecated_options, since they may have been
+# computed during airflow initialization before the entries above were added.
+conf.invalidate_cache()
 
 
 @pytest.fixture(scope="module", autouse=True)
