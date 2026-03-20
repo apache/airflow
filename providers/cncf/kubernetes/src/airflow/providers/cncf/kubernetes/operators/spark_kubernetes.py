@@ -396,20 +396,11 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
                 spec_dict[component]["labels"].update(task_context_labels)
 
-        if "spark" not in template_body:
-            template_body["spark"] = {}
-        if "spec" not in template_body["spark"]:
-            template_body["spark"]["spec"] = {}
-
-        spec_dict = template_body["spark"]["spec"]
-        app_name_env = {"name": "SPARK_APPLICATION_NAME", "value": self.name}
-
+        spec_dict = template_body.setdefault("spark", {}).setdefault("spec", {})
         for component in ["driver", "executor"]:
-            if component not in spec_dict:
-                spec_dict[component] = {}
-            env_list = spec_dict[component].setdefault("env", [])
+            env_list = spec_dict.setdefault(component, {}).setdefault("env", [])
             if not any(e.get("name") == "SPARK_APPLICATION_NAME" for e in env_list):
-                env_list.append(app_name_env)
+                env_list.append({"name": "SPARK_APPLICATION_NAME", "value": self.name})
 
         self.log.info("Creating sparkApplication.")
         self.launcher = CustomObjectLauncher(
