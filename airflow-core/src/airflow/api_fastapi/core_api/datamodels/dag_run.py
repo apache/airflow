@@ -22,7 +22,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
+from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, computed_field, model_validator
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
@@ -85,6 +85,54 @@ class DAGRunResponse(BaseModel):
     bundle_version: str | None
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
     partition_key: str | None
+
+
+class DAGRunBaseResponse(BaseModel):
+    dag_run_id: str = Field(validation_alias="run_id")
+    dag_id: str
+    logical_date: datetime | None
+    queued_at: datetime | None
+    start_date: datetime | None
+    end_date: datetime | None
+    duration: float | None
+    data_interval_start: datetime | None
+    data_interval_end: datetime | None
+    run_after: datetime
+    last_scheduling_decision: datetime | None
+    run_type: DagRunType
+    state: DagRunState
+    triggered_by: DagRunTriggeredByType | None
+    triggering_user_name: str | None
+    conf: dict | None
+    note: str | None
+    bundle_version: str | None
+    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
+    partition_key: str | None
+
+
+class DAGRunListResponse(DAGRunBaseResponse):
+    created_dag_version_obj: DagVersionResponse | None = Field(
+        default=None,
+        validation_alias="created_dag_version",
+        exclude=True,
+    )
+
+    @computed_field(return_type=list[DagVersionResponse])
+    def dag_versions(self) -> list[DagVersionResponse]:
+        dv = self.created_dag_version_obj
+        if not dv:
+            return []
+
+        # Non-versioned DAGs must not expose versions
+        if dv.bundle_name is None:
+            return []
+
+        return [dv]
+        
+
+class DAGRunListCollectionResponse(BaseModel):
+    dag_runs: Iterable[DAGRunListResponse]
+    total_entries: int
 
 
 class DAGRunCollectionResponse(BaseModel):

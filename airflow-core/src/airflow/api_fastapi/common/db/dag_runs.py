@@ -63,3 +63,14 @@ def eager_load_dag_run_for_validation() -> tuple[LoaderOption, ...]:
         .joinedload(DagVersion.bundle),
         joinedload(DagRun.dag_run_note),
     )
+
+
+def eager_load_dag_run_for_list() -> tuple[LoaderOption, ...]:
+    return (
+        joinedload(DagRun.dag_model),
+        joinedload(DagRun.dag_run_note),
+        joinedload(DagRun.created_dag_version)
+        .joinedload(DagVersion.bundle),
+        joinedload(DagRun.created_dag_version)
+        .joinedload(DagVersion.dag_model),
+    )
