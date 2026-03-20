@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,27 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10,<3.11"
-# dependencies = [
-#   "rich>=13.6.0",
-#   "ruff==0.15.7",
-# ]
-# ///
+"""Generate Execution API OpenAPI schema. Prints JSON to stdout. Run with cwd at repo root."""
+
 from __future__ import annotations
 
-from common_prek_utils import (
-    initialize_breeze_prek,
-    run_command_via_breeze_shell,
-    validate_cmd_result,
-)
+import json
+import os
+import sys
+from pathlib import Path
 
-initialize_breeze_prek(__name__, __file__)
+os.environ["_AIRFLOW__AS_LIBRARY"] = "1"
+sys.path.insert(0, str(Path("airflow-core/src").resolve()))
 
-cmd_result = run_command_via_breeze_shell(
-    ["python3", "/opt/airflow/scripts/in_container/run_check_imports_in_providers.py"],
-    backend="postgres",
-    skip_environment_initialization=False,
-)
+import httpx
 
-validate_cmd_result(cmd_result)
+from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+app = InProcessExecutionAPI()
+version = app.app.versions.version_values[0]
+client = httpx.Client(transport=app.transport)
+response = client.get(f"http://localhost/openapi.json?version={version}")
+response.raise_for_status()
+print(json.dumps(response.json()))
