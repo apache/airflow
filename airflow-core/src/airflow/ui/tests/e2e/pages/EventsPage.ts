@@ -119,10 +119,13 @@ export class EventsPage extends BasePage {
   }
 
   public async navigateToAuditLog(dagId: string): Promise<void> {
-    await this.page.goto(EventsPage.getEventsUrl(dagId), {
-      timeout: 30_000,
-      waitUntil: "domcontentloaded",
-    });
+    await expect(async () => {
+      await this.page.goto(EventsPage.getEventsUrl(dagId), {
+        timeout: 10_000,
+        waitUntil: "domcontentloaded",
+      });
+      await this.eventsTable.waitFor({ state: "visible", timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForTableLoad();
   }
 
