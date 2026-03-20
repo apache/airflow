@@ -168,7 +168,7 @@ class DbtCloudHook(HttpHook):
     """
     Interact with dbt Cloud using the V2 (V3 if supported) API.
 
-    :param dbt_cloud_conn_id: The ID of the :ref:`dbt Cloud connection <howto/connection:dbt-cloud>`.
+    :param dbt_cloud_conn_id: The ID of the :ref:`dbt Cloud connection <howto/connection:dbt_cloud>`.
     :param timeout_seconds: Optional. The timeout in seconds for HTTP requests. If not provided, no timeout is applied.
     :param retry_limit: The number of times to retry a request in case of failure.
     :param retry_delay: The delay in seconds between retries.

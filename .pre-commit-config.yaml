@@ -235,6 +235,18 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
+      - id: check-distribution-gitignore
+        name: Check distribution .gitignore files have *.iml
+        entry: ./scripts/ci/prek/check_distribution_gitignore.py
+        language: python
+        files: >
+          (?x)
+          ^.*/\.gitignore$|
+          ^\.gitignore$|
+          ^.*/pyproject\.toml$|
+          ^pyproject\.toml$
+        pass_filenames: false
+        require_serial: true
       - id: upgrade-important-versions
         name: Upgrade important versions (manual)
         entry: ./scripts/ci/prek/upgrade_important_versions.py
@@ -573,6 +585,7 @@ repos:
         exclude: >
           (?x)
           ^README\.md$|
+          ^pyproject\.toml$|
           ^generated/PYPI_README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
@@ -700,7 +713,15 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow-core/src/airflow/configuration\.py$|^airflow-core/tests/.*$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^providers/.*/tests/.*$|^devel-common/
+        exclude: >
+          (?x)
+          ^airflow-core/src/airflow/configuration\.py$|
+          ^airflow-core/tests/.*$|
+          ^providers/.*/src/airflow/providers/|
+          ^scripts/in_container/verify_providers\.py$|
+          ^providers/.*/tests/.*$|
+          ^scripts/tests/.*$|
+          ^devel-common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -727,6 +748,14 @@ repos:
         language: python
         files: ^LICENSE$
         pass_filenames: false
+      - id: check-metrics-synced-with-registry
+        name: Check that metrics in the codebase are in sync with the metrics registry YAML file.
+        entry: ./scripts/ci/prek/check_metrics_synced_with_the_registry.py
+        language: python
+        files: \.py$
+        exclude: ^(tests/|.*/tests/)
+        pass_filenames: true
+        additional_dependencies: ["PyYAML>=6.0", "rich>=13.6.0"]
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python
@@ -788,6 +817,17 @@ repos:
           ^providers/.*/provider\.yaml$
         pass_filenames: false
         require_serial: true
+      - id: check-excluded-provider-markers
+        name: Check excluded-provider python_version markers in pyproject.toml
+        language: python
+        entry: ./scripts/ci/prek/check_excluded_provider_markers.py
+        files: >
+          (?x)
+          ^pyproject\.toml$|
+          ^providers/.*/provider\.yaml$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['packaging>=25', 'pyyaml', 'tomli>=2.0.1', 'rich>=13.6.0']
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python
@@ -960,8 +1000,22 @@ repos:
         pass_filenames: false
         files: ^dev/breeze/src/airflow_breeze/global_constants\.py$
         require_serial: true
+        # This is a fast regular hook that runs when any pyproject.toml changes
+        # It runs locally and usually will not result in modifying the lock unnecessarily
+        # Unless there is a conflict and uv will determine that the lock needs to be updated to resolve it
+      - id: update-uv-lock
+        name: Update uv.lock
+        entry: uv lock
+        language: system
+        files: >
+          (?x)
+          (^|/)pyproject\.toml$|
+          ^uv\.lock$
+        pass_filenames: false
+        require_serial: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
         # The below prek hooks are those requiring CI image to be built
+        ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: mypy-dev
         stages: ['pre-push']
         name: Run mypy for dev
@@ -1025,10 +1079,23 @@ repos:
           ^airflow-core/src/airflow/api_fastapi/core_api/datamodels/.*\.py$|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/(datamodels|routes|services|openapi)/.*\.py$
         require_serial: true
-        ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: check-contextmanager-class-decorators
         name: Check for problematic context manager class decorators
         entry: ./scripts/ci/prek/check_contextmanager_class_decorators.py
         language: python
         files: .*test.*\.py$
         pass_filenames: true
+        # This is a manual hook, run by `breeze ci upgrade` - upgrading all dependencies inside the
+        # Breeze CI image - which allows checking all dependencies for all providers.
+        # ALWAYS keep it at the end so that it can take into account all the other hook's changes.
+      - id: update-uv-lock
+        stages: ['manual']
+        name: Update uv.lock (manual)
+        entry: breeze run uv lock --upgrade
+        language: system
+        files: >
+          (?x)
+          (^|/)pyproject\.toml$|
+          ^uv\.lock$
+        pass_filenames: false
+        require_serial: true

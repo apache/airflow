@@ -87,6 +87,16 @@ function common::get_airflow_version_specification() {
 }
 
 function common::get_constraints_location() {
+    # When installing from sources without upgrade, generate constraints from uv.lock
+    if [[ ${AIRFLOW_INSTALLATION_METHOD=} == "." && -z "${UPGRADE_RANDOM_INDICATOR_STRING=}" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing from sources with uv.lock - generating constraints from uv.lock${COLOR_RESET}"
+        echo
+        uv export --frozen --no-hashes --no-emit-project --no-editable --no-header \
+            --no-annotate > "${HOME}/constraints.txt" 2>/dev/null || true
+        return
+    fi
+
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
         if  [[ ${AIRFLOW_VERSION} =~ v?2.* || ${AIRFLOW_VERSION} =~ v?3.* ]]; then
@@ -107,7 +117,15 @@ function common::get_constraints_location() {
         echo
         echo "${COLOR_BLUE}Downloading constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
         echo
-        curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"
+        if ! curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"; then
+            echo
+            echo "${COLOR_YELLOW}Constraints file not found at ${AIRFLOW_CONSTRAINTS_LOCATION} (new Python version being bootstrapped?).${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Falling back to no-constraints installation.${COLOR_RESET}"
+            echo
+            AIRFLOW_CONSTRAINTS_LOCATION=""
+            # Create an empty constraints file so --constraint flag still works
+            touch "${HOME}/constraints.txt"
+        fi
     else
         echo
         echo "${COLOR_BLUE}Copying constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"

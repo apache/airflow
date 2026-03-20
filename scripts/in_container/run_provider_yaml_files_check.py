@@ -37,6 +37,11 @@ from typing import Any
 
 import jsonschema
 import yaml
+from in_container_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_PROVIDERS_PATH,
+    AIRFLOW_ROOT_PATH,
+)
 from jsonpath_ng.ext import parse
 from rich.console import Console
 from tabulate import tabulate
@@ -44,13 +49,6 @@ from tabulate import tabulate
 from airflow.cli.commands.info_command import Architecture
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
-
-sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
-from in_container_utils import (
-    AIRFLOW_CORE_SOURCES_PATH,
-    AIRFLOW_PROVIDERS_PATH,
-    AIRFLOW_ROOT_PATH,
-)
 
 # Those are deprecated modules that contain removed Hooks/Sensors/Operators that we left in the code
 # so that users can get a very specific error message when they try to use them.

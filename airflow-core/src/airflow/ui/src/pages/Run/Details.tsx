@@ -53,7 +53,7 @@ export const Details = () => {
       <Table.Body>
         <Table.Row>
           <Table.Cell>{translate("state")}</Table.Cell>
-          <Table.Cell>
+          <Table.Cell data-testid="dag-run-state">
             <Flex gap={1}>
               <StateBadge state={dagRun.state} />
               {translate(`common:states.${dagRun.state}`)}
@@ -76,7 +76,7 @@ export const Details = () => {
           <Table.Cell>
             <HStack>
               <RunTypeIcon runType={dagRun.run_type} />
-              <Text>{dagRun.run_type}</Text>
+              <Text>{translate(`runTypes.${dagRun.run_type}`)}</Text>
             </HStack>
           </Table.Cell>
         </Table.Row>
