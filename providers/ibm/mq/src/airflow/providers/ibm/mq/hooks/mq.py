@@ -123,11 +123,12 @@ class IBMMQHook(BaseHook):
         if not channel:
             raise ValueError("channel must be set in Connection extra config or hook init")
 
-        self.open_options = self.open_options or getattr(
-            ibmmq.CMQC,
-            config.get("open_options", self.default_open_options),
-            ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE,
-        )
+        if not self.open_options:
+            self.open_options = getattr(
+                ibmmq.CMQC,
+                config.get("open_options", self.default_open_options),
+                ibmmq.CMQC.MQOO_INPUT_EXCLUSIVE,
+            )
 
         csp = ibmmq.CSP()
         csp.CSPUserId = connection.login
