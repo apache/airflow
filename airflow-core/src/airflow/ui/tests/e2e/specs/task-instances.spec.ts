@@ -32,6 +32,18 @@ test.describe("Task Instances Page", () => {
     const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";
     const timestamp = Date.now();
 
+    // Wait for Dag to be parsed before making API calls
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(`${baseUrl}/api/v2/dags/${testDagId}`);
+
+          return response.ok();
+        },
+        { intervals: [2000], timeout: 60_000 },
+      )
+      .toBe(true);
+
     // Create first DAG run for success state
     const runId1 = `test_ti_success_${timestamp}`;
     const logicalDate1 = new Date(timestamp).toISOString();
