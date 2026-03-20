@@ -6699,6 +6699,1236 @@ def _clear_triage_caches(github_repository: str) -> None:
             console.print(f"[info]LLM {label} cache is already empty.[/]")
 
 
+def _split_label_filters(
+    labels: tuple[str, ...], exclude_labels: tuple[str, ...]
+) -> tuple[tuple[str, ...], list[str], tuple[str, ...], list[str]]:
+    """Split labels into (exact_labels, wildcard_labels, exact_exclude, wildcard_exclude)."""
+    exact_labels = tuple(lbl for lbl in labels if "*" not in lbl and "?" not in lbl)
+    wildcard_labels = [lbl for lbl in labels if "*" in lbl or "?" in lbl]
+    exact_exclude_labels = tuple(lbl for lbl in exclude_labels if "*" not in lbl and "?" not in lbl)
+    wildcard_exclude_labels = [lbl for lbl in exclude_labels if "*" in lbl or "?" in lbl]
+    return exact_labels, wildcard_labels, exact_exclude_labels, wildcard_exclude_labels
+
+
+def _apply_wildcard_label_filters(
+    prs: list[PRData], wildcard_labels: list[str], wildcard_exclude_labels: list[str]
+) -> list[PRData]:
+    """Filter PRs by wildcard include/exclude label patterns (client-side fnmatch)."""
+    from fnmatch import fnmatch
+
+    if wildcard_labels:
+        prs = [pr for pr in prs if any(fnmatch(lbl, pat) for pat in wildcard_labels for lbl in pr.labels)]
+    if wildcard_exclude_labels:
+        prs = [
+            pr
+            for pr in prs
+            if not any(fnmatch(lbl, pat) for pat in wildcard_exclude_labels for lbl in pr.labels)
+        ]
+    return prs
+
+
+def _merge_pr_assessments(
+    *assessments: PRAssessment | None,
+) -> PRAssessment | None:
+    """Merge multiple optional PRAssessments into one combined result. Returns None if all are None."""
+    violations: list = []
+    summaries: list[str] = []
+    for a in assessments:
+        if a:
+            violations.extend(a.violations)
+            summaries.append(a.summary)
+    if not violations and not summaries:
+        return None
+    from airflow_breeze.utils.github import PRAssessment as _PRAssessment
+
+    return _PRAssessment(
+        should_flag=True,
+        violations=violations,
+        summary=" ".join(summaries),
+    )
+
+
+@dataclass
+class DeterministicResult:
+    """Result of deterministic PR assessment."""
+
+    category: (
+        str  # "flagged", "draft_skipped", "grace_period", "in_progress", "pending_approval", "llm_candidate"
+    )
+    assessment: PRAssessment | None = None
+
+
+def _assess_pr_deterministic(
+    pr: PRData,
+    *,
+    token: str,
+    github_repository: str,
+) -> DeterministicResult:
+    """Run deterministic checks on a single PR and return its categorization."""
+    from airflow_breeze.utils.github import (
+        assess_pr_checks,
+        assess_pr_conflicts,
+        assess_pr_unresolved_comments,
+    )
+
+    ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
+
+    # Race condition: checks_state is FAILURE but workflows are currently running.
+    if ci_assessment and pr.head_sha and _has_in_progress_workflows(token, github_repository, pr.head_sha):
+        return DeterministicResult(category="in_progress")
+
+    # Grace period: don't flag CI failures within the grace window.
+    if (
+        ci_assessment
+        and pr.head_sha
+        and _are_failures_recent(token, github_repository, pr.head_sha, pr.ci_grace_period_hours)
+    ):
+        ci_assessment = None
+        # If CI is the only issue, skip this PR entirely
+        conflict_check = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
+        comments_check = assess_pr_unresolved_comments(
+            pr.number, pr.unresolved_review_comments, pr.unresolved_threads
+        )
+        if not conflict_check and not comments_check:
+            return DeterministicResult(category="grace_period")
+
+    conflict_assessment = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
+    comments_assessment = assess_pr_unresolved_comments(
+        pr.number, pr.unresolved_review_comments, pr.unresolved_threads
+    )
+
+    if ci_assessment or conflict_assessment or comments_assessment:
+        if pr.is_draft:
+            return DeterministicResult(category="draft_skipped")
+        merged = _merge_pr_assessments(conflict_assessment, ci_assessment, comments_assessment)
+        return DeterministicResult(category="flagged", assessment=merged)
+
+    # No deterministic issues found — needs further categorization
+    if pr.checks_state == "NOT_RUN":
+        if pr.head_sha and _has_in_progress_workflows(token, github_repository, pr.head_sha):
+            return DeterministicResult(category="in_progress")
+        return DeterministicResult(category="pending_approval")
+    if pr.is_draft and pr.head_sha and _has_in_progress_workflows(token, github_repository, pr.head_sha):
+        return DeterministicResult(category="in_progress")
+    return DeterministicResult(category="llm_candidate")
+
+
+@dataclass
+class CategorizationResult:
+    """Result of categorizing all candidate PRs."""
+
+    assessments: dict[int, PRAssessment] = field(default_factory=dict)
+    llm_candidates: list[PRData] = field(default_factory=list)
+    pending_approval: list[PRData] = field(default_factory=list)
+    workflows_in_progress: list[PRData] = field(default_factory=list)
+    skipped_drafts: list[PRData] = field(default_factory=list)
+    recent_failures_skipped: list[PRData] = field(default_factory=list)
+    deterministic_timings: dict[int, float] = field(default_factory=dict)
+    total_flagged: int = 0
+
+
+def _categorize_all_candidates(
+    candidate_prs: list[PRData],
+    *,
+    token: str,
+    github_repository: str,
+    run_api: bool,
+    progress_cb: Callable | None = None,
+) -> CategorizationResult:
+    """Iterate over candidates and sort them into deterministic buckets."""
+    result = CategorizationResult()
+
+    if run_api:
+        for pr_idx, pr in enumerate(candidate_prs):
+            if progress_cb:
+                progress_cb(pr_idx, len(candidate_prs))
+            t_det_start = time.monotonic()
+            det = _assess_pr_deterministic(pr, token=token, github_repository=github_repository)
+            result.deterministic_timings[pr.number] = time.monotonic() - t_det_start
+            if det.category == "flagged" and det.assessment:
+                result.total_flagged += 1
+                result.assessments[pr.number] = det.assessment
+            elif det.category == "draft_skipped":
+                result.skipped_drafts.append(pr)
+            elif det.category == "grace_period":
+                result.recent_failures_skipped.append(pr)
+            elif det.category == "in_progress":
+                result.workflows_in_progress.append(pr)
+            elif det.category == "pending_approval":
+                result.pending_approval.append(pr)
+            elif det.category == "llm_candidate":
+                result.llm_candidates.append(pr)
+    else:
+        for pr in candidate_prs:
+            if pr.checks_state == "NOT_RUN":
+                if pr.head_sha and _has_in_progress_workflows(token, github_repository, pr.head_sha):
+                    result.workflows_in_progress.append(pr)
+                else:
+                    result.pending_approval.append(pr)
+            elif (
+                pr.is_draft
+                and pr.head_sha
+                and _has_in_progress_workflows(token, github_repository, pr.head_sha)
+            ):
+                result.workflows_in_progress.append(pr)
+            else:
+                result.llm_candidates.append(pr)
+
+    return result
+
+
+def _build_triage_timing_table(
+    *,
+    phase1_total: float,
+    enrich_total: float,
+    num_all: int,
+    num_candidates: int,
+    deterministic_timings: dict[int, float],
+    llm_count: int,
+    llm_wall_time: float,
+    interactive_time: float,
+    total_elapsed: float,
+    prs_with_action: int,
+) -> Table:
+    """Build the timing summary table for triage."""
+    timing_table = Table(title="Timing Summary")
+    timing_table.add_column("Phase", style="bold")
+    timing_table.add_column("Total", justify="right")
+    timing_table.add_column("PRs", justify="right")
+    timing_table.add_column("Avg/PR", justify="right")
+    timing_table.add_column("Min/PR", justify="right")
+    timing_table.add_column("Max/PR", justify="right")
+
+    safe_num_all = num_all or 1
+    safe_num_candidates = num_candidates or 1
+
+    timing_table.add_row(
+        "Fetch PRs + commits behind",
+        _fmt_duration(phase1_total),
+        str(num_all),
+        _fmt_duration(phase1_total / safe_num_all),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    timing_table.add_row(
+        "Enrich PRs (checks + mergeability + comments)",
+        _fmt_duration(enrich_total),
+        str(num_candidates),
+        _fmt_duration(enrich_total / safe_num_candidates),
+        "[dim]—[/]",
+        "[dim]—[/]",
+    )
+
+    if deterministic_timings:
+        det_values = list(deterministic_timings.values())
+        det_total = sum(det_values)
+        timing_table.add_row(
+            "Deterministic triage",
+            _fmt_duration(det_total),
+            str(len(det_values)),
+            _fmt_duration(det_total / len(det_values)),
+            _fmt_duration(min(det_values)),
+            _fmt_duration(max(det_values)),
+        )
+    else:
+        timing_table.add_row("Deterministic triage", "[dim]—[/]", "0", "[dim]—[/]", "[dim]—[/]", "[dim]—[/]")
+
+    if llm_count:
+        timing_table.add_row(
+            "LLM assessment (background)",
+            _fmt_duration(llm_wall_time),
+            str(llm_count),
+            "[dim]—[/]",
+            "[dim]—[/]",
+            "[dim]—[/]",
+        )
+    else:
+        timing_table.add_row(
+            "LLM assessment (background)", "[dim]—[/]", "0", "[dim]—[/]", "[dim]—[/]", "[dim]—[/]"
+        )
+
+    timing_table.add_row(
+        "Interactive review (overlaps LLM)",
+        _fmt_duration(interactive_time),
+        "",
+        "",
+        "",
+        "",
+    )
+    timing_table.add_row("", "", "", "", "", "")
+    avg_per_actioned = _fmt_duration(total_elapsed / prs_with_action) if prs_with_action else "[dim]—[/]"
+    timing_table.add_row(
+        "[bold]Total[/]",
+        f"[bold]{_fmt_duration(total_elapsed)}[/]",
+        str(prs_with_action) if prs_with_action else "",
+        f"[bold]{avg_per_actioned}[/]" if prs_with_action else "",
+        "",
+        "",
+    )
+    return timing_table
+
+
+def _build_pr_timing_table(
+    *,
+    deterministic_timings: dict[int, float],
+    enrich_total: float,
+    num_candidates: int,
+    pr_titles: dict[int, str],
+    pr_urls: dict[int, str],
+    pr_actions: dict[int, str],
+    assessments: dict[int, PRAssessment],
+    llm_assessments: dict[int, PRAssessment],
+    skipped_drafts: list[PRData],
+    passing_prs: list[PRData],
+    llm_passing: list[PRData],
+    pending_approval: list[PRData],
+    workflows_in_progress: list[PRData],
+) -> Table:
+    """Build the per-PR timing table for triage."""
+    safe_num_candidates = num_candidates or 1
+    fetch_per_pr = enrich_total / safe_num_candidates
+
+    action_styles = {
+        "drafted": "[yellow]drafted[/]",
+        "commented": "[yellow]commented[/]",
+        "closed": "[red]closed[/]",
+        "ready": "[success]ready[/]",
+        "skipped": "[dim]skipped[/]",
+        "approved": "[success]approved[/]",
+        "suspicious": "[red]suspicious[/]",
+    }
+
+    pr_timing_table = Table(title="Per-PR Phase Timing")
+    pr_timing_table.add_column("PR", style="bold")
+    pr_timing_table.add_column("Title")
+    pr_timing_table.add_column("Result")
+    pr_timing_table.add_column("Action")
+    pr_timing_table.add_column("Fetch (avg)", justify="right")
+    pr_timing_table.add_column("Deterministic", justify="right")
+    pr_timing_table.add_column("Total", justify="right")
+
+    skipped_draft_nums = {pr.number for pr in skipped_drafts}
+    passing_nums = {pr.number for pr in passing_prs}
+    llm_passing_nums = {pr.number for pr in llm_passing}
+    pending_nums = {pr.number for pr in pending_approval}
+    in_progress_nums = {pr.number for pr in workflows_in_progress}
+
+    all_pr_numbers = sorted(
+        deterministic_timings.keys(),
+        key=lambda n: deterministic_timings.get(n, 0) + fetch_per_pr,
+        reverse=True,
+    )
+    for pr_num in all_pr_numbers:
+        title = pr_titles.get(pr_num, "")[:60]
+        det_time = deterministic_timings.get(pr_num, 0)
+        total_time = fetch_per_pr + det_time
+
+        if pr_num in skipped_draft_nums:
+            result = "[dim]draft-skipped[/]"
+        elif pr_num in assessments or pr_num in llm_assessments:
+            action_for_result = pr_actions.get(pr_num, "")
+            if action_for_result == "drafted":
+                result = "[yellow]drafted[/]"
+            elif action_for_result == "commented":
+                result = "[yellow]commented[/]"
+            elif action_for_result == "closed":
+                result = "[red]closed[/]"
+            elif action_for_result == "skipped":
+                result = "[dim]skipped[/]"
+            else:
+                result = "[yellow]issues found[/]"
+        elif pr_num in passing_nums or pr_num in llm_passing_nums:
+            result = "[success]passed[/]"
+        elif pr_num in pending_nums:
+            result = "[dim]pending[/]"
+        elif pr_num in in_progress_nums:
+            result = "[cyan]running[/]"
+        else:
+            result = "[yellow]error[/]"
+
+        action_raw = pr_actions.get(pr_num, "")
+        action_display = action_styles.get(action_raw, f"[dim]{action_raw or '—'}[/]")
+
+        pr_timing_table.add_row(
+            f"[link={pr_urls.get(pr_num, '')}]#{pr_num}[/link]",
+            title,
+            result,
+            action_display,
+            _fmt_duration(fetch_per_pr),
+            _fmt_duration(det_time) if det_time else "[dim]—[/]",
+            _fmt_duration(total_time),
+        )
+    return pr_timing_table
+
+
+@dataclass
+class BatchEnrichResult:
+    """Result of enriching and filtering a batch of PRs."""
+
+    all_prs: list[PRData]
+    candidate_prs: list[PRData]
+    accepted_prs: list[PRData]
+    already_triaged: list[PRData]
+    already_triaged_nums: set[int]
+    triaged_classification: dict[str, set[int]]
+    skipped_collaborator: int
+    skipped_bot: int
+    skipped_accepted: int
+
+
+def _enrich_and_filter_batch(
+    token: str,
+    github_repository: str,
+    all_prs: list[PRData],
+    *,
+    wildcard_labels: list[str],
+    wildcard_exclude_labels: list[str],
+    include_collaborators: bool,
+    include_drafts: bool,
+    checks_state: str,
+    min_commits_behind: int,
+    max_num: int,
+    viewer_login: str,
+    also_accepted: set[int] | None = None,
+    quiet: bool = False,
+    on_branch_progress: Callable[[int, int], None] | None = None,
+    on_merge_progress: Callable[[int, int], None] | None = None,
+    on_ci_progress: Callable[[int, int], None] | None = None,
+) -> BatchEnrichResult:
+    """Enrich, filter, and classify already-triaged PRs in a single batch.
+
+    This is the common pipeline shared by the initial batch, _load_more_batch, and pagination.
+    """
+    # Wildcard label filters
+    all_prs = _apply_wildcard_label_filters(all_prs, wildcard_labels, wildcard_exclude_labels)
+
+    # Branch status
+    behind_map = _fetch_commits_behind_batch(
+        token, github_repository, all_prs, on_progress=on_branch_progress
+    )
+    for pr in all_prs:
+        pr.commits_behind = behind_map.get(pr.number, 0)
+
+    # Merge status
+    unknown_count = sum(1 for pr in all_prs if pr.mergeable == "UNKNOWN")
+    if unknown_count:
+        _resolve_unknown_mergeable(token, github_repository, all_prs, on_progress=on_merge_progress)
+
+    # Verify CI for non-collab SUCCESS PRs
+    non_collab_success = [
+        pr
+        for pr in all_prs
+        if pr.checks_state == "SUCCESS"
+        and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+        and not _is_bot_account(pr.author_login)
+    ]
+    if non_collab_success:
+        _fetch_check_details_batch(token, github_repository, non_collab_success, on_progress=on_ci_progress)
+
+    # Filter candidates
+    candidate_prs, accepted_prs, skipped_collab, skipped_bot, skipped_accepted = _filter_candidate_prs(
+        all_prs,
+        include_collaborators=include_collaborators,
+        include_drafts=include_drafts,
+        checks_state=checks_state,
+        min_commits_behind=min_commits_behind,
+        max_num=max_num,
+        also_accepted=also_accepted,
+        quiet=quiet,
+    )
+
+    # Check already triaged
+    triaged_cls = _classify_already_triaged_prs(token, github_repository, candidate_prs, viewer_login)
+    triaged_nums = triaged_cls["waiting"] | triaged_cls["responded"]
+    already_triaged = [pr for pr in candidate_prs if pr.number in triaged_nums]
+    candidate_prs = [pr for pr in candidate_prs if pr.number not in triaged_nums]
+
+    return BatchEnrichResult(
+        all_prs=all_prs,
+        candidate_prs=candidate_prs,
+        accepted_prs=accepted_prs,
+        already_triaged=already_triaged,
+        already_triaged_nums=triaged_nums,
+        triaged_classification=triaged_cls,
+        skipped_collaborator=skipped_collab,
+        skipped_bot=skipped_bot,
+        skipped_accepted=skipped_accepted,
+    )
+
+
+def _launch_llm_and_build_context(
+    *,
+    token: str,
+    github_repository: str,
+    dry_run: bool,
+    answer_triage: str | None,
+    main_failures: RecentPRFailureInfo | None,
+    candidate_prs: list[PRData],
+    assessments: dict[int, PRAssessment],
+    llm_candidates: list[PRData],
+    run_llm: bool,
+    llm_model: str,
+    llm_concurrency: int,
+    stats: TriageStats,
+) -> tuple[TriageContext, ThreadPoolExecutor | None]:
+    """Launch LLM executor for candidates and build a TriageContext."""
+    llm_future_to_pr: dict = {}
+    llm_assessments: dict[int, PRAssessment] = {}
+    llm_completed: list = []
+    llm_errors: list[int] = []
+    llm_passing: list[PRData] = []
+    llm_executor = None
+
+    if run_llm and llm_candidates:
+        llm_executor = ThreadPoolExecutor(max_workers=llm_concurrency)
+        llm_future_to_pr = {
+            llm_executor.submit(
+                _cached_assess_pr,
+                github_repository=github_repository,
+                head_sha=pr.head_sha,
+                pr_number=pr.number,
+                pr_title=pr.title,
+                pr_body=pr.body,
+                check_status_summary=pr.check_summary,
+                llm_model=llm_model,
+            ): pr
+            for pr in llm_candidates
+        }
+
+    log_futures = _launch_background_log_fetching(token, github_repository, candidate_prs, llm_concurrency)
+
+    author_flagged_count: dict[str, int] = dict(
+        Counter(pr.author_login for pr in candidate_prs if pr.number in assessments)
+    )
+    ctx = TriageContext(
+        token=token,
+        github_repository=github_repository,
+        dry_run=dry_run,
+        answer_triage=answer_triage,
+        stats=stats,
+        author_flagged_count=author_flagged_count,
+        main_failures=main_failures,
+        llm_future_to_pr=llm_future_to_pr,
+        llm_assessments=llm_assessments,
+        llm_completed=llm_completed,
+        llm_errors=llm_errors,
+        llm_passing=llm_passing,
+        log_futures=log_futures,
+    )
+    return ctx, llm_executor
+
+
+def _process_pagination_batch(
+    *,
+    token: str,
+    github_repository: str,
+    exact_labels: tuple[str, ...],
+    exact_exclude_labels: tuple[str, ...],
+    filter_user: str | None,
+    sort: str,
+    batch_size: int,
+    created_after: str | None,
+    created_before: str | None,
+    updated_after: str | None,
+    updated_before: str | None,
+    review_requested: str | None,
+    next_cursor: str | None,
+    wildcard_labels: list[str],
+    wildcard_exclude_labels: list[str],
+    include_collaborators: bool,
+    include_drafts: bool,
+    checks_state: str,
+    min_commits_behind: int,
+    max_num: int,
+    viewer_login: str,
+    run_api: bool,
+    run_llm: bool,
+    llm_model: str,
+    llm_concurrency: int,
+    dry_run: bool,
+    answer_triage: str | None,
+    main_failures: RecentPRFailureInfo | None,
+    stats: TriageStats,
+    accepted_prs: list[PRData],
+) -> tuple[bool, str | None]:
+    """Process one pagination batch: fetch, enrich, categorize, review. Returns (has_next, cursor)."""
+    all_prs, has_next_page, new_cursor, _ = _fetch_prs_graphql(
+        token,
+        github_repository,
+        labels=exact_labels,
+        exclude_labels=exact_exclude_labels,
+        filter_user=filter_user,
+        sort=sort,
+        batch_size=batch_size,
+        created_after=created_after,
+        created_before=created_before,
+        updated_after=updated_after,
+        updated_before=updated_before,
+        review_requested=review_requested,
+        after_cursor=next_cursor,
+    )
+    if not all_prs:
+        console_print("[info]No more PRs to process.[/]")
+        return False, new_cursor
+
+    batch_result = _enrich_and_filter_batch(
+        token,
+        github_repository,
+        all_prs,
+        wildcard_labels=wildcard_labels,
+        wildcard_exclude_labels=wildcard_exclude_labels,
+        include_collaborators=include_collaborators,
+        include_drafts=include_drafts,
+        checks_state=checks_state,
+        min_commits_behind=min_commits_behind,
+        max_num=max_num,
+        viewer_login=viewer_login,
+    )
+    all_prs = batch_result.all_prs
+    candidate_prs = batch_result.candidate_prs
+    accepted_prs.extend(batch_result.accepted_prs)
+
+    # Reclassification logging
+    non_collab_success = [
+        pr
+        for pr in all_prs
+        if pr.checks_state == "SUCCESS"
+        and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+        and not _is_bot_account(pr.author_login)
+    ]
+    if non_collab_success:
+        reclassified = sum(1 for pr in non_collab_success if pr.checks_state == "NOT_RUN")
+        if reclassified:
+            console_print(
+                f"  [warning]{reclassified} {'PRs' if reclassified != 1 else 'PR'} "
+                f"reclassified to NOT_RUN (only bot/labeler checks).[/]"
+            )
+
+    if not candidate_prs:
+        console_print("[info]No PRs to assess in this batch.[/]")
+        _display_pr_overview_table(all_prs)
+        return has_next_page, new_cursor
+
+    _display_pr_overview_table(
+        all_prs,
+        triaged_waiting_nums=batch_result.triaged_classification["waiting"],
+        triaged_responded_nums=batch_result.triaged_classification["responded"],
+    )
+
+    if not candidate_prs:
+        console_print("[info]All PRs in this batch already triaged.[/]")
+        return has_next_page, new_cursor
+
+    # Enrich and assess
+    _enrich_candidate_details(token, github_repository, candidate_prs, run_api=run_api)
+
+    batch_passing: list[PRData] = []
+    if run_api:
+        batch_assessments: dict[int, PRAssessment] = {}
+        batch_llm_candidates: list[PRData] = []
+        batch_pending: list[PRData] = []
+        for pr in candidate_prs:
+            det = _assess_pr_deterministic(pr, token=token, github_repository=github_repository)
+            if det.category == "flagged" and det.assessment:
+                batch_assessments[pr.number] = det.assessment
+            elif det.category == "grace_period":
+                get_console().print(
+                    f"  [dim]Skipped {_pr_link(pr)} — CI failures less than "
+                    f"{pr.ci_grace_period_hours}h old"
+                    f"{' (collaborator engaged)' if pr.has_collaborator_review else ''}[/]"
+                )
+            elif det.category in ("in_progress", "draft_skipped"):
+                pass
+            elif det.category == "pending_approval":
+                batch_pending.append(pr)
+            elif det.category == "llm_candidate":
+                batch_llm_candidates.append(pr)
+    else:
+        batch_assessments = {}
+        batch_llm_candidates = []
+        batch_pending = []
+        for pr in candidate_prs:
+            if pr.checks_state == "NOT_RUN":
+                batch_pending.append(pr)
+            else:
+                batch_llm_candidates.append(pr)
+
+    if not run_llm:
+        batch_passing.extend(batch_llm_candidates)
+        batch_llm_candidates_for_llm: list[PRData] = []
+    else:
+        batch_llm_candidates_for_llm = batch_llm_candidates
+
+    batch_ctx, batch_executor = _launch_llm_and_build_context(
+        token=token,
+        github_repository=github_repository,
+        dry_run=dry_run,
+        answer_triage=answer_triage,
+        main_failures=main_failures,
+        candidate_prs=candidate_prs,
+        assessments=batch_assessments,
+        llm_candidates=batch_llm_candidates_for_llm,
+        run_llm=run_llm,
+        llm_model=llm_model,
+        llm_concurrency=llm_concurrency,
+        stats=stats,
+    )
+
+    try:
+        _review_workflow_approval_prs(batch_ctx, batch_pending)
+
+        det_flagged = [
+            (pr, batch_assessments[pr.number]) for pr in candidate_prs if pr.number in batch_assessments
+        ]
+        det_flagged.sort(key=lambda pair: (pair[0].author_login.lower(), pair[0].number))
+        _review_deterministic_flagged_prs(batch_ctx, det_flagged)
+
+        _review_llm_flagged_prs(batch_ctx, batch_llm_candidates)
+        batch_passing.extend(batch_ctx.llm_passing)
+
+        _review_passing_prs(batch_ctx, batch_passing)
+        _review_stale_review_requests(batch_ctx, batch_result.accepted_prs)
+    except KeyboardInterrupt:
+        console_print("\n[warning]Interrupted — shutting down.[/]")
+        stats.quit_early = True
+    finally:
+        if batch_executor is not None:
+            batch_executor.shutdown(wait=False, cancel_futures=True)
+
+    return has_next_page, new_cursor
+
+
+def _build_load_more_fn(
+    *,
+    token: str,
+    github_repository: str,
+    exact_labels: tuple[str, ...],
+    exact_exclude_labels: tuple[str, ...],
+    filter_user: str | None,
+    sort: str,
+    batch_size: int,
+    created_after: str | None,
+    created_before: str | None,
+    updated_after: str | None,
+    updated_before: str | None,
+    review_requested: str | None,
+    initial_cursor: str | None,
+    initial_has_more: bool,
+    include_collaborators: bool,
+    include_drafts: bool,
+    checks_state: str,
+    min_commits_behind: int,
+    viewer_login: str,
+    run_api: bool,
+    run_llm: bool,
+    llm_model: str,
+    llm_executor: ThreadPoolExecutor | None,
+    ctx: TriageContext,
+) -> Callable:
+    """Build a closure that fetches + enriches + categorizes the next page of PRs for the TUI."""
+    _batch_cursor: list[str | None] = [initial_cursor]
+    _batch_has_more: list[bool] = [initial_has_more]
+
+    def _load_more_batch():
+        if not _batch_has_more[0] or not _batch_cursor[0]:
+            return None
+
+        new_prs, more, cursor, _ = _fetch_prs_graphql(
+            token,
+            github_repository,
+            labels=exact_labels,
+            exclude_labels=exact_exclude_labels,
+            filter_user=filter_user,
+            sort=sort,
+            batch_size=batch_size,
+            created_after=created_after,
+            created_before=created_before,
+            updated_after=updated_after,
+            updated_before=updated_before,
+            review_requested=review_requested,
+            after_cursor=_batch_cursor[0],
+            quiet=True,
+        )
+        _batch_cursor[0] = cursor
+        _batch_has_more[0] = more
+
+        if not new_prs:
+            return None
+
+        # Enrich: branch status + CI verification
+        behind_map = _fetch_commits_behind_batch(token, github_repository, new_prs)
+        for pr in new_prs:
+            pr.commits_behind = behind_map.get(pr.number, 0)
+
+        non_collab_success = [
+            pr
+            for pr in new_prs
+            if pr.checks_state == "SUCCESS"
+            and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+            and not _is_bot_account(pr.author_login)
+        ]
+        if non_collab_success:
+            _fetch_check_details_batch(token, github_repository, non_collab_success)
+
+        # Filter candidates
+        new_candidates, new_accepted, _, _, _ = _filter_candidate_prs(
+            new_prs,
+            include_collaborators=include_collaborators,
+            include_drafts=include_drafts,
+            checks_state=checks_state,
+            min_commits_behind=min_commits_behind,
+            max_num=0,
+            quiet=True,
+        )
+
+        # Check already triaged
+        new_triaged_class = _classify_already_triaged_prs(
+            token, github_repository, new_candidates, viewer_login
+        )
+        new_triaged_nums = new_triaged_class["waiting"] | new_triaged_class["responded"]
+        new_candidates = [pr for pr in new_candidates if pr.number not in new_triaged_nums]
+
+        # Enrich candidate details
+        if new_candidates:
+            _enrich_candidate_details(token, github_repository, new_candidates, run_api=run_api, quiet=True)
+
+        # Categorize
+        new_assessments_map: dict[int, PRAssessment] = {}
+        new_pending: list[PRData] = []
+        new_passing: list[PRData] = []
+        new_det_flagged: list[tuple[PRData, PRAssessment]] = []
+
+        if run_api:
+            for pr in new_candidates:
+                det = _assess_pr_deterministic(pr, token=token, github_repository=github_repository)
+                if det.category == "flagged" and det.assessment:
+                    new_assessments_map[pr.number] = det.assessment
+                    new_det_flagged.append((pr, det.assessment))
+                elif det.category in ("in_progress", "draft_skipped", "grace_period"):
+                    continue
+                elif det.category == "pending_approval":
+                    new_pending.append(pr)
+                elif det.category == "llm_candidate":
+                    if run_llm and llm_executor:
+                        fut = llm_executor.submit(
+                            _cached_assess_pr,
+                            github_repository=github_repository,
+                            head_sha=pr.head_sha,
+                            pr_number=pr.number,
+                            pr_title=pr.title,
+                            pr_body=pr.body,
+                            check_status_summary=pr.check_summary,
+                            llm_model=llm_model,
+                        )
+                        ctx.llm_future_to_pr[fut] = pr
+                    else:
+                        new_passing.append(pr)
+        else:
+            for pr in new_candidates:
+                if pr.checks_state == "NOT_RUN":
+                    new_pending.append(pr)
+                else:
+                    new_passing.append(pr)
+
+        return (
+            new_prs,
+            new_det_flagged,
+            new_pending,
+            new_passing,
+            new_triaged_nums,
+            more,
+        )
+
+    return _load_more_batch
+
+
+@dataclass
+class FetchResult:
+    """Result of the initial PR fetching phase."""
+
+    all_prs: list[PRData]
+    has_next_page: bool
+    next_cursor: str | None
+    total_matching_prs: int
+    reviewed_by_prs: set[int]
+
+
+def _fetch_initial_prs(
+    *,
+    token: str,
+    github_repository: str,
+    pr_number: int | None,
+    exact_labels: tuple[str, ...],
+    exact_exclude_labels: tuple[str, ...],
+    wildcard_labels: list[str],
+    wildcard_exclude_labels: list[str],
+    filter_user: str | None,
+    sort: str,
+    batch_size: int,
+    created_after: str | None,
+    created_before: str | None,
+    updated_after: str | None,
+    updated_before: str | None,
+    review_requested_user: str | None,
+    review_requested_users: list[str],
+    review_mode: bool,
+    labels: tuple[str, ...],
+    quiet: bool = False,
+) -> FetchResult:
+    """Phase 1: Fetch PRs via GraphQL, apply wildcard filters, fetch reviewed-by PRs."""
+    console = get_console()
+    has_next_page = False
+    next_cursor: str | None = None
+    total_matching_prs = 0
+
+    if pr_number:
+        if not quiet:
+            console_print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
+        all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
+        total_matching_prs = 1
+    elif len(review_requested_users) > 1:
+        if not quiet:
+            console_print("[info]Fetching PRs via GraphQL for multiple reviewers...[/]")
+        seen_numbers: set[int] = set()
+        all_prs: list[PRData] = []
+        for reviewer in review_requested_users:
+            batch_prs, _, _, _ = _fetch_prs_graphql(
+                token,
+                github_repository,
+                labels=exact_labels,
+                exclude_labels=exact_exclude_labels,
+                filter_user=filter_user,
+                sort=sort,
+                batch_size=batch_size,
+                created_after=created_after,
+                created_before=created_before,
+                updated_after=updated_after,
+                updated_before=updated_before,
+                review_requested=reviewer,
+                quiet=quiet,
+            )
+            for pr in batch_prs:
+                if pr.number not in seen_numbers:
+                    seen_numbers.add(pr.number)
+                    all_prs.append(pr)
+        has_next_page = False
+        total_matching_prs = len(all_prs)
+    else:
+        if not quiet:
+            console_print("[info]Fetching PRs via GraphQL...[/]")
+        all_prs, has_next_page, next_cursor, total_matching_prs = _fetch_prs_graphql(
+            token,
+            github_repository,
+            labels=exact_labels,
+            exclude_labels=exact_exclude_labels,
+            filter_user=filter_user,
+            sort=sort,
+            batch_size=batch_size,
+            created_after=created_after,
+            created_before=created_before,
+            updated_after=updated_after,
+            updated_before=updated_before,
+            review_requested=review_requested_user,
+            quiet=quiet,
+        )
+
+    # Apply wildcard label filters client-side
+    all_prs = _apply_wildcard_label_filters(all_prs, wildcard_labels, wildcard_exclude_labels)
+
+    # In review mode, also fetch PRs where the reviewer has already submitted a review
+    reviewed_by_prs: set[int] = set()
+    if review_mode and review_requested_users:
+        seen_numbers = {pr.number for pr in all_prs}
+        base_exact_labels = tuple(lbl for lbl in labels if "*" not in lbl and "?" not in lbl)
+        for reviewer in review_requested_users:
+            batch_prs, _, _, _ = _fetch_prs_graphql(
+                token,
+                github_repository,
+                labels=base_exact_labels,
+                exclude_labels=exact_exclude_labels,
+                filter_user=filter_user,
+                sort=sort,
+                batch_size=batch_size,
+                created_after=created_after,
+                created_before=created_before,
+                updated_after=updated_after,
+                updated_before=updated_before,
+                reviewed_by=reviewer,
+                quiet=quiet,
+            )
+            for pr in batch_prs:
+                if pr.number not in seen_numbers:
+                    seen_numbers.add(pr.number)
+                    all_prs.append(pr)
+                    reviewed_by_prs.add(pr.number)
+        if reviewed_by_prs and not quiet:
+            console.print(
+                f"[info]Also found {len(reviewed_by_prs)} "
+                f"{'PRs' if len(reviewed_by_prs) != 1 else 'PR'} "
+                f"previously reviewed by {', '.join(review_requested_users)}.[/]"
+            )
+
+    return FetchResult(
+        all_prs=all_prs,
+        has_next_page=has_next_page,
+        next_cursor=next_cursor,
+        total_matching_prs=total_matching_prs,
+        reviewed_by_prs=reviewed_by_prs,
+    )
+
+
+@dataclass
+class StartupEnrichResult:
+    """Result of the startup enrichment phase (branch status, merge, CI verify, filter, triage)."""
+
+    candidate_prs: list[PRData]
+    accepted_prs: list[PRData]
+    already_triaged: list[PRData]
+    already_triaged_nums: set[int]
+    triaged_classification: dict[str, set[int]]
+    triaged_waiting_count: int
+    triaged_responded_count: int
+    total_skipped_collaborator: int
+    total_skipped_bot: int
+    total_skipped_accepted: int
+
+
+def _run_startup_enrichment(
+    token: str,
+    github_repository: str,
+    all_prs: list[PRData],
+    *,
+    include_collaborators: bool,
+    include_drafts: bool,
+    checks_state: str,
+    min_commits_behind: int,
+    max_num: int,
+    viewer_login: str,
+    review_mode: bool,
+    reviewed_by_prs: set[int],
+    quiet: bool = False,
+    on_branch_progress: Callable[[int, int], None] | None = None,
+    on_merge_progress: Callable[[int, int], None] | None = None,
+    on_ci_progress: Callable[[int, int], None] | None = None,
+    on_triage_progress: Callable[[int, int], None] | None = None,
+) -> StartupEnrichResult:
+    """Phase 2: Enrich PRs with branch/merge/CI data, filter candidates, check triage status."""
+    console = get_console()
+
+    # Branch status
+    if not quiet:
+        console.print()
+        console.rule("[bold]Phase 2: Enrich PR data[/]")
+        console_print("[info]Checking how far behind base branch each PR is...[/]")
+    t_step = time.monotonic()
+    behind_map = _fetch_commits_behind_batch(
+        token, github_repository, all_prs, on_progress=on_branch_progress
+    )
+    for pr in all_prs:
+        pr.commits_behind = behind_map.get(pr.number, 0)
+    behind_count = sum(1 for pr in all_prs if pr.commits_behind > 0)
+    if not quiet:
+        console.print(
+            f"  [dim]{behind_count} PRs behind base branch ({_fmt_duration(time.monotonic() - t_step)})[/]"
+        )
+
+    # Merge status
+    unknown_count = sum(1 for pr in all_prs if pr.mergeable == "UNKNOWN")
+    if unknown_count:
+        t_step = time.monotonic()
+        if not quiet:
+            console_print(
+                f"[info]Resolving merge conflict status for {unknown_count} "
+                f"{'PRs' if unknown_count != 1 else 'PR'} with unknown status...[/]"
+            )
+        resolved = _resolve_unknown_mergeable(
+            token, github_repository, all_prs, on_progress=on_merge_progress
+        )
+        remaining = unknown_count - resolved
+        if not quiet:
+            if remaining:
+                console_print(
+                    f"  [dim]{resolved} resolved, {remaining} still unknown "
+                    f"(GitHub hasn't computed mergeability yet) "
+                    f"({_fmt_duration(time.monotonic() - t_step)})[/]"
+                )
+            else:
+                console_print(
+                    f"  [dim]All {resolved} resolved ({_fmt_duration(time.monotonic() - t_step)})[/]"
+                )
+    conflict_count = sum(1 for pr in all_prs if pr.mergeable == "CONFLICTING")
+    if conflict_count and not quiet:
+        console.print(f"  [dim]{conflict_count} PRs have merge conflicts[/]")
+
+    # CI verification
+    non_collab_success = [
+        pr
+        for pr in all_prs
+        if pr.checks_state == "SUCCESS"
+        and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+        and not _is_bot_account(pr.author_login)
+    ]
+    if non_collab_success:
+        t_step = time.monotonic()
+        if not quiet:
+            console_print(
+                f"[info]Verifying CI status for {len(non_collab_success)} "
+                f"{'PRs' if len(non_collab_success) != 1 else 'PR'} "
+                f"showing SUCCESS (checking for real test checks)...[/]"
+            )
+        _fetch_check_details_batch(token, github_repository, non_collab_success, on_progress=on_ci_progress)
+        reclassified = sum(1 for pr in non_collab_success if pr.checks_state == "NOT_RUN")
+        if not quiet:
+            if reclassified:
+                console_print(
+                    f"  [warning]{reclassified} {'PRs' if reclassified != 1 else 'PR'} "
+                    f"reclassified to NOT_RUN (only bot/labeler checks, no real CI) "
+                    f"({_fmt_duration(time.monotonic() - t_step)})[/]"
+                )
+            else:
+                console.print(
+                    f"  [dim]All verified as real CI ({_fmt_duration(time.monotonic() - t_step)})[/]"
+                )
+
+    # Filter candidates
+    if not quiet:
+        console.print()
+        console.rule("[bold]Phase 3: Filter & classify[/]")
+    candidate_prs, accepted_prs, total_skipped_collaborator, total_skipped_bot, total_skipped_accepted = (
+        _filter_candidate_prs(
+            all_prs,
+            include_collaborators=include_collaborators,
+            include_drafts=include_drafts,
+            checks_state=checks_state,
+            min_commits_behind=min_commits_behind,
+            max_num=max_num,
+            also_accepted=reviewed_by_prs if review_mode else None,
+            quiet=quiet,
+        )
+    )
+    if not quiet:
+        console.print(
+            f"[info]Candidates: [bold]{len(candidate_prs)}[/bold] "
+            f"(skipped {total_skipped_collaborator} collaborator, "
+            f"{total_skipped_bot} bot"
+            f"{f', {total_skipped_accepted} accepted' if total_skipped_accepted else ''})[/]"
+        )
+
+    # Triage check
+    t_step = time.monotonic()
+    if not quiet:
+        console_print(
+            "[info]Checking for PRs already triaged (no new commits since last triage comment)...[/]"
+        )
+    triaged_classification = _classify_already_triaged_prs(
+        token, github_repository, candidate_prs, viewer_login, on_progress=on_triage_progress
+    )
+    already_triaged_nums = triaged_classification["waiting"] | triaged_classification["responded"]
+    triaged_waiting_count = len(triaged_classification["waiting"])
+    triaged_responded_count = len(triaged_classification["responded"])
+    already_triaged: list[PRData] = []
+    if already_triaged_nums:
+        already_triaged = [pr for pr in candidate_prs if pr.number in already_triaged_nums]
+        candidate_prs = [pr for pr in candidate_prs if pr.number not in already_triaged_nums]
+        if not quiet:
+            console_print(
+                f"[info]Skipped {len(already_triaged)} already-triaged "
+                f"{'PRs' if len(already_triaged) != 1 else 'PR'} "
+                f"({triaged_waiting_count} commented, "
+                f"{triaged_responded_count} author responded) "
+                f"({_fmt_duration(time.monotonic() - t_step)})[/]"
+            )
+    elif not quiet:
+        console_print(f"  [dim]None found ({_fmt_duration(time.monotonic() - t_step)})[/]")
+
+    # Overview table
+    if not quiet:
+        _display_pr_overview_table(
+            all_prs,
+            triaged_waiting_nums=triaged_classification["waiting"],
+            triaged_responded_nums=triaged_classification["responded"],
+        )
+
+    return StartupEnrichResult(
+        candidate_prs=candidate_prs,
+        accepted_prs=accepted_prs,
+        already_triaged=already_triaged,
+        already_triaged_nums=already_triaged_nums,
+        triaged_classification=triaged_classification,
+        triaged_waiting_count=triaged_waiting_count,
+        triaged_responded_count=triaged_responded_count,
+        total_skipped_collaborator=total_skipped_collaborator,
+        total_skipped_bot=total_skipped_bot,
+        total_skipped_accepted=total_skipped_accepted,
+    )
+
+
+def _enrich_and_categorize_candidates(
+    token: str,
+    github_repository: str,
+    candidate_prs: list[PRData],
+    *,
+    run_api: bool,
+    quiet: bool = False,
+    on_check_progress: Callable[[int, int], None] | None = None,
+    on_merge_progress: Callable[[int, int], None] | None = None,
+    on_review_progress: Callable[[int, int], None] | None = None,
+    on_classify_progress: Callable[[int, int], None] | None = None,
+) -> tuple[CategorizationResult, float, float]:
+    """Enrich candidate PRs and run deterministic categorization.
+
+    Returns (categorization_result, enrich_start_time, enrich_end_time).
+    """
+    t_enrich_start = time.monotonic()
+    _enrich_candidate_details(
+        token,
+        github_repository,
+        candidate_prs,
+        run_api=run_api,
+        quiet=quiet,
+        on_check_progress=on_check_progress,
+        on_merge_progress=on_merge_progress,
+        on_review_progress=on_review_progress,
+    )
+    t_enrich_end = time.monotonic()
+
+    cat_result = _categorize_all_candidates(
+        candidate_prs,
+        token=token,
+        github_repository=github_repository,
+        run_api=run_api,
+        progress_cb=on_classify_progress,
+    )
+
+    if not quiet:
+        if cat_result.skipped_drafts:
+            console_print(
+                f"[info]Skipped {len(cat_result.skipped_drafts)} draft "
+                f"{'PRs' if len(cat_result.skipped_drafts) != 1 else 'PR'} "
+                f"with existing issues (CI failures, conflicts, or unresolved comments).[/]"
+            )
+        if cat_result.workflows_in_progress:
+            console_print(
+                f"[info]Excluded {len(cat_result.workflows_in_progress)} "
+                f"{'PRs' if len(cat_result.workflows_in_progress) != 1 else 'PR'} "
+                f"with workflows already in progress.[/]"
+            )
+        if cat_result.recent_failures_skipped:
+            get_console().print(
+                f"[info]Skipped {len(cat_result.recent_failures_skipped)} "
+                f"{'PRs' if len(cat_result.recent_failures_skipped) != 1 else 'PR'} "
+                f"with recent CI failures within grace period "
+                f"(giving authors time to address at their own pace):[/]"
+            )
+            for pr in cat_result.recent_failures_skipped:
+                grace = pr.ci_grace_period_hours
+                engaged = " (collaborator engaged)" if pr.has_collaborator_review else ""
+                get_console().print(f"  [dim]{_pr_link(pr)} — {pr.title[:70]} [<{grace}h{engaged}][/]")
+
+    return cat_result, t_enrich_start, t_enrich_end
+
+
 def _enrich_pr_batch(
     token: str,
     github_repository: str,
@@ -7074,12 +8304,7 @@ def auto_triage(
     clear_cache: bool,
     answer_triage: str | None,
 ):
-    from airflow_breeze.utils.github import (
-        PRAssessment,
-        assess_pr_checks,
-        assess_pr_conflicts,
-        assess_pr_unresolved_comments,
-    )
+
     from airflow_breeze.utils.llm_utils import (
         _check_cli_available,
         _resolve_cli_provider,
@@ -7232,18 +8457,15 @@ def auto_triage(
             console_print(f"[info]Filtering PRs with review requested for: {', '.join(reviewers)}[/]")
 
     # Phase 1: Fetch PRs via GraphQL
-    from fnmatch import fnmatch
-
     # In review mode, force-include the "ready for maintainer review" label in the search
     # (unless we also fetch reviewed-by PRs below, in which case the label search is one of two queries)
     effective_labels = labels
     if review_mode and _READY_FOR_REVIEW_LABEL not in labels:
         effective_labels = (*labels, _READY_FOR_REVIEW_LABEL)
 
-    exact_labels = tuple(lbl for lbl in effective_labels if "*" not in lbl and "?" not in lbl)
-    wildcard_labels = [lbl for lbl in effective_labels if "*" in lbl or "?" in lbl]
-    exact_exclude_labels = tuple(lbl for lbl in exclude_labels if "*" not in lbl and "?" not in lbl)
-    wildcard_exclude_labels = [lbl for lbl in exclude_labels if "*" in lbl or "?" in lbl]
+    exact_labels, wildcard_labels, exact_exclude_labels, wildcard_exclude_labels = _split_label_filters(
+        effective_labels, exclude_labels
+    )
 
     t_total_start = time.monotonic()
 
@@ -7253,61 +8475,33 @@ def auto_triage(
         console.print()
         console.rule("[bold]Phase 1: Fetch PRs[/]")
     t_phase1_start = time.monotonic()
-    has_next_page = False
-    next_cursor: str | None = None
-    total_matching_prs = 0
-    if pr_number:
-        if not use_tui:
-            console_print(f"[info]Fetching PR #{pr_number} via GraphQL...[/]")
-        all_prs = [_fetch_single_pr_graphql(token, github_repository, pr_number)]
-        total_matching_prs = 1
-    elif len(review_requested_users) > 1:
-        # Multiple reviewers: fetch PRs for each reviewer and merge (deduplicate)
-        if not use_tui:
-            console_print("[info]Fetching PRs via GraphQL for multiple reviewers...[/]")
-        seen_numbers: set[int] = set()
-        all_prs = []
-        for reviewer in review_requested_users:
-            batch_prs, _, _, _ = _fetch_prs_graphql(
-                token,
-                github_repository,
-                labels=exact_labels,
-                exclude_labels=exact_exclude_labels,
-                filter_user=filter_user,
-                sort=sort,
-                batch_size=batch_size,
-                created_after=created_after,
-                created_before=created_before,
-                updated_after=updated_after,
-                updated_before=updated_before,
-                review_requested=reviewer,
-                quiet=use_tui,
-            )
-            for pr in batch_prs:
-                if pr.number not in seen_numbers:
-                    seen_numbers.add(pr.number)
-                    all_prs.append(pr)
-        # Disable pagination for multi-reviewer queries
-        has_next_page = False
-        total_matching_prs = len(all_prs)
-    else:
-        if not use_tui:
-            console_print("[info]Fetching PRs via GraphQL...[/]")
-        all_prs, has_next_page, next_cursor, total_matching_prs = _fetch_prs_graphql(
-            token,
-            github_repository,
-            labels=exact_labels,
-            exclude_labels=exact_exclude_labels,
-            filter_user=filter_user,
-            sort=sort,
-            batch_size=batch_size,
-            created_after=created_after,
-            created_before=created_before,
-            updated_after=updated_after,
-            updated_before=updated_before,
-            review_requested=review_requested_user,
-            quiet=use_tui,
-        )
+    fetch_result = _fetch_initial_prs(
+        token=token,
+        github_repository=github_repository,
+        pr_number=pr_number,
+        exact_labels=exact_labels,
+        exact_exclude_labels=exact_exclude_labels,
+        wildcard_labels=wildcard_labels,
+        wildcard_exclude_labels=wildcard_exclude_labels,
+        filter_user=filter_user,
+        sort=sort,
+        batch_size=batch_size,
+        created_after=created_after,
+        created_before=created_before,
+        updated_after=updated_after,
+        updated_before=updated_before,
+        review_requested_user=review_requested_user,
+        review_requested_users=review_requested_users,
+        review_mode=review_mode,
+        labels=labels,
+        quiet=use_tui,
+    )
+    all_prs = fetch_result.all_prs
+    has_next_page = fetch_result.has_next_page
+    next_cursor = fetch_result.next_cursor
+    total_matching_prs = fetch_result.total_matching_prs
+    reviewed_by_prs = fetch_result.reviewed_by_prs
+
     t_fetch = time.monotonic() - t_phase1_start
     collab_count = sum(1 for pr in all_prs if pr.author_association in _COLLABORATOR_ASSOCIATIONS)
     non_collab_count = len(all_prs) - collab_count
@@ -7321,207 +8515,58 @@ def auto_triage(
         if has_next_page:
             console.print(f"[info]More pages available (batch size: {batch_size})[/]")
 
-    # Apply wildcard label filters client-side
-    if wildcard_labels:
-        all_prs = [
-            pr for pr in all_prs if any(fnmatch(lbl, pat) for pat in wildcard_labels for lbl in pr.labels)
-        ]
-    if wildcard_exclude_labels:
-        all_prs = [
-            pr
-            for pr in all_prs
-            if not any(fnmatch(lbl, pat) for pat in wildcard_exclude_labels for lbl in pr.labels)
-        ]
-
-    # In review mode with a reviewer filter, also fetch PRs where the reviewer has already
-    # submitted a review (e.g. CHANGES_REQUESTED). These won't have the "ready for maintainer
-    # review" label but should still appear in review mode so the reviewer can follow up.
-    reviewed_by_prs: set[int] = set()
-    if review_mode and review_requested_users:
-        seen_numbers = {pr.number for pr in all_prs}
-        # Use base labels (without the ready-for-review label) for the reviewed-by query
-        base_exact_labels = tuple(lbl for lbl in labels if "*" not in lbl and "?" not in lbl)
-        for reviewer in review_requested_users:
-            batch_prs, _, _, _ = _fetch_prs_graphql(
-                token,
-                github_repository,
-                labels=base_exact_labels,
-                exclude_labels=exact_exclude_labels,
-                filter_user=filter_user,
-                sort=sort,
-                batch_size=batch_size,
-                created_after=created_after,
-                created_before=created_before,
-                updated_after=updated_after,
-                updated_before=updated_before,
-                reviewed_by=reviewer,
-                quiet=use_tui,
-            )
-            for pr in batch_prs:
-                if pr.number not in seen_numbers:
-                    seen_numbers.add(pr.number)
-                    all_prs.append(pr)
-                    reviewed_by_prs.add(pr.number)
-        if reviewed_by_prs and not use_tui:
-            console.print(
-                f"[info]Also found {len(reviewed_by_prs)} "
-                f"{'PRs' if len(reviewed_by_prs) != 1 else 'PR'} "
-                f"previously reviewed by {', '.join(review_requested_users)}.[/]"
-            )
-
-    # Resolve how far behind base branch each PR is
+    # Phase 2: Enrich PR data (branch status, merge, CI verify, filter, triage check)
     _step_start("branch_status", total=len(all_prs))
-    if not use_tui:
-        console.print()
-        console.rule("[bold]Phase 2: Enrich PR data[/]")
-        console_print("[info]Checking how far behind base branch each PR is...[/]")
-    t_step = time.monotonic()
-    behind_map = _fetch_commits_behind_batch(
-        token, github_repository, all_prs, on_progress=_make_progress_cb("branch_status")
+    _step_start("merge_status")
+    _step_start("verify_ci")
+    _step_start("classify")
+    _step_start("triage_check")
+    enrich_result = _run_startup_enrichment(
+        token,
+        github_repository,
+        all_prs,
+        include_collaborators=include_collaborators,
+        include_drafts=include_drafts,
+        checks_state=checks_state,
+        min_commits_behind=min_commits_behind,
+        max_num=max_num,
+        viewer_login=viewer_login,
+        review_mode=review_mode,
+        reviewed_by_prs=reviewed_by_prs,
+        quiet=use_tui,
+        on_branch_progress=_make_progress_cb("branch_status"),
+        on_merge_progress=_make_progress_cb("merge_status"),
+        on_ci_progress=_make_progress_cb("verify_ci"),
+        on_triage_progress=_make_progress_cb("triage_check"),
     )
-    for pr in all_prs:
-        pr.commits_behind = behind_map.get(pr.number, 0)
+    candidate_prs = enrich_result.candidate_prs
+    accepted_prs = enrich_result.accepted_prs
+    already_triaged = enrich_result.already_triaged
+    already_triaged_nums = enrich_result.already_triaged_nums
+    total_skipped_collaborator = enrich_result.total_skipped_collaborator
+    total_skipped_bot = enrich_result.total_skipped_bot
+    total_skipped_accepted = enrich_result.total_skipped_accepted
+    triaged_waiting_count = enrich_result.triaged_waiting_count
+    triaged_responded_count = enrich_result.triaged_responded_count
+    # Update progress bar steps with final status
     behind_count = sum(1 for pr in all_prs if pr.commits_behind > 0)
     _step_done("branch_status", f"{behind_count} behind")
-    if not use_tui:
-        console.print(
-            f"  [dim]{behind_count} PRs behind base branch ({_fmt_duration(time.monotonic() - t_step)})[/]"
-        )
-
-    # Resolve UNKNOWN mergeable status before displaying the overview table
-    unknown_count = sum(1 for pr in all_prs if pr.mergeable == "UNKNOWN")
-    if unknown_count:
-        _step_start("merge_status", total=unknown_count)
-        t_step = time.monotonic()
-        if not use_tui:
-            console_print(
-                f"[info]Resolving merge conflict status for {unknown_count} "
-                f"{'PRs' if unknown_count != 1 else 'PR'} with unknown status...[/]"
-            )
-        resolved = _resolve_unknown_mergeable(
-            token, github_repository, all_prs, on_progress=_make_progress_cb("merge_status")
-        )
-        remaining = unknown_count - resolved
-        if not use_tui:
-            if remaining:
-                console_print(
-                    f"  [dim]{resolved} resolved, {remaining} still unknown "
-                    f"(GitHub hasn't computed mergeability yet) "
-                    f"({_fmt_duration(time.monotonic() - t_step)})[/]"
-                )
-            else:
-                console_print(
-                    f"  [dim]All {resolved} resolved ({_fmt_duration(time.monotonic() - t_step)})[/]"
-                )
     conflict_count = sum(1 for pr in all_prs if pr.mergeable == "CONFLICTING")
-    if unknown_count:
-        _step_done("merge_status", f"{conflict_count} conflicts")
-    else:
-        _step_done("merge_status", "none unknown")
-    if conflict_count and not use_tui:
-        console.print(f"  [dim]{conflict_count} PRs have merge conflicts[/]")
-
-    # Detect PRs whose rollup state is SUCCESS but only have bot/labeler checks (no real CI).
-    # These need to be reclassified as NOT_RUN so they get routed to workflow approval.
-    non_collab_success = [
-        pr
+    unknown_count = sum(1 for pr in all_prs if pr.mergeable == "UNKNOWN")
+    _step_done(
+        "merge_status", f"{conflict_count} conflicts" if unknown_count or conflict_count else "none unknown"
+    )
+    reclassified = sum(
+        1
         for pr in all_prs
-        if pr.checks_state == "SUCCESS"
+        if pr.checks_state == "NOT_RUN"
         and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
         and not _is_bot_account(pr.author_login)
-    ]
-    if non_collab_success:
-        _step_start("verify_ci", total=len(non_collab_success))
-        t_step = time.monotonic()
-        if not use_tui:
-            console_print(
-                f"[info]Verifying CI status for {len(non_collab_success)} "
-                f"{'PRs' if len(non_collab_success) != 1 else 'PR'} "
-                f"showing SUCCESS (checking for real test checks)...[/]"
-            )
-        _fetch_check_details_batch(
-            token, github_repository, non_collab_success, on_progress=_make_progress_cb("verify_ci")
-        )
-        reclassified = sum(1 for pr in non_collab_success if pr.checks_state == "NOT_RUN")
-        _step_done("verify_ci", f"{reclassified} reclassified" if reclassified else "all real CI")
-        if not use_tui:
-            if reclassified:
-                console_print(
-                    f"  [warning]{reclassified} {'PRs' if reclassified != 1 else 'PR'} "
-                    f"reclassified to NOT_RUN (only bot/labeler checks, no real CI) "
-                    f"({_fmt_duration(time.monotonic() - t_step)})[/]"
-                )
-            else:
-                console.print(
-                    f"  [dim]All verified as real CI ({_fmt_duration(time.monotonic() - t_step)})[/]"
-                )
-    else:
-        _step_done("verify_ci", "none to verify")
-
-    # Filter candidates first
-    _step_start("classify")
-    if not use_tui:
-        console.print()
-        console.rule("[bold]Phase 3: Filter & classify[/]")
-    candidate_prs, accepted_prs, total_skipped_collaborator, total_skipped_bot, total_skipped_accepted = (
-        _filter_candidate_prs(
-            all_prs,
-            include_collaborators=include_collaborators,
-            include_drafts=include_drafts,
-            checks_state=checks_state,
-            min_commits_behind=min_commits_behind,
-            max_num=max_num,
-            also_accepted=reviewed_by_prs if review_mode else None,
-            quiet=use_tui,
-        )
     )
-    if not use_tui:
-        console.print(
-            f"[info]Candidates: [bold]{len(candidate_prs)}[/bold] "
-            f"(skipped {total_skipped_collaborator} collaborator, "
-            f"{total_skipped_bot} bot"
-            f"{f', {total_skipped_accepted} accepted' if total_skipped_accepted else ''})[/]"
-        )
-
+    _step_done("verify_ci", f"{reclassified} reclassified" if reclassified else "none to verify")
     _step_done("classify", f"{len(candidate_prs)} candidates")
-
-    # Exclude PRs that already have a triage comment posted after the last commit
-    _step_start("triage_check", total=len(candidate_prs))
-    t_step = time.monotonic()
-    if not use_tui:
-        console_print(
-            "[info]Checking for PRs already triaged (no new commits since last triage comment)...[/]"
-        )
-    triaged_classification = _classify_already_triaged_prs(
-        token, github_repository, candidate_prs, viewer_login, on_progress=_make_progress_cb("triage_check")
-    )
-    already_triaged_nums = triaged_classification["waiting"] | triaged_classification["responded"]
-    triaged_waiting_count = len(triaged_classification["waiting"])
-    triaged_responded_count = len(triaged_classification["responded"])
-    already_triaged: list[PRData] = []
-    if already_triaged_nums:
-        already_triaged = [pr for pr in candidate_prs if pr.number in already_triaged_nums]
-        candidate_prs = [pr for pr in candidate_prs if pr.number not in already_triaged_nums]
-        if not use_tui:
-            console_print(
-                f"[info]Skipped {len(already_triaged)} already-triaged "
-                f"{'PRs' if len(already_triaged) != 1 else 'PR'} "
-                f"({triaged_waiting_count} commented, "
-                f"{triaged_responded_count} author responded) "
-                f"({_fmt_duration(time.monotonic() - t_step)})[/]"
-            )
-    elif not use_tui:
-        console_print(f"  [dim]None found ({_fmt_duration(time.monotonic() - t_step)})[/]")
     triage_status = f"{len(already_triaged)} skipped" if already_triaged_nums else "none found"
     _step_done("triage_check", triage_status)
-
-    # Display overview table only in sequential mode (TUI shows PRs itself)
-    if not use_tui:
-        _display_pr_overview_table(
-            all_prs,
-            triaged_waiting_nums=triaged_classification["waiting"],
-            triaged_responded_nums=triaged_classification["responded"],
-        )
 
     t_phase1_end = time.monotonic()
     if _progress:
@@ -7583,7 +8628,6 @@ def auto_triage(
         return
 
     # Enrich candidate PRs with check details, mergeable status, and review comments
-    t_enrich_start = time.monotonic()
     _enrich_progress = None
     _enrich_tasks: dict[str, TaskID] = {}
     if candidate_prs:
@@ -7621,7 +8665,7 @@ def auto_triage(
             task = _enrich_tasks[key]
             _enrich_progress.update(task, completed=_enrich_progress.tasks[task].total, status=status)
 
-    _enrich_candidate_details(
+    cat_result, t_enrich_start, t_enrich_end = _enrich_and_categorize_candidates(
         token,
         github_repository,
         candidate_prs,
@@ -7630,140 +8674,24 @@ def auto_triage(
         on_check_progress=_enrich_cb("enrich_checks"),
         on_merge_progress=_enrich_cb("enrich_merge"),
         on_review_progress=_enrich_cb("enrich_reviews"),
+        on_classify_progress=_enrich_cb("enrich_classify"),
     )
     _enrich_done("enrich_checks")
     _enrich_done("enrich_merge")
     _enrich_done("enrich_reviews")
-    t_enrich_end = time.monotonic()
-
-    # Phase 3: Deterministic checks + categorize PRs
-    assessments: dict[int, PRAssessment] = {}
-    llm_candidates: list[PRData] = []
-    passing_prs: list[PRData] = []
-    pending_approval: list[PRData] = []
-    workflows_in_progress: list[PRData] = []
-    skipped_drafts: list[PRData] = []  # Draft PRs skipped because they have other issues
-    recent_failures_skipped: list[PRData] = []  # PRs skipped because CI failures are < 24h old
-    total_deterministic_flags = 0
-    deterministic_timings: dict[int, float] = {}  # PR number -> deterministic triage duration
-
-    def _categorize_pr(pr: PRData) -> None:
-        """Route a PR to pending_approval, workflows_in_progress, or llm_candidates."""
-        if pr.checks_state == "NOT_RUN":
-            # No workflow runs yet — needs workflow approval.
-            # But first check if workflows are already running — skip those.
-            if pr.head_sha and _has_in_progress_workflows(token, github_repository, pr.head_sha):
-                workflows_in_progress.append(pr)
-            else:
-                pending_approval.append(pr)
-        elif (
-            pr.is_draft and pr.head_sha and _has_in_progress_workflows(token, github_repository, pr.head_sha)
-        ):
-            # Draft PRs with workflows still running — author is still iterating
-            workflows_in_progress.append(pr)
-        else:
-            llm_candidates.append(pr)
-
-    _classify_cb = _enrich_cb("enrich_classify")
-    if run_api:
-        for pr_idx, pr in enumerate(candidate_prs):
-            if _classify_cb:
-                _classify_cb(pr_idx, len(candidate_prs))
-            t_det_start = time.monotonic()
-            ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
-
-            # Race condition: checks_state is FAILURE but workflows are currently running.
-            # The rollup state may be stale from previous runs while new runs are in progress.
-            # In that case, skip the CI failure and treat as workflows in progress.
-            if (
-                ci_assessment
-                and pr.head_sha
-                and _has_in_progress_workflows(token, github_repository, pr.head_sha)
-            ):
-                workflows_in_progress.append(pr)
-                deterministic_timings[pr.number] = time.monotonic() - t_det_start
-                continue
-
-            # Grace period: don't flag CI failures within the grace window.
-            # Default 24 h; extended to 96 h when a collaborator has already engaged.
-            if (
-                ci_assessment
-                and pr.head_sha
-                and _are_failures_recent(token, github_repository, pr.head_sha, pr.ci_grace_period_hours)
-            ):
-                ci_assessment = None
-                # If CI is the only issue, skip this PR entirely
-                conflict_check = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
-                comments_check = assess_pr_unresolved_comments(
-                    pr.number, pr.unresolved_review_comments, pr.unresolved_threads
-                )
-                if not conflict_check and not comments_check:
-                    recent_failures_skipped.append(pr)
-                    deterministic_timings[pr.number] = time.monotonic() - t_det_start
-                    continue
-
-            conflict_assessment = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
-            comments_assessment = assess_pr_unresolved_comments(
-                pr.number, pr.unresolved_review_comments, pr.unresolved_threads
-            )
-
-            if ci_assessment or conflict_assessment or comments_assessment:
-                if pr.is_draft:
-                    # Draft PRs with issues are skipped — the author is still working on them
-                    skipped_drafts.append(pr)
-                else:
-                    total_deterministic_flags += 1
-                    violations = []
-                    summaries = []
-                    if conflict_assessment:
-                        violations.extend(conflict_assessment.violations)
-                        summaries.append(conflict_assessment.summary)
-                    if ci_assessment:
-                        violations.extend(ci_assessment.violations)
-                        summaries.append(ci_assessment.summary)
-                    if comments_assessment:
-                        violations.extend(comments_assessment.violations)
-                        summaries.append(comments_assessment.summary)
-                    assessments[pr.number] = PRAssessment(
-                        should_flag=True,
-                        violations=violations,
-                        summary=" ".join(summaries),
-                    )
-            else:
-                _categorize_pr(pr)
-            deterministic_timings[pr.number] = time.monotonic() - t_det_start
-    else:
-        for pr in candidate_prs:
-            _categorize_pr(pr)
-
-    _enrich_done("enrich_classify", f"{total_deterministic_flags} flagged")
+    _enrich_done("enrich_classify", f"{cat_result.total_flagged} flagged")
     if _enrich_progress:
         _enrich_progress.stop()
 
-    if not use_tui:
-        if skipped_drafts:
-            console_print(
-                f"[info]Skipped {len(skipped_drafts)} draft "
-                f"{'PRs' if len(skipped_drafts) != 1 else 'PR'} "
-                f"with existing issues (CI failures, conflicts, or unresolved comments).[/]"
-            )
-        if workflows_in_progress:
-            console_print(
-                f"[info]Excluded {len(workflows_in_progress)} "
-                f"{'PRs' if len(workflows_in_progress) != 1 else 'PR'} "
-                f"with workflows already in progress.[/]"
-            )
-        if recent_failures_skipped:
-            get_console().print(
-                f"[info]Skipped {len(recent_failures_skipped)} "
-                f"{'PRs' if len(recent_failures_skipped) != 1 else 'PR'} "
-                f"with recent CI failures within grace period "
-                f"(giving authors time to address at their own pace):[/]"
-            )
-            for pr in recent_failures_skipped:
-                grace = pr.ci_grace_period_hours
-                engaged = " (collaborator engaged)" if pr.has_collaborator_review else ""
-                get_console().print(f"  [dim]{_pr_link(pr)} — {pr.title[:70]} [<{grace}h{engaged}][/]")
+    passing_prs: list[PRData] = []
+    assessments = cat_result.assessments
+    llm_candidates = cat_result.llm_candidates
+    pending_approval = cat_result.pending_approval
+    workflows_in_progress = cat_result.workflows_in_progress
+    skipped_drafts = cat_result.skipped_drafts
+    recent_failures_skipped = cat_result.recent_failures_skipped
+    deterministic_timings = cat_result.deterministic_timings
+    total_deterministic_flags = cat_result.total_flagged
 
     # Filter out pending_approval PRs that already have a comment from the viewer
     # (triage or rebase comment) with no new commits since — no point re-approving
@@ -7795,13 +8723,6 @@ def auto_triage(
         )
 
     # Phase 4: Start LLM assessments in background (non-blocking)
-    llm_future_to_pr: dict = {}
-    llm_assessments: dict[int, PRAssessment] = {}
-    llm_completed: list = []
-    llm_errors: list[int] = []
-    llm_passing: list[PRData] = []
-    llm_executor = None
-
     if not run_llm:
         if llm_candidates:
             if not use_tui:
@@ -7810,8 +8731,9 @@ def auto_triage(
                     f"{'PRs' if len(llm_candidates) != 1 else 'PR'}.[/]\n"
                 )
             passing_prs.extend(llm_candidates)
-    elif llm_candidates:
-        if not use_tui:
+        llm_candidates_for_llm: list[PRData] = []
+    else:
+        if llm_candidates and not use_tui:
             skipped_detail = f"{total_deterministic_flags} CI/conflicts/comments"
             if skipped_drafts:
                 skipped_detail += f", {len(skipped_drafts)} drafts with issues"
@@ -7828,46 +8750,28 @@ def auto_triage(
                 f"{'PRs' if len(llm_candidates) != 1 else 'PR'} in background "
                 f"(skipped {skipped_detail})...[/]\n"
             )
-        llm_executor = ThreadPoolExecutor(max_workers=llm_concurrency)
-        llm_future_to_pr = {
-            llm_executor.submit(
-                _cached_assess_pr,
-                github_repository=github_repository,
-                head_sha=pr.head_sha,
-                pr_number=pr.number,
-                pr_title=pr.title,
-                pr_body=pr.body,
-                check_status_summary=pr.check_summary,
-                llm_model=llm_model,
-            ): pr
-            for pr in llm_candidates
-        }
+        llm_candidates_for_llm = llm_candidates
 
-    # Launch background CI log fetching for PRs with failed checks
-    log_futures = _launch_background_log_fetching(token, github_repository, candidate_prs, llm_concurrency)
-
-    # Build shared triage context and stats
     pr_actions = {}  # PR number -> action taken by user
-
-    author_flagged_count: dict[str, int] = dict(
-        Counter(pr.author_login for pr in candidate_prs if pr.number in assessments)
-    )
     stats = TriageStats()
-    ctx = TriageContext(
+    ctx, llm_executor = _launch_llm_and_build_context(
         token=token,
         github_repository=github_repository,
         dry_run=dry_run,
         answer_triage=answer_triage,
-        stats=stats,
-        author_flagged_count=author_flagged_count,
         main_failures=main_failures,
-        llm_future_to_pr=llm_future_to_pr,
-        llm_assessments=llm_assessments,
-        llm_completed=llm_completed,
-        llm_errors=llm_errors,
-        llm_passing=llm_passing,
-        log_futures=log_futures,
+        candidate_prs=candidate_prs,
+        assessments=assessments,
+        llm_candidates=llm_candidates_for_llm,
+        run_llm=run_llm,
+        llm_model=llm_model,
+        llm_concurrency=llm_concurrency,
+        stats=stats,
     )
+    llm_assessments = ctx.llm_assessments
+    llm_completed = ctx.llm_completed
+    llm_errors = ctx.llm_errors
+    llm_passing = ctx.llm_passing
 
     det_flagged_prs = [(pr, assessments[pr.number]) for pr in candidate_prs if pr.number in assessments]
     det_flagged_prs.sort(key=lambda pair: (pair[0].author_login.lower(), pair[0].number))
@@ -7894,151 +8798,32 @@ def auto_triage(
                 triage_mode=triage_mode,
             )
 
-            # Build a closure that fetches + enriches + categorizes the next page of PRs
-            _batch_cursor: list[str | None] = [next_cursor]
-            _batch_has_more: list[bool] = [has_next_page]
-
-            def _load_more_batch():
-                if not _batch_has_more[0] or not _batch_cursor[0]:
-                    return None
-
-                new_prs, more, cursor, _ = _fetch_prs_graphql(
-                    token,
-                    github_repository,
-                    labels=exact_labels,
-                    exclude_labels=exact_exclude_labels,
-                    filter_user=filter_user,
-                    sort=sort,
-                    batch_size=batch_size,
-                    created_after=created_after,
-                    created_before=created_before,
-                    updated_after=updated_after,
-                    updated_before=updated_before,
-                    review_requested=review_requested_user,
-                    after_cursor=_batch_cursor[0],
-                    quiet=True,
-                )
-                _batch_cursor[0] = cursor
-                _batch_has_more[0] = more
-
-                if not new_prs:
-                    return None
-
-                # Enrich: branch status
-                behind_map = _fetch_commits_behind_batch(token, github_repository, new_prs)
-                for pr in new_prs:
-                    pr.commits_behind = behind_map.get(pr.number, 0)
-
-                # Enrich: verify CI for non-collab SUCCESS PRs
-                new_success = [
-                    pr
-                    for pr in new_prs
-                    if pr.checks_state == "SUCCESS"
-                    and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
-                    and not _is_bot_account(pr.author_login)
-                ]
-                if new_success:
-                    _fetch_check_details_batch(token, github_repository, new_success)
-
-                # Filter candidates
-                new_candidates, new_accepted, _, _, _ = _filter_candidate_prs(
-                    new_prs,
-                    include_collaborators=include_collaborators,
-                    include_drafts=include_drafts,
-                    checks_state=checks_state,
-                    min_commits_behind=min_commits_behind,
-                    max_num=0,
-                    quiet=True,
-                )
-
-                # Check already triaged
-                new_triaged_class = _classify_already_triaged_prs(
-                    token, github_repository, new_candidates, viewer_login
-                )
-                new_triaged_nums = new_triaged_class["waiting"] | new_triaged_class["responded"]
-                new_candidates = [pr for pr in new_candidates if pr.number not in new_triaged_nums]
-
-                # Enrich candidate details
-                if new_candidates:
-                    _enrich_candidate_details(
-                        token, github_repository, new_candidates, run_api=run_api, quiet=True
-                    )
-
-                # Categorize
-                new_assessments_map: dict[int, PRAssessment] = {}
-                new_pending: list[PRData] = []
-                new_passing: list[PRData] = []
-                new_det_flagged: list[tuple[PRData, PRAssessment]] = []
-
-                if run_api:
-                    for pr in new_candidates:
-                        ci_a = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
-                        if (
-                            ci_a
-                            and pr.head_sha
-                            and _has_in_progress_workflows(token, github_repository, pr.head_sha)
-                        ):
-                            continue
-                        if (
-                            ci_a
-                            and pr.head_sha
-                            and _are_failures_recent(
-                                token, github_repository, pr.head_sha, pr.ci_grace_period_hours
-                            )
-                        ):
-                            ci_a = None
-                        conf_a = assess_pr_conflicts(pr.number, pr.mergeable, pr.base_ref, pr.commits_behind)
-                        cmt_a = assess_pr_unresolved_comments(
-                            pr.number, pr.unresolved_review_comments, pr.unresolved_threads
-                        )
-                        if ci_a or conf_a or cmt_a:
-                            if not pr.is_draft:
-                                violations = []
-                                summaries = []
-                                for a in (conf_a, ci_a, cmt_a):
-                                    if a:
-                                        violations.extend(a.violations)
-                                        summaries.append(a.summary)
-                                asmt = PRAssessment(
-                                    should_flag=True,
-                                    violations=violations,
-                                    summary=" ".join(summaries),
-                                )
-                                new_assessments_map[pr.number] = asmt
-                                new_det_flagged.append((pr, asmt))
-                        elif pr.checks_state == "NOT_RUN":
-                            new_pending.append(pr)
-                        else:
-                            # Submit for LLM assessment in background
-                            if run_llm and llm_executor:
-                                fut = llm_executor.submit(
-                                    _cached_assess_pr,
-                                    github_repository=github_repository,
-                                    head_sha=pr.head_sha,
-                                    pr_number=pr.number,
-                                    pr_title=pr.title,
-                                    pr_body=pr.body,
-                                    check_status_summary=pr.check_summary,
-                                    llm_model=llm_model,
-                                )
-                                ctx.llm_future_to_pr[fut] = pr
-                            else:
-                                new_passing.append(pr)
-                else:
-                    for pr in new_candidates:
-                        if pr.checks_state == "NOT_RUN":
-                            new_pending.append(pr)
-                        else:
-                            new_passing.append(pr)
-
-                return (
-                    new_prs,
-                    new_det_flagged,
-                    new_pending,
-                    new_passing,
-                    new_triaged_nums,
-                    more,
-                )
+            _load_more_batch = _build_load_more_fn(
+                token=token,
+                github_repository=github_repository,
+                exact_labels=exact_labels,
+                exact_exclude_labels=exact_exclude_labels,
+                filter_user=filter_user,
+                sort=sort,
+                batch_size=batch_size,
+                created_after=created_after,
+                created_before=created_before,
+                updated_after=updated_after,
+                updated_before=updated_before,
+                review_requested=review_requested_user,
+                initial_cursor=next_cursor,
+                initial_has_more=has_next_page,
+                include_collaborators=include_collaborators,
+                include_drafts=include_drafts,
+                checks_state=checks_state,
+                min_commits_behind=min_commits_behind,
+                viewer_login=viewer_login,
+                run_api=run_api,
+                run_llm=run_llm,
+                llm_model=llm_model,
+                llm_executor=llm_executor,
+                ctx=ctx,
+            )
 
             _run_tui_triage(
                 ctx,
@@ -8087,11 +8872,11 @@ def auto_triage(
         batch_num = getattr(stats, "_batch_count", 1) + 1
         stats._batch_count = batch_num  # type: ignore[attr-defined]
         console_print(f"\n[info]Batch complete. Fetching next batch (page {batch_num})...[/]\n")
-        all_prs, has_next_page, next_cursor, _ = _fetch_prs_graphql(
-            token,
-            github_repository,
-            labels=exact_labels,
-            exclude_labels=exact_exclude_labels,
+        has_next_page, next_cursor = _process_pagination_batch(
+            token=token,
+            github_repository=github_repository,
+            exact_labels=exact_labels,
+            exact_exclude_labels=exact_exclude_labels,
             filter_user=filter_user,
             sort=sort,
             batch_size=batch_size,
@@ -8100,238 +8885,25 @@ def auto_triage(
             updated_after=updated_after,
             updated_before=updated_before,
             review_requested=review_requested_user,
-            after_cursor=next_cursor,
-        )
-        if not all_prs:
-            console_print("[info]No more PRs to process.[/]")
-            break
-
-        # Apply wildcard label filters client-side
-        if wildcard_labels:
-            all_prs = [
-                pr for pr in all_prs if any(fnmatch(lbl, pat) for pat in wildcard_labels for lbl in pr.labels)
-            ]
-        if wildcard_exclude_labels:
-            all_prs = [
-                pr
-                for pr in all_prs
-                if not any(fnmatch(lbl, pat) for pat in wildcard_exclude_labels for lbl in pr.labels)
-            ]
-
-        # Enrich: commits behind, mergeable status
-        behind_map = _fetch_commits_behind_batch(token, github_repository, all_prs)
-        for pr in all_prs:
-            pr.commits_behind = behind_map.get(pr.number, 0)
-        unknown_count = sum(1 for pr in all_prs if pr.mergeable == "UNKNOWN")
-        if unknown_count:
-            _resolve_unknown_mergeable(token, github_repository, all_prs)
-
-        # Detect PRs whose rollup state is SUCCESS but only have bot/labeler checks
-        batch_non_collab_success = [
-            pr
-            for pr in all_prs
-            if pr.checks_state == "SUCCESS"
-            and pr.author_association not in _COLLABORATOR_ASSOCIATIONS
-            and not _is_bot_account(pr.author_login)
-        ]
-        if batch_non_collab_success:
-            console_print(
-                f"[info]Verifying CI status for {len(batch_non_collab_success)} "
-                f"{'PRs' if len(batch_non_collab_success) != 1 else 'PR'} "
-                f"showing SUCCESS...[/]"
-            )
-            _fetch_check_details_batch(token, github_repository, batch_non_collab_success)
-            reclassified = sum(1 for pr in batch_non_collab_success if pr.checks_state == "NOT_RUN")
-            if reclassified:
-                console_print(
-                    f"  [warning]{reclassified} {'PRs' if reclassified != 1 else 'PR'} "
-                    f"reclassified to NOT_RUN (only bot/labeler checks).[/]"
-                )
-
-        (
-            candidate_prs,
-            batch_accepted,
-            _,
-            _,
-            _,
-        ) = _filter_candidate_prs(
-            all_prs,
+            next_cursor=next_cursor,
+            wildcard_labels=wildcard_labels,
+            wildcard_exclude_labels=wildcard_exclude_labels,
             include_collaborators=include_collaborators,
             include_drafts=include_drafts,
             checks_state=checks_state,
             min_commits_behind=min_commits_behind,
             max_num=max_num,
-        )
-        accepted_prs.extend(batch_accepted)
-
-        if not candidate_prs:
-            console_print("[info]No PRs to assess in this batch.[/]")
-            _display_pr_overview_table(all_prs)
-            continue
-
-        # Check already-triaged
-        batch_triaged_cls = _classify_already_triaged_prs(
-            token, github_repository, candidate_prs, viewer_login
-        )
-        batch_triaged_nums = batch_triaged_cls["waiting"] | batch_triaged_cls["responded"]
-        if batch_triaged_nums:
-            candidate_prs = [pr for pr in candidate_prs if pr.number not in batch_triaged_nums]
-
-        _display_pr_overview_table(
-            all_prs,
-            triaged_waiting_nums=batch_triaged_cls["waiting"],
-            triaged_responded_nums=batch_triaged_cls["responded"],
-        )
-
-        if not candidate_prs:
-            console_print("[info]All PRs in this batch already triaged.[/]")
-            continue
-
-        # Enrich and assess
-        _enrich_candidate_details(token, github_repository, candidate_prs, run_api=run_api)
-
-        batch_assessments: dict[int, PRAssessment] = {}
-        batch_llm_candidates: list[PRData] = []
-        batch_passing: list[PRData] = []
-        batch_pending: list[PRData] = []
-
-        if run_api:
-            for pr in candidate_prs:
-                ci_assessment = assess_pr_checks(pr.number, pr.checks_state, pr.failed_checks)
-                if (
-                    ci_assessment
-                    and pr.head_sha
-                    and _has_in_progress_workflows(token, github_repository, pr.head_sha)
-                ):
-                    continue
-                # Grace period: don't flag CI failures within the grace window.
-                # Default 24 h; extended to 96 h when a collaborator has already engaged.
-                if (
-                    ci_assessment
-                    and pr.head_sha
-                    and _are_failures_recent(token, github_repository, pr.head_sha, pr.ci_grace_period_hours)
-                ):
-                    ci_assessment = None
-                    # If CI is the only issue, skip this PR entirely
-                    conflict_check = assess_pr_conflicts(
-                        pr.number, pr.mergeable, pr.base_ref, pr.commits_behind
-                    )
-                    comments_check = assess_pr_unresolved_comments(
-                        pr.number, pr.unresolved_review_comments, pr.unresolved_threads
-                    )
-                    if not conflict_check and not comments_check:
-                        get_console().print(
-                            f"  [dim]Skipped {_pr_link(pr)} — CI failures less than "
-                            f"{pr.ci_grace_period_hours}h old"
-                            f"{' (collaborator engaged)' if pr.has_collaborator_review else ''}[/]"
-                        )
-                        continue
-                conflict_assessment = assess_pr_conflicts(
-                    pr.number, pr.mergeable, pr.base_ref, pr.commits_behind
-                )
-                comments_assessment = assess_pr_unresolved_comments(
-                    pr.number, pr.unresolved_review_comments, pr.unresolved_threads
-                )
-                if ci_assessment or conflict_assessment or comments_assessment:
-                    if pr.is_draft:
-                        continue
-                    violations = []
-                    summaries = []
-                    if conflict_assessment:
-                        violations.extend(conflict_assessment.violations)
-                        summaries.append(conflict_assessment.summary)
-                    if ci_assessment:
-                        violations.extend(ci_assessment.violations)
-                        summaries.append(ci_assessment.summary)
-                    if comments_assessment:
-                        violations.extend(comments_assessment.violations)
-                        summaries.append(comments_assessment.summary)
-                    batch_assessments[pr.number] = PRAssessment(
-                        should_flag=True,
-                        violations=violations,
-                        summary=" ".join(summaries),
-                    )
-                elif pr.checks_state == "NOT_RUN":
-                    batch_pending.append(pr)
-                else:
-                    batch_llm_candidates.append(pr)
-        else:
-            for pr in candidate_prs:
-                if pr.checks_state == "NOT_RUN":
-                    batch_pending.append(pr)
-                else:
-                    batch_llm_candidates.append(pr)
-
-        # LLM assessment for this batch
-        batch_llm_future_to_pr: dict = {}
-        batch_llm_assessments: dict[int, PRAssessment] = {}
-        batch_llm_completed: list = []
-        batch_llm_errors: list[int] = []
-        batch_llm_passing: list[PRData] = []
-        batch_executor = None
-
-        if not run_llm:
-            batch_passing.extend(batch_llm_candidates)
-        elif batch_llm_candidates:
-            batch_executor = ThreadPoolExecutor(max_workers=llm_concurrency)
-            batch_llm_future_to_pr = {
-                batch_executor.submit(
-                    _cached_assess_pr,
-                    github_repository=github_repository,
-                    head_sha=pr.head_sha,
-                    pr_number=pr.number,
-                    pr_title=pr.title,
-                    pr_body=pr.body,
-                    check_status_summary=pr.check_summary,
-                    llm_model=llm_model,
-                ): pr
-                for pr in batch_llm_candidates
-            }
-
-        # Launch background CI log fetching for this batch
-        batch_log_futures = _launch_background_log_fetching(
-            token, github_repository, candidate_prs, llm_concurrency
-        )
-
-        batch_author_flagged_count: dict[str, int] = dict(
-            Counter(pr.author_login for pr in candidate_prs if pr.number in batch_assessments)
-        )
-        batch_ctx = TriageContext(
-            token=token,
-            github_repository=github_repository,
+            viewer_login=viewer_login,
+            run_api=run_api,
+            run_llm=run_llm,
+            llm_model=llm_model,
+            llm_concurrency=llm_concurrency,
             dry_run=dry_run,
             answer_triage=answer_triage,
-            stats=stats,
-            author_flagged_count=batch_author_flagged_count,
             main_failures=main_failures,
-            llm_future_to_pr=batch_llm_future_to_pr,
-            llm_assessments=batch_llm_assessments,
-            llm_completed=batch_llm_completed,
-            llm_errors=batch_llm_errors,
-            llm_passing=batch_llm_passing,
-            log_futures=batch_log_futures,
+            stats=stats,
+            accepted_prs=accepted_prs,
         )
-
-        try:
-            _review_workflow_approval_prs(batch_ctx, batch_pending)
-
-            det_flagged = [
-                (pr, batch_assessments[pr.number]) for pr in candidate_prs if pr.number in batch_assessments
-            ]
-            det_flagged.sort(key=lambda pair: (pair[0].author_login.lower(), pair[0].number))
-            _review_deterministic_flagged_prs(batch_ctx, det_flagged)
-
-            _review_llm_flagged_prs(batch_ctx, batch_llm_candidates)
-            batch_passing.extend(batch_llm_passing)
-
-            _review_passing_prs(batch_ctx, batch_passing)
-            _review_stale_review_requests(batch_ctx, batch_accepted)
-        except KeyboardInterrupt:
-            console_print("\n[warning]Interrupted — shutting down.[/]")
-            stats.quit_early = True
-        finally:
-            if batch_executor is not None:
-                batch_executor.shutdown(wait=False, cancel_futures=True)
 
     # Display summary
     _display_triage_summary(
@@ -8357,161 +8929,37 @@ def auto_triage(
 
     # Timing summary
     t_total_end = time.monotonic()
-    console_print()
-    timing_table = Table(title="Timing Summary")
-    timing_table.add_column("Phase", style="bold")
-    timing_table.add_column("Total", justify="right")
-    timing_table.add_column("PRs", justify="right")
-    timing_table.add_column("Avg/PR", justify="right")
-    timing_table.add_column("Min/PR", justify="right")
-    timing_table.add_column("Max/PR", justify="right")
-
-    num_all = len(all_prs) or 1
-    num_candidates = len(candidate_prs) or 1
-
-    phase1_total = t_phase1_end - t_phase1_start
-    timing_table.add_row(
-        "Fetch PRs + commits behind",
-        _fmt_duration(phase1_total),
-        str(len(all_prs)),
-        _fmt_duration(phase1_total / num_all),
-        "[dim]—[/]",
-        "[dim]—[/]",
-    )
-
-    enrich_total = t_enrich_end - t_enrich_start
-    timing_table.add_row(
-        "Enrich PRs (checks + mergeability + comments)",
-        _fmt_duration(enrich_total),
-        str(len(candidate_prs)),
-        _fmt_duration(enrich_total / num_candidates),
-        "[dim]—[/]",
-        "[dim]—[/]",
-    )
-
-    if deterministic_timings:
-        det_values = list(deterministic_timings.values())
-        det_total = sum(det_values)
-        timing_table.add_row(
-            "Deterministic triage",
-            _fmt_duration(det_total),
-            str(len(det_values)),
-            _fmt_duration(det_total / len(det_values)),
-            _fmt_duration(min(det_values)),
-            _fmt_duration(max(det_values)),
-        )
-    else:
-        timing_table.add_row("Deterministic triage", "[dim]—[/]", "0", "[dim]—[/]", "[dim]—[/]", "[dim]—[/]")
-
-    llm_count = len(llm_completed)
-    llm_wall_time = t_total_end - t_enrich_end  # LLM runs in background across all interactive phases
-    if llm_count:
-        timing_table.add_row(
-            "LLM assessment (background)",
-            _fmt_duration(llm_wall_time),
-            str(llm_count),
-            "[dim]—[/]",
-            "[dim]—[/]",
-            "[dim]—[/]",
-        )
-    else:
-        timing_table.add_row(
-            "LLM assessment (background)", "[dim]—[/]", "0", "[dim]—[/]", "[dim]—[/]", "[dim]—[/]"
-        )
-
-    timing_table.add_row(
-        "Interactive review (overlaps LLM)",
-        _fmt_duration(t_total_end - t_enrich_end),
-        "",
-        "",
-        "",
-        "",
-    )
-    timing_table.add_row("", "", "", "", "", "")
     total_elapsed = t_total_end - t_total_start
-    prs_with_action = len(pr_actions)
-    avg_per_actioned = _fmt_duration(total_elapsed / prs_with_action) if prs_with_action else "[dim]—[/]"
-    timing_table.add_row(
-        "[bold]Total[/]",
-        f"[bold]{_fmt_duration(total_elapsed)}[/]",
-        str(prs_with_action) if prs_with_action else "",
-        f"[bold]{avg_per_actioned}[/]" if prs_with_action else "",
-        "",
-        "",
+    enrich_total = t_enrich_end - t_enrich_start
+    console_print()
+    timing_table = _build_triage_timing_table(
+        phase1_total=t_phase1_end - t_phase1_start,
+        enrich_total=enrich_total,
+        num_all=len(all_prs),
+        num_candidates=len(candidate_prs),
+        deterministic_timings=deterministic_timings,
+        llm_count=len(llm_completed),
+        llm_wall_time=t_total_end - t_enrich_end,
+        interactive_time=t_total_end - t_enrich_end,
+        total_elapsed=total_elapsed,
+        prs_with_action=len(pr_actions),
     )
     console_print(timing_table)
 
     if deterministic_timings:
-        pr_titles = {pr.number: pr.title for pr in candidate_prs}
-        pr_urls = {pr.number: pr.url for pr in candidate_prs}
-        # Amortize batch fetch time evenly across candidate PRs
-        num_candidates = len(candidate_prs) or 1
-        fetch_per_pr = enrich_total / num_candidates
-
-        action_styles = {
-            "drafted": "[yellow]drafted[/]",
-            "commented": "[yellow]commented[/]",
-            "closed": "[red]closed[/]",
-            "ready": "[success]ready[/]",
-            "skipped": "[dim]skipped[/]",
-            "approved": "[success]approved[/]",
-            "suspicious": "[red]suspicious[/]",
-        }
-
-        pr_timing_table = Table(title="Per-PR Phase Timing")
-        pr_timing_table.add_column("PR", style="bold")
-        pr_timing_table.add_column("Title")
-        pr_timing_table.add_column("Result")
-        pr_timing_table.add_column("Action")
-        pr_timing_table.add_column("Fetch (avg)", justify="right")
-        pr_timing_table.add_column("Deterministic", justify="right")
-        pr_timing_table.add_column("Total", justify="right")
-
-        all_pr_numbers = sorted(
-            deterministic_timings.keys(),
-            key=lambda n: deterministic_timings.get(n, 0) + fetch_per_pr,
-            reverse=True,
+        pr_timing_table = _build_pr_timing_table(
+            deterministic_timings=deterministic_timings,
+            enrich_total=enrich_total,
+            num_candidates=len(candidate_prs),
+            pr_titles={pr.number: pr.title for pr in candidate_prs},
+            pr_urls={pr.number: pr.url for pr in candidate_prs},
+            pr_actions=pr_actions,
+            assessments=assessments,
+            llm_assessments=llm_assessments,
+            skipped_drafts=skipped_drafts,
+            passing_prs=passing_prs,
+            llm_passing=llm_passing,
+            pending_approval=pending_approval,
+            workflows_in_progress=workflows_in_progress,
         )
-        for pr_num in all_pr_numbers:
-            title = pr_titles.get(pr_num, "")[:60]
-            det_time = deterministic_timings.get(pr_num, 0)
-            total_time = fetch_per_pr + det_time
-
-            if any(pr.number == pr_num for pr in skipped_drafts):
-                result = "[dim]draft-skipped[/]"
-            elif pr_num in assessments or pr_num in llm_assessments:
-                action_for_result = pr_actions.get(pr_num, "")
-                if action_for_result == "drafted":
-                    result = "[yellow]drafted[/]"
-                elif action_for_result == "commented":
-                    result = "[yellow]commented[/]"
-                elif action_for_result == "closed":
-                    result = "[red]closed[/]"
-                elif action_for_result == "skipped":
-                    result = "[dim]skipped[/]"
-                else:
-                    result = "[yellow]issues found[/]"
-            elif any(pr.number == pr_num for pr in passing_prs) or any(
-                pr.number == pr_num for pr in llm_passing
-            ):
-                result = "[success]passed[/]"
-            elif any(pr.number == pr_num for pr in pending_approval):
-                result = "[dim]pending[/]"
-            elif any(pr.number == pr_num for pr in workflows_in_progress):
-                result = "[cyan]running[/]"
-            else:
-                result = "[yellow]error[/]"
-
-            action_raw = pr_actions.get(pr_num, "")
-            action_display = action_styles.get(action_raw, f"[dim]{action_raw or '—'}[/]")
-
-            pr_timing_table.add_row(
-                f"[link={pr_urls.get(pr_num, '')}]#{pr_num}[/link]",
-                title,
-                result,
-                action_display,
-                _fmt_duration(fetch_per_pr),
-                _fmt_duration(det_time) if det_time else "[dim]—[/]",
-                _fmt_duration(total_time),
-            )
         console_print(pr_timing_table)
