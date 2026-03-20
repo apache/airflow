@@ -22,6 +22,7 @@ import json
 import logging
 import sys
 import warnings
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, or_, select
@@ -502,10 +503,8 @@ class Variable(Base, LoggingMixin):
 
         # check cache first
         # enabled only if SecretCache.init() has been called first
-        try:
+        with suppress(SecretCache.NotPresentException):
             return SecretCache.get_variable(key, team_name=team_name)
-        except SecretCache.NotPresentException:
-            pass  # continue business
 
         var_val = None
         # iterate over backends if not in cache (or expired)
