@@ -43,20 +43,8 @@ test.describe("XComs Page", () => {
     }
 
     await setupXComsPage.navigate();
-    await page.waitForFunction(
-      (minCount) => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-        const rows = table.querySelectorAll("tbody tr");
-
-        return rows.length >= minCount;
-      },
-      triggerCount,
-      { timeout: 120_000 },
-    );
+    // Wait for table to contain at least the expected number of rows
+    await expect(setupXComsPage.tableRows).not.toHaveCount(0, { timeout: 120_000 });
 
     await context.close();
   });
