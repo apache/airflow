@@ -1326,6 +1326,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         non_dataset_dags = all_dags_needing_dag_runs.difference(dataset_triggered_dags)
         self._create_dag_runs(non_dataset_dags, session)
         if dataset_triggered_dags:
+            self.log.info(
+                "[DEBUG DATASETS] Dataset-triggered DAGs ready: %s",
+                {
+                    dag_id: (str(first), str(last))
+                    for dag_id, (first, last) in dataset_triggered_dag_info.items()
+                },
+            )
             self._create_dag_runs_dataset_triggered(
                 dataset_triggered_dags, dataset_triggered_dag_info, session
             )
@@ -1480,6 +1487,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(*dataset_event_filters)
                 ).all()
 
+                ddrq_records = session.scalars(
+                    select(DatasetDagRunQueue).where(
+                        DatasetDagRunQueue.target_dag_id == dag.dag_id
+                    )
+                ).all()
+                ddrq_uris = {r.dataset.uri for r in ddrq_records}
+                consumed_uris = {e.dataset.uri for e in dataset_events}
+                missing_uris = ddrq_uris - consumed_uris
+                if missing_uris:
+                    self.log.warning(
+                        "[DEBUG DATASETS] DDRQ/event mismatch: dag_id=%s has DDRQ URIs %s with no matching "
+                        "DatasetEvent in range (prev_exec=%s, exec_date=%s]. "
+                        "Consumed URIs: %s. Possible stale DDRQ records.",
+                        dag.dag_id,
+                        sorted(missing_uris),
+                        previous_dag_run.execution_date if previous_dag_run else None,
+                        exec_date,
+                        sorted(consumed_uris),
+                    )
+
                 data_interval = dag.timetable.data_interval_for_events(exec_date, dataset_events)
                 run_id = dag.timetable.generate_run_id(
                     run_type=DagRunType.DATASET_TRIGGERED,
@@ -1502,6 +1529,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
+                self.log.info(
+                    "[DEBUG DATASETS] Dataset-triggered DagRun created: dag_id=%s, exec_date=%s, "
+                    "prev_exec=%s, data_interval=(%s, %s), "
+                    "events_consumed=%d, event_uris=%s",
+                    dag.dag_id,
+                    exec_date,
+                    previous_dag_run.execution_date if previous_dag_run else None,
+                    data_interval.start,
+                    data_interval.end,
+                    len(dataset_events),
+                    sorted({e.dataset.uri for e in dataset_events}),
+                )
+                if dataset_events:
+                    event_timestamps = [e.timestamp for e in dataset_events]
+                    self.log.debug(
+                        "[DEBUG DATASETS] Consumed event details: dag_id=%s, "
+                        "event_ts_range=(%s, %s), "
+                        "events=[%s]",
+                        dag.dag_id,
+                        min(event_timestamps),
+                        max(event_timestamps),
+                        ", ".join(
+                            f"{e.dataset.uri}|ts={e.timestamp}|src={e.source_dag_id}/{e.source_run_id}"
+                            for e in dataset_events
+                        ),
+                    )
                 session.execute(
                     delete(DatasetDagRunQueue).where(DatasetDagRunQueue.target_dag_id == dag_run.dag_id)
                 )
