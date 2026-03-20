@@ -2925,6 +2925,17 @@ dag_processor:
       type: string
       example: ~
       default: "warning"
+    auto_backfill_missing_task_instances:
+      description: |
+        When enabled, creating a new DAG version during parsing will also verify existing DagRuns and
+        add missing TaskInstance rows for tasks introduced in the new version.
+
+        This improves Grid/Graph consistency for historical runs after adding new tasks, but can increase
+        DAG parsing database workload for DAGs with many existing DagRuns.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
 
 profiling:
   description: |
