@@ -31,7 +31,7 @@ def get_provider_info():
                 "integration-name": "IBM MQ",
                 "external-doc-url": "https://www.ibm.com/products/mq",
                 "logo": "/docs/integration-logos/ibm-mq.png",
-                "tags": ["apache"],
+                "tags": ["software"],
             }
         ],
         "hooks": [{"integration-name": "IBM MQ", "python-modules": ["airflow.providers.ibm.mq.hooks.mq"]}],
