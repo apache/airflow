@@ -133,18 +133,18 @@ class RedisHook(BaseHook):
         ssl_args = {name: val for name, val in conn.extra_dejson.items() if name in ssl_arg_names}
 
         async_redis = AsyncRedis(
-            host=host,
-            port=port,
+            host=host or "localhost",
+            port=port or 6379,
             username=username,
             password=password,
-            db=db,
+            db=db or 0,
             decode_responses=True,
             **ssl_args,
         )
         try:
             yield async_redis
         finally:
-            await async_redis.aclose()
+            await async_redis.close()
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
