@@ -35,10 +35,10 @@
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@typescript-eslint/eslint-plugin": "8.56.1",
-    "@typescript-eslint/parser": "8.56.1",
-    "@typescript-eslint/utils": "^8.56.1",
-    "@vitejs/plugin-react-swc": "^4.2.3",
+    "@typescript-eslint/eslint-plugin": "8.57.0",
+    "@typescript-eslint/parser": "8.57.0",
+    "@typescript-eslint/utils": "^8.57.0",
+    "@vitejs/plugin-react-swc": "^4.3.0",
     "eslint": "^10.0.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -48,14 +48,14 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "eslint-plugin-unicorn": "^63.0.0",
-    "happy-dom": "^20.8.3",
+    "happy-dom": "^20.8.4",
     "prettier": "^3.8.1",
     "ts-morph": "^27.0.2",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.56.1",
+    "typescript-eslint": "^8.57.0",
     "vite": "^7.3.1",
     "vite-plugin-css-injected-by-js": "^4.0.1",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
