@@ -32,7 +32,6 @@ from functools import partial
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.utils import yaml
 
 DEFAULT_PAGINATION_TOKEN = ""
@@ -620,11 +619,11 @@ class EksHook(AwsBaseHook):
         cluster_cert = cluster["cluster"]["certificateAuthority"]["data"]
         cluster_ep = cluster["cluster"]["endpoint"]
 
-        os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
-        try:
-            sts_url = f"{StsHook(region_name=session.region_name).conn_client_meta.endpoint_url}/?Action=GetCallerIdentity&Version=2011-06-15"
-        finally:
-            del os.environ["AWS_STS_REGIONAL_ENDPOINTS"]
+        # Construct regional STS URL directly to avoid modifying process-global os.environ.
+        # EKS token generation requires a regional STS endpoint.
+        sts_url = (
+            f"https://sts.{session.region_name}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
+        )
 
         cluster_config = {
             "apiVersion": "v1",
@@ -678,3 +677,90 @@ class EksHook(AwsBaseHook):
             config_file.write(config_text)
             config_file.flush()
             yield config_file.name
+
+    def generate_config_dict_for_deferral(
+        self,
+        eks_cluster_name: str,
+        pod_namespace: str | None,
+    ) -> dict:
+        """
+        Generate a kubeconfig dict with an embedded bearer token for deferrable execution.
+
+        The token-based config avoids the exec credential plugin so it can be safely
+        serialized and used by the triggerer process.
+
+        :param eks_cluster_name: The name of the EKS cluster.
+        :param pod_namespace: The Kubernetes namespace.
+        :return: Kubeconfig dictionary with embedded bearer token.
+        """
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        from airflow.providers.amazon.aws.utils.eks_get_token import fetch_access_token_for_cluster
+
+        # Get cluster details
+        eks_client = self.conn
+        session = self.get_session()
+
+        try:
+            cluster = eks_client.describe_cluster(name=eks_cluster_name)
+        except ClientError as e:
+            raise ValueError(
+                f"Failed to describe EKS cluster '{eks_cluster_name}': {e.response['Error']['Message']}"
+            ) from e
+
+        cluster_cert = cluster["cluster"]["certificateAuthority"]["data"]
+        cluster_ep = cluster["cluster"]["endpoint"]
+
+        # Construct regional STS URL directly to avoid modifying process-global os.environ.
+        # EKS token generation requires a regional STS endpoint.
+        sts_url = (
+            f"https://sts.{session.region_name}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
+        )
+
+        # Fetch the access token directly
+        try:
+            access_token = fetch_access_token_for_cluster(
+                eks_cluster_name=eks_cluster_name,
+                sts_url=sts_url,
+                region_name=session.region_name,
+            )
+        except (BotoCoreError, ClientError, ValueError) as e:
+            raise ValueError(f"Failed to fetch EKS access token for cluster '{eks_cluster_name}': {e}") from e
+
+        if not access_token:
+            raise ValueError(
+                f"Empty access token returned for EKS cluster '{eks_cluster_name}'. "
+                "Check AWS credentials and IAM permissions."
+            )
+
+        # Build kubeconfig with embedded token instead of exec plugin
+        return {
+            "apiVersion": "v1",
+            "kind": "Config",
+            "clusters": [
+                {
+                    "cluster": {"server": cluster_ep, "certificate-authority-data": cluster_cert},
+                    "name": eks_cluster_name,
+                }
+            ],
+            "contexts": [
+                {
+                    "context": {
+                        "cluster": eks_cluster_name,
+                        "namespace": pod_namespace,
+                        "user": _POD_USERNAME,
+                    },
+                    "name": _CONTEXT_NAME,
+                }
+            ],
+            "current-context": _CONTEXT_NAME,
+            "preferences": {},
+            "users": [
+                {
+                    "name": _POD_USERNAME,
+                    "user": {
+                        "token": access_token,
+                    },
+                }
+            ],
+        }

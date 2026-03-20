@@ -55,6 +55,8 @@ except ImportError:
     )
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
+
     from airflow.sdk import Context
 
 
@@ -1170,6 +1172,93 @@ class EksPodOperator(KubernetesPodOperator):
                 credentials_file=credentials_file,
             ) as self.config_file:
                 return super().trigger_reentry(context, event)
+
+    def invoke_defer_method(
+        self, last_log_time: DateTime | None = None, context: Context | None = None
+    ) -> None:
+        """
+        Override to generate a token-based kubeconfig for the triggerer.
+
+        EKS kubeconfigs use an exec credential plugin that references temporary
+        files created on the worker. These files are not available on the triggerer,
+        so this override embeds a bearer token instead.
+        """
+        eks_hook = EksHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region,
+        )
+
+        # Generate a kubeconfig dict with an embedded token (no exec block)
+        self._config_dict = eks_hook.generate_config_dict_for_deferral(
+            eks_cluster_name=self.cluster_name,
+            pod_namespace=self.namespace,
+        )
+
+        # Replicate the parent's invoke_defer_method logic with our pre-built config_dict.
+        # Imports are local because this method mirrors the parent class implementation
+        # and these dependencies are only needed here, not at module level.
+        import datetime
+
+        from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
+        from airflow.providers.common.compat.sdk import AirflowNotFoundException, BaseHook
+
+        connection_extras = None
+        if self.kubernetes_conn_id:
+            try:
+                conn = BaseHook.get_connection(self.kubernetes_conn_id)
+            except AirflowNotFoundException:
+                self.log.warning(
+                    "Could not resolve connection extras for deferral: connection `%s` not found. "
+                    "Triggerer will try to resolve it from its own environment.",
+                    self.kubernetes_conn_id,
+                )
+            else:
+                connection_extras = conn.extra_dejson
+                self.log.info("Successfully resolved connection extras for deferral.")
+
+        trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        trigger = KubernetesPodTrigger(
+            pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
+            pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
+            trigger_start_time=trigger_start_time,
+            kubernetes_conn_id=self.kubernetes_conn_id,
+            connection_extras=connection_extras,
+            cluster_context=self.cluster_context,
+            config_dict=self._config_dict,
+            in_cluster=self.in_cluster,
+            poll_interval=self.poll_interval,
+            get_logs=self.get_logs,
+            startup_timeout=self.startup_timeout_seconds,
+            startup_check_interval=self.startup_check_interval_seconds,
+            schedule_timeout=self.schedule_timeout_seconds,
+            base_container_name=self.base_container_name,
+            on_finish_action=self.on_finish_action.value,
+            last_log_time=last_log_time,
+            logging_interval=self.logging_interval,
+            trigger_kwargs=self.trigger_kwargs,
+        )
+
+        container_state = trigger.define_container_state(self.pod) if self.pod else None
+        if context and (
+            container_state == ContainerState.TERMINATED or container_state == ContainerState.FAILED
+        ):
+            self.log.info("Skipping deferral as pod is already in a terminal state")
+            self.trigger_reentry(
+                context=context,
+                event={
+                    "status": "failed" if container_state == ContainerState.FAILED else "success",
+                    "namespace": trigger.pod_namespace,
+                    "name": trigger.pod_name,
+                    "message": "Container failed"
+                    if container_state == ContainerState.FAILED
+                    else "Container succeeded",
+                    "last_log_time": last_log_time,
+                    **(self.trigger_kwargs or {}),
+                },
+            )
+        else:
+            self.defer(trigger=trigger, method_name="trigger_reentry")
 
     def _write_credentials_to_file(
         self, credentials_file_path: str, access_key: str, secret_key: str, session_token: str | None

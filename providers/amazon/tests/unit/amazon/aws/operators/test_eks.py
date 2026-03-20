@@ -1116,3 +1116,87 @@ class TestEksPodOperator:
 
         # Verify super()._refresh_cached_properties() was NOT called since we raised
         mock_super_refresh.assert_not_called()
+
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.EksPodOperator.defer")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_dict_for_deferral")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
+    def test_invoke_defer_method_generates_token_based_config(
+        self,
+        mock_eks_hook,
+        mock_generate_config_dict,
+        mock_defer,
+    ):
+        """Test that invoke_defer_method generates a token-based config dict for the triggerer."""
+        # Mock the generate_config_dict_for_deferral to return a config with embedded token
+        mock_config_dict = {
+            "apiVersion": "v1",
+            "kind": "Config",
+            "clusters": [
+                {
+                    "cluster": {
+                        "server": "https://test-cluster.eks.amazonaws.com",
+                        "certificate-authority-data": "test-cert-data",
+                    },
+                    "name": CLUSTER_NAME,
+                }
+            ],
+            "contexts": [
+                {
+                    "context": {
+                        "cluster": CLUSTER_NAME,
+                        "namespace": "default",
+                        "user": "aws",
+                    },
+                    "name": "aws",
+                }
+            ],
+            "current-context": "aws",
+            "preferences": {},
+            "users": [
+                {
+                    "name": "aws",
+                    "user": {
+                        "token": "k8s-aws-v1.test-token",  # Token embedded, no exec block
+                    },
+                }
+            ],
+        }
+        mock_generate_config_dict.return_value = mock_config_dict
+
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+            deferrable=True,
+        )
+
+        # Simulate that the pod has been created and assigned
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = "test-pod"
+        mock_pod.metadata.namespace = "default"
+        mock_pod.status = None  # Pod not yet running
+        op.pod = mock_pod
+
+        # Call invoke_defer_method
+        op.invoke_defer_method()
+
+        # Verify generate_config_dict_for_deferral was called with correct args
+        mock_generate_config_dict.assert_called_once_with(
+            eks_cluster_name=CLUSTER_NAME,
+            pod_namespace="default",
+        )
+
+        # Verify defer was called with the trigger containing the token-based config
+        mock_defer.assert_called_once()
+        call_kwargs = mock_defer.call_args.kwargs
+        trigger = call_kwargs["trigger"]
+
+        # The config_dict in the trigger should have the token embedded (no exec block)
+        assert trigger.config_dict == mock_config_dict
+        assert "token" in trigger.config_dict["users"][0]["user"]
+        assert "exec" not in trigger.config_dict["users"][0]["user"]
