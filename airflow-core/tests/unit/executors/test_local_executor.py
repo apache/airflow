@@ -127,8 +127,8 @@ class TestLocalExecutor:
             executor.end()
 
     @skip_non_fork_mp_start
-    @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
-    def test_execution(self, mock_supervise):
+    @mock.patch("airflow.sdk.execution_time.supervisor.supervise_workload")
+    def test_execution(self, mock_supervise_workload):
         success_tis = [
             TaskInstanceDTO(
                 id=uuid7(),
@@ -151,14 +151,14 @@ class TestLocalExecutor:
         # We just mock both styles here, only one will be hit though
         has_failed_once = False
 
-        def fake_supervise(ti, **kwargs):
+        def fake_supervise_workload(workload, **kwargs):
             nonlocal has_failed_once
-            if ti.id == fail_ti.id and not has_failed_once:
+            if workload.ti.id == fail_ti.id and not has_failed_once:
                 has_failed_once = True
                 raise RuntimeError("fake failure")
             return 0
 
-        mock_supervise.side_effect = fake_supervise
+        mock_supervise_workload.side_effect = fake_supervise_workload
 
         executor = LocalExecutor(parallelism=2)
 
@@ -273,8 +273,8 @@ class TestLocalExecutor:
             "relative_base_url",
         ],
     )
-    @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
-    def test_execution_api_server_url_config(self, mock_supervise, conf_values, expected_server):
+    @mock.patch("airflow.sdk.execution_time.supervisor.supervise_workload")
+    def test_execution_api_server_url_config(self, mock_supervise_workload, conf_values, expected_server):
         """Test that execution_api_server_url is correctly configured with fallback"""
         from airflow.executors.base_executor import ExecutorConf
 
@@ -282,17 +282,11 @@ class TestLocalExecutor:
             team_conf = ExecutorConf(team_name=None)
             _execute_workload(log=mock.ANY, workload=_make_mock_task_workload(), team_conf=team_conf)
 
-            mock_supervise.assert_called_with(
-                ti=mock.ANY,
-                dag_rel_path=mock.ANY,
-                bundle_info=mock.ANY,
-                token=mock.ANY,
-                server=expected_server,
-                log_path=mock.ANY,
-            )
+            mock_supervise_workload.assert_called_once()
+            assert mock_supervise_workload.call_args.kwargs["server"] == expected_server
 
-    @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
-    def test_team_and_global_config_isolation(self, mock_supervise):
+    @mock.patch("airflow.sdk.execution_time.supervisor.supervise_workload")
+    def test_team_and_global_config_isolation(self, mock_supervise_workload):
         """Test that team-specific and global executors use correct configurations side-by-side"""
         from airflow.executors.base_executor import ExecutorConf
 
@@ -318,20 +312,18 @@ class TestLocalExecutor:
                 _execute_workload(log=mock.ANY, workload=_make_mock_task_workload(), team_conf=team_conf)
 
                 # Verify team-specific server URL was used
-                assert mock_supervise.call_count == 1
-                call_kwargs = mock_supervise.call_args[1]
-                assert call_kwargs["server"] == team_server
+                assert mock_supervise_workload.call_count == 1
+                assert mock_supervise_workload.call_args.kwargs["server"] == team_server
 
-                mock_supervise.reset_mock()
+                mock_supervise_workload.reset_mock()
 
                 # Test global config (no team)
                 global_conf = ExecutorConf(team_name=None)
                 _execute_workload(log=mock.ANY, workload=_make_mock_task_workload(), team_conf=global_conf)
 
                 # Verify default server URL was used
-                assert mock_supervise.call_count == 1
-                call_kwargs = mock_supervise.call_args[1]
-                assert call_kwargs["server"] == default_server
+                assert mock_supervise_workload.call_count == 1
+                assert mock_supervise_workload.call_args.kwargs["server"] == default_server
 
     def test_multiple_team_executors_isolation(self):
         """Test that multiple team executors can coexist with isolated resources"""
