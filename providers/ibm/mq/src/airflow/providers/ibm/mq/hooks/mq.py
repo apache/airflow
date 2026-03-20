@@ -79,13 +79,13 @@ class IBMMQHook(BaseHook):
         """
         Return the symbolic MQ open option flags set in a given bitmask.
 
-        Each flag corresponds to a constant in 'ibmmq.CMQC' that starts with 'MQOO_'.
+        Each flag corresponds to a constant in ``ibmmq.CMQC`` that starts with ``MQOO_``.
 
         :param open_options: The integer bitmask used when opening an MQ queue
-                             (e.g., 'MQOO_INPUT_EXCLUSIVE | MQOO_FAIL_IF_QUIESCING').
+                             (e.g., ``MQOO_INPUT_EXCLUSIVE | MQOO_FAIL_IF_QUIESCING``).
 
         :return: A list of the names of the MQ open flags that are set in the bitmask.
-                 For example, '['MQOO_INPUT_EXCLUSIVE', 'MQOO_FAIL_IF_QUIESCING']'.
+                 For example, ``['MQOO_INPUT_EXCLUSIVE', 'MQOO_FAIL_IF_QUIESCING']``.
 
         Example:
             >>> open_options = ibmmq.CMQC.MQOO_INPUT_SHARED | ibmmq.CMQC.MQOO_FAIL_IF_QUIESCING
