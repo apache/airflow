@@ -2585,6 +2585,83 @@ class TriageContext:
         return progress
 
 
+@dataclass
+class PRStateSnapshot:
+    """Snapshot of key PR fields for staleness detection."""
+
+    head_sha: str
+    updated_at: str
+    is_draft: bool
+    mergeable: str
+
+
+def _snapshot_pr_state(pr: PRData) -> PRStateSnapshot:
+    """Capture the current PR state for later comparison."""
+    return PRStateSnapshot(
+        head_sha=pr.head_sha,
+        updated_at=pr.updated_at,
+        is_draft=pr.is_draft,
+        mergeable=pr.mergeable,
+    )
+
+
+def _refresh_pr_if_stale(
+    pr: PRData,
+    snapshot: PRStateSnapshot,
+    *,
+    token: str,
+    github_repository: str,
+    run_api: bool = True,
+) -> DeterministicResult | None:
+    """Re-fetch PR from GitHub and check if state changed since snapshot.
+
+    If the PR state has not changed, returns None (proceed with original action).
+    If it changed, updates the PRData in place with fresh data, re-enriches it,
+    runs deterministic checks, and returns the new DeterministicResult so the
+    caller can re-evaluate the appropriate action.
+    """
+    fresh = _fetch_single_pr_graphql(token, github_repository, pr.number)
+
+    # Compare key state fields
+    changed_fields: list[str] = []
+    if fresh.head_sha != snapshot.head_sha:
+        changed_fields.append(f"new commits ({snapshot.head_sha[:8]} → {fresh.head_sha[:8]})")
+    if fresh.updated_at != snapshot.updated_at:
+        # updated_at changes on any PR mutation (comments, labels, reviews, etc.)
+        if not changed_fields:
+            changed_fields.append("PR updated since last check")
+    if fresh.is_draft != snapshot.is_draft:
+        changed_fields.append(f"draft status changed ({'draft' if fresh.is_draft else 'ready'})")
+    if fresh.mergeable != snapshot.mergeable:
+        changed_fields.append(f"merge status changed ({snapshot.mergeable} → {fresh.mergeable})")
+
+    if not changed_fields:
+        return None
+
+    # State changed — update the PR in place and re-evaluate
+    console_print(
+        f"  [warning]PR #{pr.number} state changed: {'; '.join(changed_fields)}. Re-evaluating...[/]"
+    )
+    # Update mutable fields on the existing PRData object
+    pr.head_sha = fresh.head_sha
+    pr.updated_at = fresh.updated_at
+    pr.is_draft = fresh.is_draft
+    pr.mergeable = fresh.mergeable
+    pr.title = fresh.title
+    pr.body = fresh.body
+    pr.labels = fresh.labels
+    pr.checks_state = fresh.checks_state
+    pr.node_id = fresh.node_id
+
+    # Re-enrich with fresh check details, merge status, and review comments
+    return _reevaluate_triaged_pr(
+        pr,
+        token=token,
+        github_repository=github_repository,
+        run_api=run_api,
+    )
+
+
 def _confirm_action(pr: PRData, description: str, forced_answer: str | None = None) -> bool:
     """Ask for final confirmation before modifying a PR. Returns True if confirmed.
 
@@ -2633,14 +2710,31 @@ def _execute_triage_action(
     draft_comment: str,
     close_comment: str,
     comment_only_text: str | None = None,
-) -> None:
-    """Execute a single triage action on a PR. Mutates ctx.stats."""
+    snapshot: PRStateSnapshot | None = None,
+    run_api: bool = True,
+) -> DeterministicResult | None:
+    """Execute a single triage action on a PR. Mutates ctx.stats.
+
+    If ``snapshot`` is provided, checks whether the PR state has changed since the
+    snapshot was taken. When a change is detected the PR is re-enriched and
+    re-evaluated; the new ``DeterministicResult`` is returned so the caller can
+    present updated information. Returns ``None`` when the action completed (or was
+    skipped) normally.
+    """
     stats = ctx.stats
 
     if action == TriageAction.SKIP:
         console_print(f"  [info]Skipping PR {_pr_link(pr)} — no action taken.[/]")
         stats.total_skipped_action += 1
-        return
+        return None
+
+    # Optimistic locking: verify PR state hasn't changed before mutating
+    if snapshot is not None:
+        stale_result = _refresh_pr_if_stale(
+            pr, snapshot, token=ctx.token, github_repository=ctx.github_repository, run_api=run_api
+        )
+        if stale_result is not None:
+            return stale_result
 
     if action == TriageAction.READY:
         if not _confirm_action(pr, "Add 'ready for maintainer review' label", ctx.answer_triage):
@@ -2781,6 +2875,7 @@ def _execute_triage_action(
             stats.total_closed += 1
         else:
             console_print(f"  [error]Failed to post comment on PR {_pr_link(pr)}.[/]")
+    return None
 
 
 def _prompt_and_execute_flagged_pr(
@@ -2792,14 +2887,19 @@ def _prompt_and_execute_flagged_pr(
     allow_back: bool = False,
     compact: bool = False,
     default_skip: bool = False,
-) -> bool:
+    run_api: bool = True,
+) -> bool | DeterministicResult:
     """Display a flagged PR panel, prompt user for action, and execute it. Mutates ctx.stats.
 
     When default_skip=True, the default action is overridden to SKIP (used when
     re-opening a previously skipped PR — all actions remain available).
 
     Returns True if the user chose to go back to the TUI without taking action.
+    Returns False if the action was executed normally.
+    Returns a DeterministicResult if the PR state changed (optimistic lock failure)
+    and the caller should re-evaluate with the new result.
     """
+    snapshot = _snapshot_pr_state(pr)
     author_profile = _fetch_author_profile(ctx.token, pr.author_login, ctx.github_repository)
 
     _display_pr_panel(pr, author_profile, assessment, compact=compact)
@@ -2957,14 +3057,18 @@ def _prompt_and_execute_flagged_pr(
             else:
                 console_print(Panel(draft_comment, title="Comment to be posted", border_style="green"))
 
-    _execute_triage_action(
+    stale_result = _execute_triage_action(
         ctx,
         pr,
         action,
         draft_comment=draft_comment,
         close_comment=close_comment,
         comment_only_text=comment_only_text,
+        snapshot=snapshot,
+        run_api=run_api,
     )
+    if stale_result is not None:
+        return stale_result
     return False
 
 
@@ -3897,15 +4001,37 @@ def _run_tui_triage(
                 if cur_entry.category in (PRCategory.FLAGGED, PRCategory.LLM_FLAGGED, PRCategory.LLM_ERRORS):
                     assessment = assessment_map.get(cur_pr.number)
                     if assessment:
-                        go_back = _prompt_and_execute_flagged_pr(
+                        result = _prompt_and_execute_flagged_pr(
                             ctx,
                             cur_pr,
                             assessment,
                             allow_back=True,
                             compact=True,
                             default_skip=was_skipped,
+                            run_api=run_api,
                         )
-                        if not go_back:
+                        if isinstance(result, DeterministicResult):
+                            # PR state changed — re-categorize and notify user
+                            console_print(
+                                f"[warning]PR #{cur_pr.number} was re-evaluated due to state change. "
+                                f"Returning to list.[/]"
+                            )
+                            if result.category == "flagged" and result.assessment:
+                                assessment_map[cur_pr.number] = result.assessment
+                                tui.set_assessments(assessment_map)
+                            elif result.category == "llm_candidate":
+                                cur_entry.category = PRCategory.PASSING
+                                cur_entry.action_taken = ""
+                            elif result.category == "pending_approval":
+                                cur_entry.category = PRCategory.WORKFLOW_APPROVAL
+                                cur_entry.action_taken = ""
+                            tui.update_entries(entries)
+                            get_console().print("[dim]Press any key to continue...[/]")
+                            _read_char()
+                            go_back = True
+                        elif result is True:
+                            go_back = True
+                        else:
                             cur_entry.action_taken = _infer_last_action(ctx.stats)
                             _cache_action(cur_pr, cur_entry.action_taken)
                     else:
@@ -3920,6 +4046,7 @@ def _run_tui_triage(
                         cur_entry.action_taken = _infer_last_action(ctx.stats)
                         _cache_action(cur_pr, cur_entry.action_taken)
                 elif cur_entry.category == PRCategory.PASSING:
+                    _passing_snapshot = _snapshot_pr_state(cur_pr)
                     author_profile = _fetch_author_profile(
                         ctx.token, cur_pr.author_login, ctx.github_repository
                     )
@@ -3943,16 +4070,33 @@ def _run_tui_triage(
                             go_back = True
                         elif act == TriageAction.QUIT:
                             ctx.stats.quit_early = True
-                        elif act == TriageAction.READY:
-                            _execute_triage_action(ctx, cur_pr, act, draft_comment="", close_comment="")
-                            cur_entry.action_taken = "ready"
-                            _cache_action(cur_pr, "ready")
                         elif act == TriageAction.SKIP:
                             cur_entry.action_taken = "skipped"
                         else:
-                            _execute_triage_action(ctx, cur_pr, act, draft_comment="", close_comment="")
-                            cur_entry.action_taken = act.value
-                            _cache_action(cur_pr, act.value)
+                            stale = _execute_triage_action(
+                                ctx,
+                                cur_pr,
+                                act,
+                                draft_comment="",
+                                close_comment="",
+                                snapshot=_passing_snapshot,
+                                run_api=run_api,
+                            )
+                            if stale is not None:
+                                console_print(
+                                    f"[warning]PR #{cur_pr.number} state changed. Returning to list.[/]"
+                                )
+                                if stale.category == "flagged" and stale.assessment:
+                                    cur_entry.category = PRCategory.FLAGGED
+                                    assessment_map[cur_pr.number] = stale.assessment
+                                    tui.set_assessments(assessment_map)
+                                tui.update_entries(entries)
+                                get_console().print("[dim]Press any key to continue...[/]")
+                                _read_char()
+                                go_back = True
+                            else:
+                                cur_entry.action_taken = "ready" if act == TriageAction.READY else act.value
+                                _cache_action(cur_pr, cur_entry.action_taken)
                 elif cur_entry.category == PRCategory.ALREADY_TRIAGED:
                     # Re-evaluate: enrich with fresh data and run deterministic checks
                     get_console().print(f"[info]Re-evaluating PR #{cur_pr.number}...[/]")
@@ -3967,14 +4111,19 @@ def _run_tui_triage(
                         cur_entry.category = PRCategory.FLAGGED
                         assessment_map[cur_pr.number] = det.assessment
                         tui.set_assessments(assessment_map)
-                        go_back = _prompt_and_execute_flagged_pr(
+                        result = _prompt_and_execute_flagged_pr(
                             ctx,
                             cur_pr,
                             det.assessment,
                             allow_back=True,
                             compact=True,
+                            run_api=run_api,
                         )
-                        if not go_back:
+                        if isinstance(result, DeterministicResult):
+                            go_back = True  # state changed again, return to list
+                        elif result is True:
+                            go_back = True
+                        else:
                             cur_entry.action_taken = _infer_last_action(ctx.stats)
                             _cache_action(cur_pr, cur_entry.action_taken)
                     elif det.category == "llm_candidate":
