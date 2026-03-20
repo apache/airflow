@@ -23,8 +23,7 @@ import os
 from unittest.mock import patch
 
 import pytest
-
-from scripts.ci.prek.breeze_context import BreezieContext
+from ci.prek.breeze_context import BreezieContext
 
 
 class TestBreezieContextDetection:

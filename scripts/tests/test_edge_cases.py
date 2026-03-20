@@ -26,11 +26,11 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.ci.prek.breeze_context import BreezieContext
-from scripts.ci.prek.extract_breeze_contribution_skills import (
+from ci.prek.breeze_context import BreezieContext
+from ci.prek.extract_breeze_contribution_skills import (
     extract_skills_from_markdown,
 )
-from scripts.ci.prek.validate_skills import compute_drift_report, regenerate_skills_json
+from ci.prek.validate_skills import compute_drift_report, regenerate_skills_json
 
 
 def _write_payload(path: Path, payload: dict) -> None:

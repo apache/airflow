@@ -25,8 +25,7 @@ import json
 from pathlib import Path
 
 import pytest
-
-from scripts.ci.prek.extract_breeze_contribution_skills import extract_and_generate
+from ci.prek.extract_breeze_contribution_skills import extract_and_generate
 
 
 def _repo_root() -> Path:
