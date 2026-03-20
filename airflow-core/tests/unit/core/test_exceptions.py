@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import sys
 
+import pytest
+
 
 class TestExceptions:
     def setup_method(self):
@@ -32,6 +34,7 @@ class TestExceptions:
     def test_pod_mutation_hook_exceptions_compatibility(
         self,
     ):
+        pytest.importorskip("airflow.providers.cncf.kubernetes")
         from airflow.exceptions import (
             PodMutationHookException as CoreMutationHookException,
         )
@@ -48,6 +51,7 @@ class TestExceptions:
     def test_pod_reconciliation_error_exceptions_compatibility(
         self,
     ):
+        pytest.importorskip("airflow.providers.cncf.kubernetes")
         from airflow.exceptions import (
             PodReconciliationError as CoreReconciliationError,
         )

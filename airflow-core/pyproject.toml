@@ -288,15 +288,7 @@ dev = [
     "apache-airflow-ctl",
     "apache-airflow-devel-common",
     "apache-airflow-task-sdk",
-    # TODO(potiuk): eventually we do not want any providers nor apache-airflow extras to be needed for
-    # airflow-core tests
     "apache-airflow[pandas,polars]",
-    "apache-airflow-providers-amazon",
-    "apache-airflow-providers-celery",
-    "apache-airflow-providers-cncf-kubernetes",
-    "apache-airflow-providers-fab>=2.2.0",
-    "apache-airflow-providers-git",
-    "apache-airflow-providers-ftp",
 ]
 
 # To build docs:

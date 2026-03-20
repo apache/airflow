@@ -23,6 +23,8 @@ from copy import deepcopy
 from unittest import mock
 
 import pytest
+
+pytest.importorskip("kubernetes", reason="kubernetes package required for sqlalchemy k8s tests")
 from kubernetes.client import models as k8s
 from sqlalchemy import text
 from sqlalchemy.exc import StatementError

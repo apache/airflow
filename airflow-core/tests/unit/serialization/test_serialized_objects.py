@@ -27,6 +27,8 @@ from typing import TYPE_CHECKING
 import pendulum
 import pytest
 from dateutil import relativedelta
+
+pytest.importorskip("kubernetes", reason="kubernetes package required for serialized objects tests")
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from uuid6 import uuid7

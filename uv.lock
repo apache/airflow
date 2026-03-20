@@ -1786,12 +1786,6 @@ dev = [
     { name = "apache-airflow-core", extra = ["all"] },
     { name = "apache-airflow-ctl" },
     { name = "apache-airflow-devel-common" },
-    { name = "apache-airflow-providers-amazon" },
-    { name = "apache-airflow-providers-celery" },
-    { name = "apache-airflow-providers-cncf-kubernetes" },
-    { name = "apache-airflow-providers-fab" },
-    { name = "apache-airflow-providers-ftp" },
-    { name = "apache-airflow-providers-git" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -1890,12 +1884,6 @@ dev = [
     { name = "apache-airflow-core", extras = ["all"], editable = "airflow-core" },
     { name = "apache-airflow-ctl", editable = "airflow-ctl" },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
-    { name = "apache-airflow-providers-amazon", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-celery", editable = "providers/celery" },
-    { name = "apache-airflow-providers-cncf-kubernetes", editable = "providers/cncf/kubernetes" },
-    { name = "apache-airflow-providers-fab", editable = "providers/fab" },
-    { name = "apache-airflow-providers-ftp", editable = "providers/ftp" },
-    { name = "apache-airflow-providers-git", editable = "providers/git" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]

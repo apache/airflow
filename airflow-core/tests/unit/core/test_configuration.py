@@ -55,6 +55,15 @@ from unit.utils.test_config import (
     use_config,
 )
 
+
+def _provider_installed(module_path: str) -> bool:
+    try:
+        __import__(module_path)
+        return True
+    except ImportError:
+        return False
+
+
 HOME_DIR = os.path.expanduser("~")
 
 # The conf has been updated with deactivate_stale_dags_interval to test the
@@ -949,6 +958,10 @@ class TestConf:
         result = _collect_kwarg_env_vars("AIRFLOW__SECRETS__BACKEND_KWARG__")
         assert result == {"role_id": "abc"}
 
+    @pytest.mark.skipif(
+        not _provider_installed("airflow.providers.amazon"),
+        reason="amazon provider not installed",
+    )
     @conf_vars(
         {
             (

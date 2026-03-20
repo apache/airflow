@@ -44,6 +44,18 @@ from airflow.executors import executor_loader
 
 from tests_common.test_utils.config import conf_vars
 
+
+def _provider_installed(module_path: str) -> bool:
+    try:
+        __import__(module_path)
+        return True
+    except ImportError:
+        return False
+
+
+_celery_installed = _provider_installed("airflow.providers.celery")
+_kubernetes_installed = _provider_installed("airflow.providers.cncf.kubernetes")
+
 pytestmark = pytest.mark.db_test
 
 # Can not be `--snake_case` or contain uppercase letter
@@ -533,13 +545,33 @@ class TestCli:
     @pytest.mark.parametrize(
         ("executor", "expected_args"),
         [
-            ("CeleryExecutor", ["celery"]),
-            ("KubernetesExecutor", ["kubernetes"]),
+            pytest.param(
+                "CeleryExecutor",
+                ["celery"],
+                marks=pytest.mark.skipif(not _celery_installed, reason="celery provider not installed"),
+            ),
+            pytest.param(
+                "KubernetesExecutor",
+                ["kubernetes"],
+                marks=pytest.mark.skipif(
+                    not _kubernetes_installed, reason="cncf.kubernetes provider not installed"
+                ),
+            ),
             ("LocalExecutor", []),
             # custom executors are mapped to the regular ones in `conftest.py`
             ("custom_executor.CustomLocalExecutor", []),
-            ("custom_executor.CustomCeleryExecutor", ["celery"]),
-            ("custom_executor.CustomKubernetesExecutor", ["kubernetes"]),
+            pytest.param(
+                "custom_executor.CustomCeleryExecutor",
+                ["celery"],
+                marks=pytest.mark.skipif(not _celery_installed, reason="celery provider not installed"),
+            ),
+            pytest.param(
+                "custom_executor.CustomKubernetesExecutor",
+                ["kubernetes"],
+                marks=pytest.mark.skipif(
+                    not _kubernetes_installed, reason="cncf.kubernetes provider not installed"
+                ),
+            ),
         ],
     )
     def test_cli_parser_executors(self, executor, expected_args):
@@ -637,6 +669,7 @@ class TestCliSubprocess:
         # Minimum run time of Airflow CLI should at least be within 5s
         assert timing_result < threshold
 
+    @pytest.mark.skipif(not _celery_installed, reason="celery provider not installed")
     def test_airflow_config_contains_providers(self):
         """
         Test that airflow config has providers included by default.
@@ -655,6 +688,7 @@ class TestCliSubprocess:
         assert CONFIG_FILE.exists()
         assert "celery_config_options" in CONFIG_FILE.read_text()
 
+    @pytest.mark.skipif(not _celery_installed, reason="celery provider not installed")
     def test_airflow_config_output_contains_providers_by_default(self):
         """Test that airflow config has providers excluded in config list when asked for it."""
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)

@@ -1060,6 +1060,7 @@ class TestCliTestConnections:
         clear_db_connections()
 
     def test_cli_connections_test_success(self, mocker, stdout_capture):
+        pytest.importorskip("airflow.providers.http")
         mocker.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
         mock_test_conn = mocker.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
         conn_id = "http_default"
@@ -1069,6 +1070,7 @@ class TestCliTestConnections:
             assert "Connection success!" in stdout.getvalue()
 
     def test_cli_connections_test_fail(self, mocker, stdout_capture):
+        pytest.importorskip("airflow.providers.http")
         mocker.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
         mock_test_conn = mocker.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
         conn_id = "http_default"

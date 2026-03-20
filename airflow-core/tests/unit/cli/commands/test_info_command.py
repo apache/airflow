@@ -34,6 +34,14 @@ from airflow.version import version as airflow_version
 from tests_common.test_utils.config import conf_vars
 
 
+def _provider_installed(module_path: str) -> bool:
+    try:
+        __import__(module_path)
+        return True
+    except ImportError:
+        return False
+
+
 def capture_show_output(instance):
     console = Console()
     with console.capture() as capture:
@@ -90,6 +98,10 @@ class TestAirflowInfo:
     def unique_items(items):
         return {i[0] for i in items}
 
+    @pytest.mark.skipif(
+        not _provider_installed("airflow.providers.amazon"),
+        reason="amazon provider not installed",
+    )
     @conf_vars(
         {
             ("core", "executor"): "TEST_EXECUTOR",

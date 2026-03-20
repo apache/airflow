@@ -29,7 +29,6 @@ from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models import Connection
-from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.config import conf_vars
@@ -127,6 +126,9 @@ def client(request):
 
 @pytest.fixture
 def configure_git_connection_for_dag_bundle(session):
+    pytest.importorskip("airflow.providers.git.bundles.git")
+    from airflow.providers.git.bundles.git import GitDagBundle
+
     clear_db_connections(False)
     # Git connection is required for the bundles to have a url.
     connection = Connection(

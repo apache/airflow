@@ -30,6 +30,15 @@ from airflow.utils.serve_logs import serve_logs
 
 from tests_common.test_utils.config import conf_vars
 
+
+def _provider_installed(module_path: str) -> bool:
+    try:
+        __import__(module_path)
+        return True
+    except ImportError:
+        return False
+
+
 pytestmark = pytest.mark.db_test
 
 
@@ -41,9 +50,23 @@ class TestSchedulerCommand:
     @pytest.mark.parametrize(
         ("executor", "expect_serve_logs"),
         [
-            ("CeleryExecutor", False),
+            pytest.param(
+                "CeleryExecutor",
+                False,
+                marks=pytest.mark.skipif(
+                    not _provider_installed("airflow.providers.celery"),
+                    reason="celery provider not installed",
+                ),
+            ),
             ("LocalExecutor", True),
-            ("KubernetesExecutor", False),
+            pytest.param(
+                "KubernetesExecutor",
+                False,
+                marks=pytest.mark.skipif(
+                    not _provider_installed("airflow.providers.cncf.kubernetes"),
+                    reason="cncf.kubernetes provider not installed",
+                ),
+            ),
         ],
     )
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
