@@ -4094,6 +4094,17 @@ class DagModel(Base):
         ser_dags = session.scalars(
             select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
         ).all()
+        ser_dag_ids = {s.dag_id for s in ser_dags}
+        missing_from_serialized = set(by_dag.keys()) - ser_dag_ids
+        if missing_from_serialized:
+            log.warning(
+                "[DEBUG DATASETS] DAGs in DDRQ but missing SerializedDagModel "
+                "(skipping — condition cannot be evaluated): %s",
+                sorted(missing_from_serialized),
+            )
+            for dag_id in missing_from_serialized:
+                del by_dag[dag_id]
+                del dag_statuses[dag_id]
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
