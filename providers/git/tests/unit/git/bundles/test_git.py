@@ -308,6 +308,81 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_second_initialize_skips_clone_when_local_repo_has_version(self, mock_githook, git_repo):
+        """When the local repo already has the correct version checked out (with .git intact), skip re-cloning."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        version = repo.head.commit.hexsha
+        bundle_name = "test_version_reuse"
+
+        # Clone with prune_dotgit_folder=False so .git is preserved
+        bundle1 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=version,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle1.initialize()
+        assert (bundle1.repo_path / ".git").exists()
+        assert bundle1.get_current_version() == version
+
+        # Should detect local repo has correct version and skip clone
+        with (
+            patch.object(GitDagBundle, "_clone_bare_repo_if_required") as mock_bare_clone,
+            patch.object(GitDagBundle, "_clone_repo_if_required") as mock_clone,
+        ):
+            bundle2 = GitDagBundle(
+                name=bundle_name,
+                git_conn_id=CONN_HTTPS,
+                version=version,
+                tracking_ref=GIT_DEFAULT_BRANCH,
+                prune_dotgit_folder=False,
+            )
+            bundle2.initialize()
+            mock_bare_clone.assert_not_called()
+            mock_clone.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_local_repo_with_wrong_version_does_not_skip_clone(self, mock_githook, git_repo):
+        """When the local repo has a different version, do not skip cloning."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        first_commit = repo.head.commit.hexsha
+
+        # Add a second commit
+        file_path = repo_path / "new_file.py"
+        with open(file_path, "w") as f:
+            f.write("new content")
+        repo.index.add([file_path])
+        repo.index.commit("Second commit")
+        second_commit = repo.head.commit.hexsha
+
+        bundle_name = "test_version_mismatch"
+
+        # First init: clone at second_commit
+        bundle1 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=second_commit,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle1.initialize()
+        assert bundle1.get_current_version() == second_commit
+
+        # Second init with first_commit: different version path, should NOT skip
+        bundle2 = GitDagBundle(
+            name=bundle_name,
+            git_conn_id=CONN_HTTPS,
+            version=first_commit,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle2.initialize()
+        assert bundle2.get_current_version() == first_commit
+
     @pytest.mark.parametrize(
         "amend",
         [
