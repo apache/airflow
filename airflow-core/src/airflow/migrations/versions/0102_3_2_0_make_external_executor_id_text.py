@@ -42,7 +42,10 @@ branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
 
-_TABLES = {"task_instance", "task_instance_history"}
+_TABLE_KEY_COLUMNS = {
+    "task_instance": "id",
+    "task_instance_history": "task_instance_id",
+}
 _COLUMN = "external_executor_id"
 _NEW_COL = "external_executor_id_new"
 _BATCH_SIZE = 1000
@@ -55,7 +58,7 @@ def upgrade():
     On PostgreSQL this is a metadata-only change (no table rewrite), the ACCESS EXCLUSIVE lock is held for only milliseconds.
     On MySQL, TEXT is also a superset of VARCHAR(250), so no rewrite is needed.
     """
-    for table in _TABLES:
+    for table in _TABLE_KEY_COLUMNS:
         with op.batch_alter_table(table, schema=None) as batch_op:
             batch_op.alter_column(
                 _COLUMN,
@@ -84,17 +87,18 @@ def downgrade():
     dialect_name = conn.dialect.name
 
     if dialect_name == "sqlite":
-        for table in _TABLES:
+        for table in _TABLE_KEY_COLUMNS:
             _downgrade_sqlite(table)
     else:
         # Generic path works for both PostgreSQL and MySQL 8.0+
-        for table in _TABLES:
+        for table in _TABLE_KEY_COLUMNS:
             _downgrade_expand_contract(conn, table)
 
 
 def _downgrade_expand_contract(conn: Connection, table: str):
     """Expand-contract downgrade for PostgreSQL and MySQL."""
     engine = conn.engine
+    key_column = _TABLE_KEY_COLUMNS[table]
 
     print(f"starting expand-contract downgrade for {table}.{_COLUMN}")
 
@@ -114,17 +118,19 @@ def _downgrade_expand_contract(conn: Connection, table: str):
             if last_id is None:
                 rows = batch_conn.execute(
                     sa.text(
-                        f"SELECT id FROM {table} WHERE {_COLUMN} IS NOT NULL ORDER BY id LIMIT :batch_size"
+                        f"SELECT {key_column} FROM {table} "
+                        f"WHERE {_COLUMN} IS NOT NULL "
+                        f"ORDER BY {key_column} LIMIT :batch_size"
                     ),
                     {"batch_size": _BATCH_SIZE},
                 ).fetchall()
             else:
                 rows = batch_conn.execute(
                     sa.text(
-                        f"SELECT id FROM {table} "
+                        f"SELECT {key_column} FROM {table} "
                         f"WHERE {_COLUMN} IS NOT NULL "
-                        f"AND id > :last_id "
-                        f"ORDER BY id "
+                        f"AND {key_column} > :last_id "
+                        f"ORDER BY {key_column} "
                         f"LIMIT :batch_size"
                     ),
                     {"last_id": last_id, "batch_size": _BATCH_SIZE},
@@ -143,7 +149,7 @@ def _downgrade_expand_contract(conn: Connection, table: str):
                     f"CASE WHEN LENGTH({_COLUMN}) > 250 "
                     f"THEN LEFT({_COLUMN}, 250) "
                     f"ELSE {_COLUMN} END "
-                    f"WHERE id >= :min_id AND id <= :max_id "
+                    f"WHERE {key_column} >= :min_id AND {key_column} <= :max_id "
                     f"AND {_COLUMN} IS NOT NULL"
                 ),
                 {"min_id": min_id, "max_id": max_id},
