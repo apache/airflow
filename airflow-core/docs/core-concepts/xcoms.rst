@@ -98,6 +98,8 @@ If you want to implement your own backend, you should subclass :class:`~airflow.
 
 You can override the ``purge`` method in the ``BaseXCom`` class to have control over purging the XCom data from the custom backend. This will be called as part of ``delete``.
 
+**Scheduler and non-task context:** ``deserialize_value`` may be called from the scheduler when evaluating task dependencies (e.g. branch/skip rules for operators that inherit from SkipMixin). In that context there is no running task, so task-scoped connection resolution or credentials may not be available. If your backend needs credentials (e.g. to fetch from object storage), implement a guard in ``deserialize_value``: when not in task context (for example when ``os.environ.get("AIRFLOW_CTX_DAG_ID")`` is empty), return the raw reference or a safe default instead of performing a remote fetch. This avoids errors such as ``NoCredentialsError`` when the scheduler evaluates whether downstream tasks should be skipped.
+
 Verifying Custom XCom Backend usage in Containers
 -------------------------------------------------
 
