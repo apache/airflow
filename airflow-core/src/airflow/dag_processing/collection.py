@@ -279,12 +279,25 @@ def _serialize_dag_capturing_errors(
         )
         if not dag_was_updated:
             # Check and update DagCode
-            DagCode.update_source_code(dag.dag_id, dag.fileloc)
+            DagCode.update_source_code(dag.dag_id, dag.fileloc, session=session)
+
+        # Flush the session to ensure that any DB errors (like 1366 for emojis) are raised here
+        # and caught by the try/except block below, rather than later in _sync_dag_perms
+        session.flush()
+
         if "FabAuthManager" in conf.get("core", "auth_manager"):
             _sync_dag_perms(dag, session=session)
 
         return []
-    except OperationalError:
+    except OperationalError as e:
+        session.rollback()
+        if e.orig and len(e.orig.args) > 0 and e.orig.args[0] == 1366:
+            return [
+                (
+                    (bundle_name, dag.relative_fileloc),
+                    f"Failed to write serialized DAG: {e}",
+                )
+            ]
         raise
     except Exception:
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
