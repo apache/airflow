@@ -76,17 +76,76 @@ DEFAULT_BATCH_SIZE = 1000
 ENCODING_TYPE = "deadline_alert"
 
 
+def _has_matching_index(conn: Connection, table_name: str, columns: Iterable[str]) -> bool:
+    log.debug("Targeting index check", table=table_name, columns=list(columns))
+    target_columns = list(columns)
+    inspector = sa.inspect(conn)
+
+    for index in inspector.get_indexes(table_name):
+        index_columns = index.get("column_names") or []
+        log.debug("Checking index", table=table_name, index=index.get("name"), columns=index_columns)
+        if index_columns[: len(target_columns)] == target_columns:
+            return True
+
+    primary_key = inspector.get_pk_constraint(table_name) or {}
+    primary_key_columns = primary_key.get("constrained_columns") or []
+    log.info("Checking primary key", table=table_name, columns=primary_key_columns)
+    if primary_key_columns[: len(target_columns)] == target_columns:
+        return True
+
+    with contextlib.suppress(Exception):
+        for constraint in inspector.get_unique_constraints(table_name):
+            constraint_columns = constraint.get("column_names") or []
+            log.debug(
+                "Checking unique constraint",
+                table=table_name,
+                constraint=constraint.get("name"),
+                columns=constraint_columns,
+            )
+            if constraint_columns[: len(target_columns)] == target_columns:
+                return True
+
+    return False
+
+
+def _is_mysql_foreign_key_index_error(conn: Connection, exc: sa.exc.OperationalError) -> bool:
+    if conn.dialect.name != "mysql":
+        return False
+
+    error_args = getattr(exc.orig, "args", ())
+    return bool(error_args) and error_args[0] == 1553
+
+
 def temporary_index(index_name, table_name, columns):
     """Create an index before the wrapped function runs and drop it after, even on error."""
 
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            conn = op.get_bind()
+            if _has_matching_index(conn, table_name, columns):
+                log.info(
+                    "Matching index already exists, skipping creation of temporary index",
+                    index_name=index_name,
+                    table_name=table_name,
+                    columns=columns,
+                )
+                return func(*args, **kwargs)
+
             op.create_index(index_name, table_name, columns)
             try:
                 return func(*args, **kwargs)
             finally:
-                op.drop_index(index_name, table_name=table_name)
+                try:
+                    op.drop_index(index_name, table_name=table_name)
+                except sa.exc.OperationalError as exc:
+                    if not _is_mysql_foreign_key_index_error(conn, exc):
+                        raise
+                    log.warning(
+                        "Keeping temporary index because MySQL bound it to a foreign key",
+                        index_name=index_name,
+                        table_name=table_name,
+                    )
 
         return wrapper
 
