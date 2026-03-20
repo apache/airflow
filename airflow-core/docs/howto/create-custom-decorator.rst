@@ -21,6 +21,8 @@ Creating Custom ``@task`` Decorators
 As of Airflow 2.2 it is possible add custom decorators to the TaskFlow interface from within a provider
 package and have those decorators appear natively as part of the ``@task.____`` design.
 
+Custom task decorators allow you to create specialized decorators that wrap your functions with specific functionality. This is useful when you want to create domain-specific decorators (e.g., ``@task.django`` for Django projects) or provide pre-configured environments for your tasks.
+
 For an example. Let's say you were trying to create an easier mechanism to run python functions as "foo"
 tasks. The steps to create and register ``@task.foo`` are:
 
@@ -35,10 +37,16 @@ tasks. The steps to create and register ``@task.foo`` are:
     example, ``_DockerDecoratedOperator`` in the ``apache-airflow-providers-docker`` provider sets this to
     ``@task.docker`` to indicate the decorator name it implements.
 
+    The ``DecoratedOperator`` base class handles the boilerplate of wrapping Python callables and managing XCom pushes/pulls,
+    allowing you to focus on your specific functionality.
+
 2. Create a ``foo_task`` function
 
     Once you have your decorated class, create a function like this, to convert
     the new ``FooDecoratedOperator`` into a TaskFlow function decorator!
+
+    The ``task_decorator_factory`` utility function handles the conversion of your operator into a proper task decorator function,
+    managing the decorator creation process and ensuring compatibility with the TaskFlow API.
 
     .. code-block:: python
 
@@ -68,6 +76,10 @@ tasks. The steps to create and register ``@task.foo`` are:
     a list with each item containing ``name`` and ``class-name`` keys. When Airflow starts, the
     ``ProviderManager`` class will automatically import this value and ``task.foo`` will work as a new decorator!
 
+    The **ProviderManager** is Airflow's internal system that discovers and registers task decorators from provider packages.
+    When Airflow starts, it scans all installed providers for entry points, calls each provider's ``get_provider_info()`` function,
+    and dynamically attaches registered decorators to ``@task`` as ``@task.decorator_name``.
+
     .. code-block:: python
 
         def get_provider_info():
@@ -85,6 +97,65 @@ tasks. The steps to create and register ``@task.foo`` are:
             }
 
     Please note that the ``name`` must be a valid python identifier.
+
+Alternative: Creating Decorators for Local Projects
+---------------------------------------------------
+
+If you want to create custom decorators for use within a single Airflow project without creating a full provider package,
+you can use a simpler factory approach. This is useful for project-specific decorators like Django integration.
+
+Example: Creating a Django task decorator:
+
+.. code-block:: python
+
+    from __future__ import annotations
+    from pathlib import Path
+    from typing import Callable
+    from airflow.sdk import task
+    
+    def django_connect(app_path: Path, settings_module: str):
+        """Connect to Django database - implement your Django setup here"""
+        import os
+        import django
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
+        django.setup()
+    
+    def make_django_decorator(app_path: Path, settings_module: str):
+        """Factory function to create a Django-specific task decorator"""
+        
+        def django_task(task_id: str = None, *args, **kwargs):
+            def django_task_decorator(fn: Callable):
+                @task(task_id=task_id or fn.__name__, *args, **kwargs)
+                def new_fn(*fn_args, **fn_kwargs):
+                    # Connect to Django database before running the function
+                    django_connect(app_path, settings_module)
+                    # Now the function can use Django models
+                    return fn(*fn_args, **fn_kwargs)
+                return new_fn
+            return django_task_decorator
+        return django_task
+
+Usage in your DAG:
+
+.. code-block:: python
+
+    from plugins.django_decorator import make_django_decorator
+    from pathlib import Path
+    
+    # Create a Django-specific task decorator for your project
+    django_task = make_django_decorator(
+        app_path=Path("/path/to/your/django/project"),
+        settings_module="myproject.settings"
+    )
+    
+    @django_task
+    def get_user_count():
+        """This function can now use Django models"""
+        from django.contrib.auth.models import User
+        return User.objects.count()
+
+This approach gives you a clean ``@django_task`` decorator that handles all the Django setup automatically
+without requiring provider registration.
 
 (Optional) Adding IDE auto-completion support
 =============================================
