@@ -203,8 +203,8 @@ class IBMMQHook(BaseHook):
         :return: The decoded message payload.
         """
         backoff = _BACKOFF_BASE
+        stop_event = threading.Event()
         while True:
-            stop_event = threading.Event()
             try:
                 result = await sync_to_async(self._consume_sync)(
                     queue_name, poll_interval, stop_event
