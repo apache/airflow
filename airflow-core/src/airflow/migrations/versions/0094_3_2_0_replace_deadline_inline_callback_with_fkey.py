@@ -329,8 +329,6 @@ def downgrade():
             op.execute("DELETE FROM deadline")
             return
 
-        from airflow.utils.sqlalchemy import ExtendedJSON
-
         deadline_table = table(
             "deadline",
             column("id", sa.Uuid()),
@@ -343,7 +341,7 @@ def downgrade():
         callback_table = table(
             "callback",
             column("id", sa.Uuid()),
-            column("data", ExtendedJSON()),
+            column("data", sa.JSON()),
             column("state", sa.String(10)),
         )
 
