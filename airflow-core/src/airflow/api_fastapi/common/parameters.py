@@ -819,12 +819,14 @@ class _ConsumingAssetFilter(BaseParam[str | None]):
     @classmethod
     def depends(
         cls,
-        consuming_asset: str | None = Query(None, description="Filter by consuming asset name or URI"),
+        consuming_asset_pattern: str | None = Query(
+            None, description="Filter by consuming asset name or URI using pattern matching"
+        ),
     ) -> _ConsumingAssetFilter:
-        return cls().set_value(consuming_asset)
+        return cls().set_value(consuming_asset_pattern)
 
 
-QueryConsumingAssetFilter = Annotated[_ConsumingAssetFilter, Depends(_ConsumingAssetFilter.depends)]
+QueryConsumingAssetPatternSearch = Annotated[_ConsumingAssetFilter, Depends(_ConsumingAssetFilter.depends)]
 
 
 class _PendingActionsFilter(BaseParam[bool]):
