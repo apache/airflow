@@ -28,6 +28,7 @@
   },
   "collapseAllExtra": "Recolher todos os extra json",
   "collapseDetailsPanel": "Recolher Painel de Detalhes",
+  "consumingAsset": "Asset Consumidor",
   "createdAssetEvent_one": "Evento de Asset Criado",
   "createdAssetEvent_other": "Eventos de Asset Criados",
   "dag_one": "Dag",
@@ -103,6 +104,12 @@
     "notFound": "Página Não Encontrada",
     "title": "Erro"
   },
+  "errors": {
+    "forbidden": {
+      "description": "Você não tem permissão para realizar esta ação.",
+      "title": "Acesso Negado"
+    }
+  },
   "expand": {
     "collapse": "Recolher",
     "expand": "Expandir",
@@ -125,9 +132,11 @@
     "logicalDateTo": "Data Lógica Para",
     "runAfterFrom": "Executar Depois De",
     "runAfterTo": "Executar Depois Para",
+    "searchAsset": "Pesquisar Asset",
     "selectDateRange": "Selecionar intervalo de datas",
     "startTime": "Hora de início"
   },
+  "generateToken": "Gerar Token",
   "logicalDate": "Data Lógica",
   "logout": "Sair",
   "logoutConfirmation": "Você está prestes a sair do aplicativo.",
@@ -180,11 +189,11 @@
   "reset": "Resetar",
   "runId": "ID da Execução",
   "runTypes": {
+    "asset_materialization": "Materialização de Asset",
     "asset_triggered": "Asset Acionado",
     "backfill": "Backfill",
     "manual": "Manual",
-    "scheduled": "Agendado",
-    "asset_materialization": "Materialização de Asset"
+    "scheduled": "Agendado"
   },
   "scroll": {
     "direction": {
@@ -201,6 +210,7 @@
     "users": "Usuários"
   },
   "selectLanguage": "Selecionar Idioma",
+  "selected": "Selecionado",
   "showDetailsPanel": "Mostrar Painel de Detalhes",
   "signedInAs": "Conectado como",
   "source": {
@@ -301,11 +311,25 @@
     "utc": "UTC (Tempo Universal Coordenado)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Limpeza em Massa de {{resourceName}} Falhou",
+      "success": {
+        "description": "{{count}} {{resourceName}} foram limpos com sucesso. Chaves: {{keys}}",
+        "title": "Limpeza em Massa de {{resourceName}} Submetida"
+      }
+    },
     "bulkDelete": {
       "error": "Exclusão em Massa de {{resourceName}} Falhou",
       "success": {
         "description": "{{count}} {{resourceName}} foram excluídos com sucesso. Chaves: {{keys}}",
         "title": "Exclusão em Massa de {{resourceName}} Submetida"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Atualização em Massa de {{resourceName}} Falhou",
+      "success": {
+        "description": "{{count}} {{resourceName}} foram atualizados com sucesso. Chaves: {{keys}}",
+        "title": "Atualização em Massa de {{resourceName}} Submetida"
       }
     },
     "create": {
@@ -335,33 +359,32 @@
         "description": "{{resourceName}} foi atualizado com sucesso.",
         "title": "Atualização de {{resourceName}} Submetida"
       }
-    },
-    "forbidden": {
-      "title": "Acesso Negado",
-      "description": "Você não tem permissão para realizar esta ação."
     }
+  },
+  "tokenGeneration": {
+    "apiToken": "Token de API",
+    "cliToken": "Token CLI",
+    "errorDescription": "Ocorreu um erro ao gerar o token. Por favor, tente novamente.",
+    "errorTitle": "Falha na Geração do Token",
+    "generate": "Gerar",
+    "selectType": "Selecione o tipo de token a ser gerado.",
+    "title": "Gerar Token",
+    "tokenExpiresIn": "Este token expira em {{duration}}.",
+    "tokenGenerated": "Seu token foi gerado.",
+    "tokenShownOnce": "Este token será exibido apenas uma vez. Copie-o agora."
   },
   "total": "Total {{state}}",
   "triggered": "Acionado",
   "tryNumber": "Número de Tentativas",
   "user": "Usuário",
+  "validation": {
+    "mustBeAtLeast": "Deve ser pelo menos {{min}}.",
+    "mustBeValidNumber": "Deve ser um número válido."
+  },
   "wrap": {
     "hotkey": "Pressione {{hotkey}} para expandir ou recolher",
     "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção",
     "unwrap": "Expandir",
     "wrap": "Recolher"
-  },
-  "generateToken": "Gerar Token",
-  "tokenGeneration": {
-    "title": "Gerar Token",
-    "apiToken": "Token de API",
-    "cliToken": "Token CLI",
-    "generate": "Gerar",
-    "selectType": "Selecione o tipo de token a ser gerado.",
-    "tokenGenerated": "Seu token foi gerado.",
-    "tokenShownOnce": "Este token será exibido apenas uma vez. Copie-o agora.",
-    "tokenExpiresIn": "Este token expira em {{duration}}.",
-    "errorTitle": "Falha na Geração do Token",
-    "errorDescription": "Ocorreu um erro ao gerar o token. Por favor, tente novamente."
   }
 }
