@@ -395,7 +395,7 @@ class TestLocalExecutorCallbackSupport:
         executor = LocalExecutor()
         assert executor.supports_callbacks is True
 
-    @skip_spawn_mp_start
+    @skip_non_fork_mp_start
     def test_process_callback_workload_queue_management(self):
         """Test that _process_workloads correctly removes callbacks from queued_callbacks."""
         executor = LocalExecutor(parallelism=1)

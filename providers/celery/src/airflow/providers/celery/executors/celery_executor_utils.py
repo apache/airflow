@@ -189,9 +189,9 @@ def on_celery_worker_ready(*args, **kwargs):
 def execute_workload(input: str) -> None:
     from pydantic import TypeAdapter
 
-    from airflow.executors import workloads
+    from airflow.executors.workloads import ExecutorWorkload
 
-    decoder = TypeAdapter[workloads.All](workloads.All)
+    decoder = TypeAdapter[ExecutorWorkload](ExecutorWorkload)
     workload = decoder.validate_json(input)
 
     celery_task_id = app.current_task.request.id

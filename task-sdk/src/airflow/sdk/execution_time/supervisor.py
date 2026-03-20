@@ -2173,7 +2173,9 @@ def supervise_workload(
 
     if isinstance(workload, ExecuteTask):
         return supervise_task(
-            ti=workload.ti,
+            # workload.ti is a TaskInstanceDTO which duck-types as TaskInstance.
+            # TODO: Create a protocol for this.
+            ti=workload.ti,  # type: ignore[arg-type]
             bundle_info=workload.bundle_info,
             dag_rel_path=workload.dag_rel_path,
             token=workload.token,
