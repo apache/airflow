@@ -116,7 +116,6 @@ export default defineConfig({
     "**/dag-runs.spec.ts",
     "**/dag-grid-view.spec.ts",
     "**/dag-tasks.spec.ts",
-    "**/variable.spec.ts",
   ],
 
   timeout: 30_000,
