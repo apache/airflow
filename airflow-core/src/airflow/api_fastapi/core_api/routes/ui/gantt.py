@@ -67,6 +67,8 @@ def get_gantt_data(
         TaskInstance.task_display_name.label("task_display_name"),  # type: ignore[attr-defined]
         TaskInstance.try_number.label("try_number"),
         TaskInstance.state.label("state"),
+        TaskInstance.scheduled_dttm.label("scheduled_dttm"),
+        TaskInstance.queued_dttm.label("queued_dttm"),
         TaskInstance.start_date.label("start_date"),
         TaskInstance.end_date.label("end_date"),
     ).where(
@@ -81,6 +83,8 @@ def get_gantt_data(
         TaskInstanceHistory.task_display_name.label("task_display_name"),
         TaskInstanceHistory.try_number.label("try_number"),
         TaskInstanceHistory.state.label("state"),
+        TaskInstanceHistory.scheduled_dttm.label("scheduled_dttm"),
+        TaskInstanceHistory.queued_dttm.label("queued_dttm"),
         TaskInstanceHistory.start_date.label("start_date"),
         TaskInstanceHistory.end_date.label("end_date"),
     ).where(
@@ -106,6 +110,8 @@ def get_gantt_data(
             task_display_name=row.task_display_name,
             try_number=row.try_number,
             state=row.state,
+            scheduled_dttm=row.scheduled_dttm,
+            queued_dttm=row.queued_dttm,
             start_date=row.start_date,
             end_date=row.end_date,
         )

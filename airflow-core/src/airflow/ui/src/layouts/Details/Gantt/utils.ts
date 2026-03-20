@@ -38,6 +38,8 @@ import { buildTaskInstanceUrl } from "src/utils/links";
 export type GanttDataItem = {
   isGroup?: boolean | null;
   isMapped?: boolean | null;
+  isQueued?: boolean;
+  isScheduled?: boolean;
   state?: TaskInstanceState | null;
   taskId: string;
   tryNumber?: number;
@@ -122,19 +124,57 @@ export const transformGanttData = ({
         if (tries && tries.length > 0) {
           return tries
             .filter((tryInstance) => tryInstance.start_date !== null)
-            .map((tryInstance) => {
+            .flatMap((tryInstance) => {
               const hasTaskRunning = isStatePending(tryInstance.state);
               const endTime = hasTaskRunning ? dayjs().toISOString() : tryInstance.end_date;
+              const items: Array<GanttDataItem> = [];
 
-              return {
+              // Scheduled segment: from scheduled_dttm to queued_dttm (or start_date if no queued_dttm)
+              if (tryInstance.scheduled_dttm !== null) {
+                const scheduledEnd = tryInstance.queued_dttm ?? tryInstance.start_date;
+
+                items.push({
+                  isGroup: false,
+                  isMapped: tryInstance.is_mapped,
+                  isScheduled: true,
+                  state: "scheduled" as TaskInstanceState,
+                  taskId: tryInstance.task_id,
+                  tryNumber: tryInstance.try_number,
+                  x: [dayjs(tryInstance.scheduled_dttm).toISOString(), dayjs(scheduledEnd).toISOString()],
+                  y: tryInstance.task_display_name,
+                });
+              }
+
+              // Queue segment: from queued_dttm to start_date
+              if (tryInstance.queued_dttm !== null) {
+                items.push({
+                  isGroup: false,
+                  isMapped: tryInstance.is_mapped,
+                  isQueued: true,
+                  state: "queued" as TaskInstanceState,
+                  taskId: tryInstance.task_id,
+                  tryNumber: tryInstance.try_number,
+                  x: [
+                    dayjs(tryInstance.queued_dttm).toISOString(),
+                    dayjs(tryInstance.start_date).toISOString(),
+                  ],
+                  y: tryInstance.task_display_name,
+                });
+              }
+
+              // Execution segment: from start_date to end_date
+              items.push({
                 isGroup: false,
                 isMapped: tryInstance.is_mapped,
+                isQueued: false,
                 state: tryInstance.state,
                 taskId: tryInstance.task_id,
                 tryNumber: tryInstance.try_number,
                 x: [dayjs(tryInstance.start_date).toISOString(), dayjs(endTime).toISOString()],
                 y: tryInstance.task_display_name,
-              };
+              });
+
+              return items;
             });
         }
       }
@@ -327,6 +367,14 @@ export const createChartOptions = ({
           },
           label(tooltipItem: TooltipItem<"bar">) {
             const taskInstance = data[tooltipItem.dataIndex];
+
+            if (taskInstance?.isScheduled) {
+              return `${translate("state")}: ${translate("states.scheduled")}`;
+            }
+
+            if (taskInstance?.isQueued) {
+              return `${translate("state")}: ${translate("states.queued")}`;
+            }
 
             return `${translate("state")}: ${translate(`states.${taskInstance?.state}`)}`;
           },
