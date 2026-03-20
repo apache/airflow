@@ -86,6 +86,7 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         self.trigger_id = None
         self.template_fields = ()
         self.template_ext = ()
+        self.task_id = None
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
@@ -99,18 +100,14 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         return None
 
     @property
-    def task_id(self) -> str | None:
-        if self.task_instance:
-            return self.task_instance.task_id
-        return None
-
-    @property
     def task_instance(self) -> TaskInstance:
         return self._task_instance
 
     @task_instance.setter
     def task_instance(self, value: TaskInstance | None) -> None:
         self._task_instance = value
+        if self.task_instance:
+            self.task_id = self.task_instance.task_id
         if self.task:
             self.template_fields = self.task.template_fields
             self.template_ext = self.task.template_ext
