@@ -118,7 +118,7 @@ class SmtpHook(BaseHook):
             except AirflowNotFoundException:
                 raise AirflowException("SMTP connection is not found.")
 
-            for attempt in range(1, self.smtp_retry_limit + 1):
+            for attempt in range(0, self.smtp_retry_limit + 1):
                 try:
                     self._smtp_client = self._build_client()
                 except smtplib.SMTPServerDisconnected:
@@ -163,7 +163,7 @@ class SmtpHook(BaseHook):
             except AirflowNotFoundException:
                 raise AirflowException("SMTP connection is not found.")
 
-            for attempt in range(1, self.smtp_retry_limit + 1):
+            for attempt in range(0, self.smtp_retry_limit + 1):
                 try:
                     async_client = await self._abuild_client()
                     self._smtp_client = async_client
@@ -418,7 +418,7 @@ class SmtpHook(BaseHook):
             # Casting here to make MyPy happy.
             smtp_client = cast("smtplib.SMTP_SSL | smtplib.SMTP", self._smtp_client)
 
-            for attempt in range(1, self.smtp_retry_limit + 1):
+            for attempt in range(0, self.smtp_retry_limit + 1):
                 try:
                     smtp_client.sendmail(
                         from_addr=msg["from_email"],
@@ -487,7 +487,7 @@ class SmtpHook(BaseHook):
         smtp_client = cast("aiosmtplib.SMTP", self._smtp_client)
 
         if not dryrun:
-            for attempt in range(1, self.smtp_retry_limit + 1):
+            for attempt in range(0, self.smtp_retry_limit + 1):
                 try:
                     #  The async version of sendmail only supports positional arguments for some reason.
                     await smtp_client.sendmail(

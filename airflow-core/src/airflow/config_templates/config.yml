@@ -2284,7 +2284,7 @@ smtp:
       default: "30"
     smtp_retry_limit:
       description: |
-        Defines the maximum number of times Airflow will attempt to connect to the SMTP server.
+        Defines the number of times Airflow will attempt to connect to the SMTP server after the first attempt.
       version_added: 2.0.0
       type: integer
       example: ~
