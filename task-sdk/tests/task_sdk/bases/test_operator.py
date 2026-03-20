@@ -1262,4 +1262,3 @@ class TestDecoratedDeferredAsyncOperator:
         operator = self._make_operator(max_deferrals=max_deferrals, final_result=expected)
         result = asyncio.run(operator.aexecute(context={}))
         assert result == expected
-
