@@ -34,7 +34,7 @@ from airflow_breeze.utils.confirm import _has_tty
 from airflow_breeze.utils.console import get_theme
 
 if TYPE_CHECKING:
-    from airflow_breeze.commands.pr_commands import PRData
+    from airflow_breeze.utils.pr_models import PRData
 
 
 class PRCategory(Enum):

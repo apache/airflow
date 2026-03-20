@@ -51,6 +51,20 @@ from airflow_breeze.utils.confirm import (
 )
 from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.custom_param_types import HiddenChoiceWithCompletion, NotVerifiedBetterChoice
+from airflow_breeze.utils.pr_cache import (
+    classification_cache as _classification_cache,
+    get_cached_assessment as _get_cached_assessment,
+    get_cached_classification as _get_cached_classification,
+    get_cached_review as _get_cached_review,
+    get_cached_status as _get_cached_status,
+    review_cache as _review_cache,
+    save_assessment_cache as _save_assessment_cache,
+    save_classification_cache as _save_classification_cache,
+    save_review_cache as _save_review_cache,
+    save_status_cache as _save_status_cache,
+    status_cache as _status_cache,
+    triage_cache as _triage_cache,
+)
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -75,136 +89,30 @@ _CLOSED_QUALITY_LABEL = "closed because of multiple quality violations"
 # Label applied when a PR is closed due to suspicious changes
 _SUSPICIOUS_CHANGES_LABEL = "suspicious changes detected"
 
-# GitHub accounts that should be auto-skipped during triage
-_BOT_ACCOUNT_LOGINS = {"dependabot", "dependabot[bot]", "renovate[bot]", "github-actions[bot]"}
-
 # Marker used to identify comments posted by the auto-triage process
 _TRIAGE_COMMENT_MARKER = "Pull Request quality criteria"
+
+# GitHub accounts that should be auto-skipped during triage
+_BOT_ACCOUNT_LOGINS = {"dependabot", "dependabot[bot]", "renovate[bot]", "github-actions[bot]"}
 
 # Proximity threshold for showing "nearby" existing comments (lines)
 _NEARBY_LINE_THRESHOLD = 5
 
 
-class _CacheStore:
-    """Generic file-based JSON cache keyed by github_repository and a cache name.
-
-    Consolidates the repeated pattern of cache-dir creation, get, and save.
-    """
-
-    def __init__(self, cache_name: str, *, ttl_seconds: int = 0):
-        self._cache_name = cache_name
-        self._ttl_seconds = ttl_seconds
-
-    def _dir(self, github_repository: str) -> Path:
-        from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
-
-        safe_name = github_repository.replace("/", "_")
-        cache_dir = Path(BUILD_CACHE_PATH) / self._cache_name / safe_name
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        return cache_dir
-
-    def _file(self, github_repository: str, key: str) -> Path:
-        return self._dir(github_repository) / f"{key}.json"
-
-    def get(self, github_repository: str, key: str, *, match: dict[str, str] | None = None) -> Any:
-        """Load cached data. If *match* is given, each key/value must match the stored data."""
-        cache_file = self._file(github_repository, key)
-        if not cache_file.exists():
-            return None
-        try:
-            data = json.loads(cache_file.read_text())
-        except (json.JSONDecodeError, OSError):
-            return None
-        if self._ttl_seconds:
-            if time.time() - data.get("cached_at", 0) >= self._ttl_seconds:
-                return None
-        if match:
-            for k, v in match.items():
-                if data.get(k) != v:
-                    return None
-        return data
-
-    def save(self, github_repository: str, key: str, data: dict) -> None:
-        """Save *data* as JSON. Automatically adds ``cached_at`` when TTL is configured."""
-        if self._ttl_seconds:
-            data = {**data, "cached_at": time.time()}
-        self._file(github_repository, key).write_text(json.dumps(data, indent=2))
-
-
-# Concrete cache stores — one per domain
-_review_cache = _CacheStore("review_cache")
-_classification_cache = _CacheStore("classification_cache")
-_triage_cache = _CacheStore("triage_cache")
-_status_cache = _CacheStore("status_cache", ttl_seconds=4 * 3600)
-
-
-# Thin wrappers preserve the original public signatures so all callers keep working.
 def _get_review_cache_dir(github_repository: str) -> Path:
-    return _review_cache._dir(github_repository)
-
-
-def _get_cached_review(github_repository: str, pr_number: int, head_sha: str) -> dict | None:
-    data = _review_cache.get(github_repository, f"pr_{pr_number}", match={"head_sha": head_sha})
-    return data.get("review") if data else None
-
-
-def _save_review_cache(github_repository: str, pr_number: int, head_sha: str, review: dict) -> None:
-    _review_cache.save(github_repository, f"pr_{pr_number}", {"head_sha": head_sha, "review": review})
-
-
-def _get_cached_classification(
-    github_repository: str, pr_number: int, head_sha: str, viewer_login: str
-) -> tuple[str | None, str | None]:
-    data = _classification_cache.get(
-        github_repository, f"pr_{pr_number}", match={"head_sha": head_sha, "viewer": viewer_login}
-    )
-    if data is None:
-        return None, None
-    return data.get("classification"), data.get("action")
-
-
-def _save_classification_cache(
-    github_repository: str,
-    pr_number: int,
-    head_sha: str,
-    viewer_login: str,
-    classification: str,
-    action: str | None = None,
-) -> None:
-    entry: dict[str, str] = {"head_sha": head_sha, "viewer": viewer_login, "classification": classification}
-    if action:
-        entry["action"] = action
-    _classification_cache.save(github_repository, f"pr_{pr_number}", entry)
-
-
-def _get_cached_assessment(github_repository: str, pr_number: int, head_sha: str) -> dict | None:
-    data = _triage_cache.get(github_repository, f"pr_{pr_number}", match={"head_sha": head_sha})
-    return data.get("assessment") if data else None
-
-
-def _save_assessment_cache(github_repository: str, pr_number: int, head_sha: str, assessment: dict) -> None:
-    _triage_cache.save(github_repository, f"pr_{pr_number}", {"head_sha": head_sha, "assessment": assessment})
-
-
-def _get_cached_status(github_repository: str, cache_key: str) -> Any:
-    data = _status_cache.get(github_repository, cache_key)
-    return data.get("payload") if data else None
-
-
-def _save_status_cache(github_repository: str, cache_key: str, payload: dict | list) -> None:
-    _status_cache.save(github_repository, cache_key, {"payload": payload})
+    return _review_cache.cache_dir(github_repository)
 
 
 def _get_triage_cache_dir(github_repository: str) -> Path:
-    return _triage_cache._dir(github_repository)
+    return _triage_cache.cache_dir(github_repository)
 
 
 def _get_status_cache_dir(github_repository: str) -> Path:
-    return _status_cache._dir(github_repository)
+    return _status_cache.cache_dir(github_repository)
 
 
 def _get_classification_cache_dir(github_repository: str) -> Path:
-    return _classification_cache._dir(github_repository)
+    return _classification_cache.cache_dir(github_repository)
 
 
 def _cached_fetch_recent_pr_failures(
