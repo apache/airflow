@@ -32,6 +32,8 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.configuration import conf
+
 if TYPE_CHECKING:
     from sqlalchemy.engine import Connection
 
@@ -48,7 +50,7 @@ _TABLE_KEY_COLUMNS = {
 }
 _COLUMN = "external_executor_id"
 _NEW_COL = "external_executor_id_new"
-_BATCH_SIZE = 1000
+_BATCH_SIZE = conf.getint("database", "migration_batch_size", fallback=1000)
 
 
 def upgrade():
