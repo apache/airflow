@@ -1,5 +1,5 @@
- <!-- SPDX-License-Identifier: Apache-2.0
-      https://www.apache.org/licenses/LICENSE-2.0 -->
+<!-- SPDX-License-Identifier: Apache-2.0
+     https://www.apache.org/licenses/LICENSE-2.0 -->
 
 # AGENTS instructions
 
@@ -129,87 +129,3 @@ Before pushing, determine the fork remote. Check `git remote -v` — if `origin`
 point to `apache/airflow`, use `origin` (it's the user's fork). If `origin` points to
 `apache/airflow`, look for another remote that points to the user's fork. If no fork remote
 exists, create one:
-
-```bash
-gh repo fork apache/airflow --remote --remote-name fork
-```
-
-Before pushing, perform a self-review of your changes following the Gen-AI review guidelines
-in [`contributing-docs/05_pull_requests.rst`](contributing-docs/05_pull_requests.rst) and the
-code review checklist in [`.github/instructions/code-review.instructions.md`](.github/instructions/code-review.instructions.md):
-
-1. Review the full diff (`git diff main...HEAD`) and verify every change is intentional and
-   related to the task — remove any unrelated changes.
-2. Read `.github/instructions/code-review.instructions.md` and check your diff against every
-   rule — architecture boundaries, database correctness, code quality, testing requirements,
-   API correctness, and AI-generated code signals. Fix any violations before pushing.
-3. Confirm the code follows the project's coding standards and architecture boundaries
-   described in this file.
-4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --stage pre-commit`)
-   and fix any failures.
-5. Run manual (slower) checks (`prek run --from-ref <target_branch> --stage manual`) and fix any failures.
-6. Run relevant individual tests and confirm they pass.
-7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
-8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
-
-Before pushing, always rebase your branch onto the latest target branch (usually `main`)
-to avoid merge conflicts and ensure CI runs against up-to-date code:
-
-```bash
-git fetch <upstream-remote> <target_branch>
-git rebase <upstream-remote>/<target_branch>
-```
-
-If there are conflicts, resolve them and continue the rebase. If the rebase is too complex,
-ask the user for guidance.
-
-Then push the branch to the fork remote and open the PR creation page in the browser
-with the body pre-filled (including the generative AI disclosure already checked):
-
-```bash
-git push -u <fork-remote> <branch-name>
-gh pr create --web --title "Short title (under 70 chars)" --body "$(cat <<'EOF'
-Brief description of the changes.
-
-closes: #ISSUE  (if applicable)
-
----
-
-##### Was generative AI tooling used to co-author this PR?
-
-- [X] Yes — <Agent Name and Version>
-
-Generated-by: <Agent Name and Version> following [the guidelines](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#gen-ai-assisted-contributions)
-
-EOF
-)"
-```
-
-The `--web` flag opens the browser so the user can review and submit. The `--body` flag
-pre-fills the PR template with the generative AI disclosure already completed.
-
-Remind the user to:
-
-1. Review the PR title — keep it short (under 70 chars) and focused on user impact.
-2. Add a brief description of the changes at the top of the body.
-3. Reference related issues when applicable (`closes: #ISSUE` or `related: #ISSUE`).
-
-## Boundaries
-
-- **Ask first**
-  - Large cross-package refactors.
-  - New dependencies with broad impact.
-  - Destructive data or migration changes.
-- **Never**
-  - Commit secrets, credentials, or tokens.
-  - Edit generated files by hand when a generation workflow exists.
-  - Use destructive git operations unless explicitly requested.
-
-## References
-
-- [`contributing-docs/03a_contributors_quick_start_beginners.rst`](contributing-docs/03a_contributors_quick_start_beginners.rst)
-- [`contributing-docs/05_pull_requests.rst`](contributing-docs/05_pull_requests.rst)
-- [`contributing-docs/07_local_virtualenv.rst`](contributing-docs/07_local_virtualenv.rst)
-- [`contributing-docs/08_static_code_checks.rst`](contributing-docs/08_static_code_checks.rst)
-- [`contributing-docs/12_provider_distributions.rst`](contributing-docs/12_provider_distributions.rst)
-- [`contributing-docs/19_execution_api_versioning.rst`](contributing-docs/19_execution_api_versioning.rst)
