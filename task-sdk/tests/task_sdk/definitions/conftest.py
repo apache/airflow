@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
 
 import pytest
 import structlog
@@ -54,5 +53,5 @@ def run_ti(create_runtime_ti, mock_supervisor_comms):
 def make_xcom_arg(values: Any) -> XComArg:
     op = BaseOperator(task_id="upstream")
     xcom_arg = XComArg(op)
-    patch.object(xcom_arg, "resolve", return_value=values).start()
+    xcom_arg.resolve = lambda *a, **kw: values
     return xcom_arg
