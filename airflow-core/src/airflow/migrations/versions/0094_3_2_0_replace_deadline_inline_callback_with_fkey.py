@@ -27,6 +27,7 @@ Create Date: 2025-10-24 00:34:57.111239
 
 from __future__ import annotations
 
+import datetime
 import json
 from textwrap import dedent
 
@@ -170,9 +171,7 @@ def upgrade():
             column("created_at", UtcDateTime(timezone=True)),
         )
 
-        from datetime import datetime, timezone
-
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.datetime.now(datetime.timezone.utc)
         batch_num = 0
 
         while True:
