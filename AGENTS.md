@@ -24,6 +24,7 @@
 > To detect your context: the file `/.dockerenv` exists inside the Breeze container;
 > CI environments typically set standard env vars such as `CI` or `GITHUB_ACTIONS`;
 > and `BREEZE="true"` is set inside a running Breeze container.
+
 - **Run a single test (host, no system deps):** `uv run --project <PROJECT> pytest path/to/test.py::TestClass::test_method -xvs`
 - **Run a single test (inside Breeze or with system deps):** `breeze run pytest path/to/test.py::TestClass::test_method -xvs`
 
@@ -39,7 +40,7 @@
 - **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`
 - **Run Airflow CLI:** `breeze run airflow dags list`
 - **Type-check:** `breeze run mypy path/to/code`
-- Lint with ruff only: `pre-commit run ruff --from-ref <target_branch>`
+- **Lint with ruff only:** `pre-commit run ruff --from-ref <target_branch>`
 - **Format with ruff only:** `prek run ruff-format --from-ref <target_branch>`
 - **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
 - **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
