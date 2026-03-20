@@ -7949,6 +7949,10 @@ export const $DeadlineWithDagRunResponse = {
             type: 'boolean',
             title: 'Missed'
         },
+        met: {
+            type: 'boolean',
+            title: 'Met'
+        },
         created_at: {
             type: 'string',
             format: 'date-time',
@@ -7986,7 +7990,7 @@ export const $DeadlineWithDagRunResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id'],
+    required: ['id', 'deadline_time', 'missed', 'met', 'created_at', 'dag_id', 'dag_run_id'],
     title: 'DeadlineWithDagRunResponse',
     description: 'Deadline serializer for responses that includes DAG and DAG run identifiers.'
 } as const;

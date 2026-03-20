@@ -1621,6 +1621,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         select(Deadline)
                         .where(Deadline.deadline_time < datetime.now(timezone.utc))
                         .where(~Deadline.missed)
+                        .where(~Deadline.met)
                         .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
                     ):
                         deadline.handle_miss(session)

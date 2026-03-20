@@ -1955,6 +1955,7 @@ export type DeadlineWithDagRunResponse = {
     id: string;
     deadline_time: string;
     missed: boolean;
+    met: boolean;
     created_at: string;
     dag_id: string;
     dag_run_id: string;

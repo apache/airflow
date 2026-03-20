@@ -105,6 +105,9 @@ class Deadline(Base):
     # Whether the deadline has been marked as missed by the scheduler
     missed: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
+    # Whether the deadline was met
+    met: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     # Callback that will run when this deadline is missed
     callback_id: Mapped[UUID] = mapped_column(
         Uuid(), ForeignKey("callback.id", ondelete="CASCADE"), nullable=False
@@ -134,6 +137,7 @@ class Deadline(Base):
         self.deadline_time = deadline_time
         self.dagrun_id = dagrun_id
         self.missed = False
+        self.met = False
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
         )
@@ -196,7 +200,8 @@ class Deadline(Base):
         for deadline, dagrun in deadline_dagrun_pairs:
             if dagrun.end_date is not None and dagrun.end_date <= deadline.deadline_time:
                 # If the DagRun finished before the Deadline:
-                session.delete(deadline)
+                deadline.met = True
+                session.add(deadline)
                 Stats.incr(
                     "deadline_alerts.deadline_not_missed",
                     tags={"dag_id": dagrun.dag_id, "dagrun_id": dagrun.run_id},
@@ -205,7 +210,9 @@ class Deadline(Base):
                 dagruns_to_refresh.add(dagrun)
         session.flush()
 
-        logger.debug("%d deadline records were deleted matching the conditions %s", deleted_count, conditions)
+        logger.debug(
+            "%d deadline records were marked as met matching the conditions %s", deleted_count, conditions
+        )
 
         # Refresh any affected DAG runs.
         for dagrun in dagruns_to_refresh:

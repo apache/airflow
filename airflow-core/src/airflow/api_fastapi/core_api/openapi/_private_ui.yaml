@@ -2307,6 +2307,9 @@ components:
         missed:
           type: boolean
           title: Missed
+        met:
+          type: boolean
+          title: Met
         created_at:
           type: string
           format: date-time
@@ -2332,6 +2335,7 @@ components:
       - id
       - deadline_time
       - missed
+      - met
       - created_at
       - dag_id
       - dag_run_id
