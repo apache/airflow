@@ -376,6 +376,12 @@ class MappedOperator(AbstractOperator):
         return f"<Mapped({self.task_type}): {self.task_id}>"
 
     def __attrs_post_init__(self):
+        # When _apply_upstream_relationship is False (i.e. IterableOperator), we intentionally
+        # skip the *entire* body — not just XComArg.apply_upstream_relationship.
+        # IterableOperator creates in-memory MappedOperator instances solely to drive task
+        # expansion; they must NOT be registered with the DAG or task group because Airflow
+        # treats the IterableOperator itself as the single real task instance in the DB.
+        # Calling dag.add_task() or task_group.add() here would raise duplicate-task errors.
         if self._apply_upstream_relationship:
             from airflow.sdk.definitions.xcom_arg import XComArg
 
