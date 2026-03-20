@@ -544,6 +544,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Missed
+      - name: met
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Met
       - name: deadline_time_gte
         in: query
         required: false
@@ -587,13 +595,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, deadline_time,
-            created_at, missed, dag_id, dag_run_id, alert_name`'
+            created_at, missed, met, dag_id, dag_run_id, alert_name`'
           default:
           - deadline_time
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, deadline_time,
-          created_at, missed, dag_id, dag_run_id, alert_name`'
+          created_at, missed, met, dag_id, dag_run_id, alert_name`'
       responses:
         '200':
           description: Successful Response

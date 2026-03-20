@@ -1543,24 +1543,26 @@ export const useDashboardServiceDagStats = <TData = Common.DashboardServiceDagSt
 * @param data.dagId
 * @param data.dagRunId
 * @param data.missed
+* @param data.met
 * @param data.deadlineTimeGte
 * @param data.deadlineTimeLte
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, dag_id, dag_run_id, alert_name`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, met, dag_id, dag_run_id, alert_name`
 * @returns DeadlineWithDagRunCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDeadlinesServiceGetDeadlines = <TData = Common.DeadlinesServiceGetDeadlinesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }: {
+export const useDeadlinesServiceGetDeadlines = <TData = Common.DeadlinesServiceGetDeadlinesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, met, missed, offset, orderBy }: {
   dagId: string;
   dagRunId: string;
   deadlineTimeGte?: string;
   deadlineTimeLte?: string;
   limit?: number;
+  met?: boolean;
   missed?: boolean;
   offset?: number;
   orderBy?: string[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }, queryKey), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, met, missed, offset, orderBy }, queryKey), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, met, missed, offset, orderBy }) as TData, ...options });
 /**
 * Get Dag Deadline Alerts
 * Get all deadline alerts defined on a DAG.

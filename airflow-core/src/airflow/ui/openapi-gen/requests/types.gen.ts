@@ -3595,10 +3595,11 @@ export type GetDeadlinesData = {
     deadlineTimeGte?: string | null;
     deadlineTimeLte?: string | null;
     limit?: number;
+    met?: boolean | null;
     missed?: boolean | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, dag_id, dag_run_id, alert_name`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, met, dag_id, dag_run_id, alert_name`
      */
     orderBy?: Array<(string)>;
 };

@@ -1543,24 +1543,26 @@ export const ensureUseDashboardServiceDagStatsData = (queryClient: QueryClient) 
 * @param data.dagId
 * @param data.dagRunId
 * @param data.missed
+* @param data.met
 * @param data.deadlineTimeGte
 * @param data.deadlineTimeLte
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, dag_id, dag_run_id, alert_name`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, met, dag_id, dag_run_id, alert_name`
 * @returns DeadlineWithDagRunCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDeadlinesServiceGetDeadlinesData = (queryClient: QueryClient, { dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }: {
+export const ensureUseDeadlinesServiceGetDeadlinesData = (queryClient: QueryClient, { dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, met, missed, offset, orderBy }: {
   dagId: string;
   dagRunId: string;
   deadlineTimeGte?: string;
   deadlineTimeLte?: string;
   limit?: number;
+  met?: boolean;
   missed?: boolean;
   offset?: number;
   orderBy?: string[];
-}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, met, missed, offset, orderBy }), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, met, missed, offset, orderBy }) });
 /**
 * Get Dag Deadline Alerts
 * Get all deadline alerts defined on a DAG.

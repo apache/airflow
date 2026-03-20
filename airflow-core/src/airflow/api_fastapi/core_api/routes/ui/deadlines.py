@@ -70,7 +70,7 @@ def get_deadlines(
         SortParam,
         Depends(
             SortParam(
-                ["id", "deadline_time", "created_at", "missed"],
+                ["id", "deadline_time", "created_at", "missed", "met"],
                 Deadline,
                 to_replace={
                     "dag_id": DagRun.dag_id,
@@ -81,6 +81,7 @@ def get_deadlines(
         ),
     ],
     missed: bool | None = Query(default=None),
+    met: bool | None = Query(default=None),
     deadline_time_gte: datetime | None = Query(default=None),
     deadline_time_lte: datetime | None = Query(default=None),
 ) -> DeadlineWithDagRunCollectionResponse:
@@ -115,6 +116,9 @@ def get_deadlines(
 
     if missed is not None:
         query = query.where(Deadline.missed == missed)
+
+    if met is not None:
+        query = query.where(Deadline.met == met)
 
     if deadline_time_gte is not None:
         query = query.where(Deadline.deadline_time >= deadline_time_gte)

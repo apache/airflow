@@ -3949,11 +3949,12 @@ export class DeadlinesService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.missed
+     * @param data.met
      * @param data.deadlineTimeGte
      * @param data.deadlineTimeLte
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, dag_id, dag_run_id, alert_name`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, met, dag_id, dag_run_id, alert_name`
      * @returns DeadlineWithDagRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3967,6 +3968,7 @@ export class DeadlinesService {
             },
             query: {
                 missed: data.missed,
+                met: data.met,
                 deadline_time_gte: data.deadlineTimeGte,
                 deadline_time_lte: data.deadlineTimeLte,
                 limit: data.limit,

@@ -811,16 +811,17 @@ export const UseDashboardServiceDagStatsKeyFn = (queryKey?: Array<unknown>) => [
 export type DeadlinesServiceGetDeadlinesDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getDeadlines>>;
 export type DeadlinesServiceGetDeadlinesQueryResult<TData = DeadlinesServiceGetDeadlinesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDeadlinesServiceGetDeadlinesKey = "DeadlinesServiceGetDeadlines";
-export const UseDeadlinesServiceGetDeadlinesKeyFn = ({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }: {
+export const UseDeadlinesServiceGetDeadlinesKeyFn = ({ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, met, missed, offset, orderBy }: {
   dagId: string;
   dagRunId: string;
   deadlineTimeGte?: string;
   deadlineTimeLte?: string;
   limit?: number;
+  met?: boolean;
   missed?: boolean;
   offset?: number;
   orderBy?: string[];
-}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDeadlinesKey, ...(queryKey ?? [{ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, missed, offset, orderBy }])];
+}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDeadlinesKey, ...(queryKey ?? [{ dagId, dagRunId, deadlineTimeGte, deadlineTimeLte, limit, met, missed, offset, orderBy }])];
 export type DeadlinesServiceGetDagDeadlineAlertsDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getDagDeadlineAlerts>>;
 export type DeadlinesServiceGetDagDeadlineAlertsQueryResult<TData = DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDeadlinesServiceGetDagDeadlineAlertsKey = "DeadlinesServiceGetDagDeadlineAlerts";
