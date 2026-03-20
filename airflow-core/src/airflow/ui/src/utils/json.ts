@@ -39,10 +39,6 @@ export const isJsonString = (jsonString: string): boolean => {
  * @returns Prettified JSON string, or the original string if parsing fails
  */
 export const prettifyJson = (jsonString: string, indent: number = 2): string => {
-  if (!isJsonString(jsonString)) {
-    return jsonString;
-  }
-
   try {
     const parsed: unknown = JSON.parse(jsonString);
 
@@ -58,10 +54,6 @@ export const prettifyJson = (jsonString: string, indent: number = 2): string => 
  * @returns Minified JSON string, or the original string if parsing fails
  */
 export const minifyJson = (jsonString: string): string => {
-  if (!isJsonString(jsonString)) {
-    return jsonString;
-  }
-
   try {
     const parsed: unknown = JSON.parse(jsonString);
 
