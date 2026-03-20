@@ -259,6 +259,7 @@ class HookMetaService:
                     default=default,
                     title=str(label) if label is not None else None,
                     description=str(description) if description else None,
+                    source=None,
                     type=types,
                     **format_dict,
                     **enum,
