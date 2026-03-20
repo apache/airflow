@@ -112,6 +112,12 @@ Environment variables (with defaults):
 - `TEST_USERNAME` - Username (default: `airflow`)
 - `TEST_PASSWORD` - Password (default: `airflow`)
 - `TEST_DAG_ID` - Test DAG ID (default: `example_bash_operator`)
+- `TEST_CONFIG_PAGE_PATH` - Config page path (default: `/configs`)
+- `TEST_CONFIG_PAGE_HEADING` - Config page heading (default: `Airflow Configuration`)
+- `TEST_CONFIG_PAGE_EXPECTS_TABLE_DATA` - `true` to assert table rows are exposed; `false` to assert 403 message (default: `false`)
+- `TEST_CONFIG_PAGE_SECTION` - Section asserted when table data is exposed (default: `core`)
+- `TEST_CONFIG_PAGE_KEY` - Key asserted when table data is exposed (default: `dags_folder`)
+- `TEST_CONFIG_PAGE_FORBIDDEN_MESSAGE` - Message asserted when table data is hidden (default: `Your Airflow administrator chose not to expose the configuration`)
 
 ## Debugging
 

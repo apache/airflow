@@ -24,8 +24,15 @@ export const testConfig = {
   asset: {
     name: process.env.TEST_ASSET_NAME ?? "s3://dag1/output_1.txt",
   },
-  connection: {
-    baseUrl: process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080",
+  configPage: {
+    expectedHeading: process.env.TEST_CONFIG_PAGE_HEADING ?? "Airflow Configuration",
+    expectedKey: process.env.TEST_CONFIG_PAGE_KEY ?? "dags_folder",
+    expectedSection: process.env.TEST_CONFIG_PAGE_SECTION ?? "core",
+    expectsTableData: (process.env.TEST_CONFIG_PAGE_EXPECTS_TABLE_DATA ?? "false").toLowerCase() === "true",
+    forbiddenMessage:
+      process.env.TEST_CONFIG_PAGE_FORBIDDEN_MESSAGE ??
+      "Your Airflow administrator chose not to expose the configuration",
+    path: process.env.TEST_CONFIG_PAGE_PATH ?? "/configs",
   },
   credentials: {
     password: process.env.TEST_PASSWORD ?? "admin",
