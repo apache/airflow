@@ -220,9 +220,7 @@ class IBMMQHook(BaseHook):
         stop_event = threading.Event()
         while True:
             try:
-                result = await sync_to_async(self._consume_sync)(
-                    queue_name, poll_interval, stop_event
-                )
+                result = await sync_to_async(self._consume_sync)(queue_name, poll_interval, stop_event)
             except asyncio.CancelledError:
                 raise
             except Exception:

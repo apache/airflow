@@ -57,4 +57,3 @@ class TestMQTrigger:
         assert isinstance(event, TriggerEvent)
         assert event.payload == "test message"
         mock_consume.assert_called_once_with(queue_name="QUEUE1", poll_interval=0.1)
-

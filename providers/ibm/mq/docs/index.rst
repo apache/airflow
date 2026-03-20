@@ -89,13 +89,14 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=============================================  ==================
-PIP package                                    Version required
-=============================================  ==================
-``apache-airflow``                             ``>=2.11.0``
-``apache-airflow-providers-common-messaging``  ``>=2.0.0``
-``importlib-resources``                        ``>=1.3``
-=============================================  ==================
+==========================================  ======================================
+PIP package                                 Version required
+==========================================  ======================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
+``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -107,7 +108,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-ibm-mq[common.messaging]
+    pip install apache-airflow-providers-ibm-mq[common.compat]
 
 
 ========================================================================================================================  ====================
