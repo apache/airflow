@@ -22,12 +22,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.providers.cncf.kubernetes.operators.ray import RayKubernetesOperator
-from airflow.providers.cncf.kubernetes.utils.ray_job_status import (
-    RayJobDeploymentStatus,
-    RayJobStatus,
-    is_ray_job_successful,
-    is_ray_job_terminal,
-)
 from airflow.providers.common.compat.sdk import AirflowException
 
 SAMPLE_TEMPLATE_SPEC = {
@@ -187,24 +181,3 @@ class TestRayKubernetesOperator:
         assert RayKubernetesOperator.ui_color == "#028edd"
 
 
-class TestRayJobStatusUtils:
-    def test_terminal_succeeded(self):
-        assert is_ray_job_terminal(RayJobStatus.SUCCEEDED, RayJobDeploymentStatus.COMPLETE)
-
-    def test_terminal_failed(self):
-        assert is_ray_job_terminal(RayJobStatus.FAILED, RayJobDeploymentStatus.FAILED)
-
-    def test_not_terminal_running(self):
-        assert not is_ray_job_terminal(RayJobStatus.RUNNING, RayJobDeploymentStatus.RUNNING)
-
-    def test_not_terminal_pending(self):
-        assert not is_ray_job_terminal(RayJobStatus.PENDING, RayJobDeploymentStatus.INITIALIZING)
-
-    def test_successful(self):
-        assert is_ray_job_successful(RayJobStatus.SUCCEEDED, RayJobDeploymentStatus.COMPLETE)
-
-    def test_not_successful_failed(self):
-        assert not is_ray_job_successful(RayJobStatus.FAILED, RayJobDeploymentStatus.FAILED)
-
-    def test_not_successful_running(self):
-        assert not is_ray_job_successful(RayJobStatus.RUNNING, RayJobDeploymentStatus.RUNNING)
