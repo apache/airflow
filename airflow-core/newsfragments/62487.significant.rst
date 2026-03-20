@@ -1,0 +1,1 @@
+``dag_processing.last_run.seconds_ago.{dag_file}`` is now a legacy metric. The new metric ``dag_processing.last_run.seconds_ago`` is emitted with ``dag_file`` as a tag.

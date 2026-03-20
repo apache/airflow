@@ -319,10 +319,10 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "dag_processing.last_run.seconds_ago.{dag_file}"
-    description: "Seconds since ``{dag_file}`` was last processed"
+  - name: "dag_processing.last_run.seconds_ago"
+    description: "Seconds since ``{dag_file}`` was last processed with dag_file tagging."
     type: "gauge"
-    legacy_name: "-"
+    legacy_name: "dag_processing.last_run.seconds_ago.{dag_file}"
     name_variables: ["dag_file"]
 
   - name: "dag_processing.last_num_of_db_queries.{dag_file}"

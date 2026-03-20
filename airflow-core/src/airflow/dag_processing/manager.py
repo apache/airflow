@@ -828,6 +828,10 @@ class DagFileProcessorManager(LoggingMixin):
                 if last_run:
                     seconds_ago = (utcnow - last_run).total_seconds()
                     Stats.gauge(f"dag_processing.last_run.seconds_ago.{file_name}", seconds_ago)
+                    # Same metric with tagging
+                    Stats.gauge(
+                        "dag_processing.last_run.seconds_ago", seconds_ago, tags={"dag_file": file_name}
+                    )
 
                 rows.append(
                     (

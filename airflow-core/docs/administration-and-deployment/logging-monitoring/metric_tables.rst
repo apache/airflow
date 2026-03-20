@@ -75,7 +75,7 @@ Name                                                  Legacy Name               
 ``dag_processing.import_errors``                      ``-``                                             Number of errors from trying to parse Dag files
 ``dag_processing.total_parse_time``                   ``-``                                             Seconds taken to scan and import ``dag_processing.file_path_queue_size`` Dag files
 ``dag_processing.file_path_queue_size``               ``-``                                             Number of Dag files to be considered for the next scan
-``dag_processing.last_run.seconds_ago.{dag_file}``    ``-``                                             Seconds since ``{dag_file}`` was last processed
+``dag_processing.last_run.seconds_ago``                ``dag_processing.last_run.seconds_ago.{dag_file}``  Seconds since a DAG file was last processed. Uses ``dag_file`` as a tag.
 ``dag_processing.last_num_of_db_queries.{dag_file}``  ``-``                                             Number of queries to Airflow database during parsing per ``{dag_file}``
 ``scheduler.tasks.starving``                          ``-``                                             Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                        ``-``                                             Number of tasks that are ready for execution (set to queued) with respect to pool limits, Dag concurrency, executor state, and priority.
