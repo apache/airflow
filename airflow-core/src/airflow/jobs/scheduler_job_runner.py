@@ -1913,7 +1913,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
             if dag_model.timetable_partitioned is False:
-                # non partition-aware DAGs
+                # non partition-aware Dags
                 if dag_model.next_dagrun is None:
                     self.log.error(
                         "dag_model.next_dagrun is None; expected datetime",
@@ -1927,7 +1927,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     continue
             else:
-                # partition-aware DAGs
+                # partition-aware Dags
                 if dag_model.next_dagrun_partition_key is None:
                     self.log.error(
                         "dag_model.next_dagrun_partition_key is None; expected str",
