@@ -95,8 +95,6 @@ class TaskInstanceKey(NamedTuple):
 class DagRunProtocol(Protocol):
     """Minimal interface for a Dag run available during the execution."""
 
-    dag_id: str
-    run_id: str
     logical_date: AwareDatetime | None
     data_interval_start: AwareDatetime | None
     data_interval_end: AwareDatetime | None

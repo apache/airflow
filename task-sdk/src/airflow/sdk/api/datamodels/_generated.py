@@ -630,8 +630,6 @@ class DagRun(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    run_id: Annotated[str, Field(title="Run Id")]
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
     data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None

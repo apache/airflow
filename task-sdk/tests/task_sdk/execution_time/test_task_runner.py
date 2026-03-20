@@ -2457,8 +2457,6 @@ class TestRuntimeTaskInstance:
         runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
 
         dag_run_data = DagRun(
-            dag_id=dag_id,
-            run_id="prev_run",
             logical_date=timezone.datetime(2025, 1, 1),
             start_date=timezone.datetime(2025, 1, 1),
             run_after=timezone.datetime(2025, 1, 1),
@@ -2474,8 +2472,6 @@ class TestRuntimeTaskInstance:
         mock_supervisor_comms.send.assert_called_once_with(
             msg=GetPreviousDagRun(dag_id="test_dag", logical_date=timezone.datetime(2025, 1, 2), state=None),
         )
-        assert dr.dag_id == "test_dag"
-        assert dr.run_id == "prev_run"
         assert dr.state == "success"
 
     def test_get_previous_dagrun_with_state(self, create_runtime_ti, mock_supervisor_comms):
@@ -2486,8 +2482,6 @@ class TestRuntimeTaskInstance:
         runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
 
         dag_run_data = DagRun(
-            dag_id=dag_id,
-            run_id="prev_success_run",
             logical_date=timezone.datetime(2025, 1, 1),
             start_date=timezone.datetime(2025, 1, 1),
             run_after=timezone.datetime(2025, 1, 1),
@@ -2505,8 +2499,6 @@ class TestRuntimeTaskInstance:
                 dag_id="test_dag", logical_date=timezone.datetime(2025, 1, 2), state="success"
             ),
         )
-        assert dr.dag_id == "test_dag"
-        assert dr.run_id == "prev_success_run"
         assert dr.state == "success"
 
     def test_get_previous_ti_basic(self, create_runtime_ti, mock_supervisor_comms):

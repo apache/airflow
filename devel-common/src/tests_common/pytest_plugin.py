@@ -2558,22 +2558,26 @@ def create_runtime_ti(mocked_parse):
         task_retries = task.retries or 0
         run_after = data_interval_end or logical_date or timezone.utcnow()
 
+        dagrun_payload = {
+            "logical_date": logical_date,  # type: ignore
+            "data_interval_start": data_interval_start,
+            "data_interval_end": data_interval_end,
+            "start_date": start_date,  # type: ignore
+            "run_type": run_type,  # type: ignore
+            "run_after": run_after,  # type: ignore
+            "conf": conf,
+            "consumed_asset_events": [],
+            **({"state": DagRunState.RUNNING} if "state" in DagRun.model_fields else {}),
+        }
+
+        # Backwards/forwards compatibility: older generated DagRun models required dag_id/run_id.
+        if "dag_id" in DagRun.model_fields:
+            dagrun_payload["dag_id"] = dag_id
+        if "run_id" in DagRun.model_fields:
+            dagrun_payload["run_id"] = run_id
+
         ti_context = TIRunContext(
-            dag_run=DagRun.model_validate(
-                {
-                    "dag_id": dag_id,
-                    "run_id": run_id,
-                    "logical_date": logical_date,  # type: ignore
-                    "data_interval_start": data_interval_start,
-                    "data_interval_end": data_interval_end,
-                    "start_date": start_date,  # type: ignore
-                    "run_type": run_type,  # type: ignore
-                    "run_after": run_after,  # type: ignore
-                    "conf": conf,
-                    "consumed_asset_events": [],
-                    **({"state": DagRunState.RUNNING} if "state" in DagRun.model_fields else {}),
-                }
-            ),
+            dag_run=DagRun.model_validate(dagrun_payload),
             task_reschedule_count=task_reschedule_count,
             max_tries=task_retries if max_tries is None else max_tries,
             should_retry=should_retry if should_retry is not None else try_number <= task_retries,

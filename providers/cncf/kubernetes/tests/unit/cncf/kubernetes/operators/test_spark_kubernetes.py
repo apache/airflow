@@ -39,7 +39,7 @@ from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.providers.common.compat.sdk import TaskDeferred
-from airflow.utils import timezone
+from airflow.sdk import timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.taskinstance import create_task_instance
@@ -1269,7 +1269,7 @@ class TestSparkKubernetesOperator:
 def test_template_body_templating(create_task_instance_of_operator, session):
     ti = create_task_instance_of_operator(
         SparkKubernetesOperator,
-        template_spec={"foo": "{{ ds }}", "bar": "{{ dag_run.dag_id }}"},
+        template_spec={"foo": "{{ ds }}", "bar": "{{ ti.dag_id }}"},
         kubernetes_conn_id="kubernetes_default_kube_config",
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
@@ -1284,7 +1284,7 @@ def test_template_body_templating(create_task_instance_of_operator, session):
 @pytest.mark.db_test
 def test_resolve_application_file_template_file(create_task_instance_of_operator, tmp_path, session):
     filename = "test-application-file.yml"
-    (tmp_path / filename).write_text("foo: {{ ds }}\nbar: {{ dag_run.dag_id }}\nspam: egg")
+    (tmp_path / filename).write_text("foo: {{ ds }}\nbar: {{ ti.dag_id }}\nspam: egg")
 
     ti = create_task_instance_of_operator(
         SparkKubernetesOperator,

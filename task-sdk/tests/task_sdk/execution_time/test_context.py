@@ -550,7 +550,13 @@ class TestTriggeringAssetEventsAccessor:
         mock_dag_run = mock.Mock(dag_id="d1", run_id="r1")
         mock_supervisor_comms.send.side_effect = [mock_dag_run]
         source = events[0].source_task_instance
-        assert source == AssetEventSourceTaskInstance(dag_run=mock_dag_run, task_id="t2", map_index=-1)
+        assert source == AssetEventSourceTaskInstance(
+            dag_run=mock_dag_run,
+            task_id="t2",
+            map_index=-1,
+            dag_id="d1",
+            run_id="r1",
+        )
         assert mock_supervisor_comms.send.mock_calls == [mock.call(GetDagRun(dag_id="d1", run_id="r1"))]
 
         mock_supervisor_comms.reset_mock()
@@ -827,8 +833,6 @@ class TestInletEventAccessor:
         assert len(events) == 2
 
         dag_run_result = DagRunResult(
-            dag_id="__dag__",
-            run_id="__run__",
             run_after=timezone.utcnow(),
             start_date=timezone.utcnow(),
             run_type="scheduled",
@@ -839,7 +843,13 @@ class TestInletEventAccessor:
         mock_supervisor_comms.send.side_effect = [dag_run_result]
         assert events[1].source_task_instance is None
         source = events[0].source_task_instance
-        assert source == AssetEventSourceTaskInstance(dag_run=dag_run_result, task_id="__task__", map_index=0)
+        assert source == AssetEventSourceTaskInstance(
+            dag_run=dag_run_result,
+            task_id="__task__",
+            map_index=0,
+            dag_id="__dag__",
+            run_id="__run__",
+        )
         assert mock_supervisor_comms.send.mock_calls == [
             mock.call(GetDagRun(dag_id="__dag__", run_id="__run__"))
         ]
@@ -868,8 +878,6 @@ class TestDagRunStartDateNullable:
     def test_dag_run_model_accepts_null_start_date(self):
         """DagRun datamodel should accept start_date=None for runs that haven't started yet."""
         dag_run = DagRun(
-            dag_id="test_dag",
-            run_id="test_run",
             logical_date="2024-12-01T01:00:00Z",
             data_interval_start="2024-12-01T00:00:00Z",
             data_interval_end="2024-12-01T01:00:00Z",

@@ -1347,8 +1347,6 @@ class DagRun(Base, LoggingMixin):
             task = dag.get_task(relevant_ti.task_id)
 
             dag_run_data = DRDataModel(
-                dag_id=self.dag_id,
-                run_id=self.run_id,
                 logical_date=self.logical_date,
                 data_interval_start=self.data_interval_start,
                 data_interval_end=self.data_interval_end,

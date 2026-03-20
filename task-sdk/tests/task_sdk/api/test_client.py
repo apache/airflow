@@ -70,8 +70,6 @@ class TestClient:
                 "/task-instances/1/run",
                 {
                     "dag_run": {
-                        "dag_id": "test_dag",
-                        "run_id": "test_run",
                         "logical_date": "2021-01-01T00:00:00Z",
                         "start_date": "2021-01-01T00:00:00Z",
                         "run_type": "manual",
@@ -1339,8 +1337,6 @@ class TestDagRunOperations:
                 return httpx.Response(
                     status_code=200,
                     json={
-                        "dag_id": "test_dag",
-                        "run_id": "prev_run",
                         "logical_date": "2024-01-14T12:00:00+00:00",
                         "start_date": "2024-01-14T12:05:00+00:00",
                         "run_after": "2024-01-14T12:00:00+00:00",
@@ -1355,8 +1351,6 @@ class TestDagRunOperations:
         result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date)
 
         assert isinstance(result, PreviousDagRunResult)
-        assert result.dag_run.dag_id == "test_dag"
-        assert result.dag_run.run_id == "prev_run"
         assert result.dag_run.state == "success"
 
     def test_get_previous_with_state_filter(self):
@@ -1374,8 +1368,6 @@ class TestDagRunOperations:
                 return httpx.Response(
                     status_code=200,
                     json={
-                        "dag_id": "test_dag",
-                        "run_id": "prev_success_run",
                         "logical_date": "2024-01-14T12:00:00+00:00",
                         "start_date": "2024-01-14T12:05:00+00:00",
                         "run_after": "2024-01-14T12:00:00+00:00",
@@ -1390,8 +1382,6 @@ class TestDagRunOperations:
         result = client.dag_runs.get_previous(dag_id="test_dag", logical_date=logical_date, state="success")
 
         assert isinstance(result, PreviousDagRunResult)
-        assert result.dag_run.dag_id == "test_dag"
-        assert result.dag_run.run_id == "prev_success_run"
         assert result.dag_run.state == "success"
 
     def test_get_previous_not_found(self):

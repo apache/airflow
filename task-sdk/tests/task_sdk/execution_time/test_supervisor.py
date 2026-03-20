@@ -2113,8 +2113,6 @@ REQUEST_TEST_CASES = [
     RequestTestCase(
         message=GetDagRun(dag_id="test_dag", run_id="test_run"),
         expected_body={
-            "dag_id": "test_dag",
-            "run_id": "prev_run",
             "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
             "partition_key": None,
             "run_type": "scheduled",
@@ -2135,8 +2133,6 @@ REQUEST_TEST_CASES = [
             method_path="dag_runs.get_detail",
             args=("test_dag", "test_run"),
             response=DagRunResult(
-                dag_id="test_dag",
-                run_id="prev_run",
                 logical_date=timezone.parse("2024-01-14T12:00:00Z"),
                 run_type=DagRunType.SCHEDULED,
                 start_date=timezone.parse("2024-01-15T12:00:00Z"),
@@ -2165,8 +2161,6 @@ REQUEST_TEST_CASES = [
         ),
         expected_body={
             "dag_run": {
-                "dag_id": "test_dag",
-                "run_id": "prev_run",
                 "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
                 "partition_key": None,
                 "run_type": "scheduled",
@@ -2193,8 +2187,6 @@ REQUEST_TEST_CASES = [
             },
             response=PreviousDagRunResult(
                 dag_run=DagRun(
-                    dag_id="test_dag",
-                    run_id="prev_run",
                     logical_date=timezone.parse("2024-01-14T12:00:00Z"),
                     run_type=DagRunType.SCHEDULED,
                     start_date=timezone.parse("2024-01-15T12:00:00Z"),

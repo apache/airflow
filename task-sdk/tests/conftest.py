@@ -278,8 +278,6 @@ def make_ti_context() -> MakeTIContextCallable:
     ) -> TIRunContext:
         return TIRunContext(
             dag_run=DagRun(
-                dag_id=dag_id,
-                run_id=run_id,
                 logical_date=logical_date,  # type: ignore
                 data_interval_start=data_interval_start,  # type: ignore
                 data_interval_end=data_interval_end,  # type: ignore

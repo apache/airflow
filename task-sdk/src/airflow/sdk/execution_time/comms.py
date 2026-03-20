@@ -352,13 +352,9 @@ class AssetEventSourceTaskInstance:
     task_id: str
     map_index: int
 
-    @property
-    def dag_id(self) -> str:
-        return self.dag_run.dag_id
+    dag_id: str | None = None
 
-    @property
-    def run_id(self) -> str:
-        return self.dag_run.run_id
+    run_id: str | None = None
 
     def xcom_pull(self, *, key: str = "return_value", default: Any = None) -> Any:
         from airflow.sdk.execution_time.xcom import XCom
@@ -394,12 +390,18 @@ class AssetEventResult(AssetEventResponse):
     def source_task_instance(self) -> AssetEventSourceTaskInstance | None:
         if self.source_task_id is None or self.source_map_index is None:
             return None
+        source_dag_id = self.source_dag_id
+        source_run_id = self.source_run_id
+        if source_dag_id is None or source_run_id is None:
+            return None
         if (dag_run := self.source_dag_run) is None:
             return None
         return AssetEventSourceTaskInstance(
             dag_run=dag_run,
             task_id=self.source_task_id,
             map_index=self.source_map_index,
+            dag_id=source_dag_id,
+            run_id=source_run_id,
         )
 
 
@@ -446,12 +448,18 @@ class AssetEventDagRunReferenceResult(AssetEventDagRunReference):
     def source_task_instance(self) -> AssetEventSourceTaskInstance | None:
         if self.source_task_id is None or self.source_map_index is None:
             return None
+        source_dag_id = self.source_dag_id
+        source_run_id = self.source_run_id
+        if source_dag_id is None or source_run_id is None:
+            return None
         if (dag_run := self.source_dag_run) is None:
             return None
         return AssetEventSourceTaskInstance(
             dag_run=dag_run,
             task_id=self.source_task_id,
             map_index=self.source_map_index,
+            dag_id=source_dag_id,
+            run_id=source_run_id,
         )
 
 

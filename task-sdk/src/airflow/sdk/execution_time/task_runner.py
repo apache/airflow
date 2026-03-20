@@ -29,7 +29,7 @@ from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from urllib.parse import quote
 
 import attrs
@@ -135,7 +135,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.exceptions import DagRunTriggerException
-    from airflow.sdk.types import OutletEventAccessorsProtocol
+    from airflow.sdk.types import OutletEventAccessorsProtocol, RuntimeTaskInstanceProtocol
 
 log = structlog.get_logger("task")
 
@@ -225,28 +225,30 @@ class RuntimeTaskInstance(TaskInstance):
 
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
-        self._cached_template_context: Context = self._cached_template_context or {
-            # From the Task Execution interface
-            "dag": self.task.dag,
-            "inlets": self.task.inlets,
-            "map_index_template": self.task.map_index_template,
-            "outlets": self.task.outlets,
-            "run_id": self.run_id,
-            "task": self.task,
-            "task_instance": self,
-            "ti": self,
-            "outlet_events": OutletEventAccessors(),
-            "inlet_events": InletEventsAccessors(self.task.inlets),
-            "macros": MacrosAccessor(),
-            "params": validated_params,
-            # TODO: Make this go through Public API longer term.
-            # "test_mode": task_instance.test_mode,
-            "var": {
-                "json": VariableAccessor(deserialize_json=True),
-                "value": VariableAccessor(deserialize_json=False),
-            },
-            "conn": ConnectionAccessor(),
-        }
+        if self._cached_template_context is None:
+            self._cached_template_context = {
+                # From the Task Execution interface
+                "dag": self.task.dag,
+                "inlets": self.task.inlets,
+                "map_index_template": self.task.map_index_template,
+                "outlets": self.task.outlets,
+                "run_id": self.run_id,
+                "task": self.task,
+                "task_instance": cast("RuntimeTaskInstanceProtocol", self),
+                "ti": cast("RuntimeTaskInstanceProtocol", self),
+                "outlet_events": OutletEventAccessors(),
+                "inlet_events": InletEventsAccessors(self.task.inlets),
+                "macros": MacrosAccessor(),
+                "params": validated_params,
+                # TODO: Make this go through Public API longer term.
+                # "test_mode": task_instance.test_mode,
+                "var": {
+                    "json": VariableAccessor(deserialize_json=True),
+                    "value": VariableAccessor(deserialize_json=False),
+                },
+                "conn": ConnectionAccessor(),
+            }
+        cached_template_context: Context = self._cached_template_context
         if from_server:
             dag_run = from_server.dag_run
             context_from_server: Context = {
@@ -256,7 +258,7 @@ class RuntimeTaskInstance(TaskInstance):
                     AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
                     for event in dag_run.consumed_asset_events
                 ),
-                "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
+                "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{self.run_id}",
                 "task_reschedule_count": from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).start_date)
@@ -265,7 +267,7 @@ class RuntimeTaskInstance(TaskInstance):
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).end_date)
                 ),
             }
-            self._cached_template_context.update(context_from_server)
+            cached_template_context.update(context_from_server)
 
             if logical_date := coerce_datetime(dag_run.logical_date):
                 if TYPE_CHECKING:
@@ -276,7 +278,7 @@ class RuntimeTaskInstance(TaskInstance):
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
                 # logical_date and data_interval either coexist or be None together
-                self._cached_template_context.update(
+                cached_template_context.update(
                     {
                         # keys that depend on logical_date
                         "logical_date": logical_date,
@@ -303,7 +305,7 @@ class RuntimeTaskInstance(TaskInstance):
             if upstream_map_indexes is not None:
                 setattr(self, "_upstream_map_indexes", upstream_map_indexes)
 
-        return self._cached_template_context
+        return cached_template_context
 
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None

@@ -77,7 +77,7 @@ class TestDockerDecorator:
 
         @task.docker(
             image="python:3.9-slim",
-            container_name="python_{{dag_run.dag_id}}",
+            container_name="python_{{task_instance.dag_id}}",
             auto_remove="force",
             mounts=[Mount(source="workspace", target="/{{task_instance.run_id}}")],
         )
