@@ -309,6 +309,9 @@ class CustomObjectLauncher(LoggingMixin):
                 delta = dt.now() - curr_time
                 if delta.total_seconds() >= startup_timeout:
                     pod_status = self.pod_manager.read_pod(self.pod_spec).status.container_statuses
+                    spark_job_name = self.spark_obj_spec["metadata"]["name"]
+                    self.log.warning("Deleting spark job: %s", spark_job_name)
+                    self.delete_spark_job(spark_job_name=spark_job_name)
                     raise AirflowException(f"Job took too long to start. pod status: {pod_status}")
                 time.sleep(10)
         except Exception as e:

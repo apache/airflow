@@ -558,7 +558,7 @@ class FabAuthManager(BaseAuthManager[User]):
         :param session: the session
         """
         rows = session.execute(select(Pool.pool)).scalars().all()
-        return set(rows)
+        return {r for r in rows if r is not None}
 
     @provide_session
     def get_authorized_variables(

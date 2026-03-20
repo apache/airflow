@@ -87,6 +87,13 @@ export class DagRunsTabPage extends BasePage {
     const stateOption = this.page.getByTestId(`mark-run-as-${state}`);
 
     await expect(stateOption).toBeVisible({ timeout: 5000 });
+
+    if (await stateOption.isDisabled()) {
+      await this.page.keyboard.press("Escape");
+
+      return;
+    }
+
     await stateOption.click();
 
     const confirmButton = this.page.getByRole("button", { name: "Confirm" });
@@ -105,11 +112,13 @@ export class DagRunsTabPage extends BasePage {
   }
 
   public async navigateToDag(dagId: string): Promise<void> {
-    await this.navigateTo(`/dags/${dagId}`);
-    await expect(this.page).toHaveURL(new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}`), {
-      timeout: 15_000,
-    });
-    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
+    await expect(async () => {
+      await this.navigateTo(`/dags/${dagId}`);
+      await expect(this.page).toHaveURL(new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}`), {
+        timeout: 5000,
+      });
+      await expect(this.triggerButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async navigateToRunDetails(dagId: string, runId: string): Promise<void> {
