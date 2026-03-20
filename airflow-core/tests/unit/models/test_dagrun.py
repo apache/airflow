@@ -28,7 +28,11 @@ from unittest.mock import ANY, call
 import pendulum
 import pytest
 from opentelemetry.sdk.trace import TracerProvider
-from sqlalchemy import func, select
+from sqlalchemy import (
+    func,
+    select,
+    update,
+)
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -55,6 +59,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
+from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -2046,6 +2051,209 @@ def test_schedule_tis_map_index(dag_maker, session):
     assert ti2.state == TaskInstanceState.SUCCESS
 
 
+def test_schedule_tis_does_not_increment_try_number_if_ti_already_queued_by_other_scheduler(
+    dag_maker, session
+):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    assert ti is not None
+    ti.refresh_from_task(dag.get_task("task"))
+    assert ti.state is None
+
+    # The stale scheduler picks try 1.
+    ti.try_number = 1
+    session.flush()
+    session.commit()
+
+    # Another scheduler already queued the TI in DB (same try).
+    with create_session() as other_session:
+        filter_for_tis = TI.filter_for_tis([ti])
+        assert filter_for_tis is not None
+        other_session.execute(
+            update(TI)
+            .where(filter_for_tis)
+            .values(
+                state=TaskInstanceState.QUEUED,
+                try_number=1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    # This stale scheduler still has a stale TI object; schedule_tis must be a no-op.
+    assert dr.schedule_tis((ti,), session=session) == 0
+
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.state == TaskInstanceState.QUEUED
+    assert refreshed_ti.try_number == 1
+
+
+def test_schedule_tis_empty_operator_does_not_short_circuit_if_ti_already_queued(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        EmptyOperator(task_id="empty_task")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("empty_task", session=session)
+    ti.refresh_from_task(dag.get_task("empty_task"))
+    assert ti.state is None
+
+    # Stale scheduler picks TI
+    ti.try_number = 1
+    session.flush()
+    session.commit()
+
+    # Another scheduler already queued it.
+    with create_session() as other_session:
+        filter_for_tis = TI.filter_for_tis([ti])
+        assert filter_for_tis is not None
+        other_session.execute(
+            update(TI)
+            .where(filter_for_tis)
+            .values(
+                state=TaskInstanceState.QUEUED,
+                try_number=1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    # no shortcircuit
+    assert dr.schedule_tis((ti,), session=session) == 0
+
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti is not None
+    assert refreshed_ti.state == TaskInstanceState.QUEUED
+    assert refreshed_ti.try_number == 1
+
+
+def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+
+    ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
+    ti.try_number = 3
+    session.commit()
+
+    assert dr.schedule_tis((ti,), session=session) == 1
+    session.commit()
+
+    # schedule_tis uses synchronize_session=False, so the session may still hold a stale instance.
+    # Expire the identity map so the SELECT reflects the DB row.
+    session.expire_all()
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.state == TaskInstanceState.SCHEDULED
+    assert refreshed_ti.try_number == 3
+
+
+def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        EmptyOperator(task_id="empty_task")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("empty_task", session=session)
+    ti.refresh_from_task(dag.get_task("empty_task"))
+
+    ti.try_number = 3
+    session.commit()
+
+    with create_session() as other_session:
+        filter_for_tis = TI.filter_for_tis([ti])
+        assert filter_for_tis is not None
+        other_session.execute(
+            update(TI)
+            .where(filter_for_tis)
+            .values(
+                state=TaskInstanceState.RUNNING,
+                try_number=3,
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    assert dr.schedule_tis((ti,), session=session) == 0
+
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.state == TaskInstanceState.RUNNING
+    assert refreshed_ti.try_number == 3
+
+
+def test_schedule_tis_only_one_scheduler_update_succeeds_when_competing(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+    assert ti.state is None
+
+    ti.try_number = 0
+    session.commit()
+
+    # Scheduler B loads TI *before* Scheduler A commits — both see state=None.
+    with create_session() as scheduler_b_session:
+        ti_b = scheduler_b_session.scalar(
+            select(TI).where(
+                TI.dag_id == ti.dag_id,
+                TI.task_id == ti.task_id,
+                TI.run_id == ti.run_id,
+                TI.map_index == ti.map_index,
+            )
+        )
+        assert ti_b is not None
+        assert ti_b.state is None
+
+        # Scheduler A schedules first.
+        assert dr.schedule_tis((ti,), session=session) == 1
+        session.commit()
+
+        # Scheduler B tries with its stale TI object; should be a no-op.
+        assert dr.schedule_tis((ti_b,), session=scheduler_b_session) == 0
+
+    session.expire_all()
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.state == TaskInstanceState.SCHEDULED
+    assert refreshed_ti.try_number == 1
+
+
 @pytest.mark.xfail(reason="We can't keep this behaviour with remote workers where scheduler can't reach xcom")
 @pytest.mark.need_serialized_dag
 def test_schedule_tis_start_trigger(dag_maker, session):
@@ -3238,7 +3446,7 @@ class TestDagRunTracing:
         from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
         from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-        from airflow.observability.traces import OverrideableRandomIdGenerator
+        from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 
         in_mem_exporter = InMemorySpanExporter()
         provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
@@ -3279,7 +3487,7 @@ class TestDagRunTracing:
         from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
         from opentelemetry.trace import StatusCode
 
-        from airflow.observability.traces import OverrideableRandomIdGenerator
+        from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 
         in_mem_exporter = InMemorySpanExporter()
         provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
