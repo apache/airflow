@@ -120,6 +120,7 @@ operators:
   - integration-name: Snowflake
     python-modules:
       - airflow.providers.snowflake.operators.snowflake
+      - airflow.providers.snowflake.operators.snowflake_notebook
       - airflow.providers.snowflake.operators.snowpark
 
 task-decorators:
