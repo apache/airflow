@@ -20,7 +20,7 @@ import re
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
+from google.api_core.exceptions import DeadlineExceeded, InvalidArgument, NotFound, PermissionDenied
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -30,6 +30,11 @@ if TYPE_CHECKING:
     from google.auth.credentials import Credentials
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
+
+# Default timeout in seconds for Secret Manager gRPC calls. Without a deadline, a gRPC call
+# to access_secret_version can block the calling thread indefinitely if Secret Manager is slow
+# or unreachable.
+ACCESS_SECRET_VERSION_TIMEOUT = 30
 
 
 class _SecretManagerClient(LoggingMixin):
@@ -75,7 +80,9 @@ class _SecretManagerClient(LoggingMixin):
         """
         name = self.client.secret_version_path(project_id, secret_id, secret_version)
         try:
-            response = self.client.access_secret_version(request={"name": name})
+            response = self.client.access_secret_version(
+                request={"name": name}, timeout=ACCESS_SECRET_VERSION_TIMEOUT
+            )
             value = response.payload.data.decode("UTF-8")
             return value
         except NotFound:
@@ -97,3 +104,14 @@ class _SecretManagerClient(LoggingMixin):
                 secret_id,
             )
             return None
+        except DeadlineExceeded:
+            self.log.warning(
+                "Google Cloud API Call Error (DeadlineExceeded): "
+                "Secret Manager request for Secret ID %s timed out after %ss.",
+                secret_id,
+                ACCESS_SECRET_VERSION_TIMEOUT,
+            )
+            raise TimeoutError(
+                f"Secret Manager request for Secret ID {secret_id} timed out "
+                f"after {ACCESS_SECRET_VERSION_TIMEOUT}s"
+            )
