@@ -1955,7 +1955,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     try:
         from airflow.sdk.execution_time import task_runner
 
-        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
+        if hasattr(task_runner, "SUPERVISOR_COMMS"):
             # Client context: task runner with SUPERVISOR_COMMS
             return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
     except (ImportError, AttributeError):

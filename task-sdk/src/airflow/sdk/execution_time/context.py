@@ -266,8 +266,25 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
             )
 
     # If no backend found the variable, raise a not found error (mirrors _get_connection)
-    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+    from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import ErrorResponse
+
+    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
+        raise AirflowRuntimeError(
+            ErrorResponse(
+                error=ErrorType.VARIABLE_NOT_FOUND,
+                detail={
+                    "message": (
+                        f"Variable '{key}' not found. Note: SUPERVISOR_COMMS is not available, "
+                        "which means this code is running outside a task execution context "
+                        "(e.g., at the top level of a DAG file). "
+                        "Consider using environment variables (AIRFLOW_VAR_<key>), "
+                        "Jinja templates ({{ var.value.<key> }}), "
+                        "or move the Variable.get() call inside a task function."
+                    )
+                },
+            )
+        )
 
     raise AirflowRuntimeError(
         ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"message": f"Variable {key} not found"})
@@ -282,11 +299,11 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     #   keep Task SDK as a separate package than execution time mods.
     import json
 
+    from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.cache import SecretCache
-    from airflow.sdk.execution_time.comms import PutVariable
+    from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
     from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     # check for write conflicts on the worker
     for secrets_backend in ensure_secrets_backend_loaded():
@@ -317,7 +334,21 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     except Exception as e:
         log.exception(e)
 
-    SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
+    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
+        raise AirflowRuntimeError(
+            ErrorResponse(
+                error=ErrorType.GENERIC_ERROR,
+                detail={
+                    "message": (
+                        "Variable.set() requires a task execution context (SUPERVISOR_COMMS is not available). "
+                        "This typically happens when calling Variable.set() at the top level of a DAG file "
+                        "or outside of a running task. Variable.set() can only be used inside a task."
+                    )
+                },
+            )
+        )
+
+    task_runner.SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
     # Invalidate cache after setting the variable
     SecretCache.invalidate_variable(key)
@@ -329,11 +360,25 @@ def _delete_variable(key: str) -> None:
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
     #   will make that module depend on Task SDK, which is not ideal because we intend to
     #   keep Task SDK as a separate package than execution time mods.
+    from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.cache import SecretCache
-    from airflow.sdk.execution_time.comms import DeleteVariable
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+    from airflow.sdk.execution_time.comms import DeleteVariable, ErrorResponse
 
-    msg = SUPERVISOR_COMMS.send(DeleteVariable(key=key))
+    if not hasattr(task_runner, "SUPERVISOR_COMMS"):
+        raise AirflowRuntimeError(
+            ErrorResponse(
+                error=ErrorType.GENERIC_ERROR,
+                detail={
+                    "message": (
+                        "Variable.delete() requires a task execution context (SUPERVISOR_COMMS is not available). "
+                        "This typically happens when calling Variable.delete() at the top level of a DAG file "
+                        "or outside of a running task. Variable.delete() can only be used inside a task."
+                    )
+                },
+            )
+        )
+
+    msg = task_runner.SUPERVISOR_COMMS.send(DeleteVariable(key=key))
     if TYPE_CHECKING:
         assert isinstance(msg, OKResponse)
 

@@ -25,6 +25,7 @@ import pytest
 
 from airflow.sdk import Variable
 from airflow.sdk.configuration import initialize_secrets_backends
+from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.sdk.execution_time.comms import PutVariable, VariableResult
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
@@ -186,3 +187,50 @@ class TestVariableFromSecrets:
         # mock_env is only called when LocalFilesystemBackend doesn't have it
         mock_env_get.assert_called()
         assert var == "fake_value"
+
+
+class TestVariableOutsideTaskContext:
+    """Tests for Variable operations when SUPERVISOR_COMMS is not set (outside task execution context)."""
+
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
+    def test_get_with_env_var_works_without_supervisor_comms(self, mock_env_get, monkeypatch):
+        """Variable.get() should still work via EnvironmentVariablesBackend when SUPERVISOR_COMMS is not set."""
+        from airflow.sdk.execution_time import task_runner
+
+        monkeypatch.delattr(task_runner, "SUPERVISOR_COMMS", raising=False)
+        mock_env_get.return_value = "env_value"
+
+        result = Variable.get(key="my_env_var")
+        assert result == "env_value"
+        mock_env_get.assert_called_once_with(key="my_env_var")
+
+    def test_get_not_found_without_supervisor_comms(self, monkeypatch):
+        """Variable.get() should raise with a helpful message when variable not found and SUPERVISOR_COMMS is not set."""
+        from airflow.sdk.execution_time import task_runner
+
+        monkeypatch.delattr(task_runner, "SUPERVISOR_COMMS", raising=False)
+
+        with pytest.raises(AirflowRuntimeError, match="outside a task execution context"):
+            Variable.get(key="nonexistent_var")
+
+    def test_set_without_supervisor_comms(self, monkeypatch):
+        """Variable.set() should raise AirflowRuntimeError when SUPERVISOR_COMMS is not set."""
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.context import _set_variable
+
+        monkeypatch.delattr(task_runner, "SUPERVISOR_COMMS", raising=False)
+
+        with pytest.raises(AirflowRuntimeError, match="Variable.set\\(\\) requires a task execution context"):
+            _set_variable(key="my_key", value="my_value")
+
+    def test_delete_without_supervisor_comms(self, monkeypatch):
+        """Variable.delete() should raise AirflowRuntimeError when SUPERVISOR_COMMS is not set."""
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.context import _delete_variable
+
+        monkeypatch.delattr(task_runner, "SUPERVISOR_COMMS", raising=False)
+
+        with pytest.raises(
+            AirflowRuntimeError, match="Variable.delete\\(\\) requires a task execution context"
+        ):
+            _delete_variable(key="my_key")

@@ -2736,7 +2736,6 @@ class TestSetSupervisorComms:
     def test_set_supervisor_comms_unsets_temporarily_when_not_set(self):
         assert not hasattr(task_runner, "SUPERVISOR_COMMS")
 
-        # This will delete an attribute that isn't set, and restore it likewise
         with set_supervisor_comms(None):
             assert not hasattr(task_runner, "SUPERVISOR_COMMS")
 

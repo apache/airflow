@@ -928,8 +928,11 @@ class TestSerializedBaseOperator:
         BaseOperator(task_id="test").log.warning("test")
         # This looks like "how could it fail" but this actually checks that the handler called `emit`. Testing
         # the other case (that when we have set_context it goes to the file is harder to achieve without
-        # leaking a lot of state)
-        assert caplog.messages == ["test"]
+        # leaking a lot of state). Only assert on the operator's logger so other loggers (e.g. OTLP trace
+        # export errors in CI) do not affect the test.
+        operator_logger_prefix = "airflow.task.operators"
+        operator_messages = [r.message for r in caplog.records if r.name.startswith(operator_logger_prefix)]
+        assert operator_messages == ["test"]
 
     def test_resume_execution(self):
         from airflow.models.trigger import TriggerFailureReason
