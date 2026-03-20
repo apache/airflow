@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import copy
 import logging
 import uuid
@@ -1193,13 +1192,15 @@ class TestDecoratedDeferredAsyncOperator:
 
         return DecoratedDeferredAsyncOperator(operator=inner, task_deferred=task_deferred)
 
-    def test_single_deferral_returns_result(self):
+    @pytest.mark.asyncio
+    async def test_single_deferral_returns_result(self):
         """A single deferral cycle should return the final result from execute_complete."""
         operator = self._make_operator(final_result="success")
-        result = asyncio.run(operator.aexecute(context={}))
+        result = await operator.aexecute(context={})
         assert result == "success"
 
-    def test_returns_none_when_trigger_yields_no_event(self):
+    @pytest.mark.asyncio
+    async def test_returns_none_when_trigger_yields_no_event(self):
         """When the trigger yields nothing, aexecute should return None."""
         from airflow.sdk.exceptions import TaskDeferred
 
@@ -1211,10 +1212,11 @@ class TestDecoratedDeferredAsyncOperator:
         task_deferred = TaskDeferred(trigger=empty_trigger, method_name="execute_complete")
         operator = DecoratedDeferredAsyncOperator(operator=inner, task_deferred=task_deferred)
 
-        result = asyncio.run(operator.aexecute(context={}))
+        result = await operator.aexecute(context={})
         assert result is None
 
-    def test_returns_none_when_method_name_is_none(self):
+    @pytest.mark.asyncio
+    async def test_returns_none_when_method_name_is_none(self):
         """When method_name is falsy, aexecute should return None even if trigger fires."""
         from airflow.sdk.exceptions import TaskDeferred
 
@@ -1224,30 +1226,34 @@ class TestDecoratedDeferredAsyncOperator:
         task_deferred = TaskDeferred(trigger=MockTrigger(payload="event"), method_name="")
         operator = DecoratedDeferredAsyncOperator(operator=inner, task_deferred=task_deferred)
 
-        result = asyncio.run(operator.aexecute(context={}))
+        result = await operator.aexecute(context={})
         assert result is None
 
-    def test_multiple_consecutive_deferrals(self):
+    @pytest.mark.asyncio
+    async def test_multiple_consecutive_deferrals(self):
         """Consecutive deferrals should be handled iteratively, not recursively."""
         operator = self._make_operator(max_deferrals=5, final_result="after_5")
-        result = asyncio.run(operator.aexecute(context={}))
+        result = await operator.aexecute(context={})
         assert result == "after_5"
 
-    def test_many_deferrals_do_not_cause_recursion_error(self):
+    @pytest.mark.asyncio
+    async def test_many_deferrals_do_not_cause_recursion_error(self):
         """A large number of deferrals must not blow the stack (no unbounded recursion)."""
         operator = self._make_operator(max_deferrals=200, final_result="survived")
         # This would hit RecursionError with the old recursive implementation
-        result = asyncio.run(operator.aexecute(context={}))
+        result = await operator.aexecute(context={})
         assert result == "survived"
 
-    def test_deferral_updates_task_deferred_state(self):
+    @pytest.mark.asyncio
+    async def test_deferral_updates_task_deferred_state(self):
         """Each deferral should update _task_deferred on the operator."""
         operator = self._make_operator(max_deferrals=2, final_result="final")
-        result = asyncio.run(operator.aexecute(context={}))
+        result = await operator.aexecute(context={})
         assert result == "final"
         # After completion, _task_deferred should reflect the last deferral's trigger
         assert operator._task_deferred.trigger._payload == "deferred_2"
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         ("max_deferrals", "expected"),
         [
@@ -1257,8 +1263,8 @@ class TestDecoratedDeferredAsyncOperator:
         ],
         ids=["no-redeferral", "one-redeferral", "three-redeferrals"],
     )
-    def test_parametrized_deferral_counts(self, max_deferrals, expected):
+    async def test_parametrized_deferral_counts(self, max_deferrals, expected):
         """Varying numbers of deferrals should all resolve correctly."""
         operator = self._make_operator(max_deferrals=max_deferrals, final_result=expected)
-        result = asyncio.run(operator.aexecute(context={}))
+        result = await operator.aexecute(context={})
         assert result == expected
