@@ -25,6 +25,7 @@ from airflow.models.pool import Pool
 from airflow.models.team import Team
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools, clear_db_teams
 from tests_common.test_utils.logs import check_last_log
 
@@ -418,7 +419,7 @@ class TestPatchPool(TestPoolsEndpoint):
 
     def test_patch_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
         self.create_pools()
-        with mock.patch("airflow.api_fastapi.core_api.datamodels.pools.conf.getboolean", return_value=False):
+        with conf_vars({("core", "multi_team"): "False"}):
             response = test_client.patch(
                 f"/pools/{POOL2_NAME}",
                 json={
@@ -502,7 +503,7 @@ class TestPostPool(TestPoolsEndpoint):
         self.create_pools()
         n_pools = session.scalar(select(func.count()).select_from(Pool))
 
-        with mock.patch("airflow.api_fastapi.core_api.datamodels.pools.conf.getboolean", return_value=True):
+        with conf_vars({("core", "multi_team"): "True"}):
             response = test_client.post("/pools", json=body)
 
         assert response.status_code == expected_status_code
@@ -544,7 +545,7 @@ class TestPostPool(TestPoolsEndpoint):
         assert response.status_code == 422
 
     def test_post_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
-        with mock.patch("airflow.api_fastapi.core_api.datamodels.pools.conf.getboolean", return_value=False):
+        with conf_vars({("core", "multi_team"): "False"}):
             response = test_client.post(
                 "/pools",
                 json={
@@ -1082,7 +1083,7 @@ class TestBulkPools(TestPoolsEndpoint):
     def test_bulk_pools(self, test_client, actions, expected_results, session):
         self.create_pools()
 
-        with mock.patch("airflow.api_fastapi.core_api.datamodels.pools.conf.getboolean", return_value=True):
+        with conf_vars({("core", "multi_team"): "True"}):
             response = test_client.patch("/pools", json=actions)
 
         response_data = response.json()
