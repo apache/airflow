@@ -928,34 +928,33 @@ class DagFileProcessorManager(LoggingMixin):
                 processor.logger_filehandle.close()
                 self._file_stats.pop(file, None)
 
-    @provide_session
-    def _collect_results(self, session: Session = NEW_SESSION):
-        # TODO: Use an explicit session in this fn
+    def _collect_results(self):
         finished = []
-        for file, proc in self._processors.items():
-            if not proc.is_ready:
-                # This processor hasn't finished yet, or we haven't read all the output from it yet
-                continue
-            finished.append(file)
+        with create_session() as session:
+            for file, proc in self._processors.items():
+                if not proc.is_ready:
+                    # This processor hasn't finished yet, or we haven't read all the output from it yet
+                    continue
+                finished.append(file)
 
-            # Detect if this was callback-only processing
-            # For such-cases, we don't serialize the dags and hence send parsing_result as None.
-            is_callback_only = proc.had_callbacks and proc.parsing_result is None
-            if is_callback_only:
-                self.log.debug("Detected callback-only processing for %s", file)
+                # Detect if this was callback-only processing
+                # For such-cases, we don't serialize the dags and hence send parsing_result as None.
+                is_callback_only = proc.had_callbacks and proc.parsing_result is None
+                if is_callback_only:
+                    self.log.debug("Detected callback-only processing for %s", file)
 
-            # Collect the DAGS and import errors into the DB, emit metrics etc.
-            self._file_stats[file] = process_parse_results(
-                run_duration=time.monotonic() - proc.start_time,
-                finish_time=timezone.utcnow(),
-                run_count=self._file_stats[file].run_count,
-                bundle_name=file.bundle_name,
-                bundle_version=self._bundle_versions[file.bundle_name],
-                parsing_result=proc.parsing_result,
-                session=session,
-                is_callback_only=is_callback_only,
-                relative_fileloc=str(file.rel_path),
-            )
+                # Collect the DAGS and import errors into the DB, emit metrics etc.
+                self._file_stats[file] = process_parse_results(
+                    run_duration=time.monotonic() - proc.start_time,
+                    finish_time=timezone.utcnow(),
+                    run_count=self._file_stats[file].run_count,
+                    bundle_name=file.bundle_name,
+                    bundle_version=self._bundle_versions[file.bundle_name],
+                    parsing_result=proc.parsing_result,
+                    session=session,
+                    is_callback_only=is_callback_only,
+                    relative_fileloc=str(file.rel_path),
+                )
 
         for file in finished:
             processor = self._processors.pop(file)
