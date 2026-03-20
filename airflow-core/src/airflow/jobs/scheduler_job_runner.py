@@ -272,8 +272,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
 
         # Note:
-        # We need to fetch ALL the conf before the `prohibit_commit` block, otherwise we will encounter `UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS` since the Core conf might access the MetadataMetastoreBackend
-        # so the most easiest way is to fetch all the conf in the init method and store them as attributes of the SchedulerJobRunner instance.
+        # We need to fetch all conf values before the `prohibit_commit` block; otherwise the Core conf may
+        # access the MetadataMetastoreBackend and trigger `UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS`.
+        # The easiest way to keep the scheduler loop side-effect free is to read those values in `__init__`.
 
         # How many seconds do we wait for tasks to heartbeat before timeout.
         self._task_instance_heartbeat_timeout_secs = conf.getint(

@@ -332,9 +332,9 @@ class AirflowConfigParser(ConfigParser):
     def _provider_metadata_config_fallback_default_values(self) -> ConfigParser:
         """Return Provider metadata config fallback default values."""
         base_configuration_description: dict[str, dict[str, Any]] = {}
-        for _, config in self.provider_manager_type().provider_configs:
+        for _, config in self._provider_manager_type().provider_configs:
             base_configuration_description.update(config)
-        return self.create_default_config_parser_callable(base_configuration_description)
+        return self._create_default_config_parser_callable(base_configuration_description)
 
     def get_from_provider_metadata_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """Get provider metadata config fallback default values."""
@@ -418,14 +418,16 @@ class AirflowConfigParser(ConfigParser):
         """
         super().__init__(*args, **kwargs)
         self.configuration_description = configuration_description
+        self._base_configuration_description = deepcopy(configuration_description)
         self._default_values = _default_values
-        self.provider_manager_type = provider_manager_type
-        self.create_default_config_parser_callable = create_default_config_parser_callable
+        self._provider_manager_type = provider_manager_type
+        self._create_default_config_parser_callable = create_default_config_parser_callable
         self._provider_cfg_config_fallback_default_values = create_provider_cfg_config_fallback_defaults(
             provider_config_fallback_defaults_cfg_path
         )
         self._suppress_future_warnings = False
         self.upgraded_values: dict[tuple[str, str], str] = {}
+        self._providers_configuration_loaded = False
 
     def invalidate_cache(self) -> None:
         """
@@ -1186,7 +1188,7 @@ class AirflowConfigParser(ConfigParser):
         log.debug("Loading providers configuration")
 
         self.restore_core_default_configuration()
-        for provider, config in self.provider_manager_type().already_initialized_provider_configs:
+        for provider, config in self._provider_manager_type().already_initialized_provider_configs:
             for provider_section, provider_section_content in config.items():
                 provider_options = provider_section_content["options"]
                 section_in_current_config = self.configuration_description.get(provider_section)
@@ -1209,11 +1211,18 @@ class AirflowConfigParser(ConfigParser):
                         "provider's configuration.",
                         UserWarning,
                     )
-        self._default_values = self.create_default_config_parser_callable(self.configuration_description)
+        self._default_values = self._create_default_config_parser_callable(self.configuration_description)
         # Cached properties derived from configuration_description (e.g. sensitive_config_values) need
         # to be recomputed now that provider config has been merged in.
         self.invalidate_cache()
         self._providers_configuration_loaded = True
+
+    def restore_core_default_configuration(self) -> None:
+        """Restore the parser state before provider-contributed sections were loaded."""
+        self.configuration_description = deepcopy(self._base_configuration_description)
+        self._default_values = self._create_default_config_parser_callable(self.configuration_description)
+        self.invalidate_cache()
+        self._providers_configuration_loaded = False
 
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...

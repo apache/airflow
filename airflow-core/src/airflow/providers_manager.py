@@ -610,16 +610,7 @@ class ProvidersManager(LoggingMixin):
 
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
-        """
-        Lazy initialization of providers configuration information.
-
-        Should be used if we do not want to trigger caching for ``initialize_providers_configuration`` method.
-        In some cases we might want to make sure that the configuration is initialized, but we do not want
-        to cache the initialization method - for example when we just want to write configuration with
-        providers, but it is used in the context where no providers are loaded yet we will eventually
-        restore the original configuration and we want the subsequent ``initialize_providers_configuration``
-        method to be run in order to load the configuration for providers again.
-        """
+        """Lazy initialization of provider configuration metadata and merge it into ``conf``."""
         self.initialize_providers_list()
         self._discover_config()
         # Now update conf with the new provider configuration from providers
