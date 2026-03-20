@@ -293,6 +293,25 @@ def test_debug_dump(caplog):
     assert "executor.event_buffer" in caplog.text
 
 
+@pytest.mark.db_test
+def test_debug_dump_with_populated_queues(caplog, dag_maker):
+    """Test debug_dump outputs queued workloads when queues are populated."""
+    executor = BaseExecutor()
+    dagrun = setup_dagrun(dag_maker)
+
+    for ti in dagrun.task_instances:
+        workload = workloads.ExecuteTask.make(ti)
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][ti.key] = workload
+
+    with caplog.at_level(logging.INFO):
+        executor.debug_dump()
+
+    assert f"executor.queued[{WorkloadType.EXECUTE_TASK}]" in caplog.text
+    assert "(3)" in caplog.text
+    assert "executor.running" in caplog.text
+    assert "executor.event_buffer" in caplog.text
+
+
 def test_base_executor_cannot_send_callback():
     executor = BaseExecutor()
     with pytest.raises(ValueError, match="Callback sink is not ready"):

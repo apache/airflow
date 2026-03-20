@@ -418,10 +418,13 @@ class TestAwsEcsExecutor:
     def test_task_sdk(self, change_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution from end-to-end."""
         from airflow.executors.workloads import ExecuteTask
+        from airflow.executors.workloads.base import WorkloadType
 
         workload = mock.Mock(spec=ExecuteTask)
         workload.ti = mock.Mock(spec=TaskInstance)
         workload.ti.key = mock_airflow_key()
+        workload.type = WorkloadType.EXECUTE_TASK
+        workload.queue_key = workload.ti.key
         tags_exec_config = [{"key": "FOO", "value": "BAR"}]
         workload.ti.executor_config = {"tags": tags_exec_config}
         ser_workload = json.dumps({"test_key": "test_value"})
@@ -441,11 +444,11 @@ class TestAwsEcsExecutor:
             "failures": [],
         }
 
-        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert mock_executor.executor_queues[WorkloadType.EXECUTE_TASK][workload.ti.key] == workload
         assert len(mock_executor.pending_tasks) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
-        assert len(mock_executor.queued_tasks) == 0
+        assert len(mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]) == 0
         assert len(mock_executor.running) == 1
         assert workload.ti.key in mock_executor.running
         assert len(mock_executor.pending_tasks) == 1

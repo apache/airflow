@@ -80,6 +80,11 @@ class ExecuteCallback(BaseDagBundleWorkload):
         """Return the callback ID as the queue key."""
         return self.callback.id
 
+    @property
+    def sort_key(self) -> int:
+        """Return 0 for FIFO ordering of callbacks."""
+        return 0
+
     @classmethod
     def make(
         cls,

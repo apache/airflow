@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import os
-from abc import ABC
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -118,3 +118,13 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
     dag_rel_path: os.PathLike[str]  # Filepath where the DAG can be found (likely prefixed with `DAG_FOLDER/`)
     bundle_info: BundleInfo
     log_path: str | None  # Rendered relative log filename template the task logs should be written to.
+
+    @property
+    @abstractmethod
+    def queue_key(self) -> WorkloadKey:
+        """Return a unique key used to store/lookup this workload in the executor queue."""
+
+    @property
+    @abstractmethod
+    def sort_key(self) -> int:
+        """Return the sort key for ordering workloads within the same tier."""
