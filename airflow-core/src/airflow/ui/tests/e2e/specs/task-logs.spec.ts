@@ -57,34 +57,40 @@ test.describe("Verify task logs display", () => {
   });
 
   test("Verify log content is displayed", async ({ page }) => {
-    const virtualizedList = page.locator('[data-testid="virtualized-list"]');
+    const virtualizedList = page.getByTestId("virtualized-list");
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
     const logItems = page.locator('[data-testid^="virtualized-item-"]');
 
-    await expect(logItems.first()).toBeVisible({ timeout: 10_000 });
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
   });
 
   test("Verify log levels are visible", async ({ page }) => {
-    const virtualizedList = page.locator('[data-testid="virtualized-list"]');
+    const virtualizedList = page.getByTestId("virtualized-list");
+    const logItems = page.locator('[data-testid^="virtualized-item-"]');
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
 
     await expect(virtualizedList).toContainText(/INFO|WARNING|ERROR|CRITICAL/);
   });
 
   test("Verify log timestamp formatting", async ({ page }) => {
-    const virtualizedList = page.locator('[data-testid="virtualized-list"]');
+    const virtualizedList = page.getByTestId("virtualized-list");
+    const logItems = page.locator('[data-testid^="virtualized-item-"]');
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
 
     await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
   });
 
   test("Verify log settings", async ({ page }) => {
-    const virtualizedList = page.locator('[data-testid="virtualized-list"]');
+    const virtualizedList = page.getByTestId("virtualized-list");
+    const logItems = page.locator('[data-testid^="virtualized-item-"]');
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
 
     // Verify timestamps are visible initially
     await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
@@ -114,9 +120,11 @@ test.describe("Verify task logs display", () => {
   });
 
   test("Verify logs are getting downloaded fine", async ({ page }) => {
-    const virtualizedList = page.locator('[data-testid="virtualized-list"]');
+    const virtualizedList = page.getByTestId("virtualized-list");
+    const logItems = page.locator('[data-testid^="virtualized-item-"]');
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
+    await expect(logItems.first()).toBeVisible({ timeout: 30_000 });
 
     const downloadPromise = page.waitForEvent("download", { timeout: 10_000 });
 

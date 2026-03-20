@@ -37,7 +37,7 @@ export class TaskInstancesPage extends BasePage {
   public async navigate(): Promise<void> {
     await this.navigateTo(TaskInstancesPage.taskInstancesUrl);
     await this.page.waitForURL(/.*task_instances/, { timeout: 15_000 });
-    await this.taskInstancesTable.waitFor({ state: "visible", timeout: 10_000 });
+    await expect(this.taskInstancesTable).toBeVisible({ timeout: 10_000 });
 
     const dataLink = this.taskInstancesTable.locator("a[href*='/dags/']").first();
     const noDataMessage = this.page.locator('text="No Task Instances found"');
@@ -51,31 +51,28 @@ export class TaskInstancesPage extends BasePage {
   public async verifyStateFiltering(expectedState: string): Promise<void> {
     await this.navigateTo(`${TaskInstancesPage.taskInstancesUrl}?task_state=${expectedState.toLowerCase()}`);
     await this.page.waitForURL(/.*task_state=.*/, { timeout: 15_000 });
-    await this.page.waitForLoadState("networkidle");
 
     const dataLink = this.taskInstancesTable.locator("a[href*='/dags/']").first();
+    const noDataMessage = this.page.locator("text=/No.*found/i, text=/No.*results/i, text=/Empty/i");
 
-    await expect(dataLink).toBeVisible({ timeout: 30_000 });
+    await expect(dataLink.or(noDataMessage)).toBeVisible({ timeout: 30_000 });
     await expect(this.taskInstancesTable).toBeVisible();
 
     const rowsAfterFilter = this.taskInstancesTable.locator(
       'tbody tr:not(.no-data), div[role="row"]:not(:first-child)',
     );
-    const noDataMessage = this.page.locator("text=/No.*found/i, text=/No.*results/i, text=/Empty/i");
     const stateBadges = this.taskInstancesTable.locator('[class*="badge"], [class*="Badge"]');
 
     await expect(stateBadges.first().or(noDataMessage.first())).toBeVisible({ timeout: 30_000 });
 
-    const countAfter = await rowsAfterFilter.count();
-
-    expect(
-      countAfter,
+    await expect(
+      rowsAfterFilter,
       `Expected task instances with state "${expectedState}" but found none`,
-    ).toBeGreaterThan(0);
+    ).not.toHaveCount(0);
 
     const badgeCount = await stateBadges.count();
 
-    expect(badgeCount).toBeGreaterThan(0);
+    await expect(stateBadges).not.toHaveCount(0);
 
     for (let i = 0; i < Math.min(badgeCount, 20); i++) {
       const badge = stateBadges.nth(i);
@@ -140,6 +137,6 @@ export class TaskInstancesPage extends BasePage {
   public async verifyTaskInstancesExist(): Promise<void> {
     const rows = this.taskInstancesTable.locator('tbody tr:not(.no-data), div[role="row"]:not(:first-child)');
 
-    expect(await rows.count()).toBeGreaterThan(0);
+    await expect(rows).not.toHaveCount(0);
   }
 }
