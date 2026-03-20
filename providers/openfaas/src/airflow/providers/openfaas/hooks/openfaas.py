@@ -24,6 +24,7 @@ import requests
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 OK_STATUS_CODE = 202
+REQUEST_TIMEOUT = 60
 
 
 class OpenFaasHook(BaseHook):
@@ -71,7 +72,7 @@ class OpenFaasHook(BaseHook):
         else:
             url = self.get_conn().host + self.DEPLOY_FUNCTION
             self.log.info("Deploying function %s", url)
-            response = requests.post(url, body)
+            response = requests.post(url, body, timeout=REQUEST_TIMEOUT)
             if response.status_code != OK_STATUS_CODE:
                 self.log.error("Response status %d", response.status_code)
                 self.log.error("Failed to deploy")
@@ -82,7 +83,7 @@ class OpenFaasHook(BaseHook):
         """Invoke function asynchronously."""
         url = self.get_conn().host + self.INVOKE_ASYNC_FUNCTION + self.function_name
         self.log.info("Invoking function asynchronously %s", url)
-        response = requests.post(url, body)
+        response = requests.post(url, body, timeout=REQUEST_TIMEOUT)
         if response.ok:
             self.log.info("Invoked %s", self.function_name)
         else:
@@ -93,7 +94,7 @@ class OpenFaasHook(BaseHook):
         """Invoke function synchronously. This will block until function completes and returns."""
         url = self.get_conn().host + self.INVOKE_FUNCTION + self.function_name
         self.log.info("Invoking function synchronously %s", url)
-        response = requests.post(url, body)
+        response = requests.post(url, body, timeout=REQUEST_TIMEOUT)
         if response.ok:
             self.log.info("Invoked %s", self.function_name)
             self.log.info("Response code %s", response.status_code)
@@ -106,7 +107,7 @@ class OpenFaasHook(BaseHook):
         """Update OpenFaaS function."""
         url = self.get_conn().host + self.UPDATE_FUNCTION
         self.log.info("Updating function %s", url)
-        response = requests.put(url, body)
+        response = requests.put(url, body, timeout=REQUEST_TIMEOUT)
         if response.status_code != OK_STATUS_CODE:
             self.log.error("Response status %d", response.status_code)
             self.log.error("Failed to update response %s", response.content.decode("utf-8"))
@@ -116,8 +117,7 @@ class OpenFaasHook(BaseHook):
     def does_function_exist(self) -> bool:
         """Whether OpenFaaS function exists or not."""
         url = self.get_conn().host + self.GET_FUNCTION + self.function_name
-
-        response = requests.get(url)
+        response = requests.get(url, timeout=REQUEST_TIMEOUT)
         if response.ok:
             return True
         self.log.error("Failed to find function %s", self.function_name)
