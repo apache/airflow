@@ -1304,6 +1304,18 @@ class TestDagFileProcessorManager:
         bundle.initialize.assert_called_once()
         assert len(manager._callback_to_execute) == 0
 
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_reassign_called_once_at_startup_not_on_refresh(self, mock_bundle_manager):
+        """reassign_dags_with_unconfigured_bundles is called exactly once by sync_bundles, not by _refresh_dag_bundles."""
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = []
+
+        manager.sync_bundles()
+        mock_bundle_manager.return_value.reassign_dags_with_unconfigured_bundles.assert_called_once()
+
+        manager._refresh_dag_bundles(known_files={})
+        mock_bundle_manager.return_value.reassign_dags_with_unconfigured_bundles.assert_called_once()
+
     def test_dag_with_assets(self, session, configure_testing_dag_bundle):
         """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""
         test_dag_path = str(TEST_DAG_FOLDER / "test_assets.py")

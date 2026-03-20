@@ -280,7 +280,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
-        DagBundlesManager().sync_bundles_to_db()
+        dag_bundle_manager = DagBundlesManager()
+        dag_bundle_manager.sync_bundles_to_db()
+        dag_bundle_manager.reassign_dags_with_unconfigured_bundles()
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
