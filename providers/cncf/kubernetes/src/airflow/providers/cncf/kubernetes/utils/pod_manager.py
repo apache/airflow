@@ -1030,6 +1030,13 @@ class OnFinishAction(str, enum.Enum):
     DELETE_SUCCEEDED_POD = "delete_succeeded_pod"
 
 
+class OnKillAction(str, enum.Enum):
+    """Action to take when the task is killed by the user."""
+
+    DELETE_POD = "delete_pod"
+    KEEP_POD = "keep_pod"
+
+
 def is_log_group_marker(line: str) -> bool:
     """Check if the line is a log group marker like `::group::` or `::endgroup::`."""
     return line.startswith("::group::") or line.startswith("::endgroup::")

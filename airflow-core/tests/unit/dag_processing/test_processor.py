@@ -1911,6 +1911,7 @@ class TestDagProcessingMessageTypes:
             "GetAssetEventByAssetAlias",
             "GetDagRun",
             "GetDagRunState",
+            "GetDag",
             "GetDRCount",
             "GetTaskBreadcrumbs",
             "GetTaskRescheduleStartDate",
@@ -1935,6 +1936,7 @@ class TestDagProcessingMessageTypes:
         in_task_runner_but_not_in_dag_processing_process = {
             "AssetResult",
             "AssetEventsResult",
+            "DagResult",
             "DagRunResult",
             "DagRunStateResult",
             "DRCount",
