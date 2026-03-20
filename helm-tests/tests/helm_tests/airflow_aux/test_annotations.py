@@ -264,6 +264,266 @@ class TestServiceAccountAnnotations:
             assert k in obj["metadata"]["annotations"]
             assert v == obj["metadata"]["annotations"][k]
 
+    @pytest.mark.parametrize(
+        ("values", "show_only", "expected_annotations"),
+        [
+            (
+                {
+                    "executor": "KubernetesExecutor",
+                    "cleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/cleanup/cleanup-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "databaseCleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/database-cleanup/database-cleanup-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "scheduler": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/scheduler/scheduler-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "apiServer": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/api-server/api-server-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "workers": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "flower": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/flower/flower-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "statsd": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/statsd/statsd-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "redis": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/redis/redis-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "pgbouncer": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/pgbouncer/pgbouncer-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "createUserJob": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/jobs/create-user-job-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "migrateDatabaseJob": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/jobs/migrate-database-job-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "triggerer": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/triggerer/triggerer-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "dagProcessor": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/dag-processor/dag-processor-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+            (
+                {
+                    "airflowVersion": "2.11.0",
+                    "webserver": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                            },
+                        },
+                    },
+                },
+                "templates/webserver/webserver-serviceaccount.yaml",
+                {
+                    "eks.amazonaws.com/role-arn": "arn:aws:iam::release-name:role/airflow",
+                },
+            ),
+        ],
+    )
+    def test_annotations_are_tpl_evaluated(self, values, show_only, expected_annotations):
+        """Test that Helm template expressions in annotation values are evaluated via tpl."""
+        k8s_objects = render_chart(
+            values=values,
+            show_only=[show_only],
+        )
+
+        assert len(k8s_objects) == 1
+        obj = k8s_objects[0]
+
+        for k, v in expected_annotations.items():
+            assert k in obj["metadata"]["annotations"]
+            assert obj["metadata"]["annotations"][k] == v
+
+    def test_annotations_mixed_static_and_templated(self):
+        """Test that mixed static and templated annotation values render correctly."""
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "webserver": {
+                    "serviceAccount": {
+                        "annotations": {
+                            "example": "webserver",
+                            "eks.amazonaws.com/role-arn": "arn:aws:iam::{{ .Release.Name }}:role/airflow",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/webserver/webserver-serviceaccount.yaml"],
+        )
+
+        assert len(k8s_objects) == 1
+        obj = k8s_objects[0]
+        annotations = obj["metadata"]["annotations"]
+
+        assert annotations["example"] == "webserver"
+        assert annotations["eks.amazonaws.com/role-arn"] == "arn:aws:iam::release-name:role/airflow"
+
     def test_annotations_on_webserver(self):
         """Test annotations are added on webserver for Airflow 2"""
         k8s_objects = render_chart(
