@@ -91,6 +91,7 @@ class EdgeExecutor(BaseExecutor):
         if not isinstance(workload, workloads.ExecuteTask):
             raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
 
+        # TODO: to be updated
         task_instance = workload.ti
         key = task_instance.key
 
