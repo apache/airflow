@@ -37,6 +37,7 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_dry_run,
     option_github_repository,
+    option_github_token,
     option_verbose,
 )
 from airflow_breeze.global_constants import (
@@ -450,7 +451,10 @@ def get_workflow_info(github_context: str, github_context_input: StringIO):
 @option_answer
 @option_verbose
 @option_dry_run
-def upgrade(target_branch: str, create_pr: bool | None, switch_to_base: bool | None):
+@option_github_token
+def upgrade(
+    target_branch: str, create_pr: bool | None, switch_to_base: bool | None, github_token: str | None
+):
     # Validate target_branch pattern
     target_branch_pattern = re.compile(r"^(main|v\d+-\d+-test)$")
     if not target_branch_pattern.match(target_branch):
@@ -606,24 +610,26 @@ def upgrade(target_branch: str, create_pr: bool | None, switch_to_base: bool | N
 
     get_console().print("[info]Running upgrade of important CI environment.[/]")
 
-    # Get GitHub token from gh CLI and set it in environment copy
-    gh_token_result = run_command(
-        ["gh", "auth", "token"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    # Resolve GitHub token: prefer --github-token / GITHUB_TOKEN env var, fall back to gh CLI
+    if not github_token:
+        gh_token_result = run_command(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if gh_token_result.returncode == 0 and gh_token_result.stdout.strip():
+            github_token = gh_token_result.stdout.strip()
 
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
 
-    if gh_token_result.returncode == 0 and gh_token_result.stdout.strip():
-        github_token = gh_token_result.stdout.strip()
+    if github_token:
         command_env["GITHUB_TOKEN"] = github_token
-        get_console().print("[success]GitHub token retrieved from gh CLI and set in environment.[/]")
+        get_console().print("[success]GitHub token set in environment.[/]")
     else:
         get_console().print(
-            "[warning]Could not retrieve GitHub token from gh CLI. "
+            "[warning]Could not retrieve GitHub token from --github-token or gh CLI. "
             "Commands may fail if they require authentication.[/]"
         )
 

@@ -74,6 +74,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--target-branch",
                 "--create-pr",
                 "--switch-to-base",
+                "--github-token",
             ],
         }
     ],

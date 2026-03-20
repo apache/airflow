@@ -48,6 +48,9 @@ from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console
 
 DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
 
+# Module-level GitHub token, set during main() via retrieve_gh_token()
+_github_token: str | None = None
+
 
 # List of files to update and whether to keep total length of the original value when replacing.
 FILES_TO_UPDATE: list[tuple[Path, bool]] = [
@@ -270,6 +273,9 @@ def get_latest_github_release_version(repo: str) -> str:
 
     url = f"https://api.github.com/repos/{repo}/releases/latest"
     headers = {"User-Agent": "Python requests"}
+    if _github_token:
+        headers["Authorization"] = f"Bearer {_github_token}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
     response = requests.get(url, headers=headers)
     response.raise_for_status()
 
@@ -296,6 +302,9 @@ def get_latest_openapi_generator_version() -> str:
         console.print("[bright_blue]Fetching latest OpenAPI generator version from GitHub")
     url = "https://api.github.com/repos/OpenAPITools/openapi-generator/releases/latest"
     headers = {"User-Agent": "Python requests"}
+    if _github_token:
+        headers["Authorization"] = f"Bearer {_github_token}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     data = response.json()
@@ -833,7 +842,8 @@ def update_pyproject_build_requires(
 
 def main() -> None:
     """Main entry point for the version upgrade script."""
-    retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
+    global _github_token
+    _github_token = retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
 
     versions = fetch_all_package_versions()
     log_special_versions(versions)
