@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Button, Field, HStack, IconButton, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type ControllerFieldState, type ControllerRenderProps, Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiSave } from "react-icons/fi";
@@ -44,8 +44,8 @@ const ValueField = ({ field, fieldState }: ValueFieldProps) => {
     }
   }, [field.value]);
 
-  const showJsonWarning =
-    displayValue.startsWith("{") || displayValue.startsWith("[") ? !isJsonString(displayValue) : false;
+  const isValidJson = useMemo(() => isJsonString(displayValue), [displayValue]);
+  const showJsonWarning = displayValue.startsWith("{") || displayValue.startsWith("[") ? !isValidJson : false;
 
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = event.target.value;
@@ -81,7 +81,7 @@ const ValueField = ({ field, fieldState }: ValueFieldProps) => {
           size="sm"
           value={displayValue}
         />
-        {isJsonString(displayValue) ? (
+        {isValidJson ? (
           <IconButton
             aria-label="Format JSON"
             onClick={handleFormat}
