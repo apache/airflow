@@ -24,7 +24,7 @@ on:  # yamllint disable-line rule:truthy
       - v[0-9]+-[0-9]+-test
       - v[0-9]+-[0-9]+-stable
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -36,6 +36,7 @@ concurrency:
 
 jobs:
   check-newsfragment-pr-number:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip newsfragment check') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
