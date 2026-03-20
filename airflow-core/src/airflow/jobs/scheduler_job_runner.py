@@ -1912,19 +1912,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     active_runs=active_runs_of_dags.get(dag_model.dag_id),
                 )
                 continue
-            if dag_model.next_dagrun is None and not dag_model.timetable_partitioned:
-                self.log.error(
-                    "dag_model.next_dagrun is None; expected datetime",
-                    dag_id=dag_model.dag_id,
-                )
-                continue
-            if dag_model.next_dagrun_create_after is None:
-                if not dag_model.timetable_partitioned:
+            if dag_model.timetable_partitioned is False:
+                # non partition-aware DAGs
+                if dag_model.next_dagrun is None:
+                    self.log.error(
+                        "dag_model.next_dagrun is None; expected datetime",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
+                if dag_model.next_dagrun_create_after is None:
                     self.log.error(
                         "dag_model.next_dagrun_create_after is None; expected datetime",
                         dag_id=dag_model.dag_id,
                     )
-                continue
+                    continue
+            else:
+                # partition-aware DAGs
+                if dag_model.next_dagrun_partition_key is None:
+                    self.log.error(
+                        "dag_model.next_dagrun_partition_key is None; expected str",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
 
             serdag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not serdag:
