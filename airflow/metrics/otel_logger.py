@@ -421,7 +421,6 @@ def get_otel_logger(cls) -> SafeOtelLogger:
         PeriodicExportingMetricReader(
             OTLPMetricExporter(
                 endpoint=endpoint,
-                headers={"Content-Type": "application/json"},
             ),
             export_interval_millis=interval,
         )
