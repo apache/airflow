@@ -52,11 +52,10 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
     })) ?? [];
 
   const currentValue =
-    // eslint-disable-next-line unicorn/no-null
     param.value === null
-      ? options.find((opt) => opt.value === NULL_STRING_VALUE) ?? null
+      ? (options.find((opt) => opt.value === NULL_STRING_VALUE) ?? null)
       : enumTypes.includes(typeof param.value)
-        ? options.find((opt) => opt.value === String(param.value)) ?? null
+        ? (options.find((opt) => opt.value === String(param.value)) ?? null)
         : // eslint-disable-next-line unicorn/no-null
           null;
 
