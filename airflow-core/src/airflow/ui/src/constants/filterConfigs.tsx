@@ -21,8 +21,7 @@
 import { Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
-import { FiBarChart, FiUser } from "react-icons/fi";
-import { ImDatabase } from "react-icons/im";
+import { FiBarChart, FiUser, FiDatabase } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
 import {
   MdDateRange,
@@ -92,7 +91,7 @@ export const useFilterConfigs = () => {
     },
     [SearchParamsKeys.CONSUMING_ASSET]: {
       hotkeyDisabled: true,
-      icon: <ImDatabase />,
+      icon: <FiDatabase />,
       label: translate("common:consumingAsset"),
       placeholder: translate("common:filters.searchAsset"),
       type: FilterTypes.TEXT,
