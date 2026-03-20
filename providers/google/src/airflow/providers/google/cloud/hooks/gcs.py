@@ -705,22 +705,30 @@ class GCSHook(GoogleBaseHook):
                 return True
         return False
 
-    def delete(self, bucket_name: str, object_name: str) -> None:
+    def delete(self, bucket_name: str, object_name: str, ignore_error: bool = False) -> None:
         """
         Delete an object from the bucket.
 
         :param bucket_name: name of the bucket, where the object resides
         :param object_name: name of the object to delete
+        :param ignore_error: (Optional) whether to ignore NotFound exceptions. Default: False
         """
+        on_error = None
+        if ignore_error:
+            on_error = lambda blob: None
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name)
-        blob.delete()
-        get_hook_lineage_collector().add_input_asset(
-            context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
-        )
-
-        self.log.info("Blob %s deleted.", object_name)
+        try:
+            bucket.delete_blobs([blob], on_error=on_error)
+            get_hook_lineage_collector().add_input_asset(
+                context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
+            )
+            if not ignore_error:
+                self.log.info("Blob %s deleted.", object_name)
+        except NotFound:
+            self.log.warning("Blob %s in bucket %s does not exist.", blob.name, bucket.name)
+            raise
 
     def get_bucket(self, bucket_name: str) -> storage.Bucket:
         """

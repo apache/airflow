@@ -280,6 +280,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         of objects in the bucket, not including gs://bucket/
     :param prefix: String or list of strings, which filter objects whose name begin with
            it/them. (templated)
+    :param ignore_error: (Optional) whether to ignore NotFound exceptions. Default: False
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -305,6 +306,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         bucket_name: str,
         objects: list[str] | None = None,
         prefix: str | list[str] | None = None,
+        ignore_error: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -312,6 +314,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         self.bucket_name = bucket_name
         self.objects = objects
         self.prefix = prefix
+        self.ignore_error = ignore_error
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
@@ -338,7 +341,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
         self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
         for object_name in objects:
-            hook.delete(bucket_name=self.bucket_name, object_name=object_name)
+            hook.delete(bucket_name=self.bucket_name, object_name=object_name, ignore_error=self.ignore_error)
 
     def get_openlineage_facets_on_start(self):
         from airflow.providers.common.compat.openlineage.facet import (

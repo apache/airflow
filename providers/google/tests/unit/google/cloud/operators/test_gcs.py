@@ -127,8 +127,8 @@ class TestGCSDeleteObjectsOperator:
         mock_hook.return_value.list.assert_not_called()
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=False),
             ],
             any_order=True,
         )
@@ -150,8 +150,8 @@ class TestGCSDeleteObjectsOperator:
         mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix=PREFIX)
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2], ignore_error=False),
             ],
             any_order=True,
         )
@@ -165,10 +165,10 @@ class TestGCSDeleteObjectsOperator:
         mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix="")
         mock_hook.return_value.delete.assert_has_calls(
             calls=[
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2]),
-                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[3]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2], ignore_error=False),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[3], ignore_error=False),
             ],
             any_order=True,
         )
