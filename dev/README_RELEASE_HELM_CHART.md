@@ -551,7 +551,7 @@ You can run this command to do it for you (including checksum verification for y
 
 ```shell script
 # Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
-wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
 echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
 tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 ```
@@ -560,12 +560,12 @@ tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 * Enter the sources folder run the check
 
 ```shell
-rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION_RC}/airflow-chart-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
+rm -rf /tmp/apache/airflow-helm-chart-src && mkdir -p /tmp/apache/airflow-helm-chart-src && tar -xzf ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION_RC}/airflow-chart-*-source.tar.gz --strip-components 1 -C /tmp/apache/airflow-helm-chart-src
 ```
 
 ```shell
-cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-src/.rat-excludes
-java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache/airflow-helm-chart-src/.rat-excludes
+java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache/airflow-helm-chart-src/.rat-excludes /tmp/apache/airflow-helm-chart-src/ | grep -E "! |INFO: "
 ```
 
 where `.rat-excludes` is the file in the root of Chart source code.
