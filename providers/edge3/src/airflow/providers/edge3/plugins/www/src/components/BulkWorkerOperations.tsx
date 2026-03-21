@@ -17,44 +17,16 @@
  * under the License.
  */
 import { Button, Dialog, HStack, List, Portal, Text, useDisclosure } from "@chakra-ui/react";
-import { useUiServiceDeleteWorker, useUiServiceRequestWorkerShutdown } from "openapi/queries";
 import type { Worker } from "openapi/requests/types.gen";
-import { useMemo, useState } from "react";
 import { FaPowerOff } from "react-icons/fa";
 import { FaRegTrashCan } from "react-icons/fa6";
 
-import { toaster } from "src/components/ui";
-
-const shutdownEligibleStates = new Set([
-  "idle",
-  "running",
-  "maintenance pending",
-  "maintenance mode",
-  "maintenance request",
-]);
-const deleteEligibleStates = new Set(["offline", "unknown", "offline maintenance"]);
+import { useBulkWorkerActions } from "src/hooks/useBulkWorkerActions";
 
 type BulkWorkerOperationsProps = {
   readonly onClearSelection: VoidFunction;
   readonly onOperations: () => void;
   readonly selectedWorkers: Array<Worker>;
-};
-
-type BulkActionResult = {
-  failedWorkers: Array<string>;
-  successCount: number;
-};
-
-const getFailureDescription = (
-  failedWorkers: Array<string>,
-): string => {
-  const maxFailuresToDisplay = 5;
-  const displayedFailedWorkers = failedWorkers.slice(0, maxFailuresToDisplay);
-  const additionalFailedWorkersCount = failedWorkers.length - displayedFailedWorkers.length;
-  const additionalFailuresMessage =
-    additionalFailedWorkersCount > 0 ? ` and ${additionalFailedWorkersCount} more` : "";
-
-  return `Failed for ${failedWorkers.length} worker(s): ${displayedFailedWorkers.join(", ")}${additionalFailuresMessage}.`;
 };
 
 export const BulkWorkerOperations = ({
@@ -72,103 +44,33 @@ export const BulkWorkerOperations = ({
     onOpen: onOpenDeleteDialog,
     open: isDeleteDialogOpen,
   } = useDisclosure();
-  const [isBulkDeletePending, setIsBulkDeletePending] = useState(false);
-  const [isBulkShutdownPending, setIsBulkShutdownPending] = useState(false);
+  const {
+    deleteWorkers,
+    handleBulkDelete,
+    handleBulkShutdown,
+    isBulkDeletePending,
+    isBulkShutdownPending,
+    shutdownWorkers,
+  } = useBulkWorkerActions({
+    onClearSelection,
+    onOperations,
+    selectedWorkers,
+  });
 
-  const shutdownMutation = useUiServiceRequestWorkerShutdown();
-  const deleteMutation = useUiServiceDeleteWorker();
-
-  const shutdownWorkers = useMemo(
-    () => selectedWorkers.filter((worker) => shutdownEligibleStates.has(worker.state)),
-    [selectedWorkers],
-  );
-  const deleteWorkers = useMemo(
-    () => selectedWorkers.filter((worker) => deleteEligibleStates.has(worker.state)),
-    [selectedWorkers],
-  );
-
-  const handleBulkShutdown = async () => {
-    setIsBulkShutdownPending(true);
-
-    const results = await Promise.allSettled(
-      shutdownWorkers.map((worker) => shutdownMutation.mutateAsync({ workerName: worker.worker_name })),
-    );
-
-    const failedWorkers = results.flatMap((result, index) =>
-      result.status === "rejected" ? [shutdownWorkers[index]?.worker_name ?? "unknown"] : [],
-    );
-    const successCount = shutdownWorkers.length - failedWorkers.length;
-
-    const actionResult: BulkActionResult = {
-      failedWorkers,
-      successCount,
-    };
-
-    if (actionResult.successCount > 0) {
-      toaster.create({
-        description: `Shutdown requested for ${actionResult.successCount} worker(s).`,
-        title: "Bulk Shutdown Requested",
-        type: "success",
-      });
+  const onBulkShutdown = async () => {
+    try {
+      await handleBulkShutdown();
+    } finally {
+      onCloseShutdownDialog();
     }
-
-    if (actionResult.failedWorkers.length > 0) {
-      toaster.create({
-        description: getFailureDescription(actionResult.failedWorkers),
-        title: "Bulk Shutdown Partially Failed",
-        type: "error",
-      });
-    }
-
-    if (actionResult.successCount > 0) {
-      onOperations();
-      onClearSelection();
-    }
-
-    onCloseShutdownDialog();
-    setIsBulkShutdownPending(false);
   };
 
-  const handleBulkDelete = async () => {
-    setIsBulkDeletePending(true);
-
-    const results = await Promise.allSettled(
-      deleteWorkers.map((worker) => deleteMutation.mutateAsync({ workerName: worker.worker_name })),
-    );
-
-    const failedWorkers = results.flatMap((result, index) =>
-      result.status === "rejected" ? [deleteWorkers[index]?.worker_name ?? "unknown"] : [],
-    );
-    const successCount = deleteWorkers.length - failedWorkers.length;
-
-    const actionResult: BulkActionResult = {
-      failedWorkers,
-      successCount,
-    };
-
-    if (actionResult.successCount > 0) {
-      toaster.create({
-        description: `${actionResult.successCount} worker(s) deleted.`,
-        title: "Bulk Delete Completed",
-        type: "success",
-      });
+  const onBulkDelete = async () => {
+    try {
+      await handleBulkDelete();
+    } finally {
+      onCloseDeleteDialog();
     }
-
-    if (actionResult.failedWorkers.length > 0) {
-      toaster.create({
-        description: getFailureDescription(actionResult.failedWorkers),
-        title: "Bulk Delete Partially Failed",
-        type: "error",
-      });
-    }
-
-    if (actionResult.successCount > 0) {
-      onOperations();
-      onClearSelection();
-    }
-
-    onCloseDeleteDialog();
-    setIsBulkDeletePending(false);
   };
 
   return (
@@ -225,7 +127,7 @@ export const BulkWorkerOperations = ({
                   colorPalette="danger"
                   loading={isBulkShutdownPending}
                   loadingText="Shutting down..."
-                  onClick={handleBulkShutdown}
+                  onClick={onBulkShutdown}
                 >
                   <FaPowerOff />
                   Request Shutdown
@@ -264,7 +166,7 @@ export const BulkWorkerOperations = ({
                   colorPalette="danger"
                   loading={isBulkDeletePending}
                   loadingText="Deleting..."
-                  onClick={handleBulkDelete}
+                  onClick={onBulkDelete}
                 >
                   <FaRegTrashCan />
                   Delete Workers

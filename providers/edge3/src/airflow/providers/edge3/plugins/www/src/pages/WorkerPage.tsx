@@ -165,7 +165,7 @@ export const WorkerPage = () => {
           <Select.Trigger
             {...(hasFilteredState ? { clearable: true } : {})}
             colorPalette="brand"
-            isActive={Boolean(filteredState)}
+            isActive={hasFilteredState}
           >
             <Select.ValueText>
               {() =>
