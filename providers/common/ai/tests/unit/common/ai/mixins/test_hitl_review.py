@@ -156,7 +156,6 @@ class TestHITLReviewMixin:
     def test_reject_raises_hitl_reject_error(
         self, mock_sleep, fake_op, mock_ti, context, mock_supervisor_comms
     ):
-
         mock_supervisor_comms.send.side_effect = [
             XComResult(key=XCOM_HUMAN_ACTION, value=None),
             XComResult(
@@ -211,7 +210,6 @@ class TestHITLReviewMixin:
     def test_timeout_raises_hitl_timeout_error(
         self, mock_sleep, mock_monotonic, fake_op, mock_ti, context, mock_supervisor_comms
     ):
-
         mock_monotonic.side_effect = [0.0, 0.1, 35.0]
         mock_supervisor_comms.send.return_value = XComResult(key=XCOM_HUMAN_ACTION, value=None)
 

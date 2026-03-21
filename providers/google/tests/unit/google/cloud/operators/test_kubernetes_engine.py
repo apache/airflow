@@ -529,7 +529,6 @@ class TestGKECreateClusterOperator:
         mock_link,
         mock_cluster_hook,
     ):
-
         # Simulate cluster creation success.
         mock_create_cluster = mock_cluster_hook.return_value.create_cluster
 
@@ -573,7 +572,6 @@ class TestGKECreateClusterOperator:
         mock_link,
         mock_cluster_hook,
     ):
-
         # Simulate cluster creation success.
         mock_create_cluster = mock_cluster_hook.return_value.create_cluster
 
@@ -617,7 +615,6 @@ class TestGKECreateClusterOperator:
     @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
     @mock.patch(GKE_OPERATORS_PATH.format("KubernetesEngineClusterLink"))
     def test_execute_cleanup_retries_on_active_operation(self, mock_link, mock_cluster_hook, mock_sleep):
-
         # Simulate cluster creation success.
         mock_create_cluster = mock_cluster_hook.return_value.create_cluster
         mock_delete_cluster = mock_cluster_hook.return_value.delete_cluster

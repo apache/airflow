@@ -150,7 +150,6 @@ class TestCredentials:
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE_SKIP_KEYRING"})
     @patch("airflowctl.api.client.keyring")
     def test_save_no_keyring_backend_skip_keyring(self, mock_keyring):
-
         env = "TEST_SAVE_SKIP_KEYRING"
         cli_client = ClientKind.CLI
         mock_keyring.set_password = MagicMock()

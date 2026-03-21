@@ -468,7 +468,6 @@ class DatabricksCopyIntoOperator(BaseOperator):
                     raise ValueError("expression_list must not contain statement separators or comments.")
 
     def _create_sql_query(self) -> str:
-
         self._validate_sql_fragments()
         escaper = ParamEscaper()
         maybe_with = ""

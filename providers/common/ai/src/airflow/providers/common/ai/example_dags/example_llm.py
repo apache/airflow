@@ -121,7 +121,6 @@ example_llm_decorator_structured()
 # [START howto_operator_llm_approval]
 @dag
 def example_llm_operator_approval():
-
     LLMOperator(
         task_id="summarize_with_approval",
         prompt="Summarize the quarterly financial report for stakeholders.",

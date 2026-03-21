@@ -82,7 +82,6 @@ class AnalyticsOperator(BaseOperator):
         return self.engine
 
     def execute(self, context: Context) -> str:
-
         results = []
         for datasource_config in self.datasource_configs:
             self._df_engine.register_datasource(datasource_config)

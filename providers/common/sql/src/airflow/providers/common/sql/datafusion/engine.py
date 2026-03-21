@@ -111,7 +111,6 @@ class DataFusionEngine(LoggingMixin):
             raise QueryExecutionException(f"Error while executing query: {e}")
 
     def _get_connection_config(self, conn_id: str) -> ConnectionConfig:
-
         airflow_conn = BaseHook.get_connection(conn_id)
 
         credentials, extra_config = self._get_credentials(airflow_conn)
@@ -123,7 +122,6 @@ class DataFusionEngine(LoggingMixin):
         )
 
     def _get_credentials(self, conn: Connection) -> tuple[dict[str, Any], dict[str, Any]]:
-
         credentials = {}
         extra_config = {}
 

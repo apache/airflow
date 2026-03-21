@@ -886,7 +886,6 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             client = source_hook.get_conn()
 
             def _download(blob_name: str):
-
                 bucket = client.bucket(bucket_name=self.source_bucket)
                 blob = bucket.blob(blob_name=blob_name, chunk_size=self.chunk_size)
 
@@ -950,7 +949,6 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             client = destination_hook.get_conn()
 
             def _upload(upload_file: Path):
-
                 bucket = client.bucket(bucket_name=self.destination_bucket)
 
                 # Preserve directory structure relative to the output temp directory.
