@@ -255,12 +255,12 @@
     "queuedWhen": "キューイング時刻",
     "scheduledWhen": "スケジュールされた時刻",
     "triggerer": {
-      "assigned": "割り当てられたTriggerer",
+      "assigned": "割り当てられた Triggerer",
       "class": "トリガーカテゴリ",
       "createdAt": "トリガー作成時刻",
       "id": "トリガー ID",
-      "latestHeartbeat": "最新のTriggererハートビート",
-      "title": "Triggerer情報"
+      "latestHeartbeat": "最新の Triggerer ハートビート",
+      "title": "Triggerer 情報"
     },
     "unixname": "Unix 名"
   },
