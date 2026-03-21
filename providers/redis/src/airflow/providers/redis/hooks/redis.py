@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from redis import Redis
@@ -97,6 +99,52 @@ class RedisHook(BaseHook):
             )
 
         return self.redis
+
+    @asynccontextmanager
+    async def get_async_conn(self) -> AsyncIterator[Any]:
+        """
+        Return an async Redis connection using ``redis.asyncio``.
+
+        This is an async context manager that creates and cleans up an async Redis connection.
+        Useful for triggers and other async components that need non-blocking Redis access.
+
+        Usage::
+
+            async with hook.get_async_conn() as redis_conn:
+                await redis_conn.brpop("my_list", timeout=10)
+        """
+        from redis.asyncio import Redis as AsyncRedis
+
+        conn = self.get_connection(self.redis_conn_id)
+        host = conn.host
+        port = conn.port
+        username = conn.login
+        password = None if str(conn.password).lower() in ["none", "false", ""] else conn.password
+        db = conn.extra_dejson.get("db")
+
+        ssl_arg_names = [
+            "ssl",
+            "ssl_cert_reqs",
+            "ssl_ca_certs",
+            "ssl_keyfile",
+            "ssl_certfile",
+            "ssl_check_hostname",
+        ]
+        ssl_args = {name: val for name, val in conn.extra_dejson.items() if name in ssl_arg_names}
+
+        async_redis = AsyncRedis(
+            host=host or "localhost",
+            port=port or 6379,
+            username=username,
+            password=password,
+            db=db or 0,
+            decode_responses=True,
+            **ssl_args,
+        )
+        try:
+            yield async_redis
+        finally:
+            await async_redis.close()
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
