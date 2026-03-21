@@ -55,3 +55,22 @@ def test_inside_breeze_runs_direct_pytest():
 
     assert result["mode"] == "command"
     assert result["command"] == "pytest tests/models/test_example.py -xvs"
+    
+def test_setup_breeze_environment_inside_breeze_returns_guidance():
+    result = get_recommended_command(
+        workflow_id="setup_breeze_environment",
+        context="breeze",
+    )
+
+    assert result["mode"] == "guidance"
+    assert "already inside Breeze" in result["message"]
+    assert result["next_action"] == "stay_in_current_context"
+    
+def test_setup_breeze_environment_on_host_returns_command():
+    result = get_recommended_command(
+        workflow_id="setup_breeze_environment",
+        context="host",
+    )
+
+    assert result["mode"] == "command"
+    assert result["command"] == "breeze shell"

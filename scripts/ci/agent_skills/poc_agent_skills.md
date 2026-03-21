@@ -29,3 +29,14 @@ breeze_command: breeze exec pytest {test_path} -xvs
 inside_breeze_command: pytest {test_path} -xvs
 fallback_when: missing_system_dependencies|local_environment_mismatch|ci_local_discrepancy
 <!-- agent-skill:end -->
+
+<!-- agent-skill:start -->
+id: setup_breeze_environment
+title: Set up Breeze environment
+preferred_context: host
+allowed_contexts: host,breeze
+local_command: breeze shell
+breeze_command: breeze shell
+inside_breeze_command: NONE
+fallback_when: not_applicable
+<!-- agent-skill:end -->

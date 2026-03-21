@@ -96,3 +96,34 @@ def test_parse_skill_block_missing_required_keys_raises():
         assert False, "Expected ValueError for missing required keys"
     except ValueError as error:
         assert "Missing required keys" in str(error)
+        
+def test_extract_skills_from_text_multiple_blocks():
+    text = """
+    <!-- agent-skill:start -->
+    id: run_targeted_tests
+    title: Run targeted tests
+    preferred_context: host
+    allowed_contexts: host,breeze
+    local_command: uv run --project {distribution_folder} pytest {test_path}
+    breeze_command: breeze exec pytest {test_path} -xvs
+    inside_breeze_command: pytest {test_path} -xvs
+    fallback_when: missing_system_dependencies|local_environment_mismatch
+    <!-- agent-skill:end -->
+
+    <!-- agent-skill:start -->
+    id: setup_breeze_environment
+    title: Set up Breeze environment
+    preferred_context: host
+    allowed_contexts: host,breeze
+    local_command: breeze shell
+    breeze_command: breeze shell
+    inside_breeze_command: NONE
+    fallback_when: not_applicable
+    <!-- agent-skill:end -->
+    """
+
+    skills = extract_skills_from_text(text)
+
+    assert len(skills) == 2
+    assert skills[0]["id"] == "run_targeted_tests"
+    assert skills[1]["id"] == "setup_breeze_environment"

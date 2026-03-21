@@ -1,20 +1,3 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-
 """Decision engine for choosing workflow commands in the agent-skills PoC."""
 
 from __future__ import annotations
@@ -47,33 +30,41 @@ def get_workflow_definition(workflow_id: str) -> dict[str, Any]:
 
 def get_recommended_command(
     workflow_id: str,
-    test_path: str,
+    test_path: str = "",
     distribution_folder: str = "distribution_folder",
     force_breeze_fallback: bool = False,
     context: str | None = None,
 ) -> dict[str, Any]:
-    """Return the recommended command or guidance for a workflow.
-
-    The decision logic for the first PoC is:
-
-    - If context is "breeze", run the inside-Breeze command directly.
-    - If context is "host" and fallback is forced, return Breeze command.
-    - If context is "host" and fallback is not forced, return local command.
-    """
+    """Return the recommended command or guidance for a workflow."""
     workflow = get_workflow_definition(workflow_id)
     current_context = context or get_context()
 
     if current_context not in workflow["allowed_contexts"]:
         return {
             "mode": "guidance",
-            "message": (f"Unsupported context '{current_context}' for workflow '{workflow_id}'."),
+            "message": (
+                f"Unsupported context '{current_context}' "
+                f"for workflow '{workflow_id}'."
+            ),
         }
 
     if current_context == "breeze":
+        inside_command = workflow["inside_breeze_command"]
+
+        if inside_command == "NONE":
+            return {
+                "mode": "guidance",
+                "message": (
+                    "You are already inside Breeze. "
+                    "Do not start a new Breeze shell from here."
+                ),
+                "next_action": "stay_in_current_context",
+            }
+
         return {
             "mode": "command",
-            "command": workflow["inside_breeze_command"].format(test_path=test_path),
-            "reason": "Already inside Breeze, so run pytest directly.",
+            "command": inside_command.format(test_path=test_path),
+            "reason": "Already inside Breeze, so run the container command directly.",
         }
 
     if current_context == "host":
@@ -82,7 +73,8 @@ def get_recommended_command(
                 "mode": "command",
                 "command": workflow["breeze_command"].format(test_path=test_path),
                 "reason": (
-                    "Host context requested Breeze fallback due to environment or dependency concerns."
+                    "Host context requested Breeze fallback due to "
+                    "environment or dependency concerns."
                 ),
             }
 

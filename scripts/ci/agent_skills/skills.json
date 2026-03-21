@@ -15,5 +15,20 @@
     "local_command": "uv run --project {distribution_folder} pytest {test_path}",
     "preferred_context": "host",
     "title": "Run targeted tests"
+  },
+  {
+    "allowed_contexts": [
+      "host",
+      "breeze"
+    ],
+    "breeze_command": "breeze shell",
+    "fallback_when": [
+      "not_applicable"
+    ],
+    "id": "setup_breeze_environment",
+    "inside_breeze_command": "NONE",
+    "local_command": "breeze shell",
+    "preferred_context": "host",
+    "title": "Set up Breeze environment"
   }
 ]
