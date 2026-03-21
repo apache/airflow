@@ -22,6 +22,7 @@ from typing import Any
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
 
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.execution_api.datamodels.dagrun import TriggerDAGRunPayload
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
     TIDeferredStatePayload,
@@ -62,7 +63,10 @@ class AddNoteField(VersionChange):
 
     description = __doc__
 
-    instructions_to_migrate_to_previous_version = (schema(DagRun).field("note").didnt_exist,)
+    instructions_to_migrate_to_previous_version = (
+        schema(DagRun).field("note").didnt_exist,
+        schema(TriggerDAGRunPayload).field("note").didnt_exist,
+    )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
     def remove_note_field(response: ResponseInfo) -> None:  # type: ignore[misc]
@@ -95,3 +99,13 @@ class MakeDagRunStartDateNullable(VersionChange):
         """Ensure start_date is never None in direct DagRun responses for previous API versions."""
         if response.body.get("start_date") is None:
             response.body["start_date"] = response.body.get("run_after")
+
+
+class AddRunAfterFiled(VersionChange):
+    """Add run_after parameter to TriggerDAGRunPayload Model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TriggerDAGRunPayload).field("run_after").didnt_exist,
+    )
