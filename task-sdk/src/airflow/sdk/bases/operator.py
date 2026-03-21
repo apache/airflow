@@ -22,6 +22,7 @@ import asyncio
 import collections.abc
 import contextlib
 import copy
+import functools
 import inspect
 import sys
 import warnings
@@ -65,7 +66,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_ar
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.exceptions import RemovedInAirflow4Warning
+from airflow.sdk.exceptions import RemovedInAirflow4Warning, TaskDeferred
 
 # Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
 # postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)
@@ -218,6 +219,13 @@ def event_loop() -> Generator[AbstractEventLoop]:
             with contextlib.suppress(AttributeError):
                 loop.close()
                 asyncio.set_event_loop(None)
+
+
+# TODO: Once AIP-88 is implemented, multiple events could be returned
+async def run_trigger(trigger: BaseTrigger) -> Any | None:
+    async for event in trigger.run():
+        return event
+    return None
 
 
 class _PartialDescriptor:
@@ -1639,12 +1647,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
-    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+    def next_callable(self, next_method: str, next_kwargs: dict[str, Any] | None):
         """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""
         from airflow.sdk.exceptions import TaskDeferralError, TaskDeferralTimeout
 
-        if next_kwargs is None:
-            next_kwargs = {}
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
 
@@ -1658,7 +1664,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             raise TaskDeferralError(error)
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
-        return execute_callable(context, **next_kwargs)
+        if next_kwargs:
+            return functools.partial(execute_callable, **next_kwargs)
+        return execute_callable
+
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""
+        if next_kwargs is None:
+            next_kwargs = {}
+
+        execute_callable = self.next_callable(next_method, next_kwargs)
+        return execute_callable(context)
 
     def dry_run(self) -> None:
         """Perform dry run for the operator - just render template fields."""
@@ -1729,6 +1745,52 @@ class BaseAsyncOperator(BaseOperator):
                     )
                 )
             return loop.run_until_complete(self.aexecute(context))
+
+
+class DecoratedDeferredAsyncOperator(BaseAsyncOperator):
+    """
+    A decorator operator that wraps another deferred BaseOperator instance.
+
+    Implements the async aexecute() method while delegating all other behavior.
+    """
+
+    def __init__(self, *, operator: BaseOperator, task_deferred: TaskDeferred, **kwargs: Any):
+        super().__init__(task_id=operator.task_id, **kwargs)
+        self._operator = operator
+        self._task_deferred = task_deferred
+
+    async def aexecute(self, context):
+        from airflow.sdk.execution_time.callback_runner import create_executable_runner
+        from airflow.sdk.execution_time.context import context_get_outlet_events
+
+        while True:
+            event = await run_trigger(self._task_deferred.trigger)
+
+            self.log.debug("event: %s", event)
+
+            if not event:
+                return None
+
+            self.log.debug("next_method: %s", self._task_deferred.method_name)
+
+            if not self._task_deferred.method_name:
+                return None
+
+            try:
+                next_method = self._operator.next_callable(
+                    self._task_deferred.method_name,
+                    self._task_deferred.kwargs,
+                )
+                outlet_events = context_get_outlet_events(context)
+                runner = create_executable_runner(
+                    func=next_method,
+                    outlet_events=outlet_events,
+                    logger=self.log,
+                )
+                return runner.run(context, event.payload)
+            except TaskDeferred as task_deferred:
+                self._task_deferred = task_deferred
+                continue
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.execution_time.comms import ErrorResponse
+    from airflow.sdk.execution_time.task_runner import MappedTaskInstance
 
 
 class AirflowException(Exception):
@@ -155,6 +156,18 @@ class AirflowRescheduleException(AirflowException):
     def serialize(self):
         cls = self.__class__
         return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
+
+
+class AirflowRescheduleTaskInstanceException(AirflowRescheduleException):
+    """
+    Raise when the task should be re-scheduled for a specific TaskInstance at a later time.
+
+    :param task: The task instance that should be rescheduled
+    """
+
+    def __init__(self, task: MappedTaskInstance):
+        super().__init__(reschedule_date=task.next_retry_datetime())
+        self.task = task
 
 
 class AirflowSensorTimeout(AirflowException):

@@ -20,14 +20,29 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
+from airflow.models import DagRun
+from airflow.utils.types import DagRunType
+
 from tests_common.test_utils.compat import Context
 from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-def mock_context(task) -> Context:
+def generate_run_id() -> str:
+    if AIRFLOW_V_3_0_PLUS:
+        return DagRun.generate_run_id(run_type=DagRunType.MANUAL, run_after=timezone.utcnow())
+    return DagRun.generate_run_id(run_type=DagRunType.MANUAL, execution_date=timezone.utcnow())  # type: ignore[call-arg]
+
+
+def mock_context(task, run_id: str | None = None) -> Context:
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
 
@@ -64,6 +79,6 @@ def mock_context(task) -> Context:
             values[key] = value
 
     values["ti"] = create_task_instance(task, dag_version_id=mock.MagicMock(), ti_type=MockedTaskInstance)
+    values["run_id"] = generate_run_id() if run_id is None else run_id
 
-    # See https://github.com/python/mypy/issues/8890 - mypy does not support passing typed dict to TypedDict
     return Context(values)  # type: ignore[misc]

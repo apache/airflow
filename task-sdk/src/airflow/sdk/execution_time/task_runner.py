@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import contextvars
 import functools
+import hashlib
+import math
 import os
 import sys
 import time
@@ -56,6 +58,7 @@ from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -701,6 +704,120 @@ class RuntimeTaskInstance(TaskInstance):
     def mark_success_url(self) -> str:
         """URL to mark TI success."""
         return self.log_url
+
+
+class MappedTaskInstance(RuntimeTaskInstance, LoggingMixin):
+    """Mapped task instance to run an operator which handles XCom's in memory."""
+
+    xcoms: dict[str, Any] = Field(default_factory=dict)
+
+    def __init__(self, /, **data: Any):
+        super().__init__(**data)
+
+        if self.map_index is None or self.map_index < 0:
+            raise ValueError("MappedTaskInstance requires map_index >= 0")
+
+    def xcom_pull(
+        self,
+        task_ids: str | Iterable[str] | None = None,
+        dag_id: str | None = None,
+        key: str = BaseXCom.XCOM_RETURN_KEY,
+        include_prior_dates: bool = False,  # TODO: Add support for this
+        *,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any:
+        if map_indexes is NOTSET:
+            map_indexes = self.map_index
+
+        base_key = f"{self.task_id}_{self.dag_id}_{key}"
+
+        if isinstance(map_indexes, int):
+            return self.xcoms.get(f"{base_key}_{map_indexes}", default)
+
+        if map_indexes is None:
+            return [v or default for k, v in self.xcoms.items() if k.startswith(base_key)]
+
+        if isinstance(map_indexes, ArgNotSet):
+            raise ValueError("map_indexes cannot be ArgNotSet here")
+
+        return [self.xcoms.get(f"{base_key}_{index}", default) for index in map_indexes]
+
+    def xcom_push(
+        self,
+        key: str,
+        value: Any,
+    ):
+        key = f"{self.task_id}_{self.dag_id}_{key}_{self.map_index}"
+        self.xcoms[key] = value
+
+    def next_retry_datetime(self):
+        """
+        Get datetime of the next retry if the task instance fails.
+
+        For exponential backoff, retry_delay is used as base and will be converted to seconds.
+        """
+        from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
+
+        delay = self.task.retry_delay
+        if self.task.retry_exponential_backoff:
+            try:
+                # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
+                # we must round up prior to converting to an int, otherwise a divide by zero error
+                # will occur in the modded_hash calculation.
+                # this probably gives unexpected results if a task instance has previously been cleared,
+                # because try_number can increase without bound
+                min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+            except OverflowError:
+                min_backoff = MAX_RETRY_DELAY
+                self.log.warning(
+                    "OverflowError occurred while calculating min_backoff, using MAX_RETRY_DELAY for min_backoff."
+                )
+
+            # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
+            # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
+            # the ceiling function unnecessary, but the ceiling function was retained to avoid
+            # introducing a breaking change.
+            if min_backoff < 1:
+                min_backoff = 1
+
+            # deterministic per task instance
+            ti_hash = int(
+                hashlib.sha1(
+                    f"{self.dag_id}#{self.task_id}#{self.logical_date}#{self.try_number}".encode(),
+                    usedforsecurity=False,
+                ).hexdigest(),
+                16,
+            )
+            # between 1 and 1.0 * delay * (2^retry_number)
+            modded_hash = min_backoff + ti_hash % min_backoff
+            # timedelta has a maximum representable value. The exponentiation
+            # here means this value can be exceeded after a certain number
+            # of tries (around 50 if the initial delay is 1s, even fewer if
+            # the delay is larger). Cap the value here before creating a
+            # timedelta object so the operation doesn't fail with "OverflowError".
+            delay_backoff_in_seconds = min(modded_hash, MAX_RETRY_DELAY)
+            delay = timedelta(seconds=delay_backoff_in_seconds)
+            if self.task.max_retry_delay:
+                delay = min(self.task.max_retry_delay, delay)
+        return self.end_date + delay
+
+    @property
+    def is_async(self) -> bool:
+        return self.task.is_async
+
+    @property
+    def next_try_number(self) -> int:
+        return self.try_number + 1
+
+    @property
+    def xcom_key(self) -> str:
+        return f"{self.task_id}_{self.map_index}"
+
+    @property
+    def do_xcom_push(self) -> bool:
+        return self.task.do_xcom_push
 
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:

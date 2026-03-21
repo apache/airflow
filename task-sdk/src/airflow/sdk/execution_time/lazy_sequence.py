@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 import attrs
 import structlog
 
+from airflow.sdk.execution_time.xcom import XCom
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import PlainXComArg
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -164,6 +166,77 @@ class LazyXComSequence(Sequence[T]):
         if not isinstance(msg, XComSequenceIndexResult):
             raise TypeError(f"Got unexpected response to GetXComSequenceItem: {msg!r}")
         return XCom.deserialize_value(_XComWrapper(msg.root))
+
+
+class XComIterable(Sequence):
+    """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
+
+    def __init__(self, task_id: str, dag_id: str, run_id: str, length: int):
+        self.task_id = task_id
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.length = length
+
+    def __iter__(self) -> Iterator:
+        return _XComIterator(self)
+
+    def __len__(self) -> int:
+        return self.length
+
+    @overload
+    def __getitem__(self, key: int) -> Any: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[Any]: ...
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        """Allow direct indexing so this works like a sequence."""
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self))
+            return [self[i] for i in range(start, stop, step)]
+
+        if not (0 <= key < self.length):
+            raise IndexError(key)
+
+        return XCom.get_one(
+            key=f"{self.task_id}_{key}",
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+        )
+
+    def serialize(self) -> dict:
+        """Ensure the object is JSON serializable."""
+        return {
+            "task_id": self.task_id,
+            "dag_id": self.dag_id,
+            "run_id": self.run_id,
+            "length": self.length,
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        """Ensure the object is JSON deserializable."""
+        return XComIterable(**data)
+
+
+class _XComIterator:
+    """Iterator for XComIterable."""
+
+    def __init__(self, iterable: XComIterable):
+        self._iterable = iterable
+        self._index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._index >= len(self._iterable):
+            raise StopIteration
+
+        value = self._iterable[self._index]
+        self._index += 1
+        return value
 
 
 def _coerce_slice_index(value: Any) -> int | None:

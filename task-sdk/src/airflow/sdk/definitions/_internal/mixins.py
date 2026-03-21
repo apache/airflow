@@ -135,6 +135,24 @@ class ResolveMixin:
         """
         raise NotImplementedError
 
+    def iter_values(self, context: Context) -> Iterable[Any]:
+        """
+        Yield individual values for task expansion during Dynamic Task Iteration.
+
+        Called by :class:`~airflow.sdk.definitions.iterableoperator.IterableOperator` during
+        execution to enumerate all the items this expand input resolves to. Each yielded value
+        represents the keyword arguments passed to one mapped task instance. Any deferred XCom
+        references embedded in the expand input are resolved against the provided runtime
+        context before being yielded.
+
+        :param context: The runtime task execution context used to resolve XCom references.
+            Must expose the current task instance under the ``ti`` key so that upstream
+            XCom values can be fetched.
+
+        :meta private:
+        """
+        raise NotImplementedError()
+
     def resolve(self, context: Context) -> Any:
         """
         Resolve this value for runtime.

@@ -17,20 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
 
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
+from airflow.sdk.definitions.xcom_arg import XComArg
 
 if TYPE_CHECKING:
     from typing import TypeGuard
 
-    from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import Operator
-
-ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
 # Each keyword argument to expand() can be an XComArg, sequence, or dict (not
 # any mapping since we need the value to be ordered).
@@ -79,6 +78,45 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, XComArg))
 
 
+class ExpandInput(ABC, ResolveMixin):
+    EXPAND_INPUT_TYPE: ClassVar[str]
+
+    @property
+    @abstractmethod
+    def value(self) -> Any:
+        """The value of the expand input."""
+        ...
+
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        raise NotImplementedError()
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        raise NotImplementedError()
+
+
+class DecoratedExpandInput(ExpandInput):
+    EXPAND_INPUT_TYPE: ClassVar[str] = "decorated"
+
+    def __init__(self, expand_input: ExpandInput):
+        self.delegate = expand_input
+
+    @property
+    def value(self) -> Any:
+        return self.delegate.value
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        return self.delegate.iter_references()
+
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
+        return map(
+            lambda value: {"op_kwargs": value},
+            self.delegate.iter_values(context),
+        )
+
+    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
+        return self.delegate.resolve(context)
+
+
 @attrs.define(kw_only=True)
 class MappedArgument(ResolveMixin):
     """
@@ -107,7 +145,7 @@ class MappedArgument(ResolveMixin):
 
 
 @attrs.define()
-class DictOfListsExpandInput(ResolveMixin):
+class DictOfListsExpandInput(ExpandInput):
     """
     Storage type of a mapped operator's mapped kwargs.
 
@@ -184,6 +222,19 @@ class DictOfListsExpandInput(ResolveMixin):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        from airflow.sdk.definitions.xcom_arg import XComArg
+
+        resolved = {k: v.resolve(context) if isinstance(v, XComArg) else v for k, v in self.value.items()}
+        keys = list(resolved)
+        for items in zip(
+            *(
+                v if hasattr(v, "__iter__") and not isinstance(v, (str, bytes)) else (v,)
+                for v in (resolved[k] for k in keys)
+            )
+        ):
+            yield dict(zip(keys, items))
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
         if map_index is None or map_index < 0:
@@ -217,7 +268,7 @@ def _describe_type(value: Any) -> str:
 
 
 @attrs.define()
-class ListOfDictsExpandInput(ResolveMixin):
+class ListOfDictsExpandInput(ExpandInput):
     """
     Storage type of a mapped operator's mapped kwargs.
 
@@ -238,12 +289,22 @@ class ListOfDictsExpandInput(ResolveMixin):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        if isinstance(self.value, XComArg):
+            for item in self.value.resolve(context):
+                yield item
+        else:
+            for item in self.value:
+                if isinstance(item, XComArg):
+                    yield from item.resolve(context)
+                else:
+                    yield item
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
-        if map_index < 0:
+        if map_index is None or map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
 
-        mapping: Any = None
         if isinstance(self.value, Sized):
             mapping = self.value[map_index]
             if not isinstance(mapping, Mapping):
