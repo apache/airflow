@@ -225,6 +225,62 @@ TaskInstances, Variables, Connections, XComs, and more.
 .. note::
    If you need functionality that is not available via the Airflow Python Client, consider requesting new API endpoints or Task SDK features. The Airflow community prioritizes adding missing API capabilities over enabling direct database access.
 
+Recommended Approach: Use Built-in Local REST Client (In-Process)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For code running inside trusted Airflow processes — the scheduler, DAG processor, workers,
+triggerer, or plugins — Airflow provides a built-in local REST client that calls the Core
+REST API in-process with no network overhead and zero credential configuration.
+
+.. code-block:: python
+
+   from airflow.api.client import get_local_rest_client
+
+   client = get_local_rest_client()
+
+   # Pools
+   client.pools.create(name="my_pool", slots=5)
+   pools = client.pools.list()
+
+   # DAGs
+   dags = client.dags.list()
+   client.dags.pause("my_dag")
+
+   # Connections
+   client.connections.create(conn_id="my_conn", conn_type="http", host="example.com")
+
+   # Variables
+   client.variables.create(key="my_var", value="my_value")
+
+   # DAG Runs
+   run = client.dag_runs.trigger("my_dag")
+
+   # Task Instances
+   tis = client.task_instances.list("my_dag", "my_run_id")
+
+   # Config (read-only)
+   config = client.config.get()
+
+   # Assets
+   assets = client.assets.list()
+
+**Pros:**
+
+- **Zero configuration** — no tokens, credentials, or API server URL needed
+- Runs in-process with no network overhead
+- Full access to all Core API endpoints (pools, DAGs, DAG runs, connections, variables,
+  task instances, config, assets)
+- Feels as simple as the old direct DB helpers in Airflow 2
+
+**Cons:**
+
+- Only works inside trusted Airflow processes (not from external scripts)
+- Requires the calling process to have access to the Airflow metadata database
+
+.. note::
+   This is the recommended replacement for code that previously used ``Pool.create_or_update_pool()``,
+   ``Variable.get()``, or similar direct-DB helpers in Airflow 2.
+
 Known Workaround: Use DbApiHook (PostgresHook or MySqlHook)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

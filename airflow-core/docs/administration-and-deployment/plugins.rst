@@ -183,6 +183,31 @@ This allows you to render the view inline instead of opening it in a new browser
 
 .. _plugin-example:
 
+Using the REST API from Plugins
+-------------------------------
+
+Plugins running inside trusted Airflow processes can use the built-in local REST client
+to interact with the Core API without needing external credentials or network access:
+
+.. code-block:: python
+
+    from airflow.api.client import get_local_rest_client
+
+    client = get_local_rest_client()
+
+    # Create a pool for your plugin's workload
+    client.pools.create(name="my_plugin_pool", slots=10)
+
+    # Read configuration
+    config = client.config.get()
+
+    # Manage connections
+    conns = client.connections.list()
+
+The client runs the API in-process with full system-level access — no tokens or API
+server URL configuration required. See :doc:`/installation/upgrading_to_airflow3` for
+the full list of available sub-clients.
+
 Example
 -------
 

@@ -1,0 +1,1 @@
+Add built-in ``LocalRESTClient`` for trusted Airflow processes (scheduler, DAG processor, workers, triggerer, plugins) to call Core REST API endpoints in-process with zero credential configuration. Available via ``from airflow.api.client import get_local_rest_client``. Supports pools, DAGs, DAG runs, connections, variables, task instances, config, and assets.

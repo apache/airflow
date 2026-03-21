@@ -19,8 +19,38 @@
 
 from __future__ import annotations
 
+import warnings
+
 from airflow.api.client.local_client import Client
+from airflow.api.client.local_rest_client import LocalRESTClient
 
 
 def get_current_api_client() -> Client:
+    warnings.warn(
+        "get_current_api_client() is deprecated. Use get_local_rest_client() instead, "
+        "which uses the REST API rather than direct database access.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return Client()
+
+
+def get_local_rest_client(*, process_type: str = "unknown") -> LocalRESTClient:
+    """
+    Get a REST API client for use inside trusted Airflow processes.
+
+    This client automatically authenticates using a ``SystemUser`` and
+    requires no user credentials. It is intended for DAG code, plugins,
+    and Airflow component code running in the same process.
+
+    Example::
+
+        from airflow.api.client import get_local_rest_client
+
+        client = get_local_rest_client()
+        client.pools.create(name="my_pool", slots=5)
+        pools = client.pools.list()
+
+    :param process_type: Identifier for the calling process (e.g. ``"dag_processor"``).
+    """
+    return LocalRESTClient(process_type=process_type)
