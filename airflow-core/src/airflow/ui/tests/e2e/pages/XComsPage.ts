@@ -27,24 +27,26 @@ export class XComsPage extends BasePage {
   public readonly addFilterButton: Locator;
   public readonly collapseAllButton: Locator;
   public readonly expandAllButton: Locator;
+  public readonly tableRows: Locator;
   public readonly xcomsTable: Locator;
 
   public constructor(page: Page) {
     super(page);
-    this.addFilterButton = page.locator('[data-testid="add-filter-button"]');
-    this.collapseAllButton = page.locator('[data-testid="collapse-all-button"]');
-    this.expandAllButton = page.locator('[data-testid="expand-all-button"]');
-    this.xcomsTable = page.locator('[data-testid="table-list"]');
+    this.addFilterButton = page.getByTestId("add-filter-button");
+    this.collapseAllButton = page.getByTestId("collapse-all-button");
+    this.expandAllButton = page.getByTestId("expand-all-button");
+    this.xcomsTable = page.getByTestId("table-list");
+    this.tableRows = this.xcomsTable.locator("tbody").getByRole("row");
   }
 
   public async applyFilter(filterName: string, value: string): Promise<void> {
     await this.addFilterButton.click();
 
-    const filterMenu = this.page.locator('[role="menu"]');
+    const filterMenu = this.page.getByRole("menu");
 
-    await filterMenu.waitFor({ state: "visible", timeout: 5000 });
+    await expect(filterMenu).toBeVisible({ timeout: 5000 });
 
-    const filterOption = filterMenu.locator('[role="menuitem"]').filter({ hasText: filterName });
+    const filterOption = filterMenu.getByRole("menuitem").filter({ hasText: filterName });
 
     await filterOption.click();
 
@@ -54,17 +56,17 @@ export class XComsPage extends BasePage {
       .first();
     const filterInput = filterPill.locator("input");
 
-    await filterInput.waitFor({ state: "visible", timeout: 5000 });
+    await expect(filterInput).toBeVisible({ timeout: 5000 });
     await filterInput.fill(value);
     await filterInput.press("Enter");
-    await this.page.waitForLoadState("networkidle");
+    // Wait for the table to update with filtered results
+    await expect(this.tableRows.first()).toBeVisible({ timeout: 10_000 });
   }
 
   public async navigate(): Promise<void> {
     await this.navigateTo(XComsPage.xcomsUrl);
     await this.page.waitForURL(/.*xcoms/, { timeout: 15_000 });
-    await this.xcomsTable.waitFor({ state: "visible", timeout: 10_000 });
-    await this.page.waitForLoadState("networkidle");
+    await expect(this.xcomsTable).toBeVisible({ timeout: 10_000 });
   }
 
   public async verifyDagDisplayNameFiltering(dagDisplayNamePattern: string): Promise<void> {
@@ -72,18 +74,17 @@ export class XComsPage extends BasePage {
     await this.applyFilter("DAG ID", dagDisplayNamePattern);
 
     await expect(async () => {
-      const firstLink = this.xcomsTable.locator("tbody tr").first().locator("a[href*='/dags/']").first();
+      const firstLink = this.tableRows.first().locator("a[href*='/dags/']").first();
 
       await expect(firstLink).toContainText(dagDisplayNamePattern, { ignoreCase: true });
     }).toPass({ timeout: 30_000 });
 
-    const rows = this.xcomsTable.locator("tbody tr");
-    const rowCount = await rows.count();
+    await expect(this.tableRows).not.toHaveCount(0);
 
-    expect(rowCount).toBeGreaterThan(0);
+    const rowCount = await this.tableRows.count();
 
     for (let i = 0; i < Math.min(rowCount, 3); i++) {
-      const dagIdLink = rows.nth(i).locator("a[href*='/dags/']").first();
+      const dagIdLink = this.tableRows.nth(i).locator("a[href*='/dags/']").first();
 
       await expect(dagIdLink).toContainText(dagDisplayNamePattern, { ignoreCase: true });
     }
@@ -94,11 +95,9 @@ export class XComsPage extends BasePage {
 
     await expect(this.expandAllButton.first()).toBeVisible({ timeout: 5000 });
     await this.expandAllButton.first().click();
-    await this.page.waitForLoadState("networkidle");
 
     await expect(this.collapseAllButton.first()).toBeVisible({ timeout: 5000 });
     await this.collapseAllButton.first().click();
-    await this.page.waitForLoadState("networkidle");
   }
 
   public async verifyKeyPatternFiltering(keyPattern: string): Promise<void> {
@@ -106,36 +105,31 @@ export class XComsPage extends BasePage {
     await this.applyFilter("Key", keyPattern);
 
     await expect(async () => {
-      const firstKeyCell = this.xcomsTable.locator("tbody tr").first().locator("td").first();
+      const firstKeyCell = this.tableRows.first().getByRole("cell").first();
 
       await expect(firstKeyCell).toContainText(keyPattern, { ignoreCase: true });
     }).toPass({ timeout: 30_000 });
 
-    const rows = this.xcomsTable.locator("tbody tr");
-    const rowCount = await rows.count();
+    await expect(this.tableRows).not.toHaveCount(0);
 
-    expect(rowCount).toBeGreaterThan(0);
+    const rowCount = await this.tableRows.count();
 
     for (let i = 0; i < Math.min(rowCount, 3); i++) {
-      const keyCell = rows.nth(i).locator("td").first();
+      const keyCell = this.tableRows.nth(i).getByRole("cell").first();
 
       await expect(keyCell).toContainText(keyPattern, { ignoreCase: true });
     }
   }
 
   public async verifyXComDetailsDisplay(): Promise<void> {
-    const firstRow = this.xcomsTable.locator("tbody tr").first();
+    const firstRow = this.tableRows.first();
 
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
 
-    const keyCell = firstRow.locator("td").first();
+    const keyCell = firstRow.getByRole("cell").first();
 
-    await expect(async () => {
-      await expect(keyCell).toBeVisible();
-      const text = await keyCell.textContent();
-
-      expect(text?.trim()).toBeTruthy();
-    }).toPass({ timeout: 10_000 });
+    await expect(keyCell).toBeVisible();
+    await expect(keyCell).not.toBeEmpty();
 
     const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
 
@@ -157,21 +151,22 @@ export class XComsPage extends BasePage {
     const dataLinks = this.xcomsTable.locator("a[href*='/dags/']");
 
     await expect(dataLinks.first()).toBeVisible({ timeout: 30_000 });
-    expect(await dataLinks.count()).toBeGreaterThan(0);
+    await expect(dataLinks).not.toHaveCount(0);
   }
 
   public async verifyXComValuesDisplayed(): Promise<void> {
-    const firstRow = this.xcomsTable.locator("tbody tr").first();
+    const firstRow = this.tableRows.first();
 
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
 
-    const valueCell = firstRow.locator("td").last();
+    const valueCell = firstRow.getByRole("cell").last();
 
     await expect(valueCell).toBeVisible();
 
     await expect(async () => {
-      const textContent = await valueCell.textContent();
-      const hasTextContent = (textContent?.trim().length ?? 0) > 0;
+      const hasTextContent = await valueCell.evaluate(
+        (el) => (el.textContent?.trim().length ?? 0) > 0,
+      );
       const hasWidgetContent = (await valueCell.locator("button, pre, code").count()) > 0;
 
       expect(hasTextContent || hasWidgetContent).toBeTruthy();
