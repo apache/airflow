@@ -57,14 +57,13 @@ export class XComsPage extends BasePage {
     await filterInput.waitFor({ state: "visible", timeout: 5000 });
     await filterInput.fill(value);
     await filterInput.press("Enter");
-    await this.page.waitForLoadState("networkidle");
+    await expect(this.xcomsTable.locator("tbody tr").first()).toBeVisible({ timeout: 10_000 });
   }
 
   public async navigate(): Promise<void> {
     await this.navigateTo(XComsPage.xcomsUrl);
     await this.page.waitForURL(/.*xcoms/, { timeout: 15_000 });
     await this.xcomsTable.waitFor({ state: "visible", timeout: 10_000 });
-    await this.page.waitForLoadState("networkidle");
   }
 
   public async verifyDagDisplayNameFiltering(dagDisplayNamePattern: string): Promise<void> {
@@ -94,11 +93,10 @@ export class XComsPage extends BasePage {
 
     await expect(this.expandAllButton.first()).toBeVisible({ timeout: 5000 });
     await this.expandAllButton.first().click();
-    await this.page.waitForLoadState("networkidle");
 
     await expect(this.collapseAllButton.first()).toBeVisible({ timeout: 5000 });
     await this.collapseAllButton.first().click();
-    await this.page.waitForLoadState("networkidle");
+    await expect(this.expandAllButton.first()).toBeVisible({ timeout: 5000 });
   }
 
   public async verifyKeyPatternFiltering(keyPattern: string): Promise<void> {
@@ -130,12 +128,8 @@ export class XComsPage extends BasePage {
 
     const keyCell = firstRow.locator("td").first();
 
-    await expect(async () => {
-      await expect(keyCell).toBeVisible();
-      const text = await keyCell.textContent();
-
-      expect(text?.trim()).toBeTruthy();
-    }).toPass({ timeout: 10_000 });
+    await expect(keyCell).toBeVisible({ timeout: 10_000 });
+    await expect(keyCell).not.toBeEmpty();
 
     const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
 
@@ -169,12 +163,6 @@ export class XComsPage extends BasePage {
 
     await expect(valueCell).toBeVisible();
 
-    await expect(async () => {
-      const textContent = await valueCell.textContent();
-      const hasTextContent = (textContent?.trim().length ?? 0) > 0;
-      const hasWidgetContent = (await valueCell.locator("button, pre, code").count()) > 0;
-
-      expect(hasTextContent || hasWidgetContent).toBeTruthy();
-    }).toPass({ timeout: 10_000 });
+    await expect(valueCell).not.toBeEmpty({ timeout: 10_000 });
   }
 }
