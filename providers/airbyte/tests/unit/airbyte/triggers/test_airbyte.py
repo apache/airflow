@@ -36,6 +36,7 @@ class TestAirbyteSyncTrigger:
     CONN_ID = "airbyte_default"
     END_TIME = time.time() + 60 * 60 * 24 * 7
     POLL_INTERVAL = 3.0
+    EXECUTION_DEADLINE = time.time() + 60 * 60 * 24 * 7
 
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
@@ -50,6 +51,7 @@ class TestAirbyteSyncTrigger:
             poll_interval=self.POLL_INTERVAL,
             end_time=self.END_TIME,
             job_id=self.JOB_ID,
+            execution_deadline=self.EXECUTION_DEADLINE,
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger"
@@ -58,6 +60,7 @@ class TestAirbyteSyncTrigger:
             "conn_id": self.CONN_ID,
             "end_time": self.END_TIME,
             "poll_interval": self.POLL_INTERVAL,
+            "execution_deadline": self.EXECUTION_DEADLINE,
         }
 
     @pytest.mark.asyncio
@@ -216,6 +219,34 @@ class TestAirbyteSyncTrigger:
                 "status": "error",
                 "message": f"Job run {self.JOB_ID} has not reached a terminal status "
                 f"after {end_time} seconds.",
+                "job_id": self.JOB_ID,
+            }
+        )
+        assert expected == actual
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
+    async def test_airbyte_job_run_execution_timeout(self, mocked_is_still_running):
+        """Assert that run timeout after execution_deadline has elapsed"""
+
+        mocked_is_still_running.return_value = True
+        execution_deadline = time.time()
+
+        trigger = AirbyteSyncTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=time.time() + 60,
+            execution_deadline=execution_deadline,
+            job_id=self.JOB_ID,
+        )
+
+        generator = trigger.run()
+        actual = await generator.asend(None)
+
+        expected = TriggerEvent(
+            {
+                "status": "timeout",
+                "message": f"Job run {self.JOB_ID} has reached execution timeout.",
                 "job_id": self.JOB_ID,
             }
         )

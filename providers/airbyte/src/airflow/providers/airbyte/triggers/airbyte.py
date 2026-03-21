@@ -38,6 +38,8 @@ class AirbyteSyncTrigger(BaseTrigger):
     :param job_id: The ID of an Airbyte Sync job.
     :param end_time: Time in seconds to wait for a job run to reach a terminal status. Defaults to 7 days.
     :param poll_interval:  polling period in seconds to check for the status.
+    :param execution_deadline: Optional absolute timestamp (in seconds since the epoch) after which
+        the task is considered timed out.
     """
 
     def __init__(
@@ -46,11 +48,13 @@ class AirbyteSyncTrigger(BaseTrigger):
         conn_id: str,
         end_time: float,
         poll_interval: float,
+        execution_deadline: float = None,
     ):
         super().__init__()
         self.job_id = job_id
         self.conn_id = conn_id
         self.end_time = end_time
+        self.execution_deadline = execution_deadline
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -62,6 +66,7 @@ class AirbyteSyncTrigger(BaseTrigger):
                 "conn_id": self.conn_id,
                 "end_time": self.end_time,
                 "poll_interval": self.poll_interval,
+                "execution_deadline": self.execution_deadline,
             },
         )
 
@@ -70,6 +75,17 @@ class AirbyteSyncTrigger(BaseTrigger):
         hook = AirbyteHook(airbyte_conn_id=self.conn_id)
         try:
             while await self.is_still_running(hook):
+                if self.execution_deadline is not None:
+                    if self.execution_deadline < time.time():
+                        yield TriggerEvent(
+                            {
+                                "status": "timeout",
+                                "message": f"Job run {self.job_id} has reached execution timeout.",
+                                "job_id": self.job_id,
+                            }
+                        )
+                        return
+
                 if self.end_time < time.time():
                     yield TriggerEvent(
                         {
