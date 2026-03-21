@@ -48,6 +48,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConfigOption,
     ConfigSection,
@@ -79,6 +80,7 @@ from airflowctl.api.datamodels.generated import (
     ImportErrorResponse,
     JobCollectionResponse,
     JobResponse,
+    PatchTaskInstanceBody,
     PoolBody,
     PoolCollectionResponse,
     PoolResponse,
@@ -87,6 +89,9 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+    TaskInstanceState,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -1703,3 +1708,165 @@ class TestXComOperations:
             map_index=self.map_index,
         )
         assert response == self.key
+
+class TestTaskInstanceOperations:
+    """Test suite for Task Instance operations."""
+
+    dag_id: str = "test_dag"
+    dag_run_id: str = "manual__2025-01-24T00:00:00+00:00"
+    task_id: str = "test_task"
+
+    task_instance_response = TaskInstanceResponse(
+        id=uuid.uuid4(),
+        task_id=task_id,
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        map_index=-1,
+        logical_date=datetime.datetime(2025, 1, 24, 0, 0, 0),
+        run_after=datetime.datetime(2025, 1, 24, 0, 0, 0),
+        start_date=datetime.datetime(2025, 1, 24, 0, 0, 1),
+        end_date=datetime.datetime(2025, 1, 24, 0, 0, 10),
+        duration=9.0,
+        state=TaskInstanceState.SUCCESS,
+        try_number=1,
+        max_tries=0,
+        task_display_name=task_id,
+        dag_display_name=dag_id,
+        hostname="hostname",
+        unixname="airflow",
+        pool="default_pool",
+        pool_slots=1,
+        queue="default",
+        priority_weight=1,
+        operator="EmptyOperator",
+        executor_config="{}",
+        note=None,
+    )
+
+    task_instance_collection_response = TaskInstanceCollectionResponse(
+        task_instances=[task_instance_response],
+        total_entries=1,
+    )
+
+    def test_get(self):
+        """Test fetching a single task instance."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
+            )
+            return httpx.Response(200, json=json.loads(self.task_instance_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+        )
+        assert response == self.task_instance_response
+
+    def test_list(self):
+        """Test listing task instances for a DAG run."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances")
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.list(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+        )
+        assert response == self.task_instance_collection_response
+
+    def test_clear(self):
+        """Test clearing task instances with default options."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            request_body = json.loads(request.content)
+            assert request_body["dry_run"] is True
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        body = ClearTaskInstancesBody(dry_run=True)
+        response = client.task_instances.clear(
+            dag_id=self.dag_id,
+            body=body,
+        )
+        assert response == self.task_instance_collection_response
+
+    def test_clear_with_options(self):
+        """Test clearing task instances with specific options."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            request_body = json.loads(request.content)
+            assert request_body["dry_run"] is False
+            assert request_body["only_failed"] is True
+            assert request_body["task_ids"] == [self.task_id]
+            assert request_body["dag_run_id"] == self.dag_run_id
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        body = ClearTaskInstancesBody(
+            dry_run=False,
+            only_failed=True,
+            task_ids=[self.task_id],
+            dag_run_id=self.dag_run_id,
+        )
+        response = client.task_instances.clear(
+            dag_id=self.dag_id,
+            body=body,
+        )
+        assert response == self.task_instance_collection_response
+
+    def test_update(self):
+        """Test updating a task instance state."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
+            )
+            request_body = json.loads(request.content)
+            assert request_body["new_state"] == TaskInstanceState.FAILED.value
+            return httpx.Response(200, json=json.loads(self.task_instance_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        body = PatchTaskInstanceBody(new_state=TaskInstanceState.FAILED)
+        response = client.task_instances.update(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            body=body,
+        )
+        assert response == self.task_instance_response
+
+    def test_update_with_note(self):
+        """Test updating a task instance with a note."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}"
+            )
+            request_body = json.loads(request.content)
+            assert request_body["note"] == "Manually marked as success"
+            # Verify new_state is NOT in body when not provided
+            assert "new_state" not in request_body
+            return httpx.Response(200, json=json.loads(self.task_instance_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        body = PatchTaskInstanceBody(note="Manually marked as success")
+        response = client.task_instances.update(
+            dag_id=self.dag_id,
+            dag_run_id=self.dag_run_id,
+            task_id=self.task_id,
+            body=body,
+        )
+        assert response == self.task_instance_response
