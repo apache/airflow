@@ -35,6 +35,7 @@ export const TaskNode = ({
     childCount,
     depth,
     height = 0,
+    isFiltered,
     isGroup,
     isMapped,
     isOpen,
@@ -83,7 +84,13 @@ export const TaskNode = ({
 
   return (
     <NodeWrapper>
-      <Flex alignItems="center" cursor="default" flexDirection="column">
+      <Flex
+        alignItems="center"
+        cursor="default"
+        flexDirection="column"
+        opacity={isFiltered ? 0.2 : 1}
+        transition="opacity 0.2s"
+      >
         <TaskInstanceTooltip
           openDelay={500}
           positioning={{

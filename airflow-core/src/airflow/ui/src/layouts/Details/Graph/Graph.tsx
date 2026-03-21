@@ -17,9 +17,9 @@
  * under the License.
  */
 import { useToken } from "@chakra-ui/react";
-import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
+import { ReactFlow, Controls, Background, MiniMap, Panel, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -29,6 +29,7 @@ import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { dependenciesKey, directionKey } from "src/constants/localStorage";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -36,6 +37,10 @@ import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { getReactFlowThemeStyle } from "src/theme";
+
+import { GraphTaskFilters } from "./GraphTaskFilters";
+import type { GraphFilterValues } from "./useGraphFilteredNodes";
+import { useGraphFilteredNodes } from "./useGraphFilteredNodes";
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -73,6 +78,22 @@ export const Graph = () => {
   const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   const hasActiveFilter = includeUpstream || includeDownstream;
+
+  const graphFilters: GraphFilterValues = useMemo(() => {
+    const durationParam = searchParams.get(SearchParamsKeys.DURATION_GTE);
+    const mapIndexParam = searchParams.get(SearchParamsKeys.MAP_INDEX);
+    const durationVal = durationParam === null ? Number.NaN : Number(durationParam);
+    const mapIndexVal = mapIndexParam === null ? Number.NaN : Number(mapIndexParam);
+
+    return {
+      durationThreshold: Number.isNaN(durationVal) ? undefined : durationVal,
+      mapIndex: Number.isNaN(mapIndexVal) ? undefined : mapIndexVal,
+      mappedFilter: searchParams.get(SearchParamsKeys.MAPPED) ?? undefined,
+      selectedOperators: searchParams.getAll(SearchParamsKeys.OPERATOR),
+      selectedStates: searchParams.getAll(SearchParamsKeys.STATE),
+      selectedTaskGroups: searchParams.getAll(SearchParamsKeys.TASK_GROUP),
+    };
+  }, [searchParams]);
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
@@ -138,7 +159,7 @@ export const Graph = () => {
   const gridTISummaries = runId ? summariesByRunId.get(runId) : undefined;
 
   // Add task instances to the node data but without having to recalculate how the graph is laid out
-  const nodes = data?.nodes.map((node) => {
+  const nodesWithTI = data?.nodes.map((node) => {
     const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === node.id);
 
     return {
@@ -151,12 +172,27 @@ export const Graph = () => {
     };
   });
 
+  const nodes = useGraphFilteredNodes(nodesWithTI, graphFilters);
+
+  const filteredNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+
+    for (const node of nodes ?? []) {
+      if (node.data.isFiltered) {
+        ids.add(node.id);
+      }
+    }
+
+    return ids;
+  }, [nodes]);
+
   const edges = (data?.edges ?? []).map((edge) => ({
     ...edge,
     data: {
       ...edge.data,
       rest: {
         ...edge.data?.rest,
+        isFiltered: filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target),
         isSelected:
           taskId === edge.source ||
           taskId === edge.target ||
@@ -184,6 +220,9 @@ export const Graph = () => {
       onlyRenderVisibleElements
       style={getReactFlowThemeStyle(colorMode)}
     >
+      <Panel position="top-left" style={{ top: 40 }}>
+        <GraphTaskFilters graphNodes={graphData.nodes} />
+      </Panel>
       <Background />
       <Controls showInteractive={false} />
       <MiniMap

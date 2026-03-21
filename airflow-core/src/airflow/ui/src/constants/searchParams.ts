@@ -85,6 +85,7 @@ export enum SearchParamsKeys {
   SUBJECT_SEARCH = "subject_search",
   TAGS = "tags",
   TAGS_MATCH_MODE = "tags_match_mode",
+  TASK_GROUP = "task_group",
   TASK_ID = "task_id",
   TASK_ID_PATTERN = "task_id_pattern",
   TASK_STATE = "task_state",

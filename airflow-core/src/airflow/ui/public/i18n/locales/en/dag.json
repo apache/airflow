@@ -122,6 +122,12 @@
     "graphDirection": {
       "label": "Graph Direction"
     },
+    "graphFilters": {
+      "durationGte": "Min duration (s)",
+      "mapIndex": "Map index",
+      "selectStatus": "Select status",
+      "selectTaskGroup": "Select task group"
+    },
     "showVersionIndicator": {
       "label": "Show Version Indicator",
       "options": {
