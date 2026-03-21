@@ -507,6 +507,14 @@ core:
       type: boolean
       example: ~
       default: "False"
+    bin:
+      description: |
+        Where to download binaries needed by airflow.
+        This path must be absolute.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "{AIRFLOW_HOME}/bin"
 database:
   description: ~
   options:
