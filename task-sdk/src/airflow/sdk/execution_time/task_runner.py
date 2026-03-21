@@ -145,29 +145,35 @@ log = structlog.get_logger("task")
 tracer = trace.get_tracer(__name__)
 
 
-@contextmanager
-def detail_span(*args, **kwargs):
-    parent_span = trace.get_current_span()
-    config_level = get_task_span_detail_level(span=parent_span)
+class detail_span:
+    """Context manager and decorator that creates a child span when detail level > 1."""
 
-    if config_level > 1:
-        with detail_span(*args, **kwargs) as span:
-            yield span
-    else:
-        with trace.INVALID_SPAN as span:
-            yield span
+    def __init__(self, *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
+        self._ctx = None
 
+    def _make_ctx(self):
+        parent_span = trace.get_current_span()
+        config_level = get_task_span_detail_level(span=parent_span)
+        if config_level > 1:
+            return tracer.start_as_current_span(*self._args, **self._kwargs)
+        return trace.INVALID_SPAN
 
-def detail_span_dec(*args, **kwargs):
-    def inner(f):
+    def __enter__(self):
+        self._ctx = self._make_ctx()
+        return self._ctx.__enter__()
+
+    def __exit__(self, *exc_info):
+        return self._ctx.__exit__(*exc_info)
+
+    def __call__(self, f):
         @functools.wraps(f)
         def wrapper(*inner_args, **inner_kwargs):
-            with detail_span(*args, **kwargs):
+            with self._make_ctx():
                 return f(*inner_args, **inner_kwargs)
 
         return wrapper
-
-    return inner
 
 
 @contextmanager
@@ -238,7 +244,7 @@ class RuntimeTaskInstance(TaskInstance):
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
-    @detail_span_dec("get_template_context")
+    @detail_span("get_template_context")
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
@@ -334,7 +340,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         return self._cached_template_context
 
-    @detail_span_dec("render_templates")
+    @detail_span("render_templates")
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
     ) -> BaseOperator:
@@ -788,7 +794,7 @@ def _maybe_reschedule_startup_failure(
     )
 
 
-@detail_span_dec("parse")
+@detail_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using BundleDagBag here is about 98% wrong, but it'll do for now
@@ -876,7 +882,7 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 3. Shutdown and report status
 
 
-@detail_span_dec("_verify_bundle_access")
+@detail_span("_verify_bundle_access")
 def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
     """
     Verify bundle is accessible by the current user.
@@ -939,7 +945,7 @@ def get_startup_details() -> StartupDetails:
     return msg
 
 
-@detail_span_dec("startup")
+@detail_span("startup")
 def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
@@ -1072,7 +1078,7 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
     return template_field
 
 
-@detail_span_dec("_serialize_rendered_fields")
+@detail_span("_serialize_rendered_fields")
 def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     from airflow.sdk._shared.secrets_masker import redact
 
@@ -1141,7 +1147,7 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
             yield attrs.asdict(alias_event)
 
 
-@detail_span_dec("_prepare")
+@detail_span("_prepare")
 def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSupervisor | None:
     ti.hostname = get_hostname()
     ti.task = ti.task.prepare_for_execution()
@@ -1187,7 +1193,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
     return None
 
 
-@detail_span_dec("_validate_task_inlets_and_outlets")
+@detail_span("_validate_task_inlets_and_outlets")
 def _validate_task_inlets_and_outlets(*, ti: RuntimeTaskInstance, log: Logger) -> None:
     if not ti.task.inlets and not ti.task.outlets:
         return
@@ -1673,7 +1679,7 @@ def _send_error_email_notification(
         log.exception("Failed to send email notification")
 
 
-@detail_span_dec("_execute_task")
+@detail_span("_execute_task")
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     with detail_span("prepare context"):
@@ -1801,7 +1807,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     _xcom_push(ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=mapped_length)
 
 
-@detail_span_dec("finalize")
+@detail_span("finalize")
 def finalize(
     ti: RuntimeTaskInstance,
     state: TaskInstanceState,
