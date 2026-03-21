@@ -159,6 +159,12 @@ if REMOTE_LOGGING:
             "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
             f"{type(remote_task_handler_kwargs)}"
         )
+    # Separate handler-level kwargs (FileTaskHandler params like max_bytes, backup_count, delay)
+    # from remote I/O kwargs. Handler-level params must be applied to the logging config handler
+    # entry, not passed to RemoteLogIO constructors which don't accept them.
+    _HANDLER_LEVEL_KWARGS = {"max_bytes", "backup_count", "delay"}
+    handler_kwargs = {k: v for k, v in remote_task_handler_kwargs.items() if k in _HANDLER_LEVEL_KWARGS}
+    remote_io_kwargs = {k: v for k, v in remote_task_handler_kwargs.items() if k not in _HANDLER_LEVEL_KWARGS}
     delete_local_copy = conf.getboolean("logging", "delete_local_logs")
 
     if remote_base_log_folder.startswith("s3://"):
@@ -172,10 +178,9 @@ if REMOTE_LOGGING:
                     "remote_base": remote_base_log_folder,
                     "delete_local_copy": delete_local_copy,
                 }
-                | remote_task_handler_kwargs
+                | remote_io_kwargs
             )
         )
-        remote_task_handler_kwargs = {}
 
     elif remote_base_log_folder.startswith("cloudwatch://"):
         from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudWatchRemoteLogIO
@@ -190,10 +195,9 @@ if REMOTE_LOGGING:
                     "delete_local_copy": delete_local_copy,
                     "log_group_arn": url_parts.netloc + url_parts.path,
                 }
-                | remote_task_handler_kwargs
+                | remote_io_kwargs
             )
         )
-        remote_task_handler_kwargs = {}
     elif remote_base_log_folder.startswith("gs://"):
         from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO
 
@@ -208,10 +212,9 @@ if REMOTE_LOGGING:
                     "delete_local_copy": delete_local_copy,
                     "gcp_key_path": key_path,
                 }
-                | remote_task_handler_kwargs
+                | remote_io_kwargs
             )
         )
-        remote_task_handler_kwargs = {}
     elif remote_base_log_folder.startswith("wasb"):
         from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbRemoteLogIO
 
@@ -231,10 +234,9 @@ if REMOTE_LOGGING:
                     "delete_local_copy": delete_local_copy,
                     "wasb_container": wasb_log_container,
                 }
-                | remote_task_handler_kwargs
+                | remote_io_kwargs
             )
         )
-        remote_task_handler_kwargs = {}
     elif remote_base_log_folder.startswith("stackdriver://"):
         key_path = conf.get_mandatory_value("logging", "GOOGLE_KEY_PATH", fallback=None)
         # stackdriver:///airflow-tasks => airflow-tasks
@@ -261,10 +263,9 @@ if REMOTE_LOGGING:
                     "remote_base": remote_base_log_folder,
                     "delete_local_copy": delete_local_copy,
                 }
-                | remote_task_handler_kwargs
+                | remote_io_kwargs
             )
         )
-        remote_task_handler_kwargs = {}
     elif remote_base_log_folder.startswith("hdfs://"):
         from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsRemoteLogIO
 
@@ -277,10 +278,9 @@ if REMOTE_LOGGING:
                     "remote_base": urlsplit(remote_base_log_folder).path,
                     "delete_local_copy": delete_local_copy,
                 }
-                | remote_task_handler_kwargs
+                | remote_io_kwargs
             )
         )
-        remote_task_handler_kwargs = {}
     elif ELASTICSEARCH_HOST:
         from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchRemoteLogIO
 
@@ -340,4 +340,4 @@ if REMOTE_LOGGING:
             "section 'elasticsearch' if you are using Elasticsearch. In the other case, "
             "'remote_base_log_folder' option in the 'logging' section."
         )
-    DEFAULT_LOGGING_CONFIG["handlers"]["task"].update(remote_task_handler_kwargs)
+    DEFAULT_LOGGING_CONFIG["handlers"]["task"].update(handler_kwargs)
