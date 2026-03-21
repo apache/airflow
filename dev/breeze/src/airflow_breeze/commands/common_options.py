@@ -35,6 +35,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_TERMINAL_MULTIPLEXERS,
     ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
+    ALLOWED_WORKER_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_ALL_INTEGRATIONS,
     AUTOCOMPLETE_CORE_INTEGRATIONS,
@@ -602,6 +603,13 @@ option_platform_single = click.option(
     type=BetterChoice(SINGLE_PLATFORMS),
 )
 
+option_worker_types = click.option(
+    "--worker-type",
+    help="Start a specific worker",
+    type=BetterChoice(ALLOWED_WORKER_TYPES),
+    multiple=True,
+    envvar="WORKER_TYPE",
+)
 
 # UI E2E Testing Options
 
