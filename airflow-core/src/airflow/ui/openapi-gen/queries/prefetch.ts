@@ -225,7 +225,7 @@ export const prefetchUseConnectionServiceGetConnections = (queryClient: QueryCli
   orderBy?: string[];
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) });
 /**
-* Get Connection Test Status
+* Get Connection Test
 * Poll for the status of an async connection test.
 *
 * Knowledge of the token serves as authorization — only the client
@@ -235,9 +235,9 @@ export const prefetchUseConnectionServiceGetConnections = (queryClient: QueryCli
 * @returns ConnectionTestStatusResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseConnectionServiceGetConnectionTestStatus = (queryClient: QueryClient, { connectionTestToken }: {
+export const prefetchUseConnectionServiceGetConnectionTest = (queryClient: QueryClient, { connectionTestToken }: {
   connectionTestToken: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionTestStatusKeyFn({ connectionTestToken }), queryFn: () => ConnectionService.getConnectionTestStatus({ connectionTestToken }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ connectionTestToken }), queryFn: () => ConnectionService.getConnectionTest({ connectionTestToken }) });
 /**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.

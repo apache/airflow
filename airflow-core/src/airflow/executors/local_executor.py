@@ -192,7 +192,6 @@ def _execute_connection_test(log: Logger, workload: workloads.TestConnection, te
     # Lazy import: SDK modules must not be loaded at module level to avoid
     # coupling core (scheduler-loaded) code to the SDK.
     from airflow.sdk.api.client import Client
-    from airflow.sdk.execution_time.comms import ErrorResponse
 
     setproctitle(
         f"{_get_executor_process_title_prefix(team_conf.team_name)} connection-test {workload.connection_id}",
@@ -215,9 +214,7 @@ def _execute_connection_test(log: Logger, workload: workloads.TestConnection, te
     try:
         client.connection_tests.update_state(workload.connection_test_id, ConnectionTestState.RUNNING)
 
-        conn_response = client.connections.get(workload.connection_id)
-        if isinstance(conn_response, ErrorResponse):
-            raise RuntimeError(f"Connection '{workload.connection_id}' not found via Execution API")
+        conn_response = client.connection_tests.get_connection(workload.connection_test_id)
 
         conn = Connection(
             conn_id=conn_response.conn_id,
@@ -249,7 +246,7 @@ def _execute_connection_test(log: Logger, workload: workloads.TestConnection, te
         client.connection_tests.update_state(
             workload.connection_test_id,
             ConnectionTestState.FAILED,
-            f"Connection test failed unexpectedly: {e}"[:500],
+            f"Connection test failed unexpectedly: {type(e).__name__}",
         )
     finally:
         signal.alarm(0)

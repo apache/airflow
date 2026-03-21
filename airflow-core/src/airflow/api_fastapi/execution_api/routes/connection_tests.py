@@ -22,15 +22,50 @@ from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, status
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.execution_api.datamodels.connection_test import ConnectionTestResultBody
+from airflow.api_fastapi.execution_api.datamodels.connection_test import (
+    ConnectionTestConnectionResponse,
+    ConnectionTestResultBody,
+)
 from airflow.models.connection_test import (
     TERMINAL_STATES,
-    ConnectionTest,
+    ConnectionTestRequest,
     ConnectionTestState,
-    attempt_revert,
 )
 
 router = VersionedAPIRouter()
+
+
+@router.get(
+    "/{connection_test_id}/connection",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Connection test not found"},
+    },
+)
+def get_connection_test_connection(
+    connection_test_id: UUID,
+    session: SessionDep,
+) -> ConnectionTestConnectionResponse:
+    """Return the connection data stored in a test request (called by workers)."""
+    ct = session.get(ConnectionTestRequest, connection_test_id)
+    if ct is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"Connection test {connection_test_id} not found",
+            },
+        )
+
+    return ConnectionTestConnectionResponse(
+        conn_id=ct.connection_id,
+        conn_type=ct.conn_type,
+        host=ct.host,
+        login=ct.login,
+        password=ct.password,
+        schema_=ct.schema,
+        port=ct.port,
+        extra=ct.extra,
+    )
 
 
 @router.patch(
@@ -47,7 +82,7 @@ def patch_connection_test(
     session: SessionDep,
 ) -> None:
     """Update the result of a connection test (called by workers)."""
-    ct = session.get(ConnectionTest, connection_test_id, with_for_update=True)
+    ct = session.get(ConnectionTestRequest, connection_test_id, with_for_update=True)
     if ct is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -69,7 +104,5 @@ def patch_connection_test(
     ct.state = body.state
     ct.result_message = body.result_message
 
-    if body.state == ConnectionTestState.FAILED and ct.connection_snapshot:
-        attempt_revert(ct, session=session)
-    elif body.state == ConnectionTestState.SUCCESS:
-        ct.connection_snapshot = None
+    if body.state == ConnectionTestState.SUCCESS and ct.commit_on_success:
+        ct.commit_to_connection_table(session=session)

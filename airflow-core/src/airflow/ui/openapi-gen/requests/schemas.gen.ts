@@ -1698,26 +1698,6 @@ export const $ConnectionResponse = {
     description: 'Connection serializer for responses.'
 } as const;
 
-export const $ConnectionSaveAndTestResponse = {
-    properties: {
-        connection: {
-            '$ref': '#/components/schemas/ConnectionResponse'
-        },
-        test_token: {
-            type: 'string',
-            title: 'Test Token'
-        },
-        test_state: {
-            type: 'string',
-            title: 'Test State'
-        }
-    },
-    type: 'object',
-    required: ['connection', 'test_token', 'test_state'],
-    title: 'ConnectionSaveAndTestResponse',
-    description: 'Response returned by the combined save-and-test endpoint.'
-} as const;
-
 export const $ConnectionTestQueuedResponse = {
     properties: {
         token: {
@@ -1745,6 +1725,81 @@ export const $ConnectionTestRequestBody = {
             type: 'string',
             title: 'Connection Id'
         },
+        conn_type: {
+            type: 'string',
+            title: 'Conn Type'
+        },
+        host: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Host'
+        },
+        login: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Login'
+        },
+        schema: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Schema'
+        },
+        port: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Port'
+        },
+        password: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Password'
+        },
+        extra: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Extra'
+        },
+        commit_on_success: {
+            type: 'boolean',
+            title: 'Commit On Success',
+            default: false
+        },
         executor: {
             anyOf: [
                 {
@@ -1770,7 +1825,7 @@ export const $ConnectionTestRequestBody = {
     },
     additionalProperties: false,
     type: 'object',
-    required: ['connection_id'],
+    required: ['connection_id', 'conn_type'],
     title: 'ConnectionTestRequestBody',
     description: 'Request body for async connection test.'
 } as const;
@@ -1821,11 +1876,6 @@ export const $ConnectionTestStatusResponse = {
             type: 'string',
             format: 'date-time',
             title: 'Created At'
-        },
-        reverted: {
-            type: 'boolean',
-            title: 'Reverted',
-            default: false
         }
     },
     type: 'object',

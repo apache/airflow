@@ -1335,6 +1335,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -1631,103 +1637,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/connections/{connection_id}/test:
-    patch:
-      tags:
-      - Connection
-      summary: Patch Connection And Test
-      description: 'Update a connection and queue an async test with revert-on-failure.
-
-
-        Atomically saves the edit and creates a ConnectionTest with snapshots of the
-
-        pre-edit and post-edit state. If the test fails, the connection is automatically
-
-        reverted to its pre-edit values.'
-      operationId: patch_connection_and_test
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: connection_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Connection Id
-      - name: update_mask
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: array
-            items:
-              type: string
-          - type: 'null'
-          title: Update Mask
-      - name: executor
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: Executor to route the connection test to
-          title: Executor
-        description: Executor to route the connection test to
-      - name: queue
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: Queue to route the connection test to
-          title: Queue
-        description: Queue to route the connection test to
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConnectionBody'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConnectionSaveAndTestResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/connections/test:
     post:
       tags:
@@ -1786,9 +1695,11 @@ paths:
       description: 'Queue an async connection test to be executed on a worker.
 
 
-        The connection must already be saved. Returns a token that can be used
+        The connection data is stored in the test request table and the worker
 
-        to poll for the test result via GET /connections/test-async/{token}.'
+        reads from there. Returns a token to poll for the result via
+
+        GET /connections/test-async/{token}.'
       operationId: test_connection_async
       requestBody:
         content:
@@ -1815,8 +1726,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-        '404':
-          description: Not Found
+        '409':
+          description: Conflict
           content:
             application/json:
               schema:
@@ -1834,11 +1745,11 @@ paths:
     get:
       tags:
       - Connection
-      summary: Get Connection Test Status
+      summary: Get Connection Test
       description: "Poll for the status of an async connection test.\n\nKnowledge\
         \ of the token serves as authorization \u2014 only the client\nthat initiated\
         \ the test knows the crypto-random token."
-      operationId: get_connection_test_status
+      operationId: get_connection_test
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -10295,23 +10206,6 @@ components:
       - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
-    ConnectionSaveAndTestResponse:
-      properties:
-        connection:
-          $ref: '#/components/schemas/ConnectionResponse'
-        test_token:
-          type: string
-          title: Test Token
-        test_state:
-          type: string
-          title: Test State
-      type: object
-      required:
-      - connection
-      - test_token
-      - test_state
-      title: ConnectionSaveAndTestResponse
-      description: Response returned by the combined save-and-test endpoint.
     ConnectionTestQueuedResponse:
       properties:
         token:
@@ -10335,6 +10229,43 @@ components:
         connection_id:
           type: string
           title: Connection Id
+        conn_type:
+          type: string
+          title: Conn Type
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        login:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Password
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+        commit_on_success:
+          type: boolean
+          title: Commit On Success
+          default: false
         executor:
           anyOf:
           - type: string
@@ -10349,6 +10280,7 @@ components:
       type: object
       required:
       - connection_id
+      - conn_type
       title: ConnectionTestRequestBody
       description: Request body for async connection test.
     ConnectionTestResponse:
@@ -10385,10 +10317,6 @@ components:
           type: string
           format: date-time
           title: Created At
-        reverted:
-          type: boolean
-          title: Reverted
-          default: false
       type: object
       required:
       - token

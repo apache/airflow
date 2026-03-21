@@ -73,7 +73,12 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill
 from airflow.models.callback import Callback, CallbackType, ExecutorCallback
-from airflow.models.connection_test import ACTIVE_STATES, ConnectionTest, ConnectionTestState, attempt_revert
+from airflow.models.connection_test import (
+    ACTIVE_STATES,
+    DISPATCHED_STATES,
+    ConnectionTestRequest,
+    ConnectionTestState,
+)
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -3124,7 +3129,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return
 
         active_count = session.scalar(
-            select(func.count(ConnectionTest.id)).where(ConnectionTest.state.in_(ACTIVE_STATES))
+            select(func.count(ConnectionTestRequest.id)).where(
+                ConnectionTestRequest.state.in_(DISPATCHED_STATES)
+            )
         )
         concurrency_budget = max_concurrency - (active_count or 0)
         budget = min(concurrency_budget, parallelism_budget)
@@ -3132,12 +3139,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return
 
         pending_stmt = (
-            select(ConnectionTest)
-            .where(ConnectionTest.state == ConnectionTestState.PENDING)
-            .order_by(ConnectionTest.created_at)
+            select(ConnectionTestRequest)
+            .where(ConnectionTestRequest.state == ConnectionTestState.PENDING)
+            .order_by(ConnectionTestRequest.created_at)
             .limit(budget)
         )
-        pending_stmt = with_row_locks(pending_stmt, session, of=ConnectionTest, skip_locked=True)
+        pending_stmt = with_row_locks(pending_stmt, session, of=ConnectionTestRequest, skip_locked=True)
         pending_tests = session.scalars(pending_stmt).all()
 
         if not pending_tests:
@@ -3155,7 +3162,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 ct.state = ConnectionTestState.FAILED
                 ct.result_message = reason
-                ct.connection_snapshot = None
                 self.log.warning("Failing connection test %s: %s", ct.id, reason)
                 continue
 
@@ -3178,19 +3184,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         grace_period = max(30, timeout // 2)
         cutoff = timezone.utcnow() - timedelta(seconds=timeout + grace_period)
 
-        stale_stmt = select(ConnectionTest).where(
-            ConnectionTest.state.in_(ACTIVE_STATES),
-            ConnectionTest.updated_at < cutoff,
+        stale_stmt = select(ConnectionTestRequest).where(
+            ConnectionTestRequest.state.in_(ACTIVE_STATES),
+            ConnectionTestRequest.updated_at < cutoff,
         )
-        stale_stmt = with_row_locks(stale_stmt, session, of=ConnectionTest, skip_locked=True)
+        stale_stmt = with_row_locks(stale_stmt, session, of=ConnectionTestRequest, skip_locked=True)
         stale_tests = session.scalars(stale_stmt).all()
 
         for ct in stale_tests:
             ct.state = ConnectionTestState.FAILED
             ct.result_message = f"Connection test timed out (exceeded {timeout}s + {grace_period}s grace)"
             self.log.warning("Reaped stale connection test %s", ct.id)
-            if ct.connection_snapshot:
-                attempt_revert(ct, session=session)
 
         session.flush()
 

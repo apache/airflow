@@ -20,7 +20,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models.connection import Connection
-from airflow.models.connection_test import ConnectionTest, ConnectionTestState, snapshot_connection
+from airflow.models.connection_test import ConnectionTestRequest, ConnectionTestState
 
 from tests_common.test_utils.db import clear_db_connection_tests, clear_db_connections
 
@@ -36,7 +36,7 @@ class TestPatchConnectionTest:
 
     def test_patch_updates_result(self, client, session):
         """PATCH sets the state and result fields."""
-        ct = ConnectionTest(connection_id="test_conn")
+        ct = ConnectionTestRequest(connection_id="test_conn", conn_type="postgres")
         ct.state = ConnectionTestState.RUNNING
         session.add(ct)
         session.commit()
@@ -51,10 +51,9 @@ class TestPatchConnectionTest:
         assert response.status_code == 204
 
         session.expire_all()
-        ct = session.get(ConnectionTest, ct.id)
+        ct = session.get(ConnectionTestRequest, ct.id)
         assert ct.state == "success"
         assert ct.result_message == "Connection successfully tested"
-        assert ct.connection_snapshot is None
 
     def test_patch_returns_404_for_nonexistent(self, client):
         """PATCH with unknown id returns 404."""
@@ -74,7 +73,7 @@ class TestPatchConnectionTest:
 
     def test_patch_returns_409_for_terminal_state(self, client, session):
         """PATCH on a test already in terminal state returns 409."""
-        ct = ConnectionTest(connection_id="test_conn")
+        ct = ConnectionTestRequest(connection_id="test_conn", conn_type="postgres")
         ct.state = ConnectionTestState.SUCCESS
         ct.result_message = "Already done"
         session.add(ct)
@@ -88,8 +87,8 @@ class TestPatchConnectionTest:
         assert "terminal state" in response.json()["detail"]["message"]
 
 
-class TestPatchConnectionTestRevert:
-    """Tests for the revert-on-failure behavior in the execution API."""
+class TestPatchConnectionTestCommitOnSuccess:
+    """Tests for the commit_on_success behavior in the execution API."""
 
     @pytest.fixture(autouse=True)
     def setup_teardown(self):
@@ -99,61 +98,45 @@ class TestPatchConnectionTestRevert:
         clear_db_connections(add_default_connections_back=False)
         clear_db_connection_tests()
 
-    def test_patch_failed_with_snapshot_reverts_connection(self, client, session):
-        """PATCH with state=failed and snapshot triggers revert."""
-        conn = Connection(
-            conn_id="revert_conn",
+    def test_success_with_commit_creates_connection(self, client, session):
+        """PATCH with state=success and commit_on_success creates a new connection."""
+        ct = ConnectionTestRequest(
+            connection_id="new_conn",
             conn_type="postgres",
-            host="old-host.example.com",
-            login="old_user",
+            host="db.example.com",
+            login="user",
+            password="secret",
+            commit_on_success=True,
         )
-        session.add(conn)
-        session.flush()
-
-        pre_snap = snapshot_connection(conn)
-        conn.host = "new-host.example.com"
-        conn.login = "new_user"
-        post_snap = snapshot_connection(conn)
-        session.flush()
-
-        ct = ConnectionTest(connection_id="revert_conn")
         ct.state = ConnectionTestState.RUNNING
-        ct.connection_snapshot = {"pre": pre_snap, "post": post_snap}
         session.add(ct)
         session.commit()
 
         response = client.patch(
             f"/execution/connection-tests/{ct.id}",
-            json={"state": "failed", "result_message": "Connection refused"},
+            json={"state": "success", "result_message": "Connection OK"},
         )
         assert response.status_code == 204
 
-        session.expire_all()
-        ct = session.get(ConnectionTest, ct.id)
-        assert ct.reverted is True
-        assert ct.connection_snapshot is None
-        conn = session.scalar(select(Connection).filter_by(conn_id="revert_conn"))
-        assert conn.host == "old-host.example.com"
-        assert conn.login == "old_user"
+        conn = session.scalar(select(Connection).filter_by(conn_id="new_conn"))
+        assert conn is not None
+        assert conn.conn_type == "postgres"
+        assert conn.host == "db.example.com"
 
-    def test_patch_success_with_snapshot_no_revert(self, client, session):
-        """PATCH with state=success does not trigger revert even with snapshot."""
-        conn = Connection(
-            conn_id="no_revert_conn",
-            conn_type="postgres",
-            host="old-host.example.com",
-        )
+    def test_success_with_commit_updates_existing(self, client, session):
+        """PATCH with state=success and commit_on_success updates an existing connection."""
+        conn = Connection(conn_id="existing_conn", conn_type="http", host="old-host.example.com")
         session.add(conn)
         session.flush()
 
-        pre_snap = snapshot_connection(conn)
-        conn.host = "new-host.example.com"
-        post_snap = snapshot_connection(conn)
-        session.flush()
-
-        ct = ConnectionTest(connection_id="no_revert_conn")
+        ct = ConnectionTestRequest(
+            connection_id="existing_conn",
+            conn_type="postgres",
+            host="new-host.example.com",
+            login="new_user",
+            commit_on_success=True,
+        )
         ct.state = ConnectionTestState.RUNNING
-        ct.connection_snapshot = {"pre": pre_snap, "post": post_snap}
         session.add(ct)
         session.commit()
 
@@ -164,49 +147,40 @@ class TestPatchConnectionTestRevert:
         assert response.status_code == 204
 
         session.expire_all()
-        ct = session.get(ConnectionTest, ct.id)
-        assert ct.reverted is False
-        assert ct.connection_snapshot is None
-        conn = session.scalar(select(Connection).filter_by(conn_id="no_revert_conn"))
+        conn = session.scalar(select(Connection).filter_by(conn_id="existing_conn"))
+        assert conn.conn_type == "postgres"
         assert conn.host == "new-host.example.com"
 
-    def test_patch_failed_without_snapshot_no_revert(self, client, session):
-        """PATCH with state=failed but no snapshot does not trigger revert."""
-        ct = ConnectionTest(connection_id="test_conn")
-        ct.state = ConnectionTestState.RUNNING
-        session.add(ct)
-        session.commit()
-
-        response = client.patch(
-            f"/execution/connection-tests/{ct.id}",
-            json={"state": "failed", "result_message": "Connection refused"},
-        )
-        assert response.status_code == 204
-
-        session.expire_all()
-        ct = session.get(ConnectionTest, ct.id)
-        assert ct.reverted is False
-
-    def test_patch_failed_concurrent_edit_skips_revert(self, client, session):
-        """PATCH with state=failed skips revert when connection was modified concurrently."""
-        conn = Connection(
-            conn_id="concurrent_conn",
+    def test_success_without_commit_does_not_create(self, client, session):
+        """PATCH with state=success but commit_on_success=False does not create a connection."""
+        ct = ConnectionTestRequest(
+            connection_id="no_commit_conn",
             conn_type="postgres",
-            host="old-host.example.com",
+            host="db.example.com",
+            commit_on_success=False,
         )
-        session.add(conn)
-        session.flush()
-
-        pre_snap = snapshot_connection(conn)
-        conn.host = "new-host.example.com"
-        post_snap = snapshot_connection(conn)
-
-        conn.host = "third-party-host.example.com"
-        session.flush()
-
-        ct = ConnectionTest(connection_id="concurrent_conn")
         ct.state = ConnectionTestState.RUNNING
-        ct.connection_snapshot = {"pre": pre_snap, "post": post_snap}
+        session.add(ct)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/connection-tests/{ct.id}",
+            json={"state": "success", "result_message": "Connection OK"},
+        )
+        assert response.status_code == 204
+
+        conn = session.scalar(select(Connection).filter_by(conn_id="no_commit_conn"))
+        assert conn is None
+
+    def test_failed_with_commit_does_not_create(self, client, session):
+        """PATCH with state=failed and commit_on_success=True does NOT create a connection."""
+        ct = ConnectionTestRequest(
+            connection_id="fail_conn",
+            conn_type="postgres",
+            host="db.example.com",
+            commit_on_success=True,
+        )
+        ct.state = ConnectionTestState.RUNNING
         session.add(ct)
         session.commit()
 
@@ -216,10 +190,48 @@ class TestPatchConnectionTestRevert:
         )
         assert response.status_code == 204
 
-        session.expire_all()
-        ct = session.get(ConnectionTest, ct.id)
-        assert ct.reverted is False
-        assert ct.connection_snapshot is None
-        assert "modified by another user" in ct.result_message
-        conn = session.scalar(select(Connection).filter_by(conn_id="concurrent_conn"))
-        assert conn.host == "third-party-host.example.com"
+        conn = session.scalar(select(Connection).filter_by(conn_id="fail_conn"))
+        assert conn is None
+
+
+class TestGetConnectionTestConnection:
+    """Tests for the GET /{connection_test_id}/connection endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self):
+        clear_db_connection_tests()
+        yield
+        clear_db_connection_tests()
+
+    def test_get_connection_returns_data(self, client, session):
+        """GET returns decrypted connection data from the test request."""
+        ct = ConnectionTestRequest(
+            connection_id="test_conn",
+            conn_type="postgres",
+            host="db.example.com",
+            login="user",
+            password="secret",
+            schema="mydb",
+            port=5432,
+            extra='{"key": "value"}',
+        )
+        session.add(ct)
+        session.commit()
+
+        response = client.get(f"/execution/connection-tests/{ct.id}/connection")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["conn_id"] == "test_conn"
+        assert data["conn_type"] == "postgres"
+        assert data["host"] == "db.example.com"
+        assert data["login"] == "user"
+        assert data["password"] == "secret"
+        assert data["schema"] == "mydb"
+        assert data["port"] == 5432
+        assert data["extra"] == '{"key": "value"}'
+
+    def test_get_connection_returns_404_for_nonexistent(self, client):
+        """GET with unknown id returns 404."""
+        response = client.get("/execution/connection-tests/00000000-0000-0000-0000-000000000000/connection")
+        assert response.status_code == 404

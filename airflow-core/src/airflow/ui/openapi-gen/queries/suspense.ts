@@ -225,7 +225,7 @@ export const useConnectionServiceGetConnectionsSuspense = <TData = Common.Connec
   orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }, queryKey), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData, ...options });
 /**
-* Get Connection Test Status
+* Get Connection Test
 * Poll for the status of an async connection test.
 *
 * Knowledge of the token serves as authorization — only the client
@@ -235,9 +235,9 @@ export const useConnectionServiceGetConnectionsSuspense = <TData = Common.Connec
 * @returns ConnectionTestStatusResponse Successful Response
 * @throws ApiError
 */
-export const useConnectionServiceGetConnectionTestStatusSuspense = <TData = Common.ConnectionServiceGetConnectionTestStatusDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ connectionTestToken }: {
+export const useConnectionServiceGetConnectionTestSuspense = <TData = Common.ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ connectionTestToken }: {
   connectionTestToken: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestStatusKeyFn({ connectionTestToken }, queryKey), queryFn: () => ConnectionService.getConnectionTestStatus({ connectionTestToken }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ connectionTestToken }, queryKey), queryFn: () => ConnectionService.getConnectionTest({ connectionTestToken }) as TData, ...options });
 /**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.

@@ -41,7 +41,6 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBodyPartial,
     ConnectionCollectionResponse,
     ConnectionResponse,
-    ConnectionSaveAndTestResponse,
     ConnectionTestQueuedResponse,
     ConnectionTestRequestBody,
     ConnectionTestResponse,
@@ -61,7 +60,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
-from airflow.models.connection_test import ConnectionTest, snapshot_connection
+from airflow.models.connection_test import ACTIVE_STATES, ConnectionTestRequest
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
@@ -79,10 +78,26 @@ def _ensure_test_connection_enabled() -> None:
         )
 
 
+def _check_no_active_test(connection_id: str, session: SessionDep) -> None:
+    """Raise 409 if there is an active connection test request for the given connection_id."""
+    active_test = session.scalar(
+        select(ConnectionTestRequest).filter(
+            ConnectionTestRequest.connection_id == connection_id,
+            ConnectionTestRequest.state.in_(ACTIVE_STATES),
+        )
+    )
+    if active_test is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Cannot modify connection `{connection_id}` while an async test is running. "
+            "This typically takes only a few seconds — please retry shortly.",
+        )
+
+
 @connections_router.delete(
     "/{connection_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
     dependencies=[Depends(requires_access_connection(method="DELETE")), Depends(action_logging())],
 )
 def delete_connection(
@@ -90,6 +105,8 @@ def delete_connection(
     session: SessionDep,
 ):
     """Delete a connection entry."""
+    _check_no_active_test(connection_id, session)
+
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
@@ -190,70 +207,6 @@ def bulk_connections(
 
 
 @connections_router.patch(
-    "/{connection_id}/test",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_400_BAD_REQUEST,
-            status.HTTP_403_FORBIDDEN,
-            status.HTTP_404_NOT_FOUND,
-        ]
-    ),
-    dependencies=[Depends(requires_access_connection(method="PUT")), Depends(action_logging())],
-)
-def patch_connection_and_test(
-    connection_id: str,
-    patch_body: ConnectionBody,
-    session: SessionDep,
-    update_mask: list[str] | None = Query(None),
-    executor: str | None = Query(None, description="Executor to route the connection test to"),
-    queue: str | None = Query(None, description="Queue to route the connection test to"),
-) -> ConnectionSaveAndTestResponse:
-    """
-    Update a connection and queue an async test with revert-on-failure.
-
-    Atomically saves the edit and creates a ConnectionTest with snapshots of the
-    pre-edit and post-edit state. If the test fails, the connection is automatically
-    reverted to its pre-edit values.
-    """
-    _ensure_test_connection_enabled()
-
-    if patch_body.connection_id != connection_id:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            "The connection_id in the request body does not match the URL parameter",
-        )
-
-    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
-    if connection is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"The Connection with connection_id: `{connection_id}` was not found",
-        )
-
-    try:
-        ConnectionBody(**patch_body.model_dump())
-    except ValidationError as e:
-        raise RequestValidationError(errors=e.errors())
-
-    pre_snapshot = snapshot_connection(connection)
-
-    update_orm_from_pydantic(connection, patch_body, update_mask)
-
-    post_snapshot = snapshot_connection(connection)
-
-    connection_test = ConnectionTest(connection_id=connection_id, executor=executor, queue=queue)
-    connection_test.connection_snapshot = {"pre": pre_snapshot, "post": post_snapshot}
-    session.add(connection_test)
-    session.flush()
-
-    return ConnectionSaveAndTestResponse(
-        connection=connection,
-        test_token=connection_test.token,
-        test_state=connection_test.state,
-    )
-
-
-@connections_router.patch(
     "/{connection_id}",
     responses=create_openapi_http_exception_doc(
         [
@@ -270,6 +223,8 @@ def patch_connection(
     update_mask: list[str] | None = Query(None),
 ) -> ConnectionResponse:
     """Update a connection entry."""
+    _check_no_active_test(connection_id, session)
+
     if patch_body.connection_id != connection_id:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
@@ -334,7 +289,7 @@ def test_connection(test_body: ConnectionBody) -> ConnectionTestResponse:
 @connections_router.post(
     "/test-async",
     status_code=status.HTTP_202_ACCEPTED,
-    responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN, status.HTTP_409_CONFLICT]),
     dependencies=[Depends(requires_access_connection(method="POST")), Depends(action_logging())],
 )
 def test_connection_async(
@@ -344,22 +299,27 @@ def test_connection_async(
     """
     Queue an async connection test to be executed on a worker.
 
-    The connection must already be saved. Returns a token that can be used
-    to poll for the test result via GET /connections/test-async/{token}.
+    The connection data is stored in the test request table and the worker
+    reads from there. Returns a token to poll for the result via
+    GET /connections/test-async/{token}.
     """
     _ensure_test_connection_enabled()
 
-    try:
-        Connection.get_connection_from_secrets(test_body.connection_id)
-    except AirflowNotFoundException:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"The Connection with connection_id: `{test_body.connection_id}` was not found. "
-            "Connection must be saved before testing.",
-        )
+    # Only one active test per connection_id at a time.
+    _check_no_active_test(test_body.connection_id, session)
 
-    connection_test = ConnectionTest(
-        connection_id=test_body.connection_id, executor=test_body.executor, queue=test_body.queue
+    connection_test = ConnectionTestRequest(
+        connection_id=test_body.connection_id,
+        conn_type=test_body.conn_type,
+        host=test_body.host,
+        login=test_body.login,
+        password=test_body.password,
+        schema=test_body.schema_,
+        port=test_body.port,
+        extra=test_body.extra,
+        commit_on_success=test_body.commit_on_success,
+        executor=test_body.executor,
+        queue=test_body.queue,
     )
     session.add(connection_test)
     session.flush()
@@ -376,7 +336,7 @@ def test_connection_async(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_connection(method="GET"))],
 )
-def get_connection_test_status(
+def get_connection_test(
     connection_test_token: str,
     session: SessionDep,
 ) -> ConnectionTestStatusResponse:
@@ -386,7 +346,7 @@ def get_connection_test_status(
     Knowledge of the token serves as authorization — only the client
     that initiated the test knows the crypto-random token.
     """
-    connection_test = session.scalar(select(ConnectionTest).filter_by(token=connection_test_token))
+    connection_test = session.scalar(select(ConnectionTestRequest).filter_by(token=connection_test_token))
 
     if connection_test is None:
         raise HTTPException(
@@ -400,7 +360,6 @@ def get_connection_test_status(
         state=connection_test.state,
         result_message=connection_test.result_message,
         created_at=connection_test.created_at,
-        reverted=connection_test.reverted,
     )
 
 

@@ -122,12 +122,12 @@ export const UseConnectionServiceGetConnectionsKeyFn = ({ connectionIdPattern, l
   offset?: number;
   orderBy?: string[];
 } = {}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionsKey, ...(queryKey ?? [{ connectionIdPattern, limit, offset, orderBy }])];
-export type ConnectionServiceGetConnectionTestStatusDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnectionTestStatus>>;
-export type ConnectionServiceGetConnectionTestStatusQueryResult<TData = ConnectionServiceGetConnectionTestStatusDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useConnectionServiceGetConnectionTestStatusKey = "ConnectionServiceGetConnectionTestStatus";
-export const UseConnectionServiceGetConnectionTestStatusKeyFn = ({ connectionTestToken }: {
+export type ConnectionServiceGetConnectionTestDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnectionTest>>;
+export type ConnectionServiceGetConnectionTestQueryResult<TData = ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionTestKey = "ConnectionServiceGetConnectionTest";
+export const UseConnectionServiceGetConnectionTestKeyFn = ({ connectionTestToken }: {
   connectionTestToken: string;
-}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionTestStatusKey, ...(queryKey ?? [{ connectionTestToken }])];
+}, queryKey?: Array<unknown>) => [useConnectionServiceGetConnectionTestKey, ...(queryKey ?? [{ connectionTestToken }])];
 export type ConnectionServiceHookMetaDataDefaultResponse = Awaited<ReturnType<typeof ConnectionService.hookMetaData>>;
 export type ConnectionServiceHookMetaDataQueryResult<TData = ConnectionServiceHookMetaDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceHookMetaDataKey = "ConnectionServiceHookMetaData";
@@ -948,7 +948,6 @@ export type BackfillServiceCancelBackfillMutationResult = Awaited<ReturnType<typ
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<ReturnType<typeof DagParsingService.reparseDagFile>>;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.patchConnection>>;
 export type ConnectionServiceBulkConnectionsMutationResult = Awaited<ReturnType<typeof ConnectionService.bulkConnections>>;
-export type ConnectionServicePatchConnectionAndTestMutationResult = Awaited<ReturnType<typeof ConnectionService.patchConnectionAndTest>>;
 export type DagRunServicePatchDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.patchDagRun>>;
 export type DagServicePatchDagsMutationResult = Awaited<ReturnType<typeof DagService.patchDags>>;
 export type DagServicePatchDagMutationResult = Awaited<ReturnType<typeof DagService.patchDag>>;

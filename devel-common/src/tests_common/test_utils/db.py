@@ -473,9 +473,9 @@ def clear_db_teams():
 def clear_db_connection_tests():
     with create_session() as session:
         if AIRFLOW_V_3_2_PLUS:
-            from airflow.models.connection_test import ConnectionTest
+            from airflow.models.connection_test import ConnectionTestRequest
 
-            session.execute(delete(ConnectionTest))
+            session.execute(delete(ConnectionTestRequest))
 
 
 @_retry_db

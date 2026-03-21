@@ -225,7 +225,7 @@ export const useConnectionServiceGetConnections = <TData = Common.ConnectionServ
   orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }, queryKey), queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData, ...options });
 /**
-* Get Connection Test Status
+* Get Connection Test
 * Poll for the status of an async connection test.
 *
 * Knowledge of the token serves as authorization — only the client
@@ -235,9 +235,9 @@ export const useConnectionServiceGetConnections = <TData = Common.ConnectionServ
 * @returns ConnectionTestStatusResponse Successful Response
 * @throws ApiError
 */
-export const useConnectionServiceGetConnectionTestStatus = <TData = Common.ConnectionServiceGetConnectionTestStatusDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ connectionTestToken }: {
+export const useConnectionServiceGetConnectionTest = <TData = Common.ConnectionServiceGetConnectionTestDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ connectionTestToken }: {
   connectionTestToken: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestStatusKeyFn({ connectionTestToken }, queryKey), queryFn: () => ConnectionService.getConnectionTestStatus({ connectionTestToken }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestKeyFn({ connectionTestToken }, queryKey), queryFn: () => ConnectionService.getConnectionTest({ connectionTestToken }) as TData, ...options });
 /**
 * Hook Meta Data
 * Retrieve information about available connection types (hook classes) and their parameters.
@@ -1845,8 +1845,9 @@ export const useConnectionServiceTestConnection = <TData = Common.ConnectionServ
 * Test Connection Async
 * Queue an async connection test to be executed on a worker.
 *
-* The connection must already be saved. Returns a token that can be used
-* to poll for the test result via GET /connections/test-async/{token}.
+* The connection data is stored in the test request table and the worker
+* reads from there. Returns a token to poll for the result via
+* GET /connections/test-async/{token}.
 * @param data The data for the request.
 * @param data.requestBody
 * @returns ConnectionTestQueuedResponse Successful Response
@@ -2117,35 +2118,6 @@ export const useConnectionServiceBulkConnections = <TData = Common.ConnectionSer
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: BulkBody_ConnectionBody_;
 }, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.bulkConnections({ requestBody }) as unknown as Promise<TData>, ...options });
-/**
-* Patch Connection And Test
-* Update a connection and queue an async test with revert-on-failure.
-*
-* Atomically saves the edit and creates a ConnectionTest with snapshots of the
-* pre-edit and post-edit state. If the test fails, the connection is automatically
-* reverted to its pre-edit values.
-* @param data The data for the request.
-* @param data.connectionId
-* @param data.requestBody
-* @param data.updateMask
-* @param data.executor Executor to route the connection test to
-* @param data.queue Queue to route the connection test to
-* @returns ConnectionSaveAndTestResponse Successful Response
-* @throws ApiError
-*/
-export const useConnectionServicePatchConnectionAndTest = <TData = Common.ConnectionServicePatchConnectionAndTestMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  connectionId: string;
-  executor?: string;
-  queue?: string;
-  requestBody: ConnectionBody;
-  updateMask?: string[];
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  connectionId: string;
-  executor?: string;
-  queue?: string;
-  requestBody: ConnectionBody;
-  updateMask?: string[];
-}, TContext>({ mutationFn: ({ connectionId, executor, queue, requestBody, updateMask }) => ConnectionService.patchConnectionAndTest({ connectionId, executor, queue, requestBody, updateMask }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Dag Run
 * Modify a DAG Run.

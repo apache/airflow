@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add connection_test table for async connection testing.
+Add connection_test_request table for async connection testing.
 
 Revision ID: a7e6d4c3b2f1
 Revises: 1d6611b6ab7c
@@ -41,31 +41,37 @@ airflow_version = "3.2.0"
 
 
 def upgrade():
-    """Create connection_test table."""
+    """Create connection_test_request table."""
     op.create_table(
-        "connection_test",
+        "connection_test_request",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("token", sa.String(64), nullable=False),
         sa.Column("connection_id", sa.String(250), nullable=False),
-        sa.Column("state", sa.String(10), nullable=False),
+        sa.Column("state", sa.String(20), nullable=False),
         sa.Column("result_message", sa.Text(), nullable=True),
         sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("updated_at", UtcDateTime(timezone=True), nullable=False),
         sa.Column("executor", sa.String(256), nullable=True),
         sa.Column("queue", sa.String(256), nullable=True),
-        sa.Column("connection_snapshot", sa.JSON(), nullable=True),
-        sa.Column("reverted", sa.Boolean(), nullable=False, server_default="0"),
-        sa.PrimaryKeyConstraint("id", name=op.f("connection_test_pkey")),
-        sa.UniqueConstraint("token", name=op.f("connection_test_token_uq")),
+        sa.Column("conn_type", sa.String(500), nullable=False),
+        sa.Column("host", sa.String(500), nullable=True),
+        sa.Column("login", sa.Text(), nullable=True),
+        sa.Column("password", sa.Text(), nullable=True),
+        sa.Column("schema", sa.String(500), nullable=True),
+        sa.Column("port", sa.Integer(), nullable=True),
+        sa.Column("extra", sa.Text(), nullable=True),
+        sa.Column("commit_on_success", sa.Boolean(), nullable=False, server_default="0"),
+        sa.PrimaryKeyConstraint("id", name=op.f("connection_test_request_pkey")),
+        sa.UniqueConstraint("token", name=op.f("connection_test_request_token_uq")),
     )
     op.create_index(
-        op.f("idx_connection_test_state_created_at"),
-        "connection_test",
+        op.f("idx_connection_test_request_state_created_at"),
+        "connection_test_request",
         ["state", "created_at"],
     )
 
 
 def downgrade():
-    """Drop connection_test table."""
-    op.drop_index(op.f("idx_connection_test_state_created_at"), table_name="connection_test")
-    op.drop_table("connection_test")
+    """Drop connection_test_request table."""
+    op.drop_index(op.f("idx_connection_test_request_state_created_at"), table_name="connection_test_request")
+    op.drop_table("connection_test_request")

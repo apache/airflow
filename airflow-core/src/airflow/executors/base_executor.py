@@ -322,11 +322,16 @@ class BaseExecutor(LoggingMixin):
         self.sync()
 
     def trigger_connection_tests(self) -> None:
-        """Process queued connection tests."""
+        """Process queued connection tests, respecting available slot capacity."""
         if not self.supports_connection_test or not self.queued_connection_tests:
             return
 
-        self._process_workloads(list(self.queued_connection_tests.values()))
+        available = self.slots_available
+        if available <= 0:
+            return
+
+        tests_to_run = list(self.queued_connection_tests.values())[:available]
+        self._process_workloads(tests_to_run)
 
     def _get_metric_name(self, metric_base_name: str) -> str:
         return (

@@ -83,6 +83,14 @@ class ConnectionTestRequestBody(StrictBaseModel):
     """Request body for async connection test."""
 
     connection_id: str
+    conn_type: str
+    host: str | None = None
+    login: str | None = None
+    schema_: str | None = Field(None, alias="schema")
+    port: int | None = None
+    password: str | None = None
+    extra: str | None = None
+    commit_on_success: bool = False
     executor: str | None = None
     queue: str | None = None
 
@@ -103,15 +111,6 @@ class ConnectionTestStatusResponse(BaseModel):
     state: str
     result_message: str | None = None
     created_at: datetime
-    reverted: bool = False
-
-
-class ConnectionSaveAndTestResponse(BaseModel):
-    """Response returned by the combined save-and-test endpoint."""
-
-    connection: ConnectionResponse
-    test_token: str
-    test_state: str
 
 
 class ConnectionHookFieldBehavior(BaseModel):

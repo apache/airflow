@@ -17,7 +17,9 @@
 
 from __future__ import annotations
 
-from airflow.api_fastapi.core_api.base import StrictBaseModel
+from pydantic import Field
+
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models.connection_test import ConnectionTestState
 
 
@@ -26,3 +28,16 @@ class ConnectionTestResultBody(StrictBaseModel):
 
     state: ConnectionTestState
     result_message: str | None = None
+
+
+class ConnectionTestConnectionResponse(BaseModel):
+    """Connection data returned to workers from a test request."""
+
+    conn_id: str
+    conn_type: str
+    host: str | None = None
+    login: str | None = None
+    password: str | None = None
+    schema_: str | None = Field(None, alias="schema")
+    port: int | None = None
+    extra: str | None = None
