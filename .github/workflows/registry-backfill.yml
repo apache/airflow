@@ -118,7 +118,7 @@ jobs:
           done
 
       - name: "Install uv"
-        uses: astral-sh/setup-uv@6ee6290f1cbc4156c0bdd66691b2c144ef8df19a  # v7.4.0
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
 
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
@@ -186,14 +186,14 @@ jobs:
             registry/src/_data/modules.json
 
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061  # v4.2.0
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320  # v5.0.0
         with:
           version: 9
 
       - name: "Setup Node.js"
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
           cache-dependency-path: 'registry/pnpm-lock.yaml'
 

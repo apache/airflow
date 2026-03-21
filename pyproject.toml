@@ -539,7 +539,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]; python_version !=\"3.14\"",
 ]
 "uv" = [
-    "uv>=0.10.10",
+    "uv>=0.10.12",
 ]
 
 [project.urls]
@@ -1473,20 +1473,6 @@ apache-airflow-providers-yandex = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
 # End of automatically generated provider workspace items
-
-# Ray v3 nightly wheels – direct S3 URLs so uv doesn't need a parseable find-links index.
-ray = [
-    { url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/671390966dc4081d68c4cd5cdb359b0b5773cb56/ray-3.0.0.dev0-cp314-cp314-manylinux2014_x86_64.whl", marker = "python_version == '3.14' and sys_platform == 'linux'" },
-]
-# cassandra-python-driver from GitHub trunk for Python 3.14 (no PyPI release yet)
-cassandra-driver = [
-    { git = "https://github.com/apache/cassandra-python-driver", branch = "trunk", marker = "python_version >= '3.14'" },
-]
-# Python 3.14 support in pluggy (and by extension, pytest) is expected in the next release after 1.6.0
-pluggy = [
-    { git = "https://github.com/pytest-dev/pluggy", rev = "97355a5a464af9c9eef51328ef43fb67145413dd", marker = "python_version == '3.14'" },
-]
-
 
 [tool.uv.workspace]
 members = [

@@ -16,13 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, HStack, Link as ChakraLink, List, Table, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
-import { useState, useCallback } from "react";
+import {
+  ActionBar,
+  Box,
+  Checkbox as ChakraCheckbox,
+  CloseButton,
+  Code,
+  HStack,
+  Link as ChakraLink,
+  List,
+  Portal,
+  Table,
+  Text,
+  type SelectValueChangeDetails,
+} from "@chakra-ui/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useUiServiceWorker } from "openapi/queries";
+import type { EdgeWorkerState, Worker } from "openapi/requests/types.gen";
 import { Link } from "react-router-dom";
 import { LuExternalLink } from "react-icons/lu";
 import TimeAgo from "react-timeago";
 
+import { BulkWorkerOperations } from "src/components/BulkWorkerOperations";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { WorkerOperations } from "src/components/WorkerOperations";
@@ -30,12 +45,12 @@ import { WorkerStateBadge } from "src/components/WorkerStateBadge";
 import { ScrollToAnchor, Select } from "src/components/ui";
 import { workerStateOptions } from "src/constants";
 import { autoRefreshInterval } from "src/utils";
-import type { EdgeWorkerState } from "openapi/requests/types.gen";
 
 export const WorkerPage = () => {
   const [workerNamePattern, setWorkerNamePattern] = useState("");
   const [queueNamePattern, setQueueNamePattern] = useState("");
   const [filteredState, setFilteredState] = useState<string[]>([]);
+  const [selectedWorkerNames, setSelectedWorkerNames] = useState<Set<string>>(new Set());
 
   const hasFilteredState = filteredState.length > 0;
 
@@ -51,6 +66,22 @@ export const WorkerPage = () => {
       refetchInterval: autoRefreshInterval,
     },
   );
+  const workers = useMemo(() => data?.workers ?? [], [data?.workers]);
+
+  useEffect(() => {
+    setSelectedWorkerNames((previousSelectedWorkers) => {
+      const availableWorkerNames = new Set(workers.map((worker) => worker.worker_name));
+      const nextSelectedWorkers = new Set(
+        [...previousSelectedWorkers].filter((workerName) => availableWorkerNames.has(workerName)),
+      );
+
+      if (nextSelectedWorkers.size === previousSelectedWorkers.size) {
+        return previousSelectedWorkers;
+      }
+
+      return nextSelectedWorkers;
+    });
+  }, [workers]);
 
   const handleWorkerSearchChange = (value: string) => {
     setWorkerNamePattern(value);
@@ -68,6 +99,41 @@ export const WorkerPage = () => {
     } else {
       setFilteredState(value.filter((state) => state !== "all"));
     }
+  }, []);
+  const selectedWorkers = useMemo<Array<Worker>>(
+    () => workers.filter((worker) => selectedWorkerNames.has(worker.worker_name)),
+    [selectedWorkerNames, workers],
+  );
+  const selectedWorkersCount = selectedWorkers.length;
+  const allWorkersSelected = workers.length > 0 && selectedWorkersCount === workers.length;
+  const someWorkersSelected = selectedWorkersCount > 0 && !allWorkersSelected;
+
+  const handleWorkerSelect = useCallback((workerName: string, selected: boolean) => {
+    setSelectedWorkerNames((previousSelectedWorkers) => {
+      const nextSelectedWorkers = new Set(previousSelectedWorkers);
+      if (selected) {
+        nextSelectedWorkers.add(workerName);
+      } else {
+        nextSelectedWorkers.delete(workerName);
+      }
+
+      return nextSelectedWorkers;
+    });
+  }, []);
+
+  const handleSelectAllWorkers = useCallback(
+    (selected: boolean) => {
+      if (selected) {
+        setSelectedWorkerNames(new Set(workers.map((worker) => worker.worker_name)));
+      } else {
+        setSelectedWorkerNames(new Set());
+      }
+    },
+    [workers],
+  );
+
+  const clearSelections = useCallback(() => {
+    setSelectedWorkerNames(new Set());
   }, []);
 
   return (
@@ -99,7 +165,7 @@ export const WorkerPage = () => {
           <Select.Trigger
             {...(hasFilteredState ? { clearable: true } : {})}
             colorPalette="brand"
-            isActive={Boolean(filteredState)}
+            isActive={hasFilteredState}
           >
             <Select.ValueText>
               {() =>
@@ -136,11 +202,21 @@ export const WorkerPage = () => {
         <Text as="div" pl={2} pt={1}>
           Loading...
         </Text>
-      ) : data.workers && data.workers.length > 0 ? (
+      ) : workers.length > 0 ? (
         <>
           <Table.Root size="sm" interactive stickyHeader striped>
             <Table.Header>
               <Table.Row>
+                <Table.ColumnHeader width="44px">
+                  <ChakraCheckbox.Root
+                    checked={allWorkersSelected ? true : someWorkersSelected ? "indeterminate" : false}
+                    colorPalette="brand"
+                    onCheckedChange={(event) => handleSelectAllWorkers(event.checked === true)}
+                  >
+                    <ChakraCheckbox.HiddenInput />
+                    <ChakraCheckbox.Control borderWidth={1} />
+                  </ChakraCheckbox.Root>
+                </Table.ColumnHeader>
                 <Table.ColumnHeader>Worker Name</Table.ColumnHeader>
                 <Table.ColumnHeader>State</Table.ColumnHeader>
                 <Table.ColumnHeader>Queues</Table.ColumnHeader>
@@ -152,8 +228,20 @@ export const WorkerPage = () => {
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {data.workers.map((worker) => (
+              {workers.map((worker) => (
                 <Table.Row key={worker.worker_name} id={worker.worker_name}>
+                  <Table.Cell>
+                    <ChakraCheckbox.Root
+                      checked={selectedWorkerNames.has(worker.worker_name)}
+                      colorPalette="brand"
+                      onCheckedChange={(event) =>
+                        handleWorkerSelect(worker.worker_name, event.checked === true)
+                      }
+                    >
+                      <ChakraCheckbox.HiddenInput />
+                      <ChakraCheckbox.Control borderWidth={1} />
+                    </ChakraCheckbox.Root>
+                  </Table.Cell>
                   <Table.Cell>{worker.worker_name}</Table.Cell>
                   <Table.Cell>
                     <WorkerStateBadge state={worker.state}>{worker.state}</WorkerStateBadge>
@@ -222,6 +310,26 @@ export const WorkerPage = () => {
           how to deploy a new worker.
         </Text>
       )}
+      <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedWorkersCount)}>
+        <Portal>
+          <ActionBar.Positioner>
+            <ActionBar.Content>
+              <ActionBar.SelectionTrigger>
+                {selectedWorkersCount} selected
+              </ActionBar.SelectionTrigger>
+              <ActionBar.Separator />
+              <BulkWorkerOperations
+                onClearSelection={clearSelections}
+                onOperations={refetch}
+                selectedWorkers={selectedWorkers}
+              />
+              <ActionBar.CloseTrigger asChild onClick={clearSelections}>
+                <CloseButton size="sm" />
+              </ActionBar.CloseTrigger>
+            </ActionBar.Content>
+          </ActionBar.Positioner>
+        </Portal>
+      </ActionBar.Root>
     </Box>
   );
 };

@@ -36,7 +36,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.10, 3.11, 3.12, 3.13)
+* Python (One of: 3.10, 3.11, 3.12, 3.13, 3.14)
 * MySQL 5.7+
 * libxml
 * helm (only for helm chart tests)
