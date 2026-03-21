@@ -113,8 +113,7 @@ const runColumns = (
           cell: ({ row: { original } }: DagRunRow) => (
             <Link asChild color="fg.info">
               <RouterLink to={`/dags/${original.dag_id}`}>
-                <TruncatedText text={original.dag_display_name} />
-              </RouterLink>
+                <TruncatedText text={original.dag_display_name} />             </RouterLink>
             </Link>
           ),
           enableSorting: false,
@@ -306,7 +305,7 @@ export const DagRuns = () => {
   const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
       data: data?.dag_runs,
-      getKey: (run) => run.dag_run_id,
+      getKey: (run) => `${run.dag_id}:${run.dag_run_id}`,
     });
 
   const columns = runColumns(translate, dagId, {
