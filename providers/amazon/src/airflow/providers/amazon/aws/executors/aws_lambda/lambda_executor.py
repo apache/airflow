@@ -20,7 +20,7 @@ import json
 import time
 from collections import deque
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias, cast
 
 from boto3.session import NoCredentialsError
 from botocore.utils import ClientError
@@ -40,7 +40,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 
 if TYPE_CHECKING:
@@ -49,29 +49,39 @@ if TYPE_CHECKING:
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
 
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.executors.workloads.types import WorkloadKey as _WorkloadKey
+
+        WorkloadKey: TypeAlias = _WorkloadKey
+    else:
+        WorkloadKey: TypeAlias = TaskInstanceKey  # type: ignore[no-redef, misc]
+
 
 class AwsLambdaExecutor(BaseExecutor):
     """
-    An Airflow Executor that submits tasks to AWS Lambda asynchronously.
+    An Airflow Executor that submits workloads (tasks and callbacks) to AWS Lambda asynchronously.
 
     When execute_async() is called, the executor invokes a specified AWS Lambda function (asynchronously)
-    with a payload that includes the task command and a unique task key.
+    with a payload that includes the workload command and a unique workload key.
 
     The Lambda function writes its result directly to an SQS queue, which is then polled by this executor
-    to update task state in Airflow.
+    to update workload state in Airflow.
     """
 
     supports_multi_team: bool = True
 
+    if AIRFLOW_V_3_2_PLUS:
+        supports_callbacks: bool = True
+
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
         # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor
-        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
+        # TODO: TaskSDK: move this type change into BaseExecutor.
+        queued_tasks: dict[WorkloadKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.pending_tasks: deque = deque()
-        self.running_tasks: dict[str, TaskInstanceKey] = {}
+        self.pending_workloads: deque = deque()
+        self.running_workloads: dict[str, WorkloadKey] = {}
 
         # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
         # configuration object. This allows the changes to be backwards compatible with older versions of
@@ -137,7 +147,7 @@ class AwsLambdaExecutor(BaseExecutor):
 
         self.log.info("Checking Lambda and SQS connections")
         try:
-            # Check Lambda health
+            # Check Lambda health.
             lambda_get_response = self.lambda_client.get_function(FunctionName=self.lambda_function_name)
             if self.lambda_function_name not in lambda_get_response["Configuration"]["FunctionName"]:
                 raise AirflowException("Lambda function %s not found.", self.lambda_function_name)
@@ -145,12 +155,12 @@ class AwsLambdaExecutor(BaseExecutor):
                 "Lambda connection is healthy and function %s is present.", self.lambda_function_name
             )
 
-            # Check SQS results queue
+            # Check SQS results queue.
             _check_queue(self.sqs_queue_url)
-            # Check SQS dead letter queue
+            # Check SQS dead letter queue.
             _check_queue(self.dlq_url)
 
-            # If we reach this point, both connections are healthy and all resources are present
+            # If we reach this point, both connections are healthy and all resources are present.
             self.IS_BOTO_CONNECTION_HEALTHY = True
         except Exception:
             self.log.exception("Lambda Executor health check failed")
@@ -179,9 +189,9 @@ class AwsLambdaExecutor(BaseExecutor):
 
     def sync(self):
         """
-        Sync the executor with the current state of tasks.
+        Sync the executor with the current state of workloads.
 
-        Check in on currently running tasks and attempt to run any new tasks that have been queued.
+        Check in on currently running tasks and callbacks and attempt to run any new workloads that have been queued.
         """
         if not self.IS_BOTO_CONNECTION_HEALTHY:
             exponential_backoff_retry(
@@ -192,8 +202,8 @@ class AwsLambdaExecutor(BaseExecutor):
             if not self.IS_BOTO_CONNECTION_HEALTHY:
                 return
         try:
-            self.sync_running_tasks()
-            self.attempt_task_runs()
+            self.sync_running_workloads()
+            self.attempt_workload_runs()
         except (ClientError, NoCredentialsError) as error:
             error_code = error.response["Error"]["Code"]
             if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
@@ -202,90 +212,144 @@ class AwsLambdaExecutor(BaseExecutor):
                     "AWS credentials are either missing or expired: %s.\nRetrying connection", error
                 )
         except Exception:
-            self.log.exception("An error occurred while syncing tasks")
+            self.log.exception("An error occurred while syncing workloads.")
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
 
-        if not isinstance(workload, workloads.ExecuteTask):
+        if isinstance(workload, workloads.ExecuteTask):
+            ti = workload.ti
+            self.queued_tasks[ti.key] = workload
+            return
+
+        if AIRFLOW_V_3_2_PLUS and isinstance(workload, workloads.ExecuteCallback):
+            self.queued_callbacks[workload.callback.id] = workload
+            return
+
+        raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+
+    def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
+        from airflow.executors import workloads
+
+        for workload in workload_items:
+            queue: str | None
+            key: WorkloadKey
+            command: CommandType
+            if isinstance(workload, workloads.ExecuteTask):
+                command = [workload]
+                key = workload.ti.key
+                queue = workload.ti.queue
+                executor_config = workload.ti.executor_config or {}
+
+                del self.queued_tasks[key]
+
+                self.execute_async(
+                    key=key,
+                    command=command,
+                    queue=queue,
+                    executor_config=executor_config,
+                )
+
+                self.running.add(key)
+                continue
+
+            if AIRFLOW_V_3_2_PLUS and isinstance(workload, workloads.ExecuteCallback):
+                command = [workload]
+                key = workload.callback.id
+                queue = None
+
+                if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
+                    queue = workload.callback.data["queue"]
+
+                del self.queued_callbacks[key]
+
+                self.execute_async(
+                    key=key,
+                    command=command,
+                    queue=queue,
+                )
+
+                self.running.add(key)
+                continue
+
             raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload
 
-    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
-        from airflow.executors.workloads import ExecuteTask
-
-        for w in workloads:
-            if not isinstance(w, ExecuteTask):
-                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
-
-            command = [w]
-            key = w.ti.key
-            queue = w.ti.queue
-            executor_config = w.ti.executor_config or {}
-
-            del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
-            self.running.add(key)
-
-    def execute_async(self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None):
+    def execute_async(
+        self,
+        key: WorkloadKey,
+        command: CommandType,
+        queue=None,
+        executor_config=None,
+    ):
         """
-        Save the task to be executed in the next sync by inserting the commands into a queue.
+        Save the workload to be executed in the next sync by inserting the commands into a queue.
 
-        :param key: A unique task key (typically a tuple identifying the task instance).
-        :param command: The shell command string to execute.
+        :param key: Unique workload key. Task workloads use TaskInstanceKey, callback workloads use a string id.
+        :param command: The workload command or serialized shell command to execute.
         :param executor_config:  (Unused) to keep the same signature as the base.
         :param queue: (Unused) to keep the same signature as the base.
         """
         if len(command) == 1:
-            from airflow.executors.workloads import ExecuteTask
+            from airflow.executors import workloads
 
-            if isinstance(command[0], ExecuteTask):
-                workload = command[0]
-                ser_input = workload.model_dump_json()
-                command = [
-                    "python",
-                    "-m",
-                    "airflow.sdk.execution_time.execute_workload",
-                    "--json-string",
-                    ser_input,
-                ]
+            workload = command[0]
+
+            if AIRFLOW_V_3_2_PLUS:
+                if not isinstance(workload, (workloads.ExecuteTask, workloads.ExecuteCallback)):
+                    raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
             else:
-                raise RuntimeError(
-                    f"LambdaExecutor doesn't know how to handle workload of type: {type(command[0])}"
-                )
+                if not isinstance(workload, workloads.ExecuteTask):
+                    raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
-        self.pending_tasks.append(
+            ser_input = workload.model_dump_json()
+
+            command = [
+                "python",
+                "-m",
+                "airflow.sdk.execution_time.execute_workload",
+                "--json-string",
+                ser_input,
+            ]
+
+        self.pending_workloads.append(
             LambdaQueuedTask(
                 key, command, queue if queue else "", executor_config or {}, 1, timezone.utcnow()
             )
         )
 
-    def attempt_task_runs(self):
+    def attempt_workload_runs(self):
         """
-        Attempt to run tasks that are queued in the pending_tasks.
+        Attempt to run workloads that are queued in the pending_workloads.
 
-        Each task is submitted to AWS Lambda with a payload containing the task key and command.
-        The task key is used to track the task's state in Airflow.
+        Each workload is submitted to AWS Lambda with a payload containing the workload key and command.
+        The workload key is used to track the workload's state in Airflow.
         """
-        queue_len = len(self.pending_tasks)
+        queue_len = len(self.pending_workloads)
         for _ in range(queue_len):
-            task_to_run = self.pending_tasks.popleft()
-            task_key = task_to_run.key
-            cmd = task_to_run.command
-            attempt_number = task_to_run.attempt_number
+            workload_to_run = self.pending_workloads.popleft()
+            workload_key = workload_to_run.key
+            cmd = workload_to_run.command
+            attempt_number = workload_to_run.attempt_number
             failure_reasons = []
-            ser_task_key = json.dumps(task_key._asdict())
+
+            try:
+                ser_workload_key = json.dumps(workload_key._asdict())
+            except AttributeError:
+                # Callback workloads use string id.
+                ser_workload_key = workload_key
+
             payload = {
-                "task_key": ser_task_key,
+                "task_key": ser_workload_key,
                 "command": cmd,
-                "executor_config": task_to_run.executor_config,
+                "executor_config": workload_to_run.executor_config,
             }
-            if timezone.utcnow() < task_to_run.next_attempt_time:
-                self.pending_tasks.append(task_to_run)
+            if timezone.utcnow() < workload_to_run.next_attempt_time:
+                self.pending_workloads.append(workload_to_run)
                 continue
 
-            self.log.info("Submitting task %s to Lambda function %s", task_key, self.lambda_function_name)
+            self.log.info(
+                "Submitting workload %s to Lambda function %s", workload_key, self.lambda_function_name
+            )
 
             try:
                 invoke_kwargs = {
@@ -297,12 +361,12 @@ class AwsLambdaExecutor(BaseExecutor):
                     invoke_kwargs["Qualifier"] = self.qualifier
                 response = self.lambda_client.invoke(**invoke_kwargs)
             except NoCredentialsError:
-                self.pending_tasks.append(task_to_run)
+                self.pending_workloads.append(workload_to_run)
                 raise
             except ClientError as e:
                 error_code = e.response["Error"]["Code"]
                 if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
-                    self.pending_tasks.append(task_to_run)
+                    self.pending_workloads.append(workload_to_run)
                     raise
                 failure_reasons.append(str(e))
             except Exception as e:
@@ -313,59 +377,59 @@ class AwsLambdaExecutor(BaseExecutor):
                 failure_reasons.append(str(e))
 
             if failure_reasons:
-                # Make sure the number of attempts does not exceed max invoke attempts
+                # Make sure the number of attempts does not exceed max invoke attempts.
                 if int(attempt_number) < int(self.max_invoke_attempts):
-                    task_to_run.attempt_number += 1
-                    task_to_run.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
+                    workload_to_run.attempt_number += 1
+                    workload_to_run.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
                         attempt_number
                     )
-                    self.pending_tasks.append(task_to_run)
+                    self.pending_workloads.append(workload_to_run)
                 else:
                     reasons_str = ", ".join(failure_reasons)
                     self.log.error(
                         "Lambda invoke %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
-                        task_key,
+                        workload_key,
                         attempt_number,
                         reasons_str,
                     )
                     self.log_task_event(
                         event="lambda invoke failure",
-                        ti_key=task_key,
+                        ti_key=workload_key,
                         extra=(
-                            f"Task could not be queued after {attempt_number} attempts. "
+                            f"Workload could not be queued after {attempt_number} attempts. "
                             f"Marking as failed. Reasons: {reasons_str}"
                         ),
                     )
-                    self.fail(task_key)
+                    self.fail(workload_key)
             else:
                 status_code = response.get("StatusCode")
-                self.log.info("Invoked Lambda for task %s with status %s", task_key, status_code)
-                self.running_tasks[ser_task_key] = task_key
-                # Add the serialized task key as the info, this will be assigned on the ti as the external_executor_id
-                self.running_state(task_key, ser_task_key)
+                self.log.info("Invoked Lambda for workload %s with status %s", workload_key, status_code)
+                self.running_workloads[ser_workload_key] = workload_key
+                # Add the serialized workload key as the info, this will be assigned on the ti as the external_executor_id.
+                self.running_state(workload_key, ser_workload_key)
 
-    def sync_running_tasks(self):
+    def sync_running_workloads(self):
         """
-        Poll the SQS queue for messages indicating task completion.
+        Poll the SQS queue for messages indicating workload completion.
 
         Each message is expected to contain a JSON payload with 'task_key' and 'return_code'.
-        Based on the return code, update the task state accordingly.
+        Based on the return code, update the workload state accordingly.
         """
-        if not len(self.running_tasks):
-            self.log.debug("No running tasks to process.")
+        if not len(self.running_workloads):
+            self.log.debug("No running workloads to process.")
             return
 
         self.process_queue(self.sqs_queue_url)
-        if self.dlq_url and self.running_tasks:
+        if self.dlq_url and self.running_workloads:
             self.process_queue(self.dlq_url)
 
     def process_queue(self, queue_url: str):
         """
-        Poll the SQS queue for messages indicating task completion.
+        Poll the SQS queue for messages indicating workload completion.
 
         Each message is expected to contain a JSON payload with 'task_key' and 'return_code'.
 
-        Based on the return code, update the task state accordingly.
+        Based on the return code, update the workload state accordingly.
         """
         response = self.sqs_client.receive_message(
             QueueUrl=queue_url,
@@ -406,17 +470,17 @@ class AwsLambdaExecutor(BaseExecutor):
                 continue
             return_code = body.get("return_code")
             ser_task_key = body.get("task_key")
-            # Fetch the real task key from the running_tasks dict, using the serialized task key.
+            # Fetch the real task key from the running_workloads dict, using the serialized task key.
             try:
-                task_key = self.running_tasks[ser_task_key]
+                workload_key = self.running_workloads[ser_task_key]
             except KeyError:
                 self.log.debug(
-                    "Received task %s from the queue which is not found in running tasks, it is likely "
+                    "Received workload %s from the queue which is not found in running workloads, it is likely "
                     "from another Lambda Executor sharing this queue or might be a stale message that needs "
                     "deleting manually. Marking the message as visible again.",
                     ser_task_key,
                 )
-                # Mark task as visible again in SQS so that another executor can pick it up.
+                # Mark workload as visible again in SQS so that another executor can pick it up.
                 self.sqs_client.change_message_visibility(
                     QueueUrl=queue_url,
                     ReceiptHandle=receipt_handle,
@@ -424,42 +488,42 @@ class AwsLambdaExecutor(BaseExecutor):
                 )
                 continue
 
-            if task_key:
+            if workload_key:
                 if return_code == 0:
-                    self.success(task_key)
+                    self.success(cast("TaskInstanceKey", workload_key))
                     self.log.info(
-                        "Successful Lambda invocation for task %s received from SQS queue.", task_key
+                        "Successful Lambda invocation for workload %s received from SQS queue.",
+                        workload_key,
                     )
                 else:
-                    self.fail(task_key)
+                    self.fail(cast("TaskInstanceKey", workload_key))
                     if queue_url == self.dlq_url and return_code is None:
-                        # DLQ failure: AWS Lambda service could not complete the invocation after retries.
-                        # This indicates a Lambda-level failure (timeout, memory limit, crash, etc.)
-                        # where the function was unable to successfully execute to return a result.
                         self.log.error(
-                            "DLQ message received: Lambda invocation for task: %s was unable to successfully execute. This likely indicates a Lambda-level failure (timeout, memory limit, crash, etc.).",
-                            task_key,
+                            "DLQ message received: Lambda invocation for workload %s was unable to "
+                            "successfully execute. This likely indicates a Lambda-level failure "
+                            "(timeout, memory limit, crash, etc.).",
+                            workload_key,
                         )
                     else:
-                        # In this case the Lambda likely started but failed at run time since we got a non-zero
-                        # return code. We could consider retrying these tasks within the executor, because this _likely_
-                        # means the Airflow task did not run to completion, however we can't be sure (maybe the
-                        # lambda runtime code has a bug and is returning a non-zero when it actually passed?). So
-                        # perhaps not retrying is the safest option.
                         self.log.debug(
-                            "Lambda invocation for task: %s completed but the underlying Airflow task has returned a non-zero exit code %s",
-                            task_key,
+                            "Lambda invocation for workload %s returned a non-zero exit code %s",
+                            workload_key,
                             return_code,
                         )
-                # Remove the task from the tracking mapping.
-                self.running_tasks.pop(ser_task_key)
+
+                # Remove the workload from the tracking mapping.
+                self.running_workloads.pop(ser_task_key)
 
             # Delete the message from the queue.
             self.sqs_client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
-        Adopt task instances which have an external_executor_id (the serialized task key).
+        Adopt task instances which have an external_executor_id (the serialized workload key).
+
+        The external_executor_id represents the workload identifier. In legacy executors (Airflow < 3.2)
+        this is the serialized TaskInstanceKey. In the workload-based executor model (Airflow ≥ 3.2)
+        this corresponds to the WorkloadKey.
 
         Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
 
@@ -468,19 +532,18 @@ class AwsLambdaExecutor(BaseExecutor):
         with Stats.timer("lambda_executor.adopt_task_instances.duration"):
             adopted_tis: list[TaskInstance] = []
 
-            if serialized_task_keys := [
+            if serialized_workload_keys := [
                 (ti, ti.external_executor_id) for ti in tis if ti.external_executor_id
             ]:
-                for ti, ser_task_key in serialized_task_keys:
+                for ti, ser_workload_key in serialized_workload_keys:
                     try:
-                        task_key = TaskInstanceKey.from_dict(json.loads(ser_task_key))
+                        data = json.loads(ser_workload_key)
+                        workload_key = TaskInstanceKey.from_dict(data)
                     except Exception:
-                        # If that task fails to deserialize, we should just skip it.
-                        self.log.exception(
-                            "Task failed to be adopted because the key could not be deserialized"
-                        )
-                        continue
-                    self.running_tasks[ser_task_key] = task_key
+                        # Callback workloads use string keys.
+                        workload_key = ser_workload_key
+
+                    self.running_workloads[ser_workload_key] = workload_key
                     adopted_tis.append(ti)
 
             if adopted_tis:
@@ -497,14 +560,14 @@ class AwsLambdaExecutor(BaseExecutor):
 
     def end(self, heartbeat_interval=10):
         """
-        End execution. Poll until all outstanding tasks are marked as completed.
+        End execution. Poll until all outstanding workloads are marked as completed.
 
-        This is a blocking call and async Lambda tasks can not be cancelled, so this will wait until
-        all tasks are either completed or the timeout is reached.
+        This is a blocking call and async Lambda workloads cannot be cancelled, so this will wait until
+        all workloads are either completed or the timeout is reached.
 
-        :param heartbeat_interval: The interval in seconds to wait between checks for task completion.
+        :param heartbeat_interval: The interval in seconds to wait between checks for workload completion.
         """
-        self.log.info("Received signal to end, waiting for outstanding tasks to finish.")
+        self.log.info("Received signal to end, waiting for outstanding workloads to finish.")
         time_to_wait = int(
             self.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT, fallback="0")
         )
@@ -515,17 +578,17 @@ class AwsLambdaExecutor(BaseExecutor):
                 elapsed_time = (current_time - start_time).total_seconds()
                 if elapsed_time > time_to_wait:
                     self.log.warning(
-                        "Timed out waiting for tasks to finish. Some tasks may not be handled gracefully"
+                        "Timed out waiting for workloads to finish. Some workloads may not be handled gracefully"
                         " as the executor is force ending due to timeout."
                     )
                     break
             self.sync()
-            if not self.running_tasks:
-                self.log.info("All tasks completed; executor ending.")
+            if not self.running_workloads:
+                self.log.info("All workloads completed; executor ending.")
                 break
-            self.log.info("Waiting for %d task(s) to complete.", len(self.running_tasks))
+            self.log.info("Waiting for %d workload(s) to complete.", len(self.running_workloads))
             time.sleep(heartbeat_interval)
 
     def terminate(self):
         """Get called when the daemon receives a SIGTERM."""
-        self.log.warning("Terminating Lambda executor. In-flight tasks cannot be stopped.")
+        self.log.warning("Terminating Lambda executor. In-flight workloads cannot be stopped.")
