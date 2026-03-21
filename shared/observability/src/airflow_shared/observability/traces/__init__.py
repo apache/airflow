@@ -81,7 +81,7 @@ def build_trace_state_entries(task_span_detail_level) -> list[tuple[str, str]]:
     if task_span_detail_level:
         try:
             level = int(task_span_detail_level)
-        except ValueError:
+        except Exception:
             level = None
         if level:
             trace_state_entries.append((TASK_SPAN_DETAIL_LEVEL_KEY, str(level)))
@@ -94,7 +94,7 @@ def get_task_span_detail_level(span: Span):
     try:
         return int(trace_state.get(TASK_SPAN_DETAIL_LEVEL_KEY, default=DEFAULT_TASK_SPAN_DETAIL_LEVEL))
     except Exception:
-        log.warning("Task")
+        log.warning("%s config in dag run conf must be integer.", TASK_SPAN_DETAIL_LEVEL_KEY)
         return DEFAULT_TASK_SPAN_DETAIL_LEVEL
 
 

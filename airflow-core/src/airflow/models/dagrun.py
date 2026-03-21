@@ -1244,7 +1244,10 @@ class DagRun(Base, LoggingMixin):
                 self.data_interval_end,
             )
             session.flush()
-            self._emit_dagrun_span(state=self.state)
+            try:
+                self._emit_dagrun_span(state=self.state)
+            except Exception:
+                self.log.warning("Failed to emit dag run span", exc_info=True)
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)
         self._emit_duration_stats_for_finished_state()

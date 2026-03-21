@@ -523,7 +523,10 @@ def _create_ti_state_update_query_and_update_state(
                     ti_patch_payload.outlet_events,
                     session,
                 )
-        _emit_task_span(ti, state=updated_state)
+        try:
+            _emit_task_span(ti, state=updated_state)
+        except Exception:
+            log.warning("Failed to emit task span", exc_info=True)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
         timeout = None
