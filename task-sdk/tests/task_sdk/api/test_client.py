@@ -1676,10 +1676,8 @@ class TestDagsOperations:
 
         assert exc_info.value.response.status_code == 404
         assert exc_info.value.detail == {
-            "detail": {
-                "message": "The Dag with dag_id: `missing_dag` was not found",
-                "reason": "not_found",
-            }
+            "message": "The Dag with dag_id: `missing_dag` was not found",
+            "reason": "not_found",
         }
 
     def test_get_server_error(self):
