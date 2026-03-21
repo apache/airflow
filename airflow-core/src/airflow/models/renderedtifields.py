@@ -194,6 +194,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
     def get_templated_fields(
         cls,
         ti: TaskInstance | TaskInstanceKey,
+        *,
         session: Session = NEW_SESSION,
     ) -> dict | None:
         """
@@ -219,7 +220,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @classmethod
     @provide_session
-    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
+    def get_k8s_pod_yaml(cls, ti: TaskInstance, *, session: Session = NEW_SESSION) -> dict | None:
         """
         Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields table.
 
@@ -239,7 +240,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @provide_session
     @retry_db_transaction
-    def write(self, session: Session):
+    def write(self, *, session: Session = NEW_SESSION):
         """
         Write instance to database.
 
@@ -253,6 +254,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         cls,
         task_id: str,
         dag_id: str,
+        *,
         num_to_keep: int = conf.getint("core", "num_dag_runs_to_retain_rendered_fields", fallback=0),
         session: Session = NEW_SESSION,
     ) -> None:

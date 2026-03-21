@@ -435,3 +435,28 @@ class TestRenderedTaskInstanceFields:
         ti.state = None
         # rerun the old run. this shouldn't fail
         dag_maker.run_ti(task.task_id, dr)
+
+    def test_get_templated_fields_positional_fails(self):
+        ti = mock.MagicMock()
+        with pytest.raises(TypeError) as exc:
+            RTIF.get_templated_fields(ti, None)
+        assert "takes 2 positional arguments but 3" in str(exc.value)
+
+    def test_get_k8s_pod_yaml_positional_fails(self):
+        ti = mock.MagicMock()
+        with pytest.raises(TypeError) as exc:
+            RTIF.get_k8s_pod_yaml(ti, None)
+        assert "takes 2 positional arguments but 3" in str(exc.value)
+
+    def test_write_positional_fails(self):
+        ti = mock.MagicMock()
+        ti.task.template_fields = []
+        rtif = RTIF(ti=ti, render_templates=False)
+        with pytest.raises(TypeError) as exc:
+            rtif.write(None)
+        assert "takes 1 positional argument but 2" in str(exc.value)
+
+    def test_delete_old_records_positional_fails(self):
+        with pytest.raises(TypeError) as exc:
+            RTIF.delete_old_records("task", "dag", 5, None)
+        assert "takes 3 positional arguments but 5" in str(exc.value)
