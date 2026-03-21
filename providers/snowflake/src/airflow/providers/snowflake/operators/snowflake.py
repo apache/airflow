@@ -350,6 +350,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     :param bindings: (Optional) Values of bind variables in the SQL statement.
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
+    :param timeout: (Optional) Timeout in seconds for statement execution.
+            If not set, the timeout specified by STATEMENT_TIMEOUT_IN_SECONDS is used.
+            To set the timeout to the maximum value (604800 seconds), set timeout to 0.
     :param deferrable: Run operator in the deferrable mode.
     :param snowflake_api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
     """
@@ -377,6 +380,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         token_life_time: timedelta = LIFETIME,
         token_renewal_delta: timedelta = RENEWAL_DELTA,
         bindings: dict[str, Any] | None = None,
+        timeout: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         snowflake_api_retry_args: dict[str, Any] | None = None,
         **kwargs: Any,
@@ -387,6 +391,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         self.token_life_time = token_life_time
         self.token_renewal_delta = token_renewal_delta
         self.bindings = bindings
+        self.timeout = timeout
         self.execute_async = False
         self.snowflake_api_retry_args = snowflake_api_retry_args or {}
         self.deferrable = deferrable
@@ -423,9 +428,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         """
         self.log.info("Executing: %s", self.sql)
         self.query_ids = self._hook.execute_query(
-            self.sql,
-            statement_count=self.statement_count,
-            bindings=self.bindings,
+            self.sql, statement_count=self.statement_count, bindings=self.bindings, timeout=self.timeout
         )
         self.log.info("List of query ids %s", self.query_ids)
 

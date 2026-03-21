@@ -432,6 +432,30 @@ class TestSnowflakeSqlApiHook:
                 "Bindings are not supported for multi-statement queries. Bindings will be ignored."
             )
 
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(f"{HOOK_PATH}.get_headers")
+    def test_execute_query_with_timeout(
+        self,
+        mock_get_headers,
+        mock_conn_params,
+        mock_requests,
+    ):
+        """Test execute_query method with timeout value set"""
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_get_headers.return_value = HEADERS
+        mock_requests.codes.ok = 200
+        mock_requests.request.side_effect = [
+            create_successful_response_mock({"statementHandle": "uuid"}),
+        ]
+
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        hook.execute_query(sql=SINGLE_STMT, statement_count=1, timeout=120)
+
+        call_kwargs = mock_requests.request.call_args
+        payload = call_kwargs.kwargs["json"]
+        assert "timeout" in payload
+        assert payload["timeout"] == 120
+
     @pytest.mark.parametrize(
         "query_ids",
         [
