@@ -37,7 +37,6 @@ from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.models.callback import CallbackFetchMethod
 from airflow.models.connection_test import ConnectionTestState
 from airflow.sdk.api.datamodels._generated import ConnectionResponse
-from airflow.sdk.execution_time.comms import ErrorResponse
 from airflow.settings import Session
 from airflow.utils.state import State
 
@@ -393,7 +392,7 @@ class TestLocalExecutorConnectionTestExecution:
     def test_successful_connection_test(self, MockClient, _mock_signal):
         """Fetches connection via Execution API, runs test, reports SUCCESS."""
         mock_client = MockClient.return_value
-        mock_client.connections.get.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
             conn_id="test_conn",
             conn_type="http",
             host="httpbin.org",
@@ -426,7 +425,7 @@ class TestLocalExecutorConnectionTestExecution:
     def test_failed_connection_test(self, MockClient, _mock_signal):
         """Fetches connection via Execution API, test fails, reports FAILED."""
         mock_client = MockClient.return_value
-        mock_client.connections.get.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
             conn_id="test_conn",
             conn_type="postgres",
             host="db.example.com",
@@ -456,9 +455,9 @@ class TestLocalExecutorConnectionTestExecution:
         assert calls[1].args == (test_id, ConnectionTestState.FAILED, "Connection refused")
 
     def test_connection_not_found_via_execution_api(self, MockClient, _mock_signal):
-        """Reports FAILED when connection is not found via Execution API."""
+        """Reports FAILED when connection test is not found via Execution API."""
         mock_client = MockClient.return_value
-        mock_client.connections.get.return_value = ErrorResponse(detail={"conn_id": "missing_conn"})
+        mock_client.connection_tests.get_connection.side_effect = RuntimeError("Connection test not found")
 
         test_id = uuid7()
         workload = workloads.TestConnection(
@@ -481,7 +480,7 @@ class TestLocalExecutorConnectionTestExecution:
     def test_unexpected_exception_reports_failed(self, MockClient, _mock_signal):
         """Reports FAILED when an unexpected exception occurs."""
         mock_client = MockClient.return_value
-        mock_client.connections.get.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
             conn_id="test_conn",
             conn_type="http",
         )
@@ -506,12 +505,12 @@ class TestLocalExecutorConnectionTestExecution:
 
         calls = mock_client.connection_tests.update_state.call_args_list
         assert calls[-1].args[1] == ConnectionTestState.FAILED
-        assert "Connection test failed unexpectedly: Something broke" in calls[-1].args[2]
+        assert "Connection test failed unexpectedly: RuntimeError" in calls[-1].args[2]
 
     def test_connection_fields_passed_correctly(self, MockClient, _mock_signal):
         """Verifies all connection fields from the API response are passed to Connection."""
         mock_client = MockClient.return_value
-        mock_client.connections.get.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
             conn_id="full_conn",
             conn_type="postgres",
             host="db.example.com",
@@ -559,7 +558,7 @@ class TestLocalExecutorConnectionTestExecution:
     def test_timeout_reports_failed(self, MockClient, _mock_signal):
         """Reports FAILED with timeout message when TimeoutError is raised."""
         mock_client = MockClient.return_value
-        mock_client.connections.get.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
             conn_id="test_conn",
             conn_type="http",
         )
@@ -592,7 +591,7 @@ class TestLocalExecutorConnectionTestExecution:
     def test_alarm_is_cancelled_in_finally(self, MockClient, mock_signal):
         """signal.alarm(0) is called to cancel the timer even on success."""
         mock_client = MockClient.return_value
-        mock_client.connections.get.return_value = ConnectionResponse(
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
             conn_id="test_conn",
             conn_type="http",
         )

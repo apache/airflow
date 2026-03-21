@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.models.connection_test import ConnectionTest, ConnectionTestState
+from airflow.models.connection_test import ConnectionTestRequest, ConnectionTestState
 
 from tests_common.test_utils.db import clear_db_connection_tests
 
@@ -43,7 +43,7 @@ class TestConnectionTestEndpointVersioning:
 
     def test_old_version_returns_404(self, old_ver_client, session):
         """PATCH /connection-tests/{id} should not exist in older API versions."""
-        ct = ConnectionTest(connection_id="test_conn")
+        ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn")
         ct.state = ConnectionTestState.RUNNING
         session.add(ct)
         session.commit()
@@ -56,7 +56,7 @@ class TestConnectionTestEndpointVersioning:
 
     def test_head_version_works(self, client, session):
         """PATCH /connection-tests/{id} should work in the current API version."""
-        ct = ConnectionTest(connection_id="test_conn")
+        ct = ConnectionTestRequest(conn_type="test_type", connection_id="test_conn")
         ct.state = ConnectionTestState.RUNNING
         session.add(ct)
         session.commit()
