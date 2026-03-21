@@ -187,6 +187,7 @@ def upgrade():
         batch_op.alter_column("callback_id", existing_type=sa.Uuid(), nullable=False)
 
         batch_op.create_index("deadline_missed_deadline_time_idx", ["missed", "deadline_time"], unique=False)
+        batch_op.create_index("deadline_callback_id_idx", ["callback_id"], unique=False)
         batch_op.drop_index(batch_op.f("deadline_callback_state_time_idx"))
         batch_op.create_foreign_key(
             batch_op.f("deadline_callback_id_fkey"), "callback", ["callback_id"], ["id"], ondelete="CASCADE"
@@ -199,7 +200,7 @@ def upgrade():
 
 def downgrade():
     """Restore Deadline table's inline callback fields from callback_id foreign key."""
-    from airflow.models.callback import CallbackState
+    from airflow.utils.state import CallbackState
 
     def migrate_batch(conn, deadline_table, callback_table, batch):
         deadline_updates = []
@@ -320,17 +321,20 @@ def downgrade():
         # Make callback_id nullable so the associated callbacks can be cleared during migration
         batch_op.alter_column("callback_id", existing_type=sa.Uuid(), nullable=True)
 
+        batch_op.drop_constraint(batch_op.f("deadline_callback_id_fkey"), type_="foreignkey")
+        # Note: deadline_callback_id_idx is kept here so it can speed up the JOIN in migrate_all_data()
+
     migrate_all_data()
 
     with op.batch_alter_table("deadline") as batch_op:
         # Data for `callback` has been migrated so make it non-nullable
         batch_op.alter_column("callback", existing_type=sa.JSON(), nullable=False)
-
-        batch_op.drop_constraint(batch_op.f("deadline_callback_id_fkey"), type_="foreignkey")
         batch_op.create_foreign_key(batch_op.f("deadline_trigger_id_fkey"), "trigger", ["trigger_id"], ["id"])
         batch_op.drop_index("deadline_missed_deadline_time_idx")
         batch_op.create_index(
             batch_op.f("deadline_callback_state_time_idx"), ["callback_state", "deadline_time"], unique=False
         )
+        # Drop the index after data migration so it can speed up the JOIN query in migrate_all_data()
+        batch_op.drop_index("deadline_callback_id_idx")
         batch_op.drop_column("callback_id")
         batch_op.drop_column("missed")

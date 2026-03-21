@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 
 import pytest
@@ -33,7 +34,7 @@ from tests_common.test_utils.config import conf_vars
 @pytest.fixture
 def auth_manager():
     auth_manager = SimpleAuthManager()
-    if os.path.exists(auth_manager.get_generated_password_file()):
+    with contextlib.suppress(FileNotFoundError):
         os.remove(auth_manager.get_generated_password_file())
     return auth_manager
 

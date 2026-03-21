@@ -73,7 +73,7 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.10.10
+ARG AIRFLOW_UV_VERSION=0.10.12
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -459,12 +459,25 @@ function install_python() {
     if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
         lto_option="--with-lto"
     fi
-    ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
-        --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
-            --enable-shared ${lto_option}
-    make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
-        "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
-    make -s -j "$(nproc)" install
+    local build_log
+    build_log=$(mktemp)
+    echo "Building Python ${AIRFLOW_PYTHON_VERSION} from source..."
+    if ! (
+        ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
+            --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
+                --enable-shared ${lto_option} && \
+        make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
+            "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python && \
+        make -s -j "$(nproc)" install
+    ) > "${build_log}" 2>&1; then
+        echo
+        echo "ERROR! Python build failed. Build output:"
+        echo
+        cat "${build_log}"
+        rm -f "${build_log}"
+        exit 1
+    fi
+    rm -f "${build_log}"
     cd /
     rm -rf /usr/src/python
     find /usr/python -depth \
@@ -810,7 +823,15 @@ function common::get_constraints_location() {
         echo
         echo "${COLOR_BLUE}Downloading constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
         echo
-        curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"
+        if ! curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"; then
+            echo
+            echo "${COLOR_YELLOW}Constraints file not found at ${AIRFLOW_CONSTRAINTS_LOCATION} (new Python version being bootstrapped?).${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Falling back to no-constraints installation.${COLOR_RESET}"
+            echo
+            AIRFLOW_CONSTRAINTS_LOCATION=""
+            # Create an empty constraints file so --constraint flag still works
+            touch "${HOME}/constraints.txt"
+        fi
     else
         echo
         echo "${COLOR_BLUE}Copying constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
@@ -1114,14 +1135,34 @@ from __future__ import annotations
 
 import os
 import sys
+import zipfile
+from email.parser import HeaderParser
 from pathlib import Path
 
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.utils import (
     InvalidSdistFilename,
     InvalidWheelFilename,
     parse_sdist_filename,
     parse_wheel_filename,
 )
+
+_CURRENT_PYTHON = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+
+def _compatible_with_current_python(wheel_path: str) -> bool:
+    """Return False if the wheel's Requires-Python excludes the running interpreter."""
+    try:
+        with zipfile.ZipFile(wheel_path) as zf:
+            for name in zf.namelist():
+                if name.endswith(".dist-info/METADATA"):
+                    requires = HeaderParser().parsestr(zf.read(name).decode("utf-8")).get("Requires-Python")
+                    if requires:
+                        return _CURRENT_PYTHON in SpecifierSet(requires)
+                    return True
+    except (zipfile.BadZipFile, InvalidSpecifier, KeyError) as exc:
+        print(f"Warning: could not check Requires-Python for {wheel_path}: {exc}", file=sys.stderr)
+    return True
 
 
 def print_package_specs(extras: str = "") -> None:
@@ -1134,6 +1175,12 @@ def print_package_specs(extras: str = "") -> None:
             except InvalidSdistFilename:
                 print(f"Could not parse package name from {package_path}", file=sys.stderr)
                 continue
+        if package_path.endswith(".whl") and not _compatible_with_current_python(package_path):
+            print(
+                f"Skipping {package} (Requires-Python not satisfied by {_CURRENT_PYTHON})",
+                file=sys.stderr,
+            )
+            continue
         print(f"{package}{extras} @ file://{package_path}")
 
 

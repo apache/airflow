@@ -101,7 +101,7 @@ PIP package                                 Version required
 ==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
-``cassandra-driver``                        ``>=3.29.3; python_version >= "3.13"``
+``cassandra-driver``                        ``>=3.29.3; python_version >= "3.13" and python_version < "3.14"``
 ``cassandra-driver``                        ``>=3.29.2; python_version >= "3.12" and python_version < "3.13"``
 ``cassandra-driver``                        ``>=3.29.1; python_version < "3.12"``
 ==========================================  ==================================================================

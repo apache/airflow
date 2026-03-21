@@ -31,10 +31,10 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import CTE, and_, delete, exists, func, inspect, or_, select, text, tuple_, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
@@ -107,6 +107,7 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from pendulum.datetime import DateTime
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
     from sqlalchemy.sql.selectable import Subquery
@@ -2042,6 +2043,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
 
             triggered_date: DateTime = timezone.coerce_datetime(queued_adrqs[0].created_at)
+            self.log.debug(
+                "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
+                dag.dag_id,
+                len(queued_adrqs),
+                triggered_date,
+            )
             cte = (
                 select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
                 .where(
@@ -2090,14 +2097,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             Stats.incr("asset.triggered_dagruns")
             dag_run.consumed_asset_events.extend(asset_events)
+            self.log.info(
+                "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                dag.dag_id,
+                dag_run.run_id,
+                len(asset_events),
+            )
 
             # Delete only consumed ADRQ rows to avoid dropping newly queued events
             # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
             adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
-            session.execute(
-                delete(AssetDagRunQueue).where(
-                    tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
-                )
+            result = cast(
+                "CursorResult",
+                session.execute(
+                    delete(AssetDagRunQueue).where(
+                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                    )
+                ),
+            )
+            self.log.info(
+                "Deleted %d ADRQ rows for '%s'",
+                result.rowcount,
+                dag.dag_id,
             )
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
@@ -2218,7 +2239,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
         """Make scheduling decisions for all `dag_runs`."""
-        callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
+        callback_tuples = []
+        for run in dag_runs:
+            try:
+                callback = self._schedule_dag_run(run, session=session)
+                callback_tuples.append((run, callback))
+            except DBAPIError:
+                raise  # let @retry_db_transaction handle DB errors
+            except Exception:
+                self.log.exception("Error scheduling DAG run %s of %s", run.run_id, run.dag_id)
         guard.commit()
         return callback_tuples
 

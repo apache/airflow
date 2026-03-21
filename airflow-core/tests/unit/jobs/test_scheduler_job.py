@@ -85,7 +85,16 @@ from airflow.partition_mappers.base import PartitionMapper as CorePartitionMappe
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, IdentityMapper, task
+from airflow.sdk import (
+    DAG,
+    Asset,
+    AssetAlias,
+    AssetWatcher,
+    CronPartitionTimetable,
+    IdentityMapper,
+    ToHourlyMapper,
+    task,
+)
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -5215,6 +5224,97 @@ class TestSchedulerJob:
                 f"Expected deserialization error log, got: {scheduler_messages}"
             )
 
+    def test_schedule_all_dag_runs_does_not_crash_on_single_dag_run_error(self, dag_maker, caplog, session):
+        """Test that _schedule_all_dag_runs continues processing other DAG runs
+        when one DAG run raises an exception during scheduling.
+
+        Previously, _schedule_all_dag_runs used a list comprehension that would
+        abort entirely if any single _schedule_dag_run call raised, crashing
+        the entire scheduler and stopping scheduling for ALL DAGs.
+
+        While the specific scenario used to reproduce this (a TaskInstance with
+        state=UP_FOR_RETRY and end_date=NULL) is nearly impossible under normal
+        operation, the lack of per-dag-run fault isolation means ANY unexpected
+        exception from ANY dag run would have the same catastrophic effect.
+        """
+        # Create two DAGs with running DAG runs
+        with dag_maker(dag_id="good_dag", schedule="@once"):
+            EmptyOperator(task_id="good_task")
+        good_run = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        with dag_maker(dag_id="bad_dag", schedule="@once"):
+            EmptyOperator(task_id="bad_task")
+        bad_run = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        caplog.clear()
+        with (
+            caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
+            patch.object(
+                self.job_runner,
+                "_schedule_dag_run",
+                autospec=True,
+                side_effect=[
+                    TypeError("simulated crash from corrupted task instance"),  # bad_run
+                    None,  # good_run
+                ],
+            ) as mock_schedule,
+        ):
+            from airflow.utils.sqlalchemy import prohibit_commit
+
+            with prohibit_commit(session) as guard:
+                result = self.job_runner._schedule_all_dag_runs(guard, [bad_run, good_run], session=session)
+
+            # The good DAG run should have been processed despite the bad one failing
+            assert len(result) == 1
+            assert result[0][0] == good_run
+
+            # Both dag runs should have been attempted
+            assert mock_schedule.call_count == 2
+
+            # The error should have been logged
+            error_messages = [r.message for r in caplog.records if r.levelno >= logging.ERROR]
+            assert any(
+                msg == f"Error scheduling DAG run {bad_run.run_id} of {bad_run.dag_id}"
+                for msg in error_messages
+            )
+
+    def test_schedule_all_dag_runs_reraises_db_errors(self, dag_maker, session):
+        """Test that _schedule_all_dag_runs does not catch DBAPIError, allowing
+        it to propagate to @retry_db_transaction for proper retry handling.
+        """
+        from sqlalchemy.exc import DBAPIError
+
+        with dag_maker(dag_id="db_error_dag", schedule="@once"):
+            EmptyOperator(task_id="task1")
+        run = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        with patch.object(
+            self.job_runner,
+            "_schedule_dag_run",
+            autospec=True,
+            side_effect=DBAPIError("select 1", None, Exception("connection lost")),
+        ) as mock_schedule:
+            from airflow.utils.sqlalchemy import prohibit_commit
+
+            with prohibit_commit(session) as guard:
+                # Bypass @retry_db_transaction to verify the exception escapes
+                # the inner function rather than being swallowed by except Exception.
+                with pytest.raises(DBAPIError):
+                    self.job_runner._schedule_all_dag_runs.__wrapped__(
+                        self.job_runner, guard, [run], session=session
+                    )
+
+            assert mock_schedule.call_count == 1
+
     def test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run(self, dag_maker, testing_dag_bundle):
         """
         Test that externally triggered Dag Runs should not affect (by skipping) next
@@ -8871,6 +8971,78 @@ def _produce_and_register_asset_event(
     assert apdr.partition_key == expected_partition_key
 
     return apdr
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_with_invalid_mapping(dag_maker: DagMaker, session: Session):
+    session.execute(delete(Log))
+    asset_1 = Asset(name="asset-1")
+    with dag_maker(
+        dag_id="asset-event-consumer",
+        schedule=PartitionedAssetTimetable(
+            assets=asset_1,
+            default_partition_mapper=ToHourlyMapper(),
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    with dag_maker(
+        dag_id="asset-event-producer",
+        schedule=CronPartitionTimetable("* * * * *", timezone="UTC"),
+        session=session,
+    ) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset_1])
+
+    partition_key = "an invalid key for HourlyMapper"
+    dr = dag_maker.create_dagrun(partition_key=partition_key, session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    serialized_outlets = dag.get_task("hi").outlets
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[o.asprofile() for o in serialized_outlets],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+    event = session.scalar(
+        select(AssetEvent).where(
+            AssetEvent.source_dag_id == dag.dag_id,
+            AssetEvent.source_run_id == dr.run_id,
+        )
+    )
+    assert event is not None
+    assert event.partition_key == partition_key
+    apdr = session.scalar(
+        select(AssetPartitionDagRun)
+        .join(
+            PartitionedAssetKeyLog,
+            PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
+        )
+        .where(PartitionedAssetKeyLog.asset_event_id == event.id)
+    )
+    assert apdr is None
+
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    assert len(partition_dags) == 0
+    assert partition_dags == set()
+
+    audit_log = session.scalar(select(Log))
+    assert audit_log is not None
+    assert audit_log.extra == (
+        "Could not map partition_key 'an invalid key for HourlyMapper' "
+        "for asset (name='asset-1', uri='asset-1') in target Dag 'asset-event-consumer'. "
+        "This likely indicates that the partition mapper in the target Dag is misconfigured or "
+        "does not support this partition key.\n"
+        "ValueError: time data 'an invalid key for HourlyMapper' does not match format '%Y-%m-%dT%H:%M:%S'"
+    )
 
 
 @pytest.mark.need_serialized_dag
