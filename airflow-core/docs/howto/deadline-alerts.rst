@@ -118,6 +118,7 @@ Airflow provides several built-in reference points that you can use with Deadlin
     Parameters:
         * ``max_runs`` (int, optional): Maximum number of recent Dag runs to analyze. Defaults to 10.
         * ``min_runs`` (int, optional): Minimum number of completed runs required to calculate average. Defaults to same value as ``max_runs``.
+        * ``multiplier`` (float, optional): Factor to scale the average runtime by. Defaults to 1.0. For example, a multiplier of 1.5 sets the deadline at 1.5x the average runtime. Must be positive.
 
     Example usage:
 
@@ -132,7 +133,13 @@ Airflow provides several built-in reference points that you can use with Deadlin
         # Strict: require exactly 15 runs to calculate
         DeadlineReference.AVERAGE_RUNTIME(max_runs=15, min_runs=15)
 
-Here's an example using average runtime:
+        # Alert if the Dag takes longer than 1.5x the average runtime
+        DeadlineReference.AVERAGE_RUNTIME(max_runs=10, multiplier=1.5)
+
+        # Alert if the Dag takes longer than 2x the average runtime, with at least 5 runs
+        DeadlineReference.AVERAGE_RUNTIME(max_runs=15, min_runs=5, multiplier=2.0)
+
+Here's an example using average runtime with a fixed interval:
 
 .. code-block:: python
 
@@ -159,6 +166,36 @@ If the calculated historical average was 30 minutes, the timeline for this examp
                       |              |              |
                       |--- Average --|-- Interval --|
                            (30 min)      (30 min)
+
+Here's an example using a multiplier instead, which scales the average runtime proportionally.
+This is useful when you don't know the absolute runtime but want to alert if a run takes
+significantly longer than usual:
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="average_runtime_multiplier_deadline",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.AVERAGE_RUNTIME(max_runs=15, min_runs=5, multiplier=1.5),
+            interval=timedelta(0),
+            callback=AsyncCallback(
+                SlackWebhookNotifier,
+                kwargs={"text": "🚨 Dag {{ dag_run.dag_id }} exceeded 1.5x its average runtime!"},
+            ),
+        ),
+    ):
+        EmptyOperator(task_id="data_processing")
+
+If the calculated historical average was 30 minutes, the timeline for this example would look like this:
+
+::
+
+    |------|----------|--------------|--------|
+         Queued     Start         Deadline
+         09:00      09:05          09:50
+                      |              |
+                      |-- Avg x1.5 --|
+                          (45 min)
 
 
 Here's an example using a fixed datetime:

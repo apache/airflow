@@ -110,27 +110,32 @@ class AverageRuntimeDeadline(BaseDeadlineReference):
     DEFAULT_LIMIT = 10
     max_runs: int
     min_runs: int | None = None
+    multiplier: float = 1.0
 
     def __post_init__(self):
         if self.min_runs is None:
             self.min_runs = self.max_runs
         if self.min_runs < 1:
             raise ValueError("min_runs must be at least 1")
+        if self.multiplier <= 0:
+            raise ValueError("multiplier must be positive")
 
     def serialize_reference(self) -> dict[str, Any]:
         return {
             REFERENCE_TYPE_FIELD: self.reference_name,
             "max_runs": self.max_runs,
             "min_runs": self.min_runs,
+            "multiplier": self.multiplier,
         }
 
     @classmethod
     def deserialize_reference(cls, reference_data: dict[str, Any]) -> AverageRuntimeDeadline:
         max_runs = reference_data.get("max_runs", cls.DEFAULT_LIMIT)
         min_runs = reference_data.get("min_runs", max_runs)
+        multiplier = reference_data.get("multiplier", 1.0)
         if min_runs < 1:
             raise ValueError("min_runs must be at least 1")
-        return cls(max_runs=max_runs, min_runs=min_runs)
+        return cls(max_runs=max_runs, min_runs=min_runs, multiplier=multiplier)
 
 
 DeadlineReferenceType: TypeAlias = BaseDeadlineReference
@@ -238,12 +243,14 @@ class DeadlineReference:
     DAGRUN_QUEUED_AT: DeadlineReferenceType = DagRunQueuedAtDeadline()
 
     @classmethod
-    def AVERAGE_RUNTIME(cls, max_runs: int = 0, min_runs: int | None = None) -> DeadlineReferenceType:
+    def AVERAGE_RUNTIME(
+        cls, max_runs: int = 0, min_runs: int | None = None, multiplier: float = 1.0
+    ) -> DeadlineReferenceType:
         if max_runs == 0:
             max_runs = AverageRuntimeDeadline.DEFAULT_LIMIT
         if min_runs is None:
             min_runs = max_runs
-        return AverageRuntimeDeadline(max_runs, min_runs)
+        return AverageRuntimeDeadline(max_runs, min_runs, multiplier=multiplier)
 
     @classmethod
     def FIXED_DATETIME(cls, dt: datetime) -> DeadlineReferenceType:
