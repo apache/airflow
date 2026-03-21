@@ -1,0 +1,19 @@
+[
+  {
+    "allowed_contexts": [
+      "host",
+      "breeze"
+    ],
+    "breeze_command": "breeze exec pytest {test_path} -xvs",
+    "fallback_when": [
+      "missing_system_dependencies",
+      "local_environment_mismatch",
+      "ci_local_discrepancy"
+    ],
+    "id": "run_targeted_tests",
+    "inside_breeze_command": "pytest {test_path} -xvs",
+    "local_command": "uv run --project {distribution_folder} pytest {test_path}",
+    "preferred_context": "host",
+    "title": "Run targeted tests"
+  }
+]
