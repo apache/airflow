@@ -174,7 +174,7 @@ class ClearTaskInstancesBody(StrictBaseModel):
     def validate_model(cls, data: Any) -> Any:
         """Validate clear task instance form."""
         if data.get("only_failed") and data.get("only_running"):
-            raise ValidationError("only_failed and only_running both are set to True")
+            raise ValidationError("only_failed and only_running both set to True")
         if data.get("start_date") and data.get("end_date"):
             if data.get("start_date") > data.get("end_date"):
                 raise ValidationError("end_date is sooner than start_date")
