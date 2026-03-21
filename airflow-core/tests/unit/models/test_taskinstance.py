@@ -3405,3 +3405,33 @@ def test_clear_task_instances_resets_context_carrier(dag_maker, session):
 
     assert ti.context_carrier["traceparent"] != original_ti_traceparent
     assert dag_run.context_carrier["traceparent"] != original_dr_traceparent
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_preserves_detail_level(dag_maker, session):
+    """clear_task_instances should produce a new context_carrier that keeps the detail level from dag run conf."""
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+    from airflow._shared.observability.traces import (
+        TASK_SPAN_DETAIL_LEVEL_KEY,
+        get_task_span_detail_level,
+    )
+
+    provider = TracerProvider()
+    real_tracer = provider.get_tracer("airflow.models.taskinstance")
+    with mock.patch("airflow.models.taskinstance.tracer", real_tracer):
+        with dag_maker("test_clear_preserves_level", conf={TASK_SPAN_DETAIL_LEVEL_KEY: 2}):
+            EmptyOperator(task_id="t1")
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("t1", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+
+        clear_task_instances([ti], session)
+
+    from opentelemetry import trace
+
+    new_ctx = TraceContextTextMapPropagator().extract(dag_run.context_carrier)
+    span = trace.get_current_span(new_ctx)
+    assert get_task_span_detail_level(span) == 2
