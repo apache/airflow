@@ -40,8 +40,11 @@ def get_local_rest_client(*, process_type: str = "unknown") -> LocalRESTClient:
     Get a REST API client for use inside trusted Airflow processes.
 
     This client automatically authenticates using a ``SystemUser`` and
-    requires no user credentials. It is intended for DAG code, plugins,
-    and Airflow component code running in the same process.
+    requires no user credentials. It is intended for plugins and Airflow
+    component code running in processes that have metadata database access
+    (scheduler, DAG processor, triggerer). It is **not** available from
+    workers or task code, which do not have direct database access in
+    Airflow 3.
 
     Example::
 

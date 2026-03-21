@@ -19,8 +19,9 @@
 Local REST API client for trusted Airflow processes.
 
 Provides a zero-configuration way for code running inside trusted Airflow
-processes (DAG processor, scheduler, workers, triggerer) to call Core API
-endpoints without needing user credentials.
+processes (scheduler, DAG processor, triggerer, plugins) to call Core API
+endpoints without needing user credentials.  The calling process must have
+access to the Airflow metadata database.
 
 Example usage::
 
@@ -33,10 +34,14 @@ Example usage::
 
 from __future__ import annotations
 
+import json
+import logging
+import os
 from functools import cached_property
 
 import httpx
 
+from airflow import settings
 from airflow.api.client.in_process_core_api import InProcessCoreAPI
 from airflow.api.client.resources.assets import AssetsClient
 from airflow.api.client.resources.config import ConfigClient
@@ -46,6 +51,9 @@ from airflow.api.client.resources.dags import DagsClient
 from airflow.api.client.resources.pools import PoolsClient
 from airflow.api.client.resources.task_instances import TaskInstancesClient
 from airflow.api.client.resources.variables import VariablesClient
+from airflow.configuration import AIRFLOW_HOME, conf
+
+_log = logging.getLogger(__name__)
 
 
 class LocalRESTClient:
@@ -65,10 +73,75 @@ class LocalRESTClient:
 
     @cached_property
     def _http(self) -> httpx.Client:
+        if self._is_orm_access_blocked():
+            base_url = self._get_http_fallback_base_url()
+            token = self._get_http_bearer_token(base_url=base_url)
+            if not token:
+                raise RuntimeError(
+                    "LocalRESTClient cannot use in-process Core API because ORM access is blocked in this "
+                    "process, and it could not obtain an auth token for HTTP fallback."
+                )
+            return httpx.Client(
+                base_url=base_url,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
         return httpx.Client(
             transport=self._in_process_api.transport,
             base_url="http://in-process",
         )
+
+    def _is_orm_access_blocked(self) -> bool:
+        # Task SDK worker subprocesses replace settings.Session with BlockedDBSession.
+        session_factory = getattr(settings, "Session", None)
+        return (
+            session_factory is not None
+            and getattr(session_factory, "__module__", "") == "airflow.sdk.execution_time.supervisor"
+            and getattr(session_factory, "__name__", "") == "BlockedDBSession"
+        )
+
+    def _get_http_fallback_base_url(self) -> str:
+        return conf.get("api", "base_url", fallback="http://localhost:8080").rstrip("/")
+
+    def _get_http_bearer_token(self, *, base_url: str) -> str | None:
+        with httpx.Client(base_url=base_url) as http:
+            # In standalone all-admin mode, this endpoint returns a token with no credentials.
+            token_resp = http.get("/auth/token")
+            if token_resp.is_success:
+                token = token_resp.json().get("access_token")
+                if token:
+                    return token
+
+            for username, password in self._iter_simple_auth_credentials():
+                cli_token_resp = http.post(
+                    "/auth/token/cli",
+                    json={"username": username, "password": password},
+                )
+                if cli_token_resp.is_success:
+                    token = cli_token_resp.json().get("access_token")
+                    if token:
+                        return token
+
+        return None
+
+    def _iter_simple_auth_credentials(self) -> list[tuple[str, str]]:
+        users = conf.getlist("core", "simple_auth_manager_users", fallback=[])
+        usernames = [raw_user.split(":", 1)[0] for raw_user in users if raw_user]
+        if not usernames:
+            return []
+
+        password_file = conf.get("core", "simple_auth_manager_passwords_file", fallback=None)
+        if not password_file:
+            password_file = os.path.join(AIRFLOW_HOME, "simple_auth_manager_passwords.json.generated")
+
+        try:
+            with open(password_file) as file:
+                passwords = json.load(file)
+        except (FileNotFoundError, PermissionError, json.JSONDecodeError):
+            _log.debug("Could not read SimpleAuthManager password file: %s", password_file)
+            return []
+
+        return [(username, passwords[username]) for username in usernames if username in passwords]
 
     @cached_property
     def pools(self) -> PoolsClient:

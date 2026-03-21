@@ -21,6 +21,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunCollectionResponse, DAGRunResponse
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+)
+
 if TYPE_CHECKING:
     import httpx
 
@@ -31,20 +37,24 @@ class DagRunsClient:
     def __init__(self, http: httpx.Client) -> None:
         self._http = http
 
-    def get(self, dag_id: str, dag_run_id: str) -> dict[str, Any]:
+    def get(self, dag_id: str, dag_run_id: str) -> DAGRunResponse:
         """Get a DAG run by ID."""
         resp = self._http.get(f"/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}")
         resp.raise_for_status()
-        return resp.json()
+        return DAGRunResponse.model_validate(resp.json())
 
-    def list(self, dag_id: str, *, limit: int = 100, offset: int = 0) -> dict[str, Any]:
+    def list(self, dag_id: str, *, limit: int = 100, offset: int = 0) -> DAGRunCollectionResponse:
         """List DAG runs for a specific DAG with pagination."""
         resp = self._http.get(
             f"/api/v2/dags/{dag_id}/dagRuns",
             params={"limit": limit, "offset": offset},
         )
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        return DAGRunCollectionResponse.model_construct(
+            total_entries=data["total_entries"],
+            dag_runs=[DAGRunResponse.model_validate(r) for r in data["dag_runs"]],
+        )
 
     def trigger(
         self,
@@ -54,7 +64,7 @@ class DagRunsClient:
         logical_date: str | None = None,
         conf: dict[str, Any] | None = None,
         note: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> DAGRunResponse:
         """Trigger a new DAG run."""
         body: dict[str, Any] = {"logical_date": logical_date}
         if dag_run_id is not None:
@@ -65,7 +75,7 @@ class DagRunsClient:
             body["note"] = note
         resp = self._http.post(f"/api/v2/dags/{dag_id}/dagRuns", json=body)
         resp.raise_for_status()
-        return resp.json()
+        return DAGRunResponse.model_validate(resp.json())
 
     def update(
         self,
@@ -74,7 +84,7 @@ class DagRunsClient:
         *,
         state: str | None = None,
         note: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> DAGRunResponse:
         """Update a DAG run (state or note)."""
         body: dict[str, Any] = {}
         if state is not None:
@@ -83,7 +93,7 @@ class DagRunsClient:
             body["note"] = note
         resp = self._http.patch(f"/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}", json=body)
         resp.raise_for_status()
-        return resp.json()
+        return DAGRunResponse.model_validate(resp.json())
 
     def delete(self, dag_id: str, dag_run_id: str) -> None:
         """Delete a DAG run."""
@@ -97,7 +107,7 @@ class DagRunsClient:
         *,
         dry_run: bool = True,
         only_failed: bool = False,
-    ) -> dict[str, Any]:
+    ) -> TaskInstanceCollectionResponse | DAGRunResponse:
         """Clear a DAG run's task instances."""
         body: dict[str, Any] = {
             "dry_run": dry_run,
@@ -105,4 +115,10 @@ class DagRunsClient:
         }
         resp = self._http.post(f"/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear", json=body)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        if dry_run:
+            return TaskInstanceCollectionResponse.model_construct(
+                total_entries=data["total_entries"],
+                task_instances=[TaskInstanceResponse.model_validate(ti) for ti in data["task_instances"]],
+            )
+        return DAGRunResponse.model_validate(data)

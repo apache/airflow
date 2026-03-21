@@ -24,7 +24,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
 .. note::
 
-   Successful installation requires a Python 3 environment. Starting with Airflow 3.1.0, Airflow supports Python 3.10, 3.11, 3.12, 3.13.
+   Successful installation requires a Python 3 environment. Starting with Airflow 3.2.0, Airflow supports Python 3.10, 3.11, 3.12, 3.13, 3.14.
 
    Officially supported installation methods is with ``pip`` or ``uv``.
 

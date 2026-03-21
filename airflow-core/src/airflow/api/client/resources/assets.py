@@ -21,6 +21,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from airflow.api_fastapi.core_api.datamodels.assets import (
+    AssetCollectionResponse,
+    AssetEventCollectionResponse,
+    AssetEventResponse,
+    AssetResponse,
+    QueuedEventCollectionResponse,
+)
+
 if TYPE_CHECKING:
     import httpx
 
@@ -31,29 +39,29 @@ class AssetsClient:
     def __init__(self, http: httpx.Client) -> None:
         self._http = http
 
-    def get(self, asset_id: int) -> dict[str, Any]:
+    def get(self, asset_id: int) -> AssetResponse:
         """Get an asset by ID."""
         resp = self._http.get(f"/api/v2/assets/{asset_id}")
         resp.raise_for_status()
-        return resp.json()
+        return AssetResponse.model_validate(resp.json())
 
-    def list(self, *, limit: int = 100, offset: int = 0, only_active: bool = True) -> dict[str, Any]:
+    def list(self, *, limit: int = 100, offset: int = 0, only_active: bool = True) -> AssetCollectionResponse:
         """List assets with pagination."""
         resp = self._http.get(
             "/api/v2/assets",
             params={"limit": limit, "offset": offset, "only_active": only_active},
         )
         resp.raise_for_status()
-        return resp.json()
+        return AssetCollectionResponse.model_validate(resp.json())
 
-    def create_event(self, *, asset_id: int, extra: dict[str, Any] | None = None) -> dict[str, Any]:
+    def create_event(self, *, asset_id: int, extra: dict[str, Any] | None = None) -> AssetEventResponse:
         """Create an asset event (materialize signal)."""
         body: dict[str, Any] = {"asset_id": asset_id}
         if extra is not None:
             body["extra"] = extra
         resp = self._http.post("/api/v2/assets/events", json=body)
         resp.raise_for_status()
-        return resp.json()
+        return AssetEventResponse.model_validate(resp.json())
 
     def list_events(
         self,
@@ -63,7 +71,7 @@ class AssetsClient:
         asset_id: int | None = None,
         source_dag_id: str | None = None,
         source_task_id: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> AssetEventCollectionResponse:
         """List asset events with optional filters."""
         params: dict[str, Any] = {"limit": limit, "offset": offset}
         if asset_id is not None:
@@ -74,7 +82,11 @@ class AssetsClient:
             params["source_task_id"] = source_task_id
         resp = self._http.get("/api/v2/assets/events", params=params)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        return AssetEventCollectionResponse.model_construct(
+            total_entries=data["total_entries"],
+            asset_events=[AssetEventResponse.model_validate(e) for e in data["asset_events"]],
+        )
 
     def materialize(self, asset_id: int) -> dict[str, Any]:
         """Trigger materialization of an asset (creates a DAG run)."""
@@ -82,11 +94,11 @@ class AssetsClient:
         resp.raise_for_status()
         return resp.json()
 
-    def get_queued_events(self, asset_id: int) -> dict[str, Any]:
+    def get_queued_events(self, asset_id: int) -> QueuedEventCollectionResponse:
         """Get queued events for an asset."""
         resp = self._http.get(f"/api/v2/assets/{asset_id}/queuedEvents")
         resp.raise_for_status()
-        return resp.json()
+        return QueuedEventCollectionResponse.model_validate(resp.json())
 
     def delete_queued_events(self, asset_id: int) -> None:
         """Delete queued events for an asset."""

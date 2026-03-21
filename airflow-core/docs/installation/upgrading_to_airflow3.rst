@@ -228,9 +228,10 @@ TaskInstances, Variables, Connections, XComs, and more.
 Recommended Approach: Use Built-in Local REST Client (In-Process)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For code running inside trusted Airflow processes — the scheduler, DAG processor, workers,
-triggerer, or plugins — Airflow provides a built-in local REST client that calls the Core
-REST API in-process with no network overhead and zero credential configuration.
+For code running inside trusted Airflow processes that have direct access to
+the metadata database — the scheduler, DAG processor, triggerer, or plugins —
+Airflow provides a built-in local REST client that calls the Core REST API
+in-process with no network overhead and zero credential configuration.
 
 .. code-block:: python
 
@@ -274,8 +275,10 @@ REST API in-process with no network overhead and zero credential configuration.
 
 **Cons:**
 
-- Only works inside trusted Airflow processes (not from external scripts)
-- Requires the calling process to have access to the Airflow metadata database
+- Only works inside trusted Airflow processes that have metadata database access
+  (not from workers, tasks, or external scripts)
+- The calling process must be able to connect to the Airflow metadata database
+  (it runs the Core API in-process, which queries the DB via SQLAlchemy)
 
 .. note::
    This is the recommended replacement for code that previously used ``Pool.create_or_update_pool()``,

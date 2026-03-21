@@ -21,6 +21,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+)
+
 if TYPE_CHECKING:
     import httpx
 
@@ -38,14 +43,14 @@ class TaskInstancesClient:
         task_id: str,
         *,
         map_index: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> TaskInstanceResponse:
         """Get a task instance by ID, optionally with map_index for mapped tasks."""
         base = f"/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
         if map_index is not None:
             base = f"{base}/{map_index}"
         resp = self._http.get(base)
         resp.raise_for_status()
-        return resp.json()
+        return TaskInstanceResponse.model_validate(resp.json())
 
     def list(
         self,
@@ -54,7 +59,7 @@ class TaskInstancesClient:
         *,
         limit: int = 100,
         offset: int = 0,
-    ) -> dict[str, Any]:
+    ) -> TaskInstanceCollectionResponse:
         """
         List task instances for a DAG run.
 
@@ -65,7 +70,11 @@ class TaskInstancesClient:
             params={"limit": limit, "offset": offset},
         )
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        return TaskInstanceCollectionResponse.model_construct(
+            total_entries=data["total_entries"],
+            task_instances=[TaskInstanceResponse.model_validate(ti) for ti in data["task_instances"]],
+        )
 
     def update(
         self,
@@ -76,7 +85,7 @@ class TaskInstancesClient:
         new_state: str | None = None,
         note: str | None = None,
         map_index: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> TaskInstanceResponse:
         """Update a task instance (set state or note)."""
         body: dict[str, Any] = {}
         if new_state is not None:
@@ -88,7 +97,7 @@ class TaskInstancesClient:
             base = f"{base}/{map_index}"
         resp = self._http.patch(base, json=body)
         resp.raise_for_status()
-        return resp.json()
+        return TaskInstanceResponse.model_validate(resp.json())
 
     def clear(
         self,
@@ -102,7 +111,7 @@ class TaskInstancesClient:
         only_failed: bool = False,
         only_running: bool = False,
         reset_dag_runs: bool = True,
-    ) -> dict[str, Any]:
+    ) -> TaskInstanceCollectionResponse:
         """Clear task instances for a DAG."""
         body: dict[str, Any] = {
             "dry_run": dry_run,
@@ -120,4 +129,8 @@ class TaskInstancesClient:
             body["end_date"] = end_date
         resp = self._http.post(f"/api/v2/dags/{dag_id}/clearTaskInstances", json=body)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        return TaskInstanceCollectionResponse.model_construct(
+            total_entries=data["total_entries"],
+            task_instances=[TaskInstanceResponse.model_validate(ti) for ti in data["task_instances"]],
+        )

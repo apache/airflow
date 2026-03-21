@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from airflow.api_fastapi.core_api.datamodels.variables import VariableCollectionResponse, VariableResponse
+
 if TYPE_CHECKING:
     import httpx
 
@@ -31,17 +33,21 @@ class VariablesClient:
     def __init__(self, http: httpx.Client) -> None:
         self._http = http
 
-    def get(self, key: str) -> dict[str, Any]:
+    def get(self, key: str) -> VariableResponse:
         """Get a variable by key."""
         resp = self._http.get(f"/api/v2/variables/{key}")
         resp.raise_for_status()
-        return resp.json()
+        return VariableResponse.model_validate(resp.json())
 
-    def list(self, *, limit: int = 100, offset: int = 0) -> dict[str, Any]:
+    def list(self, *, limit: int = 100, offset: int = 0) -> VariableCollectionResponse:
         """List all variables with pagination."""
         resp = self._http.get("/api/v2/variables", params={"limit": limit, "offset": offset})
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        return VariableCollectionResponse.model_construct(
+            total_entries=data["total_entries"],
+            variables=[VariableResponse.model_validate(v) for v in data["variables"]],
+        )
 
     def create(
         self,
@@ -49,7 +55,7 @@ class VariablesClient:
         key: str,
         value: Any,
         description: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> VariableResponse:
         """Create a new variable."""
         body: dict[str, Any] = {
             "key": key,
@@ -59,7 +65,7 @@ class VariablesClient:
             body["description"] = description
         resp = self._http.post("/api/v2/variables", json=body)
         resp.raise_for_status()
-        return resp.json()
+        return VariableResponse.model_validate(resp.json())
 
     def update(
         self,
@@ -67,7 +73,7 @@ class VariablesClient:
         *,
         value: Any | None = None,
         description: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> VariableResponse:
         """Update an existing variable (partial update via update_mask)."""
         # The Core API PATCH accepts VariableBody (with required fields) but
         # supports an update_mask query param to limit which fields are validated.
@@ -85,7 +91,7 @@ class VariablesClient:
             params={"update_mask": update_mask},
         )
         resp.raise_for_status()
-        return resp.json()
+        return VariableResponse.model_validate(resp.json())
 
     def delete(self, key: str) -> None:
         """Delete a variable by key."""

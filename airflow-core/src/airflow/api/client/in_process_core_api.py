@@ -19,12 +19,14 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import AsyncExitStack
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import attrs
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from airflow.api_fastapi.auth.managers.models.system_user import SystemUser
 
@@ -32,6 +34,8 @@ if TYPE_CHECKING:
     import httpx
 
     from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+
+_log = logging.getLogger(__name__)
 
 
 class _SystemAccessAuthManagerProxy:
@@ -217,6 +221,22 @@ class InProcessCoreAPI:
             self._app.dependency_overrides[get_user] = system_user_override
             self._app.dependency_overrides[auth_manager_from_app] = lambda: proxy
 
+            # Catch-all exception handler so that unhandled exceptions are
+            # logged with full tracebacks instead of silently becoming 500s.
+            # (Same pattern as InProcessExecutionAPI's underlying app.)
+            @self._app.exception_handler(Exception)
+            def _handle_unhandled(request: Request, exc: Exception) -> JSONResponse:
+                _log.exception(
+                    "InProcessCoreAPI: unhandled exception on %s %s",
+                    request.method,
+                    request.url,
+                    exc_info=(type(exc), exc, exc.__traceback__),
+                )
+                return JSONResponse(
+                    status_code=500,
+                    content={"detail": f"Internal Server Error: {type(exc).__name__}: {exc}"},
+                )
+
         return self._app
 
     @cached_property
@@ -233,7 +253,10 @@ class InProcessCoreAPI:
 
         self._cm = AsyncExitStack()
 
-        asyncio.run_coroutine_threadsafe(start_lifespan(self._cm, self.app), middleware.loop)
+        future = asyncio.run_coroutine_threadsafe(start_lifespan(self._cm, self.app), middleware.loop)
+        # Wait for lifespan startup to complete so the app is ready before
+        # the first request.  Propagate any startup errors immediately.
+        future.result(timeout=30)
         return httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
     @cached_property

@@ -79,6 +79,33 @@ class TestLocalRESTClient:
         _ = client._http
         client.close()
 
+    def test_uses_http_fallback_when_orm_blocked(self, monkeypatch):
+        monkeypatch.setattr(LocalRESTClient, "_is_orm_access_blocked", lambda _: True)
+        monkeypatch.setattr(
+            LocalRESTClient, "_get_http_fallback_base_url", lambda _: "http://api.example.test"
+        )
+        monkeypatch.setattr(LocalRESTClient, "_get_http_bearer_token", lambda _, base_url: "token-123")
+
+        client = LocalRESTClient()
+        http_client = client._http
+
+        assert str(http_client.base_url) == "http://api.example.test"
+        assert http_client.headers["Authorization"] == "Bearer token-123"
+
+        client.close()
+
+    def test_http_fallback_raises_without_token(self, monkeypatch):
+        monkeypatch.setattr(LocalRESTClient, "_is_orm_access_blocked", lambda _: True)
+        monkeypatch.setattr(
+            LocalRESTClient, "_get_http_fallback_base_url", lambda _: "http://api.example.test"
+        )
+        monkeypatch.setattr(LocalRESTClient, "_get_http_bearer_token", lambda _, base_url: None)
+
+        client = LocalRESTClient()
+
+        with pytest.raises(RuntimeError, match="could not obtain an auth token"):
+            _ = client._http
+
 
 class TestLocalRESTClientFactory:
     def test_get_local_rest_client_returns_instance(self):
@@ -114,25 +141,25 @@ class TestPoolsClientViaLocalREST:
 
     def test_create_pool(self, client):
         result = client.pools.create(name="test_pool", slots=5)
-        assert result["name"] == "test_pool"
-        assert result["slots"] == 5
-        assert result["include_deferred"] is False
+        assert result.pool == "test_pool"
+        assert result.slots == 5
+        assert result.include_deferred is False
 
     def test_create_pool_with_description(self, client):
         result = client.pools.create(name="described_pool", slots=3, description="A test pool")
-        assert result["name"] == "described_pool"
-        assert result["description"] == "A test pool"
+        assert result.pool == "described_pool"
+        assert result.description == "A test pool"
 
     def test_create_pool_with_include_deferred(self, client):
         result = client.pools.create(name="deferred_pool", slots=10, include_deferred=True)
-        assert result["include_deferred"] is True
+        assert result.include_deferred is True
 
     def test_get_pool(self, client):
         _create_pool(name="my_pool", slots=7, description="desc")
         result = client.pools.get("my_pool")
-        assert result["name"] == "my_pool"
-        assert result["slots"] == 7
-        assert result["description"] == "desc"
+        assert result.pool == "my_pool"
+        assert result.slots == 7
+        assert result.description == "desc"
 
     def test_get_pool_not_found(self, client):
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
@@ -144,8 +171,8 @@ class TestPoolsClientViaLocalREST:
         _create_pool(name="pool_b", slots=2)
         result = client.pools.list()
         # default_pool + pool_a + pool_b
-        assert result["total_entries"] >= 3
-        pool_names = [p["name"] for p in result["pools"]]
+        assert result.total_entries >= 3
+        pool_names = [p.pool for p in result.pools]
         assert "pool_a" in pool_names
         assert "pool_b" in pool_names
 
@@ -153,18 +180,18 @@ class TestPoolsClientViaLocalREST:
         for i in range(5):
             _create_pool(name=f"paginated_{i}", slots=i + 1)
         result = client.pools.list(limit=2, offset=0)
-        assert len(result["pools"]) == 2
+        assert len(result.pools) == 2
 
     def test_update_pool(self, client):
         _create_pool(name="updatable", slots=3)
         result = client.pools.update("updatable", slots=10)
-        assert result["name"] == "updatable"
-        assert result["slots"] == 10
+        assert result.pool == "updatable"
+        assert result.slots == 10
 
     def test_update_pool_description(self, client):
         _create_pool(name="updatable2", slots=5)
         result = client.pools.update("updatable2", description="new desc")
-        assert result["description"] == "new desc"
+        assert result.description == "new desc"
 
     def test_delete_pool(self, client):
         _create_pool(name="deletable", slots=1)
@@ -205,8 +232,8 @@ class TestConnectionsClientViaLocalREST:
 
     def test_create_connection(self, client):
         result = client.connections.create(connection_id="my_conn", conn_type="http")
-        assert result["connection_id"] == "my_conn"
-        assert result["conn_type"] == "http"
+        assert result.connection_id == "my_conn"
+        assert result.conn_type == "http"
 
     def test_create_connection_with_all_fields(self, client):
         result = client.connections.create(
@@ -219,13 +246,13 @@ class TestConnectionsClientViaLocalREST:
             port=5432,
             extra='{"sslmode": "require"}',
         )
-        assert result["connection_id"] == "full_conn"
-        assert result["conn_type"] == "postgres"
-        assert result["description"] == "A test connection"
-        assert result["host"] == "localhost"
-        assert result["login"] == "admin"
-        assert result["schema"] == "mydb"
-        assert result["port"] == 5432
+        assert result.connection_id == "full_conn"
+        assert result.conn_type == "postgres"
+        assert result.description == "A test connection"
+        assert result.host == "localhost"
+        assert result.login == "admin"
+        assert result.schema_ == "mydb"
+        assert result.port == 5432
 
     @provide_session
     def _create_connection(self, conn_id, conn_type="http", host=None, session=None):
@@ -235,9 +262,9 @@ class TestConnectionsClientViaLocalREST:
     def test_get_connection(self, client):
         self._create_connection("test_conn", conn_type="mysql", host="db.example.com")
         result = client.connections.get("test_conn")
-        assert result["connection_id"] == "test_conn"
-        assert result["conn_type"] == "mysql"
-        assert result["host"] == "db.example.com"
+        assert result.connection_id == "test_conn"
+        assert result.conn_type == "mysql"
+        assert result.host == "db.example.com"
 
     def test_get_connection_not_found(self, client):
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
@@ -248,8 +275,8 @@ class TestConnectionsClientViaLocalREST:
         self._create_connection("conn_a")
         self._create_connection("conn_b")
         result = client.connections.list()
-        assert result["total_entries"] >= 2
-        conn_ids = [c["connection_id"] for c in result["connections"]]
+        assert result.total_entries >= 2
+        conn_ids = [c.connection_id for c in result.connections]
         assert "conn_a" in conn_ids
         assert "conn_b" in conn_ids
 
@@ -257,13 +284,13 @@ class TestConnectionsClientViaLocalREST:
         for i in range(5):
             self._create_connection(f"paginated_{i}")
         result = client.connections.list(limit=2, offset=0)
-        assert len(result["connections"]) == 2
+        assert len(result.connections) == 2
 
     def test_update_connection(self, client):
         self._create_connection("updatable_conn", conn_type="http")
         result = client.connections.update("updatable_conn", host="new-host.example.com")
-        assert result["connection_id"] == "updatable_conn"
-        assert result["host"] == "new-host.example.com"
+        assert result.connection_id == "updatable_conn"
+        assert result.host == "new-host.example.com"
 
     def test_delete_connection(self, client):
         self._create_connection("deletable_conn")
@@ -299,17 +326,17 @@ class TestVariablesClientViaLocalREST:
 
     def test_create_variable(self, client):
         result = client.variables.create(key="my_var", value="my_value")
-        assert result["key"] == "my_var"
+        assert result.key == "my_var"
 
     def test_create_variable_with_description(self, client):
         result = client.variables.create(key="desc_var", value="val", description="A test variable")
-        assert result["key"] == "desc_var"
-        assert result["description"] == "A test variable"
+        assert result.key == "desc_var"
+        assert result.description == "A test variable"
 
     def test_get_variable(self, client):
         Variable.set(key="test_var", value="test_value", description="desc")
         result = client.variables.get("test_var")
-        assert result["key"] == "test_var"
+        assert result.key == "test_var"
 
     def test_get_variable_not_found(self, client):
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
@@ -320,8 +347,8 @@ class TestVariablesClientViaLocalREST:
         Variable.set(key="var_a", value="a")
         Variable.set(key="var_b", value="b")
         result = client.variables.list()
-        assert result["total_entries"] >= 2
-        keys = [v["key"] for v in result["variables"]]
+        assert result.total_entries >= 2
+        keys = [v.key for v in result.variables]
         assert "var_a" in keys
         assert "var_b" in keys
 
@@ -329,18 +356,18 @@ class TestVariablesClientViaLocalREST:
         for i in range(5):
             Variable.set(key=f"paginated_{i}", value=str(i))
         result = client.variables.list(limit=2, offset=0)
-        assert len(result["variables"]) == 2
+        assert len(result.variables) == 2
 
     def test_update_variable_value(self, client):
         Variable.set(key="updatable", value="old")
         result = client.variables.update("updatable", value="new")
-        assert result["key"] == "updatable"
+        assert result.key == "updatable"
 
     def test_update_variable_description(self, client):
         Variable.set(key="updatable2", value="val")
         result = client.variables.update("updatable2", description="new desc")
-        assert result["key"] == "updatable2"
-        assert result["description"] == "new desc"
+        assert result.key == "updatable2"
+        assert result.description == "new desc"
 
     def test_delete_variable(self, client):
         Variable.set(key="deletable", value="val")
@@ -384,7 +411,7 @@ class TestDagsClientViaLocalREST:
         with dag_maker("test_dag", schedule=None):
             EmptyOperator(task_id="task1")
         result = client.dags.get("test_dag")
-        assert result["dag_id"] == "test_dag"
+        assert result.dag_id == "test_dag"
 
     def test_get_dag_not_found(self, client):
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
@@ -397,7 +424,7 @@ class TestDagsClientViaLocalREST:
         with dag_maker("dag_beta", schedule=None):
             EmptyOperator(task_id="t")
         result = client.dags.list()
-        dag_ids = [d["dag_id"] for d in result["dags"]]
+        dag_ids = [d.dag_id for d in result.dags]
         assert "dag_alpha" in dag_ids
         assert "dag_beta" in dag_ids
 
@@ -405,7 +432,7 @@ class TestDagsClientViaLocalREST:
         with dag_maker("pausable_dag", schedule=None):
             EmptyOperator(task_id="t")
         result = client.dags.pause("pausable_dag")
-        assert result["is_paused"] is True
+        assert result.is_paused is True
 
     def test_unpause_dag(self, client, dag_maker):
         with dag_maker("unpausable_dag", schedule=None):
@@ -413,7 +440,7 @@ class TestDagsClientViaLocalREST:
         # Ensure it's paused first
         client.dags.pause("unpausable_dag")
         result = client.dags.unpause("unpausable_dag")
-        assert result["is_paused"] is False
+        assert result.is_paused is False
 
     def test_delete_dag(self, client, dag_maker):
         with dag_maker("deletable_dag", schedule=None):
@@ -427,7 +454,7 @@ class TestDagsClientViaLocalREST:
         with dag_maker("detail_dag", schedule=None):
             EmptyOperator(task_id="t")
         result = client.dags.get_details("detail_dag")
-        assert result["dag_id"] == "detail_dag"
+        assert result.dag_id == "detail_dag"
 
 
 class TestDagRunsClientViaLocalREST:
@@ -454,39 +481,39 @@ class TestDagRunsClientViaLocalREST:
             EmptyOperator(task_id="t")
         client.dags.unpause("trigger_dag")
         result = client.dag_runs.trigger("trigger_dag")
-        assert result["dag_id"] == "trigger_dag"
-        assert result["state"] == "queued"
+        assert result.dag_id == "trigger_dag"
+        assert result.state == "queued"
 
     def test_trigger_dag_run_with_conf(self, client, dag_maker):
         with dag_maker("conf_dag", schedule=None):
             EmptyOperator(task_id="t")
         client.dags.unpause("conf_dag")
         result = client.dag_runs.trigger("conf_dag", conf={"key": "value"})
-        assert result["dag_id"] == "conf_dag"
-        assert result["conf"] == {"key": "value"}
+        assert result.dag_id == "conf_dag"
+        assert result.conf == {"key": "value"}
 
     def test_get_dag_run(self, client, dag_maker):
         with dag_maker("get_run_dag", schedule=None):
             EmptyOperator(task_id="t")
         dr = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
         result = client.dag_runs.get("get_run_dag", dr.run_id)
-        assert result["dag_id"] == "get_run_dag"
-        assert result["dag_run_id"] == dr.run_id
+        assert result.dag_id == "get_run_dag"
+        assert result.dag_run_id == dr.run_id
 
     def test_list_dag_runs(self, client, dag_maker):
         with dag_maker("list_runs_dag", schedule=None):
             EmptyOperator(task_id="t")
         dag_maker.create_dagrun(state=DagRunState.SUCCESS)
         result = client.dag_runs.list("list_runs_dag")
-        assert result["total_entries"] >= 1
-        assert result["dag_runs"][0]["dag_id"] == "list_runs_dag"
+        assert result.total_entries >= 1
+        assert result.dag_runs[0].dag_id == "list_runs_dag"
 
     def test_update_dag_run_note(self, client, dag_maker):
         with dag_maker("note_dag", schedule=None):
             EmptyOperator(task_id="t")
         dr = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
         result = client.dag_runs.update("note_dag", dr.run_id, note="my note")
-        assert result["note"] == "my note"
+        assert result.note == "my note"
 
     def test_delete_dag_run(self, client, dag_maker):
         with dag_maker("del_run_dag", schedule=None):
@@ -504,7 +531,7 @@ class TestDagRunsClientViaLocalREST:
         dr = dag_maker.create_dagrun(state=DagRunState.FAILED)
         result = client.dag_runs.clear("clear_dag", dr.run_id, dry_run=True)
         # dry_run=True returns a TaskInstanceCollectionResponse
-        assert "task_instances" in result or "total_entries" in result
+        assert result.total_entries >= 0
 
 
 class TestTaskInstancesClientViaLocalREST:
@@ -532,8 +559,8 @@ class TestTaskInstancesClientViaLocalREST:
             EmptyOperator(task_id="task_b")
         dr = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
         result = client.task_instances.list("ti_dag", dr.run_id)
-        assert result["total_entries"] == 2
-        task_ids = [ti["task_id"] for ti in result["task_instances"]]
+        assert result.total_entries == 2
+        task_ids = [ti.task_id for ti in result.task_instances]
         assert "task_a" in task_ids
         assert "task_b" in task_ids
 
@@ -542,8 +569,8 @@ class TestTaskInstancesClientViaLocalREST:
             EmptyOperator(task_id="my_task")
         dr = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
         result = client.task_instances.get("get_ti_dag", dr.run_id, "my_task")
-        assert result["task_id"] == "my_task"
-        assert result["dag_id"] == "get_ti_dag"
+        assert result.task_id == "my_task"
+        assert result.dag_id == "get_ti_dag"
 
     def test_get_task_instance_not_found(self, client, dag_maker):
         with dag_maker("notfound_ti_dag", schedule=None):
@@ -562,7 +589,7 @@ class TestTaskInstancesClientViaLocalREST:
         dag_maker.create_dagrun(state=DagRunState.SUCCESS)
         # ~ means "all" for both dag_id and dag_run_id
         result = client.task_instances.list("~", "~")
-        assert result["total_entries"] >= 2
+        assert result.total_entries >= 2
 
     def test_clear_task_instances(self, client, dag_maker):
         with dag_maker("clear_ti_dag", schedule=None):
@@ -570,7 +597,7 @@ class TestTaskInstancesClientViaLocalREST:
             EmptyOperator(task_id="t2")
         dag_maker.create_dagrun(state=DagRunState.FAILED)
         result = client.task_instances.clear("clear_ti_dag", task_ids=["t1"], dry_run=True)
-        assert "task_instances" in result or "total_entries" in result
+        assert result.total_entries >= 0
 
 
 class TestConfigClientViaLocalREST:
@@ -587,20 +614,20 @@ class TestConfigClientViaLocalREST:
 
     def test_get_full_config(self, client):
         result = client.config.get()
-        assert "sections" in result
-        assert len(result["sections"]) > 0
+        assert result.sections is not None
+        assert len(result.sections) > 0
 
     def test_get_config_section(self, client):
         result = client.config.get(section="core")
-        assert "sections" in result
-        sections = [s["name"] for s in result["sections"]]
+        assert result.sections is not None
+        sections = [s.name for s in result.sections]
         assert "core" in sections
 
     def test_get_config_value(self, client):
         result = client.config.get_value("core", "executor")
-        assert "sections" in result
-        options = result["sections"][0]["options"]
-        assert any(o["key"] == "executor" for o in options)
+        assert result.sections is not None
+        options = result.sections[0].options
+        assert any(o.key == "executor" for o in options)
 
 
 class TestAssetsClientViaLocalREST:
@@ -644,12 +671,12 @@ class TestAssetsClientViaLocalREST:
         self._create_asset(session, name="asset_a", uri="s3://a/1")
         self._create_asset(session, name="asset_b", uri="s3://b/2")
         result = client.assets.list()
-        assert result["total_entries"] >= 2
+        assert result.total_entries >= 2
 
     def test_get_asset(self, client, session):
         asset = self._create_asset(session)
         result = client.assets.get(asset.id)
-        assert result["name"] == "test_asset"
+        assert result.name == "test_asset"
 
     def test_get_asset_not_found(self, client):
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
@@ -659,9 +686,9 @@ class TestAssetsClientViaLocalREST:
     def test_list_events_empty(self, client, session):
         self._create_asset(session)
         result = client.assets.list_events()
-        assert result["total_entries"] == 0
+        assert result.total_entries == 0
 
     def test_get_queued_events(self, client, session):
         asset = self._create_asset(session)
         result = client.assets.get_queued_events(asset.id)
-        assert "queued_events" in result or "total_entries" in result
+        assert result.total_entries >= 0

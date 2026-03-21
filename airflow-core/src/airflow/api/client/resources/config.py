@@ -19,7 +19,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+
+from airflow.api_fastapi.core_api.datamodels.config import Config
 
 if TYPE_CHECKING:
     import httpx
@@ -31,17 +33,17 @@ class ConfigClient:
     def __init__(self, http: httpx.Client) -> None:
         self._http = http
 
-    def get(self, *, section: str | None = None) -> dict[str, Any]:
+    def get(self, *, section: str | None = None) -> Config:
         """Get the full Airflow configuration, optionally filtered by section."""
         params: dict[str, str] = {}
         if section is not None:
             params["section"] = section
         resp = self._http.get("/api/v2/config", params=params)
         resp.raise_for_status()
-        return resp.json()
+        return Config.model_validate(resp.json())
 
-    def get_value(self, section: str, option: str) -> dict[str, Any]:
+    def get_value(self, section: str, option: str) -> Config:
         """Get a single configuration option value."""
         resp = self._http.get(f"/api/v2/config/section/{section}/option/{option}")
         resp.raise_for_status()
-        return resp.json()
+        return Config.model_validate(resp.json())

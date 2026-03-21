@@ -21,6 +21,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from airflow.api_fastapi.core_api.datamodels.connections import (
+    ConnectionCollectionResponse,
+    ConnectionResponse,
+)
+
 if TYPE_CHECKING:
     import httpx
 
@@ -31,17 +36,21 @@ class ConnectionsClient:
     def __init__(self, http: httpx.Client) -> None:
         self._http = http
 
-    def get(self, connection_id: str) -> dict[str, Any]:
+    def get(self, connection_id: str) -> ConnectionResponse:
         """Get a connection by ID."""
         resp = self._http.get(f"/api/v2/connections/{connection_id}")
         resp.raise_for_status()
-        return resp.json()
+        return ConnectionResponse.model_validate(resp.json())
 
-    def list(self, *, limit: int = 100, offset: int = 0) -> dict[str, Any]:
+    def list(self, *, limit: int = 100, offset: int = 0) -> ConnectionCollectionResponse:
         """List all connections with pagination."""
         resp = self._http.get("/api/v2/connections", params={"limit": limit, "offset": offset})
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        return ConnectionCollectionResponse.model_construct(
+            total_entries=data["total_entries"],
+            connections=[ConnectionResponse.model_validate(c) for c in data["connections"]],
+        )
 
     def create(
         self,
@@ -55,7 +64,7 @@ class ConnectionsClient:
         port: int | None = None,
         password: str | None = None,
         extra: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> ConnectionResponse:
         """Create a new connection."""
         body: dict[str, Any] = {
             "connection_id": connection_id,
@@ -77,7 +86,7 @@ class ConnectionsClient:
             body["extra"] = extra
         resp = self._http.post("/api/v2/connections", json=body)
         resp.raise_for_status()
-        return resp.json()
+        return ConnectionResponse.model_validate(resp.json())
 
     def update(
         self,
@@ -91,7 +100,7 @@ class ConnectionsClient:
         port: int | None = None,
         password: str | None = None,
         extra: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> ConnectionResponse:
         """Update an existing connection (partial update via update_mask)."""
         # The Core API PATCH accepts ConnectionBody (with required fields) but
         # supports an update_mask query param to limit which fields are validated.
@@ -127,7 +136,7 @@ class ConnectionsClient:
             params={"update_mask": update_mask},
         )
         resp.raise_for_status()
-        return resp.json()
+        return ConnectionResponse.model_validate(resp.json())
 
     def delete(self, connection_id: str) -> None:
         """Delete a connection by ID."""
