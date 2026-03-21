@@ -868,6 +868,16 @@ logging:
       type: string
       example: ~
       default: "True"
+    json_format:
+      description: |
+        Enables JSON-formatted console logs (one JSON object per line).
+        When enabled, each log line is a JSON object with fields such as
+        ``timestamp``, ``level``, ``event``, and ``logger``.
+        This replaces the default human-readable console output.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "False"
     log_format:
       description: |
         Format of Log line

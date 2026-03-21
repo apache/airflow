@@ -109,6 +109,7 @@ def configure_logging():
             "COLORED_LOG",
             conf.getboolean("logging", "colored_console_log", fallback=True),
         )
+        json_format = conf.getboolean("logging", "json_format", fallback=False)
         # Try to init logging
 
         log_fmt, callsite_params = translate_config_values(
@@ -131,6 +132,7 @@ def configure_logging():
         stdlib_config = {**stdlib_config, "loggers": {**stdlib_config.get("loggers", {}), **extra_loggers}}
 
         configure_logging(
+            json_output=json_format,
             log_level=level,
             namespace_log_levels=conf.get("logging", "namespace_levels", fallback=None),
             stdlib_config=stdlib_config,
