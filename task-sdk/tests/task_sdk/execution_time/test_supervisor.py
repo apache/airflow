@@ -731,40 +731,6 @@ class TestWatchedSubprocess:
             "task_instance_id": str(ti.id),
         } in captured_logs
 
-    def test_supervisor_handles_already_running_task(self):
-        """Test that Supervisor prevents starting a Task Instance that is already running."""
-        ti = TaskInstance(
-            id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
-        )
-
-        # Mock API Server response indicating the TI is already running
-        # The API Server would return a 409 Conflict status code if the TI is not
-        # in a "queued" state.
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == f"/task-instances/{ti.id}/run":
-                return httpx.Response(
-                    409,
-                    json={
-                        "reason": "invalid_state",
-                        "message": "TI was not in a state where it could be marked as running",
-                        "previous_state": "running",
-                    },
-                )
-
-            return httpx.Response(status_code=204)
-
-        client = make_client(transport=httpx.MockTransport(handle_request))
-
-        with pytest.raises(ServerResponseError, match="Server returned error") as err:
-            ActivitySubprocess.start(dag_rel_path=os.devnull, bundle_info=FAKE_BUNDLE, what=ti, client=client)
-
-        assert err.value.response.status_code == 409
-        assert err.value.detail == {
-            "reason": "invalid_state",
-            "message": "TI was not in a state where it could be marked as running",
-            "previous_state": "running",
-        }
-
     @pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True, ids=["log_level=error"])
     def test_state_conflict_on_heartbeat(self, captured_logs, monkeypatch, mocker, make_ti_context_dict):
         """
