@@ -16,12 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.serialization.helpers import serialize_template_field
+
 
 def test_serialize_template_field_with_very_small_max_length(monkeypatch):
     """Test that truncation message is prioritized even for very small max_length."""
     monkeypatch.setenv("AIRFLOW__CORE__MAX_TEMPLATED_FIELD_LENGTH", "1")
-
-    from airflow.serialization.helpers import serialize_template_field
 
     result = serialize_template_field("This is a long string", "test")
 
@@ -29,3 +29,25 @@ def test_serialize_template_field_with_very_small_max_length(monkeypatch):
     # This ensures users always see why content is truncated
     assert result
     assert "Truncated. You can change this behaviour" in result
+
+
+def test_serialize_template_field_with_dict_value_callable():
+    def fn_returns_callable():
+        def get_arg():
+            pass
+
+        return get_arg
+
+    template_name = "op_kwargs"
+
+    value = {"values": [3, 1, 2], "sort_key": lambda x: x}
+    result = serialize_template_field(value, template_name)
+
+    assert result == serialize_template_field(value, template_name)
+
+    value_nested = {
+        "values": [3, 1, 2],
+        "sort_key_nested": {"b": lambda x: fn_returns_callable(), "a": "test"},
+    }
+    result_nested = serialize_template_field(value_nested, template_name)
+    assert result_nested == serialize_template_field(value_nested, template_name)

@@ -51,6 +51,10 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         else:
             return True
 
+    def make_callable_static(x):
+        full_qualified_name = qualname(x, True)
+        return f"<callable {full_qualified_name}>"
+
     def translate_tuples_to_lists(obj: Any):
         """Recursively convert tuples to lists."""
         if isinstance(obj, tuple):
@@ -61,25 +65,28 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             return {key: translate_tuples_to_lists(value) for key, value in obj.items()}
         return obj
 
-    def sort_dict_recursively(obj: Any) -> Any:
-        """Recursively sort dictionaries to ensure consistent ordering."""
+    def sort_and_make_static_dict_recursively(obj: Any) -> Any:
+        """Recursively sort dictionaries and make callable value static to ensure consistent ordering."""
+        if callable(obj):
+            return make_callable_static(obj)
         if isinstance(obj, dict):
-            return {k: sort_dict_recursively(v) for k, v in sorted(obj.items())}
+            return {k: sort_and_make_static_dict_recursively(v) for k, v in sorted(obj.items())}
         if isinstance(obj, list):
-            return [sort_dict_recursively(item) for item in obj]
+            return [sort_and_make_static_dict_recursively(item) for item in obj]
         if isinstance(obj, tuple):
-            return tuple(sort_dict_recursively(item) for item in obj)
-        return obj
+            return tuple(sort_and_make_static_dict_recursively(item) for item in obj)
+        return str(obj)
 
     max_length = conf.getint("core", "max_templated_field_length")
 
-    if not is_jsonable(template_field):
+    # If the callable objects is in dict value, it makes is_jsonable False.
+    # So, filter the case in here and handle it downside
+    if not is_jsonable(template_field) and not isinstance(template_field, dict):
         try:
             serialized = template_field.serialize()
         except AttributeError:
             if callable(template_field):
-                full_qualified_name = qualname(template_field, True)
-                serialized = f"<callable {full_qualified_name}>"
+                serialized = make_callable_static(template_field)
             else:
                 serialized = str(template_field)
         if len(serialized) > max_length:
@@ -94,7 +101,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     # Sort dictionaries recursively to ensure consistent string representation
     # This prevents hash inconsistencies when dict ordering varies
     if isinstance(template_field, dict):
-        template_field = sort_dict_recursively(template_field)
+        template_field = sort_and_make_static_dict_recursively(template_field)
     serialized = str(template_field)
     if len(serialized) > max_length:
         rendered = redact(serialized, name)
