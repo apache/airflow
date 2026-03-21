@@ -456,7 +456,7 @@ The legal checks include:
 ## SVN check
 
 The files should be present in the sub-folder of
-[Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/)
+[Airflow dist - helm-chart](https://dist.apache.org/repos/dist/dev/airflow/helm-chart/)
 
 The following files should be present (7 files):
 
