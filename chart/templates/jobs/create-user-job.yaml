@@ -89,8 +89,12 @@ spec:
       imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       {{- if .Values.createUserJob.extraInitContainers }}
       initContainers:
-        {{- tpl (toYaml .Values.createUserJob.extraInitContainers) . | nindent 8 }}
-      {{- end }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.createUserJob (not .Values.dags.persistence.enabled) }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
+        {{- end }}
+        {{- if .Values.createUserJob.extraInitContainers }}
+          {{- tpl (toYaml .Values.createUserJob.extraInitContainers) . | nindent 8 }}
+        {{- end }}
       containers:
         - name: create-user
           image: {{ template "airflow_image" . }}
@@ -116,6 +120,7 @@ spec:
           resources: {{- toYaml .Values.createUserJob.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- include "airflow_dags_mount" (list . "createUserJob") | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -129,6 +134,8 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- include "airflow_dags_volume" (list . "createUserJob") | nindent 8 }}
+        {{- include "git_sync_ssh_key_volume" (list . "createUserJob") | nindent 8 }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}

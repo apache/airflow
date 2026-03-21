@@ -89,8 +89,12 @@ spec:
       imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       {{- if .Values.migrateDatabaseJob.extraInitContainers }}
       initContainers:
-        {{- tpl (toYaml .Values.migrateDatabaseJob.extraInitContainers) . | nindent 8 }}
-      {{- end }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.migrateDatabaseJob (not .Values.dags.persistence.enabled) }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
+        {{- end }}
+        {{- if .Values.migrateDatabaseJob.extraInitContainers }}
+          {{- tpl (toYaml .Values.migrateDatabaseJob.extraInitContainers) . | nindent 8 }}
+        {{- end }}
       containers:
         - name: run-airflow-migrations
           image: {{ template "airflow_image_for_migrations" . }}
@@ -120,8 +124,9 @@ spec:
           resources: {{- toYaml .Values.migrateDatabaseJob.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
-              {{- if .Values.volumeMounts }}
-            {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- include "airflow_dags_mount" (list . "migrateDatabaseJob") | nindent 12 }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.migrateDatabaseJob.extraVolumeMounts }}
               {{- tpl (toYaml .Values.migrateDatabaseJob.extraVolumeMounts) . | nindent 12 }}
@@ -133,6 +138,8 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- include "airflow_dags_volume" (list . "migrateDatabaseJob") | nindent 8 }}
+        {{- include "git_sync_ssh_key_volume" (list . "migrateDatabaseJob") | nindent 8 }}
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}

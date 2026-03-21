@@ -49,7 +49,7 @@ metadata:
     {{- end }}
 spec:
   initContainers:
-    {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
+    {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.workers (not .Values.dags.persistence.enabled) }}
       {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 4 }}
     {{- end }}
     {{- if .Values.workers.extraInitContainers }}
@@ -238,14 +238,7 @@ spec:
   topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}
   volumes:
-  {{- if .Values.dags.persistence.enabled }}
-  - name: dags
-    persistentVolumeClaim:
-      claimName: {{ template "airflow_dags_volume_claim" . }}
-  {{- else if .Values.dags.gitSync.enabled }}
-  - name: dags
-    emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 6 }}
-  {{- end }}
+  {{- include "airflow_dags_volume" (list . "workers") | nindent 2 }}
   {{- if .Values.logs.persistence.enabled }}
   - name: logs
     persistentVolumeClaim:
@@ -254,9 +247,7 @@ spec:
   - emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 6 }}
     name: logs
   {{- end }}
-  {{- if and  .Values.dags.gitSync.enabled (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) }}
-    {{- include "git_sync_ssh_key_volume" . | nindent 2 }}
-  {{- end }}
+  {{- include "git_sync_ssh_key_volume" (list . "workers") | nindent 2 }}
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
