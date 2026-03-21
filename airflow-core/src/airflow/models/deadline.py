@@ -165,11 +165,10 @@ class Deadline(Base):
     @classmethod
     def prune_deadlines(cls, *, session: Session, conditions: dict[Mapped, Any]) -> int:
         """
-        Remove deadlines from the table which match the provided conditions and return the number removed.
+        Mark deadlines as met when the associated DAG run completed before the deadline time.
 
-        NOTE: This should only be used to remove deadlines which are associated with
-            successful events (DagRuns, etc). If the deadline was missed, it will be
-            handled by the scheduler.
+        NOTE: This should only be used for deadlines associated with successful events
+            (DagRuns, etc). If the deadline was missed, it will be handled by the scheduler.
 
         :param conditions: Dictionary of conditions to evaluate against.
         :param session: Session to use.
