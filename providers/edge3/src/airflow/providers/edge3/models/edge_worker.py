@@ -26,14 +26,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
-from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
-from airflow.providers.edge3.models.edge_base import Base
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.edge3.models.edge_base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -179,49 +175,26 @@ def set_metrics(
         EdgeWorkerState.OFFLINE_MAINTENANCE,
     )
 
-    if DualStatsManager is not None:
-        DualStatsManager.gauge(
-            "edge_worker.connected",
-            int(connected),
-            tags={},
-            extra_tags={"worker_name": worker_name},
-        )
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.sdk.observability import stats
 
-        DualStatsManager.gauge(
-            "edge_worker.maintenance",
-            int(maintenance),
-            tags={},
-            extra_tags={"worker_name": worker_name},
+        stats.gauge("edge_worker.connected", int(connected), legacy_name_tags={"worker_name": worker_name})
+        stats.gauge(
+            "edge_worker.maintenance", int(maintenance), legacy_name_tags={"worker_name": worker_name}
         )
-
-        DualStatsManager.gauge(
-            "edge_worker.jobs_active",
-            jobs_active,
-            tags={},
-            extra_tags={"worker_name": worker_name},
+        stats.gauge("edge_worker.jobs_active", jobs_active, legacy_name_tags={"worker_name": worker_name})
+        stats.gauge("edge_worker.concurrency", concurrency, legacy_name_tags={"worker_name": worker_name})
+        stats.gauge(
+            "edge_worker.free_concurrency", free_concurrency, legacy_name_tags={"worker_name": worker_name}
         )
-
-        DualStatsManager.gauge(
-            "edge_worker.concurrency",
-            concurrency,
-            tags={},
-            extra_tags={"worker_name": worker_name},
-        )
-
-        DualStatsManager.gauge(
-            "edge_worker.free_concurrency",
-            free_concurrency,
-            tags={},
-            extra_tags={"worker_name": worker_name},
-        )
-
-        DualStatsManager.gauge(
+        stats.gauge(
             "edge_worker.num_queues",
             len(queues),
-            tags={},
-            extra_tags={"worker_name": worker_name, "queues": ",".join(queues)},
+            legacy_name_tags={"worker_name": worker_name, "queues": ",".join(queues)},
         )
     else:
+        from airflow.stats import Stats
+
         Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
         Stats.gauge("edge_worker.connected", int(connected), tags={"worker_name": worker_name})
 

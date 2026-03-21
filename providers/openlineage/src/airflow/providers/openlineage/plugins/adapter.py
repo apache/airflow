@@ -35,12 +35,8 @@ from openlineage.client.facet_v2 import (
     tags_job,
 )
 
-from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
+from airflow.providers.common.compat.sdk import conf as airflow_conf
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
@@ -162,18 +158,21 @@ class OpenLineageAdapter(LoggingMixin):
         transport_type = f"{self._client.transport.kind}".lower()
 
         try:
-            with ExitStack() as stack:
-                if DualStatsManager is not None:
-                    stack.enter_context(
-                        DualStatsManager.timer(
-                            "ol.emit.attempts",
-                            extra_tags={"event_type": event_type, "transport_type": transport_type},
-                        )
-                    )
-                else:
-                    stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
-                    stack.enter_context(Stats.timer("ol.emit.attempts"))
+            if AIRFLOW_V_3_2_PLUS:
+                from airflow.sdk.observability import stats
 
+                ctx = stats.timer(
+                    "ol.emit.attempts",
+                    legacy_name_tags={"event_type": event_type, "transport_type": transport_type},
+                )
+            else:
+                from airflow.stats import Stats
+
+                stack = ExitStack()
+                stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
+                stack.enter_context(Stats.timer("ol.emit.attempts"))
+                ctx = stack
+            with ctx:
                 self._client.emit(redacted_event)
                 self.log.info(
                     "Successfully emitted OpenLineage `%s` event of id `%s`",
@@ -181,7 +180,14 @@ class OpenLineageAdapter(LoggingMixin):
                     event.run.runId,
                 )
         except Exception as e:
-            Stats.incr("ol.emit.failed")
+            if AIRFLOW_V_3_2_PLUS:
+                from airflow.sdk.observability import stats
+
+                stats.incr("ol.emit.failed")
+            else:
+                from airflow.stats import Stats
+
+                Stats.incr("ol.emit.failed")
             self.log.warning(
                 "Failed to emit OpenLineage `%s` event of id `%s` with the following exception: `%s`",
                 event_type.upper(),

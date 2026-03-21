@@ -120,7 +120,7 @@ def test_fail_and_success():
 
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
-@mock.patch("airflow.executors.base_executor.Stats.gauge")
+@mock.patch("airflow.executors.base_executor.stats.gauge")
 def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_tasks, mock_sync):
     executor = BaseExecutor()
     executor.heartbeat()
@@ -140,7 +140,7 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
 )
 @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
-@mock.patch("airflow.executors.base_executor.Stats.gauge")
+@mock.patch("airflow.executors.base_executor.stats.gauge")
 @mock.patch("airflow.executors.base_executor.ExecutorLoader.get_executor_names")
 def test_gauge_executor_metrics_with_multiple_executors(
     mock_get_executor_names,

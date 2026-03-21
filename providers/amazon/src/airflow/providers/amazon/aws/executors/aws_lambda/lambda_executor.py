@@ -41,7 +41,8 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
+from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -465,7 +466,15 @@ class AwsLambdaExecutor(BaseExecutor):
 
         :param tis: The task instances to adopt.
         """
-        with Stats.timer("lambda_executor.adopt_task_instances.duration"):
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.sdk.observability import stats
+
+            ctx = stats.timer("lambda_executor.adopt_task_instances.duration")
+        else:
+            from airflow.stats import Stats
+
+            ctx = Stats.timer("lambda_executor.adopt_task_instances.duration")
+        with ctx:
             adopted_tis: list[TaskInstance] = []
 
             if serialized_task_keys := [

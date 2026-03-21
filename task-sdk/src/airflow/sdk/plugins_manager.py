@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 
 from airflow import settings
 from airflow.sdk._shared.module_loading import import_string
-from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.sdk._shared.plugins_manager import (
     AirflowPlugin,
     _load_entrypoint_plugins,
@@ -35,6 +34,7 @@ from airflow.sdk._shared.plugins_manager import (
     is_valid_plugin,
 )
 from airflow.sdk.configuration import conf
+from airflow.sdk.observability import stats
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
@@ -97,7 +97,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
                 import_errors[name] = str(e)
         import_errors.update(errors)
 
-    with Stats.timer() as timer:
+    with stats.timer() as timer:
         load_examples = conf.getboolean("core", "LOAD_EXAMPLES")
         __register_plugins(
             *_load_plugins_from_plugin_directory(

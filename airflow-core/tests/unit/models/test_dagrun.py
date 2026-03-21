@@ -36,7 +36,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
-from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
@@ -1038,7 +1037,7 @@ class TestDagRun:
         runs = func(session).all()
         assert runs == []
 
-    @mock.patch.object(Stats, "timing")
+    @mock.patch("airflow.models.dagrun.stats.timing")
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session, testing_dag_bundle):
         """
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
@@ -1116,7 +1115,7 @@ class TestDagRun:
             ti.set_state(TaskInstanceState.SUCCESS, session)
             session.flush()
 
-            with mock.patch.object(Stats, "timing") as stats_mock:
+            with mock.patch("airflow.models.dagrun.stats.timing") as stats_mock:
                 dag_run.update_state(session)
 
             metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
@@ -1362,7 +1361,7 @@ class TestDagRun:
         pytest.param(DagRunType.BACKFILL_JOB, 3, id="backfill"),
     ],
 )
-@mock.patch.object(Stats, "incr")
+@mock.patch("airflow.models.dagrun.stats.incr")
 def test_verify_integrity_task_start_and_end_date(Stats_incr, dag_maker, session, run_type, expected_tis):
     """Test that tasks with specific dates are only created for backfill runs"""
     with dag_maker("test", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE) as dag:

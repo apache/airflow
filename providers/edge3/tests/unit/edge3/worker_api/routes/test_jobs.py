@@ -30,16 +30,8 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-try:
-    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
-
-    stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
-    expected_call_count = 1
-except ImportError:
-    from airflow.providers.common.compat.sdk import Stats
-
-    stats_reference = f"{Stats.__module__}.Stats"
-    expected_call_count = 2
+stats_reference = "airflow.providers.edge3.worker_api.routes.jobs.Stats"
+expected_call_count = 1
 
 pytestmark = pytest.mark.db_test
 
