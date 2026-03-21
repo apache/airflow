@@ -507,6 +507,26 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
             if kube_client is not None:
                 await kube_client.close()
 
+    async def list_pods(
+        self,
+        namespace: str,
+        label_selector: str,
+    ) -> list:
+        """
+        List pods in the given namespace matching the label selector.
+
+        :param namespace: Kubernetes namespace.
+        :param label_selector: Label selector to filter pods (e.g. ``job-name=my-job``).
+        :return: List of V1Pod objects.
+        """
+        async with self.get_conn() as connection:
+            v1_api = async_client.CoreV1Api(connection)
+            response = await v1_api.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=label_selector,
+            )
+            return list(response.items) if response.items else []
+
     async def _load_config(self) -> async_client.ApiClient:
         configuration = self._get_config()
         token = await self.get_token()
