@@ -98,6 +98,9 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
     validator.avalidated_claims.return_value = {
         "sub": str(ti.id),
         "scope": "execution",
+        "exp": 9999999999,
+        "iat": 1000000000,
+        "nbf": 1000000000,
     }
     lifespan.registry.register_value(JWTValidator, validator)
 
@@ -3174,6 +3177,7 @@ class TestTokenTypeValidation:
             "scope": "workload",
             "exp": 9999999999,
             "iat": 1000000000,
+            "nbf": 1000000000,
         }
         lifespan.registry.register_value(JWTValidator, validator)
 
@@ -3193,6 +3197,7 @@ class TestTokenTypeValidation:
             "scope": "execution",
             "exp": 9999999999,
             "iat": 1000000000,
+            "nbf": 1000000000,
         }
         lifespan.registry.register_value(JWTValidator, validator)
 
@@ -3211,6 +3216,7 @@ class TestTokenTypeValidation:
             "scope": "bogus:scope",
             "exp": 9999999999,
             "iat": 1000000000,
+            "nbf": 1000000000,
         }
         lifespan.registry.register_value(JWTValidator, validator)
 
@@ -3224,7 +3230,7 @@ class TestTokenTypeValidation:
 
         resp = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
         assert resp.status_code == 403
-        assert "Invalid token scope" in resp.json()["detail"]
+        assert "Invalid auth token" in resp.json()["detail"]
 
     def test_no_scope_defaults_to_execution(self, client, session, create_task_instance):
         """Tokens without scope claim should default to 'execution'."""
@@ -3236,6 +3242,7 @@ class TestTokenTypeValidation:
             "sub": str(ti.id),
             "exp": 9999999999,
             "iat": 1000000000,
+            "nbf": 1000000000,
         }
         lifespan.registry.register_value(JWTValidator, validator)
 

@@ -21,7 +21,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import cached_app
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import _jwt_bearer
 
 
@@ -48,7 +48,8 @@ def client(request: pytest.FixtureRequest):
         from uuid import UUID
 
         ti_id = UUID(request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000"))
-        return TIToken(id=ti_id, claims={"sub": str(ti_id), "scope": "execution"})
+        claims = TIClaims(sub=ti_id, exp=0, iat=0, nbf=0, scope="execution")
+        return TIToken(id=claims.sub, claims=claims)
 
     exec_app.dependency_overrides[_jwt_bearer] = mock_jwt_bearer
 
