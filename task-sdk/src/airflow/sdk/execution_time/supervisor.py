@@ -1940,7 +1940,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     3. Neither → fallback chain (only env vars + external backends, no MetastoreBackend)
 
     Client contexts: task runner in worker (has SUPERVISOR_COMMS)
-    Server contexts: API server, scheduler (set _AIRFLOW_PROCESS_CONTEXT=server)
+    Server contexts: API server, scheduler, triggerer (set _AIRFLOW_PROCESS_CONTEXT=server)
     Fallback contexts: supervisor, unknown contexts (no SUPERVISOR_COMMS, no env var)
 
     The fallback chain ensures supervisor can use external secrets (AWS Secrets Manager,
@@ -1963,7 +1963,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
 
     # 2. Check for explicit server context
     if os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server":
-        # Server context: API server, scheduler
+        # Server context: API server, scheduler, triggerer
         # uses the default server list
         return ensure_secrets_loaded()
 

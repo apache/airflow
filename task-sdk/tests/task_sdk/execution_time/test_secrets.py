@@ -207,6 +207,21 @@ class TestContextDetection:
         assert "MetastoreBackend" in backend_classes
         assert "ExecutionAPISecretsBackend" not in backend_classes
 
+    def test_triggerer_server_context_includes_metastore_backend(self, monkeypatch):
+        """Triggerer is a server context: _AIRFLOW_PROCESS_CONTEXT=server includes MetastoreBackend."""
+        import sys
+
+        from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
+
+        monkeypatch.setenv("_AIRFLOW_PROCESS_CONTEXT", "server")
+        # Ensure SUPERVISOR_COMMS is not available.
+        if "airflow.sdk.execution_time.task_runner" in sys.modules:
+            monkeypatch.delitem(sys.modules, "airflow.sdk.execution_time.task_runner")
+
+        backends = ensure_secrets_backend_loaded()
+        backend_classes = [type(b).__name__ for b in backends]
+        assert "MetastoreBackend" in backend_classes
+
     def test_fallback_context_no_markers(self, monkeypatch):
         """Fallback context: no SUPERVISOR_COMMS, no env var → only env vars + external."""
         import sys
