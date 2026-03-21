@@ -134,3 +134,118 @@ describe("Task log grouping", () => {
     await waitFor(() => expect(screen.queryByText(/Marking task as SUCCESS/iu)).not.toBeVisible());
   }, 10_000);
 });
+
+describe("Task log search", () => {
+  it("search input is rendered in the log header", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    expect(screen.getByTestId("log-search-input")).toBeInTheDocument();
+  });
+
+  it("typing in the search input enables navigation buttons for a known term", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    // "running state" appears in the mock log data
+    fireEvent.change(searchInput, { target: { value: "running state" } });
+
+    // Navigation buttons should become enabled once matches are found
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /previous match/iu })).not.toBeDisabled();
+    });
+  });
+
+  it("shows no-matches indicator for a term that does not exist in logs", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    fireEvent.change(searchInput, { target: { value: "zzz_not_in_logs_zzz" } });
+
+    await waitFor(() => {
+      // Navigation buttons should be disabled with zero matches
+      const nextBtn = screen.getByRole("button", { name: /next match/iu });
+
+      expect(nextBtn).toBeDisabled();
+    });
+  });
+
+  it("pressing Escape clears the search query", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    fireEvent.change(searchInput, { target: { value: "running" } });
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: /next match/iu })).toBeInTheDocument());
+
+    fireEvent.keyDown(searchInput, { key: "Escape" });
+
+    await waitFor(() => {
+      expect((searchInput as HTMLInputElement).value).toBe("");
+    });
+  });
+
+  it("pressing Enter keeps navigation buttons enabled (navigates to next match)", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    // "state" appears multiple times in the mock log data
+    fireEvent.change(searchInput, { target: { value: "state" } });
+
+    // Wait for matches to be found (navigation buttons become enabled)
+    await waitFor(() => expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled());
+
+    // Navigate forward — buttons remain enabled
+    fireEvent.keyDown(searchInput, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled();
+    });
+  });
+
+  it("pressing Shift+Enter keeps navigation buttons enabled (navigates to previous match)", async () => {
+    render(
+      <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    );
+
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    fireEvent.change(searchInput, { target: { value: "state" } });
+
+    // Wait for matches to be found
+    await waitFor(() => expect(screen.getByRole("button", { name: /previous match/iu })).not.toBeDisabled());
+
+    // Navigate backward — buttons remain enabled
+    fireEvent.keyDown(searchInput, { key: "Enter", shiftKey: true });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /previous match/iu })).not.toBeDisabled();
+    });
+  });
+});

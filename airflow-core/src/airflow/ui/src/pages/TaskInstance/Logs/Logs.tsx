@@ -118,6 +118,58 @@ export const Logs = () => {
 
   const getLogString = () => getParsedLogs().join("\n");
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+
+  const getSearchMatchIndices = () => {
+    if (!searchQuery) {
+      return [];
+    }
+    const query = searchQuery.toLowerCase();
+    const lines = parseStreamingLogContent(fetchedData);
+    const textLines = lines.map((line) =>
+      renderStructuredLog({
+        index: 0,
+        logLevelFilters,
+        logLink: "",
+        logMessage: line,
+        renderingMode: "text",
+        showSource,
+        showTimestamp,
+        sourceFilters,
+        translate,
+      }),
+    );
+    const indices: Array<number> = [];
+
+    textLines.forEach((line, index) => {
+      if (line.toLowerCase().includes(query)) {
+        indices.push(index);
+      }
+    });
+
+    return indices;
+  };
+
+  const searchMatchIndices = getSearchMatchIndices();
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setCurrentMatchIndex(0);
+  };
+
+  const handleSearchNext = () => {
+    if (searchMatchIndices.length > 0) {
+      setCurrentMatchIndex((prev) => (prev + 1) % searchMatchIndices.length);
+    }
+  };
+
+  const handleSearchPrevious = () => {
+    if (searchMatchIndices.length > 0) {
+      setCurrentMatchIndex((prev) => (prev - 1 + searchMatchIndices.length) % searchMatchIndices.length);
+    }
+  };
+
   const downloadLogs = () => {
     const logContent = getLogString();
     const element = document.createElement("a");
@@ -154,6 +206,14 @@ export const Logs = () => {
     expanded,
     getLogString,
     onSelectTryNumber,
+    search: {
+      currentMatchIndex,
+      onSearchChange: handleSearchChange,
+      onSearchNext: handleSearchNext,
+      onSearchPrevious: handleSearchPrevious,
+      searchQuery,
+      totalMatches: searchMatchIndices.length,
+    },
     showSource,
     showTimestamp,
     sourceOptions: parsedData.sources,
@@ -168,10 +228,13 @@ export const Logs = () => {
   };
 
   const logContentProps: TaskLogContentProps = {
+    currentMatchIndex: searchMatchIndices[currentMatchIndex],
     error,
     isLoading: isLoading || isLoadingLogs,
     logError,
     parsedLogs: parsedData.parsedLogs ?? [],
+    searchMatchIndices: searchQuery ? new Set(searchMatchIndices) : undefined,
+    searchQuery: searchQuery || undefined,
     wrap,
   };
 

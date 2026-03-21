@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, VStack, IconButton } from "@chakra-ui/react";
+import { Box, Code, Mark, VStack, IconButton } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { type JSX, useLayoutEffect, useRef } from "react";
+import { type JSX, type ReactNode, useLayoutEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
@@ -27,13 +27,16 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar, Tooltip } from "src/components/ui";
 import { getMetaKey } from "src/utils";
 
-import { scrollToBottom, scrollToTop } from "./utils";
+import { getHighlightColor, scrollToBottom, scrollToTop, splitBySearchQuery } from "./utils";
 
 export type TaskLogContentProps = {
+  readonly currentMatchIndex?: number;
   readonly error: unknown;
   readonly isLoading: boolean;
   readonly logError: unknown;
   readonly parsedLogs: Array<JSX.Element | string | undefined>;
+  readonly searchMatchIndices?: Set<number>;
+  readonly searchQuery?: string;
   readonly wrap: boolean;
 };
 
@@ -79,7 +82,39 @@ const ScrollToButton = ({
   );
 };
 
-export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: TaskLogContentProps) => {
+const HighlightedText = ({ children, query }: { readonly children: ReactNode; readonly query?: string }) => {
+  if (typeof query !== "string" || query.length === 0 || typeof children !== "string") {
+    return children;
+  }
+
+  const segments = splitBySearchQuery(children, query);
+
+  return (
+    <span>
+      {segments.map((segment, idx) =>
+        segment.highlight ? (
+          // eslint-disable-next-line react/no-array-index-key
+          <Mark bg="bg.subtle" key={idx}>
+            {segment.text}
+          </Mark>
+        ) : (
+          segment.text
+        ),
+      )}
+    </span>
+  );
+};
+
+export const TaskLogContent = ({
+  currentMatchIndex,
+  error,
+  isLoading,
+  logError,
+  parsedLogs,
+  searchMatchIndices,
+  searchQuery,
+  wrap,
+}: TaskLogContentProps) => {
   const hash = location.hash.replace("#", "");
   const parentRef = useRef<HTMLDivElement | null>(null);
 
@@ -99,6 +134,12 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
       rowVirtualizer.scrollToIndex(Math.min(Number(hash) + 5, parsedLogs.length - 1));
     }
   }, [isLoading, rowVirtualizer, hash, parsedLogs]);
+
+  useLayoutEffect(() => {
+    if (currentMatchIndex !== undefined && !isLoading) {
+      rowVirtualizer.scrollToIndex(Math.min(currentMatchIndex + 3, parsedLogs.length - 1));
+    }
+  }, [currentMatchIndex, isLoading, rowVirtualizer, parsedLogs]);
 
   const handleScrollTo = (to: "bottom" | "top") => {
     if (parsedLogs.length === 0) {
@@ -155,9 +196,12 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
               <Box
                 _ltr={{ left: 0, right: "auto" }}
                 _rtl={{ left: "auto", right: 0 }}
-                bgColor={
-                  Boolean(hash) && virtualRow.index === Number(hash) - 1 ? "brand.emphasized" : "transparent"
-                }
+                bgColor={getHighlightColor({
+                  currentMatchIndex,
+                  hash,
+                  index: virtualRow.index,
+                  searchMatchIndices,
+                })}
                 data-index={virtualRow.index}
                 data-testid={`virtualized-item-${virtualRow.index}`}
                 key={virtualRow.key}
@@ -167,7 +211,9 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
                 transform={`translateY(${virtualRow.start}px)`}
                 width={wrap ? "100%" : "max-content"}
               >
-                {parsedLogs[virtualRow.index] ?? undefined}
+                <HighlightedText query={searchMatchIndices?.has(virtualRow.index) ? searchQuery : undefined}>
+                  {parsedLogs[virtualRow.index] ?? undefined}
+                </HighlightedText>
               </Box>
             ))}
           </VStack>
