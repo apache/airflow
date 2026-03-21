@@ -2461,6 +2461,12 @@ export const $DAGRunClearBody = {
             title: 'Only Failed',
             default: false
         },
+        only_new: {
+            type: 'boolean',
+            title: 'Only New',
+            description: 'Only queue newly added tasks in the latest DAG version without clearing existing tasks.',
+            default: false
+        },
         run_on_latest_version: {
             type: 'boolean',
             title: 'Run On Latest Version',
@@ -4459,6 +4465,43 @@ export const $LastAssetEventResponse = {
     type: 'object',
     title: 'LastAssetEventResponse',
     description: 'Last asset event response serializer.'
+} as const;
+
+export const $NewTaskCollectionResponse = {
+    properties: {
+        new_tasks: {
+            items: {
+                '$ref': '#/components/schemas/NewTaskResponse'
+            },
+            type: 'array',
+            title: 'New Tasks'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['new_tasks', 'total_entries'],
+    title: 'NewTaskCollectionResponse',
+    description: 'Collection of new tasks discovered during an only_new dry run.'
+} as const;
+
+export const $NewTaskResponse = {
+    properties: {
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        }
+    },
+    type: 'object',
+    required: ['task_id', 'task_display_name'],
+    title: 'NewTaskResponse',
+    description: "Lightweight response for new tasks that don't have TaskInstances yet."
 } as const;
 
 export const $PatchTaskInstanceBody = {

@@ -287,6 +287,13 @@ class DAGRunClearBody(BaseModel):
     )
     dry_run: Annotated[bool | None, Field(title="Dry Run")] = True
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = False
+    only_new: Annotated[
+        bool | None,
+        Field(
+            description="Only queue newly added tasks in the latest DAG version without clearing existing tasks.",
+            title="Only New",
+        ),
+    ] = False
     run_on_latest_version: Annotated[
         bool | None,
         Field(
@@ -618,6 +625,15 @@ class LastAssetEventResponse(BaseModel):
 
     id: Annotated[Id | None, Field(title="Id")] = None
     timestamp: Annotated[datetime | None, Field(title="Timestamp")] = None
+
+
+class NewTaskResponse(BaseModel):
+    """
+    Lightweight response for new tasks that don't have TaskInstances yet.
+    """
+
+    task_id: Annotated[str, Field(title="Task Id")]
+    task_display_name: Annotated[str, Field(title="Task Display Name")]
 
 
 class PluginImportErrorResponse(BaseModel):
@@ -1608,6 +1624,15 @@ class JobCollectionResponse(BaseModel):
     """
 
     jobs: Annotated[list[JobResponse], Field(title="Jobs")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class NewTaskCollectionResponse(BaseModel):
+    """
+    Collection of new tasks discovered during an only_new dry run.
+    """
+
+    new_tasks: Annotated[list[NewTaskResponse], Field(title="New Tasks")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

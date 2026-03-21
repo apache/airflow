@@ -89,6 +89,20 @@ class TaskInstanceCollectionResponse(BaseModel):
     total_entries: int
 
 
+class NewTaskResponse(BaseModel):
+    """Lightweight response for new tasks that don't have TaskInstances yet."""
+
+    task_id: str
+    task_display_name: str
+
+
+class NewTaskCollectionResponse(BaseModel):
+    """Collection of new tasks discovered during an only_new dry run."""
+
+    new_tasks: list[NewTaskResponse]
+    total_entries: int
+
+
 class TaskDependencyResponse(BaseModel):
     """Task Dependency serializer for responses."""
 

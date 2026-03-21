@@ -645,6 +645,10 @@ export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
     /**
+     * Only queue newly added tasks in the latest DAG version without clearing existing tasks.
+     */
+    only_new?: boolean;
+    /**
      * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
      */
     run_on_latest_version?: boolean;
@@ -1131,6 +1135,22 @@ export type JsonValue = unknown;
 export type LastAssetEventResponse = {
     id?: number | null;
     timestamp?: string | null;
+};
+
+/**
+ * Collection of new tasks discovered during an only_new dry run.
+ */
+export type NewTaskCollectionResponse = {
+    new_tasks: Array<NewTaskResponse>;
+    total_entries: number;
+};
+
+/**
+ * Lightweight response for new tasks that don't have TaskInstances yet.
+ */
+export type NewTaskResponse = {
+    task_id: string;
+    task_display_name: string;
 };
 
 /**
@@ -2522,7 +2542,7 @@ export type ClearDagRunData = {
     requestBody: DAGRunClearBody;
 };
 
-export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
+export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse | NewTaskCollectionResponse;
 
 export type GetDagRunsData = {
     bundleVersion?: string | null;
@@ -4612,7 +4632,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: TaskInstanceCollectionResponse | DAGRunResponse;
+                200: TaskInstanceCollectionResponse | DAGRunResponse | NewTaskCollectionResponse;
                 /**
                  * Unauthorized
                  */

@@ -22,7 +22,12 @@ import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
-import type { DAGRunResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type {
+  DAGRunResponse,
+  NewTaskCollectionResponse,
+  TaskInstanceCollectionResponse,
+  TaskInstanceResponse,
+} from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
@@ -30,6 +35,11 @@ import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+/** Type guard to distinguish NewTaskCollectionResponse from TaskInstanceCollectionResponse. */
+const isNewTaskCollection = (
+  data: NewTaskCollectionResponse | TaskInstanceCollectionResponse,
+): data is NewTaskCollectionResponse => "new_tasks" in data;
 
 type Props = {
   readonly dagRun: DAGRunResponse;
@@ -45,6 +55,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
+  const onlyNew = selectedOptions.includes("new_tasks");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
   // Get current DAG's bundle version to compare with DAG run's bundle version
@@ -54,17 +65,47 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
 
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const { data: affectedTasks = { task_instances: [], total_entries: 0 } } = useClearDagRunDryRun({
+  const { data: dryRunData } = useClearDagRunDryRun({
     dagId,
     dagRunId,
     options: {
-      refetchInterval: (query) =>
-        query.state.data?.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
+      refetchInterval: (query) => {
+        const queryData = query.state.data;
+
+        if (!queryData || isNewTaskCollection(queryData)) {
+          return false;
+        }
+
+        return queryData.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
           ? refetchInterval
-          : false,
+          : false;
+      },
     },
-    requestBody: { only_failed: onlyFailed, run_on_latest_version: runOnLatestVersion },
+    requestBody: {
+      only_failed: onlyFailed,
+      only_new: onlyNew,
+      run_on_latest_version: runOnLatestVersion,
+    },
   });
+
+  // Normalise both response shapes into the format ActionAccordion expects.
+  const affectedTasks: TaskInstanceCollectionResponse = (() => {
+    const empty: TaskInstanceCollectionResponse = { task_instances: [], total_entries: 0 };
+
+    if (!dryRunData) {
+      return empty;
+    }
+    if (isNewTaskCollection(dryRunData)) {
+      return {
+        task_instances: dryRunData.new_tasks.map(
+          (task) => ({ task_id: task.task_id }) as TaskInstanceResponse,
+        ),
+        total_entries: dryRunData.total_entries,
+      };
+    }
+
+    return dryRunData;
+  })();
 
   const { isPending, mutate } = useClearDagRun({
     dagId,
@@ -78,12 +119,14 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     onSuccess: onClose,
   });
 
-  // Check if bundle versions are different
-  const currentDagBundleVersion = dagDetails?.bundle_version;
-  const dagRunBundleVersion = dagRun.bundle_version;
-  const bundleVersionsDiffer = currentDagBundleVersion !== dagRunBundleVersion;
-  const shouldShowBundleVersionOption =
-    bundleVersionsDiffer && dagRunBundleVersion !== null && dagRunBundleVersion !== "";
+  // Check if DAG versions differ (works for both bundle-versioned and local bundles)
+  const latestDagVersionNumber = dagDetails?.latest_dag_version?.version_number;
+  const dagRunVersionNumber = dagRun.dag_versions.at(-1)?.version_number;
+  const versionsDiffer =
+    latestDagVersionNumber !== undefined &&
+    dagRunVersionNumber !== undefined &&
+    latestDagVersionNumber !== dagRunVersionNumber;
+  const shouldShowBundleVersionOption = versionsDiffer && !onlyNew;
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
@@ -116,7 +159,6 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                   value: "onlyFailed",
                 },
                 {
-                  disabled: true,
                   label: translate("dags:runAndTaskActions.options.queueNew"),
                   value: "new_tasks",
                 },
@@ -148,6 +190,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                   requestBody: {
                     dry_run: false,
                     only_failed: onlyFailed,
+                    only_new: onlyNew,
                     run_on_latest_version: runOnLatestVersion,
                   },
                 });
