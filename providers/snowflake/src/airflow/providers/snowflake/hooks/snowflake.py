@@ -375,6 +375,9 @@ class SnowflakeHook(DbApiHook):
         authenticator = extra_dict.get("authenticator", "snowflake")
         session_parameters = extra_dict.get("session_parameters")
 
+        # Add Workload Identity Federation (WIF) support variable
+        workload_identity_provider = extra_dict.get("workload_identity_provider")
+
         conn_config = {
             "user": conn.login,
             "password": conn.password or "",
@@ -446,6 +449,9 @@ class SnowflakeHook(DbApiHook):
         ocsp_fail_open = extra_dict.get("ocsp_fail_open")
         if ocsp_fail_open is not None:
             conn_config["ocsp_fail_open"] = _try_to_boolean(ocsp_fail_open)
+
+        if workload_identity_provider:
+            conn_config["workload_identity_provider"] = workload_identity_provider
 
         # Add proxy configuration if specified
         proxy_host = self._get_field(extra_dict, "proxy_host")
