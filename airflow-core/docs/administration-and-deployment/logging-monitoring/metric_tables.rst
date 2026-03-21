@@ -40,6 +40,7 @@ Name                                             Legacy Name                    
 ``dag_processing.processes``                     ``-``                                                                   Relative number of currently running Dag parsing processes (ie this delta is negative when, since the last metric was sent, processes have completed). Metric with file_path and action tagging.
 ``dag_processing.processor_timeouts``            ``-``                                                                   Number of file processors that have been killed due to taking too long. Metric with file_path tagging.
 ``dag_processing.other_callback_count``          ``-``                                                                   Number of non-SLA callbacks received
+``dag_processing.callback_only_count``           ``-``                                                                   Number of DAG file processing runs that processed callbacks only, without full DAG parsing
 ``dag_processing.file_path_queue_update_count``  ``-``                                                                   Number of times we've scanned the filesystem and queued all existing Dags
 ``dag_file_processor_timeouts``                  ``-``                                                                   (DEPRECATED) same behavior as ``dag_processing.processor_timeouts``
 ``dag_processing.manager_stalls``                ``-``                                                                   Number of stalled ``DagFileProcessorManager``
@@ -61,8 +62,14 @@ Name                                             Legacy Name                    
 ``triggers.failed``                              ``-``                                                                   Number of triggers that errored before they could fire an event
 ``triggers.succeeded``                           ``-``                                                                   Number of triggers that have fired at least one event
 ``asset.updates``                                ``-``                                                                   Number of updated assets
-``asset.orphaned``                               ``-``                                                                   Number of assets marked as orphans because they are no longer referenced in Dag schedule parameters or task outlets
 ``asset.triggered_dagruns``                      ``-``                                                                   Number of Dag runs triggered by an asset update
+``deadline_alerts.deadline_created``             ``-``                                                                   Number of deadline alerts created for a Dag run
+``deadline_alerts.deadline_missed``              ``-``                                                                   Number of deadline alerts that fired because a Dag run missed its deadline
+``deadline_alerts.deadline_not_missed``          ``-``                                                                   Number of deadline records deleted because the Dag run finished before the deadline
+``ol.emit.failed``                               ``-``                                                                   Number of failed OpenLineage event emit attempts
+``edge_worker.heartbeat_count``                  ``edge_worker.heartbeat_count.{worker_name}``                           Number heartbeats in an edge worker.
+``edge_worker.ti.start``                         ``edge_worker.ti.start.{queue}.{dag_id}.{task_id}``                     Number of task instances started on an edge worker.
+``edge_worker.ti.finish``                        ``edge_worker.ti.finish.{queue}.{state}.{dag_id}.{task_id}``            Number of task instances finished on an edge worker.
 ===============================================  ======================================================================  ================================================================================================================================================================================================
 
 Gauges
@@ -71,6 +78,7 @@ Gauges
 ====================================================  ================================================  ========================================================================================================================================
 Name                                                  Legacy Name                                       Description
 ====================================================  ================================================  ========================================================================================================================================
+``asset.orphaned``                                    ``-``                                             Number of assets marked as orphans because they are no longer referenced in Dag schedule parameters or task outlets
 ``dagbag_size``                                       ``-``                                             Number of Dags found when the scheduler ran a scan based on its configuration
 ``dag_processing.import_errors``                      ``-``                                             Number of errors from trying to parse Dag files
 ``dag_processing.total_parse_time``                   ``-``                                             Seconds taken to scan and import ``dag_processing.file_path_queue_size`` Dag files
@@ -95,13 +103,13 @@ Name                                                  Legacy Name               
 ``ti.queued``                                         ``ti.queued.{queue}.{dag_id}.{task_id}``          Number of queued tasks in a given Dag.
 ``ti.running``                                        ``ti.running.{queue}.{dag_id}.{task_id}``         Number of running tasks in a given Dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
 ``ti.deferred``                                       ``ti.deferred.{queue}.{dag_id}.{task_id}``        Number of deferred tasks in a given Dag.
+``ol.event.size.{event_type}.{operator_name}``        ``-``                                             Size in bytes of an OpenLineage event by event type and operator.
 ``edge_worker.connected``                             ``edge_worker.connected.{worker_name}``           Edge worker in state connected.
 ``edge_worker.maintenance``                           ``edge_worker.maintenance.{worker_name}``         Edge worker in state maintenance.
 ``edge_worker.jobs_active``                           ``edge_worker.jobs_active.{worker_name}``         Number of active jobs in an edge worker.
 ``edge_worker.concurrency``                           ``edge_worker.concurrency.{worker_name}``         Concurrency capacity in an edge worker.
 ``edge_worker.free_concurrency``                      ``edge_worker.free_concurrency.{worker_name}``    Available concurrency in an edge worker.
 ``edge_worker.num_queues``                            ``edge_worker.num_queues.{worker_name}``          Number of queues in an edge worker.
-``edge_worker.heartbeat_count``                       ``edge_worker.heartbeat_count.{worker_name}``     Number heartbeats in an edge worker.
 ====================================================  ================================================  ========================================================================================================================================
 
 Timers
@@ -125,5 +133,12 @@ Name                                                              Legacy Name   
 ``collect_db_dags``                                               ``-``                                               Milliseconds taken for fetching all Serialized Dags from DB
 ``kubernetes_executor.clear_not_launched_queued_tasks.duration``  ``-``                                               Milliseconds taken for clearing not launched queued tasks in Kubernetes Executor
 ``kubernetes_executor.adopt_task_instances.duration``             ``-``                                               Milliseconds taken to adopt the task instances in Kubernetes Executor
+``batch_executor.adopt_task_instances.duration``                  ``-``                                               Milliseconds taken to adopt the task instances in the AWS Batch Executor
+``ecs_executor.adopt_task_instances.duration``                    ``-``                                               Milliseconds taken to adopt the task instances in the AWS ECS Executor
+``lambda_executor.adopt_task_instances.duration``                 ``-``                                               Milliseconds taken to adopt the task instances in the AWS Lambda Executor
+``edge_executor.sync.duration``                                   ``-``                                               Milliseconds taken for one sync heartbeat of the Edge Executor
 ``ol.emit.attempts``                                              ``ol.emit.attempts.{event_type}.{transport_type}``  Milliseconds taken by an attempt to emit an OpenLineage event.
+``ol.extract.{event_type}.{operator_name}``                       ``-``                                               Milliseconds taken to extract an OpenLineage event by event type and operator.
+``airflow.io.load_filesystems``                                   ``-``                                               Milliseconds taken to load filesystem implementations from providers
+``serde.load_serializers``                                        ``-``                                               Milliseconds taken to load all serializer modules
 ================================================================  ==================================================  ==============================================================================================
