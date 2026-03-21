@@ -65,7 +65,7 @@ from airflow.models.asset import (
     AssetPartitionDagRun,
     PartitionedAssetKeyLog,
 )
-from airflow.models.backfill import Backfill, _create_backfill
+from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.callback import ExecutorCallback
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
@@ -8875,6 +8875,57 @@ def test_mark_backfills_completed(dag_maker, session):
     runner._mark_backfills_complete()
     b = session.get(Backfill, b.id)
     assert b.completed_at.timestamp() > 0
+
+
+def test_mark_backfills_complete_skips_initializing_backfill(dag_maker, session):
+    clear_db_backfills()
+    dag_id = "test_backfill_race_lifecycle"
+    with dag_maker(serialized=True, dag_id=dag_id, schedule="@daily"):
+        BashOperator(task_id="hi", bash_command="echo hi")
+    b = Backfill(
+        dag_id=dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-03"),
+        max_active_runs=10,
+        dag_run_conf={},
+        reprocess_behavior=ReprocessBehavior.NONE,
+    )
+    session.add(b)
+    session.commit()
+    backfill_id = b.id
+    session.expunge_all()
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._mark_backfills_complete()
+    b = session.get(Backfill, backfill_id)
+    assert b.completed_at is None
+    session.expunge_all()
+    dr = DagRun(
+        dag_id=dag_id,
+        run_id="backfill__2021-01-01T00:00:00+00:00",
+        run_type=DagRunType.BACKFILL_JOB,
+        logical_date=pendulum.parse("2021-01-01"),
+        data_interval=(pendulum.parse("2021-01-01"), pendulum.parse("2021-01-02")),
+        run_after=pendulum.parse("2021-01-02"),
+        state=DagRunState.SUCCESS,
+        backfill_id=backfill_id,
+    )
+    session.add(dr)
+    session.flush()
+    session.add(
+        BackfillDagRun(
+            backfill_id=backfill_id,
+            dag_run_id=dr.id,
+            logical_date=pendulum.parse("2021-01-01"),
+            sort_ordinal=1,
+        )
+    )
+    session.commit()
+    session.expunge_all()
+    runner._mark_backfills_complete()
+    b = session.get(Backfill, backfill_id)
+    assert b.completed_at is not None
 
 
 class Key1Mapper(CorePartitionMapper):
