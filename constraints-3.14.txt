@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-03-20T08:35:33.055462
+# This constraints file was automatically generated on 2026-03-21T09:58:46.530916
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -62,7 +62,7 @@ Werkzeug==3.1.6
 a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2026.2.0
-aenum==3.1.16
+aenum==3.1.17
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.3
@@ -229,8 +229,8 @@ bitarray==3.8.0
 black==26.3.1
 bleach==6.3.0
 blinker==1.9.0
-boto3==1.42.72
-botocore==1.42.72
+boto3==1.42.73
+botocore==1.42.73
 cachelib==0.13.0
 cachetools==6.2.6
 cadwyn==6.0.4
@@ -288,7 +288,7 @@ frozenlist==1.8.0
 fsspec==2026.2.0
 future==1.0.0
 gcsfs==2026.2.0
-genai-prices==0.0.55
+genai-prices==0.0.56
 gevent==25.9.1
 gitdb==4.0.12
 google-api-core==2.30.0
@@ -321,7 +321,7 @@ httpcore==1.0.9
 httplib2==0.31.2
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.7.1
+huggingface_hub==1.7.2
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -338,7 +338,7 @@ ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
-jaraco.context==6.1.1
+jaraco.context==6.1.2
 jaraco.functools==4.4.0
 jedi==0.19.2
 jeepney==0.9.0
@@ -445,8 +445,8 @@ pinecone==7.0.1
 pinotdb==9.1.1
 platformdirs==4.9.4
 pluggy==1.6.0
-polars-runtime-32==1.39.2
-polars==1.39.2
+polars-runtime-32==1.39.3
+polars==1.39.3
 portalocker==3.2.0
 presto-python-client==0.8.4
 prison==0.2.1
