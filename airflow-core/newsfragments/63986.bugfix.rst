@@ -1,0 +1,1 @@
+Fix TypeError crashes on /users/list and /roles/list in FAB UI caused by concurrent API schema requests
