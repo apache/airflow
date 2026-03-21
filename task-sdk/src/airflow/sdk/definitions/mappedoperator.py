@@ -226,6 +226,16 @@ class OperatorPartial:
         task_group = partial_kwargs.pop("task_group")
         start_date = partial_kwargs.pop("start_date", None)
         end_date = partial_kwargs.pop("end_date", None)
+        start_from_trigger = (
+            partial_kwargs["start_from_trigger"]
+            if "start_from_trigger" in partial_kwargs
+            else getattr(self.operator_class, "start_from_trigger", False)
+        )
+        start_trigger_args = (
+            partial_kwargs["start_trigger_args"]
+            if "start_trigger_args" in partial_kwargs
+            else getattr(self.operator_class, "start_trigger_args", None)
+        )
 
         try:
             operator_name = self.operator_class.custom_operator_name  # type: ignore
@@ -259,8 +269,8 @@ class OperatorPartial:
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
             # TODO: Move these to task SDK's BaseOperator and remove getattr
-            start_trigger_args=getattr(self.operator_class, "start_trigger_args", None),
-            start_from_trigger=bool(getattr(self.operator_class, "start_from_trigger", False)),
+            start_trigger_args=start_trigger_args,
+            start_from_trigger=start_from_trigger,
         )
         return op
 
