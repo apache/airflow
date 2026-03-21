@@ -45,21 +45,22 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-microsoft-mssql``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-=======================================  ==================
+=======================================  ======================================
 PIP package                              Version required
-=======================================  ==================
+=======================================  ======================================
 ``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.32.0``
-``pymssql``                              ``>=2.3.5``
+``pymssql``                              ``>=2.3.5; python_version < "3.14"``
+``pymssql``                              ``>=2.3.13; python_version >= "3.14"``
 ``methodtools``                          ``>=0.4.7``
-=======================================  ==================
+=======================================  ======================================
 
-Cross provider package dependencies
+Optional cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
@@ -69,13 +70,12 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-microsoft-mssql[common.sql]
+    pip install apache-airflow-providers-microsoft-mssql[openlineage]
 
 
 ==============================================================================================================  ===============
 Dependent package                                                                                               Extra
 ==============================================================================================================  ===============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_    ``common.sql``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
 ==============================================================================================================  ===============
 

@@ -45,49 +45,34 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-fab``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-==========================================  ==================
+==========================================  =====================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  =====================================
 ``apache-airflow``                          ``>=3.0.2``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``blinker``                                 ``>=1.6.2``
-``flask``                                   ``>=2.2.1,<2.3``
+``flask``                                   ``>=2.2.1``
 ``flask-appbuilder``                        ``==5.2.0``
-``flask-login``                             ``>=0.6.2``
+``flask-login``                             ``>=0.6.2; python_version < "3.14"``
+``flask-login``                             ``>=0.6.3; python_version >= "3.14"``
 ``flask-session``                           ``>=0.8.0``
 ``msgpack``                                 ``>=1.0.0``
 ``flask-sqlalchemy``                        ``>=3.0.5``
-``flask-wtf``                               ``>=1.1.0``
+``flask-wtf``                               ``>=1.1.0; python_version < "3.14"``
+``flask-wtf``                               ``>=1.2.2; python_version >= "3.14"``
 ``jmespath``                                ``>=0.7.0``
-``werkzeug``                                ``>=2.2,<4``
-``wtforms``                                 ``>=3.0,<4``
+``werkzeug``                                ``>=2.2; python_version <= "3.13"``
+``werkzeug``                                ``>=3.1.6; python_version >= "3.14"``
+``wtforms``                                 ``>=3.0``
 ``cachetools``                              ``>=6.0``
-``flask_limiter``                           ``>3,!=3.13,<4``
-==========================================  ==================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-fab[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
+``marshmallow``                             ``>=3``
+``flask_limiter``                           ``>3,!=3.13``
+==========================================  =====================================
 
 Optional dependencies
 ----------------------
