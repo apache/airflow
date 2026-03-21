@@ -80,7 +80,7 @@ class VaultHook(BaseHook):
 
     :param vault_conn_id: The id of the connection to use
     :param auth_type: Authentication Type for the Vault. Default is ``token``. Available values are:
-        ('approle', 'github', 'gcp', 'jwt', 'kubernetes', 'ldap', 'token', 'userpass')
+        ('approle', 'aws_iam', 'azure', 'github', 'gcp', 'jwt', 'kubernetes', 'ldap', 'radius', 'token', 'userpass')
     :param auth_mount_point: It can be used to define mount_point for authentication chosen
           Default depends on the authentication method used.
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``). Defaults to
@@ -161,6 +161,10 @@ class VaultHook(BaseHook):
                 role_id = self.connection.extra_dejson.get("role_id")
             if not region:
                 region = self.connection.extra_dejson.get("region")
+
+        if auth_type == "gcp":
+            if not role_id:
+                role_id = self.connection.extra_dejson.get("role_id") or self.connection.login
 
         azure_resource, azure_tenant_id = (
             self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id)
