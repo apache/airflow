@@ -423,9 +423,9 @@ export type ClearTaskInstancesBody = {
     include_future?: boolean;
     include_past?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
+     * (Experimental) Run on the latest bundle version of the dag after clearing the task instances. If not specified, uses the DAG-level or global configuration default.
      */
-    run_on_latest_version?: boolean;
+    run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
 };
 
@@ -572,6 +572,7 @@ export type DAGDetailsResponse = {
     default_args: {
     [key: string]: unknown;
 } | null;
+    rerun_with_latest_version?: boolean | null;
     owner_links?: {
     [key: string]: (string);
 } | null;
@@ -645,9 +646,9 @@ export type DAGRunClearBody = {
     dry_run?: boolean;
     only_failed?: boolean;
     /**
-     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.
+     * (Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, uses the DAG-level or global configuration default.
      */
-    run_on_latest_version?: boolean;
+    run_on_latest_version?: boolean | null;
 };
 
 /**
@@ -1797,6 +1798,7 @@ export type ConfigResponse = {
     external_log_name?: string | null;
     theme: Theme | null;
     multi_team: boolean;
+    rerun_with_latest_version: boolean;
 };
 
 /**

@@ -55,9 +55,10 @@ class DAGRunClearBody(StrictBaseModel):
 
     dry_run: bool = True
     only_failed: bool = False
-    run_on_latest_version: bool = Field(
-        default=False,
-        description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
+    run_on_latest_version: bool | None = Field(
+        default=None,
+        description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. "
+        "If not specified, uses the DAG-level or global configuration default.",
     )
 
 

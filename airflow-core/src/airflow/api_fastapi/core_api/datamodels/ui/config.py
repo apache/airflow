@@ -36,3 +36,4 @@ class ConfigResponse(BaseModel):
     external_log_name: str | None = None
     theme: Theme | None
     multi_team: bool
+    rerun_with_latest_version: bool

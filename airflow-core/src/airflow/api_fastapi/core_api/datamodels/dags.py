@@ -184,6 +184,7 @@ class DAGDetailsResponse(DAGResponse):
     timezone: str | None
     last_parsed: datetime | None
     default_args: Mapping | None
+    rerun_with_latest_version: bool | None = None
     owner_links: dict[str, str] | None = None
     is_favorite: bool = False
     active_runs_count: int = 0

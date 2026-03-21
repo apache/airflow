@@ -507,6 +507,17 @@ core:
       type: boolean
       example: ~
       default: "False"
+    rerun_with_latest_version:
+      description: |
+        Default value for whether cleared or rerun tasks should use the latest
+        bundle version. When True, the default behavior is to rerun with the
+        latest code. When False (default), reruns use the original bundle version.
+        Individual DAGs can override this with the ``rerun_with_latest_version``
+        parameter.
+      type: boolean
+      example: ~
+      default: "False"
+      version_added: 3.1.0
 database:
   description: ~
   options:

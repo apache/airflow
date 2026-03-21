@@ -69,6 +69,7 @@ expected_config_response = {
     "external_log_name": None,
     "theme": THEME,
     "multi_team": False,
+    "rerun_with_latest_version": False,
 }
 
 

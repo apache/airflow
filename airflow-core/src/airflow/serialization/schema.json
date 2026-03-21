@@ -224,7 +224,8 @@
         ]},
         "edge_info": { "$ref": "#/definitions/edge_info" },
         "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" },
-        "disable_bundle_versioning": {"type":  "boolean", "default": false }
+        "disable_bundle_versioning": {"type":  "boolean", "default": false },
+        "rerun_with_latest_version": {"type": ["boolean", "null"], "default": null}
       },
       "required": [
         "dag_id",

@@ -1374,10 +1374,16 @@ export const $ClearTaskInstancesBody = {
             default: false
         },
         run_on_latest_version: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances.',
-            default: false
+            description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances. If not specified, uses the DAG-level or global configuration default.'
         },
         prevent_running_task: {
             type: 'boolean',
@@ -2134,6 +2140,17 @@ export const $DAGDetailsResponse = {
             ],
             title: 'Default Args'
         },
+        rerun_with_latest_version: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Rerun With Latest Version'
+        },
         owner_links: {
             anyOf: [
                 {
@@ -2462,10 +2479,16 @@ export const $DAGRunClearBody = {
             default: false
         },
         run_on_latest_version: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Run On Latest Version',
-            description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.',
-            default: false
+            description: '(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, uses the DAG-level or global configuration default.'
         }
     },
     additionalProperties: false,
@@ -7307,10 +7330,14 @@ export const $ConfigResponse = {
         multi_team: {
             type: 'boolean',
             title: 'Multi Team'
+        },
+        rerun_with_latest_version: {
+            type: 'boolean',
+            title: 'Rerun With Latest Version'
         }
     },
     type: 'object',
-    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
+    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team', 'rerun_with_latest_version'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;

@@ -168,10 +168,10 @@ class ClearTaskInstancesBody(BaseModel):
     run_on_latest_version: Annotated[
         bool | None,
         Field(
-            description="(Experimental) Run on the latest bundle version of the dag after clearing the task instances.",
+            description="(Experimental) Run on the latest bundle version of the dag after clearing the task instances. If not specified, uses the DAG-level or global configuration default.",
             title="Run On Latest Version",
         ),
-    ] = False
+    ] = None
     prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
 
 
@@ -290,10 +290,10 @@ class DAGRunClearBody(BaseModel):
     run_on_latest_version: Annotated[
         bool | None,
         Field(
-            description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run.",
+            description="(Experimental) Run on the latest bundle version of the Dag after clearing the Dag Run. If not specified, uses the DAG-level or global configuration default.",
             title="Run On Latest Version",
         ),
-    ] = False
+    ] = None
 
 
 class DAGRunPatchStates(str, Enum):
@@ -1387,6 +1387,7 @@ class DAGDetailsResponse(BaseModel):
     timezone: Annotated[str | None, Field(title="Timezone")] = None
     last_parsed: Annotated[datetime | None, Field(title="Last Parsed")] = None
     default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
+    rerun_with_latest_version: Annotated[bool | None, Field(title="Rerun With Latest Version")] = None
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0

@@ -2367,6 +2367,29 @@ class TestStringifiedDAGs:
             assert deserialized_dag.disable_bundle_versioning is expected
 
     @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (True, True),
+            (False, False),
+            (None, None),
+        ],
+    )
+    def test_dag_rerun_with_latest_version_roundtrip(self, value, expected):
+        """Test that rerun_with_latest_version survives serialization roundtrip."""
+        kwargs = {}
+        if value is not None:
+            kwargs["rerun_with_latest_version"] = value
+        dag = DAG(
+            dag_id="test_dag_rerun_with_latest_version_roundtrip",
+            schedule=None,
+            **kwargs,
+        )
+        BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
+        serialized_dag = DagSerialization.to_dict(dag)
+        deserialized_dag = DagSerialization.from_dict(serialized_dag)
+        assert deserialized_dag.rerun_with_latest_version is expected
+
+    @pytest.mark.parametrize(
         ("object_to_serialized", "expected_output"),
         [
             (

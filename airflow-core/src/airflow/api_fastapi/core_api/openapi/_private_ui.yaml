@@ -1647,6 +1647,9 @@ components:
         multi_team:
           type: boolean
           title: Multi Team
+        rerun_with_latest_version:
+          type: boolean
+          title: Rerun With Latest Version
       type: object
       required:
       - fallback_page_limit
@@ -1661,6 +1664,7 @@ components:
       - show_external_log_redirect
       - theme
       - multi_team
+      - rerun_with_latest_version
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:

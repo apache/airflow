@@ -25,6 +25,7 @@ import { useParams } from "react-router-dom";
 import { useDagServiceGetDagDetails, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
@@ -55,12 +56,14 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
-
   const [note, setNote] = useState<string>("");
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
+  });
+
+  const { setValue: setRunOnLatestVersion, value: runOnLatestVersion } = useRerunWithLatestVersion({
+    dagLevelConfig: dagDetails?.rerun_with_latest_version,
   });
 
   const { data: groupTaskInstances } = useTaskInstanceServiceGetTaskInstances(

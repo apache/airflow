@@ -24,6 +24,7 @@ import { CgRedo } from "react-icons/cg";
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
@@ -45,11 +46,13 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
-  const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
-
   // Get current DAG's bundle version to compare with DAG run's bundle version
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
+  });
+
+  const { setValue: setRunOnLatestVersion, value: runOnLatestVersion } = useRerunWithLatestVersion({
+    dagLevelConfig: dagDetails?.rerun_with_latest_version,
   });
 
   const refetchInterval = useAutoRefresh({ dagId });
