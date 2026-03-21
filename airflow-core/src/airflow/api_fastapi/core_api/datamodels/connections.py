@@ -53,15 +53,14 @@ class ConnectionResponse(BaseModel):
     @field_validator("extra", mode="before")
     @classmethod
     def redact_extra(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
+        if not v:
+            return v
         try:
             extra_dict = json.loads(v)
             redacted_dict = redact(extra_dict)
             return json.dumps(redacted_dict)
         except json.JSONDecodeError:
-            # we can't redact fields in an unstructured `extra`
-            return v
+            return "***"
 
 
 class ConnectionCollectionResponse(BaseModel):

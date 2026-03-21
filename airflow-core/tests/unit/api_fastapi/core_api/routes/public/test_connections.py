@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, BulkBody
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.connections import ConnectionResponse
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
@@ -196,6 +197,38 @@ class TestGetConnection(TestConnectionEndpoint):
         assert body["conn_type"] == "generic"
         assert body["login"] == "a"
         assert body["extra"] == '{"key": "value"}'
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        ("extra", "expected_extra"),
+        [
+            ("", ""),
+            (None, None),
+        ],
+        ids=["empty-string", "none"],
+    )
+    def test_get_should_keep_empty_or_none_extra(self, test_client, session, extra, expected_extra):
+        self.create_connection()
+        connection = session.scalars(select(Connection)).first()
+        connection.extra = extra
+        session.commit()
+        response = test_client.get(f"/connections/{TEST_CONN_ID}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["extra"] == expected_extra
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        ("non_json_extra", "expected_extra"),
+        [
+            ("Bearer eyJhbGciOiJIUzI1NiJ9.secretpayload", "***"),
+            ("plain-text-password", "***"),
+            ("key=value&secret=token", "***"),
+        ],
+        ids=["bearer-token", "plain-text", "query-string"],
+    )
+    def test_redact_extra_should_redact_non_json_values(self, non_json_extra, expected_extra):
+        assert ConnectionResponse.redact_extra(non_json_extra) == expected_extra
 
 
 class TestGetConnections(TestConnectionEndpoint):
