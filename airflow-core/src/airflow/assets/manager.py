@@ -543,6 +543,12 @@ class AssetManager(LoggingMixin):
             # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
             try:
                 with session.begin_nested():
+                    existing = session.get(
+                        AssetDagRunQueue, {"target_dag_id": dag.dag_id, "asset_id": asset_id}
+                    )
+                    if existing and existing.created_at >= event.timestamp:
+                        cls.logger().debug("Skipping record %s due to newer timestamp", item)
+                        return dag.dag_id  # already queued with a newer timestamp
                     session.merge(item)
             except exc.IntegrityError:
                 cls.logger().debug("Skipping record %s", item, exc_info=True)
