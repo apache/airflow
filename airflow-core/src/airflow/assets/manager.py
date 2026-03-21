@@ -227,7 +227,7 @@ class AssetManager(LoggingMixin):
 
         asset_event = AssetEvent(**event_kwargs)
         session.add(asset_event)
-        session.flush()  # Ensure the event is written earlier than ADRQ entries below.
+        session.commit()  # Ensure the event is written earlier than ADRQ entries below.
 
         dags_to_queue_from_asset = {ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused}
 
@@ -369,8 +369,8 @@ class AssetManager(LoggingMixin):
         # so that the adding of these rows happens in the same transaction
         # where `ti.state` is changed.
         if get_dialect_name(session) == "postgresql":
-            return cls._queue_dagruns_nonpartitioned_postgres(asset_id, non_partitioned_dags, session)
-        return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, non_partitioned_dags, session)
+            return cls._queue_dagruns_nonpartitioned_postgres(asset_id, non_partitioned_dags, event, session)
+        return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, non_partitioned_dags, event, session)
 
     @classmethod
     def _queue_partitioned_dags(
@@ -535,14 +535,20 @@ class AssetManager(LoggingMixin):
 
     @classmethod
     def _queue_dagruns_nonpartitioned_slow_path(
-        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+        cls, asset_id: int, dags_to_queue: set[DagModel], event: AssetEvent, session: Session
     ) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id)
+            item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id, created_at=event.timestamp)
             # Don't error whole transaction when a single RunQueue item conflicts.
             # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
             try:
                 with session.begin_nested():
+                    existing = session.get(
+                        AssetDagRunQueue, {"target_dag_id": dag.dag_id, "asset_id": asset_id}
+                    )
+                    if existing and existing.created_at >= event.timestamp:
+                        cls.logger().debug("Skipping record %s due to newer timestamp", item)
+                        return dag.dag_id  # already queued with a newer timestamp
                     session.merge(item)
             except exc.IntegrityError:
                 cls.logger().debug("Skipping record %s", item, exc_info=True)
@@ -554,13 +560,18 @@ class AssetManager(LoggingMixin):
 
     @classmethod
     def _queue_dagruns_nonpartitioned_postgres(
-        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+        cls, asset_id: int, dags_to_queue: set[DagModel], event: AssetEvent, session: Session
     ) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
-        stmt = insert(AssetDagRunQueue).values(asset_id=asset_id).on_conflict_do_nothing()
-        session.execute(stmt, values)
+        stmt = insert(AssetDagRunQueue).values(asset_id=asset_id, created_at=event.timestamp)
+        update_stmt = stmt.on_conflict_do_update(
+            index_elements=["asset_id", "target_dag_id"],
+            set_={"created_at": stmt.excluded.created_at},
+            where=(AssetDagRunQueue.created_at < stmt.excluded.created_at),
+        )
+        session.execute(update_stmt, values)
 
 
 def resolve_asset_manager() -> AssetManager:
