@@ -1,5 +1,6 @@
 {
   "additional_data": "Dades addicionals",
+  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
   "consumingDags": "Dags consumidors",
@@ -25,10 +26,13 @@
     },
     "title": "Crear esdeveniment d'Asset per {{name}}"
   },
+  "extra": "Extra",
   "group": "Grup",
   "lastAssetEvent": "Darrer esdeveniment d'Asset",
   "name": "Nom",
   "producingTasks": "Tasques productores",
   "scheduledDags": "Dags programats",
-  "searchPlaceholder": "Cercar Assets"
+  "scheduling": "Programats",
+  "searchPlaceholder": "Cercar Assets",
+  "taskDependencies": "Dependències de tasca"
 }

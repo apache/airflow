@@ -19,14 +19,13 @@ from __future__ import annotations
 
 import hashlib
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
-from sqlalchemy import String, inspect, select
-from sqlalchemy.orm import Mapped, joinedload
-from sqlalchemy.orm.attributes import NO_VALUE
+from sqlalchemy import String, select
+from sqlalchemy.orm import Mapped, joinedload, mapped_column
 
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
-from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -35,7 +34,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.serialized_dag import SerializedDagModel
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 
 class DBDagBag:
@@ -46,7 +45,7 @@ class DBDagBag:
     """
 
     def __init__(self, load_op_links: bool = True) -> None:
-        self._dags: dict[str, SerializedDAG] = {}  # dag_version_id to dag
+        self._dags: dict[UUID, SerializedDAG] = {}  # dag_version_id to dag
         self.load_op_links = load_op_links
 
     def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
@@ -55,7 +54,7 @@ class DBDagBag:
             self._dags[serdag.dag_version_id] = dag
         return dag
 
-    def _get_dag(self, version_id: str, session: Session) -> SerializedDAG | None:
+    def _get_dag(self, version_id: UUID, session: Session) -> SerializedDAG | None:
         if dag := self._dags.get(version_id):
             return dag
         dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
@@ -66,23 +65,16 @@ class DBDagBag:
         return self._read_dag(serdag)
 
     @staticmethod
-    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion | None:
+    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> UUID | None:
         if not dag_run.bundle_version:
             if dag_version := DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session):
-                return dag_version
+                return dag_version.id
 
-        # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
-        info: Any = inspect(dag_run)
-        if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
-            # Relationship is already loaded, safe to access
-            return dag_run.created_dag_version
-
-        # Relationship not loaded, fetch it explicitly from current session
-        return session.get(DagVersion, dag_run.created_dag_version_id)
+        return dag_run.created_dag_version_id
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> SerializedDAG | None:
-        if version := self._version_from_dag_run(dag_run=dag_run, session=session):
-            return self._get_dag(version_id=version.id, session=session)
+        if version_id := self._version_from_dag_run(dag_run=dag_run, session=session):
+            return self._get_dag(version_id=version_id, session=session)
         return None
 
     def iter_all_latest_version_dags(self, *, session: Session) -> Generator[SerializedDAG, None, None]:

@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.neptune import NeptuneHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.neptune import (
@@ -31,10 +30,10 @@ from airflow.providers.amazon.aws.triggers.neptune import (
     NeptuneClusterStoppedTrigger,
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 def handle_waitable_exception(

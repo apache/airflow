@@ -27,6 +27,122 @@
 Changelog
 ---------
 
+3.17.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Ensure Celery tasks are registered at worker startup (main) (#63110)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Celery: explicitly specify 'psycopg2' in driverless postgres URLs (#62159)``
+* ``Executor Synchronous callback workload (#61153)``
+* ``Enable multi-team in Celery executor (#62534)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``docs(celery): fix wrong link in cli (#62460)``
+* ``Fix Celery worker crash on macOS due to unpicklable local function (#62655)``
+
+Misc
+~~~~
+
+* ``Insert a team_name similar to team conf for 2.X compat (#61923)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+
+3.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``AIP-67 - Multi Team: Update Celery Executor to support multi team (#60675)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use TaskFormatter for Celery log formatting instead of default Formatter (#61701)``
+* ``Fix Redis import race condition in Celery executor (#61362)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Construct task instances with 'ExecuteTask.make' for celery executor integration tests (#61311)``
+   * ``Update delay-time in celery flaky-test  (#61325)``
+
+3.15.2
+......
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.15.1
+......
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Re-apply PriorityWeightStrategy SDK work (#60112)``
+
+3.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add result_backend_transport_options for Redis Sentinel support in Celery (#59498)``
+
+Misc
+~~~~
+
+* ``Cleanup of variables in settings.py (#59875)``
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Add and fix SIM107 and B012 Ruff rule (#59770)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+   * ``Revert "Remove PriorityWeightStrategy reference in SDK" (#59828)``
+   * ``Remove PriorityWeightStrategy reference in SDK (#59780)``
+   * ``Refactor/sqla2 providers(celery, kubernetes, databricks, mysql) to remove SQLA query usage (#59537)``
+
+3.14.1
+......
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Remove global from celery provider (#58869)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.14.0
 ......
 

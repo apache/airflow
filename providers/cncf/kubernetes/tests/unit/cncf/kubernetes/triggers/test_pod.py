@@ -32,6 +32,7 @@ from pendulum import DateTime
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import TriggerEvent
+from airflow.utils.state import TaskInstanceState
 
 TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
 HOOK_PATH = "airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook"
@@ -114,6 +115,7 @@ class TestKubernetesPodTrigger:
             "pod_namespace": NAMESPACE,
             "base_container_name": BASE_CONTAINER_NAME,
             "kubernetes_conn_id": CONN_ID,
+            "connection_extras": None,
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
             "config_dict": CONFIG_DICT,
@@ -124,10 +126,58 @@ class TestKubernetesPodTrigger:
             "schedule_timeout": STARTUP_TIMEOUT_SECS,
             "trigger_start_time": TRIGGER_START_TIME,
             "on_finish_action": ON_FINISH_ACTION,
+            "on_kill_action": "delete_pod",
+            "termination_grace_period": None,
             "last_log_time": None,
             "logging_interval": None,
             "trigger_kwargs": {},
         }
+
+    def test_serialize_with_connection_extras(self):
+        extras = {"token": "abc"}
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            connection_extras=extras,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_dict=CONFIG_DICT,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            startup_timeout=STARTUP_TIMEOUT_SECS,
+            startup_check_interval=STARTUP_CHECK_INTERVAL_SECS,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action=ON_FINISH_ACTION,
+        )
+
+        _, kwargs_dict = trigger.serialize()
+
+        assert kwargs_dict["connection_extras"] == extras
+
+    def test_hook_uses_provided_connection_extras(self):
+        extras = {"token": "abc"}
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            connection_extras=extras,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_dict=CONFIG_DICT,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            startup_timeout=STARTUP_TIMEOUT_SECS,
+            startup_check_interval=STARTUP_CHECK_INTERVAL_SECS,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action=ON_FINISH_ACTION,
+        )
+
+        assert trigger.hook._extras == extras
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
@@ -358,16 +408,30 @@ class TestKubernetesPodTrigger:
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_run_loop_read_events_during_start(self, mock_hook, mock_method, trigger):
-        event1 = mock.AsyncMock()
+        event1 = mock.Mock()
+        event1.metadata.uid = "event-uid-1"
+        event1.metadata.resource_version = "100"
         event1.message = "event 1"
         event1.involved_object.field_path = "object 1"
-        event2 = mock.AsyncMock()
+        event2 = mock.Mock()
+        event2.metadata.uid = "event-uid-2"
+        event2.metadata.resource_version = "101"
         event2.message = "event 2"
         event2.involved_object.field_path = "object 2"
-        events_list = mock.AsyncMock()
-        events_list.items = [event1, event2]
 
-        mock_hook.get_pod_events = mock.AsyncMock(return_value=events_list)
+        call_count = 0
+
+        async def async_event_generator(*_, **__):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # First call: return events
+                yield event1
+                yield event2
+            # Subsequent calls: return nothing and stop watching
+            trigger.pod_manager.stop_watching_events = True
+
+        mock_hook.watch_pod_events = mock.Mock(side_effect=async_event_generator)
 
         pod_pending = mock.MagicMock()
         pod_pending.status.phase = PodPhase.PENDING
@@ -494,3 +558,140 @@ class TestKubernetesPodTrigger:
         with context:
             await trigger._get_pod()
         assert mock_hook.get_pod.call_count == call_count
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_cleanup_does_not_delete_when_fired_event(self, mock_hook):
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            on_kill_action="delete_pod",
+            on_finish_action="delete_pod",
+        )
+        trigger._fired_event = True
+        await trigger.cleanup()
+        mock_hook.delete_pod.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_cleanup_does_not_delete_when_on_kill_action_keep_pod(self, mock_hook):
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            on_kill_action="keep_pod",
+            on_finish_action="delete_pod",
+        )
+        await trigger.cleanup()
+        mock_hook.delete_pod.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=False)
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_cleanup_does_not_delete_during_triggerer_restart(self, mock_hook, mock_safe):
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            on_kill_action="delete_pod",
+            on_finish_action="delete_pod",
+        )
+        await trigger.cleanup()
+        mock_hook.delete_pod.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=True)
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_cleanup_deletes_pod_on_manual_mark(self, mock_hook, mock_safe):
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            on_kill_action="delete_pod",
+            on_finish_action="delete_pod",
+        )
+        mock_hook.delete_pod = mock.AsyncMock()
+        await trigger.cleanup()
+        mock_hook.delete_pod.assert_called_once_with(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+            grace_period_seconds=None,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=True)
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_cleanup_deletes_pod_even_when_on_finish_action_keep_pod(self, mock_hook, mock_safe):
+        """on_finish_action is not consulted during kill -- on_kill_action is the sole control."""
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            on_kill_action="delete_pod",
+            on_finish_action="keep_pod",
+        )
+        mock_hook.delete_pod = mock.AsyncMock()
+        await trigger.cleanup()
+        mock_hook.delete_pod.assert_called_once_with(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+            grace_period_seconds=None,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.get_task_state", new_callable=mock.AsyncMock)
+    async def test_safe_to_cancel_returns_true_when_task_not_deferred(self, mock_get_state):
+        """safe_to_cancel should return True when the task is no longer DEFERRED (e.g. user marked success)."""
+        mock_get_state.return_value = TaskInstanceState.SUCCESS
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+        )
+        assert await trigger.safe_to_cancel() is True
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.get_task_state", new_callable=mock.AsyncMock)
+    async def test_safe_to_cancel_returns_false_when_task_still_deferred(self, mock_get_state):
+        """safe_to_cancel should return False when the task is still DEFERRED (triggerer restart)."""
+        mock_get_state.return_value = TaskInstanceState.DEFERRED
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+        )
+        assert await trigger.safe_to_cancel() is False
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, side_effect=Exception("API down")
+    )
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_cleanup_skips_deletion_when_safe_to_cancel_raises(self, mock_hook, mock_safe):
+        """When safe_to_cancel() raises, cleanup should skip pod deletion (fail-safe)."""
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            on_kill_action="delete_pod",
+            on_finish_action="delete_pod",
+        )
+        await trigger.cleanup()
+        mock_hook.delete_pod.assert_not_called()

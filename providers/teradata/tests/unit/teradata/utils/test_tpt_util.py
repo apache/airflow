@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import stat
 import subprocess
 import tempfile
 from unittest.mock import Mock, patch
@@ -29,7 +30,11 @@ from airflow.providers.teradata.utils.tpt_util import (
     execute_remote_command,
     get_remote_os,
     get_remote_temp_directory,
+    is_valid_file,
+    is_valid_remote_job_var_file,
+    prepare_tdload_job_var_file,
     prepare_tpt_ddl_script,
+    read_file,
     remote_secure_delete,
     secure_delete,
     set_local_file_permissions,
@@ -668,3 +673,260 @@ class TestTptUtil:
                 transfer_file_sftp(mock_ssh, tmp_file.name, "/remote/path/file.txt", mock_logger)
 
             mock_sftp.close.assert_called_once()
+
+    @patch("airflow.providers.teradata.utils.tpt_util.get_remote_os")
+    @patch("airflow.providers.teradata.utils.tpt_util.execute_remote_command")
+    def test_verify_tpt_utility_on_remote_host_not_found(self, mock_execute_cmd, mock_get_remote_os):
+        """Test verify_tpt_utility_on_remote_host when utility is not found."""
+        mock_ssh = Mock()
+        mock_get_remote_os.return_value = "unix"
+        mock_execute_cmd.return_value = (1, "", "command not found")
+
+        with pytest.raises(FileNotFoundError, match="TPT utility 'tdload' is not installed"):
+            verify_tpt_utility_on_remote_host(mock_ssh, "tdload")
+
+    def test_is_valid_file_true(self):
+        """Test is_valid_file returns True for existing file."""
+        with tempfile.NamedTemporaryFile() as tmp_file:
+            assert is_valid_file(tmp_file.name) is True
+
+    def test_is_valid_file_false(self):
+        """Test is_valid_file returns False for non-existing file."""
+        assert is_valid_file("/nonexistent/file") is False
+
+    def test_is_valid_file_directory(self):
+        """Test is_valid_file returns False for directory."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            assert is_valid_file(tmp_dir) is False
+
+    @patch("shutil.which")
+    def test_verify_tpt_utility_installed_not_found(self, mock_which):
+        """Test verify_tpt_utility_installed when utility is not found."""
+        mock_which.return_value = None
+
+        with pytest.raises(FileNotFoundError, match="TPT utility 'tdload' is not installed"):
+            verify_tpt_utility_installed("tdload")
+
+    def test_prepare_tdload_job_var_file_file_to_table(self):
+        """Test prepare_tdload_job_var_file for file_to_table mode."""
+        source_conn = {"host": "source_host", "login": "source_user", "password": "source_pass"}
+
+        result = prepare_tdload_job_var_file(
+            mode="file_to_table",
+            source_table=None,
+            select_stmt=None,
+            insert_stmt="INSERT INTO target_table SELECT * FROM temp",
+            target_table="target_table",
+            source_file_name="/path/to/source.txt",
+            target_file_name=None,
+            source_format="TEXT",
+            target_format="",
+            source_text_delimiter="|",
+            target_text_delimiter="",
+            source_conn=source_conn,
+        )
+
+        assert "TargetTdpId='source_host'" in result
+        assert "TargetUserName='source_user'" in result
+        assert "TargetUserPassword='source_pass'" in result
+        assert "TargetTable='target_table'" in result
+        assert "SourceFileName='/path/to/source.txt'" in result
+        assert "InsertStmt='INSERT INTO target_table SELECT * FROM temp'" in result
+        assert "SourceFormat='TEXT'" in result
+        assert "SourceTextDelimiter='|'" in result
+
+    def test_prepare_tdload_job_var_file_table_to_file(self):
+        """Test prepare_tdload_job_var_file for table_to_file mode."""
+        source_conn = {"host": "source_host", "login": "source_user", "password": "source_pass"}
+
+        result = prepare_tdload_job_var_file(
+            mode="table_to_file",
+            source_table="source_table",
+            select_stmt=None,
+            insert_stmt=None,
+            target_table=None,
+            source_file_name=None,
+            target_file_name="/path/to/target.txt",
+            source_format="",
+            target_format="TEXT",
+            source_text_delimiter="",
+            target_text_delimiter=",",
+            source_conn=source_conn,
+        )
+
+        assert "SourceTdpId='source_host'" in result
+        assert "SourceUserName='source_user'" in result
+        assert "SourceUserPassword='source_pass'" in result
+        assert "SourceTable='source_table'" in result
+        assert "TargetFileName='/path/to/target.txt'" in result
+        assert "TargetFormat='TEXT'" in result
+        assert "TargetTextDelimiter=','" in result
+
+    def test_prepare_tdload_job_var_file_table_to_file_with_select(self):
+        """Test prepare_tdload_job_var_file for table_to_file mode with SELECT statement."""
+        source_conn = {"host": "source_host", "login": "source_user", "password": "source_pass"}
+
+        result = prepare_tdload_job_var_file(
+            mode="table_to_file",
+            source_table=None,
+            select_stmt="SELECT * FROM source_table WHERE id > 100",
+            insert_stmt=None,
+            target_table=None,
+            source_file_name=None,
+            target_file_name="/path/to/target.txt",
+            source_format="",
+            target_format="TEXT",
+            source_text_delimiter="",
+            target_text_delimiter=",",
+            source_conn=source_conn,
+        )
+
+        assert "SourceSelectStmt='SELECT * FROM source_table WHERE id > 100'" in result
+        assert "SourceTable=" not in result
+
+    def test_prepare_tdload_job_var_file_table_to_table(self):
+        """Test prepare_tdload_job_var_file for table_to_table mode."""
+        source_conn = {"host": "source_host", "login": "source_user", "password": "source_pass"}
+        target_conn = {"host": "target_host", "login": "target_user", "password": "target_pass"}
+
+        result = prepare_tdload_job_var_file(
+            mode="table_to_table",
+            source_table="source_table",
+            select_stmt=None,
+            insert_stmt="INSERT INTO target_table SELECT * FROM source",
+            target_table="target_table",
+            source_file_name=None,
+            target_file_name=None,
+            source_format="",
+            target_format="",
+            source_text_delimiter="",
+            target_text_delimiter="",
+            source_conn=source_conn,
+            target_conn=target_conn,
+        )
+
+        assert "SourceTdpId='source_host'" in result
+        assert "TargetTdpId='target_host'" in result
+        assert "TargetUserName='target_user'" in result
+        assert "TargetUserPassword='target_pass'" in result
+        assert "SourceTable='source_table'" in result
+        assert "TargetTable='target_table'" in result
+        assert "InsertStmt='INSERT INTO target_table SELECT * FROM source'" in result
+
+    def test_prepare_tdload_job_var_file_table_to_table_no_target_conn(self):
+        """Test prepare_tdload_job_var_file for table_to_table mode without target_conn."""
+        source_conn = {"host": "source_host", "login": "source_user", "password": "source_pass"}
+
+        with pytest.raises(ValueError, match="target_conn must be provided for 'table_to_table' mode"):
+            prepare_tdload_job_var_file(
+                mode="table_to_table",
+                source_table="source_table",
+                select_stmt=None,
+                insert_stmt=None,
+                target_table="target_table",
+                source_file_name=None,
+                target_file_name=None,
+                source_format="",
+                target_format="",
+                source_text_delimiter="",
+                target_text_delimiter="",
+                source_conn=source_conn,
+                target_conn=None,
+            )
+
+    def test_is_valid_remote_job_var_file_success(self):
+        """Test is_valid_remote_job_var_file with valid file."""
+        mock_ssh = Mock()
+        mock_sftp = Mock()
+        mock_file_stat = Mock()
+        mock_file_stat.st_mode = stat.S_IFREG | 0o644  # Regular file
+
+        mock_sftp.stat.return_value = mock_file_stat
+        mock_ssh.open_sftp.return_value = mock_sftp
+
+        result = is_valid_remote_job_var_file(mock_ssh, "/remote/path/job.var")
+
+        assert result is True
+        mock_ssh.open_sftp.assert_called_once()
+        mock_sftp.stat.assert_called_once_with("/remote/path/job.var")
+        mock_sftp.close.assert_called_once()
+
+    def test_is_valid_remote_job_var_file_not_regular_file(self):
+        """Test is_valid_remote_job_var_file with directory."""
+        mock_ssh = Mock()
+        mock_sftp = Mock()
+        mock_file_stat = Mock()
+        mock_file_stat.st_mode = stat.S_IFDIR | 0o755  # Directory
+
+        mock_sftp.stat.return_value = mock_file_stat
+        mock_ssh.open_sftp.return_value = mock_sftp
+
+        result = is_valid_remote_job_var_file(mock_ssh, "/remote/path/directory")
+
+        assert result is False
+
+    def test_is_valid_remote_job_var_file_not_found(self):
+        """Test is_valid_remote_job_var_file with non-existent file."""
+        mock_ssh = Mock()
+        mock_sftp = Mock()
+        mock_sftp.stat.side_effect = FileNotFoundError("File not found")
+        mock_ssh.open_sftp.return_value = mock_sftp
+        mock_logger = Mock()
+
+        result = is_valid_remote_job_var_file(mock_ssh, "/remote/path/nonexistent", mock_logger)
+
+        assert result is False
+        mock_logger.error.assert_called_with(
+            "File does not exist on remote at : %s", "/remote/path/nonexistent"
+        )
+        mock_sftp.close.assert_called_once()
+
+    def test_is_valid_remote_job_var_file_empty_path(self):
+        """Test is_valid_remote_job_var_file with empty path."""
+        mock_ssh = Mock()
+
+        result = is_valid_remote_job_var_file(mock_ssh, "")
+
+        assert result is False
+        mock_ssh.open_sftp.assert_not_called()
+
+    def test_is_valid_remote_job_var_file_none_path(self):
+        """Test is_valid_remote_job_var_file with None path."""
+        mock_ssh = Mock()
+
+        result = is_valid_remote_job_var_file(mock_ssh, None)
+
+        assert result is False
+
+    def test_read_file_success(self):
+        """Test read_file with existing file."""
+        test_content = "Test file content\nLine 2\nLine 3"
+
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, encoding="utf-8") as tmp_file:
+            tmp_file.write(test_content)
+            tmp_file_path = tmp_file.name
+
+        try:
+            result = read_file(tmp_file_path)
+            assert result == test_content
+        finally:
+            os.unlink(tmp_file_path)
+
+    def test_read_file_with_encoding(self):
+        """Test read_file with specific encoding."""
+        test_content = "Test content with special chars: ñáéíóú"
+
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, encoding="latin-1") as tmp_file:
+            tmp_file.write(test_content)
+            tmp_file_path = tmp_file.name
+
+        try:
+            result = read_file(tmp_file_path, encoding="latin-1")
+            assert result == test_content
+        finally:
+            os.unlink(tmp_file_path)
+
+    def test_read_file_not_found(self):
+        """Test read_file with non-existent file."""
+        with pytest.raises(FileNotFoundError, match="The file /nonexistent/file does not exist"):
+            read_file("/nonexistent/file")

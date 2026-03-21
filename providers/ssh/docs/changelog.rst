@@ -27,6 +27,60 @@
 Changelog
 ---------
 
+4.3.2
+.....
+
+Misc
+~~~~
+
+* ``Bump minimum cryptography to 44.0.3 and paramiko to 3.4.0 (#62723)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+
+4.3.1
+.....
+
+Misc
+~~~~
+
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ''SSHRemoteJobOperator'' for resilient remote job execution (#60297)``
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrate ssh provider to use airflow.sdk.configuration.conf (#59981)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+4.2.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.2.0
 .....
 

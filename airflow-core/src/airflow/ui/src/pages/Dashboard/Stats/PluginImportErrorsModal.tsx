@@ -72,11 +72,9 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
             <Heading>{translate("plugins.importError_one")}</Heading>
           </HStack>
           <SearchBar
-            buttonProps={{ disabled: true }}
             defaultValue={searchQuery}
-            hideAdvanced
             onChange={setSearchQuery}
-            placeHolder={translate("plugins.searchPlaceholder")}
+            placeholder={translate("plugins.searchPlaceholder")}
           />
         </Dialog.Header>
 

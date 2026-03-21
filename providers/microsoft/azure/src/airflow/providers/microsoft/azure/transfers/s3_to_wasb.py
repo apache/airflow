@@ -27,7 +27,7 @@ from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 # Create three custom exception that are

@@ -31,12 +31,13 @@ from moto import mock_aws
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
-from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State, TaskInstanceState
 
+from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
@@ -98,7 +99,7 @@ class TestS3RemoteLogIO:
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
-            self.ti = TaskInstance(task=task, dag_version_id=dag_version.id)
+            self.ti = create_task_instance(task=task, dag_version_id=dag_version.id)
         else:
             self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
@@ -240,7 +241,7 @@ class TestS3TaskHandler:
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
-            self.ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+            self.ti = create_task_instance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:
             self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
@@ -269,6 +270,8 @@ class TestS3TaskHandler:
         assert not self.s3_task_handler.upload_on_close
         mock_open.assert_not_called()
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_set_context_not_raw(self):
         mock_open = mock.mock_open()
         with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.open", mock_open):
@@ -278,6 +281,8 @@ class TestS3TaskHandler:
         mock_open.assert_called_once_with(os.path.join(self.local_log_location, "1.log"), "w")
         mock_open().write.assert_not_called()
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_read(self):
         # Test what happens when we have two log files to read
         self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\nLine 2\n")
@@ -323,6 +328,8 @@ class TestS3TaskHandler:
             assert expected in actual
             assert metadata[0] == {"end_of_log": True, "log_pos": 0}
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_close(self):
         self.s3_task_handler.set_context(self.ti)
         assert self.s3_task_handler.upload_on_close

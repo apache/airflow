@@ -231,7 +231,7 @@ def _create_connection(conn_id: str, value: Any):
     )
 
 
-def load_variables(file_path: str) -> dict[str, str]:
+def load_variables(file_path: str) -> dict[str, Any]:
     """
     Load variables from a text file.
 
@@ -241,11 +241,21 @@ def load_variables(file_path: str) -> dict[str, str]:
     """
     log.debug("Loading variables from a text file")
 
+    ext = Path(file_path).suffix.lstrip(".").lower()
     secrets = _parse_secret_file(file_path)
-    invalid_keys = [key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1]
-    if invalid_keys:
-        raise VariableNotUnique(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
-    variables = {key: values[0] if isinstance(values, list) else values for key, values in secrets.items()}
+
+    if ext == "env":
+        invalid_keys = [
+            key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1
+        ]
+        if invalid_keys:
+            raise VariableNotUnique(
+                f'The "{file_path}" file contains multiple values for keys: {invalid_keys}'
+            )
+        variables = {key: values[0] for key, values in secrets.items()}
+    else:
+        variables = dict(secrets)
+
     log.debug("Loaded %d variables: ", len(variables))
     return variables
 
@@ -344,12 +354,12 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             return {}
         return load_configs_dict(self.configs_file)
 
-    def get_connection(self, conn_id: str) -> Connection | None:
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         if conn_id in self._local_connections:
             return self._local_connections[conn_id]
         return None
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         return self._local_variables.get(key)
 
     def get_config(self, key: str) -> str | None:

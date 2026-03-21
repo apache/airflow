@@ -42,23 +42,21 @@ from airflow.jobs.triggerer_job_runner import (
     ToTriggerSupervisor,
     TriggerCommsDecoder,
     TriggererJobRunner,
+    TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
     messages,
 )
-from airflow.models import DagModel, DagRun, TaskInstance, Trigger
-from airflow.models.connection import Connection
-from airflow.models.dag import DAG
+from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import BaseHook, BaseOperator
+from airflow.sdk import DAG, BaseHook, BaseOperator
 from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -76,6 +74,7 @@ from tests_common.test_utils.db import (
     clear_db_variables,
     clear_db_xcom,
 )
+from tests_common.test_utils.taskinstance import create_task_instance
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -135,7 +134,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.add(trigger_orm)
     session.flush()
     dag_version = DagVersion.get_latest_version(dag.dag_id)
-    task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
+    task_instance = create_task_instance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
     session.commit()
@@ -266,8 +265,8 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
         # Re-load the triggers
         trigger_runner_supervisor.load_triggers()
 
-        # Wait for up to 3 seconds for it to vanish from the TriggerRunner's storage
-        for _ in range(30):
+        # Wait for up to 10 seconds for it to vanish from the TriggerRunner's storage
+        for _ in range(100):
             if not trigger_runner_supervisor.running_triggers:
                 break
             trigger_runner_supervisor._service_subprocess(0.1)
@@ -301,6 +300,42 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
     stdout = capsys.readouterr().out
     assert f"{trigger_count} triggers currently running" in stdout
     assert f"{watcher_count} watchers currently running" in stdout
+
+    trigger_runner_supervisor.kill(force=False)
+
+
+def test_trigger_logger_close():
+    logger = TriggerLoggingFactory(log_path="/tmp/test.log", ti=MagicMock())
+
+    mock_fh = MagicMock()
+    mock_fh.closed = False
+
+    logger._filehandle = mock_fh
+
+    logger.close()
+
+    mock_fh.close.assert_called_once()
+
+
+def test_trigger_logger_fd_closed_when_removed(session):
+
+    trigger = TimeDeltaTrigger(datetime.timedelta(seconds=0.5))
+
+    create_trigger_in_db(session, trigger)
+
+    mock_file = MagicMock()
+    mock_file.closed = False
+
+    with patch("airflow.sdk.log.init_log_file") as mock_init_log_file:
+        mock_init_log_file.return_value.open.return_value = mock_file
+
+        trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
+        trigger_runner_supervisor.load_triggers()
+
+        for _ in range(30):
+            trigger_runner_supervisor._service_subprocess(0.1)
+
+    mock_file.close.assert_called_once()
 
     trigger_runner_supervisor.kill(force=False)
 
@@ -371,7 +406,7 @@ class TestTriggerRunner:
         trigger_runner = TriggerRunner()
         trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
         trigger_runner.comms_decoder.asend.return_value = messages.TriggerStateSync(
-            to_create=[], to_cancel=[]
+            to_create=[], to_cancel=set()
         )
 
         trigger_runner.to_create.append(workload)
@@ -438,9 +473,36 @@ class TestTriggerRunner:
         trigger_instance.cancel()
         await runner.cleanup_finished_triggers()
 
+    @pytest.mark.asyncio
+    @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    async def test_sync_state_to_supervisor(self, supervisor_builder):
+        trigger_runner = TriggerRunner()
+        trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
+        trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"})))
+        trigger_runner.events.append((2, TriggerEvent(payload={"status": "FAILED"})))
+        trigger_runner.events.append((3, TriggerEvent(payload={"status": "SUCCESS", "data": object()})))
+
+        async def asend_side_effect(msg):
+            if msg.events and len(msg.events) == 3:
+                raise NotImplementedError("Simulate non-serializable event")
+            return messages.TriggerStateSync(to_create=[], to_cancel=set())
+
+        trigger_runner.comms_decoder.asend.side_effect = asend_side_effect
+
+        await trigger_runner.sync_state_to_supervisor(finished_ids=[])
+
+        assert trigger_runner.comms_decoder.asend.call_count == 2
+
+        first_call = trigger_runner.comms_decoder.asend.call_args_list[0].args[0]
+        second_call = trigger_runner.comms_decoder.asend.call_args_list[1].args[0]
+
+        assert len(first_call.events) == 3
+        assert len(second_call.events) == 2
+
 
 @pytest.mark.asyncio
-async def test_trigger_create_race_condition_38599(session, supervisor_builder, testing_dag_bundle):
+@pytest.mark.usefixtures("testing_dag_bundle")
+async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
@@ -465,19 +527,20 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder, 
     session.flush()
 
     bundle_name = "testing"
-    dag = DAG(dag_id="test-dag")
+    with DAG(dag_id="test-dag") as dag:
+        task = PythonOperator(task_id="dummy-task", python_callable=print)
     dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
+
     SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
     dag_version = DagVersion.get_latest_version(dag.dag_id)
-    ti = TaskInstance(
-        PythonOperator(task_id="dummy-task", python_callable=print),
+    ti = create_task_instance(
+        task,
         run_id=dag_run.run_id,
         state=TaskInstanceState.DEFERRED,
         dag_version_id=dag_version.id,
     )
-    ti.dag_id = dag.dag_id
     ti.trigger_id = trigger_orm.id
     session.add(dag_run)
     session.add(ti)
@@ -1175,6 +1238,41 @@ def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_bu
     supervisor.stdin.write.assert_not_called()
 
 
+class TestTriggererJobRunner:
+    @patch("airflow.jobs.triggerer_job_runner.Stats.initialize")
+    @patch.object(TriggerRunnerSupervisor, "start")
+    def test_stats_initialize_called_on_execute(self, mock_supervisor_start, stats_init_mock, session):
+        """Test that Stats.initialize() is called when TriggererJobRunner._execute() is executed."""
+        # Setup mock supervisor to immediately stop
+        mock_supervisor = MagicMock()
+        mock_supervisor.stop = False
+        mock_supervisor._exit_code = None
+        mock_supervisor.is_alive.return_value = True
+        mock_supervisor.run.side_effect = lambda: setattr(mock_supervisor, "stop", True)
+        mock_supervisor_start.return_value = mock_supervisor
+
+        job = Job()
+        session.add(job)
+        session.flush()
+
+        job_runner = TriggererJobRunner(job)
+        job_runner.trigger_runner = mock_supervisor
+        mock_supervisor.stop = True  # Stop immediately
+
+        # We don't need to run the full _execute, just verify Stats.initialize is called
+        # before TriggerRunnerSupervisor.start
+        with patch.object(job_runner, "register_signals"):
+            try:
+                job_runner._execute()
+            except Exception:
+                pass  # We expect this to fail since we're mocking
+
+        # Verify Stats.initialize was called with the expected configuration parameters
+        stats_init_mock.assert_called_once()
+        call_kwargs = stats_init_mock.call_args.kwargs
+        assert "factory" in call_kwargs
+
+
 class TestTriggererMessageTypes:
     def test_message_types_in_triggerer(self):
         """
@@ -1200,6 +1298,7 @@ class TestTriggererMessageTypes:
             "GetAssetByUri",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
+            "GetDagRun",
             "GetPrevSuccessfulDagRun",
             "GetPreviousDagRun",
             "GetTaskBreadcrumbs",
@@ -1218,11 +1317,13 @@ class TestTriggererMessageTypes:
             "ResendLoggingFD",
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
+            "GetDag",
         }
 
         in_task_but_not_in_trigger_runner = {
             "AssetResult",
             "AssetEventsResult",
+            "DagRunResult",
             "SentFDs",
             "StartupDetails",
             "TaskBreadcrumbsResult",
@@ -1234,7 +1335,9 @@ class TestTriggererMessageTypes:
             "XComSequenceIndexResult",
             "XComSequenceSliceResult",
             "PreviousDagRunResult",
+            "PreviousTIResult",
             "HITLDetailRequestResult",
+            "DagResult",
         }
 
         supervisor_diff = (

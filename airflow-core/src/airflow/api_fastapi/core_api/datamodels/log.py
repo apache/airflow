@@ -19,7 +19,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, WithJsonSchema
+from pydantic import ConfigDict, WithJsonSchema
+
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class StructuredLogMessage(BaseModel):
@@ -33,7 +35,7 @@ class StructuredLogMessage(BaseModel):
     ] = None
     event: str
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", from_attributes=True)
 
 
 class TaskInstancesLogResponse(BaseModel):

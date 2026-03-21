@@ -17,72 +17,36 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from functools import cache
-from typing import TYPE_CHECKING
 
-import pluggy
-
+from airflow._shared.listeners.listener import ListenerManager
+from airflow._shared.listeners.spec import lifecycle, taskinstance
+from airflow.listeners.spec import asset, dagrun, importerrors
 from airflow.plugins_manager import integrate_listener_plugins
-
-if TYPE_CHECKING:
-    from pluggy._hooks import _HookRelay
-
-log = logging.getLogger(__name__)
-
-
-def _before_hookcall(hook_name, hook_impls, kwargs):
-    log.debug("Calling %r with %r", hook_name, kwargs)
-    log.debug("Hook impls: %s", hook_impls)
-
-
-def _after_hookcall(outcome, hook_name, hook_impls, kwargs):
-    log.debug("Result from %r: %s", hook_name, outcome.get_result())
-
-
-class ListenerManager:
-    """Manage listener registration and provides hook property for calling them."""
-
-    def __init__(self):
-        from airflow.listeners.spec import (
-            asset,
-            dagrun,
-            importerrors,
-            lifecycle,
-            taskinstance,
-        )
-
-        self.pm = pluggy.PluginManager("airflow")
-        self.pm.add_hookcall_monitoring(_before_hookcall, _after_hookcall)
-        self.pm.add_hookspecs(lifecycle)
-        self.pm.add_hookspecs(dagrun)
-        self.pm.add_hookspecs(asset)
-        self.pm.add_hookspecs(taskinstance)
-        self.pm.add_hookspecs(importerrors)
-
-    @property
-    def has_listeners(self) -> bool:
-        return bool(self.pm.get_plugins())
-
-    @property
-    def hook(self) -> _HookRelay:
-        """Return hook, on which plugin methods specified in spec can be called."""
-        return self.pm.hook
-
-    def add_listener(self, listener):
-        if self.pm.is_registered(listener):
-            return
-        self.pm.register(listener)
-
-    def clear(self):
-        """Remove registered plugins."""
-        for plugin in self.pm.get_plugins():
-            self.pm.unregister(plugin)
 
 
 @cache
 def get_listener_manager() -> ListenerManager:
-    """Get singleton listener manager."""
+    """
+    Get a listener manager for Airflow core.
+
+    Registers the following listeners:
+    - lifecycle: on_starting, before_stopping
+    - dagrun: on_dag_run_running, on_dag_run_success, on_dag_run_failed
+    - taskinstance: on_task_instance_running, on_task_instance_success, etc.
+    - asset: on_asset_created, on_asset_changed, etc.
+    - importerrors: on_new_dag_import_error, on_existing_dag_import_error
+    """
     _listener_manager = ListenerManager()
+
+    _listener_manager.add_hookspecs(lifecycle)
+    _listener_manager.add_hookspecs(dagrun)
+    _listener_manager.add_hookspecs(taskinstance)
+    _listener_manager.add_hookspecs(asset)
+    _listener_manager.add_hookspecs(importerrors)
+
     integrate_listener_plugins(_listener_manager)
     return _listener_manager
+
+
+__all__ = ["get_listener_manager", "ListenerManager"]

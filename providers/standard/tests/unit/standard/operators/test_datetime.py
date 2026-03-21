@@ -21,6 +21,7 @@ import datetime
 
 import pytest
 import time_machine
+from sqlalchemy import delete
 
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI
@@ -48,8 +49,8 @@ class TestBranchDateTimeOperator:
     @classmethod
     def setup_class(cls):
         with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.execute(delete(DagRun))
+            session.execute(delete(TI))
 
     targets = [
         (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
@@ -92,8 +93,8 @@ class TestBranchDateTimeOperator:
 
     def teardown_method(self):
         with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.execute(delete(DagRun))
+            session.execute(delete(TI))
 
     def _assert_task_ids_match_states(self, task_ids_to_states):
         """Helper that asserts task instances with a given id are in a given state"""

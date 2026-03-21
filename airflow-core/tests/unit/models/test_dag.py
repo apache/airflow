@@ -33,13 +33,14 @@ import jinja2
 import pendulum
 import pytest
 import time_machine
-from sqlalchemy import inspect, select
+from sqlalchemy import delete, inspect, select, update
 
 from airflow import settings
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
-from airflow.dag_processing.dagbag import DagBag
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.exceptions import AirflowException
 from airflow.models.asset import (
     AssetAliasModel,
@@ -59,20 +60,30 @@ from airflow.models.dag import (
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task as task_decorator, teardown
+from airflow.sdk import (
+    DAG,
+    BaseOperator,
+    CronPartitionTimetable,
+    TaskGroup,
+    setup,
+    task as task_decorator,
+    teardown,
+)
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import coerce_to_core_timetable
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
@@ -81,7 +92,6 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils.file import list_py_file_paths
-from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -99,6 +109,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.taskinstance import run_task_instance
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
 from unit.models import DEFAULT_DATE
 from unit.plugins.priority_weight_strategy import (
@@ -108,6 +119,7 @@ from unit.plugins.priority_weight_strategy import (
 )
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
@@ -385,16 +397,15 @@ class TestDag:
         sync_dag_to_db(dag)
         with create_session() as session:
             assert {"tag-1", "tag-2"} == {
-                repr(t) for t in session.query(DagTag).filter(DagTag.dag_id == "dag-test-dagtag").all()
+                repr(t)
+                for t in session.scalars(select(DagTag).where(DagTag.dag_id == "dag-test-dagtag")).all()
             }
 
     def test_bulk_write_to_db(self, testing_dag_bundle):
         clear_db_dags()
         dags = [
-            SerializedDAG.deserialize_dag(
-                SerializedDAG.serialize_dag(
-                    DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
-                )
+            create_scheduler_dag(
+                DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
             )
             for i in range(4)
         ]
@@ -403,16 +414,16 @@ class TestDag:
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
-                row[0] for row in session.query(DagModel.dag_id).all()
+                row[0] for row in session.execute(select(DagModel.dag_id)).all()
             }
             assert {
                 ("dag-bulk-sync-0", "test-dag"),
                 ("dag-bulk-sync-1", "test-dag"),
                 ("dag-bulk-sync-2", "test-dag"),
                 ("dag-bulk-sync-3", "test-dag"),
-            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+            } == set(session.execute(select(DagTag.dag_id, DagTag.name)).all())
 
-            for row in session.query(DagModel.last_parsed_time).all():
+            for row in session.execute(select(DagModel.last_parsed_time)).all():
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
@@ -427,7 +438,7 @@ class TestDag:
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
-                row[0] for row in session.query(DagModel.dag_id).all()
+                row[0] for row in session.execute(select(DagModel.dag_id)).all()
             }
             assert {
                 ("dag-bulk-sync-0", "test-dag"),
@@ -438,7 +449,7 @@ class TestDag:
                 ("dag-bulk-sync-2", "test-dag2"),
                 ("dag-bulk-sync-3", "test-dag"),
                 ("dag-bulk-sync-3", "test-dag2"),
-            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+            } == set(session.execute(select(DagTag.dag_id, DagTag.name)).all())
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
@@ -446,16 +457,16 @@ class TestDag:
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
-                row[0] for row in session.query(DagModel.dag_id).all()
+                row[0] for row in session.execute(select(DagModel.dag_id)).all()
             }
             assert {
                 ("dag-bulk-sync-0", "test-dag2"),
                 ("dag-bulk-sync-1", "test-dag2"),
                 ("dag-bulk-sync-2", "test-dag2"),
                 ("dag-bulk-sync-3", "test-dag2"),
-            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+            } == set(session.execute(select(DagTag.dag_id, DagTag.name)).all())
 
-            for row in session.query(DagModel.last_parsed_time).all():
+            for row in session.execute(select(DagModel.last_parsed_time)).all():
                 assert row[0] is not None
 
         # Removing all tags
@@ -465,11 +476,11 @@ class TestDag:
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
-                row[0] for row in session.query(DagModel.dag_id).all()
+                row[0] for row in session.execute(select(DagModel.dag_id)).all()
             }
-            assert not set(session.query(DagTag.dag_id, DagTag.name).all())
+            assert not set(session.execute(select(DagTag.dag_id, DagTag.name)).all())
 
-            for row in session.query(DagModel.last_parsed_time).all():
+            for row in session.execute(select(DagModel.last_parsed_time)).all():
                 assert row[0] is not None
 
     def test_bulk_write_to_db_single_dag(self, testing_dag_bundle):
@@ -478,10 +489,8 @@ class TestDag:
         """
         clear_db_dags()
         dags = [
-            SerializedDAG.deserialize_dag(
-                SerializedDAG.serialize_dag(
-                    DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
-                )
+            create_scheduler_dag(
+                DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
             )
             for i in range(1)
         ]
@@ -489,12 +498,12 @@ class TestDag:
         with assert_queries_count(6):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
-            assert {"dag-bulk-sync-0"} == {row[0] for row in session.query(DagModel.dag_id).all()}
+            assert {"dag-bulk-sync-0"} == {row[0] for row in session.execute(select(DagModel.dag_id)).all()}
             assert {
                 ("dag-bulk-sync-0", "test-dag"),
-            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+            } == set(session.execute(select(DagTag.dag_id, DagTag.name)).all())
 
-            for row in session.query(DagModel.last_parsed_time).all():
+            for row in session.execute(select(DagModel.last_parsed_time)).all():
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
@@ -509,10 +518,8 @@ class TestDag:
         """
         clear_db_dags()
         dags = [
-            SerializedDAG.deserialize_dag(
-                SerializedDAG.serialize_dag(
-                    DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
-                )
+            create_scheduler_dag(
+                DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
             )
             for i in range(4)
         ]
@@ -521,16 +528,16 @@ class TestDag:
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
-                row[0] for row in session.query(DagModel.dag_id).all()
+                row[0] for row in session.execute(select(DagModel.dag_id)).all()
             }
             assert {
                 ("dag-bulk-sync-0", "test-dag"),
                 ("dag-bulk-sync-1", "test-dag"),
                 ("dag-bulk-sync-2", "test-dag"),
                 ("dag-bulk-sync-3", "test-dag"),
-            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+            } == set(session.execute(select(DagTag.dag_id, DagTag.name)).all())
 
-            for row in session.query(DagModel.last_parsed_time).all():
+            for row in session.execute(select(DagModel.last_parsed_time)).all():
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
@@ -544,14 +551,8 @@ class TestDag:
         mock_active_runs_of_dags = mock.MagicMock(side_effect=DagRun.active_runs_of_dags)
         with mock.patch.object(DagRun, "active_runs_of_dags", mock_active_runs_of_dags):
             dags_null_timetable = [
-                SerializedDAG.deserialize_dag(
-                    SerializedDAG.serialize_dag(DAG("dag-interval-None", schedule=None, start_date=TEST_DATE))
-                ),
-                SerializedDAG.deserialize_dag(
-                    SerializedDAG.serialize_dag(
-                        DAG("dag-interval-test", schedule=interval, start_date=TEST_DATE)
-                    )
-                ),
+                create_scheduler_dag(DAG("dag-interval-None", schedule=None, start_date=TEST_DATE)),
+                create_scheduler_dag(DAG("dag-interval-test", schedule=interval, start_date=TEST_DATE)),
             ]
             SerializedDAG.bulk_write_to_db("testing", None, dags_null_timetable)
             if interval:
@@ -589,11 +590,11 @@ class TestDag:
 
         session = settings.Session()
         model = session.get(DagModel, dag.dag_id)
+        current_time = timezone.utcnow()
 
         if expected_next_dagrun is None:
             # For catchup=False, next_dagrun will be around the current date (not DEFAULT_DATE)
             # Instead of comparing exact dates, verify it's relatively recent and not the old start date
-            current_time = timezone.utcnow()
 
             # Verify it's not using the old DEFAULT_DATE from 2016 and is after
             # that since we are picking up present date.
@@ -614,6 +615,8 @@ class TestDag:
             assert model.next_dagrun == expected_next_dagrun
             assert model.next_dagrun_create_after == expected_next_dagrun + timedelta(days=1)
 
+        assert model.exceeds_max_non_backfill is False
+
         dr = scheduler_dag.create_dagrun(
             run_id="test",
             state=state,
@@ -626,14 +629,18 @@ class TestDag:
         )
         assert dr is not None
         SerializedDAG.bulk_write_to_db("testing", None, [dag])
-
         model = session.get(DagModel, dag.dag_id)
-        # We signal "at max active runs" by saying this run is never eligible to be created
-        assert model.next_dagrun_create_after is None
-        # test that bulk_write_to_db again doesn't update next_dagrun_create_after
+        # Check that exceeds_max_non_backfill is set correctly
+        assert model.exceeds_max_non_backfill is True
+        # Check that running bulk_write_to_db again doesn't change exceeds_max_non_backfill
         SerializedDAG.bulk_write_to_db("testing", None, [dag])
         model = session.get(DagModel, dag.dag_id)
-        assert model.next_dagrun_create_after is None
+        assert model.exceeds_max_non_backfill is True
+
+        if catchup is True:
+            assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
+        else:
+            assert model.next_dagrun_create_after > current_time + timedelta(days=-2)  # allow for fuzz
 
     def test_bulk_write_to_db_has_import_error(self, testing_dag_bundle):
         """
@@ -690,10 +697,10 @@ class TestDag:
         )
 
         session = settings.Session()
-        SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag1)).clear()
+        create_scheduler_dag(dag1).clear()
         SerializedDAG.bulk_write_to_db("testing", None, [dag1, dag2], session=session)
         session.commit()
-        stored_assets = {x.uri: x for x in session.query(AssetModel).all()}
+        stored_assets = {x.uri: x for x in session.scalars(select(AssetModel)).all()}
         asset1_orm = stored_assets[a1.uri]
         asset2_orm = stored_assets[a2.uri]
         asset3_orm = stored_assets[a3.uri]
@@ -701,13 +708,13 @@ class TestDag:
         assert [x.dag_id for x in asset1_orm.scheduled_dags] == [dag_id1]
         assert [(x.task_id, x.dag_id) for x in asset1_orm.producing_tasks] == [(task_id, dag_id2)]
         assert set(
-            session.query(
-                TaskOutletAssetReference.task_id,
-                TaskOutletAssetReference.dag_id,
-                TaskOutletAssetReference.asset_id,
-            )
-            .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
-            .all()
+            session.execute(
+                select(
+                    TaskOutletAssetReference.task_id,
+                    TaskOutletAssetReference.dag_id,
+                    TaskOutletAssetReference.asset_id,
+                ).where(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
+            ).all()
         ) == {
             (task_id, dag_id1, asset2_orm.id),
             (task_id, dag_id1, asset3_orm.id),
@@ -726,18 +733,18 @@ class TestDag:
         SerializedDAG.bulk_write_to_db("testing", None, [dag1, dag2], session=session)
         session.commit()
         session.expunge_all()
-        stored_assets = {x.uri: x for x in session.query(AssetModel).all()}
+        stored_assets = {x.uri: x for x in session.scalars(select(AssetModel)).all()}
         asset1_orm = stored_assets[a1.uri]
         asset2_orm = stored_assets[a2.uri]
         assert [x.dag_id for x in asset1_orm.scheduled_dags] == []
         assert set(
-            session.query(
-                TaskOutletAssetReference.task_id,
-                TaskOutletAssetReference.dag_id,
-                TaskOutletAssetReference.asset_id,
-            )
-            .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
-            .all()
+            session.execute(
+                select(
+                    TaskOutletAssetReference.task_id,
+                    TaskOutletAssetReference.dag_id,
+                    TaskOutletAssetReference.asset_id,
+                ).where(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
+            ).all()
         ) == {(task_id, dag_id1, asset2_orm.id)}
 
     def test_bulk_write_to_db_asset_aliases(self, testing_dag_bundle):
@@ -760,7 +767,7 @@ class TestDag:
         SerializedDAG.bulk_write_to_db("testing", None, [dag1, dag2], session=session)
         session.commit()
 
-        stored_asset_alias_models = {x.name: x for x in session.query(AssetAliasModel).all()}
+        stored_asset_alias_models = {x.name: x for x in session.scalars(select(AssetAliasModel)).all()}
         asset_alias_1_orm = stored_asset_alias_models[asset_alias_1.name]
         asset_alias_2_orm = stored_asset_alias_models[asset_alias_2.name]
         asset_alias_3_orm = stored_asset_alias_models[asset_alias_3.name]
@@ -829,7 +836,7 @@ class TestDag:
         session = settings.Session()
         sync_dag_to_db(dag, session=session)
 
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
+        orm_dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
 
         assert not orm_dag.is_stale
 
@@ -838,10 +845,10 @@ class TestDag:
             rel_filelocs=list_py_file_paths(settings.DAGS_FOLDER),
         )
 
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
+        orm_dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
         assert orm_dag.is_stale
 
-        session.execute(DagModel.__table__.delete().where(DagModel.dag_id == dag_id))
+        session.execute(delete(DagModel).where(DagModel.dag_id == dag_id))
         session.close()
 
     def test_dag_naive_default_args_start_date_with_timezone(self):
@@ -915,8 +922,8 @@ class TestDag:
             )
 
             # should not raise any exception
-        dag_run.handle_dag_callback(dag=dag, success=False)
-        dag_run.handle_dag_callback(dag=dag, success=True)
+        dag_run.execute_dag_callbacks(dag=dag, success=False)
+        dag_run.execute_dag_callbacks(dag=dag, success=True)
 
         mock_stats.incr.assert_called_with(
             "dag.callback_exceptions",
@@ -956,8 +963,8 @@ class TestDag:
             assert dag_run.get_task_instance(task_removed.task_id).state == TaskInstanceState.REMOVED
 
             # should not raise any exception
-            dag_run.handle_dag_callback(dag=dag, success=False)
-            dag_run.handle_dag_callback(dag=dag, success=True)
+            dag_run.execute_dag_callbacks(dag=dag, success=False)
+            dag_run.execute_dag_callbacks(dag=dag, success=True)
 
     @time_machine.travel(timezone.datetime(2025, 11, 11))
     @pytest.mark.parametrize(("catchup", "expected_next_dagrun"), [(True, DEFAULT_DATE), (False, None)])
@@ -1118,7 +1125,7 @@ class TestDag:
         assert paused_dag_ids == {dag_id}
 
         with create_session() as session:
-            session.query(DagModel).filter(DagModel.dag_id == dag_id).delete(synchronize_session=False)
+            session.execute(delete(DagModel).where(DagModel.dag_id == dag_id))
 
     @pytest.mark.parametrize(
         ("schedule_arg", "expected_timetable", "interval_description"),
@@ -1190,6 +1197,22 @@ class TestDag:
             triggered_by=DagRunTriggeredByType.TEST,
         )
         assert dr.creating_job_id == job_id
+
+    def test_create_dagrun_note_is_set(self, testing_dag_bundle):
+        note = "This is a test note"
+        dag = DAG(dag_id="test_create_dagrun_note_is_set", schedule=None)
+        scheduler_dag = sync_dag_to_db(dag)
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_create_dagrun_note_is_set",
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+            state=State.NONE,
+            note=note,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        assert dr.note == note
 
     @pytest.mark.parametrize("partition_key", [None, "my-key", 123])
     def test_create_dagrun_partition_key(self, partition_key, dag_maker):
@@ -1304,7 +1327,7 @@ class TestDag:
         assert upstream_ti.state is None  # cleared
         assert ti.state is None  # cleared
         assert ti2.state == State.SUCCESS  # not cleared
-        dagruns = session.query(DagRun).filter(DagRun.dag_id == dag_id).all()
+        dagruns = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all()
 
         assert len(dagruns) == 1
         dagrun: DagRun = dagruns[0]
@@ -1476,7 +1499,7 @@ my_postgres_conn:
             session=session,
         )
 
-        task_instances = session.query(TI).filter(TI.dag_id == dag_id).all()
+        task_instances = session.scalars(select(TI).where(TI.dag_id == dag_id)).all()
 
         assert len(task_instances) == 1
         task_instance: TI = task_instances[0]
@@ -1486,11 +1509,11 @@ my_postgres_conn:
         dag = DAG("test_scheduler_dagrun_once", start_date=timezone.datetime(2015, 1, 1), schedule="@once")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2015, 1, 1)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info is None
 
     def test_next_dagrun_info_catchup(self):
@@ -1531,7 +1554,8 @@ my_postgres_conn:
             start_date=six_hours_ago_to_the_hour,
             catchup=False,
         )
-        next_date, _ = dag1.next_dagrun_info(None)
+        info = dag1.next_dagrun_info(last_automated_run_info=None)
+        next_date = info.run_after
         # The DR should be scheduled in the last half an hour, not 6 hours ago
         assert next_date > half_an_hour_ago
         assert next_date < timezone.utcnow()
@@ -1543,7 +1567,8 @@ my_postgres_conn:
             catchup=False,
         )
 
-        next_date, _ = dag2.next_dagrun_info(None)
+        info = dag2.next_dagrun_info(last_automated_run_info=None)
+        next_date = info.run_after
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date > two_hours_ago
         # The DR should be scheduled BEFORE now
@@ -1556,7 +1581,8 @@ my_postgres_conn:
             catchup=False,
         )
 
-        next_date, _ = dag3.next_dagrun_info(None)
+        info = dag3.next_dagrun_info(last_automated_run_info=None)
+        next_date = info.run_after
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date == six_hours_ago_to_the_hour
 
@@ -1575,12 +1601,12 @@ my_postgres_conn:
         )
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 1, 4)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 1, 5)
 
@@ -1598,20 +1624,20 @@ my_postgres_conn:
         )
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 1)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 2)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 3)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 4)
 
@@ -1619,7 +1645,7 @@ my_postgres_conn:
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
 
         class FailingTimetable(Timetable):
-            def next_dagrun_info(self, last_automated_data_interval, restriction):
+            def next_dagrun_info(self, last_automated_run_info, restriction):
                 raise RuntimeError("this fails")
 
         def _find_registered_custom_timetable(s):
@@ -1649,19 +1675,16 @@ my_postgres_conn:
             assert len(records) == 1
             record = records[0]
             assert record.exc_info is not None, "Should contain exception"
-            assert record.message == (
-                f"Failed to fetch run info after data interval {data_interval} "
-                f"for DAG 'test_next_dagrun_info_timetable_exception'"
-            )
+            assert record.message == "Failed to fetch run info"
 
         with caplog.at_level(level=logging.ERROR):
-            next_info = scheduler_dag.next_dagrun_info(None)
+            next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info is None, "failed next_dagrun_info should return None"
         _check_logs(caplog.records, data_interval=None)
         caplog.clear()
         data_interval = DataInterval(timezone.datetime(2020, 5, 1), timezone.datetime(2020, 5, 2))
         with caplog.at_level(level=logging.ERROR):
-            next_info = scheduler_dag.next_dagrun_info(data_interval)
+            next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=data_interval)
         assert next_info is None, "failed next_dagrun_info should return None"
         _check_logs(caplog.records, data_interval)
 
@@ -1686,7 +1709,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2016, 1, 2, 5, 4)
 
@@ -1699,7 +1722,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
 
@@ -1714,7 +1737,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         # With catchup=False, next_dagrun should be based on the current date
         # Verify it's not using the old start_date
@@ -1735,7 +1758,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         # With catchup=False, next_dagrun should be based on the current date
         # Verify it's not using the old start_date
@@ -1751,11 +1774,11 @@ my_postgres_conn:
         )
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2024, 2, 29)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info.logical_date == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.start == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.end == timezone.datetime(2032, 2, 29)
@@ -1824,7 +1847,7 @@ my_postgres_conn:
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE)
         sync_dag_to_db(dag, session=session)
 
-        orm_dag_owners = session.query(DagOwnerAttributes).all()
+        orm_dag_owners = session.scalars(select(DagOwnerAttributes)).all()
         assert not orm_dag_owners
 
     @pytest.mark.need_serialized_dag
@@ -1836,20 +1859,22 @@ my_postgres_conn:
             pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), "NONE", id="fixed_deadline"),
         ],
     )
-    def test_dagrun_deadline(self, reference_type, reference_column, dag_maker, session):
+    def test_dagrun_deadline(self, reference_type, reference_column, testing_dag_bundle, session):
         interval = datetime.timedelta(hours=1)
-        with dag_maker(
-            dag_id="test_queued_deadline",
+        dag = DAG(
+            dag_id="test_deadline",
             schedule=datetime.timedelta(days=1),
             deadline=DeadlineAlert(
                 reference=reference_type,
                 interval=interval,
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
-        ) as dag:
-            ...
+        )
 
-        dr = dag.create_dagrun(
+        # Sync the DAG to the database to create DeadlineAlert records
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        dr = scheduler_dag.create_dagrun(
             run_id="test_dagrun_deadline",
             run_type=DagRunType.SCHEDULED,
             state=State.QUEUED,
@@ -1863,8 +1888,8 @@ my_postgres_conn:
         assert len(dr.deadlines) == 1
         assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
 
-    def test_dag_with_multiple_deadlines(self, dag_maker, session):
-        """Test that a DAG with multiple deadlines stores all deadlines in the database."""
+    def test_dag_with_multiple_deadlines(self, testing_dag_bundle, session):
+        """Test that a Dag with multiple deadlines stores all deadlines and persists on re-serialization."""
         deadlines = [
             DeadlineAlert(
                 reference=DeadlineReference.DAGRUN_QUEUED_AT,
@@ -1882,15 +1907,38 @@ my_postgres_conn:
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
         ]
+        expected_num_deadlines = 3
 
-        with dag_maker(
+        dag = DAG(
             dag_id="test_multiple_deadlines",
             schedule=datetime.timedelta(days=1),
             deadline=deadlines,
-        ) as dag:
-            ...
+        )
 
-        scheduler_dag = sync_dag_to_db(dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        deadline_alerts = session.scalars(select(DeadlineAlertModel)).all()
+        assert len(deadline_alerts) == expected_num_deadlines
+        initial_uuids = {alert.id for alert in deadline_alerts}
+
+        # Re-serialize the Dag
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="testing",
+            session=session,
+        )
+        session.commit()
+
+        # Verify deadline alerts still exist after re-serialization
+        stored_alerts = session.scalars(
+            select(DeadlineAlertModel).where(DeadlineAlertModel.id.in_(initial_uuids))
+        ).all()
+        assert len(stored_alerts) == expected_num_deadlines
+
+        intervals = sorted([alert.interval for alert in stored_alerts])
+        assert intervals == [300.0, 600.0, 3600.0]
+
+        # Now create a dagrun and verify deadlines are created
         dr = scheduler_dag.create_dagrun(
             run_id="test_multiple_deadlines",
             run_type=DagRunType.SCHEDULED,
@@ -1902,8 +1950,8 @@ my_postgres_conn:
         session.flush()
         dr = session.merge(dr)
 
-        # Check that all 3 deadlines were created
-        assert len(dr.deadlines) == 3
+        # Check that all deadlines were created
+        assert len(dr.deadlines) == expected_num_deadlines
 
         # Verify each deadline has correct properties
         deadline_times = [d.deadline_time for d in dr.deadlines]
@@ -1974,7 +2022,7 @@ class TestDagModel:
         assert dag_models == []
 
         # add queue records so we'll need a run
-        dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
         asset_model: AssetModel = dag_model.schedule_assets[0]
         session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
@@ -1998,6 +2046,34 @@ class TestDagModel:
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         assert dag_models == [dag_model]
+
+    def test_dags_needing_dagruns_query_count(self, dag_maker, session):
+        """Test that dags_needing_dagruns avoids N+1 on adrq.asset access."""
+        num_assets = 10
+        assets = [Asset(uri=f"test://asset{i}", group="test-group") for i in range(num_assets)]
+
+        with dag_maker(
+            session=session,
+            dag_id="my_dag",
+            max_active_runs=10,
+            schedule=assets,
+            start_date=pendulum.now().add(days=-2),
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dag_model = dag_maker.dag_model
+        asset_models = dag_model.schedule_assets
+        assert len(asset_models) == num_assets
+        for asset_model in asset_models:
+            session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+        session.flush()
+
+        # Clear identity map so N+1 on adrq.asset is exposed
+        session.expire_all()
+
+        with assert_queries_count(6):
+            query, _ = DagModel.dags_needing_dagruns(session)
+            query.all()
 
     def test_dags_needing_dagruns_asset_aliases(self, dag_maker, session):
         # link asset_alias hello_alias to asset hello
@@ -2052,8 +2128,9 @@ class TestDagModel:
     def test_dags_needing_dagruns_asset_refs(self, dag_maker, session, ref):
         asset = Asset(name="1", uri="s3://bucket/assets/1")
 
-        with dag_maker(dag_id="producer", schedule=None, session=session):
+        with dag_maker(dag_id="producer", schedule=None, session=session) as dag:
             op = EmptyOperator(task_id="op", outlets=asset)
+        ser_op = dag.get_task(op.task_id)
 
         dr: DagRun = dag_maker.create_dagrun()
 
@@ -2067,8 +2144,8 @@ class TestDagModel:
 
         # Upstream triggered, now we need a run.
         ti = dr.get_task_instance("op")
-        ti.refresh_from_task(op)
-        ti.run()
+        ti.refresh_from_task(ser_op)
+        run_task_instance(ti, op)
 
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["consumer"]
         query, _ = DagModel.dags_needing_dagruns(session)
@@ -2081,16 +2158,16 @@ class TestDagModel:
         dag_id_to_test = "test"
 
         # Dag 'test' depends on an outlet in 'producer'.
-        with dag_maker(dag_id="producer", schedule=None, session=session):
+        with dag_maker(dag_id="producer", schedule=None, session=session) as dag:
             op = EmptyOperator(task_id="op", outlets=asset)
         dr = dag_maker.create_dagrun()
         outlet_ti = dr.get_task_instance("op")
-        outlet_ti.refresh_from_task(op)
+        outlet_ti.refresh_from_task(dag.get_task(op.task_id))
         with dag_maker(dag_id=dag_id_to_test, schedule=asset, session=session):
             pass
 
         # An adrq should be created when the outlet task is run.
-        outlet_ti.run()
+        run_task_instance(outlet_ti, op)
         query, _ = DagModel.dags_needing_dagruns(session)
         assert [dm.dag_id for dm in query] == [dag_id_to_test]
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == [dag_id_to_test]
@@ -2202,7 +2279,7 @@ class TestDagModel:
         rel_path = "test_assets.py"
         bundle_path = TEST_DAGS_FOLDER
         file_path = bundle_path / rel_path
-        bag = DagBag(dag_folder=file_path, bundle_path=bundle_path)
+        bag = BundleDagBag(dag_folder=file_path, bundle_path=bundle_path, bundle_name="testing")
 
         dag = bag.get_dag("dag_with_skip_task")
 
@@ -2261,7 +2338,7 @@ class TestDagModel:
                 EmptyOperator(task_id="task", outlets=[asset])
             dr = dag_maker.create_dagrun()
 
-            asset_id = session.query(AssetModel.id).filter_by(uri=asset.uri).scalar()
+            asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
 
             session.add(
                 AssetEvent(
@@ -2273,8 +2350,8 @@ class TestDagModel:
                 )
             )
 
-        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
-        asset2_id = session.query(AssetModel.id).filter_by(uri=asset2.uri).scalar()
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
+        asset2_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset2.uri))
 
         with dag_maker(dag_id="assets-consumer-multiple", schedule=[asset1, asset2]) as dag:
             pass
@@ -2325,7 +2402,9 @@ class TestDagModel:
         )
         SerializedDAG.bulk_write_to_db("testing", None, [dag], session=session)
 
-        expression = session.scalars(select(DagModel.asset_expression).filter_by(dag_id=dag.dag_id)).one()
+        expression: ScalarResult = session.scalars(
+            select(DagModel.asset_expression).where(DagModel.dag_id == dag.dag_id)
+        ).one()
         assert expression == {
             "any": [
                 {
@@ -2517,14 +2596,12 @@ def test_set_task_instance_state(run_id, session, dag_maker):
     )
 
     def get_ti_from_db(task):
-        return (
-            session.query(TI)
-            .filter(
+        return session.scalar(
+            select(TI).where(
                 TI.dag_id == dag.dag_id,
                 TI.task_id == task.task_id,
                 TI.run_id == dagrun.run_id,
             )
-            .one()
         )
 
     get_ti_from_db(task_1).state = State.FAILED
@@ -2599,16 +2676,16 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     )
     expand_mapped_task(mapped, dr2.run_id, "make_arg_lists", length=2, session=session)
 
-    session.query(TI).filter_by(dag_id=dag.dag_id).update({"state": TaskInstanceState.FAILED})
+    session.execute(update(TI).where(TI.dag_id == dag.dag_id).values(state=TaskInstanceState.FAILED))
 
     ti_query = (
-        session.query(TI.task_id, TI.map_index, TI.run_id, TI.state)
-        .filter(TI.dag_id == dag.dag_id, TI.task_id.in_([task_id, "downstream"]))
+        select(TI.task_id, TI.map_index, TI.run_id, TI.state)
+        .where(TI.dag_id == dag.dag_id, TI.task_id.in_([task_id, "downstream"]))
         .order_by(TI.run_id, TI.task_id, TI.map_index)
     )
 
     # Check pre-conditions
-    assert ti_query.all() == [
+    assert session.execute(ti_query).all() == [
         ("downstream", -1, dr1.run_id, TaskInstanceState.FAILED),
         (task_id, 0, dr1.run_id, TaskInstanceState.FAILED),
         (task_id, 1, dr1.run_id, TaskInstanceState.FAILED),
@@ -2627,7 +2704,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     )
     assert dr1 in session, "Check session is passed down all the way"
 
-    assert ti_query.all() == [
+    assert session.execute(ti_query).all() == [
         ("downstream", -1, dr1.run_id, None),
         (task_id, 0, dr1.run_id, TaskInstanceState.FAILED),
         (task_id, 1, dr1.run_id, TaskInstanceState.SUCCESS),
@@ -2710,7 +2787,6 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
     iterator = create_scheduler_dag(dag).iter_dagrun_infos_between(
         earliest=pendulum.instance(start_date),
         latest=pendulum.instance(DEFAULT_DATE),
-        align=True,
     )
     assert expected_infos == list(iterator)
 
@@ -2720,7 +2796,7 @@ def test_iter_dagrun_infos_between_error(caplog):
     end = pendulum.instance(DEFAULT_DATE)
 
     class FailingAfterOneTimetable(Timetable):
-        def next_dagrun_info(self, last_automated_data_interval, restriction):
+        def next_dagrun_info(self, last_automated_data_interval: DataInterval | None, restriction):
             if last_automated_data_interval is None:
                 return DagRunInfo.interval(start, end)
             raise RuntimeError("this fails")
@@ -2747,7 +2823,7 @@ def test_iter_dagrun_infos_between_error(caplog):
     ):
         scheduler_dag = create_scheduler_dag(dag)
 
-    iterator = scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end, align=True)
+    iterator = scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end)
     with caplog.at_level(logging.ERROR):
         infos = list(iterator)
 
@@ -2756,12 +2832,12 @@ def test_iter_dagrun_infos_between_error(caplog):
 
     assert caplog.record_tuples == [
         (
-            "airflow.serialization.serialized_objects",
+            "airflow.serialization.definitions.dag",
             logging.ERROR,
-            f"Failed to fetch run info after data interval {DataInterval(start, end)} for DAG {dag.dag_id!r}",
+            "Failed to fetch run info",
         ),
     ]
-    assert caplog.entries[0].get("exc_info") is not None, "should contain exception context"
+    assert caplog.entries[0].get("exception"), "should contain exception context"
 
 
 @pytest.mark.parametrize(
@@ -2878,7 +2954,7 @@ def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
     dag3 = dag_maker.dag
 
     session = dag_maker.session
-    asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+    asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
     session.bulk_save_objects(
         [
             AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
@@ -2887,7 +2963,7 @@ def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
     )
     session.flush()
 
-    assets = session.query(AssetModel.uri).order_by(AssetModel.id).all()
+    assets = session.execute(select(AssetModel.uri).order_by(AssetModel.id)).all()
 
     info = get_asset_triggered_next_run_info([dag1.dag_id], session=session)
     assert info[dag1.dag_id] == {
@@ -2940,7 +3016,7 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
             f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
         ),
     ):
-        SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag)).create_dagrun(
+        create_scheduler_dag(dag).create_dagrun(
             run_type=DagRunType.MANUAL,
             run_id=run_id,
             logical_date=DEFAULT_DATE,
@@ -3526,3 +3602,66 @@ def test_get_run_data_interval_pre_aip_39():
     ds_end = current_ts.replace(hour=0, minute=0, second=0, microsecond=0)
     timetable = coerce_to_core_timetable(dag.timetable)
     assert get_run_data_interval(timetable, dr) == DataInterval(start=ds_start, end=ds_end)
+
+
+@pytest.mark.parametrize(
+    ("schedule", "next_run", "next_interval", "next_run_after", "next_partition_key", "next_partition_date"),
+    [
+        (
+            CronPartitionTimetable(
+                "0 0 * * *",
+                timezone=pendulum.UTC,
+            ),
+            None,
+            None,
+            TEST_DATE + timedelta(days=1),
+            (TEST_DATE + timedelta(days=1)).strftime(r"%Y-%m-%dT%H:%M:%S"),
+            TEST_DATE + timedelta(days=1),
+        ),
+        (
+            "0 0 * * *",
+            TEST_DATE,
+            DataInterval(start=TEST_DATE, end=TEST_DATE + timedelta(days=1)),
+            TEST_DATE + timedelta(days=1),
+            None,
+            None,
+        ),
+        (
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ),
+        (
+            "@once",
+            None,
+            None,
+            None,
+            None,
+            None,
+        ),
+    ],
+)
+def test_calculate_dagrun_date_fields(
+    schedule,
+    dag_maker,
+    next_run,
+    next_interval,
+    next_run_after,
+    next_partition_key,
+    next_partition_date,
+):
+    with dag_maker(schedule=schedule, catchup=True, start_date=TEST_DATE):
+        BashOperator(task_id="hi", bash_command="yo")
+
+    run = dag_maker.create_dagrun()
+    serdag = dag_maker.serialized_dag
+    dag_model = dag_maker.dag_model
+    dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=run)
+    assert dag_model.next_dagrun_data_interval == next_interval
+    assert dag_model.next_dagrun == next_run
+    assert dag_model.next_dagrun_create_after == next_run_after
+    assert dag_model.next_dagrun_partition_key == next_partition_key
+    assert dag_model.next_dagrun_partition_date == next_partition_date

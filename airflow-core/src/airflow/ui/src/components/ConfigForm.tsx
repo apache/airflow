@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Accordion, Box, Field } from "@chakra-ui/react";
+import { Box, Field } from "@chakra-ui/react";
 import { type Control, type FieldValues, type Path, Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
@@ -25,6 +25,7 @@ import { useParamStore } from "src/queries/useParamStore";
 
 import { FlexibleForm, flexibleFormDefaultSection } from "./FlexibleForm";
 import { JsonEditor } from "./JsonEditor";
+import { Accordion } from "./ui";
 
 type ConfigFormProps<T extends FieldValues = FieldValues> = {
   readonly children?: React.ReactNode;
@@ -82,6 +83,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   return (
     <Accordion.Root
       collapsible
+      data-testid="config-form"
       defaultValue={[flexibleFormDefaultSection]}
       mb={4}
       overflow="visible"
@@ -107,10 +109,11 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
                 <Field.Root invalid={Boolean(errors.conf)} mt={6}>
                   <Field.Label fontSize="md">{translate("configForm.configJson")}</Field.Label>
                   <JsonEditor
-                    {...field}
                     onBlur={() => {
                       field.onChange(validateAndPrettifyJson(field.value as string));
                     }}
+                    onChange={field.onChange}
+                    value={field.value as string}
                   />
                   {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
                 </Field.Root>

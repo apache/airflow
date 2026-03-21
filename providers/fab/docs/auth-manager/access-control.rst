@@ -263,7 +263,6 @@ Show Configurations menu               Configurations.menu_access               
 Show Configs                           Configurations.can_read                                                 Viewer
 Delete multiple records                Dags.can_edit                                                           User
 Set Task Instance as running           Dags.can_edit                                                           User
-Set Task Instance as failed            Dags.can_edit                                                           User
 Set Task Instance as success           Dags.can_edit                                                           User
 Set Task Instance as up_for_retry      Dags.can_edit                                                           User
 Autocomplete                           Dags.can_read                                                           Viewer
@@ -333,7 +332,7 @@ It's also possible to add Dag Runs resource permissions in a similar way, but ex
         dag_id="example_fine_grained_access",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         access_control={
-            "Viewer": {"Dags": {"can_edit", "can_read", "can_delete"}, "Dag Runs": {"can_create"}},
+            "Viewer": {"DAGs": {"can_edit", "can_read", "can_delete"}, "DAG Runs": {"can_create"}},
         },
     )
 

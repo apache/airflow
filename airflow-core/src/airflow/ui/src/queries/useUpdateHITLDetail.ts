@@ -78,15 +78,19 @@ export const useUpdateHITLDetail = ({
   });
 
   const updateHITLResponse = (updateHITLResponseRequestBody: HITLResponseParams) => {
+    const mapIndexValue = mapIndex ?? -1;
+
+    const requestBody = {
+      chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
+      params_input: updateHITLResponseRequestBody.params_input ?? {},
+    };
+
     try {
       mutate({
         dagId,
         dagRunId,
-        mapIndex: mapIndex ?? -1,
-        requestBody: {
-          chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
-          params_input: updateHITLResponseRequestBody.params_input ?? {},
-        },
+        mapIndex: mapIndexValue,
+        requestBody,
         taskId,
       });
     } catch (parseError) {

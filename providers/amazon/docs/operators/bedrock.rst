@@ -66,21 +66,13 @@ To invoke an Amazon Titan model you would use:
     :start-after: [START howto_operator_invoke_titan_model]
     :end-before: [END howto_operator_invoke_titan_model]
 
-To invoke a Claude V2 model using the Completions API you would use:
+To invoke a Claude Sonnet model using the Messages API you would use:
 
-.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_invoke_claude_model]
     :end-before: [END howto_operator_invoke_claude_model]
-
-To invoke a Claude V3 Sonnet model using the Messages API you would use:
-
-.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_batch_inference.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_invoke_claude_messages]
-    :end-before: [END howto_operator_invoke_claude_messages]
 
 
 .. _howto/operator:BedrockCustomizeModelOperator:

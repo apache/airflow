@@ -29,6 +29,10 @@ Prerequisite
   and :doc:`JDBC connection <apache-airflow-providers-jdbc:connections/jdbc>`.
 * :class:`~airflow.providers.apache.spark.operators.spark_sql.SparkSqlOperator`
   gets all the configurations from operator parameters.
+* To use :class:`~airflow.providers.apache.spark.operators.spark_pyspark.PySparkOperator`
+  you can configure :doc:`SparkConnect Connection <connections/spark-connect>`.
+* To use :class:`~airflow.providers.apache.spark.operators.spark_pipelines.SparkPipelinesOperator`
+  you must configure :doc:`Spark Connection <connections/spark-submit>` and have the ``spark-pipelines`` CLI available.
 
 .. _howto/operator:SparkJDBCOperator:
 
@@ -55,6 +59,81 @@ Reference
 """""""""
 
 For further information, look at `Apache Spark DataFrameWriter documentation <https://spark.apache.org/docs/2.4.5/api/scala/index.html#org.apache.spark.sql.DataFrameWriter>`_.
+
+.. _howto/operator:PySparkOperator:
+
+PySparkOperator
+----------------
+
+Launches applications on a Apache Spark Connect server or directly in a standalone mode
+
+For parameter definition take a look at :class:`~airflow.providers.apache.spark.operators.spark_pyspark.PySparkOperator`.
+
+Using the operator
+""""""""""""""""""
+
+.. exampleinclude:: /../tests/system/apache/spark/example_spark_dag.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spark_pyspark]
+    :end-before: [END howto_operator_spark_pyspark]
+
+Reference
+"""""""""
+
+For further information, look at `Running the Spark Connect Python <https://spark.apache.org/docs/latest/api/python/getting_started/quickstart_connect.html>`_.
+
+.. _howto/operator:SparkPipelinesOperator:
+
+SparkPipelinesOperator
+----------------------
+
+Execute Spark Declarative Pipelines using the ``spark-pipelines`` CLI. This operator wraps the spark-pipelines binary to execute declarative data pipelines, supporting both pipeline execution and validation through dry-runs.
+
+For parameter definition take a look at :class:`~airflow.providers.apache.spark.operators.spark_pipelines.SparkPipelinesOperator`.
+
+Using the operator
+""""""""""""""""""
+
+The operator can be used to run declarative pipelines:
+
+.. code-block:: python
+
+   from airflow.providers.apache.spark.operators.spark_pipelines import SparkPipelinesOperator
+
+   # Execute the pipeline
+   run_pipeline = SparkPipelinesOperator(
+       task_id="run_pipeline",
+       pipeline_spec="/path/to/pipeline.yml",
+       pipeline_command="run",
+       conn_id="spark_default",
+       num_executors=2,
+       executor_cores=4,
+       executor_memory="2G",
+       driver_memory="1G",
+   )
+
+**Pipeline Specification**
+
+The ``pipeline_spec`` parameter should point to a YAML file defining your declarative pipeline:
+
+.. code-block:: yaml
+
+   name: my_pipeline
+   storage: file:///path/to/pipeline-storage
+   libraries:
+     - glob:
+         include: transformations/**
+
+**Pipeline Commands**
+
+* ``run`` - Execute the pipeline (default)
+* ``dry-run`` - Validate the pipeline without execution
+
+Reference
+"""""""""
+
+For further information, look at `Spark Declarative Pipelines Programming Guide <https://spark.apache.org/docs/latest/declarative-pipelines-programming-guide.html>`_.
 
 .. _howto/operator:SparkSqlOperator:
 

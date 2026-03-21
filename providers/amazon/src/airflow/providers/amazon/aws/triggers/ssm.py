@@ -35,6 +35,9 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
     :param command_id: The ID of the AWS SSM Run Command.
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
+    :param fail_on_nonzero_exit: If True (default), the trigger will fail when the command returns
+        a non-zero exit code. If False, the trigger will complete successfully regardless of the
+        command exit code. (default: True)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
@@ -49,18 +52,19 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
         command_id: str,
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
+        fail_on_nonzero_exit: bool = True,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
-            serialized_fields={"command_id": command_id},
+            serialized_fields={"command_id": command_id, "fail_on_nonzero_exit": fail_on_nonzero_exit},
             waiter_name="command_executed",
             waiter_args={"CommandId": command_id},
             failure_message="SSM run command failed.",
             status_message="Status of SSM run command is",
-            status_queries=["status"],
+            status_queries=["Status"],
             return_key="command_id",
             return_value=command_id,
             waiter_delay=waiter_delay,
@@ -71,6 +75,7 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
             botocore_config=botocore_config,
         )
         self.command_id = command_id
+        self.fail_on_nonzero_exit = fail_on_nonzero_exit
 
     def hook(self) -> AwsGenericHook:
         return SsmHook(
@@ -89,14 +94,66 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
 
             for instance_id in instance_ids:
                 self.waiter_args["InstanceId"] = instance_id
-                await async_wait(
-                    waiter,
-                    self.waiter_delay,
-                    self.attempts,
-                    self.waiter_args,
-                    self.failure_message,
-                    self.status_message,
-                    self.status_queries,
-                )
+                try:
+                    await async_wait(
+                        waiter,
+                        self.waiter_delay,
+                        self.attempts,
+                        self.waiter_args,
+                        self.failure_message,
+                        self.status_message,
+                        self.status_queries,
+                    )
+                except Exception:
+                    # Get detailed invocation information to determine failure type
+                    invocation = await client.get_command_invocation(
+                        CommandId=self.command_id, InstanceId=instance_id
+                    )
+                    status = invocation.get("Status", "")
+                    response_code = invocation.get("ResponseCode", -1)
+
+                    # AWS-level failures should always raise
+                    if SsmHook.is_aws_level_failure(status):
+                        self.log.error(
+                            "AWS-level failure for command %s on instance %s: status=%s",
+                            self.command_id,
+                            instance_id,
+                            status,
+                        )
+                        raise
+
+                    # Command-level failure (non-zero exit code)
+                    if not self.fail_on_nonzero_exit:
+                        # Enhanced mode: tolerate command-level failures
+                        self.log.info(
+                            "Command %s completed with status %s (exit code: %s) for instance %s. "
+                            "Continuing due to fail_on_nonzero_exit=False",
+                            self.command_id,
+                            status,
+                            response_code,
+                            instance_id,
+                        )
+                        continue
+                    else:
+                        # Traditional mode: yield failure event instead of raising
+                        # This allows the operator to handle the failure gracefully
+                        self.log.warning(
+                            "Command %s failed with status %s (exit code: %s) for instance %s",
+                            self.command_id,
+                            status,
+                            response_code,
+                            instance_id,
+                        )
+                        yield TriggerEvent(
+                            {
+                                "status": "failed",
+                                "message": f"Command failed with status {status} (exit code: {response_code})",
+                                "command_status": status,
+                                "exit_code": response_code,
+                                "instance_id": instance_id,
+                                self.return_key: self.return_value,
+                            }
+                        )
+                        return
 
         yield TriggerEvent({"status": "success", self.return_key: self.return_value})

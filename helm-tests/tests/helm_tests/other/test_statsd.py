@@ -26,7 +26,10 @@ class TestStatsd:
     """Tests statsd."""
 
     def test_should_create_statsd_default(self):
-        docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "cache": {"size": 1000, "type": "lru", "ttl": "0s"}}},
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
 
         assert jmespath.search("metadata.name", docs[0]) == "release-name-statsd"
 
@@ -42,8 +45,34 @@ class TestStatsd:
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-        default_args = ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
-        assert default_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        expected_args = [
+            "--statsd.cache-size=1000",
+            "--statsd.cache-type=lru",
+            "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml",
+        ]
+        assert expected_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    @pytest.mark.parametrize(
+        ("ttl"),
+        [None, "5m"],
+    )
+    def test_statsd_configmap_check_ttl(self, ttl):
+        docs = render_chart(
+            values={"statsd": {"enabled": True, "cache": {"ttl": ttl} if ttl else {}}},
+            show_only=["templates/configmaps/statsd-configmap.yaml"],
+        )
+
+        mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
+        mappings_yml_obj = yaml.safe_load(mappings_yml)
+
+        assert "defaults" in mappings_yml_obj
+
+        if ttl:
+            assert mappings_yml_obj["defaults"]["ttl"] == ttl
+        else:
+            assert mappings_yml_obj["defaults"]["ttl"] == "0s"
+
+        assert "mappings" in mappings_yml_obj
 
     def test_should_add_volume_and_volume_mount_when_exist_extra_mappings(self):
         extra_mapping = {
@@ -103,6 +132,25 @@ class TestStatsd:
         )
         expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
+    @pytest.mark.parametrize(
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"statsd": {"enabled": True}}
+        if revision_history_limit is not None:
+            values["statsd"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
     def test_scheduler_name(self):
         docs = render_chart(
@@ -294,13 +342,23 @@ class TestStatsd:
         assert mappings_yml_obj["mappings"][0]["name"] == "airflow_pool_queued_slots"
 
     def test_statsd_args_can_be_overridden(self):
-        args = ["--some-arg=foo"]
+        args = [
+            "--statsd.cache-size=",
+            "--statsd.cache-type=",
+            "--statsd.mapping-config=/custom/path",
+        ]
         docs = render_chart(
-            values={"statsd": {"enabled": True, "args": args}},
+            values={"statsd": {"enabled": True, "args": args, "cache": {"size": 0, "type": "", "ttl": ""}}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == args
+        expected_args = [
+            "--statsd.cache-size=",
+            "--statsd.cache-type=",
+            "--statsd.mapping-config=/custom/path",
+        ]
+
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == expected_args
 
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(

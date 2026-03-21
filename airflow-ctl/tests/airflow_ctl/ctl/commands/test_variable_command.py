@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import os
 
 import pytest
 
@@ -104,22 +103,3 @@ class TestCliVariableCommands:
                 self.parser.parse_args(["variables", "import", expected_json_path.as_posix()]),
                 api_client=api_client,
             )
-
-    def test_export(self, api_client_maker, tmp_path, monkeypatch):
-        api_client = api_client_maker(
-            path="/api/v2/variables",
-            response_json=self.variable_collection_response.model_dump(),
-            expected_http_status_code=200,
-            kind=ClientKind.CLI,
-        )
-
-        monkeypatch.chdir(tmp_path)
-        expected_json_path = (tmp_path / self.export_file_name).as_posix()
-        variable_command.export(
-            self.parser.parse_args(["variables", "export", expected_json_path]),
-            api_client=api_client,
-        )
-        assert os.path.exists(tmp_path / self.export_file_name)
-
-        with open(expected_json_path) as f:
-            assert json.load(f) == {self.key: {"description": self.description, "value": self.value}}

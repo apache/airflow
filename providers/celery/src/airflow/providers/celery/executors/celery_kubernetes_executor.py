@@ -24,26 +24,22 @@ from typing import TYPE_CHECKING, Any
 from deprecated import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors.celery_executor import AIRFLOW_V_3_0_PLUS, CeleryExecutor
-
-try:
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
-except ImportError as e:
-    raise AirflowOptionalProviderFeatureException(e)
-
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.cli.cli_config import GroupCommand
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.models.taskinstance import (  # type: ignore[attr-defined]
         SimpleTaskInstance,
         TaskInstance,
     )
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 
     CommandType = Sequence[str]
 
@@ -107,19 +103,16 @@ class CeleryKubernetesExecutor(BaseExecutor):
     @property
     def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
         """Return queued tasks from celery and kubernetes executor."""
-        queued_tasks = self.celery_executor.queued_tasks.copy()
-        queued_tasks.update(self.kubernetes_executor.queued_tasks)
-
-        return queued_tasks
+        return self.celery_executor.queued_tasks | self.kubernetes_executor.queued_tasks
 
     @queued_tasks.setter
     def queued_tasks(self, value) -> None:
         """Not implemented for hybrid executors."""
 
-    @property
+    @property  # type: ignore[override]
     def running(self) -> set[TaskInstanceKey]:
         """Return running tasks from celery and kubernetes executor."""
-        return self.celery_executor.running.union(self.kubernetes_executor.running)
+        return self.celery_executor.running.union(self.kubernetes_executor.running)  # type: ignore[return-value, arg-type]
 
     @running.setter
     def running(self, value) -> None:
@@ -229,7 +222,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self.celery_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
-    def get_event_buffer(
+    def get_event_buffer(  # type: ignore[override]
         self, dag_ids: list[str] | None = None
     ) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
@@ -241,7 +234,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         cleared_events_from_celery = self.celery_executor.get_event_buffer(dag_ids)
         cleared_events_from_kubernetes = self.kubernetes_executor.get_event_buffer(dag_ids)
 
-        return {**cleared_events_from_celery, **cleared_events_from_kubernetes}
+        return {**cleared_events_from_celery, **cleared_events_from_kubernetes}  # type: ignore[dict-item]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
@@ -330,5 +323,8 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self.callback_sink.send(request)
 
     @staticmethod
-    def get_cli_commands() -> list:
-        return CeleryExecutor.get_cli_commands() + KubernetesExecutor.get_cli_commands()
+    def get_cli_commands() -> list[GroupCommand]:
+        from airflow.providers.celery.cli.definition import get_celery_cli_commands
+        from airflow.providers.cncf.kubernetes.cli.definition import get_kubernetes_cli_commands
+
+        return get_celery_cli_commands() + get_kubernetes_cli_commands()

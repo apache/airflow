@@ -26,12 +26,12 @@ describe("Dag Filters", () => {
   it("Filter by selected last run state", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    await waitFor(() => expect(screen.getByTestId("dags-success-filter")).toBeInTheDocument());
-    await waitFor(() => screen.getByTestId("dags-success-filter").click());
+    await waitFor(() => expect(screen.getByText("states.success")).toBeInTheDocument());
+    await waitFor(() => screen.getByText("states.success").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
-    await waitFor(() => expect(screen.getByTestId("dags-failed-filter")).toBeInTheDocument());
-    await waitFor(() => screen.getByTestId("dags-failed-filter").click());
+    await waitFor(() => expect(screen.getByText("states.failed")).toBeInTheDocument());
+    await waitFor(() => screen.getByText("states.failed").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
   });
 });

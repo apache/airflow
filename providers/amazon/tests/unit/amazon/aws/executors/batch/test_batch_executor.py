@@ -21,12 +21,14 @@ import json
 import logging
 import os
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 import yaml
 from botocore.exceptions import ClientError, NoCredentialsError
 from semver import VersionInfo
 
+from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -48,7 +50,7 @@ from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 ARN1 = "arn1"
@@ -444,7 +446,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 1 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]['jobId']}. Rescheduling."
+                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 1 out of {mock_executor.max_submit_job_attempts} occurred on {jobs[i]['jobId']}. Rescheduling."
                 in caplog.messages[i]
             )
 
@@ -453,7 +455,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 2 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]['jobId']}. Rescheduling."
+                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 2 out of {mock_executor.max_submit_job_attempts} occurred on {jobs[i]['jobId']}. Rescheduling."
                 in caplog.messages[i]
             )
 
@@ -462,7 +464,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
+                f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.max_submit_job_attempts} times. Marking as failed"
                 in caplog.text
             )
 
@@ -708,6 +710,47 @@ class TestAwsBatchExecutor:
         # The remaining one task is unable to be adopted.
         assert len(not_adopted_tasks) == 1
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+")
+    def test_team_config(self):
+        """Test that the executor uses team-specific configuration when provided via self.conf."""
+        # Team name to be used throughout
+        team_name = "team_a"
+        # Patch environment to include two sets of configs for the Batch executor. One that is related to a
+        # team and one that is not. Then we will create two executors (one with a team and one without) and
+        # ensure the correct configs are used.
+        config_overrides = [
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_QUEUE}", "some-job-queue"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_DEFINITION}", "some-job-def"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_NAME}", "some-job-name"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.REGION_NAME}", "us-west-1"),
+            # team Config
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_QUEUE}",
+                "team_a_job_queue",
+            ),
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_DEFINITION}",
+                "team_a_job_def",
+            ),
+            (f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_NAME}", "team_a_job_name"),
+            (f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.REGION_NAME}", "us-west-2"),
+        ]
+        with patch("os.environ", {key.upper(): value for key, value in config_overrides}):
+            team_executor = AwsBatchExecutor(team_name=team_name)
+            submit_kwargs = batch_executor_config.build_submit_kwargs(team_executor.conf)
+
+            assert submit_kwargs["jobQueue"] == "team_a_job_queue"
+            assert submit_kwargs["jobDefinition"] == "team_a_job_def"
+            assert submit_kwargs["jobName"] == "team_a_job_name"
+
+            # Now create an executor without a team and ensure the non-team configs are used.
+            non_team_executor = AwsBatchExecutor()
+            submit_kwargs = batch_executor_config.build_submit_kwargs(non_team_executor.conf)
+
+            assert submit_kwargs["jobQueue"] == "some-job-queue"
+            assert submit_kwargs["jobDefinition"] == "some-job-def"
+            assert submit_kwargs["jobName"] == "some-job-name"
+
 
 class TestBatchExecutorConfig:
     @staticmethod
@@ -751,7 +794,7 @@ class TestBatchExecutorConfig:
             mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
 
     def test_config_defaults_are_applied(self):
-        submit_kwargs = batch_executor_config.build_submit_kwargs()
+        submit_kwargs = batch_executor_config.build_submit_kwargs(conf)
         found_keys = {convert_camel_to_snake(key): key for key in submit_kwargs.keys()}
 
         for expected_key, expected_value in CONFIG_DEFAULTS.items():
@@ -781,7 +824,7 @@ class TestBatchExecutorConfig:
             f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.SUBMIT_JOB_KWARGS}".upper()
         )
         os.environ[run_submit_kwargs_env_key] = json.dumps(provided_run_submit_kwargs)
-        submit_kwargs = batch_executor_config.build_submit_kwargs()
+        submit_kwargs = batch_executor_config.build_submit_kwargs(conf)
 
         # Verify that tag names are exempt from the camel-case conversion.
         assert submit_kwargs["tags"] == templated_tags

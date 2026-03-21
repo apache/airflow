@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "Gövde",
-    "createdAtFrom": "Zamanında oluşturuldu",
-    "createdAtTo": "Zamanı için oluşturuldu",
+    "createdAt": "Zamanınında oluşturuldu",
     "response": {
       "all": "Hepsi",
       "pending": "Beklemede",

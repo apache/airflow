@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import multiprocessing
 import os
 import pathlib
 import re
@@ -31,6 +30,7 @@ from base64 import b64encode
 from collections.abc import Callable
 from configparser import ConfigParser
 from copy import deepcopy
+from inspect import ismodule
 from io import StringIO
 from re import Pattern
 from typing import IO, TYPE_CHECKING, Any
@@ -42,12 +42,13 @@ from airflow._shared.configuration.parser import (
     VALUE_NOT_FOUND_SENTINEL,
     AirflowConfigParser as _SharedAirflowConfigParser,
     ValueNotFound,
+    configure_parser_from_configuration_description,
 )
-from airflow.exceptions import AirflowConfigException
+from airflow._shared.module_loading import import_string
+from airflow.exceptions import AirflowConfigException, RemovedInAirflow4Warning
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.task.weight_rule import WeightRule
 from airflow.utils import yaml
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -68,6 +69,13 @@ ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
 ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
+
+
+class _SecretKeys:
+    """Holds the secret keys used in Airflow during runtime."""
+
+    fernet_key: str = ""  # Set only if needed when generating a new file
+    jwt_secret_key: str = ""
 
 
 class ConfigModifications:
@@ -261,6 +269,9 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
 
     def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
         """Get provider config fallback default values."""
+        # Remove team_name from kwargs as the fallback defaults ConfigParser
+        # does not support team-aware lookups (it's a standard ConfigParser).
+        kwargs.pop("team_name", None)
         return self._provider_config_fallback_default_values.get(section, key, fallback=None, **kwargs)
 
     # A mapping of old default values that we want to change and warn the user
@@ -286,7 +297,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
     enums_options = {
         ("core", "default_task_weight_rule"): sorted(WeightRule.all_weight_rules()),
         ("core", "dag_ignore_file_syntax"): ["regexp", "glob"],
-        ("core", "mp_start_method"): multiprocessing.get_all_start_methods(),
         ("dag_processor", "file_parsing_sort_mode"): [
             "modified_time",
             "random_seeded_by_host",
@@ -296,6 +306,9 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
         ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
+        # uvicorn and gunicorn logging levels for web servers
+        ("logging", "uvicorn_logging_level"): _available_logging_levels,
+        ("logging", "gunicorn_logging_level"): _available_logging_levels,
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
         ("api", "grid_view_sorting_order"): ["topological", "hierarchical_alphabetical"],
     }
@@ -478,6 +491,7 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         )
 
     def mask_secrets(self):
+        from airflow._shared.configuration.parser import _build_kwarg_env_prefix, _collect_kwarg_env_vars
         from airflow._shared.secrets_masker import mask_secret as mask_secret_core
         from airflow.sdk.log import mask_secret as mask_secret_sdk
 
@@ -495,6 +509,17 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
             mask_secret_core(value)
             mask_secret_sdk(value)
 
+        # Mask per-key backend kwarg env vars (AIRFLOW__SECRETS__BACKEND_KWARG__* etc.).
+        # These are not in sensitive_config_values but may contain sensitive values.
+        for _section, _kwargs_key in [
+            ("secrets", "backend_kwargs"),
+            ("workers", "secrets_backend_kwargs"),
+        ]:
+            _prefix = _build_kwarg_env_prefix(_section, _kwargs_key)
+            for _value in _collect_kwarg_env_vars(_prefix).values():
+                mask_secret_core(_value)
+                mask_secret_sdk(_value)
+
     def load_test_config(self):
         """
         Use test configuration rather than the configuration coming from airflow defaults.
@@ -504,9 +529,6 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         the "unit_tests.cfg" configuration file in the ``airflow/config_templates`` folder
         and you need to change values there if you want to make some specific configuration to be used
         """
-        # We need those globals before we run "get_all_expansion_variables" because this is where
-        # the variables are expanded from in the configuration
-        global FERNET_KEY, JWT_SECRET_KEY
         from cryptography.fernet import Fernet
 
         unit_test_config_file = pathlib.Path(__file__).parent / "config_templates" / "unit_tests.cfg"
@@ -514,9 +536,11 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         self.remove_all_read_configurations()
         with StringIO(unit_test_config) as test_config_file:
             self.read_file(test_config_file)
-        # set fernet key to a random value
-        FERNET_KEY = Fernet.generate_key().decode()
-        JWT_SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
+
+        # We need those globals before we run "get_all_expansion_variables" because this is where
+        # the variables are expanded from in the configuration - set to random values for tests
+        _SecretKeys.fernet_key = Fernet.generate_key().decode()
+        _SecretKeys.jwt_secret_key = b64encode(os.urandom(16)).decode("utf-8")
         self.expand_all_configuration_values()
         log.info("Unit test configuration loaded from 'config_unit_tests.cfg'")
 
@@ -644,7 +668,15 @@ def get_airflow_config(airflow_home: str) -> str:
 
 
 def get_all_expansion_variables() -> dict[str, Any]:
-    return {k: v for d in [globals(), locals()] for k, v in d.items() if not k.startswith("_")}
+    return {
+        "FERNET_KEY": _SecretKeys.fernet_key,
+        "JWT_SECRET_KEY": _SecretKeys.jwt_secret_key,
+        **{
+            k: v
+            for k, v in globals().items()
+            if not k.startswith("_") and not callable(v) and not ismodule(v)
+        },
+    }
 
 
 def _generate_fernet_key() -> str:
@@ -666,17 +698,7 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     """
     parser = ConfigParser()
     all_vars = get_all_expansion_variables()
-    for section, section_desc in configuration_description.items():
-        parser.add_section(section)
-        options = section_desc["options"]
-        for key in options:
-            default_value = options[key]["default"]
-            is_template = options[key].get("is_template", False)
-            if default_value is not None:
-                if is_template or not isinstance(default_value, str):
-                    parser.set(section, key, default_value)
-                else:
-                    parser.set(section, key, default_value.format(**all_vars))
+    configure_parser_from_configuration_description(parser, configuration_description, all_vars)
     return parser
 
 
@@ -705,7 +727,6 @@ def create_provider_config_fallback_defaults() -> ConfigParser:
 
 
 def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
-    global FERNET_KEY, JWT_SECRET_KEY
     airflow_config = pathlib.Path(AIRFLOW_CONFIG)
     if airflow_config.is_dir():
         msg = (
@@ -726,14 +747,18 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 raise FileNotFoundError(msg) from None
             log.debug("Create directory %r for Airflow config", config_directory.__fspath__())
             config_directory.mkdir(parents=True, exist_ok=True)
-        if conf.get("core", "fernet_key", fallback=None) in (None, ""):
-            # We know that FERNET_KEY is not set, so we can generate it, set as global key
+        if not conf.get("core", "fernet_key"):
+            # We know that fernet_key is not set, so we can generate it, set as global key
             # and also write it to the config file so that same key will be used next time
-            FERNET_KEY = _generate_fernet_key()
-            conf.configuration_description["core"]["options"]["fernet_key"]["default"] = FERNET_KEY
+            _SecretKeys.fernet_key = _generate_fernet_key()
+            conf.configuration_description["core"]["options"]["fernet_key"]["default"] = (
+                _SecretKeys.fernet_key
+            )
 
-        JWT_SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
-        conf.configuration_description["api_auth"]["options"]["jwt_secret"]["default"] = JWT_SECRET_KEY
+        _SecretKeys.jwt_secret_key = b64encode(os.urandom(16)).decode("utf-8")
+        conf.configuration_description["api_auth"]["options"]["jwt_secret"]["default"] = (
+            _SecretKeys.jwt_secret_key
+        )
         pathlib.Path(airflow_config.__fspath__()).touch()
         make_group_other_inaccessible(airflow_config.__fspath__())
         with open(airflow_config, "w") as file:
@@ -744,6 +769,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 include_providers=True,
                 extra_spacing=True,
                 only_defaults=True,
+                show_values=True,
             )
     return conf
 
@@ -759,7 +785,7 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
     :param airflow_config_parser: parser to which the configuration will be loaded
 
     """
-    global AIRFLOW_HOME
+    global AIRFLOW_HOME  # to be cleaned in Airflow 4.0
     log.info("Reading the config from %s", AIRFLOW_CONFIG)
     airflow_config_parser.read(AIRFLOW_CONFIG)
     if airflow_config_parser.has_option("core", "AIRFLOW_HOME"):
@@ -769,18 +795,18 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
             "environment variable and remove the config file entry."
         )
         if "AIRFLOW_HOME" in os.environ:
-            warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
+            warnings.warn(msg, category=RemovedInAirflow4Warning, stacklevel=1)
         elif airflow_config_parser.get("core", "airflow_home") == AIRFLOW_HOME:
             warnings.warn(
                 "Specifying airflow_home in the config file is deprecated. As you "
                 "have left it at the default value you should remove the setting "
                 "from your airflow.cfg and suffer no change in behaviour.",
-                category=DeprecationWarning,
+                category=RemovedInAirflow4Warning,
                 stacklevel=1,
             )
         else:
             AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")
-            warnings.warn(msg, category=DeprecationWarning, stacklevel=1)
+            warnings.warn(msg, category=RemovedInAirflow4Warning, stacklevel=1)
 
 
 def initialize_config() -> AirflowConfigParser:
@@ -859,11 +885,18 @@ def initialize_secrets_backends(
     custom_secret_backend = get_custom_secret_backend(worker_mode)
 
     if custom_secret_backend is not None:
+        from airflow.models import Connection
+
+        custom_secret_backend._set_connection_class(Connection)
         backend_list.append(custom_secret_backend)
 
     for class_name in default_backends:
+        from airflow.models import Connection
+
         secrets_backend_cls = import_string(class_name)
-        backend_list.append(secrets_backend_cls())
+        backend = secrets_backend_cls()
+        backend._set_connection_class(Connection)
+        backend_list.append(backend)
 
     return backend_list
 
@@ -910,8 +943,6 @@ else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
 
 SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
-FERNET_KEY = ""  # Set only if needed when generating a new file
-JWT_SECRET_KEY = ""
 
 conf: AirflowConfigParser = initialize_config()
 secrets_backend_list = initialize_secrets_backends()

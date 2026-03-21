@@ -29,6 +29,7 @@ import psutil
 import sqlalchemy.exc
 from celery import maybe_patch_concurrency
 from celery.app.defaults import DEFAULT_TASK_LOG_FMT
+from celery.app.log import TaskFormatter
 from celery.signals import after_setup_logger
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
@@ -36,7 +37,7 @@ from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 
@@ -51,7 +52,7 @@ def _run_command_with_daemon_option(*args, **kwargs):
 
         run_command_with_daemon_option(*args, **kwargs)
     except ImportError:
-        from airflow.exceptions import AirflowOptionalProviderFeatureException
+        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
         raise AirflowOptionalProviderFeatureException(
             "Failed to import run_command_with_daemon_option. This feature is only available in Airflow versions >= 2.8.0"
@@ -65,7 +66,7 @@ def _providers_configuration_loaded(func):
 
             providers_configuration_loaded(func)(*args, **kwargs)
         except ImportError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "Failed to import providers_configuration_loaded. This feature is only available in Airflow versions >= 2.8.0"
@@ -121,6 +122,16 @@ def _serve_logs(skip_serve_logs: bool = False):
             sub_proc.terminate()
 
 
+def _bundle_cleanup_main(check_interval):
+    """Entry point for the stale bundle cleanup subprocess."""
+    from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+
+    mgr = BundleUsageTrackingManager()
+    while True:
+        time.sleep(check_interval)
+        mgr.remove_stale_bundle_versions()
+
+
 @contextmanager
 def _run_stale_bundle_cleanup():
     """Start stale bundle cleanup sub-process."""
@@ -132,23 +143,14 @@ def _run_stale_bundle_cleanup():
         )
     if not check_interval or check_interval <= 0 or not AIRFLOW_V_3_0_PLUS:
         # do not start bundle cleanup process
-        try:
+        with suppress(BaseException):
             yield
-        finally:
-            return
-    from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+        return
 
     log.info("starting stale bundle cleanup process")
     sub_proc = None
-
-    def bundle_cleanup_main():
-        mgr = BundleUsageTrackingManager()
-        while True:
-            time.sleep(check_interval)
-            mgr.remove_stale_bundle_versions()
-
     try:
-        sub_proc = Process(target=bundle_cleanup_main)
+        sub_proc = Process(target=_bundle_cleanup_main, args=(check_interval,))
         sub_proc.start()
         yield
     finally:
@@ -167,7 +169,7 @@ def logger_setup_handler(logger, **kwargs):
     * logs of severity lower than error goes to stdout.
     """
     if conf.getboolean("logging", "celery_stdout_stderr_separation", fallback=False):
-        celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
+        celery_formatter = TaskFormatter(DEFAULT_TASK_LOG_FMT)
 
         class NoErrorOrAboveFilter(logging.Filter):
             """Allow only logs with level *lower* than ERROR to be reported."""
@@ -190,8 +192,32 @@ def logger_setup_handler(logger, **kwargs):
 @_providers_configuration_loaded
 def worker(args):
     """Start Airflow Celery worker."""
-    # This needs to be imported locally to not trigger Providers Manager initialization
-    from airflow.providers.celery.executors.celery_executor import app as celery_app
+    team_config = None
+    if hasattr(args, "team") and args.team:
+        # Multi-team is enabled, create team-specific Celery app and use team based config
+        # This requires Airflow 3.2+, and core.multi_team config to be true to be enabled.
+        if not AIRFLOW_V_3_2_PLUS:
+            raise SystemExit(
+                "Error: Multi-team Celery workers require Airflow version 3.2 or higher. "
+                "Please upgrade your Airflow installation or remove the --team argument."
+            )
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            raise SystemExit(
+                "Error: Multi-team Celery workers require core.multi_team configuration to be enabled. "
+                "Please enable core.multi_team in your Airflow config or remove the --team argument."
+            )
+        from airflow.executors.base_executor import ExecutorConf
+        from airflow.providers.celery.executors.celery_executor_utils import create_celery_app
+
+        team_config = ExecutorConf(team_name=args.team)
+        log.info("Starting Celery worker for team: %s", args.team)
+        celery_app = create_celery_app(team_config)
+    else:
+        # Backward compatible: use module-level app with global config
+        from airflow.providers.celery.executors.celery_executor import app as celery_app
+
+    # Use team_config for config reads in multi-team mode, otherwise use global conf
+    config = team_config if team_config else conf
 
     # Check if a worker with the same hostname already exists
     if args.celery_hostname:
@@ -219,8 +245,8 @@ def worker(args):
     autoscale = args.autoscale
     skip_serve_logs = args.skip_serve_logs
 
-    if autoscale is None and conf.has_option("celery", "worker_autoscale"):
-        autoscale = conf.get("celery", "worker_autoscale")
+    if autoscale is None and config.has_option("celery", "worker_autoscale"):
+        autoscale = config.get("celery", "worker_autoscale")
 
     if hasattr(celery_app.backend, "ResultSession"):
         # Pre-create the database tables now, otherwise SQLA via Celery has a
@@ -239,9 +265,9 @@ def worker(args):
             pass
 
     # backwards-compatible: https://github.com/apache/airflow/pull/21506#pullrequestreview-879893763
-    celery_log_level = conf.get("logging", "CELERY_LOGGING_LEVEL")
+    celery_log_level = config.get("logging", "CELERY_LOGGING_LEVEL")
     if not celery_log_level:
-        celery_log_level = conf.get("logging", "LOGGING_LEVEL")
+        celery_log_level = config.get("logging", "LOGGING_LEVEL")
 
     # Setup Celery worker
     options = [
@@ -264,8 +290,8 @@ def worker(args):
     if args.without_gossip:
         options.append("--without-gossip")
 
-    if conf.has_option("celery", "pool"):
-        pool = conf.get("celery", "pool")
+    if config.has_option("celery", "pool"):
+        pool = config.get("celery", "pool")
         options.extend(["--pool", pool])
         # Celery pools of type eventlet and gevent use greenlets, which
         # requires monkey patching the app:
@@ -289,7 +315,7 @@ def worker(args):
     if args.umask:
         umask = args.umask
     else:
-        umask = conf.get("celery", "worker_umask", fallback=settings.DAEMON_UMASK)
+        umask = config.get("celery", "worker_umask", fallback=settings.DAEMON_UMASK)
 
     _run_command_with_daemon_option(
         args=args,

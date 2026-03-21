@@ -32,7 +32,7 @@ from airflow.utils.helpers import exactly_one
 if TYPE_CHECKING:
     from pypsrp.powershell import Command
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class PsrpOperator(BaseOperator):

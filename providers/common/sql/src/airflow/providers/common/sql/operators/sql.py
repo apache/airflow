@@ -23,22 +23,20 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
-from airflow import XComArg
-from airflow.models import SkipMixin
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowFailException,
     AirflowSkipException,
     BaseHook,
     BaseOperator,
+    SkipMixin,
+    XComArg,
 )
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
-    import jinja2
-
     from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -223,11 +221,29 @@ class BaseSQLOperator(BaseOperator):
             return None
 
         sql = getattr(self, "sql", None)
+
         if not sql:
             self.log.debug("OpenLineage could not find 'sql' attribute on `%s`.", type(self).__name__)
             return OperatorLineage()
 
+        # Handle scenario where sql is not a string or a list of strings AND the string/strings in list are
+        # all empty
+        if (
+            not isinstance(sql, (str, list))
+            or (isinstance(sql, str) and not sql.strip())
+            or (isinstance(sql, list) and not all(isinstance(s, str) and s.strip() for s in sql))
+        ):
+            self.log.debug(
+                "OpenLineage found unsupported type of 'sql' attribute on `%s`, type=`%s`, value=`%s`. "
+                "Expected non-empty string or list of non-empty strings.",
+                type(self).__name__,
+                type(sql),
+                sql,
+            )
+            return OperatorLineage()
+
         hook = self.get_db_hook()
+
         try:
             from airflow.providers.openlineage.utils.utils import should_use_external_connection
 
@@ -862,6 +878,9 @@ class SQLValueCheckOperator(BaseSQLOperator):
     :param sql: the sql to be executed. (templated)
     :param conn_id: the connection ID used to connect to the database.
     :param database: name of database which overwrite the defined one in connection
+    :param pass_value: the value to check against
+    :param tolerance: (optional) the tolerance allowed to pass records within for
+        numeric queries
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLValueCheckOperator"}
@@ -1304,7 +1323,9 @@ class SQLInsertRowsOperator(BaseSQLOperator):
     :param rows: the rows to insert into the table. Rows can be a list of tuples or a list of dictionaries.
         When a list of dictionaries is provided, the column names are inferred from the dictionary keys and
         will be matched with the column names, ignored columns will be filtered out.
-    :rows_processor: (optional) a function that will be applied to the rows before inserting them into the table.
+    :param rows_processor: (optional) A callable applied once per batch of rows before insertion.
+        It receives the full list of rows and the task context, and must return a list of rows compatible with
+        the underlying hook.
     :param preoperator: sql statement or list of statements to be executed prior to loading the data. (templated)
     :param postoperator: sql statement or list of statements to be executed after loading the data. (templated)
     :param insert_args: (optional) dictionary of additional arguments passed to the underlying hook's
@@ -1339,8 +1360,10 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         database: str | None = None,
         columns: Iterable[str] | None = None,
         ignored_columns: Iterable[str] | None = None,
-        rows: list[Any] | XComArg | None = None,
-        rows_processor: Callable[[Any, Context], Any] = lambda rows, **context: rows,
+        rows: list[Any] | Iterable[Any] | XComArg | None = None,
+        rows_processor: Callable[..., list[Any]] | None = None,
+        # rows_processor is called as rows_processor(rows, **context);
+        # context keys vary, so Callable[..., list[Any]] is intentional.
         preoperator: str | list[str] | None = None,
         postoperator: str | list[str] | None = None,
         hook_params: dict | None = None,
@@ -1364,16 +1387,6 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         self.insert_args = insert_args or {}
         self.do_xcom_push = False
 
-    def render_template_fields(
-        self,
-        context: Context,
-        jinja_env: jinja2.Environment | None = None,
-    ) -> None:
-        super().render_template_fields(context=context, jinja_env=jinja_env)
-
-        if isinstance(self.rows, XComArg):
-            self.rows = self.rows.resolve(context=context)
-
     @property
     def table_name_with_schema(self) -> str:
         if self.schema is not None:
@@ -1392,11 +1405,21 @@ class SQLInsertRowsOperator(BaseSQLOperator):
             return [column for column in self.columns if column not in self.ignored_columns]
         return self.columns
 
-    def _process_rows(self, context: Context):
-        return self._rows_processor(self.rows, **context)  # type: ignore
+    def _insert_rows(self, rows: Any | Iterable[Any], context: Context):
+        if self._rows_processor:
+            rows = self._rows_processor(rows, **context)
+
+        self.get_db_hook().insert_rows(
+            table=self.table_name_with_schema,
+            rows=rows,
+            target_fields=self.column_names,
+            **self.insert_args,
+        )
 
     def execute(self, context: Context) -> Any:
-        if not self.rows:
+        rows = self.rows.resolve(context=context) if isinstance(self.rows, XComArg) else self.rows
+
+        if not rows:
             raise AirflowSkipException(f"Skipping task {self.task_id} because no rows.")
 
         self.log.debug("Table: %s", self.table_name_with_schema)
@@ -1405,13 +1428,7 @@ class SQLInsertRowsOperator(BaseSQLOperator):
             self.log.debug("Running preoperator")
             self.log.debug(self.preoperator)
             self.get_db_hook().run(self.preoperator)
-        rows = self._process_rows(context=context)
-        self.get_db_hook().insert_rows(
-            table=self.table_name_with_schema,
-            rows=rows,
-            target_fields=self.column_names,
-            **self.insert_args,
-        )
+        self._insert_rows(rows=rows, context=context)
         if self.postoperator:
             self.log.debug("Running postoperator")
             self.log.debug(self.postoperator)

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime as dt
 import inspect
 import json
 import logging
@@ -39,7 +40,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 import lazy_object_proxy
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.specifiers import InvalidSpecifier
-from packaging.version import InvalidVersion
+from packaging.version import InvalidVersion, Version
 
 from airflow.exceptions import (
     AirflowConfigException,
@@ -47,25 +48,27 @@ from airflow.exceptions import (
     DeserializingResultError,
 )
 from airflow.models.variable import Variable
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, context_merge
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    BaseBranchOperator,
+    KeywordParameters,
+    SkipMixin,
+    context_merge,
+)
+from airflow.providers.common.compat.standard.operators import (
+    BaseAsyncOperator,
+    is_async_callable,
+)
 from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import (
     _execute_in_subprocess,
     prepare_virtualenv,
     write_python_script,
 )
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
-from airflow.utils.operator_helpers import KeywordParameters
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.standard.operators.branch import BaseBranchOperator
-    from airflow.providers.standard.utils.skipmixin import SkipMixin
-else:
-    from airflow.models.skipmixin import SkipMixin
-    from airflow.operators.branch import BaseBranchOperator  # type: ignore[no-redef]
-
 
 log = logging.getLogger(__name__)
 
@@ -75,7 +78,10 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
     from airflow.providers.common.compat.sdk import Context
-    from airflow.sdk.execution_time.callback_runner import ExecutionCallableRunner
+    from airflow.sdk.execution_time.callback_runner import (
+        AsyncExecutionCallableRunner,
+        ExecutionCallableRunner,
+    )
     from airflow.sdk.execution_time.context import OutletEventAccessorsProtocol
 
     _SerializerTypeDef = Literal["pickle", "cloudpickle", "dill"]
@@ -115,9 +121,9 @@ class _PythonVersionInfo(NamedTuple):
         return cls(*_parse_version_info(result.strip()))
 
 
-class PythonOperator(BaseOperator):
+class PythonOperator(BaseAsyncOperator):
     """
-    Executes a Python callable.
+    Base class for all Python operators.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -192,7 +198,14 @@ class PythonOperator(BaseOperator):
             self.template_ext = templates_exts
         self.show_return_value_in_logs = show_return_value_in_logs
 
-    def execute(self, context: Context) -> Any:
+    @property
+    def is_async(self) -> bool:
+        return is_async_callable(self.python_callable)
+
+    def execute(self, context) -> Any:
+        if self.is_async:
+            return BaseAsyncOperator.execute(self, context)
+
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
 
@@ -235,6 +248,47 @@ class PythonOperator(BaseOperator):
         create_execution_runner, asset_events = execution_preparation
         runner = create_execution_runner(self.python_callable, asset_events, logger=self.log)
         return runner.run(*self.op_args, **self.op_kwargs)
+
+    if AIRFLOW_V_3_2_PLUS:
+
+        async def aexecute(self, context):
+            context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
+            self.op_kwargs = self.determine_kwargs(context)
+
+            # This needs to be lazy because subclasses may implement execute_callable
+            # by running a separate process that can't use the eager result.
+            def __prepare_execution() -> (
+                tuple[AsyncExecutionCallableRunner, OutletEventAccessorsProtocol] | None
+            ):
+                from airflow.sdk.execution_time.callback_runner import create_async_executable_runner
+                from airflow.sdk.execution_time.context import context_get_outlet_events
+
+                return (
+                    cast("AsyncExecutionCallableRunner", create_async_executable_runner),
+                    context_get_outlet_events(context),
+                )
+
+            self.__prepare_execution = __prepare_execution
+
+            return_value = await self.aexecute_callable()
+            if self.show_return_value_in_logs:
+                self.log.info("Done. Returned value was: %s", return_value)
+            else:
+                self.log.info("Done. Returned value not shown")
+
+            return return_value
+
+        async def aexecute_callable(self) -> Any:
+            """
+            Call the python callable with the given arguments.
+
+            :return: the return value of the call.
+            """
+            if (execution_preparation := self.__prepare_execution()) is None:
+                return await self.python_callable(*self.op_args, **self.op_kwargs)
+            create_execution_runner, asset_events = execution_preparation
+            runner = create_execution_runner(self.python_callable, asset_events, logger=self.log)
+            return await runner.run(*self.op_args, **self.op_kwargs)
 
 
 class BranchPythonOperator(BaseBranchOperator, PythonOperator):
@@ -486,7 +540,27 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         serializable_keys = set(self._iter_serializable_context_keys())
         new = {k: v for k, v in context.items() if k in serializable_keys}
         serializable_context = cast("Context", new)
+        # Store bundle_path for subprocess execution
+        self._bundle_path = self._get_bundle_path_from_context(context)
         return super().execute(context=serializable_context)
+
+    def _get_bundle_path_from_context(self, context: Context) -> str | None:
+        """
+        Extract bundle_path from the task instance's bundle_instance.
+
+        :param context: The task execution context
+        :return: Path to the bundle root directory, or None if not in a bundle
+        """
+        if not AIRFLOW_V_3_0_PLUS:
+            return None
+
+        # In Airflow 3.x, the RuntimeTaskInstance has a bundle_instance attribute
+        # that contains the bundle information including its path
+        ti = context["ti"]
+        if bundle_instance := getattr(ti, "bundle_instance", None):
+            return bundle_instance.path
+
+        return None
 
     def get_python_source(self):
         """Return the source of self.python_callable."""
@@ -505,9 +579,30 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
         if self.op_args or self.op_kwargs:
             self.log.info("Use %r as serializer.", self.serializer)
-            file.write_bytes(
-                self.pickling_library.dumps({"args": self.op_args, "kwargs": resolve_proxies(self.op_kwargs)})
-            )
+            resolved_kwargs = resolve_proxies(self.op_kwargs)
+            try:
+                file.write_bytes(
+                    self.pickling_library.dumps({"args": self.op_args, "kwargs": resolved_kwargs})
+                )
+            except Exception:
+                # Identify which specific kwarg(s) failed to serialize so the
+                # user gets a clear error instead of an opaque PicklingError.
+                bad_keys: list[str] = []
+                for key, value in resolved_kwargs.items():
+                    try:
+                        self.pickling_library.dumps(value)
+                    except Exception:
+                        bad_keys.append(key)
+                if bad_keys:
+                    raise AirflowException(
+                        f"Failed to serialize op_kwargs. The following keys contain objects that "
+                        f"cannot be pickled: {bad_keys}. This often happens when "
+                        f"render_template_as_native_obj=True and templates like '{{{{ ti }}}}' "
+                        f"resolve to live Airflow objects instead of strings. Use string "
+                        f"representations or pass only the specific attributes you need "
+                        f"(e.g. '{{{{ ti.task_id }}}}', '{{{{ ti.run_id }}}}')."
+                    )
+                raise
 
     def _write_string_args(self, file: Path):
         file.write_text("\n".join(map(str, self.string_args)))
@@ -548,6 +643,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 "pickling_library": self.serializer,
                 "python_callable": self.python_callable.__name__,
                 "python_callable_source": self.get_python_source(),
+                **self._get_additional_jinja_context(),
             }
 
             if inspect.getfile(self.python_callable) == self.dag.fileloc:
@@ -564,6 +660,16 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 env_vars["__AIRFLOW_SUPERVISOR_FD"] = fd
             if self.env_vars:
                 env_vars.update(self.env_vars)
+
+            # Add bundle_path to PYTHONPATH for subprocess to import Dag bundle modules
+            if self._bundle_path:
+                bundle_path = self._bundle_path
+                existing_pythonpath = env_vars.get("PYTHONPATH", "")
+                if existing_pythonpath:
+                    # Append bundle_path after existing PYTHONPATH
+                    env_vars["PYTHONPATH"] = f"{existing_pythonpath}{os.pathsep}{bundle_path}"
+                else:
+                    env_vars["PYTHONPATH"] = bundle_path
 
             try:
                 cmd: list[str] = [
@@ -594,11 +700,56 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
             return self._read_result(output_path)
 
+    def _get_additional_jinja_context(self) -> dict:
+        """Return additional Jinja context variables for the virtualenv script template."""
+        return {}
+
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         keyword_params = KeywordParameters.determine(self.python_callable, self.op_args, context)
         if AIRFLOW_V_3_0_PLUS:
             return keyword_params.unpacking()
         return keyword_params.serializing()  # type: ignore[attr-defined]
+
+
+def _pendulum_to_native_datetime(obj):
+    """
+    Recursively convert pendulum DateTime objects to native Python datetime.
+
+    When the virtualenv has a different major version of pendulum than the host,
+    pendulum's internal pickle representations are incompatible. This function
+    converts pendulum DateTime objects to stdlib datetime.datetime with
+    zoneinfo.ZoneInfo timezone info, which can be serialized and deserialized
+    without pendulum.
+    """
+    import pendulum
+
+    if isinstance(obj, pendulum.DateTime):
+        tz = None
+        if obj.timezone_name:
+            from zoneinfo import ZoneInfo
+
+            try:
+                tz = ZoneInfo(obj.timezone_name)
+            except KeyError:
+                # Fall back to fixed UTC offset if the timezone name is not recognized
+                utc_offset = obj.utcoffset()
+                tz = dt.timezone(utc_offset) if utc_offset is not None else None
+        return dt.datetime(
+            obj.year,
+            obj.month,
+            obj.day,
+            obj.hour,
+            obj.minute,
+            obj.second,
+            obj.microsecond,
+            tzinfo=tz,
+        )
+    if isinstance(obj, dict):
+        return {k: _pendulum_to_native_datetime(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        converted = [_pendulum_to_native_datetime(v) for v in obj]
+        return type(obj)(converted)
+    return obj
 
 
 class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
@@ -897,6 +1048,52 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             result = self._execute_python_callable_in_subprocess(python_path)
             self._cleanup_python_pycache_dir(venv_python_cache_dir)
             return result
+
+    def _is_pendulum_version_mismatch(self) -> bool:
+        """
+        Check if the virtualenv pendulum version will differ in major version from the host.
+
+        Compares the host's installed pendulum major version against the version specifier in the requirements.
+        """
+        from importlib.metadata import version as metadata_version
+
+        host_major = Version(metadata_version("pendulum")).major
+
+        for raw_str in chain.from_iterable(req.splitlines() for req in self.requirements):
+            line = raw_str.strip()
+            if not line or line.startswith("#"):
+                continue
+
+            # strip inline comments from a requirement line
+            req_str = re.sub(r"#.*$", "", line).strip()
+
+            try:
+                req = Requirement(req_str)
+            except (InvalidRequirement, InvalidSpecifier, InvalidVersion):
+                continue
+
+            if req.name == "pendulum" and req.specifier:
+                lower_bound = Version(f"{host_major}.0.0")
+                upper_bound = Version(f"{host_major}.999.999")
+                host_major_allowed = req.specifier.contains(lower_bound) or req.specifier.contains(
+                    upper_bound
+                )
+                return not host_major_allowed
+
+        return False
+
+    def _write_args(self, file: Path):
+        if self._is_pendulum_version_mismatch():
+            self.log.info(
+                "pendulum version mismatch detected between host and virtualenv; "
+                "converting pendulum objects to native Python datetime for serialization."
+            )
+            self.op_args = _pendulum_to_native_datetime(self.op_args)
+            self.op_kwargs = _pendulum_to_native_datetime(self.op_kwargs)
+        super()._write_args(file)
+
+    def _get_additional_jinja_context(self) -> dict:
+        return {"pendulum_version_mismatch": self._is_pendulum_version_mismatch()}
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS

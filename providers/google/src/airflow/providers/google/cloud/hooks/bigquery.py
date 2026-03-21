@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 
 import pendulum
 from aiohttp import ClientSession as ClientSession
+from asgiref.sync import sync_to_async
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -59,14 +60,15 @@ from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
+from airflow.providers.google.cloud.utils.lineage import send_hook_lineage_for_bq_job
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     _UNSET,
     PROVIDE_PROJECT_ID,
@@ -87,6 +89,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from requests import Session
 
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
     from airflow.sdk import Context
 
 log = logging.getLogger(__name__)
@@ -375,19 +378,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             defaults to use `self.use_legacy_sql` if not specified
         :param kwargs: (optional) passed into pandas_gbq.read_gbq method
         """
-        if df_type == "polars":
-            return self._get_polars_df(sql, parameters, dialect, **kwargs)
-
         if df_type == "pandas":
-            return self._get_pandas_df(sql, parameters, dialect, **kwargs)
+            result: pd.DataFrame | pl.DataFrame = self._get_pandas_df(sql, parameters, dialect, **kwargs)
+        elif df_type == "polars":
+            result = self._get_polars_df(sql, parameters, dialect, **kwargs)
+        else:
+            raise ValueError(f"Unsupported df_type: {df_type}")
 
-    @deprecated(
-        planned_removal_date="November 30, 2025",
-        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_df",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_pandas_df(self, sql, parameters=None, dialect=None, **kwargs):
-        return self._get_pandas_df(sql, parameters, dialect, **kwargs)
+        send_sql_hook_lineage(
+            context=self,
+            sql=sql,
+            sql_parameters=parameters,
+        )
+        return result
 
     @GoogleBaseHook.fallback_to_default_project_id
     def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
@@ -713,6 +716,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ignore_unknown_values=ignore_unknown_values,
             skip_invalid_rows=skip_invalid_rows,
         )
+        get_hook_lineage_collector().add_output_asset(
+            context=self,
+            scheme="bigquery",
+            asset_kwargs={
+                "project_id": table.project,
+                "dataset_id": table.dataset_id,
+                "table_id": table.table_id,
+            },
+        )
         if errors:
             error_msg = f"{len(errors)} insert error(s) occurred. Details: {errors}"
             self.log.error(error_msg)
@@ -1015,13 +1027,23 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id=table_id,
         )
 
+        table_object = Table.from_api_repr(table)
         iterator = self.get_client(project_id=project_id, location=location).list_rows(
-            table=Table.from_api_repr(table),
+            table=table_object,
             selected_fields=selected_fields_sequence,
             max_results=max_results,
             page_token=page_token,
             start_index=start_index,
             retry=retry,
+        )
+        get_hook_lineage_collector().add_input_asset(
+            context=self,
+            scheme="bigquery",
+            asset_kwargs={
+                "project_id": table_object.project,
+                "dataset_id": table_object.dataset_id,
+                "table_id": table_object.table_id,
+            },
         )
         if return_iterator:
             return iterator
@@ -1301,6 +1323,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             # Start the job and wait for it to complete and get the result.
             job_api_repr.result(timeout=timeout, retry=retry)
+
+        send_hook_lineage_for_bq_job(context=self, job=job_api_repr)
+
         return job_api_repr
 
     def generate_job_id(
@@ -1312,6 +1337,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         configuration: dict,
         run_after: pendulum.DateTime | datetime | None = None,
         force_rerun: bool = False,
+        try_number: int | None = None,
     ) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
@@ -1337,6 +1363,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             job_id_timestamp = pendulum.now("UTC")
 
         job_id = f"airflow_{dag_id}_{task_id}_{job_id_timestamp.isoformat()}_{uniqueness_suffix}"
+        if try_number:
+            job_id += f"_{try_number}"
         return re.sub(r"[:\-+.]", "_", job_id)
 
     def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime | datetime | None:
@@ -1462,6 +1490,31 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             scope_value = self._get_field("scope", None)
         return _get_scopes(scope_value)
+
+    def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+        """Return BigQuery specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(None),
+            authority=None,
+            database=self.project_id,
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            information_schema_table_name="INFORMATION_SCHEMA.COLUMNS",
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        return "bigquery"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        return None
 
 
 class BigQueryConnection:
@@ -1990,18 +2043,19 @@ def _format_schema_for_description(schema: dict) -> list:
     internal_size, precision, scale, null_ok.
     """
     description = []
-    for field in schema["fields"]:
-        mode = field.get("mode", "NULLABLE")
-        field_description = (
-            field["name"],
-            field["type"],
-            None,
-            None,
-            None,
-            None,
-            mode == "NULLABLE",
-        )
-        description.append(field_description)
+    if "fields" in schema:
+        for field in schema["fields"]:
+            mode = field.get("mode", "NULLABLE")
+            field_description = (
+                field["name"],
+                field["type"],
+                None,
+                None,
+                None,
+                None,
+                mode == "NULLABLE",
+            )
+            description.append(field_description)
     return description
 
 
@@ -2039,7 +2093,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     ) -> BigQueryJob | UnknownJob:
         """Get BigQuery job by its ID, project ID and location."""
         sync_hook = await self.get_sync_hook()
-        job = sync_hook.get_job(job_id=job_id, project_id=project_id, location=location)
+        job = await sync_to_async(sync_hook.get_job)(job_id=job_id, project_id=project_id, location=location)
         return job
 
     async def get_job_status(

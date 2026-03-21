@@ -25,6 +25,20 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Providers wave 2025-12-30 (#59947)``
+   * ``Prepare providers release 2025-12-09 (#59249)``
+   * ``Updates to release process of providers (#58316)``
+
 2.0.1
 .....
 

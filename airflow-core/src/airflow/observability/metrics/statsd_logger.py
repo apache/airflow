@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def get_statsd_logger(cls) -> SafeStatsdLogger:
+def get_statsd_logger() -> SafeStatsdLogger:
     stats_class = conf.getimport("metrics", "statsd_custom_client_path", fallback=None)
 
     # no need to check for the scheduler/statsd_on -> this method is only called when it is set
@@ -48,7 +48,6 @@ def get_statsd_logger(cls) -> SafeStatsdLogger:
         stats_class = StatsClient
 
     return statsd_logger.get_statsd_logger(
-        cls,
         stats_class=stats_class,
         host=conf.get("metrics", "statsd_host"),
         port=conf.getint("metrics", "statsd_port"),

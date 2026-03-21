@@ -16,20 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
+import { Box, Button, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button } from "src/components/ui";
+import { TeamSelector } from "src/components/TeamSelector.tsx";
 import { Checkbox } from "src/components/ui/Checkbox";
+import { useConfig } from "src/queries/useConfig.tsx";
 
 export type PoolBody = {
   description: string | undefined;
   include_deferred: boolean;
   name: string;
   slots: number;
+  team_name: string;
 };
 
 type PoolFormProps = {
@@ -51,6 +53,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
     defaultValues: initialPool,
     mode: "onChange",
   });
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const onSubmit = (data: PoolBody) => {
     manageMutate(data);
@@ -88,7 +91,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           <Field.Root mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
             <Input
-              min={initialPool.slots}
+              min={-1}
               onChange={(event) => {
                 const value = event.target.valueAsNumber;
 
@@ -98,6 +101,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
               type="number"
               value={field.value}
             />
+            <Field.HelperText>{translate("pools.form.slotsHelperText")}</Field.HelperText>
           </Field.Root>
         )}
       />
@@ -125,6 +129,8 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           </Field.Root>
         )}
       />
+
+      {multiTeamEnabled ? <TeamSelector control={control} /> : undefined}
 
       <ErrorAlert error={error} />
 

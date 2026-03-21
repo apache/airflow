@@ -20,36 +20,58 @@ from typing import TYPE_CHECKING
 
 __all__ = [
     "__version__",
+    "AllowedKeyMapper",
     "Asset",
     "AssetAlias",
     "AssetAll",
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetWatcher",
+    "AsyncCallback",
+    "BaseAsyncOperator",
+    "BaseBranchOperator",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
     "BaseOperatorLink",
     "BaseSensorOperator",
+    "BaseXCom",
+    "BranchMixIn",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
     "CronTriggerTimetable",
+    "CronPartitionTimetable",
     "DAG",
     "DagRunState",
+    "DeadlineAlert",
+    "DeadlineReference",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "IdentityMapper",
     "Label",
     "Metadata",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
+    "ParamsDict",
+    "PartitionedAssetTimetable",
+    "PartitionMapper",
     "PokeReturnValue",
+    "ProductMapper",
+    "SkipMixin",
+    "SyncCallback",
     "TaskGroup",
+    "TaskInstance",
     "TaskInstanceState",
-    "Trace",
+    "ToDailyMapper",
+    "ToHourlyMapper",
+    "ToMonthlyMapper",
+    "ToQuarterlyMapper",
+    "ToWeeklyMapper",
+    "ToYearlyMapper",
     "TriggerRule",
     "Variable",
     "WeightRule",
@@ -63,6 +85,7 @@ __all__ = [
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "macros",
     "setup",
     "task",
     "task_group",
@@ -71,77 +94,126 @@ __all__ = [
 
 __version__ = "1.2.0"
 
-from airflow.sdk.observability.trace import Trace
-
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
+    from airflow.sdk.bases.branch import BaseBranchOperator, BranchMixIn
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
-    from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
+    from airflow.sdk.bases.operator import (
+        BaseAsyncOperator,
+        BaseOperator,
+        chain,
+        chain_linear,
+        cross_downstream,
+    )
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+    from airflow.sdk.bases.skipmixin import SkipMixin
+    from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.configuration import AirflowSDKConfigParser
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
+    from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
     from airflow.sdk.definitions.decorators import setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
-    from airflow.sdk.definitions.param import Param
+    from airflow.sdk.definitions.param import Param, ParamsDict
+    from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
+    from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+    from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
+    from airflow.sdk.definitions.partition_mappers.product import ProductMapper
+    from airflow.sdk.definitions.partition_mappers.temporal import (
+        ToDailyMapper,
+        ToHourlyMapper,
+        ToMonthlyMapper,
+        ToQuarterlyMapper,
+        ToWeeklyMapper,
+        ToYearlyMapper,
+    )
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
-    from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule
+    from airflow.sdk.definitions.timetables.assets import (
+        AssetOrTimeSchedule,
+        PartitionedAssetTimetable,
+    )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
     from airflow.sdk.definitions.timetables.interval import (
         CronDataIntervalTimetable,
         DeltaDataIntervalTimetable,
     )
     from airflow.sdk.definitions.timetables.trigger import (
+        CronPartitionTimetable,
         CronTriggerTimetable,
         DeltaTriggerTimetable,
         MultipleCronTriggerTimetable,
     )
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
+    from airflow.sdk.execution_time import macros
     from airflow.sdk.io.path import ObjectStoragePath
+    from airflow.sdk.types import TaskInstance
 
     conf: AirflowSDKConfigParser
 
 __lazy_imports: dict[str, str] = {
+    "AllowedKeyMapper": ".definitions.partition_mappers.allowed_key",
     "Asset": ".definitions.asset",
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",
     "AssetOrTimeSchedule": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
+    "AsyncCallback": ".definitions.callback",
+    "BaseAsyncOperator": ".bases.operator",
+    "BaseBranchOperator": ".bases.branch",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
     "BaseOperator": ".bases.operator",
     "BaseOperatorLink": ".bases.operatorlink",
     "BaseSensorOperator": ".bases.sensor",
+    "BaseXCom": ".bases.xcom",
+    "BranchMixIn": ".bases.branch",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",
     "CronTriggerTimetable": ".definitions.timetables.trigger",
+    "CronPartitionTimetable": ".definitions.timetables.trigger",
     "DAG": ".definitions.dag",
     "DagRunState": ".api.datamodels._generated",
+    "DeadlineAlert": ".definitions.deadline",
+    "DeadlineReference": ".definitions.deadline",
     "DeltaDataIntervalTimetable": ".definitions.timetables.interval",
     "DeltaTriggerTimetable": ".definitions.timetables.trigger",
     "EdgeModifier": ".definitions.edges",
     "EventsTimetable": ".definitions.timetables.events",
+    "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
     "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
+    "ParamsDict": ".definitions.param",
+    "PartitionedAssetTimetable": ".definitions.timetables.assets",
+    "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
+    "ProductMapper": ".definitions.partition_mappers.product",
     "SecretCache": ".execution_time.cache",
+    "SkipMixin": ".bases.skipmixin",
+    "SyncCallback": ".definitions.callback",
     "TaskGroup": ".definitions.taskgroup",
+    "TaskInstance": ".types",
     "TaskInstanceState": ".api.datamodels._generated",
-    "Trace": ".observability.trace",
+    "ToDailyMapper": ".definitions.partition_mappers.temporal",
+    "ToHourlyMapper": ".definitions.partition_mappers.temporal",
+    "ToMonthlyMapper": ".definitions.partition_mappers.temporal",
+    "ToQuarterlyMapper": ".definitions.partition_mappers.temporal",
+    "ToWeeklyMapper": ".definitions.partition_mappers.temporal",
+    "ToYearlyMapper": ".definitions.partition_mappers.temporal",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WeightRule": ".api.datamodels._generated",
@@ -154,6 +226,8 @@ __lazy_imports: dict[str, str] = {
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
+    "literal": ".definitions.template",
+    "macros": ".execution_time",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",

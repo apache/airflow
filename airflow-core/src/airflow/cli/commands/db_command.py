@@ -18,12 +18,12 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import textwrap
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
+import structlog
 from packaging.version import InvalidVersion, parse as parse_version
 from tenacity import Retrying, stop_after_attempt, wait_fixed
 
@@ -32,13 +32,14 @@ from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import _REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
+from airflow.utils.db_manager import _callable_accepts_use_migration_files
 from airflow.utils.process_utils import execute_interactive
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
     from tenacity import RetryCallState
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 @providers_configuration_loaded
@@ -47,7 +48,7 @@ def resetdb(args):
     print(f"DB: {settings.get_engine().url!r}")
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
-    db.resetdb(skip_init=args.skip_init)
+    db.resetdb(skip_init=args.skip_init, use_migration_files=args.use_migration_files)
 
 
 def _get_version_revision(version: str, revision_heads_map: dict[str, str] | None = None) -> str | None:
@@ -94,7 +95,7 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
 
     :meta private:
     """
-    print(f"DB: {settings.get_engine().url!r}")
+    db_url = str(settings.get_engine().url)
     if args.to_revision and args.to_version:
         raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
     if args.from_version and args.from_revision:
@@ -127,17 +128,28 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
     elif args.to_revision:
         to_revision = args.to_revision
 
+    use_migration_files = getattr(args, "use_migration_files", False)
+
     if not args.show_sql_only:
-        print(f"Performing upgrade to the metadata database {settings.get_engine().url!r}")
+        log.info("Performing upgrade to the metadata database", url=db_url)
     else:
-        print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
-    command(
-        to_revision=to_revision,
-        from_revision=from_revision,
-        show_sql_only=args.show_sql_only,
-    )
+        log.info("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
+
+    kwargs: dict = {
+        "to_revision": to_revision,
+        "from_revision": from_revision,
+        "show_sql_only": args.show_sql_only,
+    }
+    if _callable_accepts_use_migration_files(command):
+        kwargs["use_migration_files"] = use_migration_files
+    elif use_migration_files:
+        log.warning(
+            "The upgrade command %r does not support '--use-migration-files'; the flag will be ignored.",
+            getattr(command, "__qualname__", repr(command)),
+        )
+    command(**kwargs)
     if not args.show_sql_only:
-        print("Database migrating done!")
+        log.info("Database migration done!")
 
 
 def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
@@ -171,10 +183,11 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
             raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
     elif args.to_revision:
         to_revision = args.to_revision
+    db_url = str(settings.get_engine().url)
     if not args.show_sql_only:
-        print(f"Performing downgrade with database {settings.get_engine().url!r}")
+        log.info("Performing downgrade with database", url=db_url)
     else:
-        print("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
+        log.info("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
 
     if args.show_sql_only or (
         args.yes
@@ -187,7 +200,7 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
     ):
         command(to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
         if not args.show_sql_only:
-            print("Downgrade complete")
+            log.info("Downgrade complete")
     else:
         raise SystemExit("Cancelled")
 
@@ -301,6 +314,8 @@ def cleanup_tables(args):
         confirm=not args.yes,
         skip_archive=args.skip_archive,
         batch_size=args.batch_size,
+        dag_ids=args.dag_ids,
+        exclude_dag_ids=args.exclude_dag_ids,
     )
 
 

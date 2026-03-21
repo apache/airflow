@@ -33,8 +33,6 @@ from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
 
-from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
-
 jdbc_conn_mock = Mock(name="jdbc_conn")
 logger = logging.getLogger(__name__)
 
@@ -227,10 +225,7 @@ class TestJdbcHook:
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
         expected = "mssql://login:password@host:1234/schema"
-        if SQLALCHEMY_V_1_4:
-            assert str(hook.sqlalchemy_url) == expected
-        else:
-            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_scheme_and_query(self):
         conn_params = dict(
@@ -240,10 +235,7 @@ class TestJdbcHook:
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
         expected = "mssql://login:password@host:1234/schema?servicename=test"
-        if SQLALCHEMY_V_1_4:
-            assert str(hook.sqlalchemy_url) == expected
-        else:
-            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
+        assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_scheme_and_wrong_query_value(self):
         conn_params = dict(extra=json.dumps(dict(sqlalchemy_scheme="mssql", sqlalchemy_query="wrong type")))
@@ -335,6 +327,61 @@ class TestJdbcHook:
                     future.result()  # This will raise OSError if get_conn isn't threadsafe
 
             assert mock_connect.call_count == 10
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect", autospec=True, return_value=jdbc_conn_mock)
+    def test_run_hook_lineage(self, jdbc_mock, mock_send_lineage):
+        hook = get_hook()
+        jdbc_conn_mock.cursor.return_value.rowcount = 0
+        sql = "SELECT 1"
+        hook.run(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect", autospec=True, return_value=jdbc_conn_mock)
+    def test_insert_rows_hook_lineage(self, jdbc_mock, mock_send_lineage):
+        hook = get_hook()
+        table = "table"
+        rows = [("hello",), ("world",)]
+        hook.insert_rows(table, rows)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == "INSERT INTO table  VALUES (%s)"
+        assert call_kw["row_count"] == 2
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        hook = get_hook()
+        sql = "SELECT 1"
+        hook.get_df(sql, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        hook = get_hook()
+        sql = "SELECT 1"
+        parameters = ("x",)
+        hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
 
     @pytest.mark.parametrize(
         ("params", "expected_uri"),

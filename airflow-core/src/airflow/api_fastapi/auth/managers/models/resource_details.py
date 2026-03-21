@@ -48,7 +48,12 @@ class DagDetails:
 
 @dataclass
 class BackfillDetails:
-    """Represents the details of a backfill."""
+    """
+    Represents the details of a backfill.
+
+    .. deprecated:: 3.1.8
+        Use DagAccessEntity.Run instead for a dag level access control.
+    """
 
     id: NonNegativeInt | None = None
 

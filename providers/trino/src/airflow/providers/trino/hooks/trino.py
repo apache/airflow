@@ -29,9 +29,12 @@ from deprecated import deprecated
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    conf,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.trino.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.helpers import exactly_one
@@ -145,7 +148,7 @@ class TrinoHook(DbApiHook):
         """Return a connection object."""
         db = self.get_connection(self.get_conn_id())
         extra = db.extra_dejson
-        auth = None
+        auth: trino.auth.Authentication | None = None
         user = db.login
         auth_methods = []
         if db.password:
@@ -160,7 +163,7 @@ class TrinoHook(DbApiHook):
             raise AirflowException(
                 f"Multiple authentication methods specified: {', '.join(auth_methods)}. Only one is allowed."
             )
-        if db.password:
+        if db.password and db.login:
             auth = trino.auth.BasicAuthentication(db.login, db.password)
         elif extra.get("auth") == "jwt":
             if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
@@ -180,8 +183,8 @@ class TrinoHook(DbApiHook):
             auth = trino.auth.JWTAuthentication(token=token)
         elif extra.get("auth") == "certs":
             auth = trino.auth.CertificateAuthentication(
-                extra.get("certs__client_cert_path"),
-                extra.get("certs__client_key_path"),
+                extra["certs__client_cert_path"],
+                extra["certs__client_key_path"],
             )
         elif extra.get("auth") == "kerberos":
             auth = trino.auth.KerberosAuthentication(

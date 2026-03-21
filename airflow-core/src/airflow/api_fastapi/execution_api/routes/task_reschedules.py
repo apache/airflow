@@ -39,7 +39,7 @@ def get_start_date(task_instance_id: UUID, session: SessionDep) -> UtcDateTime |
     """Get the first reschedule date if found, None if no records exist."""
     start_date = session.scalar(
         select(TaskReschedule.start_date)
-        .where(TaskReschedule.ti_id == str(task_instance_id))
+        .where(TaskReschedule.ti_id == task_instance_id)
         .order_by(TaskReschedule.id.asc())
         .limit(1)
     )

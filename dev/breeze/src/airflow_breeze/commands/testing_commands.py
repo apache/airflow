@@ -37,6 +37,7 @@ from airflow_breeze.commands.common_options import (
     option_browser,
     option_clean_airflow_installation,
     option_core_integration,
+    option_custom_db_url,
     option_db_reset,
     option_debug_e2e,
     option_debug_resources,
@@ -86,6 +87,7 @@ from airflow_breeze.commands.release_management_commands import option_distribut
 from airflow_breeze.global_constants import (
     ALL_TEST_SUITES,
     ALL_TEST_TYPE,
+    ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_TEST_TYPE_CHOICES,
     GroupOfTests,
     all_selective_core_test_types,
@@ -95,7 +97,7 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
@@ -112,6 +114,7 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import (
     TASK_SDK_INTEGRATION_TESTS_ROOT_PATH,
+    are_all_test_paths_excluded,
     file_name_from_test_type,
     generate_args_for_pytest,
     run_docker_compose_tests,
@@ -172,7 +175,7 @@ def docker_compose_tests(
     if image_name is None:
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
-    get_console().print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
+    console_print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         python_version=python,
@@ -204,6 +207,15 @@ def _run_test(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
         sys.exit(1)
+    if are_all_test_paths_excluded(
+        test_group=shell_params.test_group,
+        test_type=shell_params.test_type,
+        python_version=python_version,
+        skip_db_tests=shell_params.skip_db_tests,
+        parallel_test_types_list=shell_params.parallel_test_types_list,
+        integration=shell_params.integration,
+    ):
+        return 0, f"Skipped test, no tests needed: {shell_params.test_type}"
     compose_project_name, project_name = _get_project_names(shell_params)
     env = shell_params.env_variables_for_docker_commands
     down_cmd = [
@@ -249,7 +261,7 @@ def _run_test(
     # Which might be the case if we are ignoring some providers during compatibility checks
     pytest_args_before_skip = pytest_args
     pytest_args = [arg for arg in pytest_args if f"--ignore={arg}" not in pytest_args]
-    # Double check: If no test is leftover we can skip running the test
+    # If no test directory is left (all positional args were excluded/ignored), skip
     if pytest_args_before_skip != pytest_args and pytest_args[0].startswith("--"):
         return 0, f"Skipped test, no tests needed: {shell_params.test_type}"
     run_cmd.extend(pytest_args)
@@ -304,7 +316,7 @@ def _get_project_names(shell_params: ShellParams) -> tuple[str, str]:
 
 @cache  # Note: using functools.cache to avoid multiple dumps in the same run
 def _dump_container_logs(output: Output | None, shell_params: ShellParams):
-    get_console().print("[warning]Dumping container logs[/]")
+    console_print("[warning]Dumping container logs[/]")
     ps_result = run_command(
         ["docker", "ps", "--all", "--format", "{{.Names}}"],
         check=True,
@@ -409,7 +421,7 @@ def _run_tests_in_pool(
 
 
 def pull_images_for_docker_compose(shell_params: ShellParams):
-    get_console().print("Pulling images once before parallel run\n")
+    console_print("Pulling images once before parallel run\n")
     env = shell_params.env_variables_for_docker_commands
     pull_cmd = [
         "docker",
@@ -430,16 +442,16 @@ def run_tests_in_parallel(
     skip_docker_compose_down: bool,
     handler: TimeoutHandler,
 ) -> None:
-    get_console().print("\n[info]Summary of the tests to run\n")
-    get_console().print(f"[info]Running tests in parallel with parallelism={parallelism}")
-    get_console().print(f"[info]Extra pytest args: {extra_pytest_args}")
-    get_console().print(f"[info]Test timeout: {test_timeout}")
-    get_console().print(f"[info]Include success outputs: {include_success_outputs}")
-    get_console().print(f"[info]Debug resources: {debug_resources}")
-    get_console().print(f"[info]Skip cleanup: {skip_cleanup}")
-    get_console().print(f"[info]Skip docker-compose down: {skip_docker_compose_down}")
-    get_console().print("[info]Shell params:")
-    get_console().print(shell_params.__dict__)
+    console_print("\n[info]Summary of the tests to run\n")
+    console_print(f"[info]Running tests in parallel with parallelism={parallelism}")
+    console_print(f"[info]Extra pytest args: {extra_pytest_args}")
+    console_print(f"[info]Test timeout: {test_timeout}")
+    console_print(f"[info]Include success outputs: {include_success_outputs}")
+    console_print(f"[info]Debug resources: {debug_resources}")
+    console_print(f"[info]Skip cleanup: {skip_cleanup}")
+    console_print(f"[info]Skip docker-compose down: {skip_docker_compose_down}")
+    console_print("[info]Shell params:")
+    console_print(shell_params.__dict__)
     pull_images_for_docker_compose(shell_params)
     _run_tests_in_pool(
         tests_to_run=shell_params.parallel_test_types_list,
@@ -459,16 +471,16 @@ def _verify_parallelism_parameters(
     excluded_parallel_test_types: str, run_db_tests_only: bool, run_in_parallel: bool, use_xdist: bool
 ):
     if excluded_parallel_test_types and not (run_in_parallel or use_xdist):
-        get_console().print(
+        console_print(
             "\n[error]You can only specify --excluded-parallel-test-types when --run-in-parallel or "
             "--use-xdist are set[/]\n"
         )
         sys.exit(1)
     if use_xdist and run_in_parallel:
-        get_console().print("\n[error]You can only specify one of --use-xdist, --run-in-parallel[/]\n")
+        console_print("\n[error]You can only specify one of --use-xdist, --run-in-parallel[/]\n")
         sys.exit(1)
     if use_xdist and run_db_tests_only:
-        get_console().print("\n[error]You can only specify one of --use-xdist, --run-db-tests-only[/]\n")
+        console_print("\n[error]You can only specify one of --use-xdist, --run-db-tests-only[/]\n")
         sys.exit(1)
 
 
@@ -572,6 +584,16 @@ option_test_type_helm = click.option(
     show_default=True,
     type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.HELM]),
 )
+# Strip "v" prefix from ALLOWED_KUBERNETES_VERSIONS for helm tests (schemas use bare versions)
+_HELM_K8S_VERSIONS = [v.lstrip("v") for v in ALLOWED_KUBERNETES_VERSIONS]
+option_helm_kubernetes_version = click.option(
+    "--kubernetes-version",
+    help="Kubernetes version to validate helm templates against",
+    default=_HELM_K8S_VERSIONS[0],
+    envvar="HELM_TEST_KUBERNETES_VERSION",
+    show_default=True,
+    type=BetterChoice(_HELM_K8S_VERSIONS),
+)
 option_test_type_task_sdk_group = click.option(
     "--test-type",
     help="Type of test to run for task SDK",
@@ -623,6 +645,7 @@ option_total_test_timeout = click.option(
 )
 @option_airflow_constraints_reference
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_clean_airflow_installation
 @option_db_reset
@@ -685,6 +708,7 @@ def core_tests(**kwargs):
 )
 @option_airflow_constraints_reference
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_clean_airflow_installation
 @option_db_reset
@@ -852,15 +876,15 @@ def task_sdk_integration_tests(
             "--remove-orphans",
             "--volumes",
         ]
-        get_console().print("[info]Running docker-compose down[/]")
+        console_print("[info]Running docker-compose down[/]")
         run_command(down_cmd, output=None, check=False, env=env, cwd=TASK_SDK_INTEGRATION_TESTS_ROOT_PATH)
         sys.exit(0)
     # Export the TASK_SDK_VERSION environment variable for the test ONLY if it is set
     if task_sdk_version:
         os.environ["TASK_SDK_VERSION"] = task_sdk_version
 
-    get_console().print(f"[info]Running task SDK integration tests with PROD image: {image_name}[/]")
-    get_console().print(f"[info]Using Task SDK version: {task_sdk_version}[/]")
+    console_print(f"[info]Running task SDK integration tests with PROD image: {image_name}[/]")
+    console_print(f"[info]Using Task SDK version: {task_sdk_version}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         python_version=python,
@@ -917,8 +941,8 @@ def airflowctl_integration_tests(
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
 
-    get_console().print(f"[info]Running airflowctl integration tests with PROD image: {image_name}[/]")
-    get_console().print(f"[info]Using airflowctl version: {airflow_ctl_version}[/]")
+    console_print(f"[info]Running airflowctl integration tests with PROD image: {image_name}[/]")
+    console_print(f"[info]Using airflowctl version: {airflow_ctl_version}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         python_version=python,
@@ -958,7 +982,7 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
     ]
     result = run_command(test_command, cwd=AIRFLOW_CTL_ROOT_PATH, check=False)
     if result.returncode != 0:
-        get_console().print(
+        console_print(
             f"[error]airflowctl tests failed with return code {result.returncode}.[/]\n"
             f"Command: {' '.join(test_command)}\n"
         )
@@ -974,6 +998,7 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_dry_run
@@ -995,6 +1020,7 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
 def core_integration_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     enable_coverage: bool,
     extra_pytest_args: tuple,
@@ -1015,6 +1041,7 @@ def core_integration_tests(
         test_group=GroupOfTests.INTEGRATION_CORE,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1055,6 +1082,7 @@ def core_integration_tests(
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_dry_run
@@ -1076,6 +1104,7 @@ def core_integration_tests(
 def integration_providers_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     enable_coverage: bool,
     extra_pytest_args: tuple,
@@ -1096,6 +1125,7 @@ def integration_providers_tests(
         test_group=GroupOfTests.INTEGRATION_PROVIDERS,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1136,6 +1166,7 @@ def integration_providers_tests(
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_dry_run
@@ -1164,6 +1195,7 @@ def integration_providers_tests(
 def system_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     enable_coverage: bool,
     extra_pytest_args: tuple,
@@ -1191,6 +1223,7 @@ def system_tests(
         test_group=GroupOfTests.SYSTEM,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=True,
@@ -1243,6 +1276,7 @@ def system_tests(
 @option_test_timeout
 @option_parallelism
 @option_test_type_helm
+@option_helm_kubernetes_version
 @option_use_xdist
 @option_verbose
 @option_dry_run
@@ -1253,6 +1287,7 @@ def helm_tests(
     github_repository: str,
     test_timeout: int,
     test_type: str,
+    kubernetes_version: str,
     parallelism: int,
     use_xdist: bool,
 ):
@@ -1263,6 +1298,7 @@ def helm_tests(
         test_type=test_type,
     )
     env = shell_params.env_variables_for_docker_commands
+    env["HELM_TEST_KUBERNETES_VERSION"] = kubernetes_version
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -1297,6 +1333,7 @@ def helm_tests(
     ),
 )
 @option_backend
+@option_custom_db_url
 @option_collect_only
 @option_db_reset
 @option_no_db_cleanup
@@ -1316,6 +1353,7 @@ def helm_tests(
 def python_api_client_tests(
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None,
     db_reset: bool,
     no_db_cleanup: bool,
     enable_coverage: bool,
@@ -1334,6 +1372,7 @@ def python_api_client_tests(
         test_group=GroupOfTests.PYTHON_API_CLIENT,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1373,7 +1412,10 @@ option_e2e_test_mode = click.option(
     default="basic",
     show_default=True,
     envvar="E2E_TEST_MODE",
-    type=click.Choice(["basic", "remote_log"], case_sensitive=False),
+    type=click.Choice(
+        ["basic", "remote_log", "remote_log_elasticsearch", "xcom_object_storage"],
+        case_sensitive=False,
+    ),
 )
 
 
@@ -1410,7 +1452,7 @@ def airflow_e2e_tests(
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
 
-    get_console().print(f"[info]Running Airflow E2E tests with PROD image: {image_name}[/]")
+    console_print(f"[info]Running Airflow E2E tests with PROD image: {image_name}[/]")
     # If the image is used from docker hub, test container will pull that part of test.
     skip_image_check = True if image_name.startswith("apache/airflow") else False
     return_code, info = run_docker_compose_tests(
@@ -1435,6 +1477,9 @@ def airflow_e2e_tests(
         allow_extra_args=True,
     ),
 )
+@option_python
+@option_image_name
+@option_github_repository
 @option_airflow_ui_base_url
 @option_browser
 @option_debug_e2e
@@ -1451,6 +1496,9 @@ def airflow_e2e_tests(
 @option_verbose
 @click.argument("extra_playwright_args", nargs=-1, type=click.Path(path_type=str))
 def ui_e2e_tests(
+    python: str,
+    image_name: str | None,
+    github_repository: str,
     airflow_ui_base_url: str,
     browser: str,
     debug_e2e: bool,
@@ -1466,90 +1514,140 @@ def ui_e2e_tests(
     extra_playwright_args: tuple,
 ):
     """Run UI end-to-end tests using Playwright."""
+    import shutil
     import sys
+    import tempfile
     from pathlib import Path
 
-    from airflow_breeze.utils.console import get_console
+    from airflow_breeze.params.build_prod_params import BuildProdParams
+    from airflow_breeze.utils.console import console_print
     from airflow_breeze.utils.run_utils import check_pnpm_installed, run_command
     from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
     perform_environment_checks()
-
     check_pnpm_installed()
 
     airflow_root = Path(__file__).resolve().parents[5]
     ui_dir = airflow_root / "airflow-core" / "src" / "airflow" / "ui"
+    docker_compose_source = (
+        airflow_root / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
+    )
 
     if not ui_dir.exists():
-        get_console().print(f"[error]UI directory not found: {ui_dir}[/]")
+        console_print(f"[error]UI directory not found: {ui_dir}[/]")
         sys.exit(1)
 
-    env_vars = {
-        "AIRFLOW_UI_BASE_URL": airflow_ui_base_url,
-        "TEST_USERNAME": test_admin_username,
-        "TEST_PASSWORD": test_admin_password,
-        "TEST_DAG_ID": "example_bash_operator",
-    }
-
-    if force_reinstall_deps:
-        clean_cmd = ["pnpm", "install", "--force"]
-        if not get_dry_run():
-            run_command(clean_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
-    else:
-        install_cmd = ["pnpm", "install"]
-        if not get_dry_run():
-            run_command(install_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
-
-    install_browsers_cmd = ["pnpm", "exec", "playwright", "install"]
-    if browser != "all":
-        install_browsers_cmd.append(browser)
-
-    if not get_dry_run():
-        run_command(install_browsers_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
-
-    get_console().print(f"[info]Using Airflow at: {airflow_ui_base_url}[/]")
-
-    playwright_cmd = ["pnpm", "exec", "playwright", "test"]
-
-    if browser != "all":
-        playwright_cmd.extend(["--project", browser])
-    if headed:
-        playwright_cmd.append("--headed")
-    if debug_e2e:
-        playwright_cmd.append("--debug")
-    if ui_mode:
-        playwright_cmd.append("--ui")
-    if workers > 1:
-        playwright_cmd.extend(["--workers", str(workers)])
-    if timeout != 60000:
-        playwright_cmd.extend(["--timeout", str(timeout)])
-    if reporter != "html":
-        playwright_cmd.extend(["--reporter", reporter])
-    if test_pattern:
-        playwright_cmd.append(test_pattern)
-    if extra_playwright_args:
-        playwright_cmd.extend(extra_playwright_args)
-
-    get_console().print(f"[info]Running: {' '.join(playwright_cmd)}[/]")
-
-    if get_dry_run():
-        return
+    tmp_dir = Path(tempfile.mkdtemp(prefix="airflow-ui-e2e-"))
+    console_print(f"[info]Using temporary directory: {tmp_dir}[/]")
 
     try:
+        from airflow_breeze.utils.docker_compose_utils import (
+            ensure_image_exists_and_build_if_needed,
+            setup_airflow_docker_compose_environment,
+            start_docker_compose_and_wait_for_health,
+            stop_docker_compose,
+        )
+
+        if image_name is None:
+            image_name = os.environ.get("DOCKER_IMAGE")
+        if image_name is None or image_name.strip() == "":
+            build_params = BuildProdParams(python=python, github_repository=github_repository)
+            image_name = build_params.airflow_image_name
+
+        console_print(f"[info]Running UI E2E tests with PROD image: {image_name}[/]")
+        ensure_image_exists_and_build_if_needed(image_name, python)
+
+        env_vars = {
+            "AIRFLOW_UID": str(os.getuid()),
+            "AIRFLOW__CORE__LOAD_EXAMPLES": "true",
+            "AIRFLOW__API__EXPOSE_CONFIG": "true",
+            "AIRFLOW_IMAGE_NAME": image_name,
+        }
+
+        tmp_dir, dot_env = setup_airflow_docker_compose_environment(
+            docker_compose_source=docker_compose_source,
+            tmp_dir=tmp_dir,
+            env_vars=env_vars,
+        )
+
+        result = start_docker_compose_and_wait_for_health(tmp_dir, airflow_base_url=airflow_ui_base_url)
+        if result != 0:
+            sys.exit(result)
+
+        console_print("[success]Airflow is ready! Login with default credentials: airflow/airflow[/]")
+
+        env_vars = {
+            "AIRFLOW_UI_BASE_URL": airflow_ui_base_url,
+            "TEST_USERNAME": test_admin_username,
+            "TEST_PASSWORD": test_admin_password,
+            "TEST_DAG_ID": "example_bash_operator",
+        }
+
+        if force_reinstall_deps:
+            clean_cmd = ["pnpm", "install", "--force"]
+            if not get_dry_run():
+                run_command(clean_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
+        else:
+            install_cmd = ["pnpm", "install"]
+            if not get_dry_run():
+                run_command(install_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
+
+        install_browsers_cmd = ["pnpm", "exec", "playwright", "install"]
+        if browser != "all":
+            install_browsers_cmd.append(browser)
+
+        if not get_dry_run():
+            run_command(install_browsers_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
+
+        console_print(f"[info]Using Airflow at: {airflow_ui_base_url}[/]")
+
+        playwright_cmd = ["pnpm", "exec", "playwright", "test"]
+
+        # Test pattern must come before --project flag
+        if test_pattern:
+            playwright_cmd.append(test_pattern)
+        if browser != "all":
+            playwright_cmd.extend(["--project", browser])
+        if headed:
+            playwright_cmd.append("--headed")
+        if debug_e2e:
+            playwright_cmd.append("--debug")
+        if ui_mode:
+            playwright_cmd.append("--ui")
+        if workers > 1:
+            playwright_cmd.extend(["--workers", str(workers)])
+        if timeout != 60000:
+            playwright_cmd.extend(["--timeout", str(timeout)])
+        if reporter != "html":
+            playwright_cmd.extend(["--reporter", reporter])
+        if extra_playwright_args:
+            playwright_cmd.extend(extra_playwright_args)
+
+        console_print(f"[info]Running: {' '.join(playwright_cmd)}[/]")
+
+        if get_dry_run():
+            return
+
         result = run_command(
             playwright_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose(), check=False
         )
 
         report_path = ui_dir / "playwright-report" / "index.html"
         if report_path.exists():
-            get_console().print(f"[info]Report: file://{report_path}[/]")
+            console_print(f"[info]Report: file://{report_path}[/]")
 
         if result.returncode != 0:
             sys.exit(result.returncode)
 
-    except Exception as e:
-        get_console().print(f"[error]{str(e)}[/]")
+    except KeyboardInterrupt:
+        console_print("\n[warning]Interrupted by user.[/]")
         sys.exit(1)
+    except Exception as e:
+        console_print(f"[error]{str(e)}[/]")
+        sys.exit(1)
+    finally:
+        stop_docker_compose(tmp_dir)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 class TimeoutHandler:
@@ -1591,40 +1689,34 @@ class TimeoutHandler:
         )
 
     def timeout_method(self, signum, frame):
-        get_console().print("[warning]Timeout reached.[/]")
+        console_print("[warning]Timeout reached.[/]")
         if self.pool:
-            get_console().print("[warning]Terminating the pool[/]")
+            console_print("[warning]Terminating the pool[/]")
             self.pool.close()
             self.pool.terminate()
             # No join here. The pool is joined already in the main function
-        get_console().print("[warning]Stopping all running containers[/]:")
+        console_print("[warning]Stopping all running containers[/]:")
         self._print_all_containers()
         if os.environ.get("CI") == "true":
             _dump_container_logs(output=None, shell_params=self.shell_params)
         list_of_containers = self._get_running_containers().stdout.splitlines()
-        get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")
-        get_console().print(list_of_containers)
+        console_print("[warning]Attempting to send TERM signal to all remaining containers:")
+        console_print(list_of_containers)
         self._send_signal_to_containers(list_of_containers, "SIGTERM")
-        get_console().print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
+        console_print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
         sleep(GRACE_CONTAINER_STOP_TIMEOUT)
         containers_left = self._get_running_containers().stdout.splitlines()
         if containers_left:
-            get_console().print("[warning]Some containers are still running. Killing them with SIGKILL:")
-            get_console().print(containers_left)
+            console_print("[warning]Some containers are still running. Killing them with SIGKILL:")
+            console_print(containers_left)
             self._send_signal_to_containers(list_of_containers, "SIGKILL")
-            get_console().print(
-                f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop"
-            )
+            console_print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
             sleep(GRACE_CONTAINER_STOP_TIMEOUT)
             containers_left = self._get_running_containers().stdout.splitlines()
             if containers_left:
-                get_console().print(
-                    "[error]Some containers are still running. Marking stuff as terminated anyway."
-                )
-                get_console().print(containers_left)
-        get_console().print(
-            "[warning]All containers stopped. Marking the whole run as terminated on timeout[/]"
-        )
+                console_print("[error]Some containers are still running. Marking stuff as terminated anyway.")
+                console_print(containers_left)
+        console_print("[warning]All containers stopped. Marking the whole run as terminated on timeout[/]")
         self.terminated_on_timeout_output_list[0] = True
 
 
@@ -1646,6 +1738,7 @@ def _run_test_command(
     allow_pre_releases: bool,
     backend: str,
     collect_only: bool,
+    custom_db_url: str | None = None,
     clean_airflow_installation: bool,
     db_reset: bool,
     debug_resources: bool,
@@ -1700,6 +1793,7 @@ def _run_test_command(
         allow_pre_releases=allow_pre_releases,
         backend=backend,
         collect_only=collect_only,
+        custom_db_url=custom_db_url or "",
         clean_airflow_installation=clean_airflow_installation,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
@@ -1749,7 +1843,7 @@ def _run_test_command(
         extra_pytest_args = (*extra_pytest_args, *ignored_path_list)
     if run_in_parallel:
         if test_type != ALL_TEST_TYPE:
-            get_console().print(
+            console_print(
                 "[error]You should not specify --test-type when --run-in-parallel is set[/]. "
                 f"Your test type = {test_type}\n"
             )

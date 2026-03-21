@@ -1,0 +1,10 @@
+{
+  "mapped": "Mapped",
+  "notMapped": "Not mapped",
+  "retries": "再試行",
+  "searchTasks": "タスクを選択",
+  "selectMapped": "Select mapped",
+  "selectOperator": "オペレータを選択",
+  "selectRetryValues": "再試行数を選択",
+  "selectTriggerRules": "トリガールールを選択"
+}

@@ -19,38 +19,33 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any
 
-from airflow.providers.apache.spark.hooks.spark_connect import SparkConnectHook
+from airflow.providers.apache.spark.operators.spark_pyspark import SPARK_CONTEXT_KEYS, PySparkOperator
 from airflow.providers.common.compat.sdk import (
-    BaseHook,
     DecoratedOperator,
     TaskDecorator,
     task_decorator_factory,
 )
-from airflow.providers.common.compat.standard.operators import PythonOperator
-
-if TYPE_CHECKING:
-    from airflow.providers.common.compat.sdk import Context
-SPARK_CONTEXT_KEYS = ["spark", "sc"]
 
 
-class _PySparkDecoratedOperator(DecoratedOperator, PythonOperator):
+class _PySparkDecoratedOperator(DecoratedOperator, PySparkOperator):
     custom_operator_name = "@task.pyspark"
-
-    template_fields: Sequence[str] = ("op_args", "op_kwargs")
 
     def __init__(
         self,
+        *,
         python_callable: Callable,
-        op_args: Sequence | None = None,
-        op_kwargs: dict | None = None,
         conn_id: str | None = None,
         config_kwargs: dict | None = None,
+        op_args: Sequence | None = None,
+        op_kwargs: dict | None = None,
         **kwargs,
-    ):
-        self.conn_id = conn_id
-        self.config_kwargs = config_kwargs or {}
+    ) -> None:
+        kwargs_to_upstream = {
+            "python_callable": python_callable,
+            "op_args": op_args,
+            "op_kwargs": op_kwargs,
+        }
 
         signature = inspect.signature(python_callable)
         parameters = [
@@ -61,64 +56,15 @@ class _PySparkDecoratedOperator(DecoratedOperator, PythonOperator):
         # see https://github.com/python/mypy/issues/12472
         python_callable.__signature__ = signature.replace(parameters=parameters)  # type: ignore[attr-defined]
 
-        kwargs_to_upstream = {
-            "python_callable": python_callable,
-            "op_args": op_args,
-            "op_kwargs": op_kwargs,
-        }
         super().__init__(
             kwargs_to_upstream=kwargs_to_upstream,
             python_callable=python_callable,
+            config_kwargs=config_kwargs,
+            conn_id=conn_id,
             op_args=op_args,
             op_kwargs=op_kwargs,
             **kwargs,
         )
-
-    def execute(self, context: Context):
-        from pyspark import SparkConf
-        from pyspark.sql import SparkSession
-
-        conf = SparkConf()
-        conf.set("spark.app.name", f"{self.dag_id}-{self.task_id}")
-
-        url = "local[*]"
-        if self.conn_id:
-            # we handle both spark connect and spark standalone
-            conn = BaseHook.get_connection(self.conn_id)
-            if conn.conn_type == SparkConnectHook.conn_type:
-                url = SparkConnectHook(self.conn_id).get_connection_url()
-            elif conn.port:
-                url = f"{conn.host}:{conn.port}"
-            elif conn.host:
-                url = conn.host
-
-            for key, value in conn.extra_dejson.items():
-                conf.set(key, value)
-
-        # you cannot have both remote and master
-        if url.startswith("sc://"):
-            conf.set("spark.remote", url)
-
-        # task can override connection config
-        for key, value in self.config_kwargs.items():
-            conf.set(key, value)
-
-        if not conf.get("spark.remote") and not conf.get("spark.master"):
-            conf.set("spark.master", url)
-
-        spark = SparkSession.builder.config(conf=conf).getOrCreate()
-
-        if not self.op_kwargs:
-            self.op_kwargs = {}
-
-        op_kwargs: dict[str, Any] = dict(self.op_kwargs)
-        op_kwargs["spark"] = spark
-
-        # spark context is not available when using spark connect
-        op_kwargs["sc"] = spark.sparkContext if not conf.get("spark.remote") else None
-
-        self.op_kwargs = op_kwargs
-        return super().execute(context)
 
 
 def pyspark_task(

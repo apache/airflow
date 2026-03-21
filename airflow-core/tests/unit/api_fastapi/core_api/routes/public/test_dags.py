@@ -81,6 +81,7 @@ class TestDagEndpoint:
             relative_fileloc="dag_del_1.py",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
+            timetable_type="CronTriggerTimetable",
             is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
@@ -385,6 +386,7 @@ class TestGetDags(TestDagEndpoint):
             ),
             # Search
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
+            ({"dag_id_pattern": "1|2"}, 2, [DAG1_ID, DAG2_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
             # Bundle filters
             (
@@ -394,6 +396,20 @@ class TestGetDags(TestDagEndpoint):
             ),
             ({"bundle_name": "wrong_bundle"}, 0, []),
             ({"bundle_version": "1.0.0"}, 0, []),
+            # Timetable type filter
+            (
+                {
+                    "timetable_type": ["CronTriggerTimetable"],
+                    "exclude_stale": False,
+                },
+                1,
+                [DAG3_ID],
+            ),
+            (
+                {"timetable_type": ["NullTimetable"], "exclude_stale": False},
+                2,
+                [DAG1_ID, DAG2_ID],
+            ),
             # Asset filters
             ({"has_asset_schedule": True}, 3, [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID]),
             ({"has_asset_schedule": False}, 2, [DAG1_ID, DAG2_ID]),
@@ -918,13 +934,15 @@ class TestDagDetails(TestDagEndpoint):
         last_parsed_time = res_json["last_parsed_time"]
         file_token = res_json["file_token"]
         expected = {
+            "active_runs_count": 0,
+            "allowed_run_types": None,
+            "asset_expression": None,
             "bundle_name": "dag_maker",
             "bundle_version": None,
-            "asset_expression": None,
             "catchup": False,
             "concurrency": 16,
-            "dag_id": dag_id,
             "dag_display_name": dag_display_name,
+            "dag_id": dag_id,
             "dag_run_timeout": None,
             "default_args": {
                 "depends_on_past": False,
@@ -938,9 +956,10 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
-            "is_stale": False,
+            "is_favorite": False,
             "is_paused": False,
             "is_paused_upon_creation": None,
+            "is_stale": False,
             "latest_dag_version": {
                 "bundle_name": "dag_maker",
                 "bundle_url": "http://test_host.github.com/tree/None/dags",
@@ -966,22 +985,21 @@ class TestDagDetails(TestDagEndpoint):
             "owner_links": {},
             "params": {
                 "foo": {
-                    "value": 1,
-                    "schema": {},
                     "description": None,
+                    "schema": {},
                     "source": None,
+                    "value": 1,
                 }
             },
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
-            "timetable_summary": None,
             "start_date": start_date,
             "tags": [],
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
+            "timetable_partitioned": False,
+            "timetable_summary": None,
             "timezone": UTC_JSON_REPR,
-            "is_favorite": False,
-            "active_runs_count": 0,
         }
         assert res_json == expected
 
@@ -1015,13 +1033,15 @@ class TestDagDetails(TestDagEndpoint):
         last_parse_duration = res_json["last_parse_duration"]
         file_token = res_json["file_token"]
         expected = {
+            "active_runs_count": 0,
+            "allowed_run_types": None,
+            "asset_expression": None,
             "bundle_name": "dag_maker",
             "bundle_version": None,
-            "asset_expression": None,
             "catchup": False,
             "concurrency": 16,
-            "dag_id": dag_id,
             "dag_display_name": dag_display_name,
+            "dag_id": dag_id,
             "dag_run_timeout": None,
             "default_args": {
                 "depends_on_past": False,
@@ -1035,6 +1055,7 @@ class TestDagDetails(TestDagEndpoint):
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
+            "is_favorite": False,
             "is_stale": False,
             "is_paused": False,
             "is_paused_upon_creation": None,
@@ -1044,9 +1065,9 @@ class TestDagDetails(TestDagEndpoint):
                 "bundle_version": None,
                 "created_at": mock.ANY,
                 "dag_id": "test_dag2",
+                "dag_display_name": dag_display_name,
                 "id": mock.ANY,
                 "version_number": 1,
-                "dag_display_name": dag_display_name,
             },
             "last_expired": None,
             "last_parsed": last_parsed,
@@ -1063,22 +1084,21 @@ class TestDagDetails(TestDagEndpoint):
             "owner_links": {},
             "params": {
                 "foo": {
-                    "value": 1,
-                    "schema": {},
                     "description": None,
+                    "schema": {},
                     "source": None,
+                    "value": 1,
                 }
             },
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
-            "timetable_summary": None,
             "start_date": start_date,
             "tags": [],
             "template_search_path": None,
+            "timetable_summary": None,
             "timetable_description": "Never, external triggers only",
+            "timetable_partitioned": False,
             "timezone": UTC_JSON_REPR,
-            "is_favorite": False,
-            "active_runs_count": 0,
         }
         assert res_json == expected
 
@@ -1207,30 +1227,32 @@ class TestGetDag(TestDagEndpoint):
         expected = {
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
+            "allowed_run_types": None,
+            "bundle_name": "dag_maker",
+            "bundle_version": None,
             "description": None,
             "fileloc": __file__,
             "file_token": file_token,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
             "is_paused": False,
             "is_stale": False,
-            "owners": ["airflow"],
-            "timetable_summary": None,
-            "tags": tags,
-            "has_task_concurrency_limits": True,
+            "last_expired": None,
+            "last_parse_duration": last_parse_duration,
+            "last_parsed_time": last_parsed_time,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,
             "next_dagrun_logical_date": None,
             "next_dagrun_run_after": None,
-            "max_active_runs": 16,
-            "max_consecutive_failed_dag_runs": 0,
-            "last_expired": None,
-            "max_active_tasks": 16,
-            "last_parsed_time": last_parsed_time,
-            "last_parse_duration": last_parse_duration,
-            "timetable_description": "Never, external triggers only",
-            "has_import_errors": False,
-            "bundle_name": "dag_maker",
-            "bundle_version": None,
+            "owners": ["airflow"],
             "relative_fileloc": "test_dags.py",
+            "tags": tags,
+            "timetable_description": "Never, external triggers only",
+            "timetable_partitioned": False,
+            "timetable_summary": None,
         }
         assert res_json == expected
 

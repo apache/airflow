@@ -24,20 +24,34 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
-from airflow.sdk import DAG, BaseOperator, TaskGroup
-from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
+
+# Also support SDK types if possible.
+try:
+    from airflow.sdk import BaseOperator
+except ImportError:
+    BaseOperator = SerializedBaseOperator  # type: ignore[assignment,misc]
+try:
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+except ImportError:
+    MappedOperator = SerializedMappedOperator  # type: ignore[assignment,misc]
+try:
+    from airflow.sdk import TaskGroup
+except ImportError:
+    TaskGroup = SerializedTaskGroup  # type: ignore[assignment,misc]
 
 if TYPE_CHECKING:
     import graphviz
 
     from airflow.models import TaskInstance
-    from airflow.models.taskmixin import DependencyMixin
     from airflow.serialization.dag_dependency import DagDependency
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
+    from airflow.serialization.definitions.node import DAGNode
 else:
     try:
         import graphviz
@@ -70,7 +84,7 @@ def _refine_color(color: str):
 
 
 def _draw_task(
-    task: BaseOperator | MappedOperator | SerializedBaseOperator | SerializedMappedOperator,
+    task: Operator,
     parent_graph: graphviz.Digraph,
     states_by_task_id: dict[Any, Any] | None,
 ) -> None:
@@ -96,7 +110,7 @@ def _draw_task(
 
 
 def _draw_task_group(
-    task_group: TaskGroup | SerializedTaskGroup,
+    task_group: SerializedTaskGroup,
     parent_graph: graphviz.Digraph,
     states_by_task_id: dict[str, str | None] | None,
 ) -> None:
@@ -136,29 +150,27 @@ def _draw_task_group(
 
 
 def _draw_nodes(
-    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str | None] | None
+    node: DAGNode, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str | None] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
     if isinstance(node, (BaseOperator, MappedOperator, SerializedBaseOperator, SerializedMappedOperator)):
         _draw_task(node, parent_graph, states_by_task_id)
+    elif not isinstance(node, (TaskGroup, SerializedTaskGroup)):
+        raise AirflowException(f"The node {node} should be TaskGroup and is not")
+    elif node.is_root:
+        # No need to draw background for root TaskGroup.
+        _draw_task_group(node, parent_graph, states_by_task_id)
     else:
-        if not isinstance(node, (SerializedTaskGroup, TaskGroup)):
-            raise AirflowException(f"The node {node} should be TaskGroup and is not")
-        # Draw TaskGroup
-        if node.is_root:
-            # No need to draw background for root TaskGroup.
-            _draw_task_group(node, parent_graph, states_by_task_id)
-        else:
-            with parent_graph.subgraph(name=f"cluster_{node.group_id}") as sub:
-                sub.attr(
-                    shape="rectangle",
-                    style="filled",
-                    color=_refine_color(node.ui_fgcolor),
-                    # Partially transparent CornflowerBlue
-                    fillcolor="#6495ed7f",
-                    label=node.label,
-                )
-                _draw_task_group(node, sub, states_by_task_id)
+        with parent_graph.subgraph(name=f"cluster_{node.group_id}") as sub:
+            sub.attr(
+                shape="rectangle",
+                style="filled",
+                color=_refine_color(node.ui_fgcolor),
+                # Partially transparent CornflowerBlue
+                fillcolor="#6495ed7f",
+                label=node.label,
+            )
+            _draw_task_group(node, sub, states_by_task_id)
 
 
 def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Digraph:
@@ -194,7 +206,7 @@ def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Di
     return dot
 
 
-def render_dag(dag: DAG | SerializedDAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
+def render_dag(dag: SerializedDAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
     """
     Render the DAG object to the DOT object.
 

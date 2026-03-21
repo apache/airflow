@@ -20,7 +20,6 @@ import asyncio
 import base64
 import importlib
 import inspect
-import pickle
 import sys
 from collections.abc import AsyncIterator
 from importlib import import_module
@@ -59,6 +58,51 @@ def deserialize_auth_type(path: str | None) -> type | None:
         return None
     module_path, cls_name = path.rsplit(".", 1)
     return getattr(import_module(module_path), cls_name)
+
+
+class HttpResponseSerializer:
+    """Serializer for requests.Response objects used in deferred HTTP tasks."""
+
+    @staticmethod
+    def serialize(response: requests.Response) -> dict[str, Any]:
+        """Convert a requests.Response object to a JSON serializable dictionary."""
+        return {
+            "status_code": response.status_code,
+            "headers": dict(response.headers),
+            "content": base64.standard_b64encode(response.content).decode("ascii"),
+            "url": response.url,
+            "reason": response.reason,
+            "encoding": response.encoding,
+            "cookies": {k: v for k, v in response.cookies.items()},
+            "history": [HttpResponseSerializer.serialize(h) for h in response.history],
+        }
+
+    @staticmethod
+    def deserialize(data: dict[str, Any] | str) -> requests.Response:
+        """Reconstruct a requests.Response object from serialized data."""
+        if isinstance(data, str):
+            raise TypeError("Response data must be a dict, got str")
+
+        if not isinstance(data, dict):
+            raise TypeError(f"Expected dict, got {type(data).__name__}")
+
+        response = requests.Response()
+        response.status_code = data["status_code"]
+        response.headers = CaseInsensitiveDict(data["headers"])
+        response._content = base64.standard_b64decode(data["content"])
+        response.url = data["url"]
+        response.reason = data.get("reason", "")
+        response.encoding = data.get("encoding")
+
+        cookies = RequestsCookieJar()
+        for name, value in data.get("cookies", {}).items():
+            cookies.set(name, str(value))
+        response.cookies = cookies
+
+        if data.get("history"):
+            response.history = [HttpResponseSerializer.deserialize(hist) for hist in data["history"]]
+
+        return response
 
 
 class HttpTrigger(BaseTrigger):
@@ -121,7 +165,7 @@ class HttpTrigger(BaseTrigger):
             yield TriggerEvent(
                 {
                     "status": "success",
-                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                    "response": HttpResponseSerializer.serialize(response),
                 }
             )
         except Exception as e:
@@ -301,7 +345,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
             yield TriggerEvent(
                 {
                     "status": "success",
-                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                    "response": HttpResponseSerializer.serialize(response),
                 }
             )
         except Exception as e:

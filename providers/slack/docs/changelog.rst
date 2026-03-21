@@ -27,6 +27,53 @@
 Changelog
 ---------
 
+9.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add thread_ts parameter to Slack operators for thread replies (#62289)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add display_filename parameter to SlackAPIFileOperator (#62112)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 3] Migrate connection UI metadata to YAML for more providers (#62165)``
+
+9.6.2
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+
+9.6.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.6.0
 .....
 

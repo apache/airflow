@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect as _inspect
 import os
 from typing import TYPE_CHECKING
 
@@ -23,14 +24,30 @@ from alembic import command
 from sqlalchemy import inspect
 
 from airflow import settings
+from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
+from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
     from alembic.script import ScriptDirectory
     from sqlalchemy import MetaData
+
+
+def _callable_accepts_use_migration_files(callable_) -> bool:
+    """Return True if *callable_* accepts a ``use_migration_files`` keyword argument."""
+    try:
+        signature = _inspect.signature(callable_)
+    except (TypeError, ValueError):
+        return False
+
+    if "use_migration_files" in signature.parameters:
+        return True
+
+    return any(
+        parameter.kind == _inspect.Parameter.VAR_KEYWORD for parameter in signature.parameters.values()
+    )
 
 
 class BaseDBManager(LoggingMixin):
@@ -47,6 +64,21 @@ class BaseDBManager(LoggingMixin):
     def __init__(self, session):
         super().__init__()
         self.session = session
+
+    def _release_metadata_locks_if_needed(self) -> None:
+        """
+        Release MySQL metadata locks by committing the session.
+
+        MySQL requires metadata locks to be released before DDL operations.
+        This is done by committing the current transaction.
+        This method is a no-op for non-MySQL databases.
+        """
+        if get_dialect_name(self.session) != "mysql":
+            return
+
+        self.log.debug("MySQL: Releasing metadata locks for DDL operations")
+        self.session.commit()
+        self.log.debug("MySQL: Session committed, metadata locks released")
 
     def get_alembic_config(self):
         from alembic.config import Config
@@ -90,6 +122,7 @@ class BaseDBManager(LoggingMixin):
     def create_db_from_orm(self):
         """Create database from ORM."""
         self.log.info("Creating %s tables from the ORM", self.__class__.__name__)
+        self._release_metadata_locks_if_needed()
         engine = self.session.get_bind().engine
         self.metadata.create_all(engine)
         config = self.get_alembic_config()
@@ -104,8 +137,10 @@ class BaseDBManager(LoggingMixin):
         if inspect(connection).has_table(version.name):
             version.drop(connection)
 
-    def resetdb(self, skip_init=False):
+    def resetdb(self, skip_init=False, use_migration_files=False):
         from airflow.utils.db import DBLocks, create_global_lock
+
+        self._release_metadata_locks_if_needed()
 
         connection = settings.engine.connect()
 
@@ -113,19 +148,36 @@ class BaseDBManager(LoggingMixin):
             self.log.info("Dropping %s tables", self.__class__.__name__)
             self.drop_tables(connection)
         if not skip_init:
-            self.initdb()
+            if _callable_accepts_use_migration_files(self.initdb):
+                self.initdb(use_migration_files=use_migration_files)
+            else:
+                self.initdb()
 
-    def initdb(self):
+    def initdb(self, use_migration_files=False):
         """Initialize the database."""
+        self._release_metadata_locks_if_needed()
         db_exists = self.get_current_revision()
-        if db_exists:
-            self.upgradedb()
+        if db_exists or use_migration_files:
+            if _callable_accepts_use_migration_files(self.upgradedb):
+                self.upgradedb(use_migration_files=use_migration_files)
+            else:
+                self.upgradedb()
         else:
             self.create_db_from_orm()
 
-    def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
+    def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False, use_migration_files=False):
         """Upgrade the database."""
         self.log.info("Upgrading the %s database", self.__class__.__name__)
+
+        self._release_metadata_locks_if_needed()
+        current_revision = self.get_current_revision()
+        # MySQL can reacquire metadata locks during the revision lookup above.
+        # Release them again before Alembic opens its migration connection.
+        self._release_metadata_locks_if_needed()
+
+        if not current_revision and not to_revision and not use_migration_files and not show_sql_only:
+            self.create_db_from_orm()
+            return
 
         config = self.get_alembic_config()
         command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
@@ -145,20 +197,29 @@ class RunDBManager(LoggingMixin):
 
     def __init__(self):
         from airflow.api_fastapi.app import create_auth_manager
+        from airflow.providers_manager import ProvidersManager
 
         super().__init__()
         self._managers: list[BaseDBManager] = []
+
+        # Start with auto-discovered DB managers from installed providers
+        managers: list[str] = list(ProvidersManager().db_managers)
+
+        # Add any explicitly configured managers not already discovered
         managers_config = conf.get("database", "external_db_managers", fallback=None)
-        if not managers_config:
-            managers = []
-        else:
-            managers = managers_config.split(",")
-        # Add DB manager specified by auth manager (if any)
+        if managers_config:
+            for m in managers_config.split(","):
+                if stripped := m.strip():
+                    if stripped not in managers:
+                        managers.append(stripped)
+
+        # Add DB manager declared by the configured auth manager (existing behavior, deduplicated)
         auth_manager_db_manager = create_auth_manager().get_db_manager()
         if auth_manager_db_manager and auth_manager_db_manager not in managers:
             managers.append(auth_manager_db_manager)
+
         for module in managers:
-            manager = import_string(module)
+            manager = import_string(module.strip())
             self._managers.append(manager)
 
     def validate(self):
@@ -205,17 +266,33 @@ class RunDBManager(LoggingMixin):
             return_value.append(m.check_migration)
         return all([x() for x in return_value])
 
-    def initdb(self, session):
+    def _call_with_optional_use_migration_files(
+        self, manager_instance: BaseDBManager, method_name: str, use_migration_files: bool
+    ) -> None:
+        method = getattr(manager_instance, method_name)
+        if _callable_accepts_use_migration_files(method):
+            method(use_migration_files=use_migration_files)
+            return
+
+        if use_migration_files:
+            self.log.warning(
+                "External DB manager %s.%s does not support 'use_migration_files'; proceeding without it.",
+                type(manager_instance).__name__,
+                method_name,
+            )
+        method()
+
+    def initdb(self, session, use_migration_files=False):
         """Initialize the external database managers."""
         for manager in self._managers:
             m = manager(session)
-            m.initdb()
+            self._call_with_optional_use_migration_files(m, "initdb", use_migration_files)
 
-    def upgradedb(self, session):
+    def upgradedb(self, session, use_migration_files=False):
         """Upgrade the external database managers."""
         for manager in self._managers:
             m = manager(session)
-            m.upgradedb()
+            self._call_with_optional_use_migration_files(m, "upgradedb", use_migration_files)
 
     def drop_tables(self, session, connection):
         """Drop the external database managers."""

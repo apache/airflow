@@ -34,6 +34,7 @@ try:
     from airflow.sdk.exceptions import (
         AirflowException,
         AirflowNotFoundException,
+        AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
         AirflowRescheduleException as AirflowRescheduleException,
         AirflowTimetableInvalid as AirflowTimetableInvalid,
         TaskNotFound as TaskNotFound,
@@ -68,6 +69,9 @@ except ModuleNotFoundError:
             cls = self.__class__
             return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
 
+    class AirflowOptionalProviderFeatureException(AirflowException):  # type: ignore[no-redef]
+        """Raise by providers when imports are missing for optional provider features."""
+
 
 class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
@@ -77,10 +81,6 @@ class AirflowBadRequest(AirflowException):
 
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
-
-
-class AirflowOptionalProviderFeatureException(AirflowException):
-    """Raise by providers when imports are missing for optional provider features."""
 
 
 class AirflowInternalRuntimeError(BaseException):
@@ -179,7 +179,7 @@ class FileSyntaxError(NamedTuple):
     message: str
 
     def __str__(self):
-        return f"{self.message}. Line number: s{str(self.line_no)},"
+        return f"{self.message}. Line number: {str(self.line_no)},"
 
 
 class AirflowFileParseException(AirflowException):
@@ -297,6 +297,10 @@ class DeserializationError(Exception):
             super().__init__(f"An unexpected error occurred while trying to deserialize Dag '{dag_id}'")
 
 
+class DagRunTypeNotAllowed(AirflowException):
+    """Raised when a Dag does not allow the requested run type."""
+
+
 class AirflowClearRunningTaskException(AirflowException):
     """Raise when the user attempts to clear currently running tasks."""
 
@@ -328,7 +332,7 @@ def __getattr__(name: str):
         import warnings
 
         from airflow import DeprecatedImportWarning
-        from airflow.utils.module_loading import import_string
+        from airflow._shared.module_loading import import_string
 
         target_path = f"airflow.sdk.exceptions.{name}"
         warnings.warn(

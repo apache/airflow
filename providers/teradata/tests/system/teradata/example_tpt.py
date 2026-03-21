@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG to show usage of DdlOperator.
+Example Airflow DAG to show usage of DdlOperator and TdLoadOperator.
 
 This DAG assumes an Airflow Connection with connection id `teradata_default` already exists locally.
 It demonstrates how to use DdlOperator to create, drop, alter, and rename Teradata tables and indexes.
+It also shows how to load data from a file to a Teradata table, export data from a Teradata table to a file and
+transfer data between two Teradata tables (potentially across different databases).
 """
 
 from __future__ import annotations
@@ -31,11 +33,11 @@ import pytest
 from airflow import DAG
 
 try:
-    from airflow.providers.teradata.operators.tpt import DdlOperator
+    from airflow.providers.teradata.operators.tpt import DdlOperator, TdLoadOperator
 except ImportError:
     pytest.skip("TERADATA provider not available", allow_module_level=True)
 
-# [START ddl_operator_howto_guide]
+# [START tdload_operator_howto_guide]
 
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -45,10 +47,14 @@ SSH_CONN_ID = "ssh_default"
 
 # Define file paths and table names for the test
 SYSTEM_TESTS_DIR = os.path.abspath(os.path.dirname(__file__))
+SOURCE_FILE = os.path.join(SYSTEM_TESTS_DIR, "tdload_src_file.txt")
+TARGET_FILE = os.path.join(SYSTEM_TESTS_DIR, "tdload_target_file.txt")
 
 params = {
     "SOURCE_TABLE": "source_table",
     "TARGET_TABLE": "target_table",
+    "SOURCE_FILE": SOURCE_FILE,
+    "TARGET_FILE": TARGET_FILE,
 }
 
 
@@ -112,6 +118,93 @@ with DAG(
     )
     # [END ddl_operator_howto_guide_create_index]
 
+    # [START tdload_operator_howto_guide_load_from_file]
+    load_file = TdLoadOperator(
+        task_id="load_file",
+        source_file_name="{{ params.SOURCE_FILE }}",
+        target_table="{{ params.SOURCE_TABLE }}",
+        source_format="Delimited",
+        source_text_delimiter="|",
+    )
+    # [END tdload_operator_howto_guide_load_from_file]
+
+    # [START tdload_operator_howto_guide_export_data]
+    export_data = TdLoadOperator(
+        task_id="export_data",
+        source_table="{{ params.SOURCE_TABLE }}",
+        target_file_name="{{ params.TARGET_FILE }}",
+        target_format="Delimited",
+        target_text_delimiter=";",
+    )
+    # [END tdload_operator_howto_guide_export_data]
+
+    # [START tdload_operator_howto_guide_transfer_data]
+    transfer_data = TdLoadOperator(
+        task_id="transfer_data",
+        source_table="{{ params.SOURCE_TABLE }}",
+        target_table="{{ params.TARGET_TABLE }}",
+        target_teradata_conn_id=CONN_ID,
+    )
+    # [END tdload_operator_howto_guide_transfer_data]
+
+    create_select_dest_table = DdlOperator(
+        task_id="create_select_dest_table",
+        ddl=[
+            "DROP TABLE {{ params.SOURCE_TABLE }}_select_dest;",
+            "DROP TABLE {{ params.SOURCE_TABLE }}_select_log;",
+            "DROP TABLE {{ params.SOURCE_TABLE }}_select_err1;",
+            "DROP TABLE {{ params.SOURCE_TABLE }}_select_err2;",
+            "CREATE TABLE {{ params.SOURCE_TABLE }}_select_dest ( \
+                first_name VARCHAR(100), \
+                last_name VARCHAR(100), \
+                employee_id VARCHAR(10), \
+                department VARCHAR(50) \
+            );",
+        ],
+        error_list=[3706, 3803, 3807],
+    )
+
+    # [START tdload_operator_howto_guide_transfer_data_select_stmt]
+    # TdLoadOperator using select statement as source
+    transfer_data_select_stmt = TdLoadOperator(
+        task_id="transfer_data_select_stmt",
+        select_stmt="SELECT * FROM {{ params.SOURCE_TABLE }}",
+        target_table="{{ params.SOURCE_TABLE }}_select_dest",
+        tdload_options="--LogTable {{ params.SOURCE_TABLE }}_select_log --ErrorTable1 {{ params.SOURCE_TABLE }}_select_err1 --ErrorTable2 {{ params.SOURCE_TABLE }}_select_err2",
+        target_teradata_conn_id=CONN_ID,
+    )
+    # [END tdload_operator_howto_guide_transfer_data_select_stmt]
+
+    # Create table for insert statement test
+    create_insert_dest_table = DdlOperator(
+        task_id="create_insert_dest_table",
+        ddl=[
+            "DROP TABLE {{ params.SOURCE_TABLE }}_insert_dest;",
+            "DROP TABLE {{ params.SOURCE_TABLE }}_insert_log;",
+            "DROP TABLE {{ params.SOURCE_TABLE }}_insert_err1;",
+            "DROP TABLE {{ params.SOURCE_TABLE }}_insert_err2;",
+            "CREATE TABLE {{ params.SOURCE_TABLE }}_insert_dest ( \
+                first_name VARCHAR(100), \
+                last_name VARCHAR(100), \
+                employee_id VARCHAR(10), \
+                department VARCHAR(50) \
+            );",
+        ],
+        error_list=[3706, 3803, 3807],
+    )
+
+    # [START tdload_operator_howto_guide_transfer_data_insert_stmt]
+    transfer_data_insert_stmt = TdLoadOperator(
+        task_id="transfer_data_insert_stmt",
+        source_table="{{ params.SOURCE_TABLE }}",
+        insert_stmt="INSERT INTO {{ params.SOURCE_TABLE }}_insert_dest VALUES (?, ?, ?, ?)",
+        target_table="{{ params.SOURCE_TABLE }}_insert_dest",
+        tdload_options="--LogTable {{ params.SOURCE_TABLE }}_insert_log --ErrorTable1 {{ params.SOURCE_TABLE }}_insert_err1 --ErrorTable2 {{ params.SOURCE_TABLE }}_insert_err2",
+        tdload_job_name="tdload_job_insert_stmt",
+        target_teradata_conn_id=CONN_ID,
+    )
+    # [END tdload_operator_howto_guide_transfer_data_insert_stmt]
+
     # [START ddl_operator_howto_guide_rename_table]
     rename_target_table = DdlOperator(
         task_id="rename_target_table",
@@ -143,6 +236,13 @@ with DAG(
         >> create_source_table
         >> create_target_table
         >> create_index_on_source
+        >> load_file
+        >> export_data
+        >> transfer_data
+        >> create_select_dest_table
+        >> transfer_data_select_stmt
+        >> create_insert_dest_table
+        >> transfer_data_insert_stmt
         >> rename_target_table
         >> drop_index_on_source
         >> alter_source_table
@@ -158,4 +258,4 @@ from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)
-# [END ddl_operator_howto_guide]
+# [END tdload_operator_howto_guide]

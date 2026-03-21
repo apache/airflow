@@ -37,8 +37,8 @@ services:
     healthcheck:
       test: ["CMD", "mysqladmin", "status", "-h", "localhost", "-u", "root"]
       interval: 10s
-      timeout: 10s
-      start_period: 30s
+      timeout: 15s
+      start_period: 60s
       retries: 5
     restart: "on-failure"
     command: [

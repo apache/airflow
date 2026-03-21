@@ -82,7 +82,7 @@ you can specify ``--postgres-version 13`` to start Postgres 13). The ``--help`` 
 will show you which backends are supported and which versions are available for each backend.
 
 The choice you made for backend and version are ``sticky`` - the last used selection is cached in the
-``.build`` folder and next time you run any of the ``breeze`` commands that use backend the will use the
+``.build`` folder. Next time you run any of the ``breeze`` commands that use backend, it will use the
 last selected backend and version.
 
 .. note::
@@ -277,6 +277,19 @@ package names and can be used to select more than one package with single filter
 .. code-block:: bash
 
      breeze build-docs --package-filter apache-airflow-providers-*
+
+Inventory cache handling
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+When building documentation, Sphinx downloads intersphinx inventories to enable cross-references
+between documentation sets. By default, missing third-party inventories (e.g., Pandas, SQLAlchemy)
+produce warnings but do **not** fail the build — third-party servers can be temporarily unavailable.
+If a cached version exists, it will be used with a warning.
+
+Use ``--clean-inventory-cache`` to force a fresh download of all inventories, or
+``--fail-on-missing-third-party-inventories`` to fail the build when any third-party inventory
+is missing (useful for publishing). Note that ``--clean-build`` cleans build artifacts but
+preserves the inventory cache.
 
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
 During the docs building auto-api generated files are stored in the ``generated`` folder. This helps you

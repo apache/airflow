@@ -31,7 +31,7 @@ from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryA
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import RuntimeTaskInstanceProtocol
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 # MAX XCOM Size is 48KB
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677

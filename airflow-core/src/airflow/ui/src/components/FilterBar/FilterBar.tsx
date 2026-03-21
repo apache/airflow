@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, HStack } from "@chakra-ui/react";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdAdd, MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
@@ -71,20 +71,17 @@ export const FilterBar = ({
     onFiltersChange(filtersRecord);
   }, 100);
 
-  const updateFiltersRecord = useCallback(
-    (updatedFilters: Array<FilterState>) => {
-      const filtersRecord = updatedFilters.reduce<Record<string, FilterValue>>((accumulator, filter) => {
-        if (isValidFilterValue(filter.config.type, filter.value)) {
-          accumulator[filter.config.key] = filter.value;
-        }
+  const updateFiltersRecord = (updatedFilters: Array<FilterState>) => {
+    const filtersRecord = updatedFilters.reduce<Record<string, FilterValue>>((accumulator, filter) => {
+      if (isValidFilterValue(filter.config.type, filter.value)) {
+        accumulator[filter.config.key] = filter.value;
+      }
 
-        return accumulator;
-      }, {});
+      return accumulator;
+    }, {});
 
-      debouncedOnFiltersChange(filtersRecord);
-    },
-    [debouncedOnFiltersChange],
-  );
+    debouncedOnFiltersChange(filtersRecord);
+  };
 
   const addFilter = (config: FilterConfig) => {
     const newFilter: FilterState = {
@@ -155,6 +152,7 @@ export const FilterBar = ({
               _hover={{ bg: "colorPalette.subtle" }}
               bg="gray.muted"
               borderRadius="full"
+              data-testid="add-filter-button"
               variant="outline"
             >
               <MdAdd />

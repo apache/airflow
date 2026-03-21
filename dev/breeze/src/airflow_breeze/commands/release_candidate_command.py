@@ -17,10 +17,13 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
+import time
 from datetime import date
 from pathlib import Path
+from subprocess import CalledProcessError
 
 import click
 
@@ -40,6 +43,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.environment_check import is_ci_environment
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
@@ -48,6 +52,10 @@ from airflow_breeze.utils.path_utils import (
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
+
+RC_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)rc(?P<rc>\d+)$")
+SVN_NUM_TRIES = 3
+SVN_OPERATION_RETRY_DELAY = 5
 
 
 def validate_remote_tracks_apache_airflow(remote_name):
@@ -354,11 +362,10 @@ def create_artifacts_with_hatch(source_date_epoch: int):
     console_print("[info]Creating artifacts with hatch")
     shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
     AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
-    env_copy = os.environ.copy()
-    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
     # Build Airflow packages
     run_command(
-        ["hatch", "build", "-c", "-t", "custom", "-t", "sdist", "-t", "wheel"], check=True, env=env_copy
+        ["hatch", "build", "-c", "-t", "custom", "-t", "sdist", "-t", "wheel"], check=True, env=hatch_env
     )
     # Build Task SDK packages
     run_command(
@@ -409,6 +416,22 @@ def create_artifacts_with_docker():
     console_print("[success]Airflow and Task SDK artifacts created")
 
 
+def test_airflow():
+    console_print("[info]Testing Airflow: Please perform the actions below before proceeding.")
+    console_print("[info]Run these commands in a separate shell in the current directory.")
+    console_print("[info] ❯ docker run -it -v ./dist:/dist -p 8080:8080 python:3.12 /bin/bash")
+    console_print("[info] root@6b802a7fedab:/# pip install uv && uv venv && source .venv/bin/activate")
+    console_print(
+        "[info] root@6b802a7fedab:/# uv pip install ./dist/apache_airflow-*.whl  ./dist/apache_airflow_core-*.whl ./dist/apache_airflow_task_sdk-*-py3-none-any.whl"
+    )
+    console_print("[info] (.venv) root@6b802a7fedab:/# airflow standalone")
+    confirm_action(
+        "I have tested airflow as instructed above. "
+        "I installed and ran a DAG with it and there's no issue. Do you agree to the above?",
+        abort=True,
+    )
+
+
 def sign_the_release(repo_root):
     if confirm_action("Do you want to sign the release?"):
         os.chdir(f"{repo_root}/dist")
@@ -443,16 +466,46 @@ def tag_and_push_constraints(version, version_branch, remote_name):
 def clone_asf_repo(version, repo_root):
     if confirm_action("Do you want to clone asf repo?"):
         os.chdir(repo_root)
-        run_command(
-            ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"],
-            check=True,
-            dry_run_override=False,
-        )
-        run_command(
-            ["svn", "update", "--set-depth=infinity", "asf-dist/dev/airflow"],
-            check=True,
-            dry_run_override=False,
-        )
+
+        if is_ci_environment():
+            console_print("[info]Running in CI environment - simulating SVN checkout")
+            # Create empty directory structure to simulate svn checkout (override dry-run if specified)
+            run_command(
+                ["mkdir", "-p", f"{repo_root}/asf-dist/dev/airflow"], check=True, dry_run_override=False
+            )
+            console_print("[success]Simulated ASF repo checkout in CI")
+            return
+
+        for attempt in range(1, SVN_NUM_TRIES):
+            try:
+                run_command(
+                    [
+                        "svn",
+                        "checkout",
+                        "--depth=immediates",
+                        "https://dist.apache.org/repos/dist",
+                        "asf-dist",
+                    ],
+                    check=True,
+                    dry_run_override=False,
+                )
+                run_command(
+                    ["svn", "update", "--set-depth=infinity", "asf-dist/dev/airflow"],
+                    check=True,
+                    dry_run_override=False,
+                )
+                break
+            except CalledProcessError:
+                if attempt == SVN_NUM_TRIES:
+                    raise
+                console_print(
+                    f"[warning]SVN operation failed. Retrying! {SVN_NUM_TRIES - attempt} tries left."
+                )
+                time.sleep(SVN_OPERATION_RETRY_DELAY)
+        else:
+            console_print(f"[error]Failed to perform SVN operation after {SVN_NUM_TRIES} attempts.")
+            exit(1)
+
         console_print("[success]Cloned ASF repo successfully")
 
 
@@ -461,36 +514,47 @@ def move_artifacts_to_svn(
 ):
     if confirm_action("Do you want to move artifacts to SVN?"):
         os.chdir(f"{repo_root}/asf-dist/dev/airflow")
-        run_command(["svn", "mkdir", f"{version}"], check=True)
+        if is_ci_environment():
+            console_print(
+                "[info]Running in CI environment - executing mkdir (override dry-run mode if specified)"
+            )
+            run_command(["mkdir", "-p", f"{version}"], check=True, dry_run_override=False)
+            run_command(["mkdir", "-p", f"task-sdk/{task_sdk_version}"], dry_run_override=False, check=True)
+        else:
+            run_command(["svn", "mkdir", f"{version}"], check=True)
+            run_command(["svn", "mkdir", f"task-sdk/{task_sdk_version}"], check=True)
         run_command(f"mv {repo_root}/dist/*{version_without_rc}* {version}/", check=True, shell=True)
-        run_command(["svn", "mkdir", f"task-sdk/{task_sdk_version}"])
         run_command(
             f"mv {repo_root}/dist/*{task_sdk_version_without_rc}* task-sdk/{task_sdk_version}/",
             check=True,
             shell=True,
         )
-        console_print("[success]Moved artifacts to SVN:")
-        run_command(["ls"])
-        run_command([f"ls {version}"])
-        run_command([f"ls task-sdk/{task_sdk_version}"])
+        console_print("[success]Moved artifacts to SVN")
 
 
 def push_artifacts_to_asf_repo(version, task_sdk_version, repo_root):
     if confirm_action("Do you want to push artifacts to ASF repo?"):
+        base_dir = f"{repo_root}/asf-dist/dev/airflow"
+        airflow_dir = f"{base_dir}/{version}"
+        task_sdk_dir = f"{base_dir}/task-sdk/{task_sdk_version}"
+
         console_print("Airflow Version Files to push to svn:")
-        if not get_dry_run():
-            os.chdir(f"{repo_root}/asf-dist/dev/airflow/{version}")
-        run_command(["ls"])
+        run_command(["ls"], cwd=airflow_dir if not get_dry_run() else None)
         confirm_action("Do you want to continue?", abort=True)
-        run_command("svn add *", check=True, shell=True)
         console_print("Task SDK Version Files to push to svn:")
-        if not get_dry_run():
-            os.chdir(f"{repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}")
-        run_command(["ls"])
+        run_command(["ls"], cwd=task_sdk_dir if not get_dry_run() else None)
         confirm_action("Do you want to continue?", abort=True)
-        run_command("svn add *", check=True, shell=True)
+        if not get_dry_run():
+            os.chdir(base_dir)
+
+        run_command(f"svn add {version}/* task-sdk/{task_sdk_version}/*", check=True, shell=True)
         run_command(
-            ["svn", "commit", "-m", f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}"],
+            [
+                "svn",
+                "commit",
+                "-m",
+                f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}",
+            ],
             check=True,
         )
         console_print("[success]Files pushed to svn")
@@ -585,30 +649,53 @@ def push_release_candidate_tag_to_github(version, remote_name):
         console_print("[success]Release candidate tag pushed to GitHub")
 
 
-def remove_old_releases(version, repo_root):
-    if confirm_action("In beta release we do not remove old RCs. Is this a beta release?"):
-        return
+def remove_old_releases(version, task_sdk_version, repo_root):
     if not confirm_action("Do you want to look for old RCs to remove?"):
         return
 
     os.chdir(f"{repo_root}/asf-dist/dev/airflow")
 
+    # Remove old Airflow releases
     old_releases = []
     for entry in os.scandir():
         if entry.name == version:
             # Don't remove the current RC
             continue
-        if entry.is_dir() and entry.name.startswith("2."):
+        if entry.is_dir() and RC_PATTERN.match(entry.name):
             old_releases.append(entry.name)
     old_releases.sort()
-
+    console_print(f"The following old Airflow releases should be removed: {old_releases}")
     for old_release in old_releases:
+        console_print(f"Removing old Airflow release {old_release}")
         if confirm_action(f"Remove old RC {old_release}?"):
             run_command(["svn", "rm", old_release], check=True)
             run_command(
                 ["svn", "commit", "-m", f"Remove old release: {old_release}"],
                 check=True,
             )
+
+    # Remove old Task SDK releases
+    task_sdk_path = f"{repo_root}/asf-dist/dev/airflow/task-sdk"
+    if os.path.exists(task_sdk_path):
+        os.chdir(task_sdk_path)
+        old_task_sdk_releases = []
+        for entry in os.scandir():
+            if entry.name == task_sdk_version:
+                # Don't remove the current RC
+                continue
+            if entry.is_dir() and RC_PATTERN.match(entry.name):
+                old_task_sdk_releases.append(entry.name)
+        old_task_sdk_releases.sort()
+        console_print(f"The following old Task SDK releases should be removed: {old_task_sdk_releases}")
+        for old_release in old_task_sdk_releases:
+            console_print(f"Removing old Task SDK release {old_release}")
+            if confirm_action(f"Remove old Task SDK RC {old_release}?"):
+                run_command(["svn", "rm", old_release], check=True)
+                run_command(
+                    ["svn", "commit", "-m", f"Remove old Task SDK release: {old_release}"],
+                    check=True,
+                )
+
     console_print("[success]Old releases removed")
     os.chdir(repo_root)
 
@@ -742,6 +829,8 @@ def publish_release_candidate(
             tarball_type=TarBallType.AIRFLOW,
             tag=version,
         )
+    # test airflow
+    test_airflow()
     # Sign the release
     sign_the_release(airflow_repo_root)
     # Tag and push constraints
@@ -756,7 +845,7 @@ def publish_release_candidate(
     push_artifacts_to_asf_repo(version, task_sdk_version, airflow_repo_root)
 
     # Remove old releases
-    remove_old_releases(version, airflow_repo_root)
+    remove_old_releases(version, task_sdk_version, airflow_repo_root)
 
     # Delete asf-dist directory
     delete_asf_repo(airflow_repo_root)

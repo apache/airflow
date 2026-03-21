@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2025-11-07"
+API_VERSION: Final[str] = "2026-04-13"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -78,6 +78,21 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class DagResponse(BaseModel):
+    """
+    Schema for DAG response.
+    """
+
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    is_paused: Annotated[bool, Field(title="Is Paused")]
+    bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
+    relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
+    owners: Annotated[str | None, Field(title="Owners")] = None
+    tags: Annotated[list[str], Field(title="Tags")]
+    next_dagrun: Annotated[AwareDatetime | None, Field(title="Next Dagrun")] = None
+
+
 class DagRunAssetReference(BaseModel):
     """
     DagRun serializer for asset responses.
@@ -94,6 +109,7 @@ class DagRunAssetReference(BaseModel):
     state: Annotated[str, Field(title="State")]
     data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class DagRunState(str, Enum):
@@ -128,6 +144,7 @@ class DagRunType(str, Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
     ASSET_TRIGGERED = "asset_triggered"
+    ASSET_MATERIALIZATION = "asset_materialization"
 
 
 class HITLUser(BaseModel):
@@ -171,6 +188,23 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
 
 
+class PreviousTIResponse(BaseModel):
+    """
+    Schema for response with previous TaskInstance information.
+    """
+
+    task_id: Annotated[str, Field(title="Task Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
+    start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None
+    end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
+    state: Annotated[str | None, Field(title="State")] = None
+    try_number: Annotated[int, Field(title="Try Number")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    duration: Annotated[float | None, Field(title="Duration")] = None
+
+
 class TIDeferredStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a deferred state.
@@ -181,10 +215,11 @@ class TIDeferredStatePayload(BaseModel):
     )
     state: Annotated[Literal["deferred"] | None, Field(title="State")] = "deferred"
     classpath: Annotated[str, Field(title="Classpath")]
-    trigger_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Trigger Kwargs")] = None
+    trigger_kwargs: Annotated[dict[str, JsonValue] | str | None, Field(title="Trigger Kwargs")] = None
     trigger_timeout: Annotated[timedelta | None, Field(title="Trigger Timeout")] = None
+    queue: Annotated[str | None, Field(title="Queue")] = None
     next_method: Annotated[str, Field(title="Next Method")]
-    next_kwargs: Annotated[dict[str, Any] | None, Field(title="Next Kwargs")] = None
+    next_kwargs: Annotated[dict[str, JsonValue] | None, Field(title="Next Kwargs")] = None
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
@@ -286,6 +321,27 @@ class TaskBreadcrumbsResponse(BaseModel):
     breadcrumbs: Annotated[list[dict[str, Any]], Field(title="Breadcrumbs")]
 
 
+class TaskInstanceState(str, Enum):
+    """
+    All possible states that a Task Instance can be in.
+
+    Note that None is also allowed, so always use this in a type hint with Optional.
+    """
+
+    REMOVED = "removed"
+    SCHEDULED = "scheduled"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+    UP_FOR_RETRY = "up_for_retry"
+    UP_FOR_RESCHEDULE = "up_for_reschedule"
+    UPSTREAM_FAILED = "upstream_failed"
+    SKIPPED = "skipped"
+    DEFERRED = "deferred"
+
+
 class TaskStatesResponse(BaseModel):
     """
     Response for task states with run_id, task and state.
@@ -316,6 +372,8 @@ class TriggerDAGRunPayload(BaseModel):
     logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    note: Annotated[str | None, Field(title="Note")] = None
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -332,6 +390,8 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
+    input: Annotated[Any | None, Field(title="Input")] = None
+    ctx: Annotated[dict[str, Any] | None, Field(title="Context")] = None
 
 
 class VariablePostBody(BaseModel):
@@ -424,21 +484,6 @@ class TerminalTIState(str, Enum):
     REMOVED = "removed"
 
 
-class TaskInstanceState(str, Enum):
-    REMOVED = "removed"
-    SCHEDULED = "scheduled"
-    QUEUED = "queued"
-    RUNNING = "running"
-    SUCCESS = "success"
-    RESTARTING = "restarting"
-    FAILED = "failed"
-    UP_FOR_RETRY = "up_for_retry"
-    UP_FOR_RESCHEDULE = "up_for_reschedule"
-    UPSTREAM_FAILED = "upstream_failed"
-    SKIPPED = "skipped"
-    DEFERRED = "deferred"
-
-
 class WeightRule(str, Enum):
     DOWNSTREAM = "downstream"
     UPSTREAM = "upstream"
@@ -459,6 +504,11 @@ class TriggerRule(str, Enum):
     ALWAYS = "always"
     NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
     ALL_SKIPPED = "all_skipped"
+
+
+class DagAttributeTypes(str, Enum):
+    OP = "operator"
+    TASK_GROUP = "taskgroup"
 
 
 class AssetReferenceAssetEventDagRun(BaseModel):
@@ -586,7 +636,7 @@ class DagRun(BaseModel):
     data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
     run_after: Annotated[AwareDatetime, Field(title="Run After")]
-    start_date: Annotated[AwareDatetime, Field(title="Start Date")]
+    start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None
     end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
     clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
     run_type: DagRunType
@@ -595,6 +645,7 @@ class DagRun(BaseModel):
     triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    note: Annotated[str | None, Field(title="Note")] = None
 
 
 class TIRunContext(BaseModel):
@@ -607,9 +658,6 @@ class TIRunContext(BaseModel):
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
-    upstream_map_indexes: Annotated[
-        dict[str, int | list[int] | None] | None, Field(title="Upstream Map Indexes")
-    ] = None
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None

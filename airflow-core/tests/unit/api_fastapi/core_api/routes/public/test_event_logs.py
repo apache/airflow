@@ -302,7 +302,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_get_event_logs(
         self, test_client, query_params, expected_status_code, expected_total_entries, expected_events
     ):
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             response = test_client.get("/eventLogs", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -341,7 +341,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_get_event_logs_order_by(
         self, test_client, query_params, expected_status_code, expected_total_entries, expected_events
     ):
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             response = test_client.get("/eventLogs", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:

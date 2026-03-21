@@ -3,6 +3,7 @@
     "description": "Description",
     "key": "Key",
     "name": "Name",
+    "team": "Team",
     "value": "Value"
   },
   "config": {
@@ -49,6 +50,12 @@
     "searchPlaceholder": "Search Connections",
     "test": "Test Connection",
     "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it.",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "Failed to retrieve Connection Type Meta",
       "standardFields": {
@@ -74,6 +81,23 @@
   "formActions": {
     "save": "Save"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Executor Class",
+      "hostname": "Hostname",
+      "id": "ID",
+      "jobType": "Job Type",
+      "latestHeartbeat": "Latest Heartbeat",
+      "unixname": "Unix Name"
+    },
+    "filters": {
+      "allStates": "All States",
+      "allTypes": "All Types",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "Source"
@@ -96,7 +120,8 @@
       "includeDeferred": "Include Deferred",
       "nameMaxLength": "Name can contain a maximum of 256 characters",
       "nameRequired": "Name is required",
-      "slots": "Slots"
+      "slots": "Slots",
+      "slotsHelperText": "Use -1 for unlimited slots."
     },
     "noPoolsFound": "No pools found",
     "pool_one": "Pool",

@@ -22,7 +22,9 @@ There are several roles within the Airflow Open-Source community.
 
 For detailed information for each role, see: `Committers and PMC members <../COMMITTERS.rst>`__.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 PMC Member
 ----------
@@ -50,11 +52,6 @@ often used in devlist discussions, official communications, Airflow website and 
 refer to the role.
 
 The official list of committers can be found `here <https://airflow.apache.org/docs/apache-airflow/stable/project.html#committers>`__.
-
-Additionally, committers are listed in a few other places (some of these may only be visible to existing committers):
-
-* https://whimsy.apache.org/roster/committee/airflow
-* https://github.com/orgs/apache/teams/airflow-committers/members
 
 Committers are responsible for:
 

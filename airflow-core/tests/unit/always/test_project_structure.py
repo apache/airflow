@@ -24,6 +24,7 @@ import pathlib
 
 import pytest
 
+from tests_common.test_utils.file_loading import get_imports_from_file
 from tests_common.test_utils.paths import (
     AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
@@ -59,7 +60,6 @@ class TestProjectStructure:
         """
         # The test below had a but for quite a while and we missed a lot of modules to have tess
         # We should make sure that one goes to 0
-        # TODO(potiuk) - check if that test actually tests something
         OVERLOOKED_TESTS = [
             "providers/amazon/tests/unit/amazon/aws/auth_manager/datamodels/test_login.py",
             "providers/amazon/tests/unit/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py",
@@ -98,6 +98,9 @@ class TestProjectStructure:
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_xcom_sidecar.py",
+            "providers/common/sql/tests/unit/common/sql/datafusion/test_base.py",
+            "providers/common/sql/tests/unit/common/sql/datafusion/test_exceptions.py",
+            "providers/common/ai/tests/unit/common/ai/test_exceptions.py",
             "providers/common/compat/tests/unit/common/compat/lineage/test_entities.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_operators.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_triggers.py",
@@ -143,7 +146,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_cloud_functions.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_storage_transfer.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_tasks.py",
             "providers/google/tests/unit/google/cloud/links/test_compute.py",
             "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
@@ -247,21 +249,6 @@ class TestProjectStructure:
             "Detect added tests in providers module - please remove the tests "
             "from OVERLOOKED_TESTS list above"
         )
-
-
-def get_imports_from_file(filepath: str):
-    with open(filepath) as py_file:
-        content = py_file.read()
-    doc_node = ast.parse(content, filepath)
-    import_names: set[str] = set()
-    for current_node in ast.walk(doc_node):
-        if not isinstance(current_node, (ast.Import, ast.ImportFrom)):
-            continue
-        for alias in current_node.names:
-            name = alias.name
-            fullname = f"{current_node.module}.{name}" if isinstance(current_node, ast.ImportFrom) else name
-            import_names.add(fullname)
-    return import_names
 
 
 def filepath_to_module(path: pathlib.Path, src_folder: pathlib.Path):
@@ -441,37 +428,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360UploadLineItemsOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadLineItemsOperator",
         "airflow.providers.google.marketing_platform.sensors.GoogleDisplayVideo360RunQuerySensor",
-        "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook",
-        "airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryGroupLink",
-        "airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryLink",
-        "airflow.providers.google.cloud.links.datacatalog.DataCatalogTagTemplateLink",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryGroupOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateTagTemplateFieldOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateFieldOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetEntryGroupOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogGetTagTemplateOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogListTagsOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogLookupEntryOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogRenameTagTemplateFieldOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogSearchCatalogOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateEntryOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogCreateEntryOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogUpdateTagTemplateFieldOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateFromCachedContentOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.CreateCachedContentOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.CountTokensOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerativeModelGenerateContentOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator",
     }
 
     BASE_CLASSES = {
@@ -486,6 +442,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.ray.RayBaseOperator",
+        "airflow.providers.google.cloud.operators.ray.RayJobBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_base.GoogleCloudBaseOperator",
         "airflow.providers.google.marketing_platform.operators.search_ads._GoogleSearchAdsBaseOperator",
     }
@@ -499,8 +456,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.DeleteExperimentRunOperator",
     }
 
     ASSETS_NOT_REQUIRED = {
@@ -532,11 +487,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceResumeOperationOperator",
         "airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryGroupOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteEntryOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateFieldOperator",
-        "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogDeleteTagTemplateOperator",
         "airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeleteInstanceOperator",
         "airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeletePipelineOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator",

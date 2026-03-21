@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -87,7 +87,7 @@ way, the Stable REST API is recommended.
 Using the Public Interface for Dag authors
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The primary interface for Dag authors is the :doc:`airflow.sdk namespace <core-concepts/taskflow>`.
+The primary interface for Dag authors is the ``airflow.sdk`` namespace. See the `Task SDK Reference <https://airflow.apache.org/docs/task-sdk/stable/>`_ for comprehensive documentation.
 This provides a stable, well-defined interface for creating Dags and tasks that is not subject to internal
 implementation changes. The goal of this change is to decouple Dag authoring from Airflow internals (Scheduler,
 API Server, etc.), providing a version-agnostic, stable interface for writing and maintaining Dags across Airflow versions.
@@ -96,35 +96,35 @@ API Server, etc.), providing a version-agnostic, stable interface for writing an
 
 **Classes:**
 
-* ``Asset``
-* ``BaseHook``
-* ``BaseNotifier``
-* ``BaseOperator``
-* ``BaseOperatorLink``
-* ``BaseSensorOperator``
-* ``Connection``
-* ``Context``
-* ``DAG``
-* ``EdgeModifier``
-* ``Label``
-* ``ObjectStoragePath``
-* ``Param``
-* ``TaskGroup``
-* ``Variable``
+* :class:`airflow.sdk.Asset`
+* :class:`airflow.sdk.BaseHook`
+* :class:`airflow.sdk.BaseNotifier`
+* :class:`airflow.sdk.BaseOperator`
+* :class:`airflow.sdk.BaseOperatorLink`
+* :class:`airflow.sdk.BaseSensorOperator`
+* :class:`airflow.sdk.Connection`
+* :class:`airflow.sdk.Context`
+* :class:`airflow.sdk.DAG`
+* :class:`airflow.sdk.EdgeModifier`
+* :class:`airflow.sdk.Label`
+* :class:`airflow.sdk.ObjectStoragePath`
+* :class:`airflow.sdk.Param`
+* :class:`airflow.sdk.TaskGroup`
+* :class:`airflow.sdk.Variable`
 
 **Decorators and Functions:**
 
-* ``@asset``
-* ``@dag``
-* ``@setup``
-* ``@task``
-* ``@task_group``
-* ``@teardown``
-* ``chain``
-* ``chain_linear``
-* ``cross_downstream``
-* ``get_current_context``
-* ``get_parsing_context``
+* :func:`airflow.sdk.asset`
+* :func:`airflow.sdk.dag`
+* :func:`airflow.sdk.setup`
+* :func:`airflow.sdk.task`
+* :func:`airflow.sdk.task_group`
+* :func:`airflow.sdk.teardown`
+* :func:`airflow.sdk.chain`
+* :func:`airflow.sdk.chain_linear`
+* :func:`airflow.sdk.cross_downstream`
+* :func:`airflow.sdk.get_current_context`
+* :func:`airflow.sdk.get_parsing_context`
 
 .. seealso::
    API reference for :class:`~airflow.sdk.TaskGroup`, :class:`~airflow.sdk.DAG`, and :class:`~airflow.sdk.task_group`

@@ -42,6 +42,7 @@ from airflow.api_fastapi.common.parameters import (
     FilterParam,
     LimitFilter,
     OffsetFilter,
+    QueryDagRunPartitionKeySearch,
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
     QueryDagRunVersionFilter,
@@ -132,12 +133,22 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
 def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a DAG Run entry."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+    deletable_states = {s.value for s in DAGRunPatchStates}
 
     if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
+    if dag_run.state not in deletable_states:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            (
+                f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` "
+                f"cannot be deleted in {dag_run.state} state"
+            ),
+        )
+
     session.delete(dag_run)
 
 
@@ -335,6 +346,9 @@ def get_dag_runs(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     dag_version: QueryDagRunVersionFilter,
+    bundle_version: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(DagRun.bundle_version, str | None))
+    ],
     order_by: Annotated[
         SortParam,
         Depends(
@@ -366,6 +380,7 @@ def get_dag_runs(
         Depends(search_param_factory(DagRun.triggering_user_name, "triggering_user_name_pattern")),
     ],
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.dag_id, "dag_id_pattern"))],
+    partition_key_pattern: QueryDagRunPartitionKeySearch,
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -395,10 +410,12 @@ def get_dag_runs(
             state,
             run_type,
             dag_version,
+            bundle_version,
             readable_dag_runs_filter,
             run_id_pattern,
             triggering_user_name_pattern,
             dag_id_pattern,
+            partition_key_pattern,
         ],
         order_by=order_by,
         offset=offset,
@@ -444,6 +461,12 @@ def trigger_dag_run(
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
+        )
+
+    if dm.allowed_run_types is not None and DagRunType.MANUAL not in dm.allowed_run_types:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Dag with dag_id: '{dag_id}' does not allow manual runs",
         )
 
     referer = request.headers.get("referer")

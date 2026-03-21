@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-tableau"
-version = "5.3.0"
+version = "5.3.3"
 description = "Provider package apache-airflow-providers-tableau for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -59,8 +60,10 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.8.0",  # use next version
-    "tableauserverclient>=0.27",
+    "apache-airflow-providers-common-compat>=1.10.1",
+    # Tableau release 0.39 is missing the tableauserverclient root folder in the package.
+    # we are limiting it for now - issue - https://github.com/tableau/server-client-python/issues/1745
+    "tableauserverclient>=0.27, !=0.39",
 ]
 
 [dependency-groups]
@@ -98,8 +101,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.3.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.3.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.3.3"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.3.3/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

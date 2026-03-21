@@ -156,7 +156,6 @@ class SafeStatsdLogger:
 
 
 def get_statsd_logger(
-    cls,
     *,
     stats_class: type[StatsClient],
     host: str | None = None,

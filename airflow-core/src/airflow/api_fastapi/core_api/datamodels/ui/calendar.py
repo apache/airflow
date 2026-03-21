@@ -19,8 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
-
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import DagRunState
 
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy import or_
+from sqlalchemy import delete, or_
 
 from airflow import models
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
@@ -75,9 +75,14 @@ class TestS3ToSqlTransfer:
         return bad_hook
 
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.NamedTemporaryFile")
-    @patch("airflow.models.connection.Connection.get_hook")
+    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.BaseHook.get_connection")
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.get_key")
-    def test_execute(self, mock_get_key, mock_hook, mock_tempfile, mock_parser):
+    def test_execute(self, mock_get_key, mock_get_connection, mock_tempfile, mock_parser):
+        mock_conn = MagicMock()
+        mock_hook = MagicMock()
+        mock_conn.get_hook.return_value = mock_hook
+        mock_get_connection.return_value = mock_conn
+
         S3ToSqlOperator(parser=mock_parser, **self.s3_to_sql_transfer_kwargs).execute({})
 
         mock_get_key.assert_called_once_with(
@@ -91,7 +96,7 @@ class TestS3ToSqlTransfer:
 
         mock_parser.assert_called_once_with(mock_tempfile.return_value.__enter__.return_value.name)
 
-        mock_hook.return_value.insert_rows.assert_called_once_with(
+        mock_hook.insert_rows.assert_called_once_with(
             table=self.s3_to_sql_transfer_kwargs["table"],
             schema=self.s3_to_sql_transfer_kwargs["schema"],
             target_fields=self.s3_to_sql_transfer_kwargs["column_list"],
@@ -100,13 +105,26 @@ class TestS3ToSqlTransfer:
         )
 
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.NamedTemporaryFile")
-    @patch("airflow.models.connection.Connection.get_hook", return_value=mock_bad_hook)
+    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.BaseHook.get_connection")
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.get_key")
-    def test_execute_with_bad_hook(self, mock_get_key, mock_bad_hook, mock_tempfile, mock_parser):
+    def test_execute_with_bad_hook(
+        self, mock_get_key, mock_get_connection, mock_tempfile, mock_parser, mock_bad_hook
+    ):
+        mock_conn = MagicMock()
+        mock_conn.get_hook.return_value = mock_bad_hook
+        mock_get_connection.return_value = mock_conn
+
         with pytest.raises(AirflowException):
             S3ToSqlOperator(parser=mock_parser, **self.s3_to_sql_transfer_kwargs).execute({})
 
-    def test_hook_params(self, mock_parser):
+    @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.BaseHook.get_connection")
+    def test_hook_params(self, mock_get_connection, mock_parser):
+        mock_conn = MagicMock()
+        mock_hook = MagicMock()
+        mock_hook.log_sql = False
+        mock_conn.get_hook.return_value = mock_hook
+        mock_get_connection.return_value = mock_conn
+
         op = S3ToSqlOperator(
             parser=mock_parser,
             sql_hook_params={
@@ -119,8 +137,8 @@ class TestS3ToSqlTransfer:
 
     def teardown_method(self):
         with create_session() as session:
-            (
-                session.query(models.Connection)
-                .filter(or_(models.Connection.conn_id == "s3_test", models.Connection.conn_id == "sql_test"))
-                .delete()
+            session.execute(
+                delete(models.Connection).where(
+                    or_(models.Connection.conn_id == "s3_test", models.Connection.conn_id == "sql_test")
+                )
             )

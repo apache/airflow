@@ -17,18 +17,24 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
 
 
 class TestAPIServerDeployment:
     """Tests API Server deployment."""
 
+    def _get_values_with_version(self, values, version):
+        if version != "default":
+            values["airflowVersion"] = version
+        return values
+
     def test_airflow_2(self):
         """
         API Server only supports Airflow 3.0.0 and later.
         """
         docs = render_chart(
-            values={"airflowVersion": "2.10.5"},
+            values={"airflowVersion": "2.11.0"},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         assert len(docs) == 0
@@ -38,7 +44,7 @@ class TestAPIServerDeployment:
         API Server configmap is only created for Airflow 3.0.0 and later.
         """
         docs = render_chart(
-            values={"airflowVersion": "2.10.5"},
+            values={"airflowVersion": "2.11.0"},
             show_only=["templates/configmaps/api-server-configmap.yaml"],
         )
         assert len(docs) == 0
@@ -75,6 +81,28 @@ class TestAPIServerDeployment:
             "subPath": "webserver_config.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    @pytest.mark.parametrize("version", ["3.0.0", "default"])
+    def test_should_remove_replicas_field(self, version):
+        docs = render_chart(
+            values=self._get_values_with_version(
+                values={"apiServer": {"hpa": {"enabled": True}}},
+                version=version,
+            ),
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
+    @pytest.mark.parametrize("version", ["3.0.0", "default"])
+    def test_should_not_remove_replicas_field(self, version):
+        docs = render_chart(
+            values=self._get_values_with_version(
+                values={"apiServer": {"hpa": {"enabled": False}}},
+                version=version,
+            ),
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+        assert "replicas" in jmespath.search("spec", docs[0])
 
 
 class TestAPIServerJWTSecret:

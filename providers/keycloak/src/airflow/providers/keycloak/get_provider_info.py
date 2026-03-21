@@ -26,9 +26,18 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-keycloak",
         "name": "Keycloak",
         "description": "``Keycloak Provider``\n",
+        "integrations": [
+            {
+                "integration-name": "Keycloak",
+                "external-doc-url": "https://www.keycloak.org/",
+                "logo": "/docs/integration-logos/Keycloak.svg",
+                "tags": ["software"],
+            }
+        ],
         "auth-managers": [
             "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager"
         ],
+        "cli": ["airflow.providers.keycloak.cli.definition.get_keycloak_cli_commands"],
         "config": {
             "keycloak_auth_manager": {
                 "description": "This section contains settings for Keycloak auth manager integration.",
@@ -61,6 +70,20 @@ def get_provider_info():
                         "version_added": "0.0.1",
                         "example": None,
                         "default": "http://host.docker.internal:48080",
+                    },
+                    "requests_pool_size": {
+                        "description": "Size of the connection pool used by the Keycloak auth manager.\nThis setting improves performance when multiple requests are made to Keycloak server.\n",
+                        "type": "integer",
+                        "version_added": "0.4.0",
+                        "example": "10",
+                        "default": "10",
+                    },
+                    "requests_retries": {
+                        "description": "Number of retries for failed requests made by the Keycloak auth manager.\nThis setting helps to handle transient network issues.\n",
+                        "type": "integer",
+                        "version_added": "0.4.0",
+                        "example": "3",
+                        "default": "3",
                     },
                 },
             }

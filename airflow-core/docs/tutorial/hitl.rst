@@ -159,7 +159,7 @@ The method ``HITLOperator.generate_link_to_ui_from_context`` can be used to gene
 
 - ``context`` – automatically passed to ``notify`` by the notifier
 - ``base_url`` – (optional) the base URL of the Airflow UI; if not provided, ``api.base_url`` in the configuration will be used
-- ``options`` – (optional) pre-selected options for the UI page
+- ``options`` – (optional) preselected options for the UI page
 - ``params_inputs`` – (optional) pre-loaded inputs for the UI page
 
 This makes it easy to include actionable links in notifications or logs.
@@ -190,3 +190,12 @@ Benefits and Common Use Cases
 
 HITL functionality is valuable in large language model (LLM) workflows, where human-provided guidance can be essential for achieving better results.
 It is also highly beneficial in enterprise data pipelines, where human validation can complement and enhance automated processes.
+
+See also
+--------
+
+* `Standard provider HITL operators documentation
+  <https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/operators/hitl.html>`_
+
+* `HITL operators Python API reference
+  <https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/hitl/index.html>`_

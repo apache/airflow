@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-azure"
-version = "12.9.0"
+version = "13.0.1"
 description = "Provider package apache-airflow-providers-microsoft-azure for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -59,7 +60,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.10.0",  # use next version
+    "apache-airflow-providers-common-compat>=1.13.0",
     "adlfs>=2023.10.0",
     "azure-batch>=8.0.0",
     "azure-cosmos>=4.6.0",
@@ -81,6 +82,7 @@ dependencies = [
     "azure-kusto-data>=4.1.0,!=4.6.0,!=5.0.0",
     "azure-mgmt-datafactory>=2.0.0",
     "azure-mgmt-containerregistry>=8.0.0",
+    "azure-mgmt-compute>=33.0.0",
     "azure-mgmt-containerinstance>=10.1.0",
     "msgraph-core>=1.3.3",
     "msgraphfs>=0.3.0",
@@ -101,14 +103,14 @@ dependencies = [
 "amazon" = [
     "apache-airflow-providers-amazon"
 ]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
-]
 "oracle" = [
     "apache-airflow-providers-oracle"
 ]
 "sftp" = [
     "apache-airflow-providers-sftp"
+]
+"common.messaging" = [
+    "apache-airflow-providers-common-messaging>=2.0.0"
 ]
 
 [dependency-groups]
@@ -118,6 +120,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-messaging",
     "apache-airflow-providers-oracle",
     "apache-airflow-providers-sftp",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
@@ -151,8 +154,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.9.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.9.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.0.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.0.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -35,8 +35,10 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
+import { useTimezone } from "src/context/timezone";
 import { getComputedCSSVariableValue } from "src/theme";
-import { DEFAULT_DATETIME_FORMAT, renderDuration } from "src/utils/datetimeUtils";
+import { DEFAULT_DATETIME_FORMAT, formatDate, renderDuration } from "src/utils/datetimeUtils";
+import { buildTaskInstanceUrl } from "src/utils/links";
 
 ChartJS.register(
   CategoryScale,
@@ -68,15 +70,35 @@ const getDuration = (start: string, end: string | null) => {
   return dayjs.duration(endDate.diff(startDate)).asSeconds();
 };
 
+const getTickLabelFormat = (entries: Array<RunResponse>): string => {
+  if (entries.length < 2) {
+    return "HH:mm:ss";
+  }
+
+  const first = dayjs(entries[0]?.run_after);
+  const last = dayjs(entries[entries.length - 1]?.run_after);
+
+  if (!first.isValid() || !last.isValid()) {
+    return "MMM DD";
+  }
+
+  const diffInDays = Math.abs(last.diff(first, "day"));
+
+  return diffInDays < 1 ? "HH:mm:ss" : "MMM DD HH:mm";
+};
+
 export const DurationChart = ({
   entries,
+  isAutoRefreshing = false,
   kind,
 }: {
   readonly entries: Array<RunResponse> | undefined;
+  readonly isAutoRefreshing?: boolean;
   readonly kind: "Dag Run" | "Task Instance";
 }) => {
   const { t: translate } = useTranslation(["components", "common"]);
   const navigate = useNavigate();
+  const { selectedTimezone } = useTimezone();
   const [queuedColorToken] = useToken("colors", ["queued.solid"]);
 
   // Get states and create color tokens for them
@@ -174,6 +196,7 @@ export const DurationChart = ({
         }}
         datasetIdKey="id"
         options={{
+          animation: isAutoRefreshing ? false : undefined,
           onClick: (_event, elements) => {
             const [element] = elements;
 
@@ -186,14 +209,26 @@ export const DurationChart = ({
                 const entry = entries[element.index] as GridRunsResponse | undefined;
                 const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.run_id}`;
 
-                navigate(baseUrl);
+                void Promise.resolve(navigate(baseUrl));
                 break;
               }
               case "Task Instance": {
                 const entry = entries[element.index] as TaskInstanceResponse | undefined;
-                const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.dag_run_id}`;
 
-                navigate(`${baseUrl}/tasks/${entry?.task_id}`);
+                if (entry === undefined) {
+                  break;
+                }
+
+                const baseUrl = buildTaskInstanceUrl({
+                  currentPathname: location.pathname,
+                  dagId: entry.dag_id,
+                  isMapped: entry.map_index >= 0,
+                  mapIndex: entry.map_index.toString(),
+                  runId: entry.dag_run_id,
+                  taskId: entry.task_id,
+                });
+
+                void Promise.resolve(navigate(baseUrl));
                 break;
               }
               default:
@@ -226,6 +261,8 @@ export const DurationChart = ({
             x: {
               stacked: true,
               ticks: {
+                callback: (_value, index) =>
+                  formatDate(entries[index]?.run_after, selectedTimezone, getTickLabelFormat(entries)),
                 maxTicksLimit: 3,
               },
               title: { align: "end", display: true, text: translate("common:dagRun.runAfter") },

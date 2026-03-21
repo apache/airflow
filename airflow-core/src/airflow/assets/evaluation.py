@@ -23,15 +23,14 @@ from typing import TYPE_CHECKING
 import attrs
 
 from airflow.models.asset import expand_alias_to_assets, resolve_ref_to_asset
-from airflow.sdk.definitions.asset import (
-    Asset,
-    AssetAlias,
-    AssetBooleanCondition,
-    AssetRef,
-    AssetUniqueKey,
-    BaseAsset,
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetBase,
+    SerializedAssetBooleanCondition,
+    SerializedAssetRef,
+    SerializedAssetUniqueKey,
 )
-from airflow.sdk.definitions.asset.decorators import MultiAssetDefinition
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -43,36 +42,32 @@ class AssetEvaluator:
 
     _session: Session
 
-    def _resolve_asset_ref(self, o: AssetRef) -> Asset | None:
+    def _resolve_asset_ref(self, o: SerializedAssetRef) -> SerializedAsset | None:
         asset = resolve_ref_to_asset(**attrs.asdict(o), session=self._session)
-        return asset.to_public() if asset else None
+        return asset.to_serialized() if asset else None
 
-    def _resolve_asset_alias(self, o: AssetAlias) -> list[Asset]:
+    def _resolve_asset_alias(self, o: SerializedAssetAlias) -> list[SerializedAsset]:
         asset_models = expand_alias_to_assets(o.name, session=self._session)
-        return [m.to_public() for m in asset_models]
+        return [m.to_serialized() for m in asset_models]
 
     @functools.singledispatchmethod
-    def run(self, o: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool:
+    def run(self, o: SerializedAssetBase, statuses: dict[SerializedAssetUniqueKey, bool]) -> bool:
         raise NotImplementedError(f"can not evaluate {o!r}")
 
     @run.register
-    def _(self, o: Asset, statuses: dict[AssetUniqueKey, bool]) -> bool:
-        return statuses.get(AssetUniqueKey.from_asset(o), False)
+    def _(self, o: SerializedAsset, statuses: dict[SerializedAssetUniqueKey, bool]) -> bool:
+        return statuses.get(SerializedAssetUniqueKey.from_asset(o), False)
 
     @run.register
-    def _(self, o: AssetRef, statuses: dict[AssetUniqueKey, bool]) -> bool:
+    def _(self, o: SerializedAssetRef, statuses: dict[SerializedAssetUniqueKey, bool]) -> bool:
         if asset := self._resolve_asset_ref(o):
             return self.run(asset, statuses)
         return False
 
     @run.register
-    def _(self, o: AssetAlias, statuses: dict[AssetUniqueKey, bool]) -> bool:
+    def _(self, o: SerializedAssetAlias, statuses: dict[SerializedAssetUniqueKey, bool]) -> bool:
         return any(self.run(x, statuses) for x in self._resolve_asset_alias(o))
 
     @run.register
-    def _(self, o: AssetBooleanCondition, statuses: dict[AssetUniqueKey, bool]) -> bool:
-        return o.agg_func(self.run(x, statuses) for x in o.objects)
-
-    @run.register
-    def _(self, o: MultiAssetDefinition, statuses: dict[AssetUniqueKey, bool]) -> bool:
-        return all(self.run(x, statuses) for x in o.iter_outlets())
+    def _(self, o: SerializedAssetBooleanCondition, statuses: dict[SerializedAssetUniqueKey, bool]) -> bool:
+        return type(o).agg_func(self.run(x, statuses) for x in o.objects)

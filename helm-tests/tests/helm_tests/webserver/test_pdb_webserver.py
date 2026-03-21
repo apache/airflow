@@ -23,23 +23,16 @@ from chart_utils.helm_template_generator import render_chart
 class TestWebserverPdb:
     """Tests webserver pdb."""
 
-    def test_should_pass_validation_with_just_pdb_enabled_v1(self):
+    def test_should_pass_validation_with_just_pdb_enabled(self):
         render_chart(
             values={"webserver": {"podDisruptionBudget": {"enabled": True}}},
             show_only=["templates/webserver/webserver-poddisruptionbudget.yaml"],
-        )  # checks that no validation exception is raised
-
-    def test_should_pass_validation_with_just_pdb_enabled_v1beta1(self):
-        render_chart(
-            values={"webserver": {"podDisruptionBudget": {"enabled": True}}},
-            show_only=["templates/webserver/webserver-poddisruptionbudget.yaml"],
-            kubernetes_version="1.16.0",
-        )  # checks that no validation exception is raised
+        )
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.10.5",
+                "airflowVersion": "2.11.0",
                 "webserver": {
                     "podDisruptionBudget": {"enabled": True},
                     "labels": {"test_label": "test_label_value"},

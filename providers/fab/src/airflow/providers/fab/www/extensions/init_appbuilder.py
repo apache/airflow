@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from functools import reduce
 from typing import TYPE_CHECKING
 
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
     from flask_appbuilder import BaseView
     from flask_appbuilder.security.manager import BaseSecurityManager
     from sqlalchemy.orm import Session
+    from sqlalchemy.orm.scoping import scoped_session
 
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
@@ -56,6 +58,8 @@ if TYPE_CHECKING:
 # Copyright 2013, Daniel Vaz Gaspar
 # This module contains code imported from FlaskAppbuilder, so lets use _its_ logger name
 log = logging.getLogger("flask_appbuilder.base")
+
+_init_app_lock = threading.Lock()
 
 
 def dynamic_class_import(class_path):
@@ -102,7 +106,7 @@ class AirflowAppBuilder:
     def __init__(
         self,
         app=None,
-        session: Session | None = None,
+        session: scoped_session | None = None,
         menu=None,
         indexview=None,
         base_template="airflow/main.html",
@@ -193,19 +197,23 @@ class AirflowAppBuilder:
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
         auth_manager = create_auth_manager()
-        auth_manager.appbuilder = self
-        if hasattr(auth_manager, "init_flask_resources"):
-            auth_manager.init_flask_resources()
-        if hasattr(auth_manager, "security_manager"):
-            self.sm = auth_manager.security_manager
-        else:
-            self.sm = AirflowSecurityManagerV2(self)
-        self.bm = BabelManager(self)
-        self._add_global_static()
-        self._add_global_filters()
-        app.before_request(self.sm.before_request)
-        self._add_admin_views()
-        self._add_addon_views()
+        with _init_app_lock:
+            auth_manager.appbuilder = self
+            # Invalidate cached security_manager so it binds to the current Flask app.
+            if "security_manager" in auth_manager.__dict__:
+                del auth_manager.__dict__["security_manager"]
+            if hasattr(auth_manager, "init_flask_resources"):
+                auth_manager.init_flask_resources()
+            if hasattr(auth_manager, "security_manager"):
+                self.sm = auth_manager.security_manager
+            else:
+                self.sm = AirflowSecurityManagerV2(self)
+            self.bm = BabelManager(self)
+            self._add_global_static()
+            self._add_global_filters()
+            app.before_request(self.sm.before_request)
+            self._add_admin_views()
+            self._add_addon_views()
         self._init_extension(app)
         self._swap_url_filter()
 
@@ -597,7 +605,7 @@ def init_appbuilder(app: Flask, enable_plugins: bool) -> AirflowAppBuilder:
         raise RuntimeError("Session not configured. Call configure_orm() first.")
     return AirflowAppBuilder(
         app=app,
-        session=settings.Session(),
+        session=settings.Session,
         base_template="airflow/main.html",
         enable_plugins=enable_plugins,
     )

@@ -19,8 +19,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance

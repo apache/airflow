@@ -17,14 +17,14 @@
 from __future__ import annotations
 
 from cadwyn import VersionedAPIRouter
-from fastapi import APIRouter
+from fastapi import APIRouter, Security
 
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.api_fastapi.execution_api.routes import (
     asset_events,
     assets,
     connections,
     dag_runs,
+    dags,
     health,
     hitl,
     task_instances,
@@ -32,17 +32,19 @@ from airflow.api_fastapi.execution_api.routes import (
     variables,
     xcoms,
 )
+from airflow.api_fastapi.execution_api.security import require_auth
 
 execution_api_router = APIRouter()
 execution_api_router.include_router(health.router, prefix="/health", tags=["Health"])
 
 # _Every_ single endpoint under here must be authenticated. Some do further checks on top of these
-authenticated_router = VersionedAPIRouter(dependencies=[JWTBearerDep])  # type: ignore[list-item]
+authenticated_router = VersionedAPIRouter(dependencies=[Security(require_auth)])  # type: ignore[list-item]
 
 authenticated_router.include_router(assets.router, prefix="/assets", tags=["Assets"])
 authenticated_router.include_router(asset_events.router, prefix="/asset-events", tags=["Asset Events"])
 authenticated_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
 authenticated_router.include_router(dag_runs.router, prefix="/dag-runs", tags=["Dag Runs"])
+authenticated_router.include_router(dags.router, prefix="/dags", tags=["Dags"])
 authenticated_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
 authenticated_router.include_router(
     task_reschedules.router, prefix="/task-reschedules", tags=["Task Reschedules"]

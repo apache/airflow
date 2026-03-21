@@ -41,8 +41,7 @@ from google.cloud.pubsub_v1.types import (
     SchemaSettings,
 )
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator

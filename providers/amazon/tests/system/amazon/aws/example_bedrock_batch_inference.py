@@ -25,10 +25,7 @@ from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.bedrock import (
-    BedrockBatchInferenceOperator,
-    BedrockInvokeModelOperator,
-)
+from airflow.providers.amazon.aws.operators.bedrock import BedrockBatchInferenceOperator
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3DeleteBucketOperator,
@@ -133,19 +130,6 @@ with DAG(
     output_uri = f"s3://{bucket_name}/output/"
     job_name = f"batch-infer-{env_id}"
 
-    # Test that this configuration works for a single prompt before trying the batch inferences.
-    # [START howto_operator_invoke_claude_messages]
-    invoke_claude_messages = BedrockInvokeModelOperator(
-        task_id="invoke_claude_messages",
-        model_id=CLAUDE_MODEL_ID,
-        input_data={
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1000,
-            "messages": [{"role": "user", "content": PROMPT_TEMPLATE.format(n=42)}],
-        },
-    )
-    # [END howto_operator_invoke_claude_messages]
-
     create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
 
     # [START howto_operator_bedrock_batch_inference]
@@ -181,7 +165,6 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
-        invoke_claude_messages,
         create_bucket,
         generate_prompts(env_id, bucket_name, input_data_s3_key),
         # TEST BODY

@@ -40,6 +40,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -239,7 +240,7 @@ def create_context(task, dag=None):
 
         sync_dag_to_db(dag)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
-        task_instance = TaskInstance(task=task, run_id="test_run_id", dag_version_id=dag_version.id)
+        task_instance = create_task_instance(task=task, run_id="test_run_id", dag_version_id=dag_version.id)
         dag_run = DagRun(
             dag_id=dag.dag_id,
             logical_date=logical_date,

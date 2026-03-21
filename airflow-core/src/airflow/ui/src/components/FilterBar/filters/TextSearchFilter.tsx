@@ -25,7 +25,7 @@ import type { FilterPluginProps } from "../types";
 import { isValidFilterValue } from "../utils";
 
 export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const hotkeyInputRef = useRef<HTMLInputElement>(null);
 
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
@@ -39,7 +39,7 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
     "mod+k",
     () => {
       if (!filter.config.hotkeyDisabled) {
-        inputRef.current?.focus();
+        hotkeyInputRef.current?.focus();
       }
     },
     { enabled: !filter.config.hotkeyDisabled, preventDefault: true },
@@ -50,15 +50,16 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
       displayValue={hasValue && typeof filter.value === "string" ? filter.value : ""}
       filter={filter}
       hasValue={hasValue}
-      onChange={onChange}
       onRemove={onRemove}
-    >
-      <InputWithAddon
-        label={filter.config.label}
-        onChange={handleInputChange}
-        placeholder={filter.config.placeholder}
-        value={typeof filter.value === "string" ? filter.value : ""}
-      />
-    </FilterPill>
+      renderInput={(props) => (
+        <InputWithAddon
+          {...props}
+          label={filter.config.label}
+          onChange={handleInputChange}
+          placeholder={filter.config.placeholder}
+          value={typeof filter.value === "string" ? filter.value : ""}
+        />
+      )}
+    />
   );
 };

@@ -49,6 +49,7 @@ generated/*
 .gitmodules
 prod_image_installed_providers.txt
 airflow_pre_installed_providers.txt
+Dockerfile.pmc
 
 # Generated doc files
 .*html
@@ -239,6 +240,9 @@ www-hash.txt
 **/dist/**
 **/www/index.html
 
+# Nunjucks template files (frontmatter must be at line 1, no room for license header)
+**/*.njk
+
 # PNG files
 **/*.png
 
@@ -291,6 +295,7 @@ www-hash.txt
 **/rtd-deprecation/404.html
 **/.env
 **/*.jsonl
+**/tdload_src_file.txt
 
 # API files
 **/_api/**

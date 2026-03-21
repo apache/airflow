@@ -28,19 +28,16 @@ from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
 
+from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
-from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.sdk import SecretCache
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import mapped_column
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
@@ -228,7 +225,7 @@ class Connection(Base, LoggingMixin):
     def _parse_from_uri(self, uri: str):
         schemes_count_in_uri = uri.count("://")
         if schemes_count_in_uri > 2:
-            raise AirflowException(f"Invalid connection string: {uri}.")
+            raise AirflowException("Invalid connection string.")
         host_with_protocol = schemes_count_in_uri == 2
         uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
@@ -237,7 +234,7 @@ class Connection(Base, LoggingMixin):
         if host_with_protocol:
             uri_splits = rest_of_the_url.split("://", 1)
             if "@" in uri_splits[0] or ":" in uri_splits[0]:
-                raise AirflowException(f"Invalid connection string: {uri}.")
+                raise AirflowException("Invalid connection string.")
         uri_parts = urlsplit(rest_of_the_url)
         protocol = uri_parts.scheme if host_with_protocol else None
         host = _parse_netloc_to_hostname(uri_parts)
@@ -252,6 +249,11 @@ class Connection(Base, LoggingMixin):
             if self.EXTRA_KEY in query:
                 self.extra = query[self.EXTRA_KEY]
             else:
+                for key, value in query.items():
+                    try:
+                        query[key] = json.loads(value)
+                    except (JSONDecodeError, TypeError):
+                        self.log.info("Failed parsing the json for key %s", key)
                 self.extra = json.dumps(query)
 
     @staticmethod
@@ -330,15 +332,22 @@ class Connection(Base, LoggingMixin):
         uri += host_block
 
         if self.extra:
+            extra_dict = self.extra_dejson
+            can_flatten = True
+            for value in extra_dict.values():
+                if not isinstance(value, str):
+                    can_flatten = False
+                    break
+
             try:
-                query: str | None = urlencode(self.extra_dejson)
+                query: str | None = urlencode(extra_dict)
             except TypeError:
                 query = None
-            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+
+            if can_flatten and query and extra_dict == dict(parse_qsl(query, keep_blank_values=True)):
                 uri += ("?" if self.schema else "/?") + query
             else:
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
-
         return uri
 
     def get_password(self) -> str | None:
@@ -479,13 +488,14 @@ class Connection(Base, LoggingMixin):
         return self.get_extra_dejson()
 
     @classmethod
-    def get_connection_from_secrets(cls, conn_id: str) -> Connection:
+    def get_connection_from_secrets(cls, conn_id: str, team_name: str | None = None) -> Connection:
         """
         Get connection by conn_id.
 
         If `MetastoreBackend` is getting used in the execution context, use Task SDK API.
 
         :param conn_id: connection id
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         :return: connection
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
@@ -517,10 +527,19 @@ class Connection(Base, LoggingMixin):
                     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
                 raise
 
+        from airflow.configuration import conf, ensure_secrets_loaded
+
+        if team_name and not conf.getboolean("core", "multi_team"):
+            raise ValueError(
+                "Multi-team mode is not configured in the Airflow environment but the task trying to access the connection belongs to a team"
+            )
+
+        from airflow.sdk import SecretCache
+
         # check cache first
         # enabled only if SecretCache.init() has been called first
         try:
-            uri = SecretCache.get_connection_uri(conn_id)
+            uri = SecretCache.get_connection_uri(conn_id, team_name=team_name)
             return Connection(conn_id=conn_id, uri=uri)
         except SecretCache.NotPresentException:
             pass  # continue business
@@ -528,9 +547,9 @@ class Connection(Base, LoggingMixin):
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
-                conn = secrets_backend.get_connection(conn_id=conn_id)
+                conn = secrets_backend.get_connection(conn_id=conn_id, team_name=team_name)
                 if conn:
-                    SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                    SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=team_name)
                     return conn
             except Exception:
                 log.debug(

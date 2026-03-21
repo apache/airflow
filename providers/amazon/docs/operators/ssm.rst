@@ -52,12 +52,42 @@ Waiter. Additionally, you can use the following components to track the status o
 :class:`~airflow.providers.amazon.aws.sensors.ssm.SsmRunCommandCompletedSensor` Sensor,
 or the :class:`~airflow.providers.amazon.aws.triggers.ssm.SsmRunCommandTrigger` Trigger.
 
-
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_ssm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_run_command]
     :end-before: [END howto_operator_run_command]
+
+Exit code handling
+^^^^^^^^^^^^^^^^^^
+
+By default, both :class:`~airflow.providers.amazon.aws.operators.ssm.SsmRunCommandOperator` and
+:class:`~airflow.providers.amazon.aws.sensors.ssm.SsmRunCommandCompletedSensor` will fail the task
+if the command returns a non-zero exit code. You can change this behavior using the ``fail_on_nonzero_exit``
+parameter:
+
+.. code-block:: python
+
+    # Default behavior - task fails on non-zero exit codes
+    run_command = SsmRunCommandOperator(
+        task_id="run_command",
+        document_name="AWS-RunShellScript",
+        run_command_kwargs={...},
+    )
+
+    # Allow non-zero exit codes - task succeeds regardless of exit code
+    run_command = SsmRunCommandOperator(
+        task_id="run_command",
+        document_name="AWS-RunShellScript",
+        run_command_kwargs={...},
+        fail_on_nonzero_exit=False,
+    )
+
+When ``fail_on_nonzero_exit=False``, you can retrieve the exit code using
+:class:`~airflow.providers.amazon.aws.operators.ssm.SsmGetCommandInvocationOperator` and use it
+for workflow routing decisions. Note that AWS-level failures (TimedOut, Cancelled) will still raise
+exceptions regardless of this setting.
+
 .. _howto/operator:SsmGetCommandInvocationOperator:
 
 Retrieve output from an SSM command invocation

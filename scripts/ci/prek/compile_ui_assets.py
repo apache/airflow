@@ -29,8 +29,6 @@ from pathlib import Path
 # Cannot have additional Python dependencies installed. We should not import any of the libraries
 # here that are not available in stdlib! You should not import common_prek_utils.py here because
 # They are importing the rich library which is not available in the node environment.
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH
 
 MAIN_UI_DIRECTORY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
@@ -71,8 +69,11 @@ def compile_assets(ui_directory: Path, hash_file: Path):
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
+    # Allow users to override via NODE_OPTIONS, default to 4GB if not set
+    if "NODE_OPTIONS" not in env:
+        env["NODE_OPTIONS"] = "--max-old-space-size=4096"
     for try_num in range(3):
-        print(f"### Trying to install yarn dependencies: attempt: {try_num + 1} ###")
+        print(f"### Trying to install pnpm dependencies: attempt: {try_num + 1} ###")
         result = subprocess.run(
             ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
             cwd=os.fspath(ui_directory),

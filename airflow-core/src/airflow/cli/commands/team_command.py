@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+import re
+
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
@@ -50,6 +52,8 @@ def _extract_team_name(args):
     team_name = args.name.strip()
     if not team_name:
         raise SystemExit("Team name cannot be empty")
+    if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", team_name):
+        raise SystemExit("Invalid team name: must match regex ^[a-zA-Z0-9_-]{3,50}$")
     return team_name
 
 
@@ -57,7 +61,7 @@ def _extract_team_name(args):
 @providers_configuration_loaded
 @provide_session
 def team_create(args, session=NEW_SESSION):
-    """Create a new team."""
+    """Create a new team. Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores."""
     team_name = _extract_team_name(args)
 
     # Check if team with this name already exists

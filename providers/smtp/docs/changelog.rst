@@ -28,6 +28,43 @@ Changelog
 ---------
 
 
+2.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix OAuth2 XOAUTH2 auth and EHLO after STARTTLS in SmtpHook (#62879)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 3] Migrate connection UI metadata to YAML for more providers (#62165)``
+   * ``YAML first discovery for connection form metadata (#60410)``
+
+2.4.2
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.4.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.4.0
 .....
 

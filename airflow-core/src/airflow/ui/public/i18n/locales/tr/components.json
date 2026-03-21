@@ -10,6 +10,7 @@
     "maxRuns": "Maksimum Aktif Çalıştırma",
     "missingAndErroredRuns": "Eksik ve Hata Almış Dag Çalıştırmaları",
     "missingRuns": "Eksik Dag Çalıştırmaları",
+    "permissionDenied": "Ön çalıştırma başarısız oldu: İzin reddedildi. Lütfen gerekli izinlere sahip olduğunuzdan emin olun.",
     "reprocessBehavior": "Yeniden İşleme Davranışı",
     "run": "Geriye Dönük Çalıştır",
     "selectDescription": "Bu Dag'ı bir tarih aralığı için çalıştır",
@@ -49,6 +50,13 @@
     "errorAndWarning": "1 Hata ve {{warningText}}",
     "warning_one": "1 Uyarı",
     "warning_other": "{{count}} Uyarı"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Yanlış tarih formatı.",
+      "invalidTimeFormat": "Yanlış saat formatı.",
+      "startBeforeEnd": "Başlangıç tarihi, bitiş tarihinden önce olmalıdır."
+    }
   },
   "durationChart": {
     "duration": "Süre (saniye)",
@@ -105,22 +113,40 @@
   "sortedDescending": "azalan sıralı",
   "sortedUnsorted": "sıralanmamış",
   "taskTries": "Görev Denemeleri",
+  "taskTryPlaceholder": "Görev denemesi",
+  "team": {
+    "selector": {
+      "helperText": "Opsiyonel - Takım seçilmezse tüm takımlar gösterilir",
+      "label": "Takım",
+      "placeHolder": "Takım seçin"
+    }
+  },
   "toggleCardView": "Kart görünümünü göster",
   "toggleTableView": "Tablo görünümünü göster",
   "triggerDag": {
     "button": "Tetikle",
+    "dataInterval": "Veri Aralığı",
+    "dataIntervalAuto": "Mantıksal ve Zaman Tablosu Temelli",
+    "dataIntervalManual": "Manuel",
+    "intervalEnd": "Bitiş",
+    "intervalStart": "Başlangıç",
     "loading": "Dag bilgisi yükleniyor...",
     "loadingFailed": "Dag bilgisi yüklenemedi. Lütfen tekrar deneyin.",
+    "manualRunDenied": "El ile tetikleme bu Dag için devre dışı bırakıldı.",
     "runIdHelp": "İsteğe bağlı - sağlanmazsa oluşturulacaktır",
     "selectDescription": "Bu Dag'ın tek bir çalıştırmasını tetikle",
     "selectLabel": "Tek Çalıştırma",
     "title": "Dag Tetikle",
     "toaster": {
+      "error": {
+        "title": "Dag Çalıştırması Tetiklenemedi"
+      },
       "success": {
         "description": "Dag çalıştırması başarıyla tetiklendi.",
         "title": "Dag Çalıştırması Tetiklendi"
       }
     },
+    "triggerAgainWithConfig": "Tekrar bir yapılandırma ile tetikleyin",
     "unpause": "Tetiklendiğinde {{dagDisplayName}} duraklatmasını kaldır"
   },
   "trimText": {
@@ -136,6 +162,7 @@
     "versionId": "Versiyon Kimliği"
   },
   "versionSelect": {
+    "allVersions": "Bütün Versiyonlar",
     "dagVersion": "Dag Versiyonu",
     "versionCode": "v{{versionCode}}"
   }

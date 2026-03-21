@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 from shutil import copyfile, copytree
 
 import pytest
@@ -32,24 +33,39 @@ from airflow_e2e_tests.constants import (
     DOCKER_IMAGE,
     E2E_DAGS_FOLDER,
     E2E_TEST_MODE,
+    ELASTICSEARCH_PATH,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     TEST_REPORT_FILE,
+    XCOM_BUCKET,
 )
 
 from tests_common.test_utils.fernet import generate_fernet_key_string
 
 console = Console(width=400, color_system="standard")
-compose_instance = None
-airflow_logs_path = None
 
 
-def _setup_s3_integration(dot_env_file, tmp_dir):
+class _E2ETestState:
+    compose_instance: DockerCompose | None = None
+    airflow_logs_path: Path | None = None
+
+
+def _copy_localstack_files(tmp_dir):
+    """Copy localstack compose file and init script into the temp directory."""
     copyfile(LOCALSTACK_PATH, tmp_dir / "localstack.yml")
 
     copyfile(AWS_INIT_PATH, tmp_dir / "init-aws.sh")
     current_permissions = os.stat(tmp_dir / "init-aws.sh").st_mode
     os.chmod(tmp_dir / "init-aws.sh", current_permissions | 0o111)
+
+
+def _copy_elasticsearch_files(tmp_dir):
+    """Copy Elasticsearch compose file into the temp directory."""
+    copyfile(ELASTICSEARCH_PATH, tmp_dir / "elasticsearch.yml")
+
+
+def _setup_s3_integration(dot_env_file, tmp_dir):
+    _copy_localstack_files(tmp_dir)
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
@@ -64,9 +80,43 @@ def _setup_s3_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
-def spin_up_airflow_environment(tmp_path_factory):
-    global compose_instance
-    global airflow_logs_path
+def _setup_elasticsearch_integration(dot_env_file, tmp_dir):
+    _copy_elasticsearch_files(tmp_dir)
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        "AIRFLOW__LOGGING__REMOTE_LOGGING=true\n"
+        "AIRFLOW__ELASTICSEARCH__HOST=http://elasticsearch:9200\n"
+        "AIRFLOW__ELASTICSEARCH__WRITE_STDOUT=false\n"
+        "AIRFLOW__ELASTICSEARCH__JSON_FORMAT=true\n"
+        "AIRFLOW__ELASTICSEARCH__WRITE_TO_ES=true\n"
+        "AIRFLOW__ELASTICSEARCH__TARGET_INDEX=airflow-e2e-logs\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
+    _copy_localstack_files(tmp_dir)
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        # XComObjectStorageBackend requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY as env vars
+        # because `universal-path` uses boto3's native S3 client, which relies on environment variables
+        # for authentication rather than parsing credentials from the connection URI
+        "AWS_ACCESS_KEY_ID=test\n"
+        "AWS_SECRET_ACCESS_KEY=test\n"
+        "AWS_DEFAULT_REGION=us-east-1\n"
+        "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
+        "AIRFLOW_CONN_AWS_DEFAULT=aws://test:test@\n"
+        "AIRFLOW__CORE__XCOM_BACKEND=airflow.providers.common.io.xcom.backend.XComObjectStorageBackend\n"
+        f"AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_PATH=s3://aws_default@{XCOM_BUCKET}/xcom\n"
+        "AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_THRESHOLD=0\n"
+        "_PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-amazon[s3fs]\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
+def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     tmp_dir = tmp_path_factory.mktemp("airflow-e2e-tests")
 
     console.print(f"[yellow]Using docker compose file: {DOCKER_COMPOSE_PATH}")
@@ -79,7 +129,7 @@ def spin_up_airflow_environment(tmp_path_factory):
     for subdir in subfolders:
         (tmp_dir / subdir).mkdir()
 
-    airflow_logs_path = tmp_dir / "logs"
+    _E2ETestState.airflow_logs_path = tmp_dir / "logs"
 
     console.print(f"[yellow]Copying dags to:[/ {tmp_dir / 'dags'}")
     copytree(E2E_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
@@ -95,6 +145,12 @@ def spin_up_airflow_environment(tmp_path_factory):
     if E2E_TEST_MODE == "remote_log":
         compose_file_names.append("localstack.yml")
         _setup_s3_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "remote_log_elasticsearch":
+        compose_file_names.append("elasticsearch.yml")
+        _setup_elasticsearch_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "xcom_object_storage":
+        compose_file_names.append("localstack.yml")
+        _setup_xcom_object_storage_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.
@@ -108,33 +164,37 @@ def spin_up_airflow_environment(tmp_path_factory):
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
-        compose_instance = DockerCompose(tmp_dir, compose_file_name=compose_file_names, pull=pull)
+        _E2ETestState.compose_instance = DockerCompose(
+            tmp_dir, compose_file_name=compose_file_names, pull=pull
+        )
 
-        compose_instance.start()
+        _E2ETestState.compose_instance.start()
 
-        compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/monitor/health")
-        compose_instance.exec_in_container(
+        _E2ETestState.compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/monitor/health")
+        _E2ETestState.compose_instance.exec_in_container(
             command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
         )
 
     except Exception:
         console.print("[red]Failed to start docker compose")
-        _print_logs(compose_instance)
-        compose_instance.stop()
+        if _E2ETestState.compose_instance:
+            _print_logs(_E2ETestState.compose_instance)
+            _E2ETestState.compose_instance.stop()
         raise
 
 
-def _print_logs(compose_instance):
+def _print_logs(compose_instance: DockerCompose):
     containers = compose_instance.get_containers()
     for container in containers:
         service = container.Service
-        stdout, _ = compose_instance.get_logs(service)
-        console.print(f"::group:: {service} Logs")
-        console.print(f"[red]{stdout}")
-        console.print("::endgroup::")
+        if service:
+            stdout, _ = compose_instance.get_logs(service)
+            console.print(f"::group:: {service} Logs")
+            console.print(stdout, style="red", soft_wrap=True)
+            console.print("::endgroup::")
 
 
-def pytest_sessionstart(session):
+def pytest_sessionstart(session: pytest.Session):
     tmp_path_factory = session.config._tmp_path_factory
     spin_up_airflow_environment(tmp_path_factory)
 
@@ -162,19 +222,18 @@ def pytest_runtest_makereport(item, call):
         test_results.append(test_result)
 
 
-def pytest_sessionfinish(session, exitstatus):
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitCode):
     """Generate report after all tests complete."""
     generate_test_report(test_results)
-    if airflow_logs_path is not None:
-        copytree(airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
+    if _E2ETestState.airflow_logs_path is not None:
+        copytree(_E2ETestState.airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
 
-    # If any test failures lets print the services logs
-    if any(r["status"] == "failed" for r in test_results):
-        _print_logs(compose_instance=compose_instance)
-
-    if compose_instance:
+    if _E2ETestState.compose_instance:
+        # If any test failures lets print the services logs
+        if any(r["status"] == "failed" for r in test_results):
+            _print_logs(_E2ETestState.compose_instance)
         if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
-            compose_instance.stop()
+            _E2ETestState.compose_instance.stop()
 
 
 def generate_test_report(results):

@@ -23,11 +23,11 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
     BaseOperator,
+    conf,
     context_to_airflow_vars,
 )
 

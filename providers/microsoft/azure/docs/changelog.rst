@@ -27,6 +27,115 @@
 Changelog
 ---------
 
+13.0.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix PowerBIDatasetRefreshOperator to properly respect wait_for_completion flag (#62842)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+13.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate ADLSListOperator from ADLS Gen1 to Gen2 (#61188)``
+
+  .. note::
+     The ``ADLSListOperator`` now uses the ADLS Gen2 API. This change makes the ``file_system_name`` parameter mandatory.
+
+Features
+~~~~~~~~
+
+* ``Add wait_for_termination parameter and fix double-deferral in PowerBIDatasetRefreshOperator (#60369)``
+* ``Azure Message Bus - CommonMessageQueue Interface (#52712) (#61924)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Always apply proxy configuration with MSAL for KiotaRequestAdapterHook in msgraph module (#61199)``
+* ``Add protocol validation to KiotaRequestAdapterHook (#61103)``
+* ``Add missing conn-fields for providers migrated to yaml (#62116)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Migrate connection UI metadata to YAML for some providers (#62011)``
+   * ``Providers wave 2026-02-10 (#61746)``
+
+12.10.3
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BaseAzureServiceBusTrigger importing AIRFLOW_V_3_0_PLUS from wrong module (#60644)``
+* ``Fix unclosed aiohttp ClientSession in AzureDataFactoryAsyncHook (#60650)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Use common compat get_async_connection in KiotaRequestAdapter (#60871)``
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+12.10.2
+.......
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Check team boundaries in connections (#59476)``
+* ``Updated conf import for std,es,os,ms providers (#60030)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+12.10.1
+.......
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Prevent client secrets and proxy credentials from being logged in Microsoft Graph hook logs (#59688)``
+* ``Check team boundaries in variables (#58905)``
+* ``Extract shared "module_loading" distribution (#59139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+12.10.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Added paginated_run method to KiotaRequestAdapterHook in MSGraph (#57536)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update logging documentation for Azure Blob Storage (#59016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 12.9.0
 ......
 

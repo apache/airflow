@@ -23,7 +23,7 @@ from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class LocalFilesystemToADLSOperator(BaseOperator):

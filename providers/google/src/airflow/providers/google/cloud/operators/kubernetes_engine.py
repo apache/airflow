@@ -19,16 +19,16 @@
 
 from __future__ import annotations
 
+import time
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import AlreadyExists, FailedPrecondition, PermissionDenied
 from kubernetes.client import V1JobList, models as k8s
 from packaging.version import parse as parse_version
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.operators.kueue import (
@@ -41,7 +41,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesDeleteResourceOperator,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEHook,
     GKEKubernetesHook,
@@ -60,12 +60,11 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
-from airflow.utils.timezone import utcnow
 
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
 except ImportError:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(
         "Failed to import KubernetesDeleteJobOperator. This operator is only available in cncf-kubernetes "
@@ -356,6 +355,13 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
     :param api_version: The api version to use
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Interval size which defines how often operation status is checked.
+    :param delete_cluster_on_failure: If True, attempt best-effort deletion of the
+        cluster when a PermissionDenied error occurs after creation has started.
+        Cleanup failures are logged and do not mask the original exception.
+        Default is True.
+    :param cleanup_timeout_seconds: Maximum number of seconds to keep retrying
+        best-effort cluster deletion when cleanup is triggered. Deletion retries
+        stop once this timeout is reached. Default is 600 seconds.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -375,6 +381,8 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         api_version: str = "v2",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
+        delete_cluster_on_failure: bool = True,
+        cleanup_timeout_seconds: int = 600,
         *args,
         **kwargs,
     ) -> None:
@@ -389,6 +397,8 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         self.api_version = api_version
         self.poll_interval = poll_interval
         self.deferrable = deferrable
+        self.delete_cluster_on_failure = delete_cluster_on_failure
+        self.cleanup_timeout_seconds = cleanup_timeout_seconds
         self._validate_input()
         super().__init__(*args, **kwargs)
 
@@ -454,6 +464,72 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
                     stacklevel=2,
                 )
 
+    def _attempt_cleanup_with_retry(self) -> None:
+        """
+        Attempt bounded best-effort deletion of the cluster.
+
+        This method is only invoked during task failure handling.
+        It does not block until deletion completes and will not
+        mask the original exception.
+        """
+        # Fixed retry interval for semantic retry (cluster still processing
+        # a previous operation). We intentionally avoid using SDK Retry here
+        # to keep behavior explicit and bounded.
+        RETRY_INTERVAL_SECONDS = 60  #
+
+        # Bound cleanup attempts to avoid indefinitely occupying a worker slot.
+        deadline = time.monotonic() + self.cleanup_timeout_seconds
+        attempt = 1
+
+        while True:
+            try:
+                self.log.info(
+                    "Attempt %s: Deleting GKE cluster %s.",
+                    attempt,
+                    self.cluster_name,
+                )
+
+                # Do not wait for deletion to complete; cleanup is best-effort
+                # and should not delay failure propagation.
+                self.cluster_hook.delete_cluster(
+                    name=self.cluster_name,
+                    project_id=self.project_id,
+                    wait_to_complete=False,
+                )
+
+                self.log.info(
+                    "Successfully initiated deletion of GKE cluster %s.",
+                    self.cluster_name,
+                )
+                return
+
+            except FailedPrecondition:
+                # Cluster likely still has an active operation (e.g. creation
+                # still in progress). Retry until bounded deadline.
+                if time.monotonic() >= deadline:
+                    self.log.exception(
+                        "Timed out after %s seconds while trying to delete GKE cluster %s.",
+                        self.cleanup_timeout_seconds,
+                        self.cluster_name,
+                    )
+                    return
+
+                self.log.warning(
+                    "Cluster %s still has active operation. Retrying deletion in %s seconds.",
+                    self.cluster_name,
+                    RETRY_INTERVAL_SECONDS,
+                )
+                time.sleep(RETRY_INTERVAL_SECONDS)
+                attempt += 1
+                continue
+
+            except PermissionDenied:
+                self.log.exception(
+                    "Permission denied while attempting to delete GKE cluster %s.",
+                    self.cluster_name,
+                )
+                return
+
     @property
     def extra_links_params(self) -> dict[str, Any]:
         return {
@@ -473,6 +549,18 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         except AlreadyExists as error:
             self.log.info("Assuming Success: %s", error.message)
             return self.cluster_hook.get_cluster(name=self.cluster_name, project_id=self.project_id).self_link
+
+        except PermissionDenied:
+            # Handle cleanup for non-deferrable mode.
+            if not self.deferrable:
+                self.log.warning(
+                    "Execution failed after GKE cluster %s was started by this task instance.",
+                    self.cluster_name,
+                )
+
+                if self.delete_cluster_on_failure:
+                    self._attempt_cleanup_with_retry()
+            raise
 
         if self.deferrable:
             self.defer(
@@ -618,7 +706,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
-        Current default is `delete_pod`, but this will be changed in the next major release of this provider.
+        Default is `delete_pod`.
     :param deferrable: Run operator in the deferrable mode.
     """
 
@@ -662,9 +750,11 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
-    def invoke_defer_method(self, last_log_time: DateTime | None = None):
+    def invoke_defer_method(
+        self, last_log_time: DateTime | None = None, context: Context | None = None
+    ) -> None:
         """Redefine triggers which are being used in child classes."""
-        trigger_start_time = utcnow()
+        trigger_start_time = timezone.utcnow()
         on_finish_action = self.on_finish_action
         if type(on_finish_action) is str and self.on_finish_action not in [i.value for i in OnFinishAction]:
             on_finish_action = self.on_finish_action.split(".")[-1].lower()  # type: ignore[assignment]

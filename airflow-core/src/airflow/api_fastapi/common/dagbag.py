@@ -25,7 +25,7 @@ from airflow.models.dagbag import DBDagBag
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 
 def create_dag_bag() -> DBDagBag:
@@ -70,9 +70,23 @@ def get_dag_for_run(dag_bag: DBDagBag, dag_run: DagRun, session: Session) -> Ser
 def get_dag_for_run_or_latest_version(
     dag_bag: DBDagBag, dag_run: DagRun | None, dag_id: str | None, session: Session
 ) -> SerializedDAG:
+    """
+    Retrieve the serialized DAG for a specific run, or the latest version if no run is given.
+
+    When a dag_run is provided, we prefer the exact DAG version the run was created with
+    (``created_dag_version_id``) so that task group lookups, operator metadata, etc. match
+    the DAG structure at the time of the run.
+
+    This is necessary because ``get_dag_for_run`` delegates to ``_version_from_dag_run``
+    which, for unversioned bundles (e.g. ``LocalDagBundle``), falls back to the *latest*
+    ``DagVersion``.
+    """
     dag: SerializedDAG | None = None
     if dag_run:
-        dag = dag_bag.get_dag_for_run(dag_run, session=session)
+        if dag_run.created_dag_version_id:
+            dag = dag_bag._get_dag(dag_run.created_dag_version_id, session=session)
+        if not dag:
+            dag = dag_bag.get_dag_for_run(dag_run, session=session)
     elif dag_id:
         dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:

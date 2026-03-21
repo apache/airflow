@@ -314,3 +314,142 @@ def test_hook_is_cached():
     hook = op.get_db_hook()
     hook2 = op.get_db_hook()
     assert hook is hook2
+
+
+def test_exec_write_parquet_file(tmp_path):
+    """Test writing output to Parquet format."""
+    with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
+        path = tmp_path / "testfile.parquet"
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql="select * from dummy",
+            output_path=os.fspath(path),
+            output_format="parquet",
+            return_last=True,
+            do_xcom_push=True,
+            split_statements=False,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run.return_value = [SerializableRow(1, "value1"), SerializableRow(2, "value2")]
+        db_mock.descriptions = [[("id",), ("value",)]]
+
+        op.execute(None)
+
+        import pyarrow.parquet as pq
+
+        table = pq.read_table(path)
+        assert table.num_rows == 2
+        assert table.column_names == ["id", "value"]
+        assert table.column("id").to_pylist() == [1, 2]
+        assert table.column("value").to_pylist() == ["value1", "value2"]
+
+
+def test_exec_write_avro_file_with_fastavro(tmp_path):
+    """Test writing output to Avro format using fastavro."""
+    pytest.importorskip("fastavro")
+    with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
+        path = tmp_path / "testfile.avro"
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql="select * from dummy",
+            output_path=os.fspath(path),
+            output_format="avro",
+            return_last=True,
+            do_xcom_push=True,
+            split_statements=False,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run.return_value = [SerializableRow(1, "value1"), SerializableRow(2, "value2")]
+        db_mock.descriptions = [[("id",), ("value",)]]
+
+        op.execute(None)
+
+        from fastavro import reader
+
+        with open(path, "rb") as f:
+            records = list(reader(f))
+        assert len(records) == 2
+        assert records[0] == {"id": 1, "value": "value1"}
+        assert records[1] == {"id": 2, "value": "value2"}
+
+
+def test_exec_write_gcs_output(tmp_path):
+    """Test writing output to GCS."""
+    with (
+        patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class,
+        patch("airflow.providers.google.cloud.hooks.gcs.GCSHook") as gcs_mock_class,
+    ):
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql="select * from dummy",
+            output_path="gs://my-bucket/path/to/output.csv",
+            output_format="csv",
+            return_last=True,
+            do_xcom_push=True,
+            split_statements=False,
+            gcp_conn_id="my_gcp_conn",
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run.return_value = [SerializableRow(1, "value1"), SerializableRow(2, "value2")]
+        db_mock.descriptions = [[("id",), ("value",)]]
+
+        op.execute(None)
+
+        gcs_mock_class.assert_called_once_with(
+            gcp_conn_id="my_gcp_conn",
+            impersonation_chain=None,
+        )
+        gcs_mock_class.return_value.upload.assert_called_once()
+        call_kwargs = gcs_mock_class.return_value.upload.call_args[1]
+        assert call_kwargs["bucket_name"] == "my-bucket"
+        assert call_kwargs["object_name"] == "path/to/output.csv"
+
+
+def test_exec_write_gcs_parquet_output(tmp_path):
+    """Test writing Parquet output to GCS."""
+    with (
+        patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class,
+        patch("airflow.providers.google.cloud.hooks.gcs.GCSHook") as gcs_mock_class,
+    ):
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql="select * from dummy",
+            output_path="gs://my-bucket/data/results.parquet",
+            output_format="parquet",
+            return_last=True,
+            do_xcom_push=True,
+            split_statements=False,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run.return_value = [SerializableRow(1, "value1"), SerializableRow(2, "value2")]
+        db_mock.descriptions = [[("id",), ("value",)]]
+
+        op.execute(None)
+
+        gcs_mock_class.return_value.upload.assert_called_once()
+        call_kwargs = gcs_mock_class.return_value.upload.call_args[1]
+        assert call_kwargs["bucket_name"] == "my-bucket"
+        assert call_kwargs["object_name"] == "data/results.parquet"
+
+
+def test_is_gcs_output():
+    """Test _is_gcs_output property."""
+    op_gcs = DatabricksSqlOperator(task_id=TASK_ID, sql="SELECT 1", output_path="gs://bucket/path")
+    assert op_gcs._is_gcs_output is True
+
+    op_local = DatabricksSqlOperator(task_id=TASK_ID, sql="SELECT 1", output_path="/local/path")
+    assert op_local._is_gcs_output is False
+
+    op_s3 = DatabricksSqlOperator(task_id=TASK_ID, sql="SELECT 1", output_path="s3://bucket/path")
+    assert op_s3._is_gcs_output is False
+
+    op_none = DatabricksSqlOperator(task_id=TASK_ID, sql="SELECT 1")
+    assert op_none._is_gcs_output is False
+
+
+def test_parse_gcs_path():
+    """Test _parse_gcs_path method."""
+    op = DatabricksSqlOperator(task_id=TASK_ID, sql="SELECT 1")
+    bucket, object_name = op._parse_gcs_path("gs://my-bucket/path/to/file.parquet")
+    assert bucket == "my-bucket"
+    assert object_name == "path/to/file.parquet"

@@ -1,5 +1,13 @@
 {
+  "additional_data": "بيانات إضافية",
+  "asset_few": "أصول",
+  "asset_many": "أصول",
+  "asset_one": "أصل",
+  "asset_other": "أصول",
+  "asset_two": "أصلان",
+  "asset_zero": "لا يوجد أي أصل",
   "consumingDags": "Dags المستهلكة",
+  "consumingTasks": "المهام المستهلكة",
   "createEvent": {
     "button": "إنشاء حدث",
     "manual": {
@@ -21,6 +29,7 @@
     },
     "title": "إنشاء حدث أصل لـ {{name}}"
   },
+  "extra": "إضافي",
   "group": "المجموعة",
   "lastAssetEvent": "آخر حدث أصل",
   "name": "الاسم",

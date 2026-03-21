@@ -37,6 +37,7 @@ class XComResponse(BaseModel):
     run_id: str
     dag_display_name: str = Field(validation_alias=AliasPath("dag_run", "dag_model", "dag_display_name"))
     task_display_name: str = Field(validation_alias=AliasPath("task", "task_display_name"))
+    run_after: datetime = Field(validation_alias=AliasPath("dag_run", "run_after"))
 
 
 def _stringify_if_needed(value):

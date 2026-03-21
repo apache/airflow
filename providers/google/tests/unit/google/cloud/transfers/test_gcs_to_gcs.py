@@ -1000,3 +1000,65 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         assert all(element in inputs for element in lineage.inputs)
         assert all(element in lineage.outputs for element in outputs)
         assert all(element in outputs for element in lineage.outputs)
+
+    # Return value tests
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_returns_list_of_destination_uris_single_file(self, mock_hook):
+        mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT_PREFIX + "/",
+            exact_match=True,
+        )
+        result = operator.execute(None)
+        expected_uri = f"gs://{DESTINATION_BUCKET}/{DESTINATION_OBJECT_PREFIX}/{SOURCE_OBJECT_NO_WILDCARD}"
+        assert result == [expected_uri]
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_returns_list_of_destination_uris_multiple_files(self, mock_hook):
+        mock_hook.return_value.list.return_value = SOURCE_OBJECTS_LIST
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Usage of wildcard"):
+            operator = GCSToGCSOperator(
+                task_id=TASK_ID,
+                source_bucket=TEST_BUCKET,
+                source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
+                destination_bucket=DESTINATION_BUCKET,
+                destination_object=DESTINATION_OBJECT_PREFIX,
+            )
+        result = operator.execute(None)
+        expected = [
+            f"gs://{DESTINATION_BUCKET}/foo/bar/file1.txt",
+            f"gs://{DESTINATION_BUCKET}/foo/bar/file2.txt",
+            f"gs://{DESTINATION_BUCKET}/foo/bar/file3.json",
+        ]
+        assert sorted(result) == sorted(expected)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_returns_empty_list_when_no_files_copied(self, mock_hook):
+        mock_hook.return_value.is_updated_after.return_value = False
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_NO_WILDCARD,
+            last_modified_time=MOD_TIME_1,
+        )
+        result = operator.execute(None)
+        assert result == []
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_excludes_directory_uri_from_return(self, mock_hook):
+        mock_hook.return_value.list.return_value = ["prefix/file.txt", "prefix/"]
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_objects=["prefix/"],
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object="backup/",
+        )
+        result = operator.execute(None)
+        assert result == [f"gs://{DESTINATION_BUCKET}/backup/file.txt"]

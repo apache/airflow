@@ -23,6 +23,7 @@ from unittest.mock import Mock
 import pytest
 
 from airflow.models import TaskInstance
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 
 pytestmark = pytest.mark.db_test
@@ -34,7 +35,9 @@ class TestDagTISlotsAvailableDep:
         Test max_active_tasks reached should fail dep
         """
         dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=True))
-        task = Mock(dag=dag, pool_slots=1)
+        task = SerializedBaseOperator(task_id="op")
+        task.dag = dag
+        task.pool_slots = 1
         ti = TaskInstance(task, dag_version_id=mock.MagicMock())
 
         assert not DagTISlotsAvailableDep().is_met(ti=ti)
@@ -44,7 +47,9 @@ class TestDagTISlotsAvailableDep:
         Test all conditions met should pass dep
         """
         dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=False))
-        task = Mock(dag=dag, pool_slots=1)
+        task = SerializedBaseOperator(task_id="op")
+        task.dag = dag
+        task.pool_slots = 1
         ti = TaskInstance(task, dag_version_id=mock.MagicMock())
 
         assert DagTISlotsAvailableDep().is_met(ti=ti)

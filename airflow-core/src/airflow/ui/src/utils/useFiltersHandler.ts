@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -59,6 +58,7 @@ const handleDateRangeChange = (
 export type FilterableSearchParamsKeys =
   | SearchParamsKeys.ASSET_EVENT_DATE_RANGE
   | SearchParamsKeys.BODY_SEARCH
+  | SearchParamsKeys.BUNDLE_VERSION
   | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.CREATED_AT_RANGE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
@@ -67,13 +67,19 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.DAG_VERSION
   | SearchParamsKeys.DURATION_GTE
   | SearchParamsKeys.DURATION_LTE
+  | SearchParamsKeys.END_DATE_RANGE
   | SearchParamsKeys.EVENT_DATE_RANGE
   | SearchParamsKeys.EVENT_TYPE
+  | SearchParamsKeys.EXECUTOR_CLASS
+  | SearchParamsKeys.HOSTNAME
+  | SearchParamsKeys.JOB_STATE
+  | SearchParamsKeys.JOB_TYPE
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.NAME_PATTERN
   | SearchParamsKeys.OPERATOR_NAME_PATTERN
+  | SearchParamsKeys.PARTITION_KEY_PATTERN
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
   | SearchParamsKeys.RESPONDED_BY_USER_NAME
@@ -82,6 +88,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.RUN_ID
   | SearchParamsKeys.RUN_ID_PATTERN
   | SearchParamsKeys.RUN_TYPE
+  | SearchParamsKeys.START_DATE_RANGE
   | SearchParamsKeys.STATE
   | SearchParamsKeys.SUBJECT_SEARCH
   | SearchParamsKeys.TASK_ID
@@ -93,86 +100,76 @@ export type FilterableSearchParamsKeys =
 export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsKeys>) => {
   const { getFilterConfig } = useFilterConfigs();
 
-  const filterConfigs = useMemo(
-    () => searchParamKeys.map((key) => getFilterConfig(key)),
-    [searchParamKeys, getFilterConfig],
-  );
+  const filterConfigs = searchParamKeys.map((key) => getFilterConfig(key));
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
-  const initialValues = useMemo(() => {
-    const values: Record<string, FilterValue> = {};
+  const initialValues: Record<string, FilterValue> = {};
 
-    filterConfigs.forEach((config) => {
-      if (config.type === "daterange") {
-        // Handle daterange filters using startKey and endKey
-        const startDate =
-          config.startKey !== undefined && config.startKey !== ""
-            ? searchParams.get(config.startKey)
-            : undefined;
-        const endDate =
-          config.endKey !== undefined && config.endKey !== "" ? searchParams.get(config.endKey) : undefined;
+  filterConfigs.forEach((config) => {
+    if (config.type === "daterange") {
+      // Handle daterange filters using startKey and endKey
+      const startDate =
+        config.startKey !== undefined && config.startKey !== ""
+          ? searchParams.get(config.startKey)
+          : undefined;
+      const endDate =
+        config.endKey !== undefined && config.endKey !== "" ? searchParams.get(config.endKey) : undefined;
 
-        if (
-          (startDate !== undefined && startDate !== null && startDate !== "") ||
-          (endDate !== undefined && endDate !== null && endDate !== "")
-        ) {
-          values[config.key] = {
-            endDate: endDate ?? undefined,
-            startDate: startDate ?? undefined,
-          };
-        }
-      } else {
-        // Handle other filter types
-        const value = searchParams.get(config.key);
+      if (
+        (startDate !== undefined && startDate !== null && startDate !== "") ||
+        (endDate !== undefined && endDate !== null && endDate !== "")
+      ) {
+        initialValues[config.key] = {
+          endDate: endDate ?? undefined,
+          startDate: startDate ?? undefined,
+        };
+      }
+    } else {
+      // Handle other filter types
+      const value = searchParams.get(config.key);
 
-        if (value !== null && value !== "") {
-          if (config.type === "number") {
-            const parsedValue = Number(value);
+      if (value !== null && value !== "") {
+        if (config.type === "number") {
+          const parsedValue = Number(value);
 
-            values[config.key] = isNaN(parsedValue) ? value : parsedValue;
-          } else {
-            values[config.key] = value;
-          }
+          initialValues[config.key] = isNaN(parsedValue) ? value : parsedValue;
+        } else {
+          initialValues[config.key] = value;
         }
       }
+    }
+  });
+
+  const handleFiltersChange = (filters: Record<string, FilterValue>) => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
     });
 
-    return values;
-  }, [filterConfigs, searchParams]);
+    setSearchParams((prevParams) => {
+      const newParams = new URLSearchParams(prevParams);
 
-  const handleFiltersChange = useCallback(
-    (filters: Record<string, FilterValue>) => {
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
+      filterConfigs.forEach((config) => {
+        const value = filters[config.key];
 
-      setSearchParams((prevParams) => {
-        const newParams = new URLSearchParams(prevParams);
+        newParams.delete(config.key);
 
-        filterConfigs.forEach((config) => {
-          const value = filters[config.key];
-
+        if (config.type === "daterange") {
+          handleDateRangeChange(newParams, value as DateRangeValue | null, config);
+        } else if (value === null || value === undefined || value === "") {
           newParams.delete(config.key);
-
-          if (config.type === "daterange") {
-            handleDateRangeChange(newParams, value as DateRangeValue | null, config);
-          } else if (value === null || value === undefined || value === "") {
-            newParams.delete(config.key);
-          } else {
-            newParams.set(config.key, typeof value === "object" ? JSON.stringify(value) : String(value));
-          }
-        });
-
-        newParams.delete(SearchParamsKeys.OFFSET);
-
-        return newParams;
+        } else {
+          newParams.set(config.key, typeof value === "object" ? JSON.stringify(value) : String(value));
+        }
       });
-    },
-    [filterConfigs, pagination, setSearchParams, setTableURLState, sorting],
-  );
+
+      newParams.delete(SearchParamsKeys.OFFSET);
+
+      return newParams;
+    });
+  };
 
   return {
     filterConfigs,

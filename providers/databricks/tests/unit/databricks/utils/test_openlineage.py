@@ -24,12 +24,12 @@ import pytest
 from openlineage.client.event_v2 import Job, Run, RunEvent, RunState
 from openlineage.client.facet_v2 import job_type_job, parent_run
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.openlineage.facet import (
     ErrorMessageRunFacet,
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.utils.openlineage import (

@@ -20,9 +20,9 @@ import inspect
 import itertools
 import re
 import textwrap
-import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
-from functools import cached_property, update_wrapper
+from contextlib import suppress
+from functools import cached_property, partial, update_wrapper
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, TypeVar, cast, overload
 
 import attr
@@ -149,6 +149,109 @@ def get_unique_task_id(
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 
+def unwrap_partial(fn: Callable) -> Callable:
+    while isinstance(fn, partial):
+        fn = fn.func
+    return fn
+
+
+def unwrap_callable(func):
+    from airflow.sdk.definitions.mappedoperator import OperatorPartial
+
+    if isinstance(func, (_TaskDecorator, OperatorPartial)):
+        func = getattr(func, "function", getattr(func, "_func", func))
+
+    func = unwrap_partial(func)
+
+    with suppress(Exception):
+        func = inspect.unwrap(func)
+
+    return func
+
+
+def is_async_callable(func):
+    """Detect if a callable (possibly wrapped) is an async function."""
+    func = unwrap_callable(func)
+
+    if not callable(func):
+        return False
+
+    # Direct async function
+    if inspect.iscoroutinefunction(func):
+        return True
+
+    # Callable object with async __call__
+    if not inspect.isfunction(func):
+        call = type(func).__call__  # Bandit-safe
+        with suppress(Exception):
+            call = inspect.unwrap(call)
+        if inspect.iscoroutinefunction(call):
+            return True
+
+    return False
+
+
+class KeywordParameters:
+    """
+    Wrapper representing ``**kwargs`` to a callable.
+
+    The actual ``kwargs`` can be obtained by calling ``unpacking()``, which
+    returns the mapping suitable for unpacking with ``**`` in a function call.
+    """
+
+    def __init__(self, kwargs: Mapping[str, Any]) -> None:
+        self._kwargs = kwargs
+
+    @classmethod
+    def determine(
+        cls,
+        func: Callable[..., Any],
+        args: Collection[Any],
+        kwargs: Mapping[str, Any],
+    ) -> KeywordParameters:
+        signature = inspect.signature(func)
+        has_wildcard_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.parameters.values())
+
+        for name, param in itertools.islice(signature.parameters.items(), len(args)):
+            # Keyword-only arguments can't be passed positionally and are not checked.
+            if param.kind == inspect.Parameter.KEYWORD_ONLY:
+                continue
+            if param.kind == inspect.Parameter.VAR_KEYWORD:
+                continue
+
+            # Check if args conflict with names in kwargs.
+            if name in kwargs:
+                raise ValueError(f"The key {name!r} in args is a part of kwargs and therefore reserved.")
+
+        if has_wildcard_kwargs:
+            # If the callable has a **kwargs argument, it's ready to accept all the kwargs.
+            return cls(kwargs)
+
+        # If the callable has no **kwargs argument, it only wants the arguments it requested.
+        filtered_kwargs = {key: kwargs[key] for key in signature.parameters if key in kwargs}
+        return cls(filtered_kwargs)
+
+    def unpacking(self) -> Mapping[str, Any]:
+        """Dump the kwargs mapping to unpack with ``**`` in a function call."""
+        return self._kwargs
+
+
+def determine_kwargs(
+    func: Callable[..., Any],
+    args: Collection[Any],
+    kwargs: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """
+    Inspect the signature of a callable to determine which kwargs need to be passed to the callable.
+
+    :param func: The callable that you want to invoke
+    :param args: The positional arguments that need to be passed to the callable, so we know how many to skip.
+    :param kwargs: The keyword arguments that need to be filtered before passing to the callable.
+    :return: A dictionary which contains the keyword arguments that are compatible with the callable.
+    """
+    return KeywordParameters.determine(func, args, kwargs).unpacking()
+
+
 class DecoratedOperator(BaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
@@ -243,6 +346,10 @@ class DecoratedOperator(BaseOperator):
         self.op_kwargs = op_kwargs
         super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
 
+    @property
+    def is_async(self) -> bool:
+        return is_async_callable(self.python_callable)
+
     def execute(self, context: Context):
         # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
         #  as well
@@ -283,6 +390,9 @@ class DecoratedOperator(BaseOperator):
                 op_kwargs[arg] = default_args[arg]
         kwargs["op_kwargs"] = op_kwargs
         return args, kwargs
+
+    def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
 
     def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
@@ -337,12 +447,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             fake.__annotations__ = {"return": self.function.__annotations__["return"]}
 
             return_type = typing_extensions.get_type_hints(fake, self.function.__globals__).get("return", Any)
-        except NameError as e:
-            warnings.warn(
-                f"Cannot infer multiple_outputs for TaskFlow function {self.function.__name__!r} with forward"
-                f" type references that are not imported. (Error was {e})",
-                stacklevel=4,
-            )
+        except NameError:
+            # Forward references using TYPE_CHECKING-only imports are valid Python patterns.
+            # We cannot infer multiple_outputs when the type is not available at runtime.
             return False
         except TypeError:  # Can't evaluate return type.
             return False
@@ -661,7 +768,9 @@ def task_decorator_factory(
     """
     if multiple_outputs is None:
         multiple_outputs = cast("bool", attr.NOTHING)
-    if python_callable:
+    if python_callable is not None:
+        if not callable(python_callable):
+            raise TypeError("No positional arguments allowed while using @task, use named arguments instead")
         decorator = _TaskDecorator(
             function=python_callable,
             multiple_outputs=multiple_outputs,
@@ -669,8 +778,6 @@ def task_decorator_factory(
             kwargs=kwargs,
         )
         return cast("TaskDecorator", decorator)
-    if python_callable is not None:
-        raise TypeError("No args allowed while using @task, use kwargs instead")
 
     def decorator_factory(python_callable):
         return _TaskDecorator(

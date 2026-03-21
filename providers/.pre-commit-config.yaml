@@ -199,6 +199,13 @@ repos:
         files: ^.*/provider\.yaml$|^.*/docs/.*
         require_serial: true
         pass_filenames: false
+      - id: check-connection-doc-labels
+        name: Validate connection doc labels match provider.yaml
+        entry: ../scripts/ci/prek/check_connection_doc_labels.py
+        language: python
+        files: ^.*/provider\.yaml$|^.*/docs/.*/connections.*\.rst$|^.*/docs/connections\.rst$
+        require_serial: true
+        pass_filenames: false
       - id: mypy-providers
         stages: ['pre-push']
         name: Run mypy for providers
@@ -221,6 +228,12 @@ repos:
         files: ^.*/provider\.yaml$
         exclude: ^.*/.venv/.*$
         require_serial: true
+      - id: check-cli-definition-imports
+        name: Check CLI definition files only import allowed modules
+        entry: ../scripts/ci/prek/check_cli_definition_imports.py
+        language: python
+        files: ^.*/cli/definition\.py$
+        require_serial: false
       - id: check-imports-in-providers
         name: Check imports in providers
         entry: ../scripts/ci/prek/check_imports_in_providers.py

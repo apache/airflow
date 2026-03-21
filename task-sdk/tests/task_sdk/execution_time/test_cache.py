@@ -82,16 +82,20 @@ class TestSecretCache:
 
         assert res is None
 
-    def test_invalidate(self):
-        SecretCache.save_variable("key", "some_value")
+    @pytest.mark.parametrize(
+        "team",
+        [None, "team"],
+    )
+    def test_invalidate(self, team):
+        SecretCache.save_variable("key", "some_value", team_name=team)
 
-        assert SecretCache.get_variable("key") == "some_value"
+        assert SecretCache.get_variable("key", team_name=team) == "some_value"
 
-        SecretCache.invalidate_variable("key")
+        SecretCache.invalidate_variable("key", team_name=team)
 
         # cannot get the value for that key anymore because we invalidated it
         with pytest.raises(SecretCache.NotPresentException):
-            SecretCache.get_variable("key")
+            SecretCache.get_variable("key", team_name=team)
 
     def test_invalidate_key_not_present(self):
         SecretCache.invalidate_variable("not present")  # simply shouldn't raise any exception.
@@ -134,6 +138,35 @@ class TestSecretCache:
             SecretCache.get_connection_uri("var")
         with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_variable("conn")
+
+    def test_independent_teams(self):
+        SecretCache.save_variable("key1", "var_value1", "team1")
+        SecretCache.save_connection_uri("conn1", "conn_value1", "team1")
+        SecretCache.save_variable("key2", "var_value2", "team2")
+        SecretCache.save_connection_uri("conn2", "conn_value2", "team2")
+
+        assert SecretCache.get_variable("key1", team_name="team1") == "var_value1"
+        assert SecretCache.get_connection_uri("conn1", team_name="team1") == "conn_value1"
+        assert SecretCache.get_variable("key2", team_name="team2") == "var_value2"
+        assert SecretCache.get_connection_uri("conn2", team_name="team2") == "conn_value2"
+
+        with pytest.raises(SecretCache.NotPresentException):
+            SecretCache.get_variable("key1")
+        with pytest.raises(SecretCache.NotPresentException):
+            SecretCache.get_variable("key2")
+        with pytest.raises(SecretCache.NotPresentException):
+            SecretCache.get_connection_uri("conn1")
+        with pytest.raises(SecretCache.NotPresentException):
+            SecretCache.get_connection_uri("conn2")
+
+        with pytest.raises(SecretCache.NotPresentException):
+            SecretCache.get_variable("key1", team_name="team2")
+        with pytest.raises(SecretCache.NotPresentException):
+            SecretCache.get_variable("key2", team_name="team1")
+        with pytest.raises(SecretCache.NotPresentException):
+            SecretCache.get_connection_uri("conn1", team_name="team2")
+        with pytest.raises(SecretCache.NotPresentException):
+            SecretCache.get_connection_uri("conn2", team_name="team1")
 
     def test_connections_do_not_save_none(self):
         # noinspection PyTypeChecker

@@ -28,16 +28,15 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
-from fastapi import FastAPI
-from starlette.requests import Request
-from starlette.responses import HTMLResponse
-from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails, TeamDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
@@ -97,9 +96,20 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return os.path.join(AIRFLOW_HOME, "simple_auth_manager_passwords.json.generated")
 
     @staticmethod
-    def get_users() -> list[dict[str, str]]:
-        users = [u.split(":") for u in conf.getlist("core", "simple_auth_manager_users")]
-        return [{"username": username, "role": role} for username, role in users]
+    def get_users() -> list[SimpleAuthManagerUser]:
+        config_users = [u.split(":") for u in conf.getlist("core", "simple_auth_manager_users")]
+        users = []
+        for user in config_users:
+            teams = None
+            if len(user) == 3:
+                if not conf.getboolean("core", "multi_team"):
+                    raise ValueError(
+                        f"The user '{user[0]}' is associated to at least one team and multi-team mode is not configured in the Airflow environment."
+                    )
+                teams = user[2].split("|")
+
+            users.append(SimpleAuthManagerUser(username=user[0], role=user[1], teams=teams))
+        return users
 
     @staticmethod
     def get_passwords() -> dict[str, str]:
@@ -108,6 +118,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             return SimpleAuthManager._get_passwords(file)
 
     def init(self) -> None:
+        super().init()
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
             return
@@ -124,11 +135,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
                     passwords = self._get_passwords(stream=file)
                     changed = False
                     for user in users:
-                        if user["username"] not in passwords:
+                        if user.username not in passwords:
                             # User does not exist in the file, adding it
-                            passwords[user["username"]] = self._generate_password()
+                            passwords[user.username] = self._generate_password()
                             self._print_output(
-                                f"Password for user '{user['username']}': {passwords[user['username']]}"
+                                f"Password for user '{user.username}': {passwords[user.username]}"
                             )
                             changed = True
 
@@ -152,10 +163,14 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
 
     def deserialize_user(self, token: dict[str, Any]) -> SimpleAuthManagerUser:
-        return SimpleAuthManagerUser(username=token["sub"], role=token["role"])
+        return SimpleAuthManagerUser(
+            username=token["sub"],
+            role=token["role"],
+            teams=token.get("teams"),
+        )
 
     def serialize_user(self, user: SimpleAuthManagerUser) -> dict[str, Any]:
-        return {"sub": user.username, "role": user.role}
+        return {"sub": user.username, "role": user.role, "teams": user.teams}
 
     def is_authorized_configuration(
         self,
@@ -178,7 +193,12 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         user: SimpleAuthManagerUser,
         details: ConnectionDetails | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP, user=user)
+        return self._is_authorized(
+            method=method,
+            allow_role=SimpleAuthManagerRole.OP,
+            user=user,
+            team_name=details.team_name if details else None,
+        )
 
     def is_authorized_dag(
         self,
@@ -193,20 +213,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             allow_get_role=SimpleAuthManagerRole.VIEWER,
             allow_role=SimpleAuthManagerRole.USER,
             user=user,
-        )
-
-    def is_authorized_backfill(
-        self,
-        *,
-        method: ResourceMethod,
-        user: SimpleAuthManagerUser,
-        details: BackfillDetails | None = None,
-    ) -> bool:
-        return self._is_authorized(
-            method=method,
-            allow_get_role=SimpleAuthManagerRole.VIEWER,
-            allow_role=SimpleAuthManagerRole.OP,
-            user=user,
+            team_name=details.team_name if details else None,
         )
 
     def is_authorized_asset(
@@ -249,6 +256,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             allow_get_role=SimpleAuthManagerRole.VIEWER,
             allow_role=SimpleAuthManagerRole.OP,
             user=user,
+            team_name=details.team_name if details else None,
         )
 
     def is_authorized_team(
@@ -258,8 +266,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         user: SimpleAuthManagerUser,
         details: TeamDetails | None = None,
     ) -> bool:
-        # Simple auth manager is not multi-team mode compatible but to ease development, allow all users to see all teams
-        return True
+        if not details:
+            return False
+        if self._is_admin(user):
+            return True
+        return details.name in user.teams
 
     def is_authorized_variable(
         self,
@@ -268,13 +279,18 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         user: SimpleAuthManagerUser,
         details: VariableDetails | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP, user=user)
+        return self._is_authorized(
+            method=method,
+            allow_role=SimpleAuthManagerRole.OP,
+            user=user,
+            team_name=details.team_name if details else None,
+        )
 
     def is_authorized_view(self, *, access_view: AccessView, user: SimpleAuthManagerUser) -> bool:
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser
+        self, *, method: ResourceMethod, resource_name: str, user: SimpleAuthManagerUser
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
@@ -282,6 +298,26 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self, menu_items: list[MenuItem], *, user: SimpleAuthManagerUser
     ) -> list[MenuItem]:
         return menu_items
+
+    def is_authorized_hitl_task(self, *, assigned_users: set[str], user: SimpleAuthManagerUser) -> bool:
+        """
+        Check if a user is allowed to approve/reject a HITL task.
+
+        When simple_auth_manager_all_admins=True, all authenticated users are allowed
+        to approve/reject any task. Otherwise, the user must be in the assigned_users set.
+        """
+        is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
+
+        if is_simple_auth_manager_all_admins:
+            # In all-admin mode, everyone is allowed
+            return True
+
+        # If no assigned_users specified, allow access
+        if not assigned_users:
+            return True
+
+        # Delegate to parent class for the actual authorization check
+        return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
 
     def get_fastapi_app(self) -> FastAPI | None:
         """
@@ -325,6 +361,21 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
         return app
 
+    def _get_teams(self) -> set[str]:
+        users = self.get_users()
+        return {team for user in users for team in user.teams}
+
+    @staticmethod
+    def _is_admin(user: SimpleAuthManagerUser) -> bool:
+        """Return whether the user has the Admin role."""
+        if not user.role:
+            return False
+
+        role_str = user.role.upper()
+        role = SimpleAuthManagerRole[role_str]
+
+        return role == SimpleAuthManagerRole.ADMIN
+
     @staticmethod
     def _is_authorized(
         *,
@@ -332,6 +383,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         allow_role: SimpleAuthManagerRole,
         user: SimpleAuthManagerUser,
         allow_get_role: SimpleAuthManagerRole | None = None,
+        team_name: str | None = None,
     ):
         """
         Return whether the user is authorized to access a given resource.
@@ -342,19 +394,22 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         :param user: the user to check the authorization for
         :param allow_get_role: minimal role giving access to the resource, if the user's role is greater or
             equal than this role, they have access. If not provided, ``allow_role`` is used
+        :param team_name: team associated to the resource (if any)
         """
-        user_role = user.get_role()
-        if not user_role:
+        if not user.role:
             return False
 
-        role_str = user_role.upper()
-        role = SimpleAuthManagerRole[role_str]
-        if role == SimpleAuthManagerRole.ADMIN:
+        if SimpleAuthManager._is_admin(user):
             return True
+
+        if team_name and team_name not in user.teams:
+            return False
 
         if not allow_get_role:
             allow_get_role = allow_role
 
+        role_str = user.role.upper()
+        role = SimpleAuthManagerRole[role_str]
         if method == "GET":
             return role.order >= allow_get_role.order
         return role.order >= allow_role.order
@@ -378,7 +433,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def _print_output(output: str):
-        name = "Simple auth manager"
-        colorized_name = colored(f"{name:10}", "white")
-        for line in output.splitlines():
-            print(f"{colorized_name} | {line.strip()}")
+        if conf.getboolean("logging", "json_logs", fallback=False):
+            for line in output.splitlines():
+                log.info(line.strip())
+        else:
+            name = "Simple auth manager"
+            colorized_name = colored(f"{name:10}", "white")
+            for line in output.splitlines():
+                print(f"{colorized_name} | {line.strip()}")

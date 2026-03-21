@@ -21,24 +21,41 @@
 
 ## Basic Command
 
+Start airflow uses mprocs by default:
+
 ```bash
-breeze start-airflow --use-mprocs
+breeze start-airflow
 ```
 
-Breeze will start Airflow components using mprocs to manage multiple processes in a single terminal window.
+You can switch to using `tmux` instead by specifying the option:
+
+```bash
+breeze start-airflow --terminal-multiplexer tmux
+```
+
+Once you select the terminal multiplexer, Breeze will remember your choice for future runs.
+
+You can also switch terminal multiplexers by running `breeze setup config`:
+
+```bash
+breeze setup config --terminal-multiplexer mprocs
+breeze setup config --terminal-multiplexer tmux
+```
+
+
+When Breeze will start Airflow components using mprocs to manage multiple processes in a single terminal window.
 It will generate dynamically the required configuration based on the selected executor and options and use it,
 the generated configuration file is stored in a `files` folder inside the container, so that you can also
 use it outside of Breeze if needed.
 
 ## Common Usage Patterns
 
-| Command                                                       | Description                     |
-|---------------------------------------------------------------|---------------------------------|
-| `breeze start-airflow --use-mprocs`                           | Start Airflow with mprocs       |
-| `breeze start-airflow --use-mprocs --debug scheduler`         | Debug scheduler with mprocs     |
-| `breeze start-airflow --use-mprocs --executor CeleryExecutor` | Use mprocs with Celery          |
-| `breeze start-airflow --use-mprocs --dev-mode`                | Use mprocs in dev mode          |
-| `breeze start-airflow --use-tmux`                             | Explicitly use tmux (default)   |
+| Command                                                         | Description                                         |
+|-----------------------------------------------------------------|-----------------------------------------------------|
+| `breeze start-airflow --terminal-multiplexer mprocs`            | Start Airflow with mprocs (and remember the choice) |
+| `breeze start-airflow --terminal-multiplexer tmux`              | Start Airflow with tmux (and remember the choice)   |
+| `breeze start-airflow --debug scheduler`                        | Debug scheduler with last selected multiplexer      |
+| `breeze start-airflow --dev-mode --terminal-multiplexer mprocs` | Use mprocs in dev mode (and remember the choice)    |
 
 
 ## mprocs Keyboard Shortcuts
@@ -67,7 +84,7 @@ use it outside of Breeze if needed.
 
 | Variable                   | Purpose                         |
 |----------------------------|---------------------------------|
-| `USE_MPROCS`               | Enable mprocs mode              |
+| `TERMNAL_MULTIPLEXER`      | Use mprocs when set to "mprocs" |
 | `INTEGRATION_CELERY`       | Enable Celery components        |
 | `CELERY_FLOWER`            | Enable Flower UI                |
 | `STANDALONE_DAG_PROCESSOR` | Enable standalone DAG processor |
@@ -104,19 +121,10 @@ chmod +x /usr/local/bin/mprocs
 
 ## Mac OS X and iTerm2
 
-There are some known issues with mprocs and iTerm2 (which is often used as terminal by
-developers using MacOS) with default settings, but they have solutions and workarounds:
-
-* Mouse clicks are not captured correctly by default
-
-**Solution:** you need to configure "Enable Mouse reporting":
+Mouse clicks are not captured correctly by default in iTerm2 (which is often used by developers on MacOS).
+You need to configure "Enable Mouse reporting" to take advantage of the copying feature and mouse handling:
 
 ![Enable mouse reporting](../images/iterm2-enable-mouse-reporting.png)
-
-* Ctrl-a does not work correctly when in breeze Docker container (issue https://github.com/pvolok/mprocs/issues/179)
-
-**Workaround**: You need to use `Cmd - <-` to change focus instead of Ctrl-a. Also you can switch
-between process list and output with mouse click providing that you applied the solution above.
 
 ## Standalone execution
 

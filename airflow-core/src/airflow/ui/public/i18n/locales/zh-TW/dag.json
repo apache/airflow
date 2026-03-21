@@ -73,6 +73,12 @@
     "navigation": "導航: {{arrow}}",
     "toggleGroup": "展開/收合群組: 空白鍵"
   },
+  "notFound": {
+    "back": "返回",
+    "backToDags": "返回 Dag 列表",
+    "message": "Dag {{dagId}} 不存在。",
+    "title": "找不到 Dag"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "失敗的執行",
@@ -115,11 +121,28 @@
     "graphDirection": {
       "label": "圖表方向"
     },
+    "showVersionIndicator": {
+      "label": "版本指示器",
+      "options": {
+        "hideAll": "隱藏全部",
+        "showAll": "顯示全部",
+        "showBundleVersion": "顯示套件包版本",
+        "showDagVersion": "顯示 Dag 版本"
+      }
+    },
     "taskStreamFilter": {
       "activeFilter": "啟用過濾器",
       "clearFilter": "清除過濾器",
       "clickTask": "點擊一個任務以將其選為過濾根",
+      "depth": "深度",
+      "direction": "方向",
       "label": "過濾器",
+      "mode": "模式",
+      "modeTooltip": "靜態模式會在切換至不同任務時保持目前檢視；遍歷模式則會自動將篩選條件更新為所點擊的任務，以便更容易瀏覽 Dag",
+      "modes": {
+        "static": "靜態",
+        "traverse": "遍歷"
+      },
       "options": {
         "both": "上游和下游",
         "downstream": "下游",

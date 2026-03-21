@@ -35,6 +35,147 @@
 Changelog
 ---------
 
+1.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix PythonVirtualenvOperator cannot run with pendulum<3 (#62604)``
+
+Misc
+~~~~
+
+* ``Consolidate 'SkipMixin' imports through 'common-compat' layer (#62776)``
+* ``Move SkipMixin and BranchMixIn to Task SDK (#62749)``
+* ``Move determine_kwargs and KeywordParameters to SDK DecoratedOperator (#62746)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage support for HITL operators (#61867)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add note support to TriggerDagRunOperator (#60810)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ASYNC240: replace blocking filesystem calls with anyio (#61616)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit hook to prevent test-only imports in production source (#61713)``
+   * ``Use SQLA's native Uuid/JSON instead of sqlalchemy-utils' types (#61532)``
+   * ``docs: add DAG documentation for example_bash_operator (#61316)``
+   * ``feat : E2E test to verify required action page (#60449)``
+
+1.11.0
+......
+
+.. note::
+    The new feature ``Add support for async callables in ''PythonOperator''`` will only work on Airflow 3.2.
+
+Features
+~~~~~~~~
+
+* ``Add support for async callables in ''PythonOperator'' (#60268)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Fix static check fail in hitl/standard provider (#60708)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add HITL operators to standard provider index docs (#60681)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.10.3
+......
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Remove the compatibility shim for StartTriggerArgs in standard provider (#60300)``
+* ``Updated conf import for std,es,os,ms providers (#60030)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove documentation on TimeDeltaSensorAsync (#59651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Add support for async callables in PythonOperator (#59087)" (#60266)``
+   * ``Add support for async callables in PythonOperator (#59087)``
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+   * ``Assorted SQLA2/Mypy fixes (#60094)``
+   * ``Refactor providers to use SQLA2 (#59975)``
+
+1.10.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DAG bundle imports in subprocess operators (#57631)``
+
+Misc
+~~~~
+
+* ``TaskInstance unused method cleanup (#59835)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use SDK serde for trigger and next kwargs serialization (#59711)``
+   * ``Remove top-level SDK reference in Core (#59817)``
+   * ``Clean up SDK references in airflow.models.expandinput (#59815)``
+   * ``Move MappedOperator to serialization (#59628)``
+   * ``Split SerializedBaseOperator from serde logic (#59627)``
+   * ``Minor cleanups removing SDK references from Core (#59491)``
+   * ``Split SDK and serialized asset classes (#58993)``
+
+1.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix uv venv fail without direct internet access (#59046)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Implement timetables in SDK (#58669)``
+* ``nit: rename TriggerDagRunOperator._defer to deferrable (#58925)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.10.0
 ......
 

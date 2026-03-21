@@ -23,6 +23,7 @@ Much of this code is expensive to import/load, be careful where this module is i
 from __future__ import annotations
 
 import contextlib
+import gc
 import logging
 import math
 import os
@@ -34,16 +35,15 @@ from concurrent.futures import ProcessPoolExecutor
 from functools import cache
 from typing import TYPE_CHECKING, Any
 
-from celery import Celery, Task, states as celery_states
+from celery import Celery, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
-from celery.signals import import_modules as celery_import_modules
+from celery.signals import import_modules as celery_import_modules, worker_ready
 from sqlalchemy import select
 
-import airflow.settings as settings
-from airflow.configuration import conf
+from airflow.configuration import AirflowConfigParser, conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -52,7 +52,10 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 try:
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 except ImportError:
-    from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
+    from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager  # type:ignore[no-redef]
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.executors.workloads.callback import execute_callback_workload
 
 log = logging.getLogger(__name__)
 
@@ -67,14 +70,21 @@ if TYPE_CHECKING:
     from celery.result import AsyncResult
 
     from airflow.executors import workloads
-    from airflow.executors.base_executor import EventBufferValueType
+    from airflow.executors.base_executor import EventBufferValueType, ExecutorConf
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstanceKey
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
     # the type as the union of both kinds
     CommandType = Sequence[str]
 
-    TaskInstanceInCelery: TypeAlias = tuple[TaskInstanceKey, workloads.All | CommandType, str | None, Task]
+    WorkloadInCelery: TypeAlias = tuple[WorkloadKey, workloads.All | CommandType, str | None, str | None]
+    WorkloadInCeleryResult: TypeAlias = tuple[
+        WorkloadKey, CommandType, AsyncResult | "ExceptionWithTraceback"
+    ]
+
+    # Deprecated alias for backward compatibility
+    TaskInstanceInCelery: TypeAlias = WorkloadInCelery
 
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
@@ -103,6 +113,38 @@ def _get_celery_app() -> Celery:
     return Celery(celery_app_name, config_source=get_celery_configuration())
 
 
+def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
+    """
+    Create a Celery app, supporting team-specific configuration.
+
+    :param team_conf: ExecutorConf instance with team-specific configuration, or global conf
+    :return: Celery app instance
+    """
+    from airflow.providers.celery.executors.default_celery import get_default_celery_config
+
+    celery_app_name = team_conf.get("celery", "CELERY_APP_NAME")
+
+    # Make app name unique per team to ensure proper broker isolation
+    # Each team's executor needs a distinct Celery app name to prevent
+    # tasks from being routed to the wrong broker
+    # Only do this if team_conf is an ExecutorConf with team_name (not global conf)
+    team_name = getattr(team_conf, "team_name", None)
+    if team_name:
+        celery_app_name = f"{celery_app_name}_{team_name}"
+
+    config = get_default_celery_config(team_conf)
+
+    celery_app = Celery(celery_app_name, config_source=config)
+
+    # Register tasks with this app
+    celery_app.task(name="execute_workload")(execute_workload)
+    if not AIRFLOW_V_3_0_PLUS:
+        celery_app.task(name="execute_command")(execute_command)
+
+    return celery_app
+
+
+# Keep module-level app for backward compatibility
 app = _get_celery_app()
 
 
@@ -133,6 +175,15 @@ def on_celery_import_modules(*args, **kwargs):
     with contextlib.suppress(ImportError):
         import kubernetes.client  # noqa: F401
 
+    # To prevent memory increase by COW in celery's ForkPoolWorker.
+    gc.freeze()
+
+
+@worker_ready.connect
+def on_celery_worker_ready(*args, **kwargs):
+    # Unfreeze the objects from gc freeze when the ForkPoolWorker is all loaded.
+    gc.unfreeze()
+
 
 # Once Celery 5.5 is out of beta, we can pass `pydantic=True` to the decorator and it will handle the validation
 # and deserialization for us
@@ -149,9 +200,6 @@ def execute_workload(input: str) -> None:
 
     celery_task_id = app.current_task.request.id
 
-    if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
-
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
     base_url = conf.get("api", "base_url", fallback="/")
@@ -160,28 +208,41 @@ def execute_workload(input: str) -> None:
         base_url = f"http://localhost:8080{base_url}"
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
 
-    supervise(
-        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-        ti=workload.ti,  # type: ignore[arg-type]
-        dag_rel_path=workload.dag_rel_path,
-        bundle_info=workload.bundle_info,
-        token=workload.token,
-        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
-        log_path=workload.log_path,
-    )
+    if isinstance(workload, workloads.ExecuteTask):
+        supervise(
+            # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+            ti=workload.ti,  # type: ignore[arg-type]
+            dag_rel_path=workload.dag_rel_path,
+            bundle_info=workload.bundle_info,
+            token=workload.token,
+            server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
+            log_path=workload.log_path,
+        )
+    elif isinstance(workload, workloads.ExecuteCallback):
+        success, error_msg = execute_callback_workload(workload.callback, log)
+        if not success:
+            raise RuntimeError(error_msg or "Callback execution failed")
+    else:
+        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
 
 
 if not AIRFLOW_V_3_0_PLUS:
 
-    @app.task
+    @app.task(name="execute_command")
     def execute_command(command_to_exec: CommandType) -> None:
         """Execute command."""
+        EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not hasattr(os, "fork") or conf.getboolean(
+            "core",
+            "execute_tasks_new_python_interpreter",
+            fallback=False,
+        )
+
         dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)  # type: ignore[attr-defined]
         celery_task_id = app.current_task.request.id
         log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
         with _airflow_parsing_context_manager(dag_id=dag_id, task_id=task_id):
             try:
-                if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+                if EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
                     _execute_in_subprocess(command_to_exec, celery_task_id)
                 else:
                     _execute_in_fork(command_to_exec, celery_task_id)
@@ -264,18 +325,52 @@ class ExceptionWithTraceback:
         self.traceback = exception_traceback
 
 
-def send_task_to_executor(
-    task_tuple: TaskInstanceInCelery,
-) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
-    """Send task to executor."""
-    key, args, queue, task_to_run = task_tuple
+def send_workload_to_executor(
+    workload_tuple: WorkloadInCelery,
+) -> WorkloadInCeleryResult:
+    """
+    Send workload to executor.
+
+    This function is called in ProcessPoolExecutor subprocesses. To avoid pickling issues with
+    team-specific Celery apps, we pass the team_name and reconstruct the Celery app here.
+    """
+    key, args, queue, team_name = workload_tuple
+
+    # Reconstruct the Celery app from configuration, which may or may not be team-specific.
+    # ExecutorConf wraps config access to automatically use team-specific config where present.
+    if TYPE_CHECKING:
+        _conf: ExecutorConf | AirflowConfigParser
+    # Check if Airflow version is greater than or equal to 3.2 to import ExecutorConf
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.executors.base_executor import ExecutorConf
+
+        _conf = ExecutorConf(team_name)
+    else:
+        # Airflow <3.2 ExecutorConf doesn't exist (at least not with the required attributes), fall back to global conf
+        _conf = conf
+    # Create the Celery app with the correct configuration
+    celery_app = create_celery_app(_conf)
 
     if AIRFLOW_V_3_0_PLUS:
+        # Get the task from the app
+        task_to_run = celery_app.tasks["execute_workload"]
         if TYPE_CHECKING:
             assert isinstance(args, workloads.BaseWorkload)
         args = (args.model_dump_json(),)
     else:
+        # Get the task from the app
+        task_to_run = celery_app.tasks["execute_command"]
         args = [args]  # type: ignore[list-item]
+
+    # Pre-import redis.client to avoid SIGALRM interrupting module initialization.
+    # If timeout fires during import, redis module gets partially cached in sys.modules
+    # without the 'client' submodule bound, causing AttributeError on subsequent access.
+    # See: https://github.com/apache/airflow/issues/41359
+    try:
+        import redis.client  # noqa: F401
+    except ImportError:
+        pass  # Redis not installed or not using Redis backend
+
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=args, queue=queue)
@@ -286,6 +381,10 @@ def send_task_to_executor(
     # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
     # concurrently;
     return key, args, result
+
+
+# Backward compatibility alias
+send_task_to_executor = send_workload_to_executor
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
@@ -299,6 +398,13 @@ def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | Excep
     :return: a tuple of the Celery task key and the Celery state and the celery info
         of the task
     """
+    # Pre-import redis.client to avoid SIGALRM interrupting module initialization.
+    # See: https://github.com/apache/airflow/issues/41359
+    try:
+        import redis.client  # noqa: F401
+    except ImportError:
+        pass  # Redis not installed or not using Redis backend
+
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             # Accessing state property of celery task will make actual network request
@@ -319,18 +425,19 @@ class BulkStateFetcher(LoggingMixin):
     Otherwise, multiprocessing.Pool will be used. Each task status will be downloaded individually.
     """
 
-    def __init__(self, sync_parallelism: int):
+    def __init__(self, sync_parallelism: int, celery_app: Celery | None = None):
         super().__init__()
         self._sync_parallelism = sync_parallelism
+        self.celery_app = celery_app or app  # Use provided app or fall back to module-level app
 
     def _tasks_list_to_task_ids(self, async_tasks: Collection[AsyncResult]) -> set[str]:
         return {a.task_id for a in async_tasks}
 
     def get_many(self, async_results: Collection[AsyncResult]) -> Mapping[str, EventBufferValueType]:
         """Get status for many Celery tasks using the best method available."""
-        if isinstance(app.backend, BaseKeyValueStoreBackend):
+        if isinstance(self.celery_app.backend, BaseKeyValueStoreBackend):
             result = self._get_many_from_kv_backend(async_results)
-        elif isinstance(app.backend, DatabaseBackend):
+        elif isinstance(self.celery_app.backend, DatabaseBackend):
             result = self._get_many_from_db_backend(async_results)
         else:
             result = self._get_many_using_multiprocessing(async_results)
@@ -341,17 +448,17 @@ class BulkStateFetcher(LoggingMixin):
         self, async_tasks: Collection[AsyncResult]
     ) -> Mapping[str, EventBufferValueType]:
         task_ids = self._tasks_list_to_task_ids(async_tasks)
-        keys = [app.backend.get_key_for_task(k) for k in task_ids]
-        values = app.backend.mget(keys)
-        task_results = [app.backend.decode_result(v) for v in values if v]
+        keys = [self.celery_app.backend.get_key_for_task(k) for k in task_ids]
+        values = self.celery_app.backend.mget(keys)
+        task_results = [self.celery_app.backend.decode_result(v) for v in values if v]
         task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
 
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
     @retry
     def _query_task_cls_from_db_backend(self, task_ids: set[str], **kwargs):
-        session = app.backend.ResultSession()
-        task_cls = getattr(app.backend, "task_cls", TaskDb)
+        session = self.celery_app.backend.ResultSession()
+        task_cls = getattr(self.celery_app.backend, "task_cls", TaskDb)
         with session_cleanup(session):
             return session.scalars(select(task_cls).where(task_cls.task_id.in_(task_ids))).all()
 
@@ -360,7 +467,7 @@ class BulkStateFetcher(LoggingMixin):
     ) -> Mapping[str, EventBufferValueType]:
         task_ids = self._tasks_list_to_task_ids(async_tasks)
         tasks = self._query_task_cls_from_db_backend(task_ids)
-        task_results = [app.backend.meta_from_decoded(task.to_dict()) for task in tasks]
+        task_results = [self.celery_app.backend.meta_from_decoded(task.to_dict()) for task in tasks]
         task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
 
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)

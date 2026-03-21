@@ -20,7 +20,8 @@
       "all": "Tous",
       "paused": "En pause"
     },
-    "runIdPatternFilter": "Rechercher des exécutions de Dag"
+    "runIdPatternFilter": "Rechercher des exécutions de Dag",
+    "triggeringUserNameFilter": "Rechercher par utilisateur déclencheur"
   },
   "ownerLink": "Lien du propriétaire pour {{owner}}",
   "runAndTaskActions": {

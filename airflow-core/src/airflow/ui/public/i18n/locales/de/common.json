@@ -22,9 +22,11 @@
   "backfill_other": "Auffüllungen",
   "browse": {
     "auditLog": "Prüf-Log",
+    "jobs": "Jobs",
     "requiredActions": "Erforderliche Interaktionen",
     "xcoms": "Task Kommunikation (XComs)"
   },
+  "collapseAllExtra": "Alle JSON Details ausblenden",
   "collapseDetailsPanel": "Detailansicht ausblenden",
   "createdAssetEvent_one": "Erstelltes Ereignis zu Datenset (Asset)",
   "createdAssetEvent_other": "Erstellte Ereignisse zu Datensets (Assets)",
@@ -59,6 +61,7 @@
     "dataIntervalEnd": "Datenintervall Ende",
     "dataIntervalStart": "Datenintervall Start",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
+    "mappedPartitionKey": "Zugeordneter Partitionsschlüssel",
     "partitionKey": "Partitionsschlüssel",
     "queuedAt": "Wartend seit",
     "runAfter": "Gelaufen ab",
@@ -73,7 +76,12 @@
   "dagWarnings": "Dag Warnungen und Fehler",
   "defaultToGraphView": "Graph-Ansicht als Standard",
   "defaultToGridView": "Gitter-Ansicht als Standard",
-  "direction": "Richtung",
+  "delete": "Löschen",
+  "diff": "Differenzansicht",
+  "diffCompareWith": "Vergleichen mit",
+  "diffExit": "Differenzansicht verlassen",
+  "diffSelectVersionToCompare": "Version zum Vergleichen auswählen",
+  "direction": "Schreibrichtung",
   "docs": {
     "documentation": "Dokumentation",
     "githubRepo": "GitHub Ablage",
@@ -85,6 +93,7 @@
     "tooltip": "Drücken Sie {{hotkey}}, um Protokolle herunterzuladen"
   },
   "duration": "Laufzeit",
+  "edit": "Bearbeiten",
   "endDate": "Enddatum",
   "error": {
     "back": "Zurück",
@@ -100,6 +109,7 @@
     "hotkey": "e",
     "tooltip": "Tastenkombination {{hotkey}} zum Ein-/Ausklappen drücken"
   },
+  "expandAllExtra": "Alle JSON Details anzeigen",
   "expression": {
     "all": "Alle",
     "and": "UND",
@@ -118,17 +128,20 @@
     "selectDateRange": "Zeitraum auswählen",
     "startTime": "Startzeitpunkt"
   },
+  "generateToken": "Zugriffstoken erzeugen",
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
   "mapIndex": "Planungs-Index",
   "modal": {
+    "add": "Hinzufügen",
     "cancel": "Abbrechen",
     "confirm": "Bestätigen",
     "delete": {
       "button": "Löschen",
       "confirmation": "Sind Sie sicher, dass Sie {{resourceName}} löschen wollen? Diese Aktion kann nicht rückgängig gemacht werden."
-    }
+    },
+    "save": "Speichern"
   },
   "nav": {
     "admin": "Verwaltung",
@@ -149,15 +162,13 @@
     "placeholder": "Eine Notiz hinzufügen...",
     "taskInstance": "Notizen zu Task Instanzen"
   },
-  "pools": {
-    "deferred": "Delegiert",
-    "open": "Frei",
-    "pools_one": "Pool",
-    "pools_other": "Pools",
-    "queued": "Wartend",
-    "running": "Laufende",
-    "scheduled": "Geplant"
+  "partitionedDagRun_one": "Partitionierter Dag Lauf",
+  "partitionedDagRun_other": "Partitionierte Dag Läufe",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Empfangene Datenset (Asset) Ereignisse"
   },
+  "pendingDagRun_one": "{{count}} ausstehender Dag Lauf",
+  "pendingDagRun_other": "{{count}} ausstehende Dag Läufe",
   "reset": "Zurücksetzen",
   "runId": "Lauf Id",
   "runTypes": {
@@ -182,6 +193,7 @@
   },
   "selectLanguage": "Sprache wählen",
   "showDetailsPanel": "Detailansicht einblenden",
+  "signedInAs": "Angemeldet als",
   "source": {
     "hide": "Log-Quelle ausblenden",
     "hotkey": "s",
@@ -196,6 +208,7 @@
     "failed": "Fehlgeschlagen",
     "no_status": "Kein Status",
     "none": "Kein Status",
+    "open": "Frei",
     "planned": "Geplant",
     "queued": "Wartend",
     "removed": "Entfernt",
@@ -300,6 +313,10 @@
         "title": "Löschung von {{resourceName}} gestartet"
       }
     },
+    "forbidden": {
+      "description": "Keine Berechtigung für diese Aktion.",
+      "title": "Zugriff verweigert"
+    },
     "import": {
       "error": "Import von {{resourceName}} fehlgeschlagen",
       "success": {
@@ -314,6 +331,18 @@
         "title": "Aktualisierung von {{resourceName}} gestartet"
       }
     }
+  },
+  "tokenGeneration": {
+    "apiToken": "API-Token",
+    "cliToken": "CLI-Token",
+    "errorDescription": "Beim Erzeugen des Tokens ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+    "errorTitle": "Token-Erzeugung fehlgeschlagen",
+    "generate": "Erzeugen",
+    "selectType": "Wählen Sie den Typ des zu erzeugenden Tokens.",
+    "title": "Zugriffstoken erzeugen",
+    "tokenExpiresIn": "Dieser Token läuft in {{duration}} ab.",
+    "tokenGenerated": "Ihr Token wurde erzeugt.",
+    "tokenShownOnce": "Dieser Token wird nur einmal angezeigt. Kopieren Sie ihn jetzt."
   },
   "total": "Gesamt {{state}}",
   "triggered": "Ausgelöst",

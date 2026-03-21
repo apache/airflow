@@ -36,12 +36,12 @@ Documentation in separate distributions:
 
 Documentation for general overview and summaries not connected with any specific distribution:
 
-* ``docker-stack-docs`` - documentation for Docker Stack'
+* ``docker-stack-docs`` - documentation for Docker Stack
 * ``providers-summary-docs`` - documentation for provider summary page
 
 Each of the distributions have a ``conf.py`` file in the root of the documentation and there
 are various configuration parameters for sphinx configured in the ``conf.py`` files. A number of common
-functions in those ``conf.py`` files are imported from ``deve-common`` distribution, from ``doc`` package,
+functions in those ``conf.py`` files are imported from ``devel-common`` distribution, from ``doc`` package,
 you can also find ``sphinx_ext`` folder there that keeps extensions used during our documentation build.
 
 Building documentation with uv in local venv
@@ -116,7 +116,7 @@ Building the documentation
 ..........................
 
 In Airflow 3 the documentation is placed closely to where source code is placed (in most distribution
-packages it is in the ``doc`` subfolder of a distribution you want to build the documentation for.
+packages, its documentation is in the ``doc`` subfolder).
 Some distributions do not have ``docs`` subfolder - when they are ``doc-only``. The ``build-doc`` script
 is installed automatically from ``devel-common`` distribution and available to run using ``uv run``
 command (or directly ``build-docs`` inside the ``breeze`` container). This script will automatically
@@ -181,7 +181,7 @@ three times in order to make sure that references between the packages are resol
 Note that this will not work with ``--autobuild`` option because
 the ``--autobuild`` option will only build the documentation for single distribution at a time. You will
 see an error if you try to use ``--autobuild`` with multiple distributions. But once the "other" package
-is build, you will be able ot use ``--autobuild`` for the other package (until you use ``--clean-build``
+is build, you will be able to use ``--autobuild`` for the other package (until you use ``--clean-build``
 option).
 
 You can run this command in the folder of the package you want to build - if the package needs another
@@ -228,9 +228,9 @@ all the dependencies installed that should allow to build all documentation for 
 and it is independent on the host / local environment including the OS you are using. You can always
 fall-back to this method if - for some reason - your local documentation building is failing.
 
-Basic command is ``breeze build-docs`` which except ``--auto-build`` has very similar options
+Basic command is ``breeze build-docs`` which except ``--autobuild`` has very similar options
 as the ``uv run build-docs`` command.. You can also specify a number of options like selecting which
-distribution packages you want to build and which kind of build to run (``--doc-only`` od ``--spelling-only``)
+distribution packages you want to build and which kind of build to run (``--doc-only`` or ``--spelling-only``)
 or request to ``--clean`` the build directory before building the documentation.
 
 For example:
@@ -239,7 +239,30 @@ For example:
 
     breeze build-docs --doc-only --clean fab
 
-Will build ``fab`` provider documentation and clean inventories and other build artifacts before.
+Will build ``fab`` provider documentation and clean build artifacts before.
+
+Inventory cache handling
+........................
+
+When building documentation, Sphinx downloads intersphinx inventories from external sources (both Airflow
+packages hosted on S3 and third-party packages like Pandas, SQLAlchemy, etc.). These inventories enable
+cross-references between documentation sets.
+
+By default, missing third-party inventories produce warnings but do **not** fail the build. This is
+because third-party inventory servers can be temporarily unavailable and should not block documentation
+builds. If a cached version of the inventory exists, it will be used instead.
+
+The following flags control inventory behavior:
+
+- ``--clean-inventory-cache`` — deletes the inventory cache before fetching. Use this when you want
+  to force a completely fresh download of all inventories.
+- ``--clean-build`` — cleans build artifacts (``_build``, ``_doctrees``, ``apis``) but does **not**
+  delete the inventory cache. This allows rebuilding docs from scratch while preserving cached
+  inventories.
+- ``--refresh-airflow-inventories`` — forces a refresh of only Airflow package inventories, without
+  cleaning build artifacts or external inventories.
+- ``--fail-on-missing-third-party-inventories`` — fails the build if any third-party inventory cannot
+  be downloaded (useful for publishing workflows where complete cross-references are important).
 
 You can also use ``breeze build-docs --help`` to see available options and head to
 `breeze documentation <../dev/breeze/doc/03_developer_tasks.rst>`__ to learn more about the ``breeze``

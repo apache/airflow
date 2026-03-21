@@ -22,8 +22,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.check import require_provider_version
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 
 def test_decorator_usage_without_parentheses():

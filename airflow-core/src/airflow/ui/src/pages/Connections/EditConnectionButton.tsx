@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure } from "@chakra-ui/react";
+import { Heading, IconButton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { ConnectionResponse } from "openapi/requests/types.gen";
-import { Dialog } from "src/components/ui";
-import ActionButton from "src/components/ui/ActionButton";
+import { Dialog, Tooltip } from "src/components/ui";
 import { useEditConnection } from "src/queries/useEditConnection";
 
 import ConnectionForm from "./ConnectionForm";
@@ -46,6 +45,7 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
     password: connection.password ?? "",
     port: connection.port?.toString() ?? "",
     schema: connection.schema ?? "",
+    team_name: connection.team_name ?? "",
   };
   const { editConnection, error, isPending, setError } = useEditConnection(initialConnectionValue, {
     onSuccessConfirm: onClose,
@@ -58,16 +58,18 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
 
   return (
     <>
-      <ActionButton
-        actionName={translate("connections.edit")}
-        disabled={disabled}
-        icon={<FiEdit />}
-        onClick={() => {
-          onOpen();
-        }}
-        text={translate("connections.edit")}
-        withText={false}
-      />
+      <Tooltip content={translate("connections.edit")}>
+        <IconButton
+          aria-label={translate("connections.edit")}
+          colorPalette="brand"
+          disabled={disabled}
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiEdit />
+        </IconButton>
+      </Tooltip>
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>

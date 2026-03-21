@@ -127,9 +127,10 @@ class SmtpHook(BaseHook):
                 else:
                     if self.smtp_starttls:
                         self._smtp_client.starttls()
+                        self._smtp_client.ehlo()
 
                     # choose auth
-                    if self._auth_type == "oauth2":
+                    if self.auth_type == "oauth2":
                         if not self._access_token:
                             self._access_token = self._get_oauth2_token()
                         user_identity = self.smtp_user or self.from_email
@@ -172,8 +173,19 @@ class SmtpHook(BaseHook):
                 else:
                     if self.smtp_starttls:
                         await async_client.starttls()
+                        await async_client.ehlo()
 
-                    if self.smtp_user and self.smtp_password:
+                    # choose auth
+                    if self.auth_type == "oauth2":
+                        if not self._access_token:
+                            self._access_token = self._get_oauth2_token()
+                        user_identity = self.smtp_user or self.from_email
+                        if user_identity is None:
+                            raise AirflowException(
+                                "smtp_user or from_email must be set for OAuth2 authentication"
+                            )
+                        await async_client.auth_xoauth2(user_identity, self._access_token)
+                    elif self.smtp_user and self.smtp_password:
                         await async_client.auth_login(self.smtp_user, self.smtp_password)
                     break
 

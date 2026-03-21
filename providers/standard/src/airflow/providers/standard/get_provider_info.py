@@ -34,6 +34,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-standard/operators/bash.rst",
                     "/docs/apache-airflow-providers-standard/operators/python.rst",
+                    "/docs/apache-airflow-providers-standard/operators/hitl.rst",
                     "/docs/apache-airflow-providers-standard/operators/datetime.rst",
                     "/docs/apache-airflow-providers-standard/operators/trigger_dag_run.rst",
                     "/docs/apache-airflow-providers-standard/operators/latest_only.rst",
@@ -116,6 +117,29 @@ def get_provider_info():
                 },
             }
         },
+        "connection-types": [
+            {
+                "hook-class-name": "airflow.providers.standard.hooks.filesystem.FSHook",
+                "connection-type": "fs",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "port", "login", "password", "extra"]
+                },
+                "conn-fields": {"path": {"label": "Path", "schema": {"type": ["string", "null"]}}},
+            },
+            {
+                "hook-class-name": "airflow.providers.standard.hooks.package_index.PackageIndexHook",
+                "connection-type": "package_index",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {"host": "Package Index URL"},
+                    "placeholders": {
+                        "host": "Example: https://my-package-mirror.net/pypi/repo-name/simple",
+                        "login": "Username for package index",
+                        "password": "Password for package index (will be masked)",
+                    },
+                },
+            },
+        ],
         "task-decorators": [
             {"class-name": "airflow.providers.standard.decorators.python.python_task", "name": "python"},
             {"class-name": "airflow.providers.standard.decorators.bash.bash_task", "name": "bash"},

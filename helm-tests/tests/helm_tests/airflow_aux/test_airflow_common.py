@@ -60,7 +60,7 @@ class TestAirflowCommon:
         docs = render_chart(
             values={
                 "logs": logs_values,
-                "airflowVersion": "1.10.15",
+                "airflowVersion": "2.11.0",
             },  # airflowVersion is present so webserver gets the mount
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -166,7 +166,7 @@ class TestAirflowCommon:
         docs = render_chart(
             values={
                 "dags": dag_values,
-                "dagProcessor": {"enabled": True},
+                "airflowVersion": "2.11.0",
             },
             show_only=[
                 "templates/dag-processor/dag-processor-deployment.yaml",
@@ -181,7 +181,33 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
-    def test_webserver_config_configmap_name_volume_mounts(self):
+    def test_git_sync_http_port(self):
+        docs = render_chart(
+            values={
+                "dags": {"gitSync": {"enabled": True, "httpPort": 10}},
+            },
+            show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        assert len(docs) == 3
+        for doc in docs:
+            envs = jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].env", doc)
+            assert {"name": "GIT_SYNC_HTTP_BIND", "value": ":10"} in envs
+            assert {"name": "GITSYNC_HTTP_BIND", "value": ":10"} in envs
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosSidecar": {"enabled": True}},
+            {"celery": {"kerberosSidecar": {"enabled": True}}},
+            {"kerberosSidecar": {"enabled": True}, "celery": {"kerberosSidecar": {"enabled": False}}},
+        ],
+    )
+    def test_webserver_config_configmap_name_volume_mounts(self, workers_values):
         configmap_name = "my-configmap"
         docs = render_chart(
             values={
@@ -189,7 +215,7 @@ class TestAirflowCommon:
                     "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
                     "webserverConfigConfigMapName": configmap_name,
                 },
-                "workers": {"kerberosSidecar": {"enabled": True}},
+                "workers": workers_values,
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -406,14 +432,12 @@ class TestAirflowCommon:
         docs = render_chart(
             values={
                 "enableBuiltInSecretEnvVars": {
-                    "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__API__SECRET_KEY": False,
                     "AIRFLOW__API_AUTH__JWT_SECRET": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
                     # the following vars only appear if remote logging is set, so disabling them in this test is kind of a no-op
                     "AIRFLOW__ELASTICSEARCH__HOST": False,
-                    "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST": False,
                     "AIRFLOW__OPENSEARCH__HOST": False,
                 },
             },
@@ -450,20 +474,30 @@ class TestAirflowCommon:
                 "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
-        expected_vars = [
+        # JWT secret is only injected into scheduler (and api-server); not into workers,
+        # webserver, triggerer, dag-processor (security: no JWT where not needed).
+        expected_vars_with_jwt = [
             "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_HOME",
-            "AIRFLOW__CORE__SQL_ALCHEMY_CONN",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__API_AUTH__JWT_SECRET",
             "AIRFLOW__CELERY__BROKER_URL",
         ]
-        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
+        expected_vars_no_jwt = [
+            "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW_HOME",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
+            "AIRFLOW__API__SECRET_KEY",
+            "AIRFLOW__CELERY__BROKER_URL",
+        ]
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
-            variables = expected_vars_in_worker if component == "worker" else expected_vars
+            expected = expected_vars_with_jwt if component == "scheduler" else expected_vars_no_jwt
+            expected_in_worker = ["DUMB_INIT_SETSID"] + expected
+            variables = expected_in_worker if component == "worker" else expected
             assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
                 f"Wrong vars in {component}"
             )

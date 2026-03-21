@@ -92,6 +92,7 @@ with DAG(
             "job_name": "start_python_job_async",
             "location": LOCATION,
             "wait_until_finished": False,
+            "max_num_workers": 1,
         },
     )
     # [END howto_operator_start_python_job_async]

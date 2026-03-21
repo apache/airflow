@@ -569,6 +569,24 @@ class TestBigQueryUpdateTableSchemaOperator:
             "documentation": DocumentationDatasetFacet(description="Table description."),
         }
 
+    def test_get_openlineage_facets_on_complete_when_table_is_none(self):
+        operator = BigQueryUpdateTableSchemaOperator(
+            schema_fields_updates=[],
+            include_policy_tags=False,
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        # Simulate update_table_schema returning None
+        operator._table = None
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert result is not None
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.inputs
+        assert not result.outputs
+
 
 class TestBigQueryUpdateDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -695,16 +713,12 @@ class TestBigQueryGetDataOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_get_data_operator_async_with_selected_fields(
-        self, mock_hook, create_task_instance_of_operator
-    ):
+    def test_bigquery_get_data_operator_async_with_selected_fields(self, mock_hook):
         """
         Asserts that a task is deferred and a BigQuerygetDataTrigger will be fired
         when the BigQueryGetDataOperator is executed with deferrable=True.
         """
-        ti = create_task_instance_of_operator(
-            BigQueryGetDataOperator,
-            dag_id="dag_id",
+        operator = BigQueryGetDataOperator(
             task_id="get_data_from_bq",
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
@@ -716,7 +730,7 @@ class TestBigQueryGetDataOperator:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         assert isinstance(exc.value.trigger, BigQueryGetDataTrigger), (
             "Trigger is not a BigQueryGetDataTrigger"
@@ -725,16 +739,12 @@ class TestBigQueryGetDataOperator:
     @pytest.mark.db_test
     @pytest.mark.parametrize("as_dict", [True, False])
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_get_data_operator_async_without_selected_fields(
-        self, mock_hook, create_task_instance_of_operator, as_dict
-    ):
+    def test_bigquery_get_data_operator_async_without_selected_fields(self, mock_hook, as_dict):
         """
         Asserts that a task is deferred and a BigQueryGetDataTrigger will be fired
         when the BigQueryGetDataOperator is executed with deferrable=True.
         """
-        ti = create_task_instance_of_operator(
-            BigQueryGetDataOperator,
-            dag_id="dag_id",
+        operator = BigQueryGetDataOperator(
             task_id="get_data_from_bq",
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
@@ -746,7 +756,7 @@ class TestBigQueryGetDataOperator:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         assert isinstance(exc.value.trigger, BigQueryGetDataTrigger), (
             "Trigger is not a BigQueryGetDataTrigger"
@@ -1163,11 +1173,8 @@ class TestBigQueryInsertJobOperator:
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
 
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator._handle_job_error"
-    )
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_execute_reattach(self, mock_hook, _handle_job_error):
+    def test_execute_reattach(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
@@ -1186,6 +1193,8 @@ class TestBigQueryInsertJobOperator:
             state="RUNNING",
             done=lambda: False,
         )
+        # Simulate job.result() completing - job transitions to DONE state
+        job.result.side_effect = lambda **_: setattr(job, "state", "DONE")
         mock_hook.return_value.get_job.return_value = job
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
@@ -1392,7 +1401,7 @@ class TestBigQueryInsertJobOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_insert_job_operator_async(self, mock_hook, create_task_instance_of_operator):
+    def test_bigquery_insert_job_operator_async(self, mock_hook):
         """
         Asserts that a task is deferred and a BigQueryInsertJobTrigger will be fired
         when the BigQueryInsertJobOperator is executed with deferrable=True.
@@ -1409,9 +1418,7 @@ class TestBigQueryInsertJobOperator:
         }
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-        ti = create_task_instance_of_operator(
-            BigQueryInsertJobOperator,
-            dag_id="dag_id",
+        operator = BigQueryInsertJobOperator(
             task_id="insert_query_job",
             configuration=configuration,
             location=TEST_DATASET_LOCATION,
@@ -1421,7 +1428,7 @@ class TestBigQueryInsertJobOperator:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         assert isinstance(exc.value.trigger, BigQueryInsertJobTrigger), (
             "Trigger is not a BigQueryInsertJobTrigger"
@@ -1429,9 +1436,7 @@ class TestBigQueryInsertJobOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_insert_job_operator_async_inherits_hook_project_id_when_non_given(
-        self, mock_hook, create_task_instance_of_operator
-    ):
+    def test_bigquery_insert_job_operator_async_inherits_hook_project_id_when_non_given(self, mock_hook):
         """
         Asserts that a deferred task of type BigQueryInsertJobTrigger will assume the project_id
         of the hook that is used within the BigQueryInsertJobOperator when there is no
@@ -1447,9 +1452,7 @@ class TestBigQueryInsertJobOperator:
         }
         mock_hook.return_value.project_id = TEST_GCP_PROJECT_ID
 
-        ti = create_task_instance_of_operator(
-            BigQueryInsertJobOperator,
-            dag_id="dag_id",
+        operator = BigQueryInsertJobOperator(
             task_id="insert_query_job",
             configuration=configuration,
             location=TEST_DATASET_LOCATION,
@@ -1459,7 +1462,7 @@ class TestBigQueryInsertJobOperator:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         assert isinstance(exc.value.trigger, BigQueryInsertJobTrigger), (
             "Trigger is not a BigQueryInsertJobTrigger"
@@ -1492,7 +1495,7 @@ class TestBigQueryInsertJobOperator:
             )
 
     @pytest.mark.db_test
-    def test_bigquery_insert_job_operator_execute_complete(self, create_task_instance_of_operator):
+    def test_bigquery_insert_job_operator_execute_complete(self):
         """Asserts that logging occurs as expected"""
         configuration = {
             "query": {
@@ -1502,9 +1505,7 @@ class TestBigQueryInsertJobOperator:
         }
         job_id = "123456"
 
-        ti = create_task_instance_of_operator(
-            BigQueryInsertJobOperator,
-            dag_id="dag_id",
+        operator = BigQueryInsertJobOperator(
             task_id="insert_query_job",
             configuration=configuration,
             location=TEST_DATASET_LOCATION,
@@ -1512,7 +1513,6 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
             deferrable=True,
         )
-        operator = ti.task
         with mock.patch.object(operator.log, "info") as mock_log_info:
             operator.execute_complete(
                 context=MagicMock(),
@@ -1549,13 +1549,8 @@ class TestBigQueryInsertJobOperator:
         assert operator.job_id == job_id
 
     @pytest.mark.db_test
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator._handle_job_error"
-    )
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_insert_job_operator_with_job_id_generate(
-        self, mock_hook, _handle_job_error, create_task_instance_of_operator
-    ):
+    def test_bigquery_insert_job_operator_with_job_id_generate(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
@@ -1576,9 +1571,7 @@ class TestBigQueryInsertJobOperator:
         )
         mock_hook.return_value.get_job.return_value = job
 
-        ti = create_task_instance_of_operator(
-            BigQueryInsertJobOperator,
-            dag_id="adhoc_airflow",
+        operator = BigQueryInsertJobOperator(
             task_id="insert_query_job",
             configuration=configuration,
             location=TEST_DATASET_LOCATION,
@@ -1589,7 +1582,7 @@ class TestBigQueryInsertJobOperator:
         )
 
         with pytest.raises(TaskDeferred):
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         mock_hook.return_value.generate_job_id.assert_called_once_with(
             job_id=job_id,
@@ -1599,7 +1592,126 @@ class TestBigQueryInsertJobOperator:
             run_after=ANY,
             configuration=configuration,
             force_rerun=True,
+            try_number=None,
         )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_generate_job_id_with_ti_try_number(self, mock_hook):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        # Setup context with try_number > 2
+        context = MagicMock()
+        context["ti"].try_number = 3
+
+        mock_hook.return_value.get_run_after_or_logical_date.return_value = None
+        mock_hook.return_value.generate_job_id.return_value = "generated_job_id_with_try_number"
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            state="DONE", job_id="generated_job_id_with_try_number", error_result=False
+        )
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=None,  # job_id must be None to trigger the try_number logic
+            project_id=TEST_GCP_PROJECT_ID,
+            force_rerun=False,
+        )
+
+        op.execute(context=context)
+
+        mock_hook.return_value.generate_job_id.assert_called_once_with(
+            job_id=None,
+            dag_id=op.dag_id,
+            task_id=op.task_id,
+            logical_date=None,
+            configuration=configuration,
+            run_after=None,
+            force_rerun=False,
+            try_number=2,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_conflict_429_retry_resubmits_job(self, mock_hook):
+        """
+        Tests that if a Conflict occurs and the retrieved job failed with a 429 error,
+        a new job_id is generated and the job is resubmitted.
+        """
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        # Setup context with try_number > 1
+        context = MagicMock()
+        context["ti"].try_number = 2
+
+        mock_hook.return_value.get_run_after_or_logical_date.return_value = None
+
+        # We need generate_job_id to return two different IDs for the two attempts
+        first_job_id = "initial_generated_job_id"
+        second_job_id = "retry_generated_job_id"
+        mock_hook.return_value.generate_job_id.side_effect = [first_job_id, second_job_id]
+
+        # First insert_job raises Conflict, second one succeeds
+        success_job = MagicMock(state="DONE", job_id=second_job_id, error_result=False)
+        mock_hook.return_value.insert_job.side_effect = [Conflict("already exists"), success_job]
+
+        # get_job returns a job in DONE state with a 429 error
+        failed_429_job = MagicMock(
+            job_id=first_job_id,
+            state="DONE",
+            error_result="Quota exceeded: Your project exceeded quota for... HTTP 429 Too Many Requests",
+        )
+        mock_hook.return_value.get_job.return_value = failed_429_job
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=None,
+            project_id=TEST_GCP_PROJECT_ID,
+            force_rerun=False,
+        )
+
+        result = op.execute(context=context)
+
+        # 1. Assert generate_job_id was called twice (initial + retry)
+        assert mock_hook.return_value.generate_job_id.call_count == 2
+
+        # Check the arguments of the second generate_job_id call (the retry)
+        mock_hook.return_value.generate_job_id.assert_called_with(
+            job_id=None,
+            dag_id=op.dag_id,
+            task_id=op.task_id,
+            logical_date=None,
+            configuration=configuration,
+            run_after=None,
+            force_rerun=False,
+            try_number=2,  # Should pass context["ti"].try_number exactly
+        )
+
+        # 2. Assert insert_job was called twice (initial submit + resubmit)
+        assert mock_hook.return_value.insert_job.call_count == 2
+        mock_hook.return_value.insert_job.assert_called_with(
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=second_job_id,  # Ensure the second call used the newly generated job_id
+            nowait=True,
+            project_id=TEST_GCP_PROJECT_ID,
+            retry=DEFAULT_RETRY,
+            timeout=None,
+        )
+
+        # 3. Assert the operator returns the final successful job_id
+        assert result == second_job_id
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_openlineage_events(self, mock_hook):
@@ -1684,7 +1796,7 @@ class TestBigQueryInsertJobOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_execute_force_rerun_async(self, mock_hook, create_task_instance_of_operator):
+    def test_execute_force_rerun_async(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
@@ -1706,9 +1818,7 @@ class TestBigQueryInsertJobOperator:
         )
         mock_hook.return_value.get_job.return_value = job
 
-        ti = create_task_instance_of_operator(
-            BigQueryInsertJobOperator,
-            dag_id="dag_id",
+        operator = BigQueryInsertJobOperator(
             task_id="insert_query_job",
             configuration=configuration,
             location=TEST_DATASET_LOCATION,
@@ -1719,7 +1829,7 @@ class TestBigQueryInsertJobOperator:
         )
 
         with pytest.raises(AirflowException) as exc:
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         expected_exception_msg = (
             f"Job with id: {real_job_id} already exists and is in {job.state} state. "
@@ -2071,7 +2181,7 @@ class TestBigQueryIntervalCheckOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_interval_check_operator_async(self, mock_hook, create_task_instance_of_operator):
+    def test_bigquery_interval_check_operator_async(self, mock_hook):
         """
         Asserts that a task is deferred and a BigQueryIntervalCheckTrigger will be fired
         when the BigQueryIntervalCheckOperator is executed with deferrable=True.
@@ -2082,9 +2192,7 @@ class TestBigQueryIntervalCheckOperator:
 
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-        ti = create_task_instance_of_operator(
-            BigQueryIntervalCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryIntervalCheckOperator(
             task_id="bq_interval_check_operator_execute_complete",
             table="test_table",
             metrics_thresholds={"COUNT(*)": 1.5},
@@ -2093,7 +2201,7 @@ class TestBigQueryIntervalCheckOperator:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         assert isinstance(exc.value.trigger, BigQueryIntervalCheckTrigger), (
             "Trigger is not a BigQueryIntervalCheckTrigger"
@@ -2101,9 +2209,7 @@ class TestBigQueryIntervalCheckOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_interval_check_operator_with_project_id(
-        self, mock_hook, create_task_instance_of_operator
-    ):
+    def test_bigquery_interval_check_operator_with_project_id(self, mock_hook):
         """
         Test BigQueryIntervalCheckOperator with a specified project_id.
         Ensure that the bq_project_id is passed correctly when submitting the job.
@@ -2113,9 +2219,7 @@ class TestBigQueryIntervalCheckOperator:
         real_job_id = f"{job_id}_{hash_}"
 
         project_id = "test-project-id"
-        ti = create_task_instance_of_operator(
-            BigQueryIntervalCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryIntervalCheckOperator(
             task_id="bq_interval_check_operator_with_project_id",
             table="test_table",
             metrics_thresholds={"COUNT(*)": 1.5},
@@ -2127,7 +2231,7 @@ class TestBigQueryIntervalCheckOperator:
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
         with pytest.raises(TaskDeferred):
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         mock_hook.return_value.insert_job.assert_called_with(
             configuration=mock.ANY,
@@ -2139,9 +2243,7 @@ class TestBigQueryIntervalCheckOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_interval_check_operator_without_project_id(
-        self, mock_hook, create_task_instance_of_operator
-    ):
+    def test_bigquery_interval_check_operator_without_project_id(self, mock_hook):
         """
         Test BigQueryIntervalCheckOperator without a specified project_id.
         Ensure that the project_id falls back to the hook.project_id as previously implemented.
@@ -2151,9 +2253,7 @@ class TestBigQueryIntervalCheckOperator:
         real_job_id = f"{job_id}_{hash_}"
 
         project_id = "test-project-id"
-        ti = create_task_instance_of_operator(
-            BigQueryIntervalCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryIntervalCheckOperator(
             task_id="bq_interval_check_operator_without_project_id",
             table="test_table",
             metrics_thresholds={"COUNT(*)": 1.5},
@@ -2165,7 +2265,7 @@ class TestBigQueryIntervalCheckOperator:
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
         with pytest.raises(TaskDeferred):
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         mock_hook.return_value.insert_job.assert_called_with(
             configuration=mock.ANY,
@@ -2216,7 +2316,7 @@ class TestBigQueryCheckOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator.defer")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_check_operator_async_finish_before_deferred(
-        self, mock_hook, mock_defer, mock_validate_records, create_task_instance_of_operator
+        self, mock_hook, mock_defer, mock_validate_records
     ):
         job_id = "123456"
         hash_ = "hash"
@@ -2227,25 +2327,21 @@ class TestBigQueryCheckOperator:
         mock_hook.return_value.insert_job.return_value = mocked_job
         mock_hook.return_value.insert_job.return_value.running.return_value = False
 
-        ti = create_task_instance_of_operator(
-            BigQueryCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryCheckOperator(
             task_id="bq_check_operator_job",
             sql="SELECT * FROM any",
             location=TEST_DATASET_LOCATION,
             deferrable=True,
         )
 
-        ti.task.execute(MagicMock())
+        operator.execute(MagicMock())
         mock_defer.assert_not_called()
         mock_validate_records.assert_called_once_with((1, 2, 3))
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator._validate_records")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_check_operator_query_parameters_passing(
-        self, mock_hook, mock_validate_records, create_task_instance_of_operator
-    ):
+    def test_bigquery_check_operator_query_parameters_passing(self, mock_hook, mock_validate_records):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
@@ -2256,9 +2352,7 @@ class TestBigQueryCheckOperator:
         mock_hook.return_value.insert_job.return_value = mocked_job
         mock_hook.return_value.insert_job.return_value.running.return_value = False
 
-        ti = create_task_instance_of_operator(
-            BigQueryCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryCheckOperator(
             task_id="bq_check_operator_query_params_job",
             sql="SELECT * FROM any WHERE test_param = @test_param",
             location=TEST_DATASET_LOCATION,
@@ -2266,14 +2360,12 @@ class TestBigQueryCheckOperator:
             query_params=query_params,
         )
 
-        ti.task.execute(MagicMock())
+        operator.execute(MagicMock())
         mock_validate_records.assert_called_once_with((1, 2, 3))
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_check_operator_async_finish_with_error_before_deferred(
-        self, mock_hook, create_task_instance_of_operator
-    ):
+    def test_bigquery_check_operator_async_finish_with_error_before_deferred(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
@@ -2281,9 +2373,7 @@ class TestBigQueryCheckOperator:
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=True)
         mock_hook.return_value.insert_job.return_value.running.return_value = False
 
-        ti = create_task_instance_of_operator(
-            BigQueryCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryCheckOperator(
             task_id="bq_check_operator_job",
             sql="SELECT * FROM any",
             location=TEST_DATASET_LOCATION,
@@ -2291,13 +2381,13 @@ class TestBigQueryCheckOperator:
         )
 
         with pytest.raises(AirflowException) as exc:
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         assert str(exc.value) == f"BigQuery job {real_job_id} failed: True"
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_check_operator_async(self, mock_hook, create_task_instance_of_operator):
+    def test_bigquery_check_operator_async(self, mock_hook):
         """
         Asserts that a task is deferred and a BigQueryCheckTrigger will be fired
         when the BigQueryCheckOperator is executed with deferrable=True.
@@ -2308,9 +2398,7 @@ class TestBigQueryCheckOperator:
 
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
 
-        ti = create_task_instance_of_operator(
-            BigQueryCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryCheckOperator(
             task_id="bq_check_operator_job",
             sql="SELECT * FROM any",
             location=TEST_DATASET_LOCATION,
@@ -2318,7 +2406,7 @@ class TestBigQueryCheckOperator:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         assert isinstance(exc.value.trigger, BigQueryCheckTrigger), "Trigger is not a BigQueryCheckTrigger"
 
@@ -2397,14 +2485,12 @@ class TestBigQueryCheckOperator:
 class TestBigQueryValueCheckOperator:
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_value_check_async(self, mock_hook, create_task_instance_of_operator):
+    def test_bigquery_value_check_async(self, mock_hook):
         """
         Asserts that a task is deferred and a BigQueryValueCheckTrigger will be fired
         when the BigQueryValueCheckOperator with deferrable=True is executed.
         """
-        ti = create_task_instance_of_operator(
-            BigQueryValueCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryValueCheckOperator(
             task_id="check_value",
             sql="SELECT COUNT(*) FROM Any",
             pass_value=2,
@@ -2416,7 +2502,7 @@ class TestBigQueryValueCheckOperator:
         real_job_id = f"{job_id}_{hash_}"
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
         with pytest.raises(TaskDeferred) as exc:
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         assert isinstance(exc.value.trigger, BigQueryValueCheckTrigger), (
             "Trigger is not a BigQueryValueCheckTrigger"
@@ -2427,7 +2513,7 @@ class TestBigQueryValueCheckOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator.check_value")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_value_check_operator_async_finish_before_deferred(
-        self, mock_hook, mock_check_value, mock_defer, create_task_instance_of_operator
+        self, mock_hook, mock_check_value, mock_defer
     ):
         job_id = "123456"
         hash_ = "hash"
@@ -2438,9 +2524,7 @@ class TestBigQueryValueCheckOperator:
         mock_hook.return_value.insert_job.return_value = mocked_job
         mock_hook.return_value.insert_job.return_value.running.return_value = False
 
-        ti = create_task_instance_of_operator(
-            BigQueryValueCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryValueCheckOperator(
             task_id="check_value",
             sql="SELECT COUNT(*) FROM Any",
             pass_value=2,
@@ -2448,15 +2532,13 @@ class TestBigQueryValueCheckOperator:
             deferrable=True,
         )
 
-        ti.task.execute(MagicMock())
+        operator.execute(MagicMock())
         assert not mock_defer.called
         mock_check_value.assert_called_once_with((1, 2, 3))
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_value_check_operator_async_finish_with_error_before_deferred(
-        self, mock_hook, create_task_instance_of_operator
-    ):
+    def test_bigquery_value_check_operator_async_finish_with_error_before_deferred(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
@@ -2464,9 +2546,7 @@ class TestBigQueryValueCheckOperator:
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=True)
         mock_hook.return_value.insert_job.return_value.running.return_value = False
 
-        ti = create_task_instance_of_operator(
-            BigQueryValueCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryValueCheckOperator(
             task_id="check_value",
             sql="SELECT COUNT(*) FROM Any",
             pass_value=2,
@@ -2475,7 +2555,7 @@ class TestBigQueryValueCheckOperator:
         )
 
         with pytest.raises(AirflowException) as exc:
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
         assert str(exc.value) == f"BigQuery job {real_job_id} failed: True"
 
@@ -2605,16 +2685,14 @@ class TestBigQueryColumnCheckOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHookWithFlexibleProjectId")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
     def test_bigquery_column_check_operator_succeeds(
-        self, mock_job, mock_hook, check_type, check_value, check_result, create_task_instance_of_operator
+        self, mock_job, mock_hook, check_type, check_value, check_result
     ):
         mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame(
             {"col_name": ["col1"], "check_type": ["min"], "check_result": [check_result]}
         )
         mock_hook.return_value.insert_job.return_value = mock_job
 
-        ti = create_task_instance_of_operator(
-            BigQueryColumnCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryColumnCheckOperator(
             task_id="check_column_succeeds",
             table=TEST_TABLE_ID,
             use_legacy_sql=False,
@@ -2622,7 +2700,7 @@ class TestBigQueryColumnCheckOperator:
                 "col1": {"min": {check_type: check_value}},
             },
         )
-        ti.task.execute(MagicMock())
+        operator.execute(MagicMock())
 
     @pytest.mark.parametrize(
         ("check_type", "check_value", "check_result"),
@@ -2637,16 +2715,14 @@ class TestBigQueryColumnCheckOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery._BigQueryHookWithFlexibleProjectId")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
     def test_bigquery_column_check_operator_fails(
-        self, mock_job, mock_hook, check_type, check_value, check_result, create_task_instance_of_operator
+        self, mock_job, mock_hook, check_type, check_value, check_result
     ):
         mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame(
             {"col_name": ["col1"], "check_type": ["min"], "check_result": [check_result]}
         )
         mock_hook.return_value.insert_job.return_value = mock_job
 
-        ti = create_task_instance_of_operator(
-            BigQueryColumnCheckOperator,
-            dag_id="dag_id",
+        operator = BigQueryColumnCheckOperator(
             task_id="check_column_fails",
             table=TEST_TABLE_ID,
             use_legacy_sql=False,
@@ -2655,7 +2731,7 @@ class TestBigQueryColumnCheckOperator:
             },
         )
         with pytest.raises(AirflowException):
-            ti.task.execute(MagicMock())
+            operator.execute(MagicMock())
 
     @pytest.mark.parametrize(
         ("check_type", "check_value", "check_result"),

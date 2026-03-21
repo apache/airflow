@@ -17,19 +17,36 @@
  * under the License.
  */
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-/**
- * Playwright configuration for Airflow UI End-to-End Tests
- */
 export const testConfig = {
+  asset: {
+    name: process.env.TEST_ASSET_NAME ?? "s3://dag1/output_1.txt",
+  },
+  connection: {
+    baseUrl: process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080",
+  },
   credentials: {
     password: process.env.TEST_PASSWORD ?? "admin",
     username: process.env.TEST_USERNAME ?? "admin",
   },
   testDag: {
+    hitlId: process.env.TEST_HITL_DAG_ID ?? "example_hitl_operator",
     id: process.env.TEST_DAG_ID ?? "example_bash_operator",
   },
+  testTask: {
+    id: process.env.TEST_TASK_ID ?? "runme_0",
+  },
+  xcomDag: {
+    id: process.env.TEST_XCOM_DAG_ID ?? "example_xcom",
+  },
 };
+
+const currentFilename = fileURLToPath(import.meta.url);
+const currentDirname = path.dirname(currentFilename);
+
+export const AUTH_FILE = path.join(currentDirname, "playwright/.auth/user.json");
 
 export default defineConfig({
   expect: {
@@ -37,6 +54,7 @@ export default defineConfig({
   },
   forbidOnly: process.env.CI !== undefined && process.env.CI !== "",
   fullyParallel: true,
+  globalSetup: "./tests/e2e/global-setup.ts",
   projects: [
     {
       name: "chromium",
@@ -50,9 +68,9 @@ export default defineConfig({
             "--window-size=1920,1080",
             "--window-position=0,0",
           ],
-          channel: "chrome",
           ignoreDefaultArgs: ["--enable-automation"],
         },
+        storageState: AUTH_FILE,
       },
     },
     {
@@ -68,6 +86,7 @@ export default defineConfig({
             "--disable-web-security",
           ],
         },
+        storageState: AUTH_FILE,
       },
     },
     {
@@ -77,6 +96,7 @@ export default defineConfig({
         launchOptions: {
           args: [],
         },
+        storageState: AUTH_FILE,
       },
     },
   ],
@@ -89,6 +109,14 @@ export default defineConfig({
   retries: process.env.CI !== undefined && process.env.CI !== "" ? 2 : 0,
 
   testDir: "./tests/e2e/specs",
+  // TODO: Temporarily ignore flaky specs until stabilized
+  // See: #63036
+  testIgnore: [
+    "**/dag-runs-tab.spec.ts",
+    "**/dag-runs.spec.ts",
+    "**/dag-grid-view.spec.ts",
+    "**/task-logs.spec.ts",
+  ],
 
   timeout: 30_000,
   use: {

@@ -26,7 +26,7 @@ import shutil
 import signal
 import textwrap
 import time
-from collections import deque
+from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socket, socketpair
@@ -177,7 +177,7 @@ class TestDagFileProcessorManager:
             manager.run()
 
             with create_session() as session:
-                import_errors = session.query(ParseImportError).all()
+                import_errors = session.scalars(select(ParseImportError)).all()
                 assert len(import_errors) == 1
 
                 path_to_parse.unlink()
@@ -186,7 +186,7 @@ class TestDagFileProcessorManager:
             manager.run()
 
             with create_session() as session:
-                import_errors = session.query(ParseImportError).all()
+                import_errors = session.scalars(select(ParseImportError)).all()
 
                 assert len(import_errors) == 0
                 session.rollback()
@@ -342,7 +342,7 @@ class TestDagFileProcessorManager:
         manager.prepare_file_queue(
             known_files={"any": set((*dag_files, *_get_file_infos(["file_4-ss=1.0.py"])))}
         )
-        # manager.add_files_to_queue()
+        # manager._add_new_files_to_queue()
         ordered_files = _get_file_infos(
             [
                 "file_3-ss=4.0.py",
@@ -352,6 +352,123 @@ class TestDagFileProcessorManager:
             ]
         )
         assert manager._file_queue == deque(ordered_files)
+
+    def test_add_new_files_to_queue_behavior(self):
+        """
+        Check that _add_new_files_to_queue:
+        1. Adds new files to the front of the queue.
+        2. Skips files that are currently being processed.
+        3. Skips files that have already been processed (in _file_stats).
+        4. Does not re-add files already in the queue.
+        """
+        manager = DagFileProcessorManager(max_runs=1)
+        file_1 = DagFileInfo(bundle_name="testing", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER)
+        file_2 = DagFileInfo(bundle_name="testing", rel_path=Path("file_2.py"), bundle_path=TEST_DAGS_FOLDER)
+        file_3 = DagFileInfo(bundle_name="testing", rel_path=Path("file_3.py"), bundle_path=TEST_DAGS_FOLDER)
+        file_4 = DagFileInfo(bundle_name="testing", rel_path=Path("file_4.py"), bundle_path=TEST_DAGS_FOLDER)
+
+        # Setup:
+        # file_1 is already in the queue
+        manager._file_queue = deque([file_1])
+
+        # file_3 is currently being processed
+        manager._processors[file_3] = MagicMock()
+
+        # file_4 has already been processed
+        manager._file_stats[file_4] = DagFileStat(num_dags=1)
+
+        # known_files contains all four
+        known_files = {"testing": {file_1, file_2, file_3, file_4}}
+
+        manager._add_new_files_to_queue(known_files)
+
+        # file_4 should be ignored (in file_stats)
+        # file_3 should be ignored (processing)
+        # file_2 should be at the front (new)
+        # file_1 should remain (already in queue)
+        assert list(manager._file_queue) == [file_2, file_1]
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
+    def test_resort_file_queue_by_mtime(self):
+        """
+        Check that existing files in the queue are re-sorted by mtime when calling _resort_file_queue,
+        if sort mode is modified_time.
+        """
+        # Prepare some files with mtimes
+        files_with_mtime = [
+            ("file_1.py", 100.0),
+            ("file_2.py", 200.0),
+        ]
+        filenames = encode_mtime_in_filename(files_with_mtime)
+        dag_files = _get_file_infos(filenames)
+        # dag_files[0] -> file_1 (mtime 100)
+        # dag_files[1] -> file_2 (mtime 200)
+
+        manager = DagFileProcessorManager(max_runs=1)
+
+        # Populate queue with unsorted files
+        # Queue: [file_1 (100), file_2 (200)]
+        manager._file_queue = deque([dag_files[0], dag_files[1]])
+
+        manager._resort_file_queue()
+
+        # Verify resort happened: [file_2 (200), file_1 (100)]
+        assert list(manager._file_queue) == [dag_files[1], dag_files[0]]
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    def test_resort_file_queue_does_nothing_when_alphabetical(self):
+        """
+        Check that _resort_file_queue does NOT change the order if sort mode is alphabetical.
+        """
+        file_a = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"), bundle_path=TEST_DAGS_FOLDER)
+        file_b = DagFileInfo(bundle_name="testing", rel_path=Path("b.py"), bundle_path=TEST_DAGS_FOLDER)
+
+        manager = DagFileProcessorManager(max_runs=1)
+
+        # Populate queue in non-alphabetical order
+        manager._file_queue = deque([file_b, file_a])
+
+        manager._resort_file_queue()
+
+        # Order should remain unchanged
+        assert list(manager._file_queue) == [file_b, file_a]
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
+    def test_resort_file_queue_keeps_callbacks_at_front(self):
+        """
+        Check that files with pending callbacks stay at the front of the queue
+        regardless of their modification time, and preserve their relative order.
+        """
+        files_with_mtime = [
+            ("callback_1.py", 50.0),  # has callback, oldest mtime
+            ("callback_2.py", 300.0),  # has callback, newest mtime
+            ("regular_1.py", 100.0),  # no callback
+            ("regular_2.py", 200.0),  # no callback
+        ]
+        filenames = encode_mtime_in_filename(files_with_mtime)
+        dag_files = _get_file_infos(filenames)
+        # dag_files[0] -> callback_1 (mtime 50)
+        # dag_files[1] -> callback_2 (mtime 300)
+        # dag_files[2] -> regular_1 (mtime 100)
+        # dag_files[3] -> regular_2 (mtime 200)
+
+        manager = DagFileProcessorManager(max_runs=1)
+
+        # Queue order: callback_1, callback_2, regular_1, regular_2
+        manager._file_queue = deque([dag_files[0], dag_files[1], dag_files[2], dag_files[3]])
+
+        # Both callback files have pending callbacks
+        manager._callback_to_execute[dag_files[0]] = [MagicMock()]
+        manager._callback_to_execute[dag_files[1]] = [MagicMock()]
+
+        manager._resort_file_queue()
+
+        # Callback files should stay at front in original order (callback_1, callback_2)
+        # despite callback_1 having the oldest mtime and callback_2 having the newest
+        # Regular files should be sorted by mtime (newest first): regular_2 (200), regular_1 (100)
+        assert list(manager._file_queue) == [dag_files[0], dag_files[1], dag_files[3], dag_files[2]]
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
@@ -440,7 +557,7 @@ class TestDagFileProcessorManager:
         manager._queue_requested_files_for_parsing()
         assert manager._file_queue == deque([file1])
         with create_session() as session2:
-            parsing_request_after = session2.query(DagPriorityParsingRequest).all()
+            parsing_request_after = session2.scalars(select(DagPriorityParsingRequest)).all()
         assert len(parsing_request_after) == 1
         assert parsing_request_after[0].relative_fileloc == "file_x.py"
 
@@ -485,38 +602,52 @@ class TestDagFileProcessorManager:
         manager._files = [test_dag_path]
         manager._file_stats[test_dag_path] = stat
 
-        active_dag_count = (
-            session.query(func.count(DagModel.dag_id))
-            .filter(
+        active_dag_count = session.scalar(
+            select(func.count(DagModel.dag_id)).where(
                 ~DagModel.is_stale,
                 DagModel.relative_fileloc == str(test_dag_path.rel_path),
                 DagModel.bundle_name == test_dag_path.bundle_name,
             )
-            .scalar()
         )
         assert active_dag_count == 1
 
         manager._scan_stale_dags()
 
-        active_dag_count = (
-            session.query(func.count(DagModel.dag_id))
-            .filter(
+        active_dag_count = session.scalar(
+            select(func.count(DagModel.dag_id)).where(
                 ~DagModel.is_stale,
                 DagModel.relative_fileloc == str(test_dag_path.rel_path),
                 DagModel.bundle_name == test_dag_path.bundle_name,
             )
-            .scalar()
         )
         assert active_dag_count == 0
 
-        serialized_dag_count = (
-            session.query(func.count(SerializedDagModel.dag_id))
-            .filter(SerializedDagModel.dag_id == dag.dag_id)
-            .scalar()
+        serialized_dag_count = session.scalar(
+            select(func.count(SerializedDagModel.dag_id)).where(SerializedDagModel.dag_id == dag.dag_id)
         )
         # Deactivating the DagModel should not delete the SerializedDagModel
         # SerializedDagModel gives history about Dags
         assert serialized_dag_count == 1
+
+    @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
+    def test_cleanup_stale_bundle_versions_interval(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.stale_bundle_cleanup_interval = 10
+
+        manager._last_stale_bundle_cleanup_time = time.monotonic() - 20
+        manager._cleanup_stale_bundle_versions()
+        mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once()
+
+        mock_bundle_manager.return_value.remove_stale_bundle_versions.reset_mock()
+        manager._last_stale_bundle_cleanup_time = time.monotonic()
+        manager._cleanup_stale_bundle_versions()
+        mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_not_called()
+
+    @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
+    def test_cleanup_stale_bundle_versions(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.cleanup_stale_bundle_versions()
+        mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once_with()
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
@@ -642,11 +773,11 @@ class TestDagFileProcessorManager:
 
     @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.dag_processing.manager.Stats.timing")
-    @pytest.mark.skip("AIP-66: stats are not implemented yet")
     def test_send_file_processing_statsd_timing(
         self, statsd_timing_mock, tmp_path, configure_testing_dag_bundle
     ):
-        path_to_parse = tmp_path / "temp_dag.py"
+        dag_filename = "temp_dag.py"
+        path_to_parse = tmp_path / dag_filename
         dag_code = textwrap.dedent(
             """
             from airflow import DAG
@@ -659,11 +790,21 @@ class TestDagFileProcessorManager:
             manager = DagFileProcessorManager(max_runs=1)
             manager.run()
 
-        last_runtime = manager._file_stats[os.fspath(path_to_parse)].last_duration
+        bundle_name = "testing"
+        file_info = DagFileInfo(
+            bundle_name=bundle_name,
+            rel_path=Path(dag_filename),
+            bundle_path=tmp_path,
+        )
+        last_runtime = manager._file_stats[file_info].last_duration
         statsd_timing_mock.assert_has_calls(
             [
-                mock.call("dag_processing.last_duration.temp_dag", last_runtime),
-                mock.call("dag_processing.last_duration", last_runtime, tags={"file_name": "temp_dag"}),
+                mock.call("dag_processing.last_duration.testing.temp_dag", last_runtime),
+                mock.call(
+                    "dag_processing.last_duration",
+                    last_runtime,
+                    tags={"file_name": dag_filename[:-3], "bundle_name": bundle_name},
+                ),
             ],
             any_order=True,
         )
@@ -876,7 +1017,7 @@ class TestDagFileProcessorManager:
                 assert callbacks[0].run_id == "123"
                 assert callbacks[1].run_id == "456"
 
-                assert session.query(DbCallbackRequest).count() == 0
+                assert len(session.scalars(select(DbCallbackRequest)).all()) == 0
 
     @conf_vars(
         {
@@ -905,11 +1046,11 @@ class TestDagFileProcessorManager:
 
             with create_session() as session:
                 manager.run()
-                assert session.query(DbCallbackRequest).count() == 3
+                assert len(session.scalars(select(DbCallbackRequest)).all()) == 3
 
             with create_session() as session:
                 manager.run()
-                assert session.query(DbCallbackRequest).count() == 1
+                assert len(session.scalars(select(DbCallbackRequest)).all()) == 1
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_ignores_other_bundles(self, configure_testing_dag_bundle):
@@ -950,11 +1091,66 @@ class TestDagFileProcessorManager:
                 assert [c.run_id for c in callbacks] == ["match"]
 
                 # The non-matching callback should remain in the DB
-                remaining = session.query(DbCallbackRequest).all()
+                remaining = session.scalars(select(DbCallbackRequest)).all()
                 assert len(remaining) == 1
                 # Decode remaining request and verify it's for the other bundle
                 remaining_req = remaining[0].get_callback_request()
                 assert remaining_req.bundle_name == "other-bundle"
+
+    @conf_vars(
+        {
+            ("dag_processor", "max_callbacks_per_loop"): "2",
+            ("core", "load_examples"): "False",
+        }
+    )
+    def test_fetch_callbacks_filters_by_bundle_before_limit(self, configure_testing_dag_bundle):
+        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
+
+        matching = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="testing",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            is_failure_callback=True,
+            run_id="match",
+        )
+        non_matching_1 = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="other-bundle-a",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            is_failure_callback=True,
+            run_id="no-match-1",
+        )
+        non_matching_2 = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="other-bundle-b",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            is_failure_callback=True,
+            run_id="no-match-2",
+        )
+
+        with create_session() as session:
+            session.add(DbCallbackRequest(callback=non_matching_1, priority_weight=300))
+            session.add(DbCallbackRequest(callback=non_matching_2, priority_weight=200))
+            session.add(DbCallbackRequest(callback=matching, priority_weight=100))
+
+        with configure_testing_dag_bundle(dag_filepath):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+
+            with create_session() as session:
+                callbacks = manager._fetch_callbacks(session=session)
+
+                assert [c.run_id for c in callbacks] == ["match"]
+
+                remaining = session.scalars(select(DbCallbackRequest)).all()
+                assert len(remaining) == 2
+                assert {callback.bundle_name for callback in remaining} == {
+                    "other-bundle-a",
+                    "other-bundle-b",
+                }
 
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
     def test_callback_queue(self, mock_get_logger, configure_testing_dag_bundle):
@@ -1062,6 +1258,51 @@ class TestDagFileProcessorManager:
             # And removed from the queue
             assert dag1_path not in manager._callback_to_execute
             assert dag2_path not in manager._callback_to_execute
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_add_callback_initializes_versioned_bundle(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock()
+        bundle.supports_versioning = True
+        bundle.path = Path("/tmp/bundle")
+        mock_bundle_manager.return_value.get_bundle.return_value = bundle
+
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="some_commit_hash",
+            msg=None,
+        )
+
+        manager._add_callback_to_queue(request)
+
+        bundle.initialize.assert_called_once()
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_add_callback_skips_when_bundle_init_fails(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock()
+        bundle.supports_versioning = True
+        bundle.initialize.side_effect = Exception("clone failed")
+        mock_bundle_manager.return_value.get_bundle.return_value = bundle
+
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="some_commit_hash",
+            msg=None,
+        )
+
+        manager._add_callback_to_queue(request)
+
+        bundle.initialize.assert_called_once()
+        assert len(manager._callback_to_execute) == 0
 
     def test_dag_with_assets(self, session, configure_testing_dag_bundle):
         """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""
@@ -1176,6 +1417,47 @@ class TestDagFileProcessorManager:
             assert bundleone.refresh.call_count == 1
             manager._refresh_dag_bundles({})
             assert bundleone.refresh.call_count == 1  # didn't fresh the second time
+
+    @pytest.mark.parametrize(
+        (
+            "elapsed_time_since_refresh",
+            "current_version_matches_db",
+            "previously_seen",
+            "force_refresh",
+            "expected",
+        ),
+        [
+            (10, True, True, False, True),
+            (400, True, True, False, False),
+            (10, False, True, False, False),
+            (10, True, False, False, False),
+            (10, True, True, True, False),
+        ],
+    )
+    def test_should_skip_bundle_refresh(
+        self,
+        elapsed_time_since_refresh,
+        current_version_matches_db,
+        previously_seen,
+        force_refresh,
+        expected,
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock()
+        bundle.name = "bundleone"
+        bundle.refresh_interval = 300
+
+        if force_refresh:
+            manager._force_refresh_bundles = {"bundleone"}
+
+        should_skip_refresh = manager.should_skip_refresh(
+            bundle=bundle,
+            elapsed_time_since_refresh=elapsed_time_since_refresh,
+            current_version_matches_db=current_version_matches_db,
+            previously_seen=previously_seen,
+        )
+
+        assert should_skip_refresh is expected
 
     def test_bundle_force_refresh(self):
         """Ensure the dag processor honors force refreshing a bundle."""
@@ -1399,3 +1681,44 @@ class TestDagFileProcessorManager:
         mock_process_start.assert_called_once()
         call_kwargs = mock_process_start.call_args.kwargs
         assert call_kwargs["bundle_name"] == "testing"
+
+    @mock.patch("airflow.dag_processing.manager.Stats.initialize")
+    def test_stats_initialize_called_on_run(self, stats_init_mock, tmp_path, configure_testing_dag_bundle):
+        """Test that Stats.initialize() is called when DagFileProcessorManager.run() is executed."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager.run()
+
+        # Verify Stats.initialize was called with the expected configuration parameters
+        stats_init_mock.assert_called_once()
+        call_kwargs = stats_init_mock.call_args.kwargs
+        assert "factory" in call_kwargs
+
+    @mock.patch("airflow.dag_processing.manager.Stats.gauge")
+    def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):
+        key = "dag_processing.total_parse_time"
+        gauge_values = defaultdict(list)
+        statsd_gauge_mock.side_effect = lambda name, value: gauge_values[name].append(value)
+
+        dag_path = tmp_path / "temp_dag.py"
+        dag_code = textwrap.dedent(
+            """
+            from airflow import DAG
+            dag = DAG(dag_id='temp_dag')
+            """
+        )
+        dag_path.write_text(dag_code)
+
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=0)
+
+            for _ in range(3):
+                manager.max_runs += 1
+                manager.run()
+
+                assert key in gauge_values
+                assert len(gauge_values[key]) == 1
+                assert gauge_values[key][0] >= 1e-4
+
+                dag_path.touch()  # make the loop run faster
+                gauge_values.clear()

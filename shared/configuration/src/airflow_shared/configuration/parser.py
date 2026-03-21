@@ -43,6 +43,34 @@ from .exceptions import AirflowConfigException
 log = logging.getLogger(__name__)
 
 
+def _build_kwarg_env_prefix(section: str, kwargs_key: str) -> str:
+    """
+    Build env prefix for per-key backend kwargs.
+
+    ("secrets",  "backend_kwargs")         -> "AIRFLOW__SECRETS__BACKEND_KWARG__"
+    ("workers",  "secrets_backend_kwargs") -> "AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__"
+    """
+    singular_key = kwargs_key.replace("_kwargs", "_kwarg")
+    return f"{ENV_VAR_PREFIX}{section.upper()}__{singular_key.upper()}__"
+
+
+def _collect_kwarg_env_vars(prefix: str) -> dict[str, str]:
+    """
+    Scan os.environ for per-key secrets backend kwargs.
+
+    AIRFLOW__SECRETS__BACKEND_KWARG__ROLE_ID -> {"role_id": value}
+    Values are raw strings (not JSON-parsed).
+    Empty keys (trailing __ with no suffix) are ignored.
+    """
+    overrides: dict[str, str] = {}
+    for env_var, value in os.environ.items():
+        if env_var.startswith(prefix):
+            kwarg_key = env_var[len(prefix) :].lower()
+            if kwarg_key:
+                overrides[kwarg_key] = value
+    return overrides
+
+
 ConfigType = str | int | float | bool
 ConfigOptionsDictType = dict[str, ConfigType]
 ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
@@ -109,6 +137,35 @@ def _is_template(configuration_description: dict[str, dict[str, Any]], section: 
     return configuration_description.get(section, {}).get(key, {}).get("is_template", False)
 
 
+def configure_parser_from_configuration_description(
+    parser: ConfigParser,
+    configuration_description: dict[str, dict[str, Any]],
+    all_vars: dict[str, Any],
+) -> None:
+    """
+    Configure a ConfigParser based on configuration description.
+
+    :param parser: ConfigParser to configure
+    :param configuration_description: configuration description from config.yml
+    """
+    for section, section_desc in configuration_description.items():
+        parser.add_section(section)
+        options = section_desc["options"]
+        for key in options:
+            default_value = options[key]["default"]
+            is_template = options[key].get("is_template", False)
+            if (default_value is not None) and not (
+                options[key].get("version_deprecated") or options[key].get("deprecation_reason")
+            ):
+                if is_template or not isinstance(default_value, str):
+                    parser.set(section, key, str(default_value))
+                else:
+                    try:
+                        parser.set(section, key, default_value.format(**all_vars))
+                    except (KeyError, ValueError):
+                        parser.set(section, key, default_value)
+
+
 class AirflowConfigParser(ConfigParser):
     """
     Base configuration parser with pure parsing logic.
@@ -128,7 +185,9 @@ class AirflowConfigParser(ConfigParser):
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
+        ("dag_processor", "dag_file_processor_timeout"): ("core", "dag_file_processor_timeout", "3.0"),
         ("dag_processor", "refresh_interval"): ("scheduler", "dag_dir_list_interval", "3.0"),
+        ("api", "base_url"): ("webserver", "base_url", "3.0"),
         ("api", "host"): ("webserver", "web_server_host", "3.0"),
         ("api", "port"): ("webserver", "web_server_port", "3.0"),
         ("api", "workers"): ("webserver", "workers", "3.0"),
@@ -150,12 +209,20 @@ class AirflowConfigParser(ConfigParser):
         ("api", "grid_view_sorting_order"): ("webserver", "grid_view_sorting_order", "3.1.0"),
         ("api", "log_fetch_timeout_sec"): ("webserver", "log_fetch_timeout_sec", "3.1.0"),
         ("api", "hide_paused_dags_by_default"): ("webserver", "hide_paused_dags_by_default", "3.1.0"),
+        ("core", "num_dag_runs_to_retain_rendered_fields"): (
+            "core",
+            "max_num_rendered_ti_fields_per_task",
+            "3.2.0",
+        ),
         ("api", "page_size"): ("webserver", "page_size", "3.1.0"),
         ("api", "default_wrap"): ("webserver", "default_wrap", "3.1.0"),
         ("api", "auto_refresh_interval"): ("webserver", "auto_refresh_interval", "3.1.0"),
         ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
         ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
         ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
+        ("scheduler", "ti_metrics_interval"): ("scheduler", "running_metrics_interval", "3.2.0"),
+        ("api", "fallback_page_limit"): ("api", "page_size", "3.2.0"),
+        ("workers", "missing_dag_retries"): ("workers", "missing_dag_retires", "3.1.8"),
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -246,7 +313,7 @@ class AirflowConfigParser(ConfigParser):
         self.configuration_description = configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
-        self.upgraded_values = {}
+        self.upgraded_values: dict[tuple[str, str], str] = {}
 
     @functools.cached_property
     def inversed_deprecated_options(self):
@@ -279,12 +346,6 @@ class AirflowConfigParser(ConfigParser):
         }
         sensitive.update(depr_section, depr_option)
         return sensitive
-
-    @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
-
-    @overload
-    def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
     def _update_defaults_from_string(self, config_string: str) -> None:
         """
@@ -375,6 +436,10 @@ class AirflowConfigParser(ConfigParser):
         except ValueError:
             log.warning("Failed to parse [%s] %s into a dict, defaulting to no kwargs.", section, kwargs_key)
             backend_kwargs = {}
+
+        # Collect per-key overrides; they take precedence over the JSON blob.
+        env_prefix = _build_kwarg_env_prefix(section, kwargs_key)
+        backend_kwargs.update(_collect_kwarg_env_vars(env_prefix))
 
         return secrets_backend_cls(**backend_kwargs)
 
@@ -853,6 +918,9 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from command execution."""
+        if kwargs.get("team_name", None):
+            # Commands based team config fetching is not currently supported
+            return VALUE_NOT_FOUND_SENTINEL
         option = self._get_cmd_option(section, key)
         if option:
             return option
@@ -876,6 +944,9 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from secrets backend."""
+        if kwargs.get("team_name", None):
+            # Secrets based team config fetching is not currently supported
+            return VALUE_NOT_FOUND_SENTINEL
         option = self._get_secret_option(section, key)
         if option:
             return option
@@ -1053,10 +1124,15 @@ class AirflowConfigParser(ConfigParser):
         try:
             return int(val)
         except ValueError:
-            raise AirflowConfigException(
-                f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{val}".'
-            )
+            try:
+                if (float_val := float(val)) != (int_val := int(float_val)):
+                    raise ValueError
+                return int_val
+            except (ValueError, OverflowError):
+                raise AirflowConfigException(
+                    f'Failed to convert value to int. Please check "{key}" key in "{section}" section. '
+                    f'Current value: "{val}".'
+                )
 
     def getfloat(self, section: str, key: str, **kwargs) -> float:  # type: ignore[override]
         """Get config value as float."""
@@ -1077,13 +1153,15 @@ class AirflowConfigParser(ConfigParser):
     def getlist(self, section: str, key: str, delimiter=",", **kwargs):
         """Get config value as list."""
         val = self.get(section, key, **kwargs)
-        if val is None:
-            if "fallback" in kwargs:
-                return kwargs["fallback"]
-            raise AirflowConfigException(
-                f"Failed to convert value None to list. "
-                f'Please check "{key}" key in "{section}" section is set.'
-            )
+
+        if isinstance(val, list) or val is None:
+            # `get` will always return a (possibly-empty) string, so the only way we can
+            # have these types is with `fallback=` was specified. So just return it.
+            return val
+
+        if val == "":
+            return []
+
         try:
             return [item.strip() for item in val.split(delimiter)]
         except Exception:
@@ -1117,7 +1195,9 @@ class AirflowConfigParser(ConfigParser):
 
     def getenumlist(self, section: str, key: str, enum_class: type[E], delimiter=",", **kwargs) -> list[E]:
         """Get config value as list of enums."""
+        kwargs.setdefault("fallback", [])
         string_list = self.getlist(section, key, delimiter, **kwargs)
+
         enum_names = [enum_item.name for enum_item in enum_class]
         enum_list = []
 
@@ -1126,8 +1206,9 @@ class AirflowConfigParser(ConfigParser):
                 enum_list.append(enum_class[val])
             except KeyError:
                 log.warning(
-                    "Failed to convert value. Please check %s key in %s section. "
+                    "Failed to convert value %r. Please check %s key in %s section. "
                     "it must be one of %s, if not the value is ignored",
+                    val,
                     key,
                     section,
                     ", ".join(enum_names),
@@ -1150,7 +1231,7 @@ class AirflowConfigParser(ConfigParser):
 
         try:
             # Import here to avoid circular dependency
-            from airflow.utils.module_loading import import_string
+            from ..module_loading import import_string
 
             return import_string(full_qualified_path)
         except ImportError as e:
@@ -1276,7 +1357,7 @@ class AirflowConfigParser(ConfigParser):
         )
         return list(dict.fromkeys(itertools.chain(all_options_from_defaults, my_own_options)))
 
-    def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True) -> bool:
+    def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True, **kwargs) -> bool:
         """
         Check if option is defined.
 
@@ -1286,6 +1367,7 @@ class AirflowConfigParser(ConfigParser):
         :param section: section to get option from
         :param option: option to get
         :param lookup_from_deprecated: If True, check if the option is defined in deprecated sections
+        :param kwargs: additional keyword arguments to pass to get(), such as team_name
         :return:
         """
         try:
@@ -1296,6 +1378,7 @@ class AirflowConfigParser(ConfigParser):
                 _extra_stacklevel=1,
                 suppress_warnings=True,
                 lookup_from_deprecated=lookup_from_deprecated,
+                **kwargs,
             )
             if value is None:
                 return False
@@ -1518,32 +1601,37 @@ class AirflowConfigParser(ConfigParser):
         """
         return _is_template(self.configuration_description, section, key)
 
-    def getsection(self, section: str) -> ConfigOptionsDictType | None:
+    def getsection(self, section: str, team_name: str | None = None) -> ConfigOptionsDictType | None:
         """
         Return the section as a dict.
 
         Values are converted to int, float, bool as required.
 
         :param section: section from the config
+        :param team_name: optional team name for team-specific configuration lookup
         """
-        if not self.has_section(section) and not self._default_values.has_section(section):
+        # Handle team-specific section lookup for config file
+        config_section = f"{team_name}={section}" if team_name else section
+
+        if not self.has_section(config_section) and not self._default_values.has_section(config_section):
             return None
-        if self._default_values.has_section(section):
-            _section: ConfigOptionsDictType = dict(self._default_values.items(section))
+        if self._default_values.has_section(config_section):
+            _section: ConfigOptionsDictType = dict(self._default_values.items(config_section))
         else:
             _section = {}
 
-        if self.has_section(section):
-            _section.update(self.items(section))
+        if self.has_section(config_section):
+            _section.update(self.items(config_section))
 
-        section_prefix = self._env_var_name(section, "")
+        # Use section (not config_section) for env var lookup - team_name is handled by _env_var_name
+        section_prefix = self._env_var_name(section, "", team_name=team_name)
         for env_var in sorted(os.environ.keys()):
             if env_var.startswith(section_prefix):
                 key = env_var.replace(section_prefix, "")
                 if key.endswith("_CMD"):
                     key = key[:-4]
                 key = key.lower()
-                _section[key] = self._get_env_var_option(section, key)
+                _section[key] = self._get_env_var_option(section, key, team_name=team_name)
 
         for key, val in _section.items():
             if val is None:
@@ -1586,29 +1674,39 @@ class AirflowConfigParser(ConfigParser):
         needs_separation: bool,
         only_defaults: bool,
         section_to_write: str,
+        hide_sensitive: bool,
+        is_sensitive: bool,
+        show_values: bool = False,
     ):
         default_value = self.get_default_value(section_to_write, option, raw=True)
         if only_defaults:
             value = default_value
         else:
             value = self.get(section_to_write, option, fallback=default_value, raw=True)
-        if value is None:
+        if not show_values:
             file.write(f"# {option} = \n")
         else:
-            if comment_out_everything:
-                value_lines = value.splitlines()
-                value = "\n# ".join(value_lines)
-                file.write(f"# {option} = {value}\n")
+            if hide_sensitive and is_sensitive:
+                value = "< hidden >"
             else:
-                if "\n" in value:
-                    try:
-                        value = json.dumps(json.loads(value), indent=4)
-                        value = value.replace(
-                            "\n", "\n    "
-                        )  # indent multi-line JSON to satisfy configparser format
-                    except JSONDecodeError:
-                        pass
-                file.write(f"{option} = {value}\n")
+                pass
+            if value is None:
+                file.write(f"# {option} = \n")
+            else:
+                if comment_out_everything:
+                    value_lines = value.splitlines()
+                    value = "\n# ".join(value_lines)
+                    file.write(f"# {option} = {value}\n")
+                else:
+                    if "\n" in value:
+                        try:
+                            value = json.dumps(json.loads(value), indent=4)
+                            value = value.replace(
+                                "\n", "\n    "
+                            )  # indent multi-line JSON to satisfy configparser format
+                        except JSONDecodeError:
+                            pass
+                    file.write(f"{option} = {value}\n")
         if needs_separation:
             file.write("\n")
 
@@ -1622,9 +1720,10 @@ class AirflowConfigParser(ConfigParser):
         include_env_vars: bool = True,
         include_providers: bool = True,
         comment_out_everything: bool = False,
-        hide_sensitive_values: bool = False,
+        hide_sensitive: bool = False,
         extra_spacing: bool = True,
         only_defaults: bool = False,
+        show_values: bool = False,
         **kwargs: Any,
     ) -> None:
         """
@@ -1667,6 +1766,10 @@ class AirflowConfigParser(ConfigParser):
                             section_to_write=section_to_write,
                             sources_dict=sources_dict,
                         )
+                        is_sensitive = (
+                            section_to_write.lower(),
+                            option.lower(),
+                        ) in self.sensitive_config_values
                         self._write_value(
                             file=file,
                             option=option,
@@ -1674,6 +1777,9 @@ class AirflowConfigParser(ConfigParser):
                             needs_separation=needs_separation,
                             only_defaults=only_defaults,
                             section_to_write=section_to_write,
+                            hide_sensitive=hide_sensitive,
+                            is_sensitive=is_sensitive,
+                            show_values=show_values,
                         )
                     if include_descriptions and not needs_separation:
                         # extra separation between sections in case last option did not need it

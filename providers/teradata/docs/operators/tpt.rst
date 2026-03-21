@@ -169,6 +169,7 @@ You can use the DdlOperator to alter a table in Teradata. The following example 
     :start-after: [START ddl_operator_howto_guide_alter_table]
     :end-before: [END ddl_operator_howto_guide_alter_table]
 
+
 The complete Teradata Operator DAG
 ----------------------------------
 
@@ -176,5 +177,133 @@ When we put everything together, our DAG should look like this:
 
 .. exampleinclude:: /../../teradata/tests/system/teradata/example_tpt.py
     :language: python
-    :start-after: [START ddl_operator_howto_guide]
-    :end-before: [END ddl_operator_howto_guide]
+    :start-after: [START tdload_operator_howto_guide]
+    :end-before: [END tdload_operator_howto_guide]
+
+
+.. _howto/operator:TdLoadOperator:
+
+TdLoadOperator
+==============
+
+The ``TdLoadOperator`` is an Airflow operator that interfaces with Teradata PT Easy Loader (tdload) to perform data operations on Teradata databases. This operator leverages TPT (Teradata Parallel Transporter), eliminating the need to write manual TPT scripts.
+
+**What is Teradata PT Easy Loader?**
+A command-line interface extension for TPT that automatically determines appropriate load/unload operators based on user-provided parameters and the requested operation type.
+
+.. note::
+
+    The ``TdLoadOperator`` requires the ``Teradata Parallel Transporter (TPT)`` package from Teradata Tools and Utilities (TTU)
+    to be installed on the machine where the ``tdload`` command will run (either local or remote).
+    Ensure that the ``tdload`` executable is available in the system's ``PATH``.
+    Refer to the official Teradata documentation for installation and configuration details.
+
+**Key Capabilities:**
+
+- **Data Loading:** Import data from flat files into Teradata tables
+- **Data Exporting:** Extract data from Teradata tables to flat files
+- **Table-to-Table Transfers:** Move data between Teradata database tables
+- **Deployment Flexibility:** Execute on local or remote machines with TPT installed
+- **Airflow Integration:** Seamlessly works with Airflow's scheduling, monitoring, and logging
+
+The operator simplifies complex Teradata data operations while providing the robustness and reliability of Airflow's workflow management.
+
+This operator enables the execution of tdload commands on either the local host machine or a remote machine where TPT is installed.
+
+Ensure that the ``Teradata Parallel Transporter (TPT)`` package is installed on the machine where TdLoadOperator will execute commands. This can be:
+
+- The **local machine** where Airflow runs the task, for local execution.
+- A **remote host** accessed via SSH, for remote execution.
+
+If executing remotely, ensure that an SSH server (e.g., ``sshd``) is running and accessible on the remote machine, and that the ``tdload`` executable is available in the system's ``PATH``.
+
+.. note::
+
+    For improved security, it is **highly recommended** to use
+    **private key-based SSH authentication** (SSH key pairs) instead of username/password
+    for the SSH connection.
+
+    This avoids password exposure, enables seamless automated execution, and enhances security.
+
+    See the Airflow SSH Connection documentation for details on configuring SSH keys:
+    https://airflow.apache.org/docs/apache-airflow/stable/howto/connection/ssh.html
+
+
+To execute data loading, exporting, or transferring operations in a Teradata database, use the
+:class:`~airflow.providers.teradata.operators.tpt.TdLoadOperator`.
+
+Prerequisite
+------------
+
+Make sure your Teradata Airflow connection is defined with the required fields:
+
+- ``host``
+- ``login``
+- ``password``
+
+You can define a remote host with a separate SSH connection using the ``ssh_conn_id``.
+
+Key Operation Examples with TdLoadOperator
+------------------------------------------
+
+Loading data into a Teradata database table from a file
+-------------------------------------------------------
+You can use the TdLoadOperator to load data from a file into a Teradata database table. The following example demonstrates how to load data from a delimited text file into a Teradata table:
+
+.. exampleinclude:: /../../teradata/tests/system/teradata/example_tpt.py
+    :language: python
+    :dedent: 4
+    :start-after: [START tdload_operator_howto_guide_load_from_file]
+    :end-before: [END tdload_operator_howto_guide_load_from_file]
+
+Exporting data from a Teradata table to a file
+----------------------------------------------
+You can export data from a Teradata table to a file using the TdLoadOperator. The following example shows how to export data from a Teradata table to a delimited file:
+
+.. exampleinclude:: /../../teradata/tests/system/teradata/example_tpt.py
+    :language: python
+    :dedent: 4
+    :start-after: [START tdload_operator_howto_guide_export_data]
+    :end-before: [END tdload_operator_howto_guide_export_data]
+
+Transferring data between Teradata tables
+-----------------------------------------
+The TdLoadOperator can also be used to transfer data between two Teradata tables, potentially across different databases:
+
+.. exampleinclude:: /../../teradata/tests/system/teradata/example_tpt.py
+    :language: python
+    :dedent: 4
+    :start-after: [START tdload_operator_howto_guide_transfer_data]
+    :end-before: [END tdload_operator_howto_guide_transfer_data]
+
+Transferring data using a SELECT statement as source
+----------------------------------------------------
+You can use a SELECT statement as the data source for TdLoadOperator, allowing for flexible data movement and transformation:
+
+.. exampleinclude:: /../../teradata/tests/system/teradata/example_tpt.py
+    :language: python
+    :dedent: 4
+    :start-after: [START tdload_operator_howto_guide_transfer_data_select_stmt]
+    :end-before: [END tdload_operator_howto_guide_transfer_data_select_stmt]
+
+Transferring data using an INSERT statement as target
+-----------------------------------------------------
+You can use an INSERT statement as the target for TdLoadOperator, enabling custom insert logic:
+
+.. exampleinclude:: /../../teradata/tests/system/teradata/example_tpt.py
+    :language: python
+    :dedent: 4
+    :start-after: [START tdload_operator_howto_guide_transfer_data_insert_stmt]
+    :end-before: [END tdload_operator_howto_guide_transfer_data_insert_stmt]
+
+
+
+The complete Teradata Operator DAG
+----------------------------------
+
+When we put everything together, our DAG should look like this:
+
+.. exampleinclude:: /../../teradata/tests/system/teradata/example_tpt.py
+    :language: python
+    :start-after: [START tdload_operator_howto_guide]
+    :end-before: [END tdload_operator_howto_guide]

@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     import polars as pl
 
     from airflow.providers.common.sql.hooks.sql import DbApiHook
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class FILE_FORMAT(enum.Enum):
@@ -183,7 +183,7 @@ class SqlToS3Operator(BaseOperator):
             import numpy as np
             import pandas as pd
         except ImportError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(e)
 

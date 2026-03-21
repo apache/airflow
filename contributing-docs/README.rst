@@ -33,7 +33,7 @@ New Contributor
 
 If you are a new contributor, please follow the `Contributors Quick Start <03a_contributors_quick_start_beginners.rst>`__
 guide for a step-by-step introduction to setting up the development environment and making your first
-contribution (5-minute path).
+contribution (15-minute path).
 
 If you need a full development environment, test suite, and advanced tooling, please see the
 `Seasoned Developers Guide <03_contributors_quick_start.rst>`__.
@@ -128,3 +128,10 @@ You can also dive deeper into more specific areas that are important for contrib
 
 * `Debugging Airflow Components <20_debugging_airflow_components.rst>`__ describes how to debug
   Airflow components using Breeze with debugpy and VSCode integration.
+
+Maintainer Tools
+.................
+
+* `Maintainer PR Triage and Review <25_maintainer_pr_triage.md>`__ describes the auto-triage
+  workflow that helps maintainers triage and review incoming Pull Requests using deterministic
+  checks and LLM-assisted analysis.

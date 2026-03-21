@@ -39,6 +39,7 @@ TEST_ENVIRONMENT_DB: dict[str, str | list[str]] = {
     "name": "Test environment",
     "options": [
         "--backend",
+        "--custom-db-url",
         "--no-db-cleanup",
         "--python",
         "--postgres-version",
@@ -265,6 +266,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--test-type",
                 "--test-timeout",
+                "--kubernetes-version",
                 "--use-xdist",
                 "--parallelism",
             ],
@@ -315,6 +317,14 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         }
     ],
     "breeze testing ui-e2e-tests": [
+        {
+            "name": "Docker image options",
+            "options": [
+                "--python",
+                "--image-name",
+                "--github-repository",
+            ],
+        },
         {
             "name": "UI End-to-End test options",
             "options": [

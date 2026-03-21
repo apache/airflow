@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from pymongo.command_cursor import CommandCursor
     from pymongo.cursor import Cursor
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class MongoToS3Operator(BaseOperator):

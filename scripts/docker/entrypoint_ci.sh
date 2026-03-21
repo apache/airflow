@@ -121,6 +121,11 @@ function environment_initialization() {
         echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} MySQL: ${MYSQL_VERSION}"
     elif [[ ${BACKEND=} == "sqlite" ]]; then
         echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} Sqlite"
+    elif [[ ${BACKEND=} == "custom" ]]; then
+        local _conn_url="${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:-}"
+        local _masked_url
+        _masked_url=$(echo "${_conn_url}" | sed -E 's|://([^:]+):([^@]+)@|://\1:***@|')
+        echo "  * ${COLOR_BLUE}Airflow backend:${COLOR_RESET} Custom (${_masked_url})"
     fi
     echo
 
@@ -218,8 +223,10 @@ function environment_initialization() {
             export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
         fi
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
-        wait_for_asset_compilation
-        if [[ ${USE_MPROCS:="false"} == "true" || ${USE_MPROCS} == "True" ]]; then
+        if [[ ${SKIP_ASSETS_COMPILATION:="false"} == "false" ]]; then
+            wait_for_asset_compilation
+        fi
+        if [[ ${TERMINAL_MULTIPLEXER:="mprocs"} == "mprocs" ]]; then
             # shellcheck source=scripts/in_container/bin/run_mprocs
             exec run_mprocs
         else
@@ -268,12 +275,14 @@ function determine_airflow_to_use() {
         echo
         echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
         echo
-        # Use uv run to install necessary dependencies automatically
-        # in the future we will be able to use uv sync when `uv.lock` is supported
-        # for the use in parallel runs in docker containers--no-cache is needed - otherwise there is
-        # possibility of overriding temporary environments by multiple parallel processes
+        # Generate constraints from uv.lock and use them to install development dependencies
+        # via the Python script. --no-cache is needed - otherwise there is possibility of
+        # overriding temporary environments by multiple parallel processes
+        local constraint_file="/tmp/constraints-from-lock.txt"
+        uv export --frozen --no-hashes --no-emit-project --no-editable --no-header \
+            --no-annotate > "${constraint_file}" 2>/dev/null || true
         uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
-           --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-"${PYTHON_MAJOR_MINOR_VERSION}".txt
+           --constraint "${constraint_file}"
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
@@ -337,6 +346,10 @@ function check_downgrade_sqlalchemy() {
     echo
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "sqlalchemy[asyncio]==${min_sqlalchemy_version}"
+    echo
+    echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+    echo
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 
@@ -352,6 +365,10 @@ function check_downgrade_pendulum() {
     echo
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${min_pendulum_version}"
+    echo
+    echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+    echo
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 
@@ -449,7 +466,11 @@ function start_api_server_with_examples(){
     echo
     echo "${COLOR_BLUE}Starting airflow api server${COLOR_RESET}"
     echo
-    airflow api-server --port 8080 --daemon
+    if [[ ${START_API_SERVER_DAEMON:-"true"} == "false" ]]; then
+        airflow api-server --port 8080 &
+    else
+        airflow api-server --port 8080 --daemon
+    fi
     echo
     echo "${COLOR_BLUE}Waiting for api-server to start${COLOR_RESET}"
     echo

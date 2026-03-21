@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { expect } from "@playwright/test";
 import type { Page, Locator } from "@playwright/test";
 
 /**
@@ -27,18 +28,19 @@ export class BasePage {
 
   public constructor(page: Page) {
     this.page = page;
-    this.welcomeHeading = page.locator('h2.chakra-heading:has-text("Welcome")');
+    this.welcomeHeading = page.getByRole("heading", {
+      level: 2,
+      name: "Welcome",
+    });
   }
 
   public async isLoggedIn(): Promise<boolean> {
     try {
-      await this.welcomeHeading.waitFor({ timeout: 30_000 });
+      await expect(this.welcomeHeading).toBeVisible({ timeout: 30_000 });
 
       return true;
     } catch {
-      const currentUrl = this.page.url();
-
-      return !currentUrl.includes("/login");
+      return !this.page.url().includes("/login");
     }
   }
 
@@ -51,11 +53,8 @@ export class BasePage {
   }
 
   public async navigateTo(path: string): Promise<void> {
-    await this.page.goto(path);
-    await this.waitForPageLoad();
-  }
-
-  public async waitForPageLoad(): Promise<void> {
-    await this.page.waitForLoadState("networkidle");
+    await this.page.goto(path, {
+      waitUntil: "domcontentloaded",
+    });
   }
 }

@@ -16,19 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import base64
+import asyncio
 import time
 import uuid
 import warnings
 from datetime import timedelta
-from pathlib import Path
 from typing import Any
 
 import aiohttp
 import requests
 from aiohttp import ClientConnectionError, ClientResponseError
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 from tenacity import (
     AsyncRetrying,
@@ -41,6 +38,7 @@ from tenacity import (
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
@@ -52,10 +50,15 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     In combination with aiohttp, make post request to submit SQL statements for execution,
     poll to check the status of the execution of a statement. Fetch query results asynchronously.
 
-    This hook requires the snowflake_conn_id connection. This hooks mainly uses account, schema, database,
-    warehouse, and an authentication mechanism from one of below:
-    1. JWT Token generated from private_key_file or private_key_content. Other inputs can be defined in the connection or hook instantiation.
-    2. OAuth Token generated from the refresh_token, client_id and client_secret specified in the connection
+    This hook requires the snowflake_conn_id connection. This hook mainly uses account, schema, database,
+    warehouse, and an authentication mechanism from one of the following:
+
+    1. JWT Token generated from ``private_key_file`` or ``private_key_content``. Other inputs can be
+       defined in the connection or hook instantiation.
+    2. OAuth Token generated from the ``refresh_token``, ``client_id`` and ``client_secret`` specified
+       in the connection.
+    3. PAT (Programmatic Access Token): set ``authenticator`` to ``programmatic_access_token`` in the
+       connection extras and put the PAT value in the connection ``password`` field.
 
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
@@ -78,10 +81,26 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     :param token_renewal_delta: Renewal time of the JWT Token in timedelta
     :param deferrable: Run operator in the deferrable mode.
     :param api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
+    :param http_request_kwargs: Optional keyword arguments forwarded to ``requests.Session.request`` for synchronous HTTP calls.
+        Request-defining fields (e.g. ``method``, ``url``, ``headers``, ``params``, ``json``)
+        are owned by the hook and must not be provided here.
+
+    :param aiohttp_session_kwargs: Optional keyword arguments forwarded to
+        ``aiohttp.ClientSession`` for asynchronous HTTP calls.
+        Session-owned fields like ``headers`` are managed by the hook
+        and must not be overridden here.
+
+    :param aiohttp_request_kwargs: Optional keyword arguments forwarded to
+        ``aiohttp.ClientSession.request`` for asynchronous HTTP calls.
+        Request identity fields (e.g. ``method``, ``url``, ``headers``,
+        ``params``) are owned by the hook and must not be overridden here.
     """
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minute lifetime
     RENEWAL_DELTA = timedelta(minutes=54)  # Tokens will be renewed after 54 minutes
+    HTTP_REQUEST_KWARGS_GUARD_KEYS: set[str] = {"method", "url", "headers", "params", "json"}
+    AIOHTTP_SESSION_KWARGS_GUARD_KEYS: set[str] = {"headers"}
+    AIOHTTP_REQUEST_KWARGS_GUARD_KEYS: set[str] = {"method", "url", "params", "headers"}
 
     def __init__(
         self,
@@ -89,6 +108,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         token_life_time: timedelta = LIFETIME,
         token_renewal_delta: timedelta = RENEWAL_DELTA,
         api_retry_args: dict[Any, Any] | None = None,  # Optional retry arguments passed to tenacity.retry
+        http_request_kwargs: dict[str, Any] | None = None,
+        aiohttp_session_kwargs: dict[str, Any] | None = None,
+        aiohttp_request_kwargs: dict[str, Any] | None = None,
         *args: Any,
         **kwargs: Any,
     ):
@@ -109,42 +131,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if api_retry_args:
             self.retry_config.update(api_retry_args)
 
-    def get_private_key(self) -> None:
-        """Get the private key from snowflake connection."""
-        conn = self.get_connection(self.snowflake_conn_id)
-
-        # If private_key_file is specified in the extra json, load the contents of the file as a private key.
-        # If private_key_content is specified in the extra json, use it as a private key.
-        # As a next step, specify this private key in the connection configuration.
-        # The connection password then becomes the passphrase for the private key.
-        # If your private key is not encrypted (not recommended), then leave the password empty.
-
-        private_key_file = conn.extra_dejson.get(
-            "extra__snowflake__private_key_file"
-        ) or conn.extra_dejson.get("private_key_file")
-        private_key_content = conn.extra_dejson.get(
-            "extra__snowflake__private_key_content"
-        ) or conn.extra_dejson.get("private_key_content")
-
-        private_key_pem = None
-        if private_key_content and private_key_file:
-            raise AirflowException(
-                "The private_key_file and private_key_content extra fields are mutually exclusive. "
-                "Please remove one."
-            )
-        if private_key_file:
-            private_key_pem = Path(private_key_file).read_bytes()
-        elif private_key_content:
-            private_key_pem = base64.b64decode(private_key_content)
-
-        if private_key_pem:
-            passphrase = None
-            if conn.password:
-                passphrase = conn.password.strip().encode()
-
-            self.private_key = serialization.load_pem_private_key(
-                private_key_pem, password=passphrase, backend=default_backend()
-            )
+        self.http_request_kwargs = http_request_kwargs or {}
+        self.aiohttp_session_kwargs = aiohttp_session_kwargs or {}
+        self.aiohttp_request_kwargs = aiohttp_request_kwargs or {}
 
     def execute_query(
         self, sql: str, statement_count: int, query_tag: str = "", bindings: dict[str, Any] | None = None
@@ -163,7 +152,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             the statement with these specified values.
         """
         self.query_ids = []
-        conn_config = self._get_conn_params
+        conn_config = self._get_conn_params()
 
         req_id = uuid.uuid4()
         url = f"{self.account_identifier}.snowflakecomputing.com/api/v2/statements"
@@ -202,29 +191,67 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             self.query_ids.append(json_response["statementHandle"])
         else:
             raise AirflowException("No statementHandle/statementHandles present in response")
+
+        # Send Hook Level Lineage
+        len_query_ids = len(self.query_ids)
+        if len_query_ids == 1:
+            send_sql_hook_lineage(
+                context=self,
+                sql=sql,
+                job_id=self.query_ids[0],
+            )
+        else:
+            sql_statements = sql.split(";")
+            if len(sql_statements) == len_query_ids:
+                for single_sql, single_query_id in zip(sql_statements, self.query_ids):
+                    send_sql_hook_lineage(
+                        context=self,
+                        sql=single_sql,
+                        job_id=single_query_id,
+                    )
+            else:  # SQL/query ID count mismatch; can't correlate sql with id - send SQL only.
+                send_sql_hook_lineage(
+                    context=self,
+                    sql=sql,
+                )
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
-        """Form auth headers based on either OAuth token or JWT token from private key."""
-        conn_config = self._get_conn_params
+        """Form auth headers based on OAuth token, PAT, or JWT token from private key."""
+        conn_config = self._get_conn_params()
 
         # Use OAuth if refresh_token and client_id and client_secret are provided
         if all(
             [conn_config.get("refresh_token"), conn_config.get("client_id"), conn_config.get("client_secret")]
         ):
             oauth_token = self.get_oauth_token(conn_config=conn_config)
-            headers = {
+            return {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {oauth_token}",
                 "Accept": "application/json",
                 "User-Agent": "snowflakeSQLAPI/1.0",
                 "X-Snowflake-Authorization-Token-Type": "OAUTH",
             }
-            return headers
 
-        # Alternatively, get the JWT token from the connection details and the private key
+        # Use PAT (Programmatic Access Token) when authenticator is set to programmatic_access_token
+        if conn_config.get("authenticator") == "programmatic_access_token":
+            pat = conn_config.get("password")
+            if not pat:
+                raise AirflowException(
+                    "Programmatic Access Token (PAT) authentication requires the connection password "
+                    "field to contain the PAT token value."
+                )
+            return {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {pat}",
+                "Accept": "application/json",
+                "User-Agent": "snowflakeSQLAPI/1.0",
+                "X-Snowflake-Authorization-Token-Type": "PROGRAMMATIC_ACCESS_TOKEN",
+            }
+
+        # Fall back to JWT token from the connection details and the private key
         if not self.private_key:
-            self.get_private_key()
+            self.private_key = self.get_private_key()
 
         token = JWTGenerator(
             conn_config["account"],  # type: ignore[arg-type]
@@ -234,14 +261,13 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             renewal_delay=self.token_renewal_delta,
         ).get_token()
 
-        headers = {
+        return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
             "User-Agent": "snowflakeSQLAPI/1.0",
             "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
         }
-        return headers
 
     def get_oauth_token(
         self,
@@ -447,10 +473,17 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             return exception.status in [429, 503, 504]
         if isinstance(
             exception,
-            ConnectionError | Timeout | ClientConnectionError,
+            ConnectionError | Timeout | ClientConnectionError | asyncio.TimeoutError,
         ):
             return True
         return False
+
+    @staticmethod
+    def _should_raise_for_status(status: int) -> bool:
+        # _process_response handles HTTP 422 to provide richer error context.
+        # The response payload must be passed through even when the status is 422.
+        # See https://docs.snowflake.com/en/developer-guide/sql-api/reference
+        return status >= 400 and status != 422
 
     def _make_api_call_with_retries(
         self, method: str, url: str, headers: dict, params: dict | None = None, json: dict | None = None
@@ -468,16 +501,32 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param json: (Optional) The data to include in the API call.
         :return: The response object from the API call.
         """
+        if method.upper() not in ("GET", "POST"):
+            raise ValueError(f"Unsupported HTTP method: {method}")
+
+        user_kwargs: dict[str, Any] = dict(self.http_request_kwargs or {})
+        forbidden: set[str] = self.HTTP_REQUEST_KWARGS_GUARD_KEYS & set(user_kwargs)
+        if forbidden:
+            raise ValueError(
+                f"http_request_kwargs must not override request identity fields: {sorted(forbidden)}"
+            )
+
         with requests.Session() as session:
             for attempt in Retrying(**self.retry_config):  # type: ignore
                 with attempt:
-                    if method.upper() in ("GET", "POST"):
-                        response = session.request(
-                            method=method.lower(), url=url, headers=headers, params=params, json=json
-                        )
-                    else:
-                        raise ValueError(f"Unsupported HTTP method: {method}")
-                    response.raise_for_status()
+                    base_request_kwargs: dict[str, Any] = {
+                        "method": method.lower(),
+                        "url": url,
+                        "headers": headers,
+                        "params": params,
+                        "json": json,
+                    }
+                    # Order is important
+                    # user first, base second => base wins even if guard misses something
+                    request_kwargs: dict[str, Any] = {**user_kwargs, **base_request_kwargs}
+                    response = session.request(**request_kwargs)
+                    if self._should_raise_for_status(response.status_code):
+                        response.raise_for_status()
                     return response.status_code, response.json()
 
     async def _make_api_call_with_retries_async(self, method, url, headers, params=None):
@@ -493,14 +542,36 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param params: (Optional) The query parameters to include in the API call.
         :return: The response object from the API call.
         """
-        async with aiohttp.ClientSession(headers=headers) as session:
+        if method.upper() != "GET":
+            raise ValueError(f"Unsupported HTTP method: {method}")
+
+        user_session_kwargs: dict[str, Any] = dict(self.aiohttp_session_kwargs or {})
+        forbidden = self.AIOHTTP_SESSION_KWARGS_GUARD_KEYS & set(user_session_kwargs)
+        if forbidden:
+            raise ValueError(
+                f"aiohttp_session_kwargs must not override session-owned fields: {sorted(forbidden)}"
+            )
+
+        user_request_kwargs: dict[str, Any] = dict(self.aiohttp_request_kwargs or {})
+        forbidden = self.AIOHTTP_REQUEST_KWARGS_GUARD_KEYS & set(user_request_kwargs)
+        if forbidden:
+            raise ValueError(
+                f"aiohttp_request_kwargs must not override request identity fields: {sorted(forbidden)}"
+            )
+        base_session_kwargs: dict[str, Any] = {"headers": headers}
+        session_kwargs: dict[str, Any] = {**user_session_kwargs, **base_session_kwargs}
+        async with aiohttp.ClientSession(**session_kwargs) as session:
             async for attempt in AsyncRetrying(**self.retry_config):
                 with attempt:
-                    if method.upper() == "GET":
-                        async with session.request(method=method.lower(), url=url, params=params) as response:
+                    base_request_kwargs: dict[str, Any] = {
+                        "method": method.lower(),
+                        "url": url,
+                        "params": params,
+                    }
+                    request_kwargs: dict[str, Any] = {**user_request_kwargs, **base_request_kwargs}
+                    async with session.request(**request_kwargs) as response:
+                        if self._should_raise_for_status(response.status):
                             response.raise_for_status()
-                            # Return status and json content for async processing
-                            content = await response.json()
-                            return response.status, content
-                    else:
-                        raise ValueError(f"Unsupported HTTP method: {method}")
+                        # Return status and json content for async processing
+                        content = await response.json()
+                        return response.status, content

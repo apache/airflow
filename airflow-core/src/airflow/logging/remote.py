@@ -17,42 +17,6 @@
 
 from __future__ import annotations
 
-import os
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from airflow._shared.logging.remote import RemoteLogIO, RemoteLogStreamIO
 
-if TYPE_CHECKING:
-    import structlog.typing
-
-    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogResponse, StreamingLogResponse
-
-
-class RemoteLogIO(Protocol):
-    """Interface for remote task loggers."""
-
-    @property
-    def processors(self) -> tuple[structlog.typing.Processor, ...]: ...
-
-    """
-    List of structlog processors to install in the task write path.
-
-    This is useful if a remote logging provider wants to either transform the structured log messages as they
-    are being written to a file, or if you want to upload messages as they are generated.
-    """
-
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI) -> None:
-        """Upload the given log path to the remote storage."""
-        ...
-
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
-        """Read logs from the given remote log path."""
-        ...
-
-
-@runtime_checkable
-class RemoteLogStreamIO(RemoteLogIO, Protocol):
-    """Interface for remote task loggers with stream-based read support."""
-
-    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
-        """Stream-based read interface for reading logs from the given remote log path."""
-        ...
+__all__ = ["RemoteLogIO", "RemoteLogStreamIO"]

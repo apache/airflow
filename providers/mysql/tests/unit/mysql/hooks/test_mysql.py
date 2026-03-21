@@ -27,6 +27,10 @@ import sqlalchemy
 
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import Connection
+from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
+from tests_common.test_utils.compat import timezone
 
 try:
     import MySQLdb.cursors
@@ -34,15 +38,6 @@ try:
     MYSQL_AVAILABLE = True
 except ImportError:
     MYSQL_AVAILABLE = False
-
-from airflow.providers.mysql.hooks.mysql import MySqlHook
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
-from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, `schema`, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
@@ -413,15 +408,89 @@ class TestMySqlHook:
         self.cur.execute.assert_has_calls(calls, any_order=True)
         self.conn.commit.assert_not_called()
 
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        statement = "SELECT 1"
+        self.cur.fetchall.return_value = []
+
+        self.db_hook.run(statement)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_insert_rows_hook_lineage(self, mock_send_lineage):
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "INSERT INTO table  VALUES (%s)"
+        assert call_kw["row_count"] == 2
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df(sql, parameters=parameters)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
     def test_bulk_load(self):
         self.db_hook.bulk_load("table", "/tmp/file")
         self.cur.execute.assert_called_once_with(
             "LOAD DATA LOCAL INFILE %s INTO TABLE `table`", ("/tmp/file",)
         )
 
+    @mock.patch("airflow.providers.mysql.hooks.mysql.send_sql_hook_lineage")
+    def test_bulk_load_hook_lineage(self, mock_send_lineage):
+        self.db_hook.bulk_load("table", "/tmp/file")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "LOAD DATA LOCAL INFILE %s INTO TABLE `table`"
+        assert call_kw["sql_parameters"] == ("/tmp/file",)
+        assert call_kw["cur"] is self.cur
+
     def test_bulk_dump(self):
         self.db_hook.bulk_dump("table", "/tmp/file")
         self.cur.execute.assert_called_once_with("SELECT * INTO OUTFILE %s FROM `table`", ("/tmp/file",))
+
+    @mock.patch("airflow.providers.mysql.hooks.mysql.send_sql_hook_lineage")
+    def test_bulk_dump_hook_lineage(self, mock_send_lineage):
+        self.db_hook.bulk_dump("table", "/tmp/file")
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "SELECT * INTO OUTFILE %s FROM `table`"
+        assert call_kw["sql_parameters"] == ("/tmp/file",)
+        assert call_kw["cur"] is self.cur
 
     def test_serialize_cell(self):
         assert self.db_hook._serialize_cell("foo", None) == "foo"
@@ -446,6 +515,21 @@ class TestMySqlHook:
             IGNORE 1 LINES""",
             ),
         )
+
+    @mock.patch("airflow.providers.mysql.hooks.mysql.send_sql_hook_lineage")
+    def test_bulk_load_custom_hook_lineage(self, mock_send_lineage):
+        self.db_hook.bulk_load_custom(
+            "table",
+            "/tmp/file",
+            "IGNORE",
+            "FIELDS TERMINATED BY ';'",
+        )
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "LOAD DATA LOCAL INFILE %s %s INTO TABLE `table` %s"
+        assert call_kw["sql_parameters"] == ("/tmp/file", "IGNORE", "FIELDS TERMINATED BY ';'")
+        assert call_kw["cur"] is self.cur
 
     def test_reserved_words(self):
         hook = MySqlHook()
@@ -535,10 +619,10 @@ class MySqlContext:
         self.init_client = self.connection.extra_dejson.get("client", "mysqlclient")
 
     def __enter__(self):
-        self.connection.set_extra(f'{{"client": "{self.client}"}}')
+        self.connection.extra = f'{{"client": "{self.client}"}}'
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.connection.set_extra(f'{{"client": "{self.init_client}"}}')
+        self.connection.extra = f'{{"client": "{self.init_client}"}}'
 
 
 @pytest.mark.backend("mysql")

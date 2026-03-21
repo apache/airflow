@@ -104,6 +104,7 @@ extensions.extend(
         "sphinx.ext.graphviz",
         "sphinxcontrib.httpdomain",
         "extra_files_with_substitutions",
+        "generate_erd",
     ]
 )
 
@@ -267,6 +268,14 @@ global_substitutions = {
     "airflow-version": airflow.__version__,
     "experimental": "This is an :ref:`experimental feature <experimental>`.",
 }
+
+# Pagefind search configuration
+pagefind_exclude_patterns = [
+    "_api/**",  # Exclude auto-generated API documentation
+    "_modules/**",  # Exclude source code modules
+    "release_notes.html",  # Exclude changelog aggregation page
+    "genindex.html",  # Exclude generated index
+]
 
 # -- Options for sphinx.ext.autodoc --------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html

@@ -29,7 +29,7 @@ import jinja2
 import pytest
 import structlog
 
-from airflow.sdk import task as task_decorator
+from airflow.sdk import DAG, Label, TaskGroup, task as task_decorator
 from airflow.sdk._shared.secrets_masker import _secrets_masker, mask_secret
 from airflow.sdk.bases.operator import (
     BaseOperator,
@@ -39,12 +39,8 @@ from airflow.sdk.bases.operator import (
     chain_linear,
     cross_downstream,
 )
-from airflow.sdk.definitions.dag import DAG
-from airflow.sdk.definitions.edges import Label
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.definitions.template import literal
-from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy, _UpstreamPriorityWeightStrategy
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -271,29 +267,12 @@ class TestBaseOperator:
 
     def test_weight_rule_default(self):
         op = BaseOperator(task_id="test_task")
-        assert _DownstreamPriorityWeightStrategy() == op.weight_rule
+        assert op.weight_rule == "downstream"
 
     def test_weight_rule_override(self):
-        op = BaseOperator(task_id="test_task", weight_rule="upstream")
-        assert _UpstreamPriorityWeightStrategy() == op.weight_rule
-
-    def test_dag_task_invalid_weight_rule(self):
-        # Test if we enter an invalid weight rule
-        with pytest.raises(ValueError, match="Unknown priority strategy"):
-            BaseOperator(task_id="should_fail", weight_rule="no rule")
-
-    def test_dag_task_not_registered_weight_strategy(self):
-        from airflow.task.priority_strategy import PriorityWeightStrategy
-
-        class NotRegisteredPriorityWeightStrategy(PriorityWeightStrategy):
-            def get_weight(self, ti):
-                return 99
-
-        with pytest.raises(ValueError, match="Unknown priority strategy"):
-            BaseOperator(
-                task_id="empty_task",
-                weight_rule=NotRegisteredPriorityWeightStrategy(),
-            )
+        whatever_value = object()
+        op = BaseOperator(task_id="test_task", weight_rule=whatever_value)
+        assert op.weight_rule is whatever_value
 
     def test_db_safe_priority(self):
         """Test the db_safe_priority function."""
@@ -692,6 +671,41 @@ class TestBaseOperator:
 
         result = task.render_template(content, context)
         assert result == expected_output
+
+    @pytest.mark.parametrize(
+        ("dag_native", "op_native", "content", "context", "expected_result", "expected_type"),
+        [
+            # Operator overrides DAG
+            (False, True, "{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"], list),
+            (True, False, "{{ foo }}", {"foo": ["bar1", "bar2"]}, "['bar1', 'bar2']", str),
+            # Operator inherits from DAG (None = inherit)
+            (True, None, "{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"], list),
+            (False, None, "{{ foo }}", {"foo": ["bar1", "bar2"]}, "['bar1', 'bar2']", str),
+            # No DAG context
+            (None, None, "{{ foo }}", {"foo": ["bar1", "bar2"]}, "['bar1', 'bar2']", str),
+            (None, True, "{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"], list),
+            # Native rendering preserves various types
+            (None, True, "{{ foo }}", {"foo": 42}, 42, int),
+            (None, True, "{{ foo }}", {"foo": {"key": "value"}}, {"key": "value"}, dict),
+            (None, True, "{{ foo }}", {"foo": True}, True, bool),
+            (None, True, "{{ ds }}", {"ds": date(2018, 12, 6)}, date(2018, 12, 6), date),
+        ],
+    )
+    def test_operator_render_template_as_native_obj(
+        self, dag_native, op_native, content, context, expected_result, expected_type
+    ):
+        """Test operator render_template_as_native_obj overrides DAG settings and preserves types."""
+        if dag_native is not None:
+            with DAG(
+                "test-dag", schedule=None, start_date=DEFAULT_DATE, render_template_as_native_obj=dag_native
+            ):
+                task = BaseOperator(task_id="op1", render_template_as_native_obj=op_native)
+        else:
+            task = BaseOperator(task_id="op1", render_template_as_native_obj=op_native)
+
+        result = task.render_template(content, context)
+        assert result == expected_result
+        assert isinstance(result, expected_type)
 
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""

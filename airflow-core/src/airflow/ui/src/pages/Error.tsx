@@ -20,7 +20,7 @@ import { Box, VStack, Heading, Text, Button, Container, HStack, Code } from "@ch
 import { useTranslation } from "react-i18next";
 import { useNavigate, useRouteError, isRouteErrorResponse } from "react-router-dom";
 
-import { AirflowPin } from "src/assets/AirflowPin";
+import { Logo } from "src/components/Logo";
 
 export const ErrorPage = () => {
   const navigate = useNavigate();
@@ -51,7 +51,7 @@ export const ErrorPage = () => {
     <Box alignItems="center" display="flex" justifyContent="center" pt={36} px={4}>
       <Container maxW="lg">
         <VStack gap={8} textAlign="center">
-          <AirflowPin height="50px" width="50px" />
+          <Logo height="50px" width="50px" />
 
           <VStack gap={4}>
             <Heading>{statusCode || translate("error.title")}</Heading>
@@ -64,10 +64,23 @@ export const ErrorPage = () => {
           </VStack>
 
           <HStack gap={4}>
-            <Button colorPalette="brand" onClick={() => navigate(-1)} size="lg">
+            <Button
+              colorPalette="brand"
+              onClick={() => {
+                void Promise.resolve(navigate(-1));
+              }}
+              size="lg"
+            >
               {translate("error.back")}
             </Button>
-            <Button colorPalette="brand" onClick={() => navigate("/")} size="lg" variant="outline">
+            <Button
+              colorPalette="brand"
+              onClick={() => {
+                void Promise.resolve(navigate("/"));
+              }}
+              size="lg"
+              variant="outline"
+            >
               {translate("error.home")}
             </Button>
           </HStack>

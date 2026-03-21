@@ -72,6 +72,8 @@ For development and testing, use `pnpm dev` which will:
 - Start a development server on port 5173
 - Load the component using `src/dev.tsx` entry point
 - Enable hot module replacement
+- Chakra Theme provided for local development is the default one, but in production when the plugin is loaded into the Airflow Core UI,
+  it will inherit the main application theme for a consistent look and feel.
 
 ### Library Configuration
 

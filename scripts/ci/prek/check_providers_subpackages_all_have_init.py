@@ -27,7 +27,6 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import (
     AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
@@ -43,13 +42,12 @@ ACCEPTED_NON_INIT_DIRS = [
     "__pycache__",
     "static",
     "dist",
+    ".pnpm-store",
     "node_modules",
     "non_python_src",
 ]
 
-IGNORE_DIR_PATTERNS = [
-    "airflow/providers/edge3/plugins",
-]
+IGNORE_DIR_PATTERNS = ["airflow/providers/edge3/plugins", "airflow/providers/common/ai/plugins"]
 
 PATH_EXTENSION_STRING = '__path__ = __import__("pkgutil").extend_path(__path__, __name__)'
 

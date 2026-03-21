@@ -29,7 +29,7 @@ from airflow.providers.common.compat.sdk import BaseOperator
 if TYPE_CHECKING:
     from odps.models import Instance
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class MaxComputeSQLOperator(BaseOperator):

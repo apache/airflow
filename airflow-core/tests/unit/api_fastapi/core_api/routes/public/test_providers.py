@@ -34,6 +34,7 @@ MOCK_PROVIDERS = {
             "name": "Amazon",
             "description": "`Amazon Web Services (AWS) <https://aws.amazon.com/>`__.\n",
             "versions": ["1.0.0"],
+            "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-amazon/1.0.0/",
         },
     ),
     "apache-airflow-providers-apache-cassandra": ProviderInfo(
@@ -43,6 +44,7 @@ MOCK_PROVIDERS = {
             "name": "Apache Cassandra",
             "description": "`Apache Cassandra <http://cassandra.apache.org/>`__.\n",
             "versions": ["1.0.0"],
+            "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra/1.0.0/",
         },
     ),
 }

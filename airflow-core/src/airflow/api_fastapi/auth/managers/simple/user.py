@@ -25,11 +25,13 @@ class SimpleAuthManagerUser(BaseUser):
 
     :param username: The username
     :param role: The role associated to the user. If not provided, the user has no permission
+    :param teams: The list of teams associated to the user
     """
 
-    def __init__(self, *, username: str, role: str | None) -> None:
+    def __init__(self, *, username: str, role: str | None, teams: list[str] | None = None) -> None:
         self.username = username
         self.role = role
+        self.teams = teams or []
 
     def get_id(self) -> str:
         return self.username
@@ -37,5 +39,10 @@ class SimpleAuthManagerUser(BaseUser):
     def get_name(self) -> str:
         return self.username
 
-    def get_role(self) -> str | None:
-        return self.role
+    def __eq__(self, other):
+        if not isinstance(other, SimpleAuthManagerUser):
+            return False
+        return self.username == other.username and self.role == other.role and self.teams == other.teams
+
+    def __hash__(self):
+        return hash(self.username)

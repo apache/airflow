@@ -26,7 +26,6 @@ from __future__ import annotations
 import time
 from collections import defaultdict, deque
 from collections.abc import Sequence
-from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -48,12 +47,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, Stats
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
@@ -96,6 +90,8 @@ class AwsEcsExecutor(BaseExecutor):
      Airflow TaskInstance's executor_config.
     """
 
+    supports_multi_team: bool = True
+
     # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
 
@@ -115,7 +111,7 @@ class AwsEcsExecutor(BaseExecutor):
         # Can be removed when minimum supported provider version is equal to the version of core airflow
         # which introduces multi-team configuration.
         if not hasattr(self, "conf"):
-            from airflow.configuration import conf
+            from airflow.providers.common.compat.sdk import conf
 
             self.conf = conf
 
@@ -506,15 +502,7 @@ class AwsEcsExecutor(BaseExecutor):
             from airflow.executors.workloads import ExecuteTask
 
             if isinstance(command[0], ExecuteTask):
-                workload = command[0]
-                ser_input = workload.model_dump_json()
-                command = [
-                    "python",
-                    "-m",
-                    "airflow.sdk.execution_time.execute_workload",
-                    "--json-string",
-                    ser_input,
-                ]
+                command = self._serialize_workload_to_command(command[0])
             else:
                 raise ValueError(
                     f"EcsExecutor doesn't know how to handle workload of type: {type(command[0])}"
@@ -576,6 +564,39 @@ class AwsEcsExecutor(BaseExecutor):
                 )
         raise KeyError(f"No such container found by container name: {self.container_name}")
 
+    @staticmethod
+    def _serialize_workload_to_command(workload) -> CommandType:
+        """
+        Serialize an ExecuteTask workload into a command for the Task SDK.
+
+        :param workload: ExecuteTask workload to serialize
+        :return: Command as list of strings for Task SDK execution
+        """
+        return [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            workload.model_dump_json(),
+        ]
+
+    def _build_task_command(self, ti: TaskInstance) -> CommandType:
+        """
+        Build task command for execution based on Airflow version.
+
+        For Airflow 3.x+, generates an ExecuteTask workload with JSON serialization.
+        For Airflow 2.x, uses the legacy command_as_list() method.
+
+        :param ti: TaskInstance to build command for
+        :return: Command as list of strings
+        """
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.executors.workloads import ExecuteTask
+
+            workload = ExecuteTask.make(ti)
+            return self._serialize_workload_to_command(workload)
+        return ti.command_as_list()
+
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Adopt task instances which have an external_executor_id (the ECS task ARN).
@@ -590,12 +611,14 @@ class AwsEcsExecutor(BaseExecutor):
 
                 for task in task_descriptions:
                     ti = next(ti for ti in tis if ti.external_executor_id == task.task_arn)
+                    command = self._build_task_command(ti)
+
                     self.active_workers.add_task(
                         task,
                         ti.key,
-                        ti.queue,
-                        ti.command_as_list(),
-                        ti.executor_config,
+                        ti.queue or "",
+                        command,
+                        ti.executor_config or {},
                         ti.try_number,
                     )
                     adopted_tis.append(ti)
@@ -611,12 +634,3 @@ class AwsEcsExecutor(BaseExecutor):
 
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
-
-    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
-        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
-        with suppress(AttributeError):
-            super().log_task_event(
-                event=event,
-                extra=extra,
-                ti_key=ti_key,
-            )

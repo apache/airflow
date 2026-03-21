@@ -16,21 +16,29 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, relationship
-from sqlalchemy_utils import UUIDType
+from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
+from airflow.executors.workloads import BaseWorkload
+from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.models import Base
-from airflow.observability.stats import Stats
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column
+from airflow.models.base import StringID
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.state import CallbackState
+
+CallbackKey = str  # Callback keys are str(UUID)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -41,21 +49,18 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
-class CallbackState(str, Enum):
-    """All possible states of callbacks."""
-
-    PENDING = "pending"
-    QUEUED = "queued"
-    RUNNING = "running"
-    SUCCESS = "success"
-    FAILED = "failed"
-
-    def __str__(self) -> str:
-        return self.value
-
-
-ACTIVE_STATES = frozenset((CallbackState.QUEUED, CallbackState.RUNNING))
+ACTIVE_STATES = frozenset((CallbackState.PENDING, CallbackState.QUEUED, CallbackState.RUNNING))
 TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
+
+
+def _accepts_context(callback: Callable) -> bool:
+    """Check if callback accepts a 'context' parameter or **kwargs."""
+    try:
+        sig = inspect.signature(callback)
+    except (ValueError, TypeError):
+        return True
+    params = sig.parameters
+    return "context" in params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
 class CallbackType(str, Enum):
@@ -68,16 +73,6 @@ class CallbackType(str, Enum):
     TRIGGERER = "triggerer"
     EXECUTOR = "executor"
     DAG_PROCESSOR = "dag_processor"
-
-
-class CallbackFetchMethod(str, Enum):
-    """Methods used to fetch callback at runtime."""
-
-    # For future use once Dag Processor callbacks (on_success_callback/on_failure_callback) get moved to executors
-    DAG_ATTRIBUTE = "dag_attribute"
-
-    # For deadline callbacks since they import callbacks through the import path
-    IMPORT_PATH = "import_path"
 
 
 class CallbackDefinitionProtocol(Protocol):
@@ -103,12 +98,11 @@ class ImportPathExecutorCallbackDefProtocol(ImportPathCallbackDefProtocol, Proto
     executor: str | None
 
 
-class Callback(Base):
+class Callback(Base, BaseWorkload):
     """Base class for callbacks."""
 
     __tablename__ = "callback"
-
-    id: Mapped[str] = mapped_column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
+    id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
 
     # This is used by SQLAlchemy to be able to deserialize DB rows to subclasses
     __mapper_args__ = {
@@ -122,6 +116,9 @@ class Callback(Base):
 
     # Used by subclasses to store information about how to run the callback
     data: Mapped[dict] = mapped_column(ExtendedJSON, nullable=False)
+
+    # Used to route dag-processor callbacks to filter by bundle name.
+    bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 
     # State of the Callback of type: CallbackState. Can be null for instances of DagProcessorCallback.
     state: Mapped[str | None] = mapped_column(String(10))
@@ -147,7 +144,7 @@ class Callback(Base):
         :param prefix: Optional prefix for metric names
         :param kwargs: Additional data emitted in metric tags
         """
-        self.state = CallbackState.PENDING
+        self.state = CallbackState.SCHEDULED
         self.priority_weight = priority_weight
         self.data = kwargs  # kwargs can be used to include additional info in metric tags
         if prefix:
@@ -168,6 +165,14 @@ class Callback(Base):
         name = f"{prefix}.callback_{status}" if prefix else f"callback_{status}"
 
         return {"stat": name, "tags": tags}
+
+    def get_dag_id(self) -> str | None:
+        """Return the DAG ID for scheduler routing."""
+        return self.data.get("dag_id")
+
+    def get_executor_name(self) -> str | None:
+        """Return the executor name for scheduler routing."""
+        return self.data.get("executor")
 
     @staticmethod
     def create_from_sdk_def(callback_def: CallbackDefinitionProtocol, **kwargs) -> Callback:
@@ -267,6 +272,7 @@ class DagProcessorCallback(Callback):
 
         self.fetch_method = CallbackFetchMethod.DAG_ATTRIBUTE
         self.state = None
+        self.bundle_name = callback.bundle_name
         self.data |= {"req_class": callback.__class__.__name__, "req_data": callback.to_json()}
 
     def get_callback_request(self) -> CallbackRequest:

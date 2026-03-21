@@ -27,7 +27,7 @@ from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class AzureBatchOperator(BaseOperator):

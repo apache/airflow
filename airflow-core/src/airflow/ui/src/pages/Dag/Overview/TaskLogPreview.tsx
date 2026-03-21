@@ -72,7 +72,7 @@ export const TaskLogPreview = ({
               ? translate("overview.failedLogs.hideLogs")
               : translate("overview.failedLogs.showLogs")}
           </Button>
-          <ClearTaskInstanceButton taskInstance={taskInstance} withText={false} />
+          <ClearTaskInstanceButton taskInstance={taskInstance} />
           <Link asChild color="fg.info" fontSize="sm">
             <RouterLink to={getTaskInstanceLink(taskInstance)}>
               {translate("overview.failedLogs.viewFullLogs")}

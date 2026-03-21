@@ -40,6 +40,7 @@ def getattr_with_deprecation(
     override_deprecated_classes: dict[str, str],
     extra_message: str,
     name: str,
+    message_override: str = "",
 ):
     """
     Retrieve the imported attribute from the redirected module and raises a deprecation warning.
@@ -49,6 +50,8 @@ def getattr_with_deprecation(
     :param override_deprecated_classes: override target attributes with deprecated ones. If target attribute is
        found in the dictionary, it will be displayed in the warning message.
     :param extra_message: extra message to display in the warning or import error message
+    :param message_override: if provided, overrides the default deprecation message. Supports placeholders:
+       {module}, {name}, {target} which are substituted with the actual values.
     :param name: attribute name
     :return:
     """
@@ -67,9 +70,12 @@ def getattr_with_deprecation(
     if override_deprecated_classes and name in override_deprecated_classes:
         warning_class_name = override_deprecated_classes[name]
 
-    message = f"The `{module}.{name}` attribute is deprecated. Please use `{warning_class_name!r}`."
-    if extra_message:
-        message += f" {extra_message}."
+    if message_override:
+        message = message_override.format(module=module, name=name, target=warning_class_name)
+    else:
+        message = f"The `{module}.{name}` attribute is deprecated. Please use `{warning_class_name!r}`."
+        if extra_message:
+            message += f" {extra_message}."
     warnings.warn(message, DeprecatedImportWarning, stacklevel=2)
 
     # Import and return the target attribute
@@ -90,6 +96,7 @@ def add_deprecated_classes(
     package: str,
     override_deprecated_classes: dict[str, dict[str, str]] | None = None,
     extra_message: str | None = None,
+    message: str | None = None,
 ):
     """
     Add deprecated attribute PEP-563 imports and warnings modules to the package.
@@ -105,6 +112,8 @@ def add_deprecated_classes(
     :param override_deprecated_classes: override target attributes with deprecated ones.
         Format: dict[str, dict[str, str]] matching the structure of module_imports
     :param extra_message: extra message to display in the warning or import error message
+    :param message: if provided, overrides the default deprecation message. Supports placeholders:
+        {module}, {name}, {target} which are substituted with the actual values.
 
     Examples:
         # Create virtual modules (e.g., for removed .py files)
@@ -175,6 +184,7 @@ def add_deprecated_classes(
                 package,
                 current_override,
                 extra_message or "",
+                message_override=message or "",
             )
 
             # Set the __getattr__ function on the current module
@@ -195,5 +205,6 @@ def add_deprecated_classes(
                 full_module_name,
                 override_deprecated_classes_for_module,
                 extra_message or "",
+                message_override=message or "",
             )
             sys.modules.setdefault(full_module_name, module_type)

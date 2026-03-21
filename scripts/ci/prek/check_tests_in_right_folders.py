@@ -26,9 +26,7 @@ from __future__ import annotations
 
 import re
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import console, initialize_breeze_prek
 
 initialize_breeze_prek(__name__, __file__)
@@ -61,6 +59,7 @@ POSSIBLE_TEST_FOLDERS = [
     "listeners",
     "logging",
     "macros",
+    "migrations",
     "models",
     "notifications",
     "observability",
@@ -68,6 +67,7 @@ POSSIBLE_TEST_FOLDERS = [
     "otel",
     "plugins",
     "providers",
+    "partition_mappers",
     "secrets",
     "security",
     "sensors",

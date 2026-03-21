@@ -149,7 +149,6 @@ Snippet to create Connection and convert to URI
     import os
     from airflow.models.connection import Connection
 
-
     conn = Connection(
         conn_id="sample_aws_connection",
         conn_type="aws",

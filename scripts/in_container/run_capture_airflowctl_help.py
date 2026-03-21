@@ -28,11 +28,9 @@ from pathlib import Path
 from airflowctl import __file__ as AIRFLOW_CTL_SRC_PATH
 from rich.console import Console
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 AIRFLOW_CTL_ROOT_PATH = Path(AIRFLOW_CTL_SRC_PATH).parents[2]
 AIRFLOW_CTL_SOURCES_PATH = AIRFLOW_CTL_ROOT_PATH / "src"
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 AIRFLOWCTL_IMAGES_PATH = AIRFLOW_CTL_ROOT_PATH / "docs" / "images"
 HASH_FILE = AIRFLOW_CTL_ROOT_PATH / "docs" / "images" / "command_hashes.txt"
 COMMANDS = [
@@ -84,7 +82,7 @@ def regenerate_help_images_for_all_airflowctl_commands(commands: list[str], skip
     os.makedirs(AIRFLOWCTL_IMAGES_PATH, exist_ok=True)
     env = os.environ.copy()
     env["TERM"] = "xterm-256color"
-    env["COLUMNS"] = "65"
+    env["COLUMNS"] = "75"
     old_hash_dict = {}
     new_hash_dict = {}
 

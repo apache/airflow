@@ -20,20 +20,18 @@
 ################################
 ## Airflow Triggerer Deployment
 #################################
-{{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
 {{- if .Values.triggerer.enabled }}
-{{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
-{{- $persistence := and .Values.triggerer.persistence.enabled (semverCompare ">=2.6.0" .Values.airflowVersion) }}
+{{- $persistence := .Values.triggerer.persistence.enabled }}
 {{- $keda := .Values.triggerer.keda.enabled }}
 {{- $nodeSelector := or .Values.triggerer.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.triggerer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.triggerer.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.triggerer.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.triggerer) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.triggerer) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.triggerer.waitForMigrations) }}
-{{- $containerSecurityContextLogGroomer := include "containerSecurityContext" (list . .Values.triggerer.logGroomerSidecar) }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.triggerer.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.triggerer .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.triggerer .Values) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.triggerer.waitForMigrations .Values) }}
+{{- $containerSecurityContextLogGroomer := include "containerSecurityContext" (list .Values.triggerer.logGroomerSidecar .Values) }}
 {{- $containerLifecycleHooks := or .Values.triggerer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.triggerer.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
@@ -59,7 +57,7 @@ spec:
   {{- if not $keda }}
   replicas: {{ .Values.triggerer.replicas }}
   {{- end }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   selector:
@@ -95,10 +93,10 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
         {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.airflowPodAnnotations) . | nindent 8 }}
         {{- end }}
         {{- if .Values.triggerer.podAnnotations }}
-          {{- toYaml .Values.triggerer.podAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.triggerer.podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.triggerer.priorityClassName }}
@@ -174,7 +172,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.triggerer.env) | nindent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.triggerer.livenessProbe.initialDelaySeconds }}
@@ -188,12 +186,9 @@ spec:
                 {{- else }}
                   {{- include "triggerer_liveness_check_command" . | indent 14 }}
                 {{- end }}
-        {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
-          {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
           ports:
             - name: triggerer-logs
               containerPort: {{ .Values.ports.triggererLogs }}
-          {{- end }}
         {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.triggerer (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
@@ -217,9 +212,21 @@ spec:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.triggerer.logGroomerSidecar.retentionDays }}"
           {{- end }}
+          {{- if .Values.triggerer.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.triggerer.logGroomerSidecar.retentionMinutes }}"
+          {{- end }}
           {{- if .Values.triggerer.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
               value: "{{ .Values.triggerer.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
+          {{- if .Values.triggerer.logGroomerSidecar.maxSizeBytes }}
+            - name: AIRFLOW__LOG_MAX_SIZE_BYTES
+              value: "{{ .Values.triggerer.logGroomerSidecar.maxSizeBytes | int64 }}"
+          {{- end }}
+          {{- if .Values.triggerer.logGroomerSidecar.maxSizePercent }}
+            - name: AIRFLOW__LOG_MAX_SIZE_PERCENT
+              value: "{{ .Values.triggerer.logGroomerSidecar.maxSizePercent }}"
           {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
@@ -287,5 +294,4 @@ spec:
           requests:
             storage: {{ .Values.triggerer.persistence.size }}
   {{- end }}
-{{- end }}
 {{- end }}

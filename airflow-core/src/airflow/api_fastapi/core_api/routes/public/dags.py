@@ -62,6 +62,7 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
+    DAGPatchBodyPartial,
     DAGResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -129,6 +130,10 @@ def get_dags(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     is_favorite: QueryFavoriteFilter,
+    timetable_type: Annotated[
+        FilterParam[list[str] | None],
+        Depends(filter_param_factory(DagModel.timetable_type, list[str], FilterOptionEnum.IN)),
+    ],
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     query = generate_dag_with_latest_run_query(
@@ -156,6 +161,7 @@ def get_dags(
             readable_dags_filter,
             bundle_name,
             bundle_version,
+            timetable_type,
             has_asset_schedule,
             asset_dependency,
         ],
@@ -281,6 +287,10 @@ def patch_dag(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
         fields_to_update = fields_to_update.intersection(update_mask)
+        try:
+            DAGPatchBodyPartial(**patch_body.model_dump(include=fields_to_update))
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
     else:
         try:
             DAGPatchBody(**patch_body.model_dump())

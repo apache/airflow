@@ -66,7 +66,7 @@ communicating in the dev list or merging Pull Requests on their behalf).
 **Inactive owner** — Either a translation owner or a code owner might be considered inactive if they meet any of
 the following criteria:
 
-- The locale under their responsibility has remained incomplete for at least 2 consecutive releases.
+- The locale under their responsibility has remained incomplete for at least 2 consecutive major/minor releases.
 - They have not contributed to Apache Airflow for more than 12 months.
 - Code owners specifically might be considered inactive according to any other terms mentioned in the
   ["Committers and PMC Members"](../../../../../../COMMITTERS.rst#inactive-committers) document.
@@ -104,7 +104,7 @@ the following criteria:
   - Managing translation-related GitHub issues and discussions, when needed (e.g., closing GitHub issues).
 - Code owners who act as translation sponsors are also responsible for:
   - Ensuring that the translation owner is active and able to maintain the translation.
-  - Act according to section 6.4 when the translation owner relinquishes their role or become inactive.
+  - Act according to section 6.4 when the translation owner relinquishes their role or becomes inactive.
   - When they sponsor a single translation owner, without additional translation owners/engaged translators involved,
     they SHALL also review the language aspects of translation-related PRs using a trusted third-party opinion (e.g., LLM).
 
@@ -177,8 +177,8 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
 ### 5.6. Deprecating / refactoring terms
 
 - When existing terms are deprecated or refactored in the default locale (key renamed/relocated but value
-  unchanged), **the contributor initiating the change holds responsible for updating all relevant locale
-  files, and not any of the locale's owners**. When such available, automation through Breeze tooling SHOULD
+  unchanged), **the contributor initiating the change is responsible for updating all relevant locale
+  files, and not any of the locale's owners**. When such is available, automation through Breeze tooling SHOULD
   be used.
 
 ### 5.7. Merging of translation-related Pull Requests (PRs)
@@ -216,7 +216,7 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
   according to the requirements in section 5.3.
 - Approval of any translation owner who is not a committer requires at least one binding vote of 1 PMC member,
   and no objections from other committers/PMC.
-- Approval of any translation owner who is also a code owner (committer) do not need to be voted on.
+- Approval of any translation owner who is also a code owner (committer) does not need to be voted on.
 
 ### 6.2. Approval of a new locale
 
@@ -261,7 +261,7 @@ When a translation conflict arises in a locale-related PR, the following steps w
 
 ### 6.4. Relinquishing translation/code ownership
 
-- When a code owner asks to relinquish their role, or they become inactive, any another committer should:
+- When a code owner asks to relinquish their role, or they become inactive, any other committer should:
   - Raise a PR for removal of the previous code owner from the `.github/CODEOWNERS` file.
   - Post a thread in the dev list that they step in as the code owner (either as a translation sponsor, or a
     translation owner according to steps discussed in section 6.1).
@@ -332,22 +332,16 @@ Adding missing translations (with `TODO: translate` prefix):
 breeze ui check-translation-completeness --language <language_code> --add-missing
 ```
 
-You can also remove extra translations from the language of your choice:
+You can also remove unused translations from the language of your choice:
 
 ```bash
-breeze ui check-translation-completeness --language <language_code> --remove-extra
+breeze ui check-translation-completeness --language <language_code> --remove-unused
 ```
 
 Or from all languages:
 
 ```bash
-breeze ui check-translation-completeness --remove-extra
-```
-
-The script is also added as a prek hook (manual) so that it can be run from within `prek` and CI:
-
-```bash
-breeze ui check-translation-completeness --verbose --all-files
+breeze ui check-translation-completeness --remove-unused
 ```
 
 
@@ -366,11 +360,11 @@ breeze ui check-translation-completeness --verbose --all-files
 
 ## 11. Freeze time
 
-Few weeks before a minor or major release, a freeze time for accepting new translations
-MUST be announced in the dev list, to allow time for testing and verification of translations.
+A few weeks before a minor or major release, a freeze time for accepting new translations, might be announced in the dev list by the Release Manager.
+It should be announced when the median coverage across all translations is below the completeness threshold (90%), or when needed (e.g., due to a critical UI feature that requires many new terms to be added).
+It will be announced in the dev list about two weeks before it starts, to allow time for preparing, and it should last until median completeness is back above the threshold, or RC is cut for the release (whichever is earlier).
 
-During that freeze time there should be no changes applied to the English translation source files
-by default. When freeze time starts we set this variable in the
+During that freeze time there should be no changes applied to the default language (English) locale files. When freeze time starts we set this variable in the
 `dev/breeze/src/airflow_breeze/utils/selective_checks.py` file:
 
 ```python
@@ -382,7 +376,7 @@ label is applied to the PR. This still allows issues in the English translation 
 deliberate updates to be made, while avoiding accidental changes.
 
 Any change in the English translation files during freeze time MUST be communicated in the
-[#18n](https://app.slack.com/client/TCQ18L22Z/C09D0A7FESJ?) Slack channel and MUST be approved by at least 1 PMC member - so that translators can be informed as early as possible about those translations
+[#i18n](https://app.slack.com/client/TCQ18L22Z/C09D0A7FESJ?) Slack channel and MUST be approved by at least 1 PMC member - so that translators can be informed as early as possible about those translations
 being added.
 
 > [!NOTE]

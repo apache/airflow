@@ -27,6 +27,43 @@ Changelog
 ---------
 
 
+5.3.3
+.....
+
+Misc
+~~~~
+
+* ``Migrate-airbyte-connection-UI-metadata-to-YAML (#62426)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+
+5.3.2
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrate airbyte provider to use airflow.sdk.configuration.conf (#59991)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.3.0
 .....
 

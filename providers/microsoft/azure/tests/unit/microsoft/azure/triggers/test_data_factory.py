@@ -51,6 +51,30 @@ class TestADFPipelineRunStatusSensorTrigger:
         poke_interval=POKE_INTERVAL,
     )
 
+    @pytest.mark.parametrize(
+        ("pipeline_status", "expected_status", "expected_message"),
+        [
+            ("Failed", "error", f"Pipeline run {RUN_ID} has Failed."),
+            ("Cancelled", "error", f"Pipeline run {RUN_ID} has been Cancelled."),
+            ("Succeeded", "success", f"Pipeline run {RUN_ID} has been Succeeded."),
+        ],
+    )
+    def test_build_trigger_event_terminal_states(self, pipeline_status, expected_status, expected_message):
+        """Test _build_trigger_event returns correct TriggerEvent for terminal states."""
+        event = self.TRIGGER._build_trigger_event(pipeline_status)
+        assert event is not None
+        assert event.payload["status"] == expected_status
+        assert event.payload["message"] == expected_message
+
+    @pytest.mark.parametrize(
+        "pipeline_status",
+        ["Queued", "InProgress", "Canceling"],
+    )
+    def test_build_trigger_event_non_terminal_states(self, pipeline_status):
+        """Test _build_trigger_event returns None for non-terminal states."""
+        event = self.TRIGGER._build_trigger_event(pipeline_status)
+        assert event is None
+
     def test_adf_pipeline_run_status_sensors_trigger_serialization(self):
         """
         Asserts that the TaskStateTrigger correctly serializes its arguments
@@ -185,6 +209,31 @@ class TestAzureDataFactoryTrigger:
         azure_data_factory_conn_id=AZ_DATA_FACTORY_CONN_ID,
         end_time=AZ_PIPELINE_END_TIME,
     )
+
+    @pytest.mark.parametrize(
+        ("pipeline_status", "expected_status"),
+        [
+            ("Failed", "error"),
+            ("Cancelled", "error"),
+            ("Succeeded", "success"),
+        ],
+    )
+    def test_build_trigger_event_terminal_states(self, pipeline_status, expected_status):
+        """Test _build_trigger_event returns correct TriggerEvent for terminal states."""
+        event = self.TRIGGER._build_trigger_event(pipeline_status)
+        assert event is not None
+        assert event.payload["status"] == expected_status
+        assert event.payload["run_id"] == AZ_PIPELINE_RUN_ID
+        assert f"The pipeline run {AZ_PIPELINE_RUN_ID} has {pipeline_status}." in event.payload["message"]
+
+    @pytest.mark.parametrize(
+        "pipeline_status",
+        ["Queued", "InProgress", "Canceling"],
+    )
+    def test_build_trigger_event_non_terminal_states(self, pipeline_status):
+        """Test _build_trigger_event returns None for non-terminal states."""
+        event = self.TRIGGER._build_trigger_event(pipeline_status)
+        assert event is None
 
     def test_azure_data_factory_trigger_serialization(self):
         """Asserts that the AzureDataFactoryTrigger correctly serializes its arguments and classpath."""

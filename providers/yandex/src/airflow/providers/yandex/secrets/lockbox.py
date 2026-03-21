@@ -145,11 +145,12 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         self.sep = sep
         self.endpoint = endpoint
 
-    def get_conn_value(self, conn_id: str) -> str | None:
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
         Retrieve from Secrets Backend a string value representing the Connection object.
 
         :param conn_id: Connection ID
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         :return: Connection Value
         """
         if self.connections_prefix is None:
@@ -160,11 +161,12 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret_value(self.connections_prefix, conn_id)
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Return value for Airflow Variable.
 
         :param key: Variable Key
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
         if self.variables_prefix is None:

@@ -28,12 +28,13 @@ import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { type Direction, useGraphLayout } from "src/components/Graph/useGraphLayout";
+import { dependenciesKey, directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { getReactFlowThemeStyle } from "src/theme";
 
 const nodeColor = (
@@ -68,6 +69,8 @@ export const Graph = () => {
   const filterRoot = searchParams.get("root") ?? undefined;
   const includeUpstream = searchParams.get("upstream") === "true";
   const includeDownstream = searchParams.get("downstream") === "true";
+  const depthParam = searchParams.get("depth");
+  const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   const hasActiveFilter = includeUpstream || includeDownstream;
 
@@ -83,13 +86,14 @@ export const Graph = () => {
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useOpenGroups();
 
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
-  const [direction] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
+  const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {
       dagId,
+      depth,
       externalDependencies: dependencies === "immediate",
       includeDownstream,
       includeUpstream,
@@ -130,7 +134,8 @@ export const Graph = () => {
     versionNumber: selectedVersion,
   });
 
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
+  const { summariesByRunId } = useGridTiSummariesStream({ dagId, runIds: runId ? [runId] : [] });
+  const gridTISummaries = runId ? summariesByRunId.get(runId) : undefined;
 
   // Add task instances to the node data but without having to recalculate how the graph is laid out
   const nodes = data?.nodes.map((node) => {

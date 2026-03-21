@@ -17,39 +17,64 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import logging
 import re
 import sys
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.sdk import BaseHook
 
 PY313 = sys.version_info >= (3, 13)
-import warnings
 from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers_manager import (
     DialectInfo,
-    HookClassProvider,
     LazyDictWithCache,
     PluginInfo,
     ProviderInfo,
     ProvidersManager,
 )
 
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
-from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
+    from airflow.cli.cli_config import CLICommand
 
 
 def test_cleanup_providers_manager(cleanup_providers_manager):
     """Check the cleanup provider manager functionality."""
     provider_manager = ProvidersManager()
-    assert isinstance(provider_manager.hooks, LazyDictWithCache)
-    hooks = provider_manager.hooks
+    assert isinstance(provider_manager.providers, dict)
+    providers = provider_manager.providers
+    assert len(providers) > 0
+
     ProvidersManager()._cleanup()
-    assert not len(hooks)
-    assert ProvidersManager().hooks is hooks
+
+    # even after cleanup the singleton should return same instance but internal state is reset
+    assert len(ProvidersManager().providers) > 0
+
+
+@pytest.fixture
+def yaml_ui_metadata_counts(cleanup_providers_manager):
+    """Get counts of UI metadata defined in YAML (widgets, behaviours)."""
+    pm = ProvidersManager()
+    pm.initialize_providers_list()
+
+    widgets = 0
+    behaviours = 0
+    for provider in pm._provider_dict.values():
+        for conn_config in provider.data.get("connection-types", []):
+            widgets += len(conn_config.get("conn-fields", {}))
+            if conn_config.get("ui-field-behaviour"):
+                behaviours += 1
+
+    return widgets, behaviours
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -57,6 +82,21 @@ class TestProviderManager:
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog, cleanup_providers_manager):
         self._caplog = caplog
+
+    def test_providers_manager_singleton(self):
+        """Test that ProvidersManager returns the same instance and shares state."""
+        pm1 = ProvidersManager()
+        pm2 = ProvidersManager()
+
+        assert pm1 is pm2
+
+        # assert their states are same
+        assert pm1._provider_dict is pm2._provider_dict
+        assert pm1._hook_provider_dict is pm2._hook_provider_dict
+
+        # update property on one instance and check on another
+        pm1.resource_version = "updated_version"
+        assert pm2.resource_version == "updated_version"
 
     def test_providers_are_loaded(self):
         with self._caplog.at_level(logging.WARNING):
@@ -67,110 +107,14 @@ class TestProviderManager:
             for provider in provider_list:
                 package_name = provider_manager.providers[provider].data["package-name"]
                 version = provider_manager.providers[provider].version
+                documentation_url = provider_manager.providers[provider].data["documentation-url"]
                 assert re.search(r"[0-9]*\.[0-9]*\.[0-9]*.*", version)
                 assert package_name == provider
+                assert isinstance(documentation_url, str)
             # just a coherence check - no exact number as otherwise we would have to update
             # several tests if we add new connections/provider which is not ideal
             assert len(provider_list) > 65
             assert self._caplog.records == []
-
-    def test_hooks_deprecation_warnings_generated(self):
-        providers_manager = ProvidersManager()
-        providers_manager._provider_dict["test-package"] = ProviderInfo(
-            version="0.0.1",
-            data={"hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"]},
-        )
-        with pytest.warns(expected_warning=DeprecationWarning, match="hook-class-names") as warning_records:
-            providers_manager._discover_hooks()
-        assert warning_records
-
-    def test_hooks_deprecation_warnings_not_generated(self):
-        with warnings.catch_warnings(record=True) as warning_records:
-            providers_manager = ProvidersManager()
-            providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
-                version="0.0.1",
-                data={
-                    "hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"],
-                    "connection-types": [
-                        {
-                            "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
-                            "connection-type": "sftp",
-                        }
-                    ],
-                },
-            )
-            providers_manager._discover_hooks()
-        assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
-
-    def test_warning_logs_generated(self):
-        providers_manager = ProvidersManager()
-        providers_manager._hooks_lazy_dict = LazyDictWithCache()
-        with self._caplog.at_level(logging.WARNING):
-            providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
-                version="0.0.1",
-                data={
-                    "hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"],
-                    "connection-types": [
-                        {
-                            "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
-                            "connection-type": "wrong-connection-type",
-                        }
-                    ],
-                },
-            )
-            providers_manager._discover_hooks()
-            _ = providers_manager._hooks_lazy_dict["wrong-connection-type"]
-        assert len(self._caplog.entries) == 1
-        assert "Inconsistency!" in self._caplog[0]["event"]
-        assert "sftp" not in providers_manager.hooks
-
-    def test_warning_logs_not_generated(self):
-        with self._caplog.at_level(logging.WARNING):
-            providers_manager = ProvidersManager()
-            providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
-                version="0.0.1",
-                data={
-                    "hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"],
-                    "connection-types": [
-                        {
-                            "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
-                            "connection-type": "sftp",
-                        }
-                    ],
-                },
-            )
-            providers_manager._discover_hooks()
-            _ = providers_manager._hooks_lazy_dict["sftp"]
-        assert not self._caplog.records
-        assert "sftp" in providers_manager.hooks
-
-    def test_already_registered_conn_type_in_provide(self):
-        with self._caplog.at_level(logging.WARNING):
-            providers_manager = ProvidersManager()
-            providers_manager._provider_dict["apache-airflow-providers-dummy"] = ProviderInfo(
-                version="0.0.1",
-                data={
-                    "connection-types": [
-                        {
-                            "hook-class-name": "airflow.providers.dummy.hooks.dummy.DummyHook",
-                            "connection-type": "dummy",
-                        },
-                        {
-                            "hook-class-name": "airflow.providers.dummy.hooks.dummy.DummyHook2",
-                            "connection-type": "dummy",
-                        },
-                    ],
-                },
-            )
-            providers_manager._discover_hooks()
-            _ = providers_manager._hooks_lazy_dict["dummy"]
-        assert len(self._caplog.records) == 1
-        msg = self._caplog.messages[0]
-        assert msg.startswith("The connection type 'dummy' is already registered")
-        assert (
-            "different class names: 'airflow.providers.dummy.hooks.dummy.DummyHook'"
-            " and 'airflow.providers.dummy.hooks.dummy.DummyHook2'."
-        ) in msg
 
     def test_providers_manager_register_plugins(self):
         providers_manager = ProvidersManager()
@@ -219,62 +163,8 @@ class TestProviderManager:
             ),
         )
 
-    def test_hooks(self):
-        with warnings.catch_warnings(record=True) as warning_records:
-            with self._caplog.at_level(logging.WARNING):
-                provider_manager = ProvidersManager()
-                connections_list = list(provider_manager.hooks.keys())
-                assert len(connections_list) > 60
-        if len(self._caplog.records) != 0:
-            for record in self._caplog.records:
-                print(record.message, file=sys.stderr)
-                print(record.exc_info, file=sys.stderr)
-            raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
-
-    @skip_if_not_on_main
-    @pytest.mark.execution_timeout(150)
-    def test_hook_values(self):
-        provider_dependencies = json.loads(
-            (AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json").read_text()
-        )
-        python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-        excluded_providers: list[str] = []
-        for provider_name, provider_info in provider_dependencies.items():
-            if python_version in provider_info.get("excluded-python-versions", []):
-                excluded_providers.append(f"apache-airflow-providers-{provider_name.replace('.', '-')}")
-        with warnings.catch_warnings(record=True) as warning_records:
-            with self._caplog.at_level(logging.WARNING):
-                provider_manager = ProvidersManager()
-                connections_list = list(provider_manager.hooks.values())
-                assert len(connections_list) > 60
-        if len(self._caplog.records) != 0:
-            real_warning_count = 0
-            for record in self._caplog.entries:
-                # When there is error importing provider that is excluded the provider name is in the message
-                if any(excluded_provider in record["event"] for excluded_provider in excluded_providers):
-                    continue
-                print(record["event"], file=sys.stderr)
-                print(record.get("exc_info"), file=sys.stderr)
-                real_warning_count += 1
-            if real_warning_count:
-                if PY313:
-                    only_ydb_and_yandexcloud_warnings = True
-                    for record in warning_records:
-                        if "ydb" in str(record.message) or "yandexcloud" in str(record.message):
-                            continue
-                        only_ydb_and_yandexcloud_warnings = False
-                    if only_ydb_and_yandexcloud_warnings:
-                        print(
-                            "Only warnings from ydb and yandexcloud providers are generated, "
-                            "which is expected in Python 3.13+",
-                            file=sys.stderr,
-                        )
-                        return
-                raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
-
-    def test_connection_form_widgets(self):
+    def test_connection_form_widgets(self, yaml_ui_metadata_counts):
+        yaml_widgets, _ = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
         # Connection form widgets use flask_appbuilder widgets, so they're only available when it's installed
@@ -283,18 +173,20 @@ class TestProviderManager:
 
             assert len(connections_form_widgets) > 29
         except ImportError:
-            assert len(connections_form_widgets) == 0
+            # widgets loaded from YAML metadata only
+            assert len(connections_form_widgets) == yaml_widgets
 
-    def test_field_behaviours(self):
+    def test_field_behaviours(self, yaml_ui_metadata_counts):
+        _, yaml_behaviours = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
-        # Field behaviours are often related to connection forms, only available when flask_appbuilder is installed
         try:
             import flask_appbuilder  # noqa: F401
 
             assert len(connections_with_field_behaviours) > 16
         except ImportError:
-            assert len(connections_with_field_behaviours) == 0
+            # widgets loaded from YAML metadata only
+            assert len(connections_with_field_behaviours) == yaml_behaviours
 
     def test_extra_links(self):
         provider_manager = ProvidersManager()
@@ -326,126 +218,259 @@ class TestProviderManager:
         auth_manager_class_names = list(provider_manager.auth_managers)
         assert len(auth_manager_class_names) > 0
 
+    def test_cli(self):
+        provider_manager = ProvidersManager()
+
+        # assert cli_command_functions is set of Callable[[], list[CLICommand]]
+        assert isinstance(provider_manager.cli_command_functions, set)
+        assert all(callable(func) for func in provider_manager.cli_command_functions)
+        # assert cli_command_providers is set of str
+        assert isinstance(provider_manager.cli_command_providers, set)
+        assert all(isinstance(provider, str) for provider in provider_manager.cli_command_providers)
+
+        sorted_cli_command_functions: list[Callable[[], list[CLICommand]]] = sorted(
+            provider_manager.cli_command_functions, key=lambda x: x.__module__
+        )
+        sorted_cli_command_providers: list[str] = sorted(provider_manager.cli_command_providers)
+
+        expected_functions_modules = [
+            "airflow.providers.amazon.aws.cli.definition",
+            "airflow.providers.celery.cli.definition",
+            "airflow.providers.cncf.kubernetes.cli.definition",
+            "airflow.providers.edge3.cli.definition",
+            "airflow.providers.fab.cli.definition",
+            "airflow.providers.keycloak.cli.definition",
+        ]
+        expected_providers = [
+            "apache-airflow-providers-amazon",
+            "apache-airflow-providers-celery",
+            "apache-airflow-providers-cncf-kubernetes",
+            "apache-airflow-providers-edge3",
+            "apache-airflow-providers-fab",
+            "apache-airflow-providers-keycloak",
+        ]
+        assert [func.__module__ for func in sorted_cli_command_functions] == expected_functions_modules
+        assert sorted_cli_command_providers == expected_providers
+
     def test_dialects(self):
         provider_manager = ProvidersManager()
         dialect_class_names = list(provider_manager.dialects)
         assert len(dialect_class_names) == 3
         assert dialect_class_names == ["default", "mssql", "postgresql"]
 
-    @patch("airflow.providers_manager.import_string")
-    def test_optional_feature_no_warning(self, mock_importlib_import_string):
-        with self._caplog.at_level(logging.WARNING):
-            mock_importlib_import_string.side_effect = AirflowOptionalProviderFeatureException()
-            providers_manager = ProvidersManager()
-            providers_manager._hook_provider_dict["test_connection"] = HookClassProvider(
-                package_name="test_package", hook_class_name="HookClass"
-            )
-            providers_manager._import_hook(
-                hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
-            )
-            assert self._caplog.messages == []
+
+class TestWithoutCheckProviderManager:
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, cleanup_providers_manager):
+        pass
 
     @patch("airflow.providers_manager.import_string")
-    def test_optional_feature_debug(self, mock_importlib_import_string):
-        with self._caplog.at_level(logging.INFO):
-            mock_importlib_import_string.side_effect = AirflowOptionalProviderFeatureException()
-            providers_manager = ProvidersManager()
-            providers_manager._hook_provider_dict["test_connection"] = HookClassProvider(
-                package_name="test_package", hook_class_name="HookClass"
-            )
-            providers_manager._import_hook(
-                hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
-            )
-            assert self._caplog.messages == [
-                "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"
-            ]
+    @patch("airflow.providers_manager._correctness_check")
+    @patch("airflow.providers_manager.ProvidersManager._discover_auth_managers")
+    def test_auth_manager_without_check_property_should_not_called_import_string(
+        self,
+        mock_discover_auth_managers: MagicMock,
+        mock_correctness_check: MagicMock,
+        mock_importlib_import_string: MagicMock,
+    ):
+        providers_manager = ProvidersManager()
+        result = providers_manager.auth_manager_without_check
+
+        mock_discover_auth_managers.assert_called_once_with(check=False)
+        mock_importlib_import_string.assert_not_called()
+        mock_correctness_check.assert_not_called()
+
+        assert providers_manager._auth_manager_without_check_set == result
+
+    @patch("airflow.providers_manager.import_string")
+    @patch("airflow.providers_manager._correctness_check")
+    @patch("airflow.providers_manager.ProvidersManager._discover_executors")
+    def test_executors_without_check_property_should_not_called_import_string(
+        self,
+        mock_discover_executors: MagicMock,
+        mock_correctness_check: MagicMock,
+        mock_importlib_import_string: MagicMock,
+    ):
+        providers_manager = ProvidersManager()
+        result = providers_manager.executor_without_check
+
+        mock_discover_executors.assert_called_once_with(check=False)
+        mock_importlib_import_string.assert_not_called()
+        mock_correctness_check.assert_not_called()
+
+        assert providers_manager._executor_without_check_set == result
 
 
-@pytest.mark.parametrize(
-    ("value", "expected_outputs"),
-    [
-        ("a", "a"),
-        (1, 1),
-        (None, None),
-        (lambda: 0, 0),
-        (lambda: None, None),
-        (lambda: "z", "z"),
-    ],
-)
-def test_lazy_cache_dict_resolving(value, expected_outputs):
-    lazy_cache_dict = LazyDictWithCache()
-    lazy_cache_dict["key"] = value
-    assert lazy_cache_dict["key"] == expected_outputs
-    # Retrieve it again to see if it is correctly returned again
-    assert lazy_cache_dict["key"] == expected_outputs
+class TestProvidersMetadataLoading:
+    @pytest.mark.parametrize(
+        ("field_name", "field_def", "expected_title", "expected_checks"),
+        [
+            pytest.param(
+                "api_url",
+                {
+                    "label": "API URL",
+                    "description": "The API endpoint URL",
+                    "schema": {
+                        "type": "string",
+                        "default": "https://api.example.com",
+                    },
+                },
+                "API URL",
+                lambda x: (
+                    x["description"] == "The API endpoint URL" and x["value"] == "https://api.example.com"
+                ),
+                id="string_field",
+            ),
+            pytest.param(
+                "timeout",
+                {
+                    "label": "Timeout",
+                    "description": "Connection timeout in seconds",
+                    "schema": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 300,
+                        "default": 30,
+                    },
+                },
+                "Timeout",
+                lambda x: x["value"] == 30,
+                id="integer_field",
+            ),
+            pytest.param(
+                "use_ssl",
+                {
+                    "label": "Use SSL",
+                    "schema": {
+                        "type": "boolean",
+                        "default": True,
+                    },
+                },
+                "Use SSL",
+                lambda x: x["value"] is True,
+                id="boolean_field",
+            ),
+            pytest.param(
+                "api_key",
+                {
+                    "label": "API Key",
+                    "sensitive": True,
+                    "schema": {
+                        "type": "string",
+                        "format": "password",
+                    },
+                },
+                "API Key",
+                lambda x: x["schema"].get("format") == "password",
+                id="password_field",
+            ),
+            pytest.param(
+                "ssl_mode",
+                {
+                    "label": "SSL Mode",
+                    "description": "SSL connection mode",
+                    "schema": {
+                        "type": "string",
+                        "enum": ["disable", "prefer", "require", "verify-full"],
+                        "default": "prefer",
+                    },
+                },
+                "SSL Mode",
+                lambda x: (
+                    x["value"] == "prefer"
+                    and "enum" in x["schema"]
+                    and x["schema"]["enum"] == ["disable", "prefer", "require", "verify-full"]
+                ),
+                id="enum_field",
+            ),
+        ],
+    )
+    def test_to_api_format(self, field_name, field_def, expected_title, expected_checks):
+        """Test converting field definitions to API format."""
+        pm = ProvidersManager()
+        x = pm._to_api_format(field_name, field_def)
 
+        assert x is not None
+        assert isinstance(x, dict)
+        assert x["schema"]["title"] == expected_title
+        assert expected_checks(x)
 
-def test_lazy_cache_dict_raises_error():
-    def raise_method():
-        raise RuntimeError("test")
+    def test_add_customized_fields(self):
+        """Test adding customized field behaviour from provider info."""
+        pm = ProvidersManager()
+        pm.initialize_providers_list()
 
-    lazy_cache_dict = LazyDictWithCache()
-    lazy_cache_dict["key"] = raise_method
-    with pytest.raises(RuntimeError, match="test"):
-        _ = lazy_cache_dict["key"]
+        behaviour = {
+            "hidden-fields": ["schema", "extra"],
+            "relabeling": {"login": "Email Address"},
+            "placeholders": {"host": "smtp.gmail.com", "port": "587"},
+        }
 
+        pm._add_customized_fields(
+            package_name="test-provider", connection_type="test_conn", behaviour=behaviour
+        )
 
-def test_lazy_cache_dict_del_item():
-    lazy_cache_dict = LazyDictWithCache()
+        assert "test_conn" in pm._field_behaviours
+        behaviour = pm._field_behaviours["test_conn"]
+        assert behaviour["hidden_fields"] == ["schema", "extra"]
+        assert behaviour["relabeling"] == {"login": "Email Address"}
+        assert behaviour["placeholders"]["host"] == "smtp.gmail.com"
 
-    def answer():
-        return 42
+    def test_load_ui_for_http_provider(self):
+        """Test that HTTP provider ui metadata is loaded from provider info."""
+        pm = ProvidersManager()
+        pm.initialize_providers_hooks()
 
-    lazy_cache_dict["spam"] = answer
-    assert "spam" in lazy_cache_dict._raw_dict
-    assert "spam" not in lazy_cache_dict._resolved  # Not resoled yet
-    assert lazy_cache_dict["spam"] == 42
-    assert "spam" in lazy_cache_dict._resolved
-    del lazy_cache_dict["spam"]
-    assert "spam" not in lazy_cache_dict._raw_dict
-    assert "spam" not in lazy_cache_dict._resolved
+        assert "http" in pm._field_behaviours
+        behaviour = pm._field_behaviours["http"]
 
-    lazy_cache_dict["foo"] = answer
-    assert lazy_cache_dict["foo"] == 42
-    assert "foo" in lazy_cache_dict._resolved
-    # Emulate some mess in data, e.g. value from `_raw_dict` deleted but not from `_resolved`
-    del lazy_cache_dict._raw_dict["foo"]
-    assert "foo" in lazy_cache_dict._resolved
-    with pytest.raises(KeyError):
-        # Error expected here, but we still expect to remove also record into `resolved`
-        del lazy_cache_dict["foo"]
-    assert "foo" not in lazy_cache_dict._resolved
+        assert "hidden_fields" in behaviour
+        assert "relabeling" in behaviour
+        assert "placeholders" in behaviour
 
-    lazy_cache_dict["baz"] = answer
-    # Key in `_resolved` not created yet
-    assert "baz" in lazy_cache_dict._raw_dict
-    assert "baz" not in lazy_cache_dict._resolved
-    del lazy_cache_dict._raw_dict["baz"]
-    assert "baz" not in lazy_cache_dict._raw_dict
-    assert "baz" not in lazy_cache_dict._resolved
+    def test_ui_metadata_loading_without_hook_import(self):
+        """Test that UI metadata loads from provider info without importing hook classes."""
+        with patch("airflow.providers_manager.import_string") as mock_import:
+            pm = ProvidersManager()
+            pm.initialize_providers_hooks()
 
+            assert "http" in pm._field_behaviours
 
-def test_lazy_cache_dict_clear():
-    def answer():
-        return 42
+            # assert that HttpHook was not imported during initialization, which means yaml path was taken
+            assert len([call for call in mock_import.call_args_list if "HttpHook" in str(call)]) == 0
 
-    lazy_cache_dict = LazyDictWithCache()
-    assert len(lazy_cache_dict) == 0
-    lazy_cache_dict["spam"] = answer
-    lazy_cache_dict["foo"] = answer
-    lazy_cache_dict["baz"] = answer
+    def test_deprecated_hook_methods_emit_warnings(self):
+        """Test that hooks using Python methods emit AirflowProviderDeprecationWarning."""
 
-    assert len(lazy_cache_dict) == 3
-    assert len(lazy_cache_dict._raw_dict) == 3
-    assert not lazy_cache_dict._resolved
-    assert lazy_cache_dict["spam"] == 42
-    assert len(lazy_cache_dict._resolved) == 1
-    # Emulate some mess in data, contain some data into the `_resolved`
-    lazy_cache_dict._resolved.add("biz")
-    assert len(lazy_cache_dict) == 3
-    assert len(lazy_cache_dict._resolved) == 2
-    # And finally cleanup everything
-    lazy_cache_dict.clear()
-    assert len(lazy_cache_dict) == 0
-    assert not lazy_cache_dict._raw_dict
-    assert not lazy_cache_dict._resolved
+        class MockDeprecatedHook(BaseHook):
+            conn_type = "mock_deprecated"
+
+            @staticmethod
+            def get_connection_form_widgets():
+                from wtforms import StringField
+
+                return {"test_field": StringField("Test Field")}
+
+            @staticmethod
+            def get_ui_field_behaviour():
+                return {"hidden_fields": ["schema"]}
+
+        pm = ProvidersManager()
+
+        with patch("airflow.providers_manager.import_string", return_value=MockDeprecatedHook):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match="get_connection_form_widgets"
+            ) as widgets_warning:
+                with pytest.warns(
+                    AirflowProviderDeprecationWarning, match="get_ui_field_behaviour"
+                ) as behaviour_warning:
+                    pm._import_hook(
+                        connection_type=None,
+                        provider_info=None,
+                        hook_class_name="test.MockDeprecatedHook",
+                        package_name="test-provider",
+                    )
+
+            # Validate deprecated_provider_since is set correctly
+            assert widgets_warning[0].message.deprecated_provider_since == "3.2.0"
+            assert behaviour_warning[0].message.deprecated_provider_since == "3.2.0"

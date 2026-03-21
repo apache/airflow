@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Stackdriver links."""
+"""This module contains Google Cloud Monitoring (formerly: Stackdriver) links."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ STACKDRIVER_POLICIES_LINK = STACKDRIVER_BASE_LINK + "/policies?project={project_
 
 
 class StackdriverNotificationsLink(BaseGoogleLink):
-    """Helper class for constructing Stackdriver Notifications Link."""
+    """Helper class for constructing Cloud Monitoring (formerly: Stackdriver) Notifications Link."""
 
     name = "Cloud Monitoring Notifications"
     key = "stackdriver_notifications"
@@ -35,7 +35,7 @@ class StackdriverNotificationsLink(BaseGoogleLink):
 
 
 class StackdriverPoliciesLink(BaseGoogleLink):
-    """Helper class for constructing Stackdriver Policies Link."""
+    """Helper class for constructing Cloud Monitoring (formerly: Stackdriver) Policies Link."""
 
     name = "Cloud Monitoring Policies"
     key = "stackdriver_policies"

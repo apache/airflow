@@ -24,7 +24,7 @@ import { FC } from "react";
 import { ColorModeProvider } from "src/context/colorMode";
 import { EdgeLayout } from "src/layouts/EdgeLayout";
 
-import { system } from "./theme";
+import { localSystem } from "./theme";
 
 export type PluginComponentProps = object;
 
@@ -36,6 +36,11 @@ const PluginComponent: FC<PluginComponentProps> = () => {
   const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
   const baseUrl = new URL(baseHref, globalThis.location.origin);
   OpenAPI.BASE = baseUrl.pathname.replace(/\/$/, ""); // Remove trailing slash
+
+  // Use the globalChakraUISystem provided by the Airflow Core UI,
+  // so the plugin has a consistent theming with the host Airflow UI,
+  // fallback to localSystem for local development.
+  const system = globalThis.ChakraUISystem ?? localSystem;
 
   const queryClient = new QueryClient({
     defaultOptions: {

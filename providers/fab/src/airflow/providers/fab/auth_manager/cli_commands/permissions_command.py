@@ -50,7 +50,11 @@ def cleanup_dag_permissions(dag_id: str, session: Session = NEW_SESSION) -> None
     from sqlalchemy import delete, select
 
     from airflow.providers.fab.auth_manager.models import Permission, Resource, assoc_permission_role
-    from airflow.security.permissions import RESOURCE_DAG_PREFIX, RESOURCE_DAG_RUN, RESOURCE_DETAILS_MAP
+    from airflow.providers.fab.www.security.permissions import (
+        RESOURCE_DAG_PREFIX,
+        RESOURCE_DAG_RUN,
+        RESOURCE_DETAILS_MAP,
+    )
 
     # Clean up specific DAG permissions
     dag_resources = session.scalars(
@@ -107,7 +111,7 @@ def permissions_cleanup(args):
     from airflow.models import DagModel
     from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
     from airflow.providers.fab.auth_manager.models import Resource
-    from airflow.security.permissions import (
+    from airflow.providers.fab.www.security.permissions import (
         RESOURCE_DAG_PREFIX,
         RESOURCE_DAG_RUN,
         RESOURCE_DETAILS_MAP,

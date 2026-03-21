@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure, VStack } from "@chakra-ui/react";
+import { Button, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 
-import { Button, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 
 import ImportVariablesForm from "./ImportVariablesForm";
 

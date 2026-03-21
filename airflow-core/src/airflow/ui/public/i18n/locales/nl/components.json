@@ -10,6 +10,7 @@
     "maxRuns": "Maximaal aantal actieve Runs",
     "missingAndErroredRuns": "Missende en mislukte Runs",
     "missingRuns": "Missende Runs",
+    "permissionDenied": "Dry Run mislukt: Gebruiker heeft geen toestemming om backfills te maken.",
     "reprocessBehavior": "Reprocess gedrag",
     "run": "Run Backfill",
     "selectDescription": "Draai deze Dag voor een geselecteerd datumbereik",
@@ -49,6 +50,13 @@
     "errorAndWarning": "1 fout en {{warningText}}",
     "warning_one": "1 waarschuwing",
     "warning_other": "{{count}} waarschuwingen"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Ongeldig datumformaat.",
+      "invalidTimeFormat": "Ongeldig tijdformaat.",
+      "startBeforeEnd": "Startdatum/-tijd moet voor einddatum/-tijd zijn."
+    }
   },
   "durationChart": {
     "duration": "Duur (seconds)",
@@ -105,10 +113,23 @@
   "sortedDescending": "aflopend gesorteerd",
   "sortedUnsorted": "ongesorteerd",
   "taskTries": "Task pogingen",
+  "taskTryPlaceholder": "Task poging",
+  "team": {
+    "selector": {
+      "helperText": "Optioneel. Beperk het gebruik tot een specifiek team.",
+      "label": "Team",
+      "placeHolder": "Selecteer een team"
+    }
+  },
   "toggleCardView": "Toon kaartweergave",
   "toggleTableView": "Toon tabelweergave",
   "triggerDag": {
     "button": "Trigger",
+    "dataInterval": "Gegevensinterval",
+    "dataIntervalAuto": "Afgeleid van logische datum en tijdschema",
+    "dataIntervalManual": "Specificeer handmatig",
+    "intervalEnd": "Einde",
+    "intervalStart": "Start",
     "loading": "Dag informatie aan het laden...",
     "loadingFailed": "Mislukt om Dag informatie te laden. Probeer het opnieuw.",
     "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
@@ -116,9 +137,12 @@
     "selectLabel": "Enkele Run",
     "title": "Trigger Dag",
     "toaster": {
+      "error": {
+        "title": "Mislukt om Dag te triggeren"
+      },
       "success": {
         "description": "Dag run is succesvol getriggerd.",
-        "title": "Dag Run triggered"
+        "title": "Dag Run getriggerd"
       }
     },
     "unpause": "Hervat {{dagDisplayName}} op trigger"
@@ -136,6 +160,7 @@
     "versionId": "Versie ID"
   },
   "versionSelect": {
+    "allVersions": "Alle versies",
     "dagVersion": "Dag versie",
     "versionCode": "v{{versionCode}}"
   }

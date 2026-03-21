@@ -21,14 +21,13 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.configuration import conf
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.triggers.livy import LivyTrigger
 from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
     inject_transport_information_into_spark_properties,
 )
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

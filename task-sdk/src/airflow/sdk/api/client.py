@@ -45,6 +45,8 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    DagResponse,
+    DagRun,
     DagRunStateResponse,
     DagRunType,
     HITLDetailRequest,
@@ -81,6 +83,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
     TICount,
@@ -321,6 +324,32 @@ class TaskInstanceOperations:
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
 
+    def get_previous(
+        self,
+        dag_id: str,
+        task_id: str,
+        logical_date: datetime | None = None,
+        map_index: int = -1,
+        state: TaskInstanceState | str | None = None,
+    ) -> PreviousTIResult:
+        """
+        Get the previous task instance matching the given criteria.
+
+        :param dag_id: DAG ID
+        :param task_id: Task ID
+        :param logical_date: If provided, finds TI with logical_date < this value (before filter)
+        :param map_index: Map index to filter by (defaults to -1 for non-mapped tasks)
+        :param state: If provided, filters by TaskInstance state
+        """
+        params: dict[str, Any] = {"map_index": map_index}
+        if logical_date:
+            params["logical_date"] = logical_date.isoformat()
+        if state:
+            params["state"] = state.value if isinstance(state, TaskInstanceState) else state
+
+        resp = self.client.get(f"task-instances/previous/{dag_id}/{task_id}", params=params)
+        return PreviousTIResult(task_instance=resp.json())
+
     def get_task_states(
         self,
         dag_id: str,
@@ -395,7 +424,7 @@ class VariableOperations:
             resp = self.client.get(f"variables/{key}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.error(
+                log.debug(
                     "Variable not found",
                     key=key,
                     detail=e.detail,
@@ -667,9 +696,12 @@ class DagRunOperations:
         conf: dict | None = None,
         logical_date: datetime | None = None,
         reset_dag_run: bool = False,
+        note: str | None = None,
     ) -> OKResponse | ErrorResponse:
         """Trigger a Dag run via the API server."""
-        body = TriggerDAGRunPayload(logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run)
+        body = TriggerDAGRunPayload(
+            logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run, note=note
+        )
 
         try:
             self.client.post(
@@ -692,6 +724,11 @@ class DagRunOperations:
         self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
         # TODO: Error handling
         return OKResponse(ok=True)
+
+    def get_detail(self, dag_id: str, run_id: str) -> DagRun:
+        """Get detail of a dag run."""
+        resp = self.client.get(f"dag-runs/{dag_id}/{run_id}")
+        return DagRun.model_validate_json(resp.read())
 
     def get_state(self, dag_id: str, run_id: str) -> DagRunStateResponse:
         """Get the state of a Dag run via the API server."""
@@ -727,14 +764,25 @@ class DagRunOperations:
     ) -> PreviousDagRunResult:
         """Get the previous DAG run before the given logical date, optionally filtered by state."""
         params = {
+            "dag_id": dag_id,
             "logical_date": logical_date.isoformat(),
         }
-
         if state:
             params["state"] = state
-
-        resp = self.client.get(f"dag-runs/{dag_id}/previous", params=params)
+        resp = self.client.get("dag-runs/previous", params=params)
         return PreviousDagRunResult(dag_run=resp.json())
+
+
+class DagsOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, dag_id: str) -> DagResponse:
+        """Get a DAG via the API server."""
+        resp = self.client.get(f"dags/{dag_id}")
+        return DagResponse.model_validate_json(resp.read())
 
 
 class HITLOperations:
@@ -846,6 +894,8 @@ API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
 API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
+API_CLIENT_SSL_CERT = conf.get("api", "client_ssl_cert", fallback=None)
+API_CLIENT_SSL_KEY = conf.get("api", "client_ssl_key", fallback=None)
 
 
 def _should_retry_api_request(exception: BaseException) -> bool:
@@ -878,7 +928,14 @@ class Client(httpx.Client):
             kwargs.setdefault("base_url", "dry-run://server")
         else:
             kwargs["base_url"] = base_url
-            kwargs["verify"] = self._get_ssl_context_cached(certifi.where(), API_SSL_CERT_PATH)
+            # Call via the class to avoid binding lru_cache wires to this instance.
+            kwargs["verify"] = type(self)._get_ssl_context_cached(certifi.where(), API_SSL_CERT_PATH)
+
+            if API_CLIENT_SSL_CERT or API_CLIENT_SSL_KEY:
+                if not (API_CLIENT_SSL_CERT and API_CLIENT_SSL_KEY):
+                    raise ValueError("Both client_ssl_cert and client_ssl_key must be set.")
+
+                kwargs["cert"] = (API_CLIENT_SSL_CERT, API_CLIENT_SSL_KEY)
 
         # Set timeout if not explicitly provided
         kwargs.setdefault("timeout", API_TIMEOUT)
@@ -909,7 +966,9 @@ class Client(httpx.Client):
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
         # Set content type as convenience if not already set
-        if "content" in kwargs and "headers" not in kwargs:
+        if kwargs.get("content", None) is not None and "content-type" not in (
+            kwargs.get("headers", {}) or {}
+        ):
             kwargs["headers"] = {"content-type": "application/json"}
 
         return super().request(*args, **kwargs)
@@ -965,6 +1024,12 @@ class Client(httpx.Client):
     def hitl(self):
         """Operations related to HITL Responses."""
         return HITLOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def dags(self) -> DagsOperations:
+        """Operations related to DAGs."""
+        return DagsOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

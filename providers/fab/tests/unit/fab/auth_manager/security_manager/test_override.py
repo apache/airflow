@@ -17,10 +17,19 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
+from flask_appbuilder import const
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
+from airflow.providers.fab.auth_manager.models import (
+    Action,
+    Permission,
+    Resource,
+    Role,
+)
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 
@@ -32,6 +41,115 @@ class EmptySecurityManager(FabAirflowSecurityManagerOverride):
 
 
 class TestFabAirflowSecurityManagerOverride:
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_permission_to_role_ignores_duplicate_from_concurrent_worker(self, mock_log):
+        sm = EmptySecurityManager()
+        role = Mock(spec=Role, id=1, name="test_admin", permissions=[])
+        permission = Mock(spec=Permission, id=2)
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        sm._is_permission_assigned_to_role = Mock(return_value=True)
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            sm.add_permission_to_role(role, permission)
+
+        assert mock_session.rollback.mock_calls == [call()]
+        assert sm._is_permission_assigned_to_role.mock_calls == [call(role_id=1, permission_view_id=2)]
+        assert mock_log.error.mock_calls == []
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_permission_to_role_logs_error_when_duplicate_not_persisted(self, mock_log):
+        sm = EmptySecurityManager()
+        role = Mock(spec=Role, id=1, name="Admin", permissions=[])
+        permission = Mock(spec=Permission, id=2)
+
+        mock_session = Mock(spec=Session)
+        mock_error = IntegrityError("stmt", {}, Exception("duplicate key"))
+        mock_session.commit.side_effect = mock_error
+
+        sm._is_permission_assigned_to_role = Mock(return_value=False)
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            sm.add_permission_to_role(role, permission)
+
+        mock_session.rollback.assert_called_once_with()
+        sm._is_permission_assigned_to_role.assert_called_once_with(role_id=1, permission_view_id=2)
+        mock_log.error.assert_called_once_with(
+            const.LOGMSG_ERR_SEC_ADD_PERMROLE,
+            f"Failed to add '{permission}' permission to the '{role}' role Error: {mock_error}",
+        )
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_role_returns_existing_on_concurrent_insert(self, mock_log):
+        sm = EmptySecurityManager()
+        existing_role = Mock(spec=Role, name="Admin")
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+        sm.find_role = Mock(side_effect=[None, existing_role])
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.add_role("Admin")
+
+        assert result is existing_role
+        assert mock_session.rollback.called
+        assert mock_log.error.call_count == 0
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_create_action_returns_existing_on_concurrent_insert(self, mock_log):
+        sm = EmptySecurityManager()
+        existing_action = Mock(spec=Action, name="can_read")
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+        sm.get_action = Mock(side_effect=[None, existing_action])
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.create_action("can_read")
+
+        assert result is existing_action
+        assert mock_session.rollback.called
+        assert mock_log.error.call_count == 0
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_create_resource_returns_existing_on_concurrent_insert(self, mock_log):
+        sm = EmptySecurityManager()
+        existing_resource = Mock(spec=Resource, name="Connections")
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+        sm.get_resource = Mock(side_effect=[None, existing_resource])
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.create_resource("Connections")
+
+        assert result is existing_resource
+        assert mock_session.rollback.called
+        assert mock_log.error.call_count == 0
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_create_permission_returns_existing_on_concurrent_insert(self, mock_log):
+        sm = EmptySecurityManager()
+        existing_perm = Mock(spec=Permission)
+        existing_resource = Mock(spec=Resource, id=10)
+        existing_action = Mock(spec=Action, id=20)
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        sm.get_permission = Mock(side_effect=[None, existing_perm])
+        sm.create_resource = Mock(return_value=existing_resource)
+        sm.create_action = Mock(return_value=existing_action)
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.create_permission("can_read", "Connections")
+
+        assert result is existing_perm
+        assert mock_session.rollback.called
+        assert mock_log.error.call_count == 0
+
     def test_load_user(self):
         sm = EmptySecurityManager()
         sm.get_user_by_id = Mock()
@@ -135,6 +253,23 @@ class TestFabAirflowSecurityManagerOverride:
                     "role_keys": ["admin"],
                 },
             ),
+            (
+                "azure",
+                {
+                    "oid": "test",
+                    "given_name": "John",
+                    "family_name": "Doe",
+                    "email": "test@example.com",
+                    "groups": ["group1", "group2"],
+                },
+                {
+                    "username": "test",
+                    "first_name": "John",
+                    "last_name": "Doe",
+                    "email": "test@example.com",
+                    "role_keys": [],
+                },
+            ),
             ("openshift", {"metadata": {"name": "test"}}, {"username": "openshift_test"}),
             (
                 "okta",
@@ -234,13 +369,43 @@ class TestFabAirflowSecurityManagerOverride:
         ],
     )
     def test_get_oauth_user_info(self, provider, resp, user_info):
-        sm = EmptySecurityManager()
-        sm.appbuilder = Mock(sm=sm)
-        sm.oauth_remotes = {}
-        sm.oauth_remotes[provider] = Mock(
-            get=Mock(return_value=Mock(json=Mock(return_value=resp))),
-            userinfo=Mock(return_value=resp),
-        )
-        sm._decode_and_validate_azure_jwt = Mock(return_value=resp)
-        sm._get_authentik_token_info = Mock(return_value=resp)
-        assert sm.get_oauth_user_info(provider, {"id_token": None}) == user_info
+        from flask import Flask
+
+        app = Flask(__name__)
+        with app.app_context():
+            sm = EmptySecurityManager()
+            sm.appbuilder = Mock(sm=sm)
+            sm.oauth_remotes = {}
+            sm.oauth_remotes[provider] = Mock(
+                get=Mock(return_value=Mock(json=Mock(return_value=resp))),
+                userinfo=Mock(return_value=resp),
+            )
+            sm._decode_and_validate_azure_jwt = Mock(return_value=resp)
+            sm._get_authentik_token_info = Mock(return_value=resp)
+            assert sm.get_oauth_user_info(provider, {"id_token": None}) == user_info
+
+    def test_get_oauth_user_info_azure_with_groups_config(self):
+        from flask import Flask
+
+        app = Flask(__name__)
+        app.config["AUTH_OAUTH_ROLE_KEYS"] = {"azure": "groups"}
+
+        azure_response = {
+            "oid": "user-123",
+            "given_name": "Jane",
+            "family_name": "Smith",
+            "email": "jane.smith@example.com",
+            "groups": ["admin-group", "viewer-group"],
+        }
+
+        with app.app_context():
+            sm = EmptySecurityManager()
+            sm.appbuilder = Mock(sm=sm)
+            sm.oauth_remotes = {}
+            sm._decode_and_validate_azure_jwt = Mock(return_value=azure_response)
+
+            user_info = sm.get_oauth_user_info("azure", {"id_token": "test-token"})
+
+            assert user_info["username"] == "user-123"
+            assert user_info["email"] == "jane.smith@example.com"
+            assert user_info["role_keys"] == ["admin-group", "viewer-group"]

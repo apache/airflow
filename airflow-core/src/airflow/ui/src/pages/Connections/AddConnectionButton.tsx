@@ -16,13 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
-import { useDisclosure } from "@chakra-ui/react";
+import { Button, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlusCircle } from "react-icons/fi";
 
 import { Dialog } from "src/components/ui";
-import ActionButton from "src/components/ui/ActionButton";
 import { useAddConnection } from "src/queries/useAddConnection";
 
 import ConnectionForm from "./ConnectionForm";
@@ -42,18 +40,14 @@ const AddConnectionButton = () => {
     password: "",
     port: "",
     schema: "",
+    team_name: "",
   };
 
   return (
-    <Box>
-      <ActionButton
-        actionName={translate("connections.add")}
-        colorPalette="brand"
-        icon={<FiPlusCircle />}
-        onClick={onOpen}
-        text={translate("connections.add")}
-        variant="solid"
-      />
+    <>
+      <Button colorPalette="brand" onClick={onOpen}>
+        <FiPlusCircle /> {translate("connections.add")}
+      </Button>
 
       <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
         <Dialog.Content backdrop>
@@ -75,7 +69,7 @@ const AddConnectionButton = () => {
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
-    </Box>
+    </>
   );
 };
 

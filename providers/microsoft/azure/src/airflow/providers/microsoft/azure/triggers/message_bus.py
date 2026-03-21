@@ -24,8 +24,7 @@ from typing import TYPE_CHECKING, Any
 from asgiref.sync import sync_to_async
 
 from airflow.providers.microsoft.azure.hooks.asb import MessageHook
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger, TriggerEvent

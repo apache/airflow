@@ -37,7 +37,7 @@ from airflow.utils.helpers import exactly_one
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 BUCKET_DOES_NOT_EXIST_MSG = "Bucket with name: %s doesn't exist"
 
@@ -57,27 +57,36 @@ class S3CreateBucketOperator(AwsBaseOperator[S3Hook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param bucket_namespace: The namespace of the bucket. Set to ``account-regional`` to create
+        the bucket in the account-regional namespace. If not specified, the bucket is created
+        in the global namespace.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = aws_template_fields("bucket_name")
+    template_fields: Sequence[str] = aws_template_fields("bucket_name", "bucket_namespace")
     aws_hook_class = S3Hook
 
     def __init__(
         self,
         *,
         bucket_name: str,
+        bucket_namespace: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
+        self.bucket_namespace = bucket_namespace
 
     def execute(self, context: Context):
         if not self.hook.check_for_bucket(self.bucket_name):
-            self.hook.create_bucket(bucket_name=self.bucket_name, region_name=self.region_name)
+            self.hook.create_bucket(
+                bucket_name=self.bucket_name,
+                region_name=self.region_name,
+                bucket_namespace=self.bucket_namespace,
+            )
             self.log.info("Created bucket with name: %s", self.bucket_name)
         else:
             self.log.info("Bucket with name: %s already exists", self.bucket_name)
@@ -150,7 +159,7 @@ class S3GetBucketTaggingOperator(AwsBaseOperator[S3Hook]):
     template_fields: Sequence[str] = aws_template_fields("bucket_name")
     aws_hook_class = S3Hook
 
-    def __init__(self, bucket_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
+    def __init__(self, bucket_name: str, **kwargs) -> None:
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
 
@@ -296,6 +305,10 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
         uploaded to the S3 bucket.
     :param meta_data_directive: Whether to `COPY` the metadata from the source object or `REPLACE` it with
         metadata that's provided in the request.
+    :param kms_key_id: The ARN, id or alias of the AWS KMS key to use for encrypting the destination object.
+        Required if using KMS-based server-side encryption with a non-default key.
+    :param kms_encryption_type: Type of KMS encryption to use for the object.
+        Can be either "aws:kms" (standard KMS) or "aws:kms:dsse" (double-shielded KMS).
     """
 
     template_fields: Sequence[str] = aws_template_fields(
@@ -316,6 +329,8 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
         source_version_id: str | None = None,
         acl_policy: str | None = None,
         meta_data_directive: str | None = None,
+        kms_key_id: str | None = None,
+        kms_encryption_type: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -327,6 +342,8 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
         self.source_version_id = source_version_id
         self.acl_policy = acl_policy
         self.meta_data_directive = meta_data_directive
+        self.kms_key_id = kms_key_id
+        self.kms_encryption_type = kms_encryption_type
 
     def execute(self, context: Context):
         self.hook.copy_object(
@@ -337,6 +354,8 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
             self.source_version_id,
             self.acl_policy,
             self.meta_data_directive,
+            self.kms_key_id,
+            self.kms_encryption_type,
         )
 
     def get_openlineage_facets_on_start(self):

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowPlugin
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -59,6 +59,11 @@ try:
     EDGE_EXECUTOR_ACTIVE = conf.getboolean("edge", "api_enabled", fallback="False")
 except AirflowConfigException:
     EDGE_EXECUTOR_ACTIVE = False
+
+if EDGE_EXECUTOR_ACTIVE:
+    from airflow.providers.edge3.models.db import check_db_manager_config
+
+    check_db_manager_config()
 
 # Load the API endpoint only on api-server
 # TODO(jscheffl): Remove this check when the discussion in

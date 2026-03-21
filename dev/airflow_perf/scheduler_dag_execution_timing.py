@@ -27,6 +27,7 @@ from argparse import Namespace
 from operator import attrgetter
 
 import rich_click as click
+from sqlalchemy import delete, update
 
 from airflow.jobs.job import run_job
 from airflow.utils.types import DagRunTriggeredByType
@@ -135,9 +136,9 @@ def reset_dag(dag, session):
     TI = airflow.models.TaskInstance
     dag_id = dag.dag_id
 
-    session.query(DM).filter(DM.dag_id == dag_id).update({"is_paused": False})
-    session.query(DR).filter(DR.dag_id == dag_id).delete()
-    session.query(TI).filter(TI.dag_id == dag_id).delete()
+    session.execute(update(DM).where(DM.dag_id == dag_id).values(is_paused=False))
+    session.execute(delete(DR).where(DR.dag_id == dag_id))
+    session.execute(delete(TI).where(TI.dag_id == dag_id))
 
 
 def pause_all_dags(session):
@@ -146,7 +147,7 @@ def pause_all_dags(session):
     """
     from airflow.models.dag import DagModel
 
-    session.query(DagModel).update({"is_paused": True})
+    session.execute(update(DagModel).values(is_paused=True))
 
 
 def create_dag_runs(dag, num_runs, session):
@@ -279,8 +280,8 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     ShortCircuitExecutor = get_executor_under_test(executor_class)
 
     executor = ShortCircuitExecutor(dag_ids_to_watch=dag_ids, num_runs=num_runs)
-    scheduler_job = Job(executor=executor)
-    job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids)
+    scheduler_job = Job()
+    job_runner = SchedulerJobRunner(job=scheduler_job, executors=[executor], dag_ids=dag_ids)
     executor.job_runner = job_runner
 
     total_tasks = sum(len(dag.tasks) for dag in dags)
@@ -303,8 +304,8 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
                 for dag in dags:
                     reset_dag(dag, session)
             executor.reset(dag_ids)
-            scheduler_job = Job(executor=executor)
-            job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids)
+            scheduler_job = Job()
+            job_runner = SchedulerJobRunner(job=scheduler_job, executors=[executor], dag_ids=dag_ids)
             executor.scheduler_job = scheduler_job
 
         gc.disable()

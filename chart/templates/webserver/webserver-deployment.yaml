@@ -25,10 +25,10 @@
 {{- $affinity := or .Values.webserver.affinity .Values.affinity }}
 {{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.webserver.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.webserver.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.webserver) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.webserver) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.webserver.waitForMigrations) }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.webserver.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.webserver .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.webserver .Values) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.webserver.waitForMigrations .Values) }}
 {{- $containerLifecycleHooks := or .Values.webserver.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: Deployment
@@ -50,14 +50,13 @@ spec:
   {{- if not .Values.webserver.hpa.enabled }}
   replicas: {{ .Values.webserver.replicas }}
   {{- end}}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   strategy:
     {{- if .Values.webserver.strategy }}
     {{- toYaml .Values.webserver.strategy | nindent 4 }}
     {{- else }}
-    {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
     # Here we define the rolling update strategy
     # - maxSurge define how many pod we can add at a time
     # - maxUnavailable define how many pod can be unavailable
@@ -69,9 +68,6 @@ spec:
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
-    {{- else }}
-    type: Recreate
-    {{- end }}
     {{- end }}
   selector:
     matchLabels:
@@ -96,10 +92,10 @@ spec:
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.airflowPodAnnotations) . | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.podAnnotations }}
-          {{- toYaml .Values.webserver.podAnnotations | nindent 8 }}
+          {{- tpl (toYaml .Values.webserver.podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.webserver.hostAliases }}
@@ -156,12 +152,10 @@ spec:
           {{- end }}
           resources: {{- toYaml .Values.webserver.resources | nindent 12 }}
           volumeMounts:
-            {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
             - name: config
               mountPath: {{ include "airflow_pod_template_file" . }}/pod_template_file.yaml
               subPath: pod_template_file.yaml
               readOnly: true
-            {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}

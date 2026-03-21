@@ -74,7 +74,7 @@ class AzureDataExplorerHook(BaseHook):
         instance and use it for all queries.
 
     :param azure_data_explorer_conn_id: Reference to the
-        :ref:`Azure Data Explorer connection<howto/connection:adx>`.
+        :ref:`Azure Data Explorer connection<howto/connection:azure_data_explorer>`.
     """
 
     conn_name_attr = "azure_data_explorer_conn_id"

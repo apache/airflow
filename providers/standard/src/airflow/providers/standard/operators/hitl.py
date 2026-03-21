@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_3_PLUS, AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -28,11 +28,9 @@ from collections.abc import Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 from urllib.parse import ParseResult, urlencode, urlparse, urlunparse
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import BranchMixIn, SkipMixin, conf
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
-from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
-from airflow.providers.standard.utils.skipmixin import SkipMixin
 from airflow.providers.standard.version_compat import BaseOperator
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.param import ParamsDict
@@ -101,6 +99,17 @@ class HITLOperator(BaseOperator):
         self.validate_params()
         self.validate_defaults()
 
+        # HITL summary for the use of listeners; subclasses can extend it.
+        self.hitl_summary: dict[str, Any] = {
+            "subject": self.subject,
+            "body": self.body,
+            "options": self.options,
+            "defaults": self.defaults,
+            "multiple": self.multiple,
+            "assigned_users": self.assigned_users,
+            "serialized_params": self.serialized_params or None,
+        }
+
     def validate_options(self) -> None:
         """
         Validate the `options` attribute of the instance.
@@ -156,6 +165,9 @@ class HITLOperator(BaseOperator):
         else:
             timeout_datetime = None
 
+        # Enrich summary with runtime info
+        self.hitl_summary["timeout_datetime"] = timeout_datetime.isoformat() if timeout_datetime else None
+
         self.log.info("Waiting for response")
         for notifier in self.notifiers:
             notifier(context)
@@ -181,12 +193,23 @@ class HITLOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         if "error" in event:
+            self.hitl_summary["error_type"] = event["error_type"]
             self.process_trigger_event_error(event)
 
         chosen_options = event["chosen_options"]
         params_input = event["params_input"] or {}
         self.validate_chosen_options(chosen_options)
         self.validate_params_input(params_input)
+
+        self.hitl_summary.update(
+            {
+                "chosen_options": chosen_options,
+                "params_input": params_input,
+                "responded_at": event["responded_at"].isoformat(),
+                "responded_by_user": event["responded_by_user"],
+            }
+        )
+
         return HITLTriggerEventSuccessPayload(
             chosen_options=chosen_options,
             params_input=params_input,
@@ -356,10 +379,14 @@ class ApprovalOperator(HITLOperator, SkipMixin):
             **kwargs,
         )
 
+        self.hitl_summary["ignore_downstream_trigger_rules"] = self.ignore_downstream_trigger_rules
+        self.hitl_summary["fail_on_reject"] = self.fail_on_reject
+
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         ret = super().execute_complete(context=context, event=event)
 
         chosen_option = ret["chosen_options"][0]
+        self.hitl_summary["approved"] = chosen_option == self.APPROVE
         if chosen_option == self.APPROVE:
             self.log.info("Approved. Proceeding with downstream tasks...")
             return ret
@@ -413,6 +440,7 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
         super().__init__(**kwargs)
         self.options_mapping = options_mapping or {}
         self.validate_options_mapping()
+        self.hitl_summary["options_mapping"] = self.options_mapping
 
     def validate_options_mapping(self) -> None:
         """
@@ -447,6 +475,7 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
 
         # Map options to task IDs using the mapping, fallback to original option
         chosen_options = [self.options_mapping.get(option, option) for option in chosen_options]
+        self.hitl_summary["branches_to_execute"] = chosen_options
         return self.do_branch(context=context, branches_to_execute=chosen_options)
 
 

@@ -18,6 +18,7 @@
  */
 import { chakra, Code, Link } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
+import type { JSX } from "react";
 import * as React from "react";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -245,7 +246,7 @@ const renderStructuredLogImpl = ({
       const stringifiedValue = val instanceof Object ? JSON.stringify(val) : val;
 
       if (renderingMode === "text") {
-        elements.push(`${key === "logger" ? "source" : key}=${stringifiedValue} `);
+        elements.push(` ${key === "logger" ? "source" : key}=${stringifiedValue} `);
       } else {
         elements.push(
           <React.Fragment key={`space_${key}`}> </React.Fragment>,

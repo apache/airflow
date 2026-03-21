@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Any
 
-    from airflow.lineage.hook import LineageContext
+    from airflow.sdk.lineage import LineageContext
 
 
 def _lacks_asset_methods(collector):
@@ -62,7 +62,7 @@ def _add_extra_polyfill(collector):
 
     import attr
 
-    from airflow.lineage.hook import HookLineage as _BaseHookLineage
+    from airflow.providers.common.compat.sdk import HookLineage as _BaseHookLineage
 
     # Add `extra` to HookLineage returned by `collected_assets` property
     @attr.define
@@ -229,7 +229,7 @@ def get_hook_lineage_collector():
     Airflow 3.0–3.1: Collector has asset-based methods but lacks `add_extra` - apply single layer.
     Airflow 3.2+: Collector has asset-based methods and `add_extra` support - no action required.
     """
-    from airflow.lineage.hook import get_hook_lineage_collector as get_global_collector
+    from airflow.providers.common.compat.sdk import get_hook_lineage_collector as get_global_collector
 
     global_collector = get_global_collector()
 

@@ -91,7 +91,7 @@ export const AssetEvents = ({
             width={130}
           >
             <Select.Trigger>
-              <Select.ValueText placeholder="Sort by" />
+              <Select.ValueText placeholder={translate("dashboard:sortBy.placeholder")} />
             </Select.Trigger>
 
             <Select.Content>
@@ -113,7 +113,7 @@ export const AssetEvents = ({
         displayMode="card"
         initialState={tableUrlState}
         isLoading={isLoading}
-        modelName={translate("common:assetEvent_one")}
+        modelName="common:assetEvent"
         noRowsMessage={translate("noAssetEvents")}
         onStateChange={setTableUrlState}
         skeletonCount={5}

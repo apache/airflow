@@ -18,7 +18,6 @@
  */
 import { Heading } from "@chakra-ui/react";
 import { ReactFlowProvider } from "@xyflow/react";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
@@ -29,7 +28,7 @@ import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
@@ -77,16 +76,13 @@ export const TaskInstance = () => {
     },
   );
 
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
+  const { summariesByRunId } = useGridTiSummariesStream({ dagId, runIds: runId ? [runId] : [] });
+  const gridTISummaries = summariesByRunId.get(runId);
 
   const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
-  const taskCount = useMemo(
-    () =>
-      Object.entries(taskInstanceSummary?.child_states ?? {})
-        .map(([_state, count]) => count)
-        .reduce((sum, val) => sum + val, 0),
-    [taskInstanceSummary],
-  );
+  const taskCount = Object.entries(taskInstanceSummary?.child_states ?? {})
+    .map(([_state, count]) => count)
+    .reduce((sum, val) => sum + val, 0);
   let newTabs = tabs;
 
   if (taskInstance && taskInstance.map_index > -1) {

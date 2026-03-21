@@ -22,9 +22,11 @@
   "backfill_other": "Geriye Dönük Çalıştırmalar",
   "browse": {
     "auditLog": "Denetim Günlüğü",
+    "jobs": "İşler",
     "requiredActions": "Gerekli Eylemler",
     "xcoms": "XCom'lar"
   },
+  "collapseAllExtra": "Tüm ek JSON'ları daralt",
   "collapseDetailsPanel": "Detay Panelini Daralt",
   "createdAssetEvent_one": "Oluşturulan Varlık Etkinliği",
   "createdAssetEvent_other": "Oluşturulan Varlık Etkinlikleri",
@@ -59,6 +61,8 @@
     "dataIntervalEnd": "Veri Aralığı Sonu",
     "dataIntervalStart": "Veri Aralığı Başlangıcı",
     "lastSchedulingDecision": "Son Zamanlama Kararı",
+    "mappedPartitionKey": "Haritalanmış Bölüm Anahtarı",
+    "partitionKey": "Bölüm Anahtarı",
     "queuedAt": "Kuyruğa Alınma Zamanı",
     "runAfter": "Sonra Çalıştır",
     "runType": "Çalıştırma Tipi",
@@ -72,6 +76,11 @@
   "dagWarnings": "Dag Uyarıları/Hataları",
   "defaultToGraphView": "Varsayılan olarak grafik görünümü",
   "defaultToGridView": "Varsayılan olarak ızgara görünümü",
+  "delete": "Sil",
+  "diff": "Fark modu",
+  "diffCompareWith": "ile karşılaştır",
+  "diffExit": "Fark modundan çık",
+  "diffSelectVersionToCompare": "Karşılaştırmak için bir versiyon seçin",
   "direction": "Yön",
   "docs": {
     "documentation": "Dokümantasyon",
@@ -84,11 +93,13 @@
     "tooltip": "{{hotkey}} tuşuna basarak indir"
   },
   "duration": "Süre",
+  "edit": "Güncelle",
   "endDate": "Bitiş Tarihi",
   "error": {
     "back": "Geri",
     "defaultMessage": "Beklenmeyen bir hata oluştu",
     "home": "Ana Sayfa",
+    "invalidUrl": "Sayfa Bulunamadı. Lütfen URL'yi kontrol edin ve tekrar deneyin.",
     "notFound": "Sayfa Bulunamadı",
     "title": "Hata"
   },
@@ -98,6 +109,7 @@
     "hotkey": "e",
     "tooltip": "{{hotkey}} tuşuna basarak genişletmeyi değiştir"
   },
+  "expandAllExtra": "Tüm ek JSON'ları genişlet",
   "expression": {
     "all": "Tümü",
     "and": "VE",
@@ -108,22 +120,27 @@
   "filters": {
     "durationFrom": "Süre Başlangıcı",
     "durationTo": "Süre Bitişi",
+    "endTime": "Bitiş Zamanı",
     "logicalDateFrom": "Mantıksal tarih başlangıcı",
     "logicalDateTo": "Mantıksal tarih bitişi",
     "runAfterFrom": "Şu tarihten sonra çalıştır (başlangıç)",
-    "runAfterTo": "Şu tarihten sonra çalıştır (bitiş)"
+    "runAfterTo": "Şu tarihten sonra çalıştır (bitiş)",
+    "selectDateRange": "Lütfen bir tarih aralığı seçin",
+    "startTime": "Başlangıç Zamanı"
   },
   "logicalDate": "Mantıksal Tarih",
   "logout": "Çıkış",
   "logoutConfirmation": "Uygulamadan çıkış yapmak üzeresiniz.",
   "mapIndex": "Harita İndeksi",
   "modal": {
+    "add": "Ekle",
     "cancel": "İptal",
     "confirm": "Onayla",
     "delete": {
       "button": "Sil",
       "confirmation": "{{resourceName}} öğesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
-    }
+    },
+    "save": "Kaydet"
   },
   "nav": {
     "admin": "Yönetici",
@@ -144,15 +161,13 @@
     "placeholder": "Not ekle...",
     "taskInstance": "Görev Örneği Notu"
   },
-  "pools": {
-    "deferred": "Ertelenmiş",
-    "open": "Açık",
-    "pools_one": "Havuz",
-    "pools_other": "Havuzlar",
-    "queued": "Kuyrukta",
-    "running": "Çalışıyor",
-    "scheduled": "Planlanmış"
+  "partitionedDagRun_one": "Haritalanmış Dag Çalıştırması",
+  "partitionedDagRun_other": "Haritalanmış Dag Çalıştırmaları",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Varlık Etkinlikleri Alındı"
   },
+  "pendingDagRun_one": "{{count}} Bekleyen Dag Çalıştırması",
+  "pendingDagRun_other": "{{count}} Bekleyen Dag Çalıştırması",
   "reset": "Sıfırla",
   "runId": "Çalıştırma Kimliği",
   "runTypes": {
@@ -177,6 +192,7 @@
   },
   "selectLanguage": "Dil Seçin",
   "showDetailsPanel": "Detay Panelini Göster",
+  "signedInAs": "olarak giriş yapıldı",
   "source": {
     "hide": "Kaynağı Gizle",
     "hotkey": "s",
@@ -191,6 +207,7 @@
     "failed": "Başarısız",
     "no_status": "Durum Yok",
     "none": "Durum Yok",
+    "open": "Açık",
     "planned": "Planlanmış",
     "queued": "Kuyrukta",
     "removed": "Kaldırılmış",

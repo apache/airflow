@@ -17,9 +17,13 @@
 # under the License.
 function make_mnt_writeable {
     set -x
+    echo "Investigating node disks"
+    lsblk
+    sudo blkid
     echo "Checking free space!"
     df -H
     echo "Cleaning /mnt just in case it is not empty"
+    sudo mkdir -p /mnt
     sudo rm -rf /mnt/*
     echo "Checking free space!"
     df -H

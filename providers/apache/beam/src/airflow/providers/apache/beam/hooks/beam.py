@@ -378,7 +378,7 @@ class BeamHook(BaseHook):
         try:
             from airflow.providers.google.go_module_utils import init_module, install_dependencies
         except ImportError:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "Failed to import apache-airflow-google-provider. To start a go pipeline, please install the"

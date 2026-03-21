@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import enum
 import functools
 import itertools
 import json
@@ -67,6 +68,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self, TypeIs
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
+    from airflow.sdk.api.datamodels._generated import DagRunType
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -204,6 +206,19 @@ def _convert_access_control(access_control):
         else:
             updated_access_control[role] = perms
     return updated_access_control
+
+
+def _convert_allowed_run_types(
+    val: DagRunType | Collection[DagRunType] | None,
+) -> frozenset[DagRunType] | None:
+    """Convert allowed_run_types parameter to a frozenset of DagRunType values."""
+    if val is None:
+        return None
+    from airflow.sdk.api.datamodels._generated import DagRunType
+
+    if isinstance(val, enum.Enum):
+        val = [val]
+    return frozenset(DagRunType(v) if not isinstance(v, DagRunType) else v for v in val)
 
 
 def _convert_deadline(deadline: list[DeadlineAlert] | DeadlineAlert | None) -> list[DeadlineAlert] | None:
@@ -347,7 +362,7 @@ class DAG:
         accessible in templates, namespaced under `params`. These
         params can be overridden at the task level.
     :param max_active_tasks: the number of task instances allowed to run
-        concurrently
+        concurrently per Dag run. Note that in Airflow 2 this was a global limit on the Dag, since Airflow 3 it is per run.
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
@@ -396,6 +411,8 @@ class DAG:
     :param fail_fast: Fails currently running tasks when task in Dag fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
+    :param allowed_run_types: An optional list or single DagRunType specifying which run types are
+        permitted for this dag. When set, the scheduler and API will only allow runs of the specified types.
     :param dag_display_name: The display name of the Dag which appears on the UI.
     """
 
@@ -503,6 +520,9 @@ class DAG:
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_fast: bool = attrs.field(default=False, converter=bool)
+    allowed_run_types: DagRunType | Collection[DagRunType] | None = attrs.field(
+        default=None, converter=_convert_allowed_run_types
+    )
     dag_display_name: str = attrs.field(
         default=attrs.Factory(_default_dag_display_name, takes_self=True),
         validator=attrs.validators.instance_of(str),
@@ -589,6 +609,29 @@ class DAG:
     def _validate_tags(self, _, tags: Collection[str]):
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
             raise ValueError(f"tag cannot be longer than {TAG_MAX_LEN} characters")
+
+    @allowed_run_types.validator
+    def _validate_allowed_run_types(self, _, allowed_run_types):
+        if not allowed_run_types:
+            return
+        from airflow.sdk.api.datamodels._generated import DagRunType
+
+        if isinstance(self.timetable, AssetTriggeredTimetable):
+            if DagRunType.ASSET_TRIGGERED not in allowed_run_types:
+                raise ValueError(
+                    "allowed_run_types must include ASSET_TRIGGERED when the Dag is scheduled by assets"
+                )
+        elif self.timetable.can_be_scheduled:
+            if DagRunType.SCHEDULED not in allowed_run_types:
+                raise ValueError(
+                    "allowed_run_types must include SCHEDULED when the Dag has a schedule defined"
+                )
+        else:
+            if DagRunType.MANUAL not in allowed_run_types:
+                raise ValueError(
+                    "allowed_run_types must include MANUAL when the Dag "
+                    "has no schedule defined (schedule=None)"
+                )
 
     @max_active_runs.validator
     def _validate_max_active_runs(self, _, max_active_runs):
@@ -775,36 +818,22 @@ class DAG:
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
-        from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
+        from airflow.sdk.definitions._internal.templater import create_template_env
 
         # Collect directories to search for template files
         searchpath = [self.folder]
         if self.template_searchpath:
             searchpath += self.template_searchpath
 
-        # Default values (for backward compatibility)
-        jinja_env_options = {
-            "loader": jinja2.FileSystemLoader(searchpath),
-            "undefined": self.template_undefined,
-            "extensions": ["jinja2.ext.do"],
-            "cache_size": 0,
-        }
-        if self.jinja_environment_kwargs:
-            jinja_env_options.update(self.jinja_environment_kwargs)
-        env: jinja2.Environment
-        if self.render_template_as_native_obj and not force_sandboxed:
-            env = NativeEnvironment(**jinja_env_options)
-        else:
-            env = SandboxedEnvironment(**jinja_env_options)
-
-        # Add any user defined items. Safe to edit globals as long as no templates are rendered yet.
-        # http://jinja.pocoo.org/docs/2.10/api/#jinja2.Environment.globals
-        if self.user_defined_macros:
-            env.globals.update(self.user_defined_macros)
-        if self.user_defined_filters:
-            env.filters.update(self.user_defined_filters)
-
-        return env
+        use_native = self.render_template_as_native_obj and not force_sandboxed
+        return create_template_env(
+            native=use_native,
+            searchpath=searchpath,
+            template_undefined=self.template_undefined,
+            jinja_environment_kwargs=self.jinja_environment_kwargs,
+            user_defined_macros=self.user_defined_macros,
+            user_defined_filters=self.user_defined_filters,
+        )
 
     def set_dependency(self, upstream_task_id, downstream_task_id):
         """Set dependency between two tasks that already have been added to the Dag using add_task()."""
@@ -860,6 +889,7 @@ class DAG:
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
+        depth: int | None = None,
     ):
         """
         Return a subset of the current dag based on regex matching one or more tasks.
@@ -875,6 +905,8 @@ class DAG:
             in addition to matched tasks.
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
+        :param depth: Maximum number of levels to traverse in the upstream/downstream
+            direction. If None, traverses all levels. Must be non-negative.
         """
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
@@ -894,7 +926,7 @@ class DAG:
         also_include_ids: set[str] = set()
         for t in matched_tasks:
             if include_downstream:
-                for rel in t.get_flat_relatives(upstream=False):
+                for rel in t.get_flat_relatives(upstream=False, depth=depth):
                     also_include_ids.add(rel.task_id)
                     if rel not in matched_tasks:  # if it's in there, we're already processing it
                         # need to include setups and teardowns for tasks that are in multiple
@@ -904,7 +936,7 @@ class DAG:
                                 x.task_id for x in rel.get_upstreams_only_setups_and_teardowns()
                             )
             if include_upstream:
-                also_include_ids.update(x.task_id for x in t.get_upstreams_follow_setups())
+                also_include_ids.update(x.task_id for x in t.get_upstreams_follow_setups(depth=depth))
             else:
                 if not t.is_setup and not t.is_teardown:
                     also_include_ids.update(x.task_id for x in t.get_upstreams_only_setups_and_teardowns())
@@ -915,8 +947,7 @@ class DAG:
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                upstream = (u for u in t.upstream_list if is_task(u))
-                direct_upstreams.extend(upstream)
+                direct_upstreams.extend(u for u in t.upstream_list if is_task(u))
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
         # task_group is reset later
@@ -1185,8 +1216,9 @@ class DAG:
         from airflow import settings
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
         from airflow.sdk import DagRunState, timezone
+        from airflow.serialization.definitions.dag import SerializedDAG
         from airflow.serialization.encoders import coerce_to_core_timetable
-        from airflow.serialization.serialized_objects import SerializedDAG
+        from airflow.serialization.serialized_objects import DagSerialization
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
         exit_stack = ExitStack()
@@ -1214,6 +1246,7 @@ class DAG:
 
         with exit_stack:
             self.validate()
+            scheduler_dag = DagSerialization.deserialize_dag(DagSerialization.serialize_dag(self))
 
             # Allow users to explicitly pass None. If it isn't set, we default to current time.
             logical_date = logical_date if is_arg_set(logical_date) else timezone.utcnow()
@@ -1221,7 +1254,7 @@ class DAG:
             log.debug("Clearing existing task instances for logical date %s", logical_date)
             # TODO: Replace with calling client.dag_run.clear in Execution API at some point
             SerializedDAG.clear_dags(
-                dags=[self],
+                dags=[scheduler_dag],
                 start_date=logical_date,
                 end_date=logical_date,
                 dag_run_state=False,
@@ -1240,7 +1273,7 @@ class DAG:
             version = DagVersion.get_version(self.dag_id)
             if not version:
                 from airflow.dag_processing.bundles.manager import DagBundlesManager
-                from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+                from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
                 from airflow.sdk.definitions._internal.dag_parsing_context import (
                     _airflow_parsing_context_manager,
                 )
@@ -1254,14 +1287,16 @@ class DAG:
                     if not bundle.is_initialized:
                         bundle.initialize()
                     with _airflow_parsing_context_manager(dag_id=self.dag_id):
-                        dagbag = DagBag(
-                            dag_folder=bundle.path, bundle_path=bundle.path, include_examples=False
+                        dagbag = BundleDagBag(
+                            dag_folder=bundle.path,
+                            bundle_path=bundle.path,
+                            bundle_name=bundle.name,
                         )
                         sync_bag_to_db(dagbag, bundle.name, bundle.version)
                     version = DagVersion.get_version(self.dag_id)
                     if version:
                         break
-            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
+
             # Preserve callback functions from original Dag since they're lost during serialization
             # and yes it is a hack for now! It is a tradeoff for code simplicity.
             # Without it, we need "Scheduler Dag" (Serialized dag) for the scheduler bits
@@ -1289,10 +1324,6 @@ class DAG:
                 triggered_by=DagRunTriggeredByType.TEST,
                 triggering_user_name="dag_test",
             )
-            # Start a mock span so that one is present and not started downstream. We
-            # don't care about otel in dag.test and starting the span during dagrun update
-            # is not functioning properly in this context anyway.
-            dr.start_dr_spans_if_needed(tis=[])
 
             log.debug("starting dagrun")
             # Instead of starting a scheduler, we run the minimal loop possible to check
@@ -1371,6 +1402,8 @@ class DAG:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
                     executor.heartbeat()
+                    session.expire_all()
+
                     from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
                     from airflow.models.dagbag import DBDagBag
 
@@ -1394,7 +1427,9 @@ def _run_task(
     Bypasses a lot of extra steps used in `task.run` to keep our local running as fast as
     possible.  This function is only meant for the `dag.test` function as a helper function.
     """
-    from airflow.sdk.module_loading import import_string
+    from airflow.sdk._shared.module_loading import import_string
+    from airflow.sdk.serde import deserialize, serialize
+    from airflow.utils.session import create_session
 
     taskrun_result: TaskRunResult | None
     log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
@@ -1426,17 +1461,22 @@ def _run_task(
             ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == TaskInstanceState.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
-                from airflow.utils.session import create_session
-
                 # API Server expects the task instance to be in QUEUED state before
                 # resuming from deferral.
                 ti.set_state(TaskInstanceState.QUEUED)
 
                 log.info("[DAG TEST] running trigger in line")
-                trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
+                # trigger_kwargs need to be deserialized before passing to the
+                # trigger class since they are in serde encoded format.
+                # Ignore needed to convince mypy that trigger_kwargs is a dict
+                # or a str because its unable to infer JsonValue.
+                kwargs = deserialize(msg.trigger_kwargs)  # type: ignore[type-var]
+                if TYPE_CHECKING:
+                    assert isinstance(kwargs, dict)
+                trigger = import_string(msg.classpath)(**kwargs)
                 event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
-                ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
+                ti.next_kwargs = {"event": serialize(event.payload)} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
                 # Set the state to SCHEDULED so that the task can be resumed.
@@ -1525,6 +1565,7 @@ if TYPE_CHECKING:
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_fast: bool = False,
+        allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
     ) -> Callable[[Callable], Callable[..., DAG]]:
