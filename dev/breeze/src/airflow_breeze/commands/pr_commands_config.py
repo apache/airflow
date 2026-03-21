@@ -66,7 +66,7 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--check-mode",
                 "--llm-model",
                 "--llm-concurrency",
-                "--clear-llm-cache",
+                "--clear-cache",
             ],
         },
         {
