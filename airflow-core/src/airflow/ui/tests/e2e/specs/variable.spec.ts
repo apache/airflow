@@ -50,7 +50,7 @@ test.describe("Variables Page", () => {
       createdVariables.push(variable);
 
       // Wait for dialog backdrop to fully disappear
-      await expect(page.locator('[data-part="backdrop"]')).toHaveCount(0);
+      await expect(page.getByRole("dialog")).toBeHidden();
 
       await variablesPage.addButton.click();
 

@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
@@ -35,8 +36,8 @@ export class VariablePage extends BasePage {
     this.addButton = page.getByRole("button", { name: /add/i });
     this.importButton = page.getByRole("button", { name: "Import Variables" });
     this.table = page.getByTestId("table-list");
-    this.tableRows = this.table.locator("tbody tr");
-    this.selectAllCheckbox = page.locator("thead input[type='checkbox']");
+    this.tableRows = this.table.locator("tbody").getByRole("row");
+    this.selectAllCheckbox = this.table.locator("thead").getByRole("checkbox");
   }
 
   public async getVariableKeys(): Promise<Array<string>> {
@@ -46,7 +47,7 @@ export class VariablePage extends BasePage {
     if (count === 0) {
       return [];
     }
-    const keys = await this.tableRows.locator("td:nth-child(2)").allTextContents();
+    const keys = await this.tableRows.getByRole("cell").nth(1).allTextContents();
 
     return keys.map((key) => key.trim()).filter(Boolean);
   }
@@ -56,7 +57,7 @@ export class VariablePage extends BasePage {
   }
 
   public rowByKey(key: string): Locator {
-    return this.page.locator(`tr:has-text("${key}")`);
+    return this.tableRows.filter({ hasText: key });
   }
 
   public async search(key: string) {
@@ -65,37 +66,20 @@ export class VariablePage extends BasePage {
 
   public async selectRow(key: string) {
     const row = this.rowByKey(key);
-    const checkbox = row.locator('[id^="checkbox"][id$=":control"]');
 
-    await checkbox.click();
+    await row.getByRole("checkbox").click();
   }
 
   public async waitForLoad(): Promise<void> {
-    await this.table.waitFor({ state: "visible", timeout: 15_000 });
+    await expect(this.table).toBeVisible({ timeout: 15_000 });
     await this.waitForTableData();
   }
 
   private async waitForTableData(): Promise<void> {
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
+    // Wait for either "No variables found" message or table rows with content
+    const noVariablesMessage = this.page.getByText("No variables found");
+    const firstRowCell = this.tableRows.first().getByRole("cell").nth(1);
 
-        if (!table) return false;
-
-        if (document.body.textContent.includes("No variables found")) {
-          return true;
-        }
-
-        const rows = table.querySelectorAll("tbody tr");
-
-        if (rows.length === 0) return false;
-
-        const keyCells = table.querySelectorAll("tbody tr td:nth-child(2)");
-
-        return [...keyCells].some((cell) => Boolean(cell.textContent.trim()));
-      },
-      undefined,
-      { timeout: 60_000 },
-    );
+    await expect(noVariablesMessage.or(firstRowCell)).toBeVisible({ timeout: 60_000 });
   }
 }
