@@ -38,9 +38,6 @@ VERSIONS_PREFIX = "airflow-core/src/airflow/api_fastapi/execution_api/versions/"
 
 def get_target_branch() -> str:
     """Branch to compare against. GITHUB_BASE_REF for PRs, DEFAULT_BRANCH in CI, else main."""
-    print("The target branch for schema comparison is determined in the following order of precedence:")
-    print(os.environ.get("GITHUB_BASE_REF"))
-    print(os.environ.get("DEFAULT_BRANCH"))
     return os.environ.get("GITHUB_BASE_REF") or os.environ.get("DEFAULT_BRANCH") or "main"
 
 
