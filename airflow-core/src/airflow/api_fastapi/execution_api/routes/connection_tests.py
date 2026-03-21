@@ -62,7 +62,7 @@ def get_connection_test_connection(
         host=ct.host,
         login=ct.login,
         password=ct.password,
-        schema_=ct.schema,
+        schema=ct.schema,
         port=ct.port,
         extra=ct.extra,
     )
