@@ -39,6 +39,7 @@ func WithEdgeAPIJWTKey(key []byte) ClientOption {
 			now := time.Now().UTC().Unix()
 			t := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
 				"method": endpointPath,
+				"iss":    "airflow",
 				"aud":    "api",
 				"iat":    now,
 				"nbf":    now,
