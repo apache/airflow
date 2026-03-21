@@ -1445,12 +1445,7 @@ def _handle_trigger_dag_run(
             state = TaskInstanceState.SKIPPED
         else:
             log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
-            msg = TaskState(
-                state=TaskInstanceState.FAILED,
-                end_date=datetime.now(tz=timezone.utc),
-                rendered_map_index=ti.rendered_map_index,
-            )
-            state = TaskInstanceState.FAILED
+            msg, state = _handle_current_task_failed(ti)
 
         return msg, state
 
@@ -1497,12 +1492,7 @@ def _handle_trigger_dag_run(
                 log.error(
                     "DagRun finished with failed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
                 )
-                msg = TaskState(
-                    state=TaskInstanceState.FAILED,
-                    end_date=datetime.now(tz=timezone.utc),
-                    rendered_map_index=ti.rendered_map_index,
-                )
-                state = TaskInstanceState.FAILED
+                msg, state = _handle_current_task_failed(ti)
                 return msg, state
             if comms_msg.state in drte.allowed_states:
                 log.info(

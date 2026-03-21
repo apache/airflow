@@ -4509,6 +4509,47 @@ class TestTriggerDagRunOperator:
         ]
         mock_supervisor_comms.assert_has_calls(expected_calls)
 
+    def test_handle_trigger_dag_run_wait_for_completion_failed_state_retries(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """When triggered DAG reaches a failed state, task should honor retry eligibility."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            allowed_states=[DagRunState.SUCCESS],
+            failed_states=[DagRunState.FAILED],
+            deferrable=False,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_wait_for_completion_failed_state_retries",
+            run_id="test_run",
+            task=task,
+            should_retry=True,
+        )
+
+        def _send_side_effect(*args, **kwargs):
+            msg = kwargs.get("msg")
+            if msg is None and args:
+                msg = args[0]
+            if isinstance(msg, TriggerDagRun):
+                return OKResponse(ok=True)
+            if isinstance(msg, GetDagRunState):
+                return DagRunStateResult(state=DagRunState.FAILED)
+            return None
+
+        mock_supervisor_comms.send.side_effect = _send_side_effect
+
+        log = mock.MagicMock()
+        with mock.patch("time.sleep", return_value=None):
+            state, _, _ = run(ti, ti.get_template_context(), log)
+
+        assert state == TaskInstanceState.UP_FOR_RETRY
+
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "intermediate_state"),
         [
