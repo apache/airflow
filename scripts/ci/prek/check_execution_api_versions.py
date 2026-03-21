@@ -45,54 +45,13 @@ def get_target_branch() -> str:
 
 
 def get_changed_files_ci() -> list[str]:
-    """Get changed files in CI by comparing against target branch."""
-    target_branch = get_target_branch()
-    remote = get_remote_for_main()
-    ref = f"{remote}/{target_branch}"
-
-    fetch_result = subprocess.run(
-        ["git", "fetch", remote, target_branch],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if fetch_result.returncode != 0:
-        console.print(f"[yellow]WARNING: Failed to fetch {ref}: {fetch_result.stderr.strip()}[/]")
-
-    is_main = not os.environ.get("GITHUB_BASE_REF")
-    diff_target = "HEAD~1" if is_main else f"{ref}...HEAD"
-
+    """Get changed files in CI. Uses HEAD~1..HEAD to work with shallow clone (fetch-depth: 2)."""
     result = subprocess.run(
-        ["git", "diff", "--name-only", diff_target],
+        ["git", "diff", "--name-only", "HEAD~1..HEAD"],
         capture_output=True,
         text=True,
-        check=False,
+        check=True,
     )
-    if result.returncode != 0:
-        console.print(
-            f"[yellow]WARNING: git diff against {ref} failed (exit {result.returncode}), "
-            "retrying with deeper fetch...[/]"
-        )
-        subprocess.run(
-            ["git", "fetch", "--deepen=50", remote, target_branch],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        try:
-            result = subprocess.run(
-                ["git", "diff", "--name-only", f"{ref}...HEAD"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            console.print(f"[bold red]ERROR:[/] git diff failed (exit {e.returncode})")
-            if e.stdout:
-                console.print(f"[dim]stdout:[/]\n{e.stdout.strip()}")
-            if e.stderr:
-                console.print(f"[dim]stderr:[/]\n{e.stderr.strip()}")
-            raise
     return [f for f in result.stdout.strip().splitlines() if f]
 
 
