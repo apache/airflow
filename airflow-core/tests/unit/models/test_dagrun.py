@@ -2254,6 +2254,68 @@ def test_schedule_tis_only_one_scheduler_update_succeeds_when_competing(dag_make
     assert refreshed_ti.try_number == 1
 
 
+def test_task_instance_scheduling_decisions_refresh_finished_tis_before_setting_upstream_failed(
+    dag_maker, session
+):
+    with dag_maker(session=session, dag_id="refresh_finished_tis_before_upstream_failed", serialized=True):
+        fail_task = EmptyOperator(task_id="fail_task")
+        t0 = EmptyOperator(task_id="t0")
+        fail_task >> t0
+
+    dag = dag_maker.serialized_dag
+    dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=DagRunState.RUNNING)
+    dr.dag = dag
+
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session, state=State.task_states)}
+    tis["fail_task"].state = TaskInstanceState.FAILED
+    session.commit()
+
+    with create_session() as other_session:
+        dag.set_task_instance_state(
+            task_id="fail_task",
+            run_id=dr.run_id,
+            state=TaskInstanceState.SUCCESS,
+            session=other_session,
+        )
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in decision.schedulable_tis] == ["t0"]
+    assert tis["fail_task"].state == TaskInstanceState.SUCCESS
+    assert tis["t0"].state is None
+
+
+def test_task_instance_scheduling_decisions_refresh_finished_tis_after_api_clear(dag_maker, session):
+    with dag_maker(session=session, dag_id="refresh_finished_tis_after_api_clear", serialized=True):
+        fail_task = EmptyOperator(task_id="fail_task")
+        t0 = EmptyOperator(task_id="t0")
+        t1 = EmptyOperator(task_id="t1")
+        t2 = EmptyOperator(task_id="t2")
+        fail_task >> t0 >> t1 >> t2
+
+    dag = dag_maker.serialized_dag
+    dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=DagRunState.RUNNING)
+    dr.dag = dag
+
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session, state=State.task_states)}
+    tis["fail_task"].state = TaskInstanceState.FAILED
+    tis["t0"].state = TaskInstanceState.UPSTREAM_FAILED
+    session.commit()
+
+    with create_session() as other_session:
+        dag.set_task_instance_state(
+            task_id="fail_task",
+            run_id=dr.run_id,
+            state=TaskInstanceState.SUCCESS,
+            session=other_session,
+        )
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert [ti.task_id for ti in decision.schedulable_tis] == ["t0"]
+    assert tis["fail_task"].state == TaskInstanceState.SUCCESS
+    assert tis["t0"].state is None
+    assert tis["t1"].state is None
+
+
 @pytest.mark.xfail(reason="We can't keep this behaviour with remote workers where scheduler can't reach xcom")
 @pytest.mark.need_serialized_dag
 def test_schedule_tis_start_trigger(dag_maker, session):

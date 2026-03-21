@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pendulum
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from airflow.models import DagRun, TaskInstance
 from airflow.models.xcom import XComModel
@@ -31,6 +31,7 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import (
     XCOM_SKIPMIXIN_KEY,
     NotPreviouslySkippedDep,
 )
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -214,3 +215,39 @@ def test_unmapped_parent_skip_mapped_downstream(session, dag_maker):
     assert len(list(dep.get_dep_statuses(tis["op2"], session, DepContext()))) == 1
     assert not dep.is_met(tis["op2"], session)
     assert tis["op2"].state == State.SKIPPED
+
+
+def test_cleared_skipmixin_parent_does_not_skip_with_stale_finished_tis(session, dag_maker):
+    start_date = pendulum.datetime(2020, 1, 1)
+    with dag_maker(
+        "test_cleared_skipmixin_parent_does_not_skip_with_stale_finished_tis",
+        schedule=None,
+        start_date=start_date,
+        session=session,
+    ):
+        op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op3")
+        op2 = EmptyOperator(task_id="op2")
+        op3 = EmptyOperator(task_id="op3")
+        op1 >> [op2, op3]
+
+    dagrun = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+    tis = {ti.task_id: ti for ti in dagrun.task_instances}
+    run_task_instance(tis["op1"], op1)
+    session.commit()
+
+    with create_session() as other_session:
+        other_ti = other_session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dagrun.dag_id,
+                TaskInstance.run_id == dagrun.run_id,
+                TaskInstance.task_id == "op1",
+            )
+        )
+        assert other_ti is not None
+        other_ti.state = State.NONE
+        other_session.flush()
+
+    dep = NotPreviouslySkippedDep()
+    assert len(list(dep.get_dep_statuses(tis["op2"], session, DepContext()))) == 0
+    assert dep.is_met(tis["op2"], session)
+    assert tis["op2"].state == State.NONE
