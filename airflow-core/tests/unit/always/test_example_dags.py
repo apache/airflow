@@ -219,6 +219,11 @@ def test_should_be_importable(example: str, patch_get_dagbag_import_timeout):
         pytest.skip(
             f"Skipping {example} because it requires an optional provider feature that is not installed."
         )
+    # snowflake-sqlalchemy does not yet support SQLAlchemy 2.1
+    if len(dagbag.import_errors) == 1 and "ORMSelectCompileState" in str(dagbag.import_errors):
+        pytest.skip(
+            f"Skipping {example} because snowflake-sqlalchemy is incompatible with installed SQLAlchemy."
+        )
     assert len(dagbag.import_errors) == 0, f"import_errors={str(dagbag.import_errors)}"
     assert len(dagbag.dag_ids) >= 1
 
