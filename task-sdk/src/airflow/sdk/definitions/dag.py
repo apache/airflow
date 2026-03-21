@@ -816,15 +816,28 @@ class DAG:
             if hasattr(t, "resolve_template_files"):
                 t.resolve_template_files()
 
+    def _get_resolved_searchpath(self) -> list[str]:
+        """
+        Return searchpath with relative paths resolved for zipped DAGs.
+
+        For zipped DAGs, relative template_searchpath entries (e.g., ``["templates"]``)
+        are resolved against the DAG folder (the zip file path).
+        """
+        searchpath = [self.folder]
+        if self.template_searchpath:
+            is_zipped_dag = self.folder.endswith(".zip")
+            for path in self.template_searchpath:
+                if os.path.isabs(path) or not is_zipped_dag:
+                    searchpath.append(path)
+                else:
+                    searchpath.append(os.path.join(self.folder, path))
+        return searchpath
+
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
         from airflow.sdk.definitions._internal.templater import create_template_env
 
-        # Collect directories to search for template files
-        searchpath = [self.folder]
-        if self.template_searchpath:
-            searchpath += self.template_searchpath
-
+        searchpath = self._get_resolved_searchpath()
         use_native = self.render_template_as_native_obj and not force_sandboxed
         return create_template_env(
             native=use_native,
