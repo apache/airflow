@@ -167,6 +167,16 @@ STATES_SENT_DIRECTLY = [
     SERVER_TERMINATED,
 ]
 
+
+def _is_already_in_target_state(error: ServerResponseError, target_state: str) -> bool:
+    """Check if a 409 error indicates the TI is already in the target state."""
+    try:
+        detail = error.response.json().get("detail", {})
+        return detail.get("previous_state") == target_state
+    except Exception:
+        return False
+
+
 # Setting a fair buffer size here to handle most message sizes. Intention is to enforce a buffer size
 # that is big enough to handle small to medium messages while not enforcing hard latency issues
 BUFFER_SIZE = 4096
@@ -1081,12 +1091,23 @@ class ActivitySubprocess(WatchedSubprocess):
         # For states like `deferred`, `up_for_reschedule`, the process will exit with 0, but the state will be updated
         # by the subprocess in the `handle_requests` method.
         if self.final_state not in STATES_SENT_DIRECTLY:
-            self.client.task_instances.finish(
-                id=self.id,
-                state=self.final_state,
-                when=datetime.now(tz=timezone.utc),
-                rendered_map_index=self._rendered_map_index,
-            )
+            try:
+                self.client.task_instances.finish(
+                    id=self.id,
+                    state=self.final_state,
+                    when=datetime.now(tz=timezone.utc),
+                    rendered_map_index=self._rendered_map_index,
+                )
+            except ServerResponseError as e:
+                if e.response.status_code == HTTPStatus.CONFLICT:
+                    log.warning(
+                        "Failed to update TI state after process exit due to conflict",
+                        ti_id=self.id,
+                        final_state=self.final_state,
+                        detail=getattr(e, "detail", str(e)),
+                    )
+                else:
+                    raise
 
     def _upload_logs(self):
         """
@@ -1262,22 +1283,44 @@ class ActivitySubprocess(WatchedSubprocess):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
-            self.client.task_instances.succeed(
-                id=self.id,
-                when=msg.end_date,
-                task_outlets=msg.task_outlets,
-                outlet_events=msg.outlet_events,
-                rendered_map_index=self._rendered_map_index,
-            )
+            try:
+                self.client.task_instances.succeed(
+                    id=self.id,
+                    when=msg.end_date,
+                    task_outlets=msg.task_outlets,
+                    outlet_events=msg.outlet_events,
+                    rendered_map_index=self._rendered_map_index,
+                )
+            except ServerResponseError as e:
+                if e.response.status_code == HTTPStatus.CONFLICT and _is_already_in_target_state(
+                    e, msg.state
+                ):
+                    log.info(
+                        "TI already in success state, treating as idempotent success",
+                        ti_id=self.id,
+                    )
+                else:
+                    raise
         elif isinstance(msg, RetryTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
-            self.client.task_instances.retry(
-                id=self.id,
-                end_date=msg.end_date,
-                rendered_map_index=self._rendered_map_index,
-            )
+            try:
+                self.client.task_instances.retry(
+                    id=self.id,
+                    end_date=msg.end_date,
+                    rendered_map_index=self._rendered_map_index,
+                )
+            except ServerResponseError as e:
+                if e.response.status_code == HTTPStatus.CONFLICT and _is_already_in_target_state(
+                    e, msg.state
+                ):
+                    log.info(
+                        "TI already in retry state, treating as idempotent success",
+                        ti_id=self.id,
+                    )
+                else:
+                    raise
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):

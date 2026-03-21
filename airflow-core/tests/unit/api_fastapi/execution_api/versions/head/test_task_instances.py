@@ -1604,6 +1604,98 @@ class TestTIUpdateState:
         ti1 = session.get(TaskInstance, ti1.id)
         assert ti1.state == State.FAILED
 
+    def test_ti_update_state_idempotent_success(self, client, session, create_task_instance):
+        """Test that a duplicate success request returns 204 when TI is already SUCCESS."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_idempotent_success",
+            state=State.SUCCESS,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        session.commit()
+
+        payload = {
+            "state": "success",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+
+        session.refresh(ti)
+        assert ti.state == State.SUCCESS
+
+    def test_ti_update_state_idempotent_failed(self, client, session, create_task_instance):
+        """Test that a duplicate failed request returns 204 when TI is already FAILED."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_idempotent_failed",
+            state=State.FAILED,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        session.commit()
+
+        payload = {
+            "state": "failed",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+
+        session.refresh(ti)
+        assert ti.state == State.FAILED
+
+    def test_ti_update_state_idempotent_skipped(self, client, session, create_task_instance):
+        """Test that a duplicate skipped request returns 204 when TI is already SKIPPED."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_idempotent_skipped",
+            state=State.SKIPPED,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        session.commit()
+
+        payload = {
+            "state": "skipped",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+
+        session.refresh(ti)
+        assert ti.state == State.SKIPPED
+
+    @pytest.mark.parametrize(
+        ("initial_state", "requested_state"),
+        [
+            (State.SUCCESS, "failed"),
+            (State.FAILED, "success"),
+            (State.SKIPPED, "success"),
+            (State.SUCCESS, "skipped"),
+        ],
+    )
+    def test_ti_update_state_conflict_different_states(
+        self, client, session, create_task_instance, initial_state, requested_state
+    ):
+        """Test that cross-state transitions still return 409."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_conflict_different_states",
+            state=initial_state,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        session.commit()
+
+        payload = {
+            "state": requested_state,
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "invalid_state"
+
+        session.refresh(ti)
+        assert ti.state == initial_state
+
 
 class TestTISkipDownstream:
     def setup_method(self):
