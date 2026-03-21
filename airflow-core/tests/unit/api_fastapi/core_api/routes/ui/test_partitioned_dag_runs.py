@@ -165,7 +165,6 @@ class TestGetPartitionedDagRuns:
     def test_received_count_excludes_other_dags_assets(
         self, test_client, dag_maker, session, num_target_assets, num_other_assets, received_count
     ):
-
         def _make_schedule(prefix, count):
             assets = [Asset(uri=f"s3://bucket/{prefix}{i}", name=f"{prefix}{i}") for i in range(count)]
             schedule = assets[0]

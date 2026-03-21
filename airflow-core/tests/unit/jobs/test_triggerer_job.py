@@ -318,7 +318,6 @@ def test_trigger_logger_close():
 
 
 def test_trigger_logger_fd_closed_when_removed(session):
-
     trigger = TimeDeltaTrigger(datetime.timedelta(seconds=0.5))
 
     create_trigger_in_db(session, trigger)

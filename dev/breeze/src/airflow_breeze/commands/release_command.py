@@ -39,7 +39,6 @@ SVN_NUM_TRIES = 3
 
 
 def clone_asf_repo(working_dir, svn_dev_repo):
-
     if is_ci_environment():
         console_print("[info]Running in CI environment - simulating SVN checkout")
         # Create empty directory structure to simulate svn checkout (override dry-run if specified)

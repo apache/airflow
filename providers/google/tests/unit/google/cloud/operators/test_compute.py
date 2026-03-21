@@ -258,7 +258,6 @@ class TestGceInstanceInsert:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_should_recreate_on_drift(self, mock_hook):
-
         get_instance_obj_mock = mock.MagicMock()
         get_instance_obj_mock.__class__ = Instance
 

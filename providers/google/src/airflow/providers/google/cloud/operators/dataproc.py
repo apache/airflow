@@ -813,7 +813,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return Cluster.to_dict(cluster)
 
     def _reconcile_cluster_state(self, hook: DataprocHook, cluster: Cluster) -> Cluster:
-
         if cluster.status.state == cluster.status.State.CREATING:
             self.log.info("Cluster %s is in CREATING state.", self.cluster_name)
 
@@ -848,7 +847,6 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         return cluster
 
     def execute(self, context: Context) -> dict:
-
         self.log.info("Attempting to create cluster: %s", self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 

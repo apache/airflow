@@ -228,7 +228,6 @@ class TestDataFusionEngine:
         assert result == {"a": 1, "c": "test"}
 
     def test_get_connection_config(self):
-
         engine = DataFusionEngine()
 
         result = engine._get_connection_config("aws_default")

@@ -263,7 +263,6 @@ class TestRedshiftCreateClusterOperator:
         mock_delete_cluster,
         mock_wait_fixed,
     ):
-
         mock_wait_fixed.return_value = wait_fixed(0)
         # Simulate waiter failure (e.g. DescribeClusters denied).
         waiter_error = WaiterError(

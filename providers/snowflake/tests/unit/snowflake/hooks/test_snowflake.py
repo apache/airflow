@@ -1239,7 +1239,6 @@ class TestPytestSnowflakeHook:
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.timezone.utcnow")
     @mock.patch("requests.post")
     def test_get_oauth_token_retries_and_succeeds(self, requests_post, mock_timezone_utcnow):
-
         # Freeze time to prevent access token expiration.
         t0 = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
         mock_timezone_utcnow.side_effect = [t0, t0]
@@ -1278,7 +1277,6 @@ class TestPytestSnowflakeHook:
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.requests.post")
     def test_get_oauth_token_does_not_retry_on_client_error(self, requests_post):
-
         response = Mock(status_code=401)
         http_error = HTTPError(response=response)
 
@@ -1313,7 +1311,6 @@ class TestPytestSnowflakeHook:
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.requests.post")
     def test_get_oauth_token_fails_after_max_retries(self, requests_post):
-
         # Always fail with retryable error.
         requests_post.side_effect = ConnectionError("persistent network failure")
 
