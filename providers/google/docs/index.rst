@@ -109,9 +109,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  =================================================================
+==========================================  ==================================================================
 PIP package                                 Version required
-==========================================  =================================================================
+==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
@@ -130,7 +130,7 @@ PIP package                                 Version required
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-cloud-aiplatform[evaluation]``     ``>=1.98.0``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
-``ray[default]``                            ``>=2.49.0; python_version >= "3.13"``
+``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``google-cloud-bigquery-storage``           ``>=2.31.0; python_version < "3.13"``
 ``google-cloud-bigquery-storage``           ``>=2.33.0; python_version >= "3.13"``
 ``google-cloud-alloydb``                    ``>=0.4.0``
@@ -187,7 +187,7 @@ PIP package                                 Version required
 ``tenacity``                                ``>=8.3.0``
 ``immutabledict``                           ``>=4.2.0``
 ``types-protobuf``                          ``>=5.27.0,!=5.29.1.20250402``
-==========================================  =================================================================
+==========================================  ==================================================================
 
 Cross provider package dependencies
 -----------------------------------
