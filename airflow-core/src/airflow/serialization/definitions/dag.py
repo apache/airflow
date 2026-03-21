@@ -32,7 +32,7 @@ from sqlalchemy import func, or_, select, tuple_
 
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.exceptions import AirflowException, DagVersionNotFound, TaskNotFound
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -68,6 +68,17 @@ if TYPE_CHECKING:
     from airflow.utils.types import DagRunTriggeredByType
 
 log = structlog.get_logger(__name__)
+
+_DAG_CALLBACK_ATTRS = (
+    "sla_miss_callback",
+    "on_success_callback",
+    "on_failure_callback",
+    "on_retry_callback",
+    "on_execute_callback",
+    "on_skipped_callback",
+    "has_on_success_callback",
+    "has_on_failure_callback",
+)
 
 
 # TODO (GH-52141): Share definition with SDK?
@@ -500,6 +511,7 @@ class SerializedDAG:
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
         partition_key: str | None = None,
+        bundle_version: str | None = None,
         partition_date: datetime.datetime | None = None,
         note: str | None = None,
         session: Session = NEW_SESSION,
@@ -584,6 +596,7 @@ class SerializedDAG:
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
             partition_key=partition_key,
+            bundle_version=bundle_version,
             partition_date=partition_date,
             note=note,
             session=session,
@@ -1155,16 +1168,41 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
     partition_key: str | None = None,
+    bundle_version: str | None = None,
     partition_date: datetime.datetime | None = None,
     note: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
-    bundle_version = None
+    resolved_bundle_version: str | None = None
+    use_resolved_dag = False
     if not dag.disable_bundle_versioning:
-        bundle_version = session.scalar(
-            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
-        )
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        if bundle_version is not None:
+            resolved_bundle_version = bundle_version
+            dag_version = DagVersion.get_latest_version(
+                dag.dag_id, bundle_version=resolved_bundle_version, load_serialized_dag=True, session=session
+            )
+            if not dag_version:
+                raise DagVersionNotFound(
+                    f"DAG with dag_id: '{dag.dag_id}' does not have a version for bundle_version '{bundle_version}'"
+                )
+            use_resolved_dag = True
+        else:
+            resolved_bundle_version = session.scalar(
+                select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)
+            )
+            dag_version = DagVersion.get_latest_version(
+                dag.dag_id,
+                bundle_version=resolved_bundle_version,
+                load_serialized_dag=resolved_bundle_version is not None,
+                session=session,
+            )
+            if dag_version is None and resolved_bundle_version is not None:
+                dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+            elif dag_version is not None and resolved_bundle_version is not None:
+                use_resolved_dag = True
+    else:
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+
     if not dag_version:
         raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
 
@@ -1182,7 +1220,7 @@ def _create_orm_dagrun(
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
-        bundle_version=bundle_version,
+        bundle_version=resolved_bundle_version,
         partition_key=partition_key,
         partition_date=partition_date,
         note=note,
@@ -1195,6 +1233,12 @@ def _create_orm_dagrun(
     session.add(run)
     session.flush()
     run.dag = dag
+    if use_resolved_dag:
+        resolved_dag = dag_version.serialized_dag.dag
+        for attr in _DAG_CALLBACK_ATTRS:
+            if hasattr(dag, attr):
+                setattr(resolved_dag, attr, getattr(dag, attr))  # type: ignore[attr-defined]
+        run.dag = resolved_dag
     # create the associated task instances
     # state is None at the moment of creation
     run.verify_integrity(session=session, dag_version_id=dag_version.id)

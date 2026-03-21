@@ -71,6 +71,20 @@ class AddNoteField(VersionChange):
             response.body["dag_run"].pop("note", None)
 
 
+class AddBundleVersionField(VersionChange):
+    """Add the `bundle_version` field to DagRun model."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (schema(DagRun).field("bundle_version").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_bundle_version_from_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Remove the `bundle_version` field from the dag_run object when converting to the previous version."""
+        if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
+            response.body["dag_run"].pop("bundle_version", None)
+
+
 class MakeDagRunStartDateNullable(VersionChange):
     """Make DagRun.start_date field nullable for runs that haven't started yet."""
 

@@ -2026,6 +2026,67 @@ class TestTriggerDagRun:
         run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_with_bundle_version(self, test_client, session, dag_maker):
+        """Test triggering a DAG run with a specific bundle version."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_version_dag"
+        bundle_name = "testing_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name)
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+            EmptyOperator(task_id="task_2")
+        sync_dag_to_db(dag2, bundle_name=bundle_name)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns", json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "v1"}
+        )
+        assert response.status_code == 200
+        assert response.json()["dag_versions"][0]["bundle_version"] == "v1"
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={
+                "logical_date": "2024-01-02T00:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["dag_versions"][0]["bundle_version"] == "v2"
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-03T00:00:00Z", "bundle_version": "invalid_version"},
+        )
+        assert response.status_code == 404
+        assert (
+            f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version 'invalid_version'"
+            in response.json()["detail"]
+        )
+
+        dag2.disable_bundle_versioning = True
+        sync_dag_to_db(dag2, bundle_name=bundle_name)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns", json={"logical_date": "2024-01-04T00:00:00Z", "bundle_version": "v1"}
+        )
+        assert response.status_code == 400
+        assert f"DAG with dag_id: '{dag_id}' does not support bundle versioning" in response.json()["detail"]
+
 
 class TestWaitDagRun:
     # The way we init async engine does not work well with FastAPI app init.

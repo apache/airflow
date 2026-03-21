@@ -130,6 +130,10 @@ class DagRunNotFound(AirflowNotFoundException):
     """Raise when a DAG Run is not available in the system."""
 
 
+class DagVersionNotFound(AirflowNotFoundException):
+    """Raised when a DagVersion for the given dag_id / bundle_version is not found."""
+
+
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry."""
 
