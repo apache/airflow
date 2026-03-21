@@ -1,0 +1,1 @@
+``workers.safeToEvict`` section is now deprecated in favor of ``workers.celery.safeToEvict`` and ``workers.kubernetes.safeToEvict``. Please update your configuration accordingly.
