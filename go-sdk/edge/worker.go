@@ -121,10 +121,10 @@ func NewWorker(
 
 	var airflowVer, edgeVer, concurrency, freeConcurrency, goVer edgeapi.WorkerStateBody_Sysinfo_AdditionalProperties
 	airflowVer.FromWorkerStateBodySysinfo0(edgeapi.WorkerStateBodySysinfo0(
-		configOrDefault("edge.airflow_version", "3.1.0"),
+		configOrDefault("edge.airflow_version", "3.2.0"),
 	))
 	edgeVer.FromWorkerStateBodySysinfo0(edgeapi.WorkerStateBodySysinfo0(
-		configOrDefault("edge.provider_version", "1.3.1"),
+		configOrDefault("edge.provider_version", "3.2.0"),
 	))
 	concurrency.FromWorkerStateBodySysinfo1(edgeapi.WorkerStateBodySysinfo1(maxConcurrency))
 	freeConcurrency.FromWorkerStateBodySysinfo1(edgeapi.WorkerStateBodySysinfo1(maxConcurrency))
