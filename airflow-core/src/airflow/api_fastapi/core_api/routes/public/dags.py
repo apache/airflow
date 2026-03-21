@@ -328,7 +328,13 @@ def patch_dags(
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGCollectionResponse:
-    """Patch multiple DAGs."""
+    """
+    Patch multiple DAGs.
+
+    If `dag_id_pattern` is not provided, no DAGs will be matched regardless
+    of other filters. To match all DAGs, pass a wildcard value such as `~`
+    or `%` for `dag_id_pattern`.
+    """
     if update_mask:
         if update_mask != ["is_paused"]:
             raise HTTPException(
@@ -356,7 +362,26 @@ def patch_dags(
         session=session,
     )
     dags = session.scalars(dags_select).all()
-    dags_to_update = {dag.dag_id for dag in dags}
+    dags_to_update: set[str] = set()
+
+    for current_offset in range(0, total_entries, limit.value):  # type: ignore[arg-type]
+        dags_select, _ = paginated_select(
+            statement=select(DagModel.dag_id),
+            filters=[
+                exclude_stale,
+                paused,
+                dag_id_pattern,
+                tags,
+                owners,
+                editable_dags_filter,
+            ],
+            order_by=None,
+            offset=QueryOffset.depends(current_offset),
+            limit=limit,
+            session=session,
+        )
+        dags_to_update.update(session.scalars(dags_select).all())
+
     session.execute(
         update(DagModel)
         .where(DagModel.dag_id.in_(dags_to_update))
