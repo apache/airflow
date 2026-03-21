@@ -266,4 +266,4 @@ def create_default_connections(
     session: SessionDep,
 ):
     """Create default connections."""
-    db_create_default_connections(session)
+    db_create_default_connections(session=session)
