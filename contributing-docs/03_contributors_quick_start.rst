@@ -742,6 +742,43 @@ can be sure that all the tests are run in the same environment as tests in CI.
 
 All Tests are inside ./tests directory.
 
+The following agent-skill documents the recommended way to run tests (uv first, then Breeze fallback):
+
+.. agent-skill::
+   :id: run-tests-uv-first
+   :context: host
+   :category: testing
+   :prereqs: setup-breeze-environment
+   :validates: tests-pass
+   :description: Run tests with uv, fall back to
+                 Breeze if system deps missing
+
+   .. code-block:: bash
+
+      uv run --project {project} pytest {test_path} -xvs
+      # fallback: breeze run pytest {test_path} -xvs
+
+   .. agent-skill-expected-output::
+
+      PASSED
+
+.. agent-skill::
+   :id: run-static-checks-prek
+   :context: host
+   :category: linting
+   :prereqs: setup-breeze-environment
+   :validates: static-checks-pass
+   :description: Run fast pre-commit static checks
+                 on changed files using prek
+
+   .. code-block:: bash
+
+      prek run --from-ref main --stage pre-commit
+
+   .. agent-skill-expected-output::
+
+      All checks passed.
+
 - Running Unit tests inside Breeze environment.
 
   Just run ``pytest filepath+filename`` to run the tests.

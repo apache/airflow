@@ -213,3 +213,133 @@ Remind the user to:
 - [`contributing-docs/08_static_code_checks.rst`](contributing-docs/08_static_code_checks.rst)
 - [`contributing-docs/12_provider_distributions.rst`](contributing-docs/12_provider_distributions.rst)
 - [`contributing-docs/19_execution_api_versioning.rst`](contributing-docs/19_execution_api_versioning.rst)
+
+## Agent Skills
+
+The following structured skill blocks extend this document
+with machine-readable, executable workflow definitions.
+See `contributing-docs/agent_skills/` for the full
+generated manifest.
+
+.. agent-skill::
+   :id: setup-breeze-environment
+   :context: host
+   :category: environment
+   :prereqs: docker, python>=3.9
+   :validates: breeze-env-ready
+   :description: Start the Airflow Breeze development
+                 environment
+
+   .. code-block:: bash
+
+      breeze start-airflow
+
+   .. agent-skill-expected-output::
+
+      Airflow webserver at http://localhost:28080
+      Login: admin / admin
+
+.. agent-skill::
+   :id: run-single-test
+   :context: host
+   :category: testing
+   :prereqs: setup-breeze-environment
+   :validates: tests-pass
+   :fallback: breeze run pytest {test_path} -xvs
+   :fallback_condition: missing_system_deps
+   :description: Run a single test with uv, falling back
+                 to breeze if system deps are missing
+
+   .. code-block:: bash
+
+      # Primary: uv (no Docker needed, faster)
+      uv run --project {project} pytest {test_path} -xvs
+      # Fallback: only when system deps missing
+      # breeze run pytest {test_path} -xvs
+
+   .. agent-skill-expected-output::
+
+      PASSED
+
+.. agent-skill::
+   :id: run-static-checks
+   :context: host
+   :category: linting
+   :prereqs: setup-breeze-environment
+   :validates: static-checks-pass
+   :description: Run fast static checks with prek
+
+   .. code-block:: bash
+
+      prek run --from-ref main --stage pre-commit
+
+   .. agent-skill-expected-output::
+
+      All checks passed.
+
+.. agent-skill::
+   :id: run-manual-checks
+   :context: host
+   :category: linting
+   :prereqs: run-static-checks
+   :validates: manual-checks-pass
+   :description: Run slower manual checks with prek
+
+   .. code-block:: bash
+
+      prek run --from-ref main --stage manual
+
+   .. agent-skill-expected-output::
+
+      All checks passed.
+
+.. agent-skill::
+   :id: build-docs
+   :context: host
+   :category: documentation
+   :prereqs: setup-breeze-environment
+   :validates: docs-build-clean
+   :description: Build Airflow documentation locally
+
+   .. code-block:: bash
+
+      breeze build-docs
+
+   .. agent-skill-expected-output::
+
+      Build finished. The HTML pages are in _build/html.
+
+.. agent-skill::
+   :id: run-provider-tests
+   :context: host
+   :category: testing
+   :prereqs: setup-breeze-environment
+   :validates: provider-tests-pass
+   :description: Run complete test suite for a
+                 specific provider
+
+   .. code-block:: bash
+
+      breeze testing providers-tests
+        --test-type "Providers[{provider}]"
+
+   .. agent-skill-expected-output::
+
+      All tests passed.
+
+.. agent-skill::
+   :id: run-type-check
+   :context: host
+   :category: linting
+   :prereqs: setup-breeze-environment
+   :validates: type-check-pass
+   :description: Run mypy type checking on
+                 changed files
+
+   .. code-block:: bash
+
+      breeze run mypy {path}
+
+   .. agent-skill-expected-output::
+
+      Success: no issues found
