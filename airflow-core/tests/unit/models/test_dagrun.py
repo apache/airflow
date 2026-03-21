@@ -1354,7 +1354,7 @@ class TestDagRun:
     def test_dagrun_failure_does_not_prune_deadlines(
         self, mock_get_by_id, mock_prune, session, deadline_test_dag
     ):
-        """On failure, deadlines should NOT be pruned — handle_miss fires instead."""
+
         mock_deadline_alert = mock.MagicMock()
         mock_deadline_alert.reference_class = SerializedReferenceModels.FixedDatetimeDeadline
         mock_get_by_id.return_value = mock_deadline_alert

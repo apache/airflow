@@ -56,7 +56,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, relationship, synonym, validates
+from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, relationship, selectinload, synonym, validates
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
@@ -1229,12 +1229,12 @@ class DagRun(Base, LoggingMixin):
                         Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})
                     elif self._state == DagRunState.FAILED:
                         # Run failed — immediately fire any pending deadline callbacks.
-                        pending_deadlines = session.scalars(
+                        for deadline in session.scalars(
                             select(Deadline)
                             .join(DagRun)
                             .where(DagRun.id == self.id, Deadline.missed == false())
-                        ).all()
-                        for deadline in pending_deadlines:
+                            .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
+                        ):
                             deadline.handle_miss(session=session)
 
             session.flush()
