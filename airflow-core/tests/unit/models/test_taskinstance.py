@@ -59,6 +59,7 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    _make_task_carrier,
     clear_task_instances,
     find_relevant_relatives,
 )
@@ -3298,3 +3299,109 @@ def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
 
     assert dr_from_ti is not None
     assert dr_from_ti == dr
+
+
+class TestMakeTaskCarrier:
+    """Tests for the _make_task_carrier helper."""
+
+    @pytest.fixture(autouse=True)
+    def sdk_tracer_provider(self):
+        from opentelemetry.sdk.trace import TracerProvider
+
+        provider = TracerProvider()
+        real_tracer = provider.get_tracer("airflow.models.taskinstance")
+        with mock.patch("airflow.models.taskinstance.tracer", real_tracer):
+            yield
+
+    def test_make_task_carrier_returns_traceparent(self):
+        from airflow._shared.observability.traces import new_dagrun_trace_carrier
+
+        carrier = _make_task_carrier(new_dagrun_trace_carrier())
+        assert isinstance(carrier, dict)
+        assert "traceparent" in carrier
+
+    def test_make_task_carrier_child_of_parent(self):
+        from opentelemetry import trace as otel_trace
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+        from airflow._shared.observability.traces import new_dagrun_trace_carrier
+
+        parent_carrier = new_dagrun_trace_carrier()
+        child_carrier = _make_task_carrier(parent_carrier)
+
+        propagator = TraceContextTextMapPropagator()
+        parent_trace_id = (
+            otel_trace.get_current_span(context=propagator.extract(parent_carrier))
+            .get_span_context()
+            .trace_id
+        )
+        child_trace_id = (
+            otel_trace.get_current_span(context=propagator.extract(child_carrier)).get_span_context().trace_id
+        )
+        assert child_trace_id == parent_trace_id
+        assert child_trace_id != 0
+
+    def test_make_task_carrier_with_none_carrier(self):
+        carrier = _make_task_carrier(None)
+        assert isinstance(carrier, dict)
+        assert "traceparent" in carrier
+
+
+@pytest.mark.db_test
+def test_insert_mapping_includes_context_carrier(dag_maker, session):
+    """insert_mapping should include a context_carrier with a traceparent derived from the dag run."""
+    from opentelemetry.sdk.trace import TracerProvider
+
+    from airflow._shared.observability.traces import new_dagrun_trace_carrier
+
+    provider = TracerProvider()
+    real_tracer = provider.get_tracer("airflow.models.taskinstance")
+    with mock.patch("airflow.models.taskinstance.tracer", real_tracer):
+        with dag_maker("test_insert_mapping_carrier"):
+            EmptyOperator(task_id="t1")
+        session.flush()
+
+        # Get the scheduler-side operator (has a proper PriorityWeightStrategy, not the enum weight_rule).
+        op = create_scheduler_operator(dag_maker.dag.get_task("t1"))
+
+        # Mock the DagRun to avoid inserting into the dag_run table (schema migrations may be pending).
+        dag_run = mock.MagicMock()
+        dag_run.context_carrier = new_dagrun_trace_carrier()
+
+        mapping = TaskInstance.insert_mapping(
+            run_id="test_run",
+            task=op,
+            map_index=0,
+            dag_version_id=None,
+            dag_run=dag_run,
+        )
+
+    assert "context_carrier" in mapping
+    assert mapping["context_carrier"] is not None
+    assert "traceparent" in mapping["context_carrier"]
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_resets_context_carrier(dag_maker, session):
+    """clear_task_instances should assign fresh context carriers to both the TI and its dag run."""
+    from opentelemetry.sdk.trace import TracerProvider
+
+    provider = TracerProvider()
+    real_tracer = provider.get_tracer("airflow.models.taskinstance")
+    with mock.patch("airflow.models.taskinstance.tracer", real_tracer):
+        with dag_maker("test_clear_carrier"):
+            EmptyOperator(task_id="t1")
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("t1", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        # Set an explicit carrier so we can verify it changes.
+        ti.context_carrier = {"traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaa0001-bbbbbbbbbbbbbbbb-01"}
+        session.flush()
+
+        original_ti_traceparent = ti.context_carrier["traceparent"]
+        original_dr_traceparent = dag_run.context_carrier["traceparent"]
+
+        clear_task_instances([ti], session)
+
+    assert ti.context_carrier["traceparent"] != original_ti_traceparent
+    assert dag_run.context_carrier["traceparent"] != original_dr_traceparent

@@ -27,6 +27,7 @@ import typing
 from collections.abc import AsyncIterator
 from socket import socket
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pendulum
@@ -45,6 +46,7 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
+    _make_trigger_span,
     messages,
 )
 from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
@@ -349,11 +351,12 @@ class TestTriggerRunner:
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
 
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
-    # @pytest.mark.asyncio
     def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
@@ -361,6 +364,8 @@ class TestTriggerRunner:
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.run.side_effect = asyncio.CancelledError()
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
 
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(
@@ -1358,3 +1363,101 @@ class TestTriggererMessageTypes:
             + "\n".join(f"  - {t}" for t in sorted(task_diff))
             + "\n\nEither handle these types in ToTriggerRunner or update in_task_but_not_in_trigger_runner list."
         )
+
+
+class TestMakeTriggerSpan:
+    """Tests for the _make_trigger_span helper in the triggerer job runner."""
+
+    @pytest.fixture(autouse=True)
+    def sdk_tracer_provider(self):
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        self.exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(self.exporter))
+        test_tracer = provider.get_tracer("test")
+        with mock.patch("airflow.jobs.triggerer_job_runner.tracer", test_tracer):
+            yield
+
+    def _make_ti_dto(self, task_id="my_task", map_index=-1, context_carrier=None):
+        import uuid
+
+        from airflow.executors.workloads.task import TaskInstanceDTO
+
+        return TaskInstanceDTO(
+            id=uuid.uuid4(),
+            dag_version_id=uuid.uuid4(),
+            task_id=task_id,
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            map_index=map_index,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+            context_carrier=context_carrier,
+        )
+
+    def test_make_trigger_span_name_with_task_instance(self):
+        ti = self._make_ti_dto(task_id="sensor_task", map_index=-1)
+        with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
+            pass
+        assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task"
+
+    def test_make_trigger_span_name_with_mapped_task(self):
+        ti = self._make_ti_dto(task_id="sensor_task", map_index=2)
+        with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
+            pass
+        assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task_2"
+
+    def test_make_trigger_span_name_without_task_instance(self):
+        with _make_trigger_span(ti=None, trigger_id=42, name="MySensor"):
+            pass
+        assert self.exporter.get_finished_spans()[0].name == "trigger.42"
+
+    def test_make_trigger_span_uses_task_context_carrier(self):
+        from opentelemetry import trace as otel_trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+        # Build a valid ti carrier from a separate provider so we have a known parent span.
+        setup_provider = TracerProvider()
+        setup_tracer = setup_provider.get_tracer("setup")
+        parent_span = setup_tracer.start_span("ti_parent")
+        parent_ctx = otel_trace.set_span_in_context(parent_span)
+        ti_carrier: dict = {}
+        TraceContextTextMapPropagator().inject(ti_carrier, context=parent_ctx)
+        expected_parent_span_id = parent_span.get_span_context().span_id
+
+        ti = self._make_ti_dto(context_carrier=ti_carrier)
+        with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
+            pass
+
+        spans = self.exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].parent is not None
+        assert spans[0].parent.span_id == expected_parent_span_id
+
+    def test_make_trigger_span_sets_attributes_with_ti(self):
+        ti = self._make_ti_dto(task_id="my_task", map_index=1)
+        with _make_trigger_span(ti=ti, trigger_id=5, name="MyTrigger"):
+            pass
+
+        attrs = self.exporter.get_finished_spans()[0].attributes
+        assert attrs["airflow.trigger.name"] == "MyTrigger"
+        assert attrs["airflow.dag_id"] == "test_dag"
+        assert attrs["airflow.task_id"] == "my_task"
+        assert attrs["airflow.dag_run.run_id"] == "test_run"
+        assert attrs["airflow.task_instance.try_number"] == 1
+        assert attrs["airflow.task_instance.map_index"] == 1
+
+    def test_make_trigger_span_sets_only_trigger_name_without_ti(self):
+        with _make_trigger_span(ti=None, trigger_id=99, name="OnlyTrigger"):
+            pass
+
+        attrs = self.exporter.get_finished_spans()[0].attributes
+        assert attrs["airflow.trigger.name"] == "OnlyTrigger"
+        assert "airflow.dag_id" not in attrs
+        assert "airflow.task_id" not in attrs
