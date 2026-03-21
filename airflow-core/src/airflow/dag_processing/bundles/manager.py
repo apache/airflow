@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import warnings
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from itsdangerous import URLSafeSerializer
@@ -167,16 +169,30 @@ class DagBundlesManager(LoggingMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._bundle_config: dict[str, _InternalBundleConfig] = {}
+        self._config_path_mtime: dict[str, float] = {}
         self.parse_config()
 
     def parse_config(self) -> None:
         """
         Get all DAG bundle configurations and store in instance variable.
 
+        If ``dag_bundle_config_path`` is set, configurations are loaded from JSON files in that
+        directory and ``dag_bundle_config_list`` is ignored. Otherwise, falls back to the
+        traditional ``dag_bundle_config_list`` setting.
+
         If a bundle class for a given name has already been imported, it will not be imported again.
 
         :meta private:
         """
+        # Check if we should use config path instead of config list
+        config_path = conf.get("dag_processor", "dag_bundle_config_path", fallback="")
+
+        if config_path:
+            # Use config path mode — takes precedence over config list
+            self._parse_config_from_path(config_path)
+            return
+
+        # Use traditional config list mode
         if self._bundle_config:
             return
 
@@ -368,5 +384,129 @@ class DagBundlesManager(LoggingMixin):
             DeprecationWarning,
             stacklevel=2,
         )
-        bundle = self.get_bundle(name, version)
-        return bundle.view_url(version=version)
+        try:
+            bundle = self.get_bundle(name, version)
+            return bundle.view_url(version=version)
+        except ValueError:
+            # Bundle no longer configured, return None
+            self.log.debug("Bundle '%s' is no longer configured, cannot get view URL", name)
+            return None
+
+    def get_bundle_path_safe(self, name: str) -> Path | None:
+        """
+        Safely get a bundle's path without raising errors if bundle doesn't exist.
+
+        :param name: The name of the DAG bundle.
+        :return: The bundle path if configured, None otherwise.
+        """
+        try:
+            bundle = self.get_bundle(name)
+            return bundle.path
+        except ValueError:
+            # Bundle no longer configured
+            self.log.debug("Bundle '%s' is no longer configured, cannot get path", name)
+            return None
+
+    def _parse_config_from_path(self, config_path: str) -> None:
+        """
+        Parse DAG bundle configurations from JSON files in a directory.
+
+        :param config_path: Path to directory containing JSON config files
+        """
+        path = Path(config_path)
+        if not path.exists():
+            self.log.warning("DAG bundle config path does not exist: %s", config_path)
+            return
+
+        if not path.is_dir():
+            raise AirflowConfigException(f"dag_bundle_config_path must be a directory, got: {config_path}")
+
+        # Clear old mtime entries before repopulating
+        self._config_path_mtime.clear()
+
+        config_list = []
+        seen_bundle_names: set[str] = set()
+
+        for file_path in path.glob("*.json"):
+            try:
+                config = json.loads(file_path.read_text())
+                if not isinstance(config, dict):
+                    self.log.error("Invalid config in %s: Expected dict but got %s", file_path, type(config))
+                    continue
+
+                # Check for duplicate bundle names
+                bundle_name = config.get("name")
+                if bundle_name and bundle_name in seen_bundle_names:
+                    self.log.warning(
+                        "Duplicate bundle name '%s' found in %s, skipping this file",
+                        bundle_name,
+                        file_path,
+                    )
+                    continue
+                if bundle_name:
+                    seen_bundle_names.add(bundle_name)
+
+                config_list.append(config)
+                # Track file modification time for change detection
+                self._config_path_mtime[str(file_path)] = file_path.stat().st_mtime
+            except json.JSONDecodeError as e:
+                self.log.error("Failed to parse JSON from %s: %s", file_path, e)
+            except Exception as e:
+                self.log.error("Error reading config file %s: %s", file_path, e)
+
+        if not config_list:
+            self.log.warning("No valid DAG bundle configs found in %s", config_path)
+            return
+
+        bundle_config_list = _parse_bundle_config(config_list)
+        if conf.getboolean("core", "LOAD_EXAMPLES"):
+            _add_example_dag_bundle(bundle_config_list)
+
+        # Clear existing config and reload
+        self._bundle_config.clear()
+        for bundle_config in bundle_config_list:
+            if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
+                raise AirflowConfigException(
+                    "DAG bundle configurations from path "
+                    "cannot have a team name when multi-team mode is disabled. "
+                    "To enable multi-team, you need to update section `core` key `multi_team` in your config."
+                )
+
+            class_ = import_string(bundle_config.classpath)
+            self._bundle_config[bundle_config.name] = _InternalBundleConfig(
+                bundle_class=class_,
+                kwargs=bundle_config.kwargs,
+                team_name=bundle_config.team_name,
+            )
+        self.log.info("DAG bundles loaded from path: %s", ", ".join(self._bundle_config.keys()))
+
+    def check_config_path_changes(self) -> bool:
+        """
+        Check if any configuration files have been added, removed, or modified.
+
+        :return: True if changes detected, False otherwise
+        """
+        config_path = conf.get("dag_processor", "dag_bundle_config_path", fallback="")
+        if not config_path:
+            return False
+
+        path = Path(config_path)
+        if not path.exists() or not path.is_dir():
+            return False
+
+        current_files: dict[str, float] = {}
+        for file_path in path.glob("*.json"):
+            current_files[str(file_path)] = file_path.stat().st_mtime
+
+        # Check for added or removed files
+        if set(current_files.keys()) != set(self._config_path_mtime.keys()):
+            self.log.info("DAG bundle config files added or removed")
+            return True
+
+        # Check for modified files
+        for fpath, mtime in current_files.items():
+            if fpath in self._config_path_mtime and self._config_path_mtime[fpath] != mtime:
+                self.log.info("DAG bundle config file modified: %s", fpath)
+                return True
+
+        return False

@@ -2764,6 +2764,21 @@ dag_processor:
                 "kwargs": {{}}
               }}
             ]
+    dag_bundle_config_path:
+      description: |
+        Path to a directory containing JSON files, each defining a DAG bundle configuration.
+        Each JSON file should contain a dict with ``name``, ``classpath``, and ``kwargs`` keys.
+
+        When set, this takes precedence over ``dag_bundle_config_list``.
+
+        This is particularly useful in Kubernetes environments where bundle configurations
+        can be managed via ConfigMaps mounted as files. The DAG processor will detect
+        changes to these files (additions, removals, modifications) and hot-reload
+        bundles without requiring a restart.
+      version_added: 3.2.0
+      type: string
+      example: "/opt/airflow/dag-bundles-conf"
+      default: ""
     refresh_interval:
       description: |
         How often (in seconds) to refresh, or look for new files, in a DAG bundle.
