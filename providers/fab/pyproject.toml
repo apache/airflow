@@ -56,6 +56,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -70,29 +71,30 @@ dependencies = [
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2",
-    # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
-    # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
-    # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
-    "flask>=2.2.1,<2.3",
+    "flask>=2.2.1",
     # We are tightly coupled with FAB version as we vendored-in part of FAB code related to security manager
     # This is done as part of preparation to removing FAB as dependency, but we are not ready for it yet
     # Every time we update FAB version here, please make sure that you review the classes and models in
     # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==5.2.0",  # Whenever updating the version, run test_fab_alignment.py to verify.
-    "flask-login>=0.6.2",
+    "flask-login>=0.6.2; python_version < '3.14'",
+    "flask-login>=0.6.3; python_version >= '3.14'",
     "flask-session>=0.8.0",
     "msgpack>=1.0.0",
     "flask-sqlalchemy>=3.0.5",
-    "flask-wtf>=1.1.0",
+    "flask-wtf>=1.1.0; python_version < '3.14'",
+    "flask-wtf>=1.2.2; python_version >= '3.14'",
     "jmespath>=0.7.0",
-    "werkzeug>=2.2,<4",
-    "wtforms>=3.0,<4",
+    "werkzeug>=2.2; python_version <= '3.13'",
+    "werkzeug>=3.1.6; python_version >= '3.14'",
+    "wtforms>=3.0",
     "cachetools>=6.0",
+    "marshmallow>=3",
 
     # https://github.com/dpgaspar/Flask-AppBuilder/blob/release/4.6.3/setup.py#L54C8-L54C26
     # with an exclusion to account for https://github.com/alisaifee/flask-limiter/issues/479
-    "flask_limiter>3,<4,!=3.13",
+    "flask_limiter>3,!=3.13",
 ]
 
 # The optional dependencies should be modified in place in the generated file

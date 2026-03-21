@@ -217,14 +217,14 @@ jobs:
           fi
 
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061  # v4.2.0
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320  # v5.0.0
         with:
           version: 9
 
       - name: "Setup Node.js"
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
           cache-dependency-path: 'registry/pnpm-lock.yaml'
 

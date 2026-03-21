@@ -25,10 +25,11 @@ import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
@@ -76,7 +77,8 @@ export const TaskInstance = () => {
     },
   );
 
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
+  const { summariesByRunId } = useGridTiSummariesStream({ dagId, runIds: runId ? [runId] : [] });
+  const gridTISummaries = summariesByRunId.get(runId);
 
   const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
   const taskCount = Object.entries(taskInstanceSummary?.child_states ?? {})
@@ -98,8 +100,13 @@ export const TaskInstance = () => {
     ];
   }
 
-  const { tabs: displayTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
+  const { tabs: requiredActionTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
     autoRedirect: true,
+    refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
+  });
+
+  const { tabs: displayTabs } = useHITLReviewTabs({ dagId, dagRunId: runId, taskId }, requiredActionTabs, {
+    mapIndex: parsedMapIndex,
     refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
   });
 

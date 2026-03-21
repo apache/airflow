@@ -51,7 +51,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10,!=3.14.*"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.8.0",
-    "cassandra-driver>=3.29.3; python_version >= '3.13'",
+    "cassandra-driver>=3.29.3; python_version >= '3.13' and python_version < '3.14'",
     "cassandra-driver>=3.29.2; python_version >= '3.12' and python_version < '3.13'",
     "cassandra-driver>=3.29.1; python_version < '3.12'",
 ]

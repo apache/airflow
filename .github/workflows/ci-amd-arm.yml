@@ -40,7 +40,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-  UV_VERSION: "0.10.10"  # Keep this comment to allow automatic replacement of uv version
+  UV_VERSION: "0.10.12"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 
 concurrency:
@@ -116,6 +116,8 @@ jobs:
       run-helm-tests: ${{ steps.selective-checks.outputs.run-helm-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       run-mypy: ${{ steps.selective-checks.outputs.run-mypy }}
+      run-remote-logging-elasticsearch-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-elasticsearch-e2e-tests }}
+      run-remote-logging-s3-e2e-tests: ${{ steps.selective-checks.outputs.run-remote-logging-s3-e2e-tests }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
@@ -772,6 +774,8 @@ jobs:
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       run-task-sdk-integration-tests: ${{ needs.build-info.outputs.run-task-sdk-integration-tests }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      run-remote-logging-elasticsearch-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-elasticsearch-e2e-tests }}
+      run-remote-logging-s3-e2e-tests: ${{ needs.build-info.outputs.run-remote-logging-s3-e2e-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
@@ -962,7 +966,10 @@ jobs:
       - name: "Determine notification action"
         id: notification
         shell: bash
-        run: python3 scripts/ci/slack_notification_state.py
+        run: |
+          command -v gh >/dev/null 2>&1 || { echo "::error::gh CLI is not installed"; exit 1; }
+          gh auth status || gh auth login --with-token <<< "${GITHUB_TOKEN}"
+          python3 scripts/ci/slack_notification_state.py
         env:
           ARTIFACT_NAME: "slack-state-tests-${{ github.ref_name }}"
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
@@ -976,7 +983,7 @@ jobs:
           overwrite: true
       - name: "Notify Slack (new/changed failures)"
         if: steps.notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -992,7 +999,7 @@ jobs:
           # yamllint enable rule:line-length
       - name: "Notify Slack (still not fixed)"
         if: steps.notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -1008,7 +1015,7 @@ jobs:
           # yamllint enable rule:line-length
       - name: "Notify Slack (all tests passing)"
         if: steps.notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -1055,7 +1062,7 @@ jobs:
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh
       - name: "Download all test warning artifacts from the current build"
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3  # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           path: ./artifacts
           pattern: test-warnings-*
