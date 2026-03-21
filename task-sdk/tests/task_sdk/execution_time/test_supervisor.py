@@ -139,6 +139,7 @@ from airflow.sdk.execution_time.supervisor import (
     ActivitySubprocess,
     InProcessSupervisorComms,
     InProcessTestSupervisor,
+    _is_already_in_target_state,
     _make_process_nondumpable,
     _remote_logging_conn,
     process_log_messages_from_subprocess,
@@ -2701,6 +2702,211 @@ class TestHandleRequest:
             "message": str(error),
             "detail": error.response.json(),
         }
+
+    def test_succeed_task_idempotent_on_409_already_success(self, watched_subprocess, mocker):
+        """Test that a 409 with previous_state=success is treated as idempotent success for SucceedTask."""
+        watched_subprocess, read_socket = watched_subprocess
+
+        error = ServerResponseError(
+            message="Conflict",
+            request=httpx.Request("PATCH", "http://test"),
+            response=httpx.Response(
+                409,
+                json={
+                    "detail": {
+                        "reason": "invalid_state",
+                        "message": "TI was not in the running state so it cannot be updated",
+                        "previous_state": "success",
+                    }
+                },
+            ),
+        )
+        watched_subprocess.client.task_instances.succeed = mocker.Mock(side_effect=error)
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_frame)
+
+        # Read response — should be an ack (no error), not an error response
+        read_socket.settimeout(0.1)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        response_bytes = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(response_bytes)
+
+        assert frame.id == req_frame.id
+        # No error should be sent back
+        assert frame.error is None
+
+        # Terminal state should still be set
+        assert watched_subprocess._terminal_state == "success"
+
+    def test_succeed_task_propagates_409_when_different_state(self, watched_subprocess, mocker):
+        """Test that a 409 with a different previous_state still propagates as error."""
+        watched_subprocess, read_socket = watched_subprocess
+
+        error = ServerResponseError(
+            message="Conflict",
+            request=httpx.Request("PATCH", "http://test"),
+            response=httpx.Response(
+                409,
+                json={
+                    "detail": {
+                        "reason": "invalid_state",
+                        "message": "TI was not in the running state so it cannot be updated",
+                        "previous_state": "failed",
+                    }
+                },
+            ),
+        )
+        watched_subprocess.client.task_instances.succeed = mocker.Mock(side_effect=error)
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_frame)
+
+        # Read response — should be an error response
+        read_socket.settimeout(0.1)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        response_bytes = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(response_bytes)
+
+        assert frame.id == req_frame.id
+        assert frame.error is not None
+        assert frame.error["error"] == "API_SERVER_ERROR"
+
+    def test_retry_task_idempotent_on_409_already_retry(self, watched_subprocess, mocker):
+        """Test that a 409 with previous_state=up_for_retry is treated as idempotent for RetryTask."""
+        watched_subprocess, read_socket = watched_subprocess
+
+        error = ServerResponseError(
+            message="Conflict",
+            request=httpx.Request("PATCH", "http://test"),
+            response=httpx.Response(
+                409,
+                json={
+                    "detail": {
+                        "reason": "invalid_state",
+                        "message": "TI was not in the running state so it cannot be updated",
+                        "previous_state": "up_for_retry",
+                    }
+                },
+            ),
+        )
+        watched_subprocess.client.task_instances.retry = mocker.Mock(side_effect=error)
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        msg = RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_frame)
+
+        read_socket.settimeout(0.1)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        response_bytes = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(response_bytes)
+
+        assert frame.id == req_frame.id
+        assert frame.error is None
+        assert watched_subprocess._terminal_state == "up_for_retry"
+
+
+class TestUpdateTaskStateIfNeeded:
+    @pytest.fixture
+    def watched_subprocess(self, mocker):
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            client=mocker.Mock(),
+            process=mocker.Mock(),
+        )
+        proc._exit_code = 1
+        return proc
+
+    def test_update_task_state_if_needed_handles_conflict(self, watched_subprocess, mocker):
+        """Test that 409 Conflict in update_task_state_if_needed is handled gracefully."""
+        error = ServerResponseError(
+            message="Conflict",
+            request=httpx.Request("PATCH", "http://test"),
+            response=httpx.Response(
+                409,
+                json={
+                    "detail": {
+                        "reason": "invalid_state",
+                        "message": "TI was not in the running state so it cannot be updated",
+                        "previous_state": "success",
+                    }
+                },
+            ),
+        )
+        watched_subprocess.client.task_instances.finish = mocker.Mock(side_effect=error)
+
+        # Should not raise
+        watched_subprocess.update_task_state_if_needed()
+
+        watched_subprocess.client.task_instances.finish.assert_called_once()
+
+    def test_update_task_state_if_needed_raises_non_conflict(self, watched_subprocess, mocker):
+        """Test that non-409 errors are still raised."""
+        error = ServerResponseError(
+            message="Server Error",
+            request=httpx.Request("PATCH", "http://test"),
+            response=httpx.Response(500, json={"detail": "Internal Server Error"}),
+        )
+        watched_subprocess.client.task_instances.finish = mocker.Mock(side_effect=error)
+
+        with pytest.raises(ServerResponseError):
+            watched_subprocess.update_task_state_if_needed()
+
+
+class TestIsAlreadyInTargetState:
+    def test_matching_state(self):
+        error = ServerResponseError(
+            message="Conflict",
+            request=httpx.Request("PATCH", "http://test"),
+            response=httpx.Response(
+                409,
+                json={
+                    "detail": {
+                        "reason": "invalid_state",
+                        "previous_state": "success",
+                    }
+                },
+            ),
+        )
+        assert _is_already_in_target_state(error, "success") is True
+
+    def test_different_state(self):
+        error = ServerResponseError(
+            message="Conflict",
+            request=httpx.Request("PATCH", "http://test"),
+            response=httpx.Response(
+                409,
+                json={
+                    "detail": {
+                        "reason": "invalid_state",
+                        "previous_state": "failed",
+                    }
+                },
+            ),
+        )
+        assert _is_already_in_target_state(error, "success") is False
+
+    def test_malformed_response(self):
+        error = ServerResponseError(
+            message="Conflict",
+            request=httpx.Request("PATCH", "http://test"),
+            response=httpx.Response(409, json={"unexpected": "format"}),
+        )
+        assert _is_already_in_target_state(error, "success") is False
 
 
 class TestSetSupervisorComms:

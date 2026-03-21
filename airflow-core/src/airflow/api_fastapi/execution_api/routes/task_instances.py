@@ -363,6 +363,19 @@ def ti_update_state(
         )
 
     if previous_state != TaskInstanceState.RUNNING:
+        # Check for idempotent duplicate: if the TI is already in the exact same
+        # terminal state being requested, treat it as a successful no-op.
+        # This handles network-retry scenarios where the first request succeeded
+        # but the response was lost, causing a retry that sees the TI already
+        # in the target state.
+        requested_state = _get_requested_state(ti_patch_payload)
+        if requested_state is not None and previous_state == requested_state:
+            log.info(
+                "TI is already in the requested terminal state, treating as idempotent success",
+                previous_state=previous_state,
+                requested_state=requested_state,
+            )
+            return
         log.warning(
             "Cannot update Task Instance in invalid state",
             previous_state=previous_state,
@@ -446,6 +459,13 @@ def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag:
         task_dict = getattr(ser_dag, "task_dict")
         task_teardown_map = {k: v.is_teardown for k, v in task_dict.items()}
         _stop_remaining_tasks(task_instance=ti, task_teardown_map=task_teardown_map, session=session)
+
+
+def _get_requested_state(ti_patch_payload: TIStateUpdate) -> TaskInstanceState | None:
+    """Extract the requested terminal state from a TI state update payload."""
+    if isinstance(ti_patch_payload, (TITerminalStatePayload, TISuccessStatePayload, TIRetryStatePayload)):
+        return TaskInstanceState(ti_patch_payload.state.value)
+    return None
 
 
 def _create_ti_state_update_query_and_update_state(
