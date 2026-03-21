@@ -19,11 +19,15 @@
 import { Input, type InputProps } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
-import { forwardRef } from "react";
+import { forwardRef, type ChangeEvent, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import { useTimezone } from "src/context/timezone";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 dayjs.extend(tz);
+
+const debounceDelay = 500;
 
 type Props = {
   readonly value: string;
@@ -31,23 +35,37 @@ type Props = {
 
 export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, value, ...rest }, ref) => {
   const { selectedTimezone } = useTimezone();
+  const [displayDate, setDisplayDate] = useState(value);
+  const deboundedOnDateChange = useDebouncedCallback((e: ChangeEvent<HTMLInputElement>) => onDateChange(e), debounceDelay);
 
+  const onDateChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const valid = dayjs(event.target.value).isValid()
+    // UI Timezone -> Utc -> yyyy-mm-ddThh:mmZ
+    const utc = valid? dayjs.tz(event.target.value, selectedTimezone).toISOString() : ""
+    const local = Boolean(utc) && valid? 
+    dayjs(utc).tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT)
+      : "";
+
+    // Set display value to be from utc to local to avoid year mismatch
+    // As dayjs() parses years before 1000 incorrectly, see dayjs/issues/1237 
+    setDisplayDate(local)
+    onChange?.({...event, target:{...event.target, value: utc}})
+  };
+  
   return (
     <Input
       data-testid="datetime-input"
       onChange={(event) =>
-        onChange?.({
-          ...event,
-          target: {
-            ...event.target,
-            value: dayjs(event.target.value).isValid()
-              ? dayjs.tz(event.target.value, selectedTimezone).toISOString() // UI Timezone -> Utc -> yyyy-mm-ddThh:mm
-              : "",
-          },
-        })
+        {
+          const local = dayjs(event.target.value).isValid()? event.target.value : ""
+          setDisplayDate(local)
+          // Parse input to UTC once user finishes typing
+          deboundedOnDateChange(event)
+        }
       }
       ref={ref}
       type="datetime-local"
+      value={displayDate}
       {...rest}
     />
   );
