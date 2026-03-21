@@ -297,7 +297,7 @@ class TestAssetManager:
 
     @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
     def test_partitioned_asset_event_does_not_trigger_non_partitioned_dag(self, session, mock_task_instance):
-        """Issue #63734: partitioned asset events must not queue non-partition-aware DAGs."""
+        """partitioned asset events (events with partition key) must not queue non-partition-aware Dags."""
         asm = AssetModel(uri="test://asset/", name="test_asset", group="asset")
         session.add(asm)
         dag = DagModel(dag_id="consumer_dag", is_paused=False, bundle_name="testing", timetable_partitioned=False)
