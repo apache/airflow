@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from airbyte_api.models import JobCreateRequest, JobResponse, JobStatusEnum, JobTypeEnum
 
 from airflow.models import Connection
@@ -85,3 +86,66 @@ class TestAirbyteTriggerSyncOp:
 
         mock_cancel_job.assert_called_once_with(self.job_id)
         mock_get_job_status.assert_called_once_with(self.job_id)
+
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.cancel_job")
+    def test_execute_complete_timeout_cancels_job(self, mock_cancel_job, create_connection_without_db):
+
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
+        create_connection_without_db(conn)
+
+        op = AirbyteTriggerSyncOperator(
+            task_id="test_Airbyte_op",
+            airbyte_conn_id=self.airbyte_conn_id,
+            connection_id=self.connection_id,
+            wait_seconds=self.wait_seconds,
+            timeout=self.timeout,
+            deferrable=True,
+            execution_timeout=None,
+        )
+
+        timeout_event = {
+            "status": "timeout",
+            "message": "Job run 1 has reached execution timeout.",
+            "job_id": self.job_id,
+        }
+
+        with pytest.raises(RuntimeError, match="has reached execution timeout"):
+            op.execute_complete(
+                context={},
+                event=timeout_event,
+            )
+
+        mock_cancel_job.assert_called_once_with(
+            job_id=self.job_id,
+        )
+
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.cancel_job")
+    def test_execute_complete_timeout_cancel_job_does_not_mask_original_error(
+        self, mock_cancel_job, create_connection_without_db
+    ):
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
+        create_connection_without_db(conn)
+
+        op = AirbyteTriggerSyncOperator(
+            task_id="test_airbyte_op",
+            airbyte_conn_id=self.airbyte_conn_id,
+            connection_id=self.connection_id,
+            wait_seconds=self.wait_seconds,
+            timeout=self.timeout,
+            deferrable=True,
+            execution_timeout=None,
+        )
+
+        mock_cancel_job.side_effect = Exception("Cancelation failed")
+
+        timeout_event = {
+            "status": "timeout",
+            "message": "Job run 1 has reached execution timeout.",
+            "job_id": self.job_id,
+        }
+
+        # Task should still fail due to timeout.
+        with pytest.raises(RuntimeError, match="execution timeout"):
+            op.execute_complete(context={}, event=timeout_event)
+
+        mock_cancel_job.assert_called_once_with(job_id=self.job_id)
