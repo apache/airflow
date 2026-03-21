@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Box } from "@chakra-ui/react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Flex, Box, Center, Button, Icon } from "@chakra-ui/react";
+import { LuClock, LuTriangleAlert } from "react-icons/lu";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
@@ -31,6 +32,11 @@ import {
   getMaxVersionNumber,
   type GridRunWithVersionFlags,
 } from "./useGridRunsWithVersionFlags";
+
+const ICON_GAP_PX = 4;
+const ICON_HEIGHT_PX = 16;
+const BAR_PADDING_BOTTOM_PX = 2;
+const BAR_MIN_HEIGHT_PX = 14;
 
 type Props = {
   readonly max: number;
@@ -47,9 +53,23 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
   const isSelected = runId === run.run_id;
   const isHovered = hoveredRunId === run.run_id;
   const search = searchParams.toString();
+  const isFailed = (run.state ?? "").toLowerCase() === "failed";
+  const hasMissedDeadline = Boolean(run.has_missed_deadline);
+  const barHeightPx = max > 0 ? (run.duration / max) * BAR_HEIGHT : 0;
 
   const handleMouseEnter = () => setHoveredRunId(run.run_id);
   const handleMouseLeave = () => setHoveredRunId(undefined);
+
+  const navigate = useNavigate();
+
+  const handleDeadlineIconClick = () => {
+    void navigate({ pathname: `/dags/${dagId}/runs/${run.run_id}/deadlines`, search });
+  };
+
+  // Account for minHeight and padding-bottom so icons always appear above the rendered bar
+  const effectiveBarHeightPx = Math.max(barHeightPx, BAR_MIN_HEIGHT_PX) + BAR_PADDING_BOTTOM_PX;
+  const failedIconBottom = effectiveBarHeightPx + ICON_GAP_PX;
+  const deadlineIconBottom = isFailed ? failedIconBottom + ICON_HEIGHT_PX : failedIconBottom;
 
   return (
     <Box
@@ -59,6 +79,29 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
       position="relative"
       transition="background-color 0.2s"
     >
+      {hasMissedDeadline ? (
+        <Center bottom={`${deadlineIconBottom}px`} left={0} position="absolute" right={0} zIndex={2}>
+          <Button
+            _focusVisible={{ boxShadow: "none" }}
+            borderRadius={0}
+            h="auto"
+            lineHeight={1}
+            m={0}
+            minH={0}
+            minW={0}
+            onClick={handleDeadlineIconClick}
+            p={0}
+            variant="ghost"
+          >
+            <Icon as={LuClock} boxSize={3} color="warning.solid" />
+          </Button>
+        </Center>
+      ) : undefined}
+      {isFailed ? (
+        <Center bottom={`${failedIconBottom}px`} left={0} position="absolute" right={0} zIndex={2}>
+          <Icon as={LuTriangleAlert} boxSize={3} color="failed.solid" />
+        </Center>
+      ) : undefined}
       {run.isBundleVersionChange &&
       (showVersionIndicatorMode === VersionIndicatorOptions.BUNDLE_VERSION ||
         showVersionIndicatorMode === VersionIndicatorOptions.ALL) ? (

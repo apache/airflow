@@ -41,6 +41,7 @@ import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
 import {
   GRID_HEADER_HEIGHT_PX,
+  GRID_HEADER_ICON_SPACE_PX,
   GRID_HEADER_PADDING_PX,
   GRID_OUTER_PADDING_PX,
   ROW_HEIGHT,
@@ -184,11 +185,21 @@ export const Grid = ({
         {/* Grid header, both bgs are needed to hide elements during horizontal and vertical scroll */}
         <Flex bg="bg" display="flex" position="sticky" pt={`${GRID_HEADER_PADDING_PX}px`} top={0} zIndex={2}>
           <Box bg="bg" flexGrow={1} left={0} minWidth="200px" position="sticky" zIndex={1}>
-            <Flex flexDirection="column-reverse" height={`${GRID_HEADER_HEIGHT_PX}px`} position="relative">
+            <Flex
+              flexDirection="column-reverse"
+              height={`${GRID_HEADER_HEIGHT_PX + GRID_HEADER_ICON_SPACE_PX}px`}
+              position="relative"
+            >
               {Boolean(gridRuns?.length) && (
                 <>
-                  <DurationTick bottom={`${GRID_HEADER_HEIGHT_PX - 8}px`} duration={max} />
-                  <DurationTick bottom={`${GRID_HEADER_HEIGHT_PX / 2 - 4}px`} duration={max / 2} />
+                  <DurationTick
+                    bottom={`${GRID_HEADER_HEIGHT_PX + GRID_HEADER_ICON_SPACE_PX - 8}px`}
+                    duration={max}
+                  />
+                  <DurationTick
+                    bottom={`${GRID_HEADER_HEIGHT_PX / 2 + GRID_HEADER_ICON_SPACE_PX - 4}px`}
+                    duration={max / 2}
+                  />
                 </>
               )}
             </Flex>
@@ -214,7 +225,7 @@ export const Grid = ({
                 <Link to={`/dags/${dagId}`}>
                   <IconButton
                     aria-label={translate("grid.buttons.resetToLatest")}
-                    height={`${GRID_HEADER_HEIGHT_PX - 2}px`}
+                    height={`${GRID_HEADER_HEIGHT_PX + GRID_HEADER_ICON_SPACE_PX - 2}px`}
                     loading={isLoading}
                     minW={0}
                     ml={1}

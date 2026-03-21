@@ -74,6 +74,8 @@
   "dagRun_other": "Dag Runs",
   "dagRunId": "Dag Run ID",
   "dagWarnings": "Dag warnings/errors",
+  "deadline_one": "Deadline",
+  "deadline_other": "Deadlines",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
   "delete": "Delete",
