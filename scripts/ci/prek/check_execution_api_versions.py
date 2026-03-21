@@ -44,19 +44,10 @@ def get_target_branch() -> str:
     return os.environ.get("GITHUB_BASE_REF") or os.environ.get("DEFAULT_BRANCH") or "main"
 
 
-def get_changed_files_ci() -> list[str]:
-    """Get changed files in CI. Uses HEAD~1..HEAD to work with shallow clone (fetch-depth: 2)."""
-    result = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD~1..HEAD"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return [f for f in result.stdout.strip().splitlines() if f]
-
-
-def get_changed_files_local() -> list[str]:
-    """Get staged files in a local (non-CI) environment."""
+def get_changed_files(filenames: list[str]) -> list[str]:
+    """Get changed files. Uses filenames from prek when provided, else staged files for local runs."""
+    if filenames:
+        return filenames
     result = subprocess.run(
         ["git", "diff", "--cached", "--name-only"],
         capture_output=True,
@@ -113,11 +104,7 @@ def schemas_equal(schema1: dict, schema2: dict) -> bool:
 
 
 def main() -> int:
-    is_ci = os.environ.get("CI")
-    if is_ci:
-        changed_files = get_changed_files_ci()
-    else:
-        changed_files = get_changed_files_local()
+    changed_files = get_changed_files(sys.argv[1:])
 
     datamodel_files = [
         f for f in changed_files if f.startswith(DATAMODELS_PREFIX) and not f.endswith("__init__.py")
