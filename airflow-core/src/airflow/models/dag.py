@@ -667,7 +667,7 @@ class DagModel(Base):
 
         if adrq_by_dag:
             log.info(
-                "Asset-triggered DAGs with queued events: %s",
+                "Asset-triggered Dags with queued events: %s",
                 {dag_id: len(adrqs) for dag_id, adrqs in adrq_by_dag.items()},
             )
 
@@ -707,7 +707,7 @@ class DagModel(Base):
             )
             if exclusion_list:
                 log.info(
-                    "Asset-triggered DAGs at max_active_runs, deferring: %s",
+                    "Asset-triggered Dags at max_active_runs, deferring: %s",
                     exclusion_list,
                 )
                 asset_triggered_dag_ids -= exclusion_list

@@ -31,7 +31,7 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import CTE, and_, delete, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import DBAPIError, OperationalError
@@ -107,6 +107,7 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from pendulum.datetime import DateTime
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
     from sqlalchemy.sql.selectable import Subquery
@@ -2106,10 +2107,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Delete only consumed ADRQ rows to avoid dropping newly queued events
             # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
             adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
-            result = session.execute(
-                delete(AssetDagRunQueue).where(
-                    tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
-                )
+            result = cast(
+                "CursorResult",
+                session.execute(
+                    delete(AssetDagRunQueue).where(
+                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                    )
+                ),
             )
             self.log.info(
                 "Deleted %d ADRQ rows for '%s'",
