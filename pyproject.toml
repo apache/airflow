@@ -772,6 +772,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 # TID253: Banned top level imports, e.g. pandas, numpy
 # S101: Use `assert`
 # TRY002: Use `raise Exception`
+"scripts/tests/*" = ["D", "S101", "TRY002"]
 "dev/perf/*" = ["TID253"]
 "dev/check_files.py" = ["S101"]
 "dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
@@ -786,7 +787,6 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 "dev/registry/tests/*" = ["S101"]
-"scripts/tests/*" = ["S101"]
 
 # Shared distributions SHOULD use relative imports when referencing each other
 # This one disables 'ban-relative-imports'.
