@@ -479,3 +479,43 @@ class TestStatsdIngress:
             "secretName": "some-secret",
         }
         assert jmespath.search("spec.ingressClassName", docs[0]) == "ingress-class"
+
+
+class TestStatsdServiceMonitor:
+    """Tests Statsd ServiceMonitor."""
+
+    def test_statsd_service_monitor(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "enabled": True,
+                    "serviceMonitor": {
+                        "enabled": True,
+                        "honorLabels": True,
+                        "interval": "30s",
+                        "scrapeTimeout": "10s",
+                        "labels": {"custom": "label"},
+                    },
+                }
+            },
+            show_only=["templates/statsd/statsd-servicemonitor.yaml"],
+        )
+
+        doc = docs[0]
+
+        assert jmespath.search("metadata.name", doc) == "release-name-statsd"
+        assert jmespath.search("metadata.labels.component", doc) == "statsd-service-monitor"
+        assert jmespath.search("metadata.labels.custom", doc) == "label"
+
+        assert jmespath.search("spec.endpoints[0].path", doc) == "/metrics"
+        assert jmespath.search("spec.endpoints[0].port", doc) == "statsd-scrape"
+        assert jmespath.search("spec.endpoints[0].honorLabels", doc) is True
+        assert jmespath.search("spec.endpoints[0].interval", doc) == "30s"
+        assert jmespath.search("spec.endpoints[0].scrapeTimeout", doc) == "10s"
+
+        assert jmespath.search("spec.selector.matchLabels", doc) == {
+            "tier": "airflow",
+            "component": "statsd",
+        }
+
+        assert jmespath.search("spec.namespaceSelector.matchNames[0]", doc) == "default"

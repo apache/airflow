@@ -1,0 +1,57 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+######################################
+## Airflow Statsd ServiceMonitor
+######################################
+{{- if and .Values.statsd.enabled .Values.statsd.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "airflow.fullname" . }}-statsd
+  namespace: {{ default .Release.Namespace .Values.statsd.serviceMonitor.namespace | quote }}
+  labels:
+    tier: airflow
+    component: statsd-service-monitor
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    app.kubernetes.io/component: metrics
+    {{- with .Values.statsd.serviceMonitor.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  endpoints:
+    - path: /metrics
+      honorLabels: {{ .Values.statsd.serviceMonitor.honorLabels }}
+      port: statsd-scrape
+      {{- if .Values.statsd.serviceMonitor.interval }}
+      interval: {{ .Values.statsd.serviceMonitor.interval }}
+      {{- end }}
+      {{- if .Values.statsd.serviceMonitor.scrapeTimeout }}
+      scrapeTimeout: {{ .Values.statsd.serviceMonitor.scrapeTimeout }}
+      {{- end }}
+  selector:
+    matchLabels:
+      tier: airflow
+      component: statsd
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+{{- end }}
