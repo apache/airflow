@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useDagServiceDeleteDag, useDagServiceGetDagsUiKey } from "openapi/queries";
 import { useDagServiceGetDagKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
 export const useDeleteDag = ({
   dagId,
@@ -33,14 +34,15 @@ export const useDeleteDag = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("toaster.delete.error", {
-        resourceName: translate("dag_one"),
-      }),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    createErrorToaster(
+      error,
+      {
+        params: { resourceName: translate("dag_one") },
+        titleKey: "toaster.delete.error",
+      },
+      translate,
+    );
   };
 
   const onSuccess = async () => {

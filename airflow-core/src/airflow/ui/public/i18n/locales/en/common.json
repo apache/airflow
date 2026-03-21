@@ -103,6 +103,12 @@
     "notFound": "Page Not Found",
     "title": "Error"
   },
+  "errors": {
+    "forbidden": {
+      "description": "You do not have permission to perform this action.",
+      "title": "Access Denied"
+    }
+  },
   "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
@@ -313,10 +319,6 @@
         "description": "{{resourceName}} has been successfully deleted.",
         "title": "Delete {{resourceName}} Request Submitted"
       }
-    },
-    "forbidden": {
-      "description": "You do not have permission to perform this action.",
-      "title": "Access Denied"
     },
     "import": {
       "error": "Import {{resourceName}} Request Failed",
