@@ -89,7 +89,7 @@ export const useFilterConfigs = () => {
       label: translate("common:dagRun.conf"),
       type: FilterTypes.TEXT,
     },
-    [SearchParamsKeys.CONSUMING_ASSET]: {
+    [SearchParamsKeys.CONSUMING_ASSET_PATTERN]: {
       hotkeyDisabled: true,
       icon: <FiDatabase />,
       label: translate("common:consumingAsset"),
