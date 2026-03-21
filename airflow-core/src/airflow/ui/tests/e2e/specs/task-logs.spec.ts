@@ -18,10 +18,17 @@
  */
 import { expect, test } from "@playwright/test";
 import { AUTH_FILE, testConfig } from "playwright.config";
+import {
+  apiCreateDagRun,
+  uniqueRunId,
+  waitForDagReady,
+  waitForDagRunStatus,
+} from "tests/e2e/utils/test-helpers";
 
 import { TaskInstancePage } from "../pages/TaskInstancePage";
 
 test.describe("Verify task logs display", () => {
+  // Serial mode is required: all tests share the same dagRunId from beforeAll.
   test.describe.configure({ mode: "serial" });
 
   const testDagId = testConfig.testDag.id;
@@ -29,23 +36,37 @@ test.describe("Verify task logs display", () => {
 
   let dagRunId: string;
 
+  // API-based setup replaces UI-based triggerDagAndWaitForSuccess to avoid
+  // dialog race conditions and URL-based dagRunId extraction.
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(120_000);
 
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
-    const taskInstancePage = new TaskInstancePage(page);
 
-    await taskInstancePage.triggerDagAndWaitForSuccess(testDagId);
+    await waitForDagReady(page, testDagId);
 
-    const url = page.url();
-    const match = /runs\/([^/]+)/.exec(url);
+    // Unpause the DAG so the scheduler can actually execute it
+    const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080";
 
-    dagRunId = match?.[1] ?? "";
+    await page.request.patch(`${baseUrl}/api/v2/dags/${testDagId}`, {
+      data: { is_paused: false },
+    });
 
-    if (!dagRunId) {
-      throw new Error(`Could not extract dagRunId from URL: ${url}`);
-    }
+    dagRunId = uniqueRunId("logs_run");
+
+    await apiCreateDagRun(page, testDagId, {
+      dag_run_id: dagRunId,
+      logical_date: new Date().toISOString(),
+    });
+
+    // Wait for DAG run to complete — logs are only available after execution.
+    await waitForDagRunStatus(page, {
+      dagId: testDagId,
+      expectedState: "success",
+      runId: dagRunId,
+      timeout: 120_000,
+    });
 
     await context.close();
   });
@@ -78,7 +99,9 @@ test.describe("Verify task logs display", () => {
 
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
 
-    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
+    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, {
+      timeout: 30_000,
+    });
   });
 
   test("Verify log settings", async ({ page }) => {
@@ -87,7 +110,9 @@ test.describe("Verify task logs display", () => {
     await expect(virtualizedList).toBeVisible({ timeout: 30_000 });
 
     // Verify timestamps are visible initially
-    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/);
+    await expect(virtualizedList).toContainText(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}]/, {
+      timeout: 30_000,
+    });
 
     await page.getByTestId("log-settings-button").click();
     await page.getByTestId("log-settings-timestamp").click();

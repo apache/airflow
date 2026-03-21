@@ -16,9 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
 import { AUTH_FILE, testConfig } from "playwright.config";
 import { DagRunsPage } from "tests/e2e/pages/DagRunsPage";
+import {
+  apiCreateDagRun,
+  apiSetDagRunState,
+  uniqueRunId,
+  waitForDagReady,
+} from "tests/e2e/utils/test-helpers";
 
 test.describe("DAG Runs Page", () => {
   test.setTimeout(60_000);
@@ -30,96 +36,41 @@ test.describe("DAG Runs Page", () => {
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
-    const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";
 
-    // Wait for Dags to be parsed before making API calls
-    await expect
-      .poll(
-        async () => {
-          const r1 = await page.request.get(`${baseUrl}/api/v2/dags/${testDagId1}`);
-          const r2 = await page.request.get(`${baseUrl}/api/v2/dags/${testDagId2}`);
-
-          return r1.ok() && r2.ok();
-        },
-        { intervals: [2000], timeout: 60_000 },
-      )
-      .toBe(true);
+    // Wait for both DAGs to be parsed before making API calls
+    await waitForDagReady(page, testDagId1);
+    await waitForDagReady(page, testDagId2);
 
     const timestamp = Date.now();
 
-    // Trigger first DAG run and mark as failed
-    const runId1 = `test_run_failed_${timestamp}`;
+    // Create first DAG run and mark as failed (unique ID per worker)
+    const runId1 = uniqueRunId("dagrun_failed");
     const logicalDate1 = new Date(timestamp).toISOString();
-    const triggerResponse1 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId1}/dagRuns`, {
-      data: JSON.stringify({
-        dag_run_id: runId1,
-        logical_date: logicalDate1,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
+
+    await apiCreateDagRun(page, testDagId1, {
+      dag_run_id: runId1,
+      logical_date: logicalDate1,
     });
+    await apiSetDagRunState(page, { dagId: testDagId1, runId: runId1, state: "failed" });
 
-    expect(triggerResponse1.ok()).toBeTruthy();
-    const runData1 = (await triggerResponse1.json()) as { dag_run_id: string };
-
-    // Mark the first run as failed
-    const patchResponse1 = await page.request.patch(
-      `${baseUrl}/api/v2/dags/${testDagId1}/dagRuns/${runData1.dag_run_id}`,
-      {
-        data: JSON.stringify({ state: "failed" }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    expect(patchResponse1.ok()).toBeTruthy();
-
-    // Trigger second DAG run and mark as success
-    const runId2 = `test_run_success_${timestamp}`;
+    // Create second DAG run and mark as success
+    const runId2 = uniqueRunId("dagrun_success");
     const logicalDate2 = new Date(timestamp + 60_000).toISOString();
-    const triggerResponse2 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId1}/dagRuns`, {
-      data: JSON.stringify({
-        dag_run_id: runId2,
-        logical_date: logicalDate2,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
+
+    await apiCreateDagRun(page, testDagId1, {
+      dag_run_id: runId2,
+      logical_date: logicalDate2,
     });
+    await apiSetDagRunState(page, { dagId: testDagId1, runId: runId2, state: "success" });
 
-    expect(triggerResponse2.ok()).toBeTruthy();
-    const runData2 = (await triggerResponse2.json()) as { dag_run_id: string };
-
-    // Mark the second run as success
-    const patchResponse2 = await page.request.patch(
-      `${baseUrl}/api/v2/dags/${testDagId1}/dagRuns/${runData2.dag_run_id}`,
-      {
-        data: JSON.stringify({ state: "success" }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    expect(patchResponse2.ok()).toBeTruthy();
-
-    // Trigger a run for a different DAG (for DAG ID filtering test)
-    const runId3 = `test_run_other_dag_${timestamp}`;
+    // Create a run for a different DAG (for DAG ID filtering test)
+    const runId3 = uniqueRunId("dagrun_other");
     const logicalDate3 = new Date(timestamp + 120_000).toISOString();
 
-    const triggerResponse3 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId2}/dagRuns`, {
-      data: JSON.stringify({
-        dag_run_id: runId3,
-        logical_date: logicalDate3,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
+    await apiCreateDagRun(page, testDagId2, {
+      dag_run_id: runId3,
+      logical_date: logicalDate3,
     });
-
-    expect(triggerResponse3.ok()).toBeTruthy();
 
     await context.close();
   });

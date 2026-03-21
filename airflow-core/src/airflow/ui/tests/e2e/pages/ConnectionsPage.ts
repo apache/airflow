@@ -18,6 +18,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { waitForStableRowCount } from "tests/e2e/utils/test-helpers";
 
 type ConnectionDetails = {
   conn_type: string;
@@ -138,7 +139,7 @@ export class ConnectionsPage extends BasePage {
       return false;
     }
     const row = await this.findConnectionRow(connectionId);
-    const visible = row !== null;
+    const visible = row !== undefined;
 
     return visible;
   }
@@ -210,12 +211,18 @@ export class ConnectionsPage extends BasePage {
     }
 
     if (details.conn_type !== undefined && details.conn_type !== "") {
-      // Click the select field to open the dropdown
+      // Wait for the connection form to fully render before interacting with combobox.
+      // On Firefox, the form elements may take longer to mount after the dialog opens.
       const selectCombobox = this.page.getByRole("combobox").first();
 
-      await expect(selectCombobox).toBeEnabled({ timeout: 25_000 });
-
-      await selectCombobox.click({ timeout: 3000 });
+      // Firefox: combobox may take longer to mount after dialog opens.
+      // Wait for dialog to fully render, then retry the interaction.
+      await this.page.waitForLoadState("domcontentloaded");
+      await expect(async () => {
+        await selectCombobox.waitFor({ state: "attached", timeout: 10_000 });
+        await expect(selectCombobox).toBeEnabled({ timeout: 5000 });
+        await selectCombobox.click({ timeout: 5000 });
+      }).toPass({ intervals: [1000, 2000, 3000], timeout: 45_000 });
 
       // Wait for options to appear and click the matching option
       const option = this.page.getByRole("option", { name: new RegExp(details.conn_type, "i") }).first();
@@ -302,33 +309,10 @@ export class ConnectionsPage extends BasePage {
 
   // Get all connection IDs from the current page
   public async getConnectionIds(): Promise<Array<string>> {
-    await expect(this.page.locator("tbody tr").first()).toBeVisible({ timeout: 5000 });
-
-    let stableRowCount = 0;
-
-    await expect
-      .poll(
-        async () => {
-          const count1 = await this.page.locator("tbody tr").count();
-
-          await this.page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
-          const count2 = await this.page.locator("tbody tr").count();
-
-          if (count1 === count2 && count1 > 0) {
-            stableRowCount = count1;
-
-            return true;
-          }
-
-          return false;
-        },
-        { intervals: [100, 200, 500], timeout: 10_000 },
-      )
-      .toBeTruthy()
-      .catch(() => {
-        // If timeout, just use current count
-        stableRowCount = 0;
-      });
+    const rowLocator = this.page.locator("tbody tr");
+    const stableRowCount = await waitForStableRowCount(this.page, rowLocator, { timeout: 10_000 }).catch(
+      () => 0,
+    );
 
     if (stableRowCount === 0) {
       return [];
@@ -404,14 +388,8 @@ export class ConnectionsPage extends BasePage {
           }
 
           if (searchTerm === "") {
-            // Get count twice to ensure it's stable
-            const count1 = ids.length;
-
-            await this.page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
-            const count2 = await this.getConnectionIds().then((allIds) => allIds.length);
-
-            // Stable when count doesn't change
-            return count1 === count2 && count1 > 0;
+            // Stability already guaranteed by waitForStableRowCount inside getConnectionIds()
+            return ids.length > 0;
           }
 
           // All visible IDs should contain the search term (case-insensitive)
@@ -436,7 +414,7 @@ export class ConnectionsPage extends BasePage {
     expect(rowText).toContain(expectedType);
   }
 
-  private async findConnectionRow(connectionId: string): Promise<Locator | null> {
+  private async findConnectionRow(connectionId: string): Promise<Locator | undefined> {
     // Try search first (faster)
     const hasSearch = await this.searchInput.isVisible({ timeout: 500 }).catch(() => false);
 
@@ -444,17 +422,17 @@ export class ConnectionsPage extends BasePage {
       return await this.findConnectionRowUsingSearch(connectionId);
     }
 
-    return null;
+    return undefined;
   }
 
-  private async findConnectionRowUsingSearch(connectionId: string): Promise<Locator | null> {
+  private async findConnectionRowUsingSearch(connectionId: string): Promise<Locator | undefined> {
     await this.searchConnections(connectionId);
 
     // Check if table is visible (without throwing)
     const isTableVisible = await this.connectionsTable.isVisible({ timeout: 5000 }).catch(() => false);
 
     if (!isTableVisible) {
-      return null;
+      return undefined;
     }
 
     const row = this.page.locator("tbody tr").filter({ hasText: connectionId }).first();
@@ -462,7 +440,7 @@ export class ConnectionsPage extends BasePage {
     const rowExists = await row.isVisible({ timeout: 3000 }).catch(() => false);
 
     if (!rowExists) {
-      return null;
+      return undefined;
     }
 
     return row;
@@ -489,24 +467,9 @@ export class ConnectionsPage extends BasePage {
         });
 
       // Wait for row count to stabilize
-      await expect
-        .poll(
-          async () => {
-            const count1 = await this.page.locator("tbody tr").count();
-
-            if (count1 === 0) return true;
-
-            await this.page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
-            const count2 = await this.page.locator("tbody tr").count();
-
-            return count1 === count2;
-          },
-          { timeout: 15_000 },
-        )
-        .toBeTruthy()
-        .catch(() => {
-          // Timeout - proceed anyway
-        });
+      await waitForStableRowCount(this.page, this.page.locator("tbody tr"), { timeout: 15_000 }).catch(() => {
+        // Timeout - proceed anyway
+      });
     }
   }
 }

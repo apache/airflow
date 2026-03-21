@@ -69,10 +69,15 @@ export class DagCalendarTab extends BasePage {
     for (let i = 0; i < count; i++) {
       const cell = this.activeCells.nth(i);
 
-      await cell.hover();
-      await expect(this.tooltip).toBeVisible({ timeout: 20_000 });
+      // Firefox sometimes fails to trigger tooltips on hover.
+      // Retry the hover + tooltip visibility check to handle this.
+      let text = "";
 
-      const text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
+      await expect(async () => {
+        await cell.hover({ force: true });
+        await expect(this.tooltip).toBeVisible({ timeout: 5000 });
+        text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
+      }).toPass({ intervals: [1000], timeout: 20_000 });
 
       if (text.includes("success")) states.push("success");
       if (text.includes("failed")) states.push("failed");
@@ -109,17 +114,17 @@ export class DagCalendarTab extends BasePage {
   }
 
   private async waitForCalendarReady(): Promise<void> {
-    await this.page.getByTestId("dag-calendar-root").waitFor({ state: "visible", timeout: 120_000 });
+    await this.page.getByTestId("dag-calendar-root").waitFor({ state: "visible", timeout: 60_000 });
 
-    await this.page.getByTestId("calendar-current-period").waitFor({ state: "visible", timeout: 120_000 });
+    await this.page.getByTestId("calendar-current-period").waitFor({ state: "visible", timeout: 60_000 });
 
     const overlay = this.page.getByTestId("calendar-loading-overlay");
 
     if (await overlay.isVisible().catch(() => false)) {
-      await overlay.waitFor({ state: "hidden", timeout: 120_000 });
+      await overlay.waitFor({ state: "hidden", timeout: 60_000 });
     }
 
-    await this.page.getByTestId("calendar-grid").waitFor({ state: "visible", timeout: 120_000 });
+    await this.page.getByTestId("calendar-grid").waitFor({ state: "visible", timeout: 60_000 });
 
     await this.page.waitForFunction(() => {
       const cells = document.querySelectorAll('[data-testid="calendar-cell"]');
