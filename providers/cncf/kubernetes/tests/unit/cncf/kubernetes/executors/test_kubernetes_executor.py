@@ -37,6 +37,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
 )
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
+    KubernetesJob,
     KubernetesResults,
     KubernetesWatch,
 )
@@ -2095,5 +2096,198 @@ class TestKubernetesExecutorMultiTeam:
 
             # Should return the team-specific namespace from the executor's conf
             assert namespace == "team-a-ns"
+        finally:
+            executor.end()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Callbacks require Airflow 3.0+")
+class TestKubernetesExecutorCallbackSupport:
+    """Tests for executor callback support in KubernetesExecutor."""
+
+    @staticmethod
+    def _make_callback_workload(callback_id="12345678-1234-5678-1234-567812345678"):
+        from airflow.executors import workloads
+        from airflow.executors.workloads.base import BundleInfo
+        from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
+
+        callback_data = CallbackDTO(
+            id=callback_id,
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.module.my_callback", "kwargs": {}},
+        )
+        return workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path="test_dag.py",
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="executor_callbacks/test_dag/run_1/12345678",
+        )
+
+    def test_supports_callbacks_flag_is_true(self):
+        assert KubernetesExecutor.supports_callbacks is True
+
+    def test_queue_workload_with_callback(self):
+        executor = KubernetesExecutor()
+        workload = self._make_callback_workload()
+
+        executor.queue_workload(workload, session=None)
+
+        assert workload.callback.id in executor.queued_callbacks
+        assert executor.queued_callbacks[workload.callback.id] is workload
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_process_callback_workload(self, mock_get_kube_client, mock_kubernetes_job_watcher):
+        executor = KubernetesExecutor()
+        executor.job_id = 5
+        executor.start()
+
+        try:
+            workload = self._make_callback_workload()
+            callback_key = workload.callback.key
+
+            executor.queued_callbacks[callback_key] = workload
+            executor._process_workloads([workload])
+
+            # Callback should be removed from queued_callbacks
+            assert callback_key not in executor.queued_callbacks
+            # Callback should be added to running
+            assert callback_key in executor.running
+            # Should be on the task_queue for pod creation
+            assert not executor.task_queue.empty()
+        finally:
+            executor.end()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_callback_success(
+        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        from airflow.utils.state import CallbackState
+
+        executor = KubernetesExecutor()
+        executor.job_id = 5
+        executor.start()
+
+        try:
+            callback_key = "12345678-1234-5678-1234-567812345678"
+            executor.running = {callback_key}
+
+            # Pod succeeded (state=None means success in K8s executor)
+            results = KubernetesResults(
+                callback_key, None, "callback-pod", "default", "resource_version", None
+            )
+            executor._change_state(results)
+
+            assert executor.event_buffer[callback_key] == (CallbackState.SUCCESS, None)
+            assert callback_key not in executor.running
+            mock_delete_pod.assert_called_once_with(pod_name="callback-pod", namespace="default")
+        finally:
+            executor.end()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_callback_failure(
+        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        from airflow.utils.state import CallbackState
+
+        executor = KubernetesExecutor()
+        executor.job_id = 5
+        executor.start()
+
+        try:
+            callback_key = "12345678-1234-5678-1234-567812345678"
+            executor.running = {callback_key}
+
+            results = KubernetesResults(
+                callback_key,
+                TaskInstanceState.FAILED,
+                "callback-pod",
+                "default",
+                "resource_version",
+                None,
+            )
+            executor._change_state(results)
+
+            assert executor.event_buffer[callback_key] == (CallbackState.FAILED, None)
+            assert callback_key not in executor.running
+        finally:
+            executor.end()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_change_state_callback_adopted(self, mock_get_kube_client, mock_kubernetes_job_watcher):
+        executor = KubernetesExecutor()
+        executor.job_id = 5
+        executor.start()
+
+        try:
+            callback_key = "12345678-1234-5678-1234-567812345678"
+            executor.running = {callback_key}
+
+            results = KubernetesResults(
+                callback_key, ADOPTED, "callback-pod", "default", "resource_version", None
+            )
+            executor._change_state(results)
+
+            assert len(executor.event_buffer) == 0
+            assert callback_key not in executor.running
+        finally:
+            executor.end()
+
+    def test_annotations_to_key_for_callback(self):
+        """Test that annotations_to_key returns callback_id for callback pods."""
+        callback_id = "12345678-1234-5678-1234-567812345678"
+        annotations = {"callback_id": callback_id}
+
+        key = annotations_to_key(annotations)
+
+        assert key == callback_id
+        assert isinstance(key, str)
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils"
+        ".AirflowKubernetesScheduler.run_pod_async"
+    )
+    @mock.patch("airflow.settings.pod_mutation_hook")
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_run_next_callback(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_mutation_hook, mock_run_pod_async
+    ):
+        executor = KubernetesExecutor()
+        executor.job_id = 5
+        executor.start()
+
+        try:
+            workload = self._make_callback_workload()
+            callback_key = workload.callback.key
+            job = KubernetesJob(callback_key, [workload], None, None)
+
+            executor.kube_scheduler.run_next(job)
+
+            # Pod should have been created
+            mock_run_pod_async.assert_called_once()
+            created_pod = mock_run_pod_async.call_args[0][0]
+
+            # Verify callback-specific annotations
+            assert created_pod.metadata.annotations["callback_id"] == workload.callback.id
+
+            # Verify pod has airflow-worker label for watcher discovery
+            assert "airflow-worker" in created_pod.metadata.labels
+            assert created_pod.metadata.labels["kubernetes_executor"] == "True"
+
+            # Verify pod command runs execute_workload with callback JSON
+            container_args = created_pod.spec.containers[0].args
+            assert container_args[0] == "python"
+            assert "execute_workload" in container_args[2]
+            assert "ExecuteCallback" in container_args[4]
         finally:
             executor.end()

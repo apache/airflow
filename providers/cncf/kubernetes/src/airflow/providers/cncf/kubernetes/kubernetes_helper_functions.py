@@ -35,7 +35,7 @@ from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.executors.workloads.types import WorkloadKey
 
 log = logging.getLogger(__name__)
 
@@ -155,9 +155,14 @@ def create_unique_id(
     return base_name
 
 
-def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
-    """Build a TaskInstanceKey based on pod annotations."""
-    log.debug("Creating task key for annotations %s", annotations)
+def annotations_to_key(annotations: dict[str, str]) -> WorkloadKey:
+    """Build a WorkloadKey (TaskInstanceKey or CallbackKey) based on pod annotations."""
+    log.debug("Creating key for annotations %s", annotations)
+
+    # Callback pods have a "callback_id" annotation instead of task annotations
+    if "callback_id" in annotations:
+        return annotations["callback_id"]
+
     dag_id = annotations["dag_id"]
     task_id = annotations["task_id"]
     try_number = int(annotations["try_number"])

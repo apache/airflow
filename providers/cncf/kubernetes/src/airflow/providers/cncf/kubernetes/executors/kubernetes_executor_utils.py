@@ -160,22 +160,27 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             if event["type"] == "ERROR":
                 return self.process_error(event)
             annotations = task.metadata.annotations
-            task_instance_related_annotations = {
-                "dag_id": annotations["dag_id"],
-                "task_id": annotations["task_id"],
-                logical_date_key: annotations.get(logical_date_key),
-                "run_id": annotations.get("run_id"),
-                "try_number": annotations["try_number"],
-            }
-            map_index = annotations.get("map_index")
-            if map_index is not None:
-                task_instance_related_annotations["map_index"] = map_index
+
+            # Callback pods have a "callback_id" annotation instead of task annotations
+            if annotations.get("callback_id"):
+                relevant_annotations = {"callback_id": annotations["callback_id"]}
+            else:
+                relevant_annotations = {
+                    "dag_id": annotations["dag_id"],
+                    "task_id": annotations["task_id"],
+                    logical_date_key: annotations.get(logical_date_key),
+                    "run_id": annotations.get("run_id"),
+                    "try_number": annotations["try_number"],
+                }
+                map_index = annotations.get("map_index")
+                if map_index is not None:
+                    relevant_annotations["map_index"] = map_index
 
             self.process_status(
                 pod_name=task.metadata.name,
                 namespace=task.metadata.namespace,
                 status=task.status.phase,
-                annotations=task_instance_related_annotations,
+                annotations=relevant_annotations,
                 resource_version=task.metadata.resource_version,
                 event=event,
             )
@@ -225,7 +230,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         elif hasattr(pod.status, "reason") and pod.status.reason == "ProviderFailed":
             # Most likely this happens due to Kubernetes setup (virtual kubelet, virtual nodes, etc.)
             key = annotations_to_key(annotations=annotations)
-            task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+            task_key_str = (
+                f"{key.dag_id}.{key.task_id}.{key.try_number}" if not isinstance(key, str) else "unknown"
+            )
             self.log.warning(
                 "Event: %s failed to start with reason ProviderFailed, task: %s, annotations: %s",
                 pod_name,
@@ -270,7 +277,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 continue
                             key = annotations_to_key(annotations=annotations)
                             task_key_str = (
-                                f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+                                f"{key.dag_id}.{key.task_id}.{key.try_number}"
+                                if not isinstance(key, str)
+                                else "unknown"
                             )
                             self.log.warning(
                                 "Event: %s has container %s with fatal reason %s, task: %s",
@@ -304,7 +313,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 )
 
             key = annotations_to_key(annotations=annotations)
-            task_key_str = f"{key.dag_id}.{key.task_id}.{key.try_number}" if key else "unknown"
+            task_key_str = (
+                f"{key.dag_id}.{key.task_id}.{key.try_number}" if not isinstance(key, str) else "unknown"
+            )
             self.log.warning(
                 "Event: %s Failed, task: %s, annotations: %s", pod_name, task_key_str, annotations_string
             )
@@ -552,10 +563,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
         kube_executor_config = next_job.kube_executor_config
         pod_template_file = next_job.pod_template_file
 
-        dag_id, task_id, run_id, try_number, map_index = key
         if len(command) == 1:
-            from airflow.executors.workloads import ExecuteTask
+            from airflow.executors.workloads import ExecuteCallback, ExecuteTask
 
+            if isinstance(command[0], ExecuteCallback):
+                return self._run_next_callback(next_job)
             if isinstance(command[0], ExecuteTask):
                 workload = command[0]
                 command = workload_to_command_args(workload)
@@ -565,6 +577,10 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 )
         elif command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
+
+        if not isinstance(key, tuple):
+            raise ValueError(f"Expected a TaskInstanceKey for task workload, got: {type(key)}")
+        dag_id, task_id, run_id, try_number, map_index = key
 
         base_worker_pod = get_base_pod_from_template(pod_template_file, self.kube_config)
 
@@ -603,6 +619,68 @@ class AirflowKubernetesScheduler(LoggingMixin):
         # the watcher will monitor pods, so we do not block.
         self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
+
+    def _run_next_callback(self, next_job: KubernetesJob) -> None:
+        """Build and create a pod for an ExecuteCallback workload."""
+        from kubernetes.client import models as k8s
+
+        from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException
+
+        callback_workload = next_job.command[0]
+        callback_id = callback_workload.callback.id
+
+        command = workload_to_command_args(callback_workload)
+        base_worker_pod = get_base_pod_from_template(None, self.kube_config)
+
+        if not base_worker_pod:
+            raise AirflowException(
+                f"could not find a valid worker template yaml at {self.kube_config.pod_template_file}"
+            )
+
+        pod_id = create_unique_id("callback", callback_id[:8])
+
+        dynamic_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                namespace=self.namespace,
+                name=pod_id,
+                annotations={"callback_id": callback_id},
+                labels=PodGenerator.build_labels_for_k8s_executor_pod(
+                    dag_id="__callback__",
+                    task_id=callback_id[:8],
+                    try_number=1,
+                    airflow_worker=self.scheduler_job_id,
+                ),
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        image=self.kube_config.kube_image,
+                        args=list(command),
+                        env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
+                    )
+                ],
+            ),
+        )
+
+        pod = PodGenerator.reconcile_pods(base_worker_pod, dynamic_pod)
+
+        from airflow.settings import pod_mutation_hook
+
+        try:
+            pod_mutation_hook(pod)
+        except Exception as e:
+            raise PodMutationHookException from e
+
+        self.log.info(
+            "Creating callback pod %s for callback %s",
+            pod.metadata.name,
+            callback_id,
+        )
+        self.log.debug("Kubernetes launching callback image %s", pod.spec.containers[0].image)
+
+        self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
+        self.log.debug("Kubernetes callback pod created!")
 
     def delete_pod(self, pod_name: str, namespace: str) -> None:
         """Delete Pod from a namespace; does not raise if it does not exist."""

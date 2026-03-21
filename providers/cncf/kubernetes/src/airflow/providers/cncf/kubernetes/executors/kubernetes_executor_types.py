@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypedDict
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.utils.state import TaskInstanceState
 
 
@@ -43,9 +43,9 @@ class FailureDetails(TypedDict, total=False):
 
 
 class KubernetesResults(NamedTuple):
-    """Results from Kubernetes task execution."""
+    """Results from Kubernetes workload execution (task or callback)."""
 
-    key: TaskInstanceKey
+    key: WorkloadKey
     state: TaskInstanceState | str | None
     pod_name: str
     namespace: str
@@ -69,10 +69,10 @@ CommandType = "Sequence[str]"
 
 
 class KubernetesJob(NamedTuple):
-    """Job definition for Kubernetes execution."""
+    """Job definition for Kubernetes execution (task or callback)."""
 
-    key: TaskInstanceKey
-    command: Sequence[str]
+    key: WorkloadKey
+    command: Sequence[Any]
     kube_executor_config: Any
     pod_template_file: str | None
 
