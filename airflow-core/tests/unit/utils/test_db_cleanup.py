@@ -422,6 +422,65 @@ class TestDBCleanup:
                 f"Expected {expected_remaining_dag_ids} to remain, but got {remaining_dag_ids}"
             )
 
+    def test_dag_version_cleanup_skips_referenced_rows(self):
+        """
+        Verify that dag_version rows still referenced by task_instance are not deleted,
+        preventing ForeignKeyViolation (issue #63703).
+
+        Scenario: dag_version created before the cutoff, but a task_instance created
+        after the cutoff still references it via dag_version_id (RESTRICT FK).
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = "test-dag-version-fk"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+            # Create a dag_run and task_instance with start_date AFTER the cutoff,
+            # but referencing the old dag_version (created before cutoff).
+            run_start = base_date.add(days=20)
+            dag_run = DagRun(
+                dag.dag_id,
+                run_id="run_after_cutoff",
+                run_type=DagRunType.MANUAL,
+                start_date=run_start,
+            )
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = run_start
+            session.add(dag_run)
+            session.add(ti)
+            session.commit()
+
+            # Clean with a cutoff that is after the dag_version creation but before
+            # the task_instance start_date.
+            clean_before_date = base_date.add(days=10)
+            # This should NOT raise IntegrityError.
+            run_cleanup(
+                clean_before_timestamp=clean_before_date,
+                table_names=["dag_version"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            # dag_version should still exist because it's referenced by task_instance.
+            remaining = session.scalars(select(DagVersion)).all()
+            assert len(remaining) == 1
+            assert remaining[0].id == dag_version.id
+
     @pytest.mark.parametrize(
         ("skip_archive", "expected_archives"),
         [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],

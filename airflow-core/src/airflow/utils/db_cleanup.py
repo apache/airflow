@@ -30,7 +30,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, column, func, inspect, select, table, text
+from sqlalchemy import and_, column, exists, func, inspect, literal, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
@@ -88,6 +88,11 @@ class _TableConfig:
     # because the relationships are unlikely to change and the number of tables is small.
     # Relying on automation here would increase complexity and reduce maintainability.
     dependent_tables: list[str] | None = None
+    # Columns in other tables that hold FK references to this table's primary key.
+    # Used to add NOT EXISTS guards so we don't delete rows still referenced by
+    # surviving child rows (e.g. task_instance.dag_version_id → dag_version.id).
+    # Each entry is (child_table_name, child_fk_column_name, parent_pk_column_name).
+    fk_check_columns: list[tuple[str, str, str]] | None = None
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
@@ -169,6 +174,9 @@ config_list: list[_TableConfig] = [
         dag_id_column_name="dag_id",
         keep_last=True,
         keep_last_group_by=["dag_id"],
+        fk_check_columns=[
+            ("task_instance", "dag_version_id", "id"),
+        ],
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time", dag_id_column_name="dag_id"),
     _TableConfig(table_name="revoked_token", recency_column_name="exp"),
@@ -373,6 +381,20 @@ def _build_query(
         )
         conditions.append(column(max_date_col_name).is_(None))
     query = query.where(and_(*conditions))
+
+    # Exclude rows still referenced by child tables (FK with RESTRICT).
+    fk_check_columns = kwargs.get("fk_check_columns")
+    if fk_check_columns:
+        for child_table_name, child_fk_col, parent_pk_col in fk_check_columns:
+            child_table = table(child_table_name, column(child_fk_col))
+            query = query.where(
+                ~exists(
+                    select(literal(1))
+                    .select_from(child_table)
+                    .where(child_table.c[child_fk_col] == base_table.c[parent_pk_col])
+                )
+            )
+
     return query
 
 
@@ -408,6 +430,7 @@ def _cleanup_table(
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
         session=session,
+        fk_check_columns=kwargs.get("fk_check_columns"),
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
     print(f"Checking table {orm_model.name}")
