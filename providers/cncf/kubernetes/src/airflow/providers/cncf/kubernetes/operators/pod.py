@@ -30,6 +30,7 @@ import shlex
 import string
 from collections.abc import Callable, Container, Iterable, Sequence
 from contextlib import AbstractContextManager
+from datetime import timedelta
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
@@ -79,8 +80,18 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodNotFoundException,
     PodPhase,
 )
+from airflow.providers.cncf.kubernetes.utils.resource_quota import (
+    PodResourceQuotaExceededException,
+    check_pod_quota_compliance,
+)
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred
+
+# Import AirflowRescheduleException with version compatibility
+try:
+    from airflow.sdk.exceptions import AirflowRescheduleException
+except ImportError:
+    from airflow.exceptions import AirflowRescheduleException  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook, BaseOperator
@@ -255,6 +266,14 @@ class KubernetesPodOperator(BaseOperator):
     :param log_formatter: custom log formatter function that takes two string arguments:
         the first string is the container_name and the second string is the message_to_log.
         The function should return a formatted string. If None, the default formatting will be used.
+    :param check_resource_quotas: if True, check namespace resource quotas before creating the pod.
+        Default to False.
+    :param on_quota_exceeded: action to take when pod would exceed resource quota. Options:
+        "queue" (default) - reschedule the task to try again later,
+        "fail" - fail the task immediately with an exception,
+        "ignore" - proceed with pod creation anyway (same as check_resource_quotas=False).
+    :param quota_check_interval: when on_quota_exceeded="queue", the interval in seconds to wait
+        before retrying. Default to 60 seconds.
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
@@ -367,6 +386,9 @@ class KubernetesPodOperator(BaseOperator):
         trigger_kwargs: dict | None = None,
         container_name_log_prefix_enabled: bool = True,
         log_formatter: Callable[[str, str], str] | None = None,
+        check_resource_quotas: bool = False,
+        on_quota_exceeded: Literal["queue", "fail", "ignore"] = "queue",
+        quota_check_interval: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -466,6 +488,9 @@ class KubernetesPodOperator(BaseOperator):
         self._killed: bool = False
         self.container_name_log_prefix_enabled = container_name_log_prefix_enabled
         self.log_formatter = log_formatter
+        self.check_resource_quotas = check_resource_quotas
+        self.on_quota_exceeded = on_quota_exceeded
+        self.quota_check_interval = quota_check_interval
 
     @cached_property
     def _incluster_namespace(self):
@@ -632,6 +657,29 @@ class KubernetesPodOperator(BaseOperator):
                 self.log.info("Deleted pod to handle rerun and create new pod!")
 
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
+
+        # Check resource quotas before attempting to create the pod
+        if self.check_resource_quotas and self.on_quota_exceeded != "ignore":
+            try:
+                check_pod_quota_compliance(self.client, pod_request_obj, pod_request_obj.metadata.namespace)
+            except PodResourceQuotaExceededException as e:
+                if self.on_quota_exceeded == "queue":
+                    self.log.warning(
+                        "Pod creation would exceed resource quota. Task will be rescheduled to retry later. %s",
+                        str(e),
+                    )
+                    reschedule_time = datetime.datetime.now(datetime.timezone.utc) + timedelta(
+                        seconds=self.quota_check_interval
+                    )
+                    raise AirflowRescheduleException(reschedule_time)
+                if self.on_quota_exceeded == "fail":
+                    self.log.error(
+                        "Pod creation blocked due to resource quota violation. "
+                        "Set on_quota_exceeded='queue' to retry or 'ignore' to skip this check."
+                    )
+                    raise
+                # If "ignore", just continue and try to create the pod anyway
+
         self.pod_manager.create_pod(pod=pod_request_obj)
         return pod_request_obj
 
