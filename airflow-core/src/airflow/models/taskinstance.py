@@ -69,7 +69,7 @@ from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from airflow import settings
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import Stats
-from airflow._shared.observability.traces import new_dagrun_trace_carrier
+from airflow._shared.observability.traces import TASK_SPAN_DETAIL_LEVEL_KEY, new_dagrun_trace_carrier
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -400,7 +400,9 @@ def clear_task_instances(
             # Always update clear_number and queued_at when clearing tasks, regardless of state
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
-            dr.context_carrier = new_dagrun_trace_carrier()
+            dr.context_carrier = new_dagrun_trace_carrier(
+                task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY, None)
+            )
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
 
@@ -493,9 +495,9 @@ def uuid7() -> UUID:
 
 
 def _make_task_carrier(dag_run_context_carrier):
-    parent_context = (
-        TraceContextTextMapPropagator().extract(dag_run_context_carrier) if dag_run_context_carrier else None
-    )
+    parent_context = None
+    if dag_run_context_carrier:
+        parent_context = TraceContextTextMapPropagator().extract(dag_run_context_carrier)
     span = tracer.start_span("notused", context=parent_context)  # intentionally never closed
     new_ctx = trace.set_span_in_context(span)
     carrier: dict[str, str] = {}

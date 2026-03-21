@@ -28,7 +28,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
-from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
+from opentelemetry.trace import NonRecordingSpan, Span, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 if TYPE_CHECKING:
@@ -55,19 +55,47 @@ class OverrideableRandomIdGenerator(RandomIdGenerator):
         return super().generate_trace_id()
 
 
-def new_dagrun_trace_carrier() -> dict[str, str]:
+TASK_SPAN_DETAIL_LEVEL_KEY = "airflow/task_span_detail_level"
+DEFAULT_TASK_SPAN_DETAIL_LEVEL = 1
+
+
+def new_dagrun_trace_carrier(task_span_detail_level=None) -> dict[str, str]:
     """Generate a fresh W3C traceparent carrier without creating a recordable span."""
     gen = RandomIdGenerator()
+    trace_state_entries = build_trace_state_entries(task_span_detail_level)
     span_ctx = SpanContext(
         trace_id=gen.generate_trace_id(),
         span_id=gen.generate_span_id(),
         is_remote=False,
         trace_flags=TraceFlags(TraceFlags.SAMPLED),
+        trace_state=TraceState(entries=trace_state_entries),
     )
     ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
     carrier: dict[str, str] = {}
     TraceContextTextMapPropagator().inject(carrier, context=ctx)
     return carrier
+
+
+def build_trace_state_entries(task_span_detail_level) -> list[tuple[str, str]]:
+    trace_state_entries = []
+    if task_span_detail_level:
+        try:
+            level = int(task_span_detail_level)
+        except ValueError:
+            level = None
+        if level:
+            trace_state_entries.append((TASK_SPAN_DETAIL_LEVEL_KEY, str(level)))
+    return trace_state_entries
+
+
+def get_task_span_detail_level(span: Span):
+    span_ctx = span.get_span_context()
+    trace_state = span_ctx.trace_state
+    try:
+        return int(trace_state.get(TASK_SPAN_DETAIL_LEVEL_KEY, default=DEFAULT_TASK_SPAN_DETAIL_LEVEL))
+    except Exception:
+        log.warning("Task")
+        return DEFAULT_TASK_SPAN_DETAIL_LEVEL
 
 
 @contextmanager
