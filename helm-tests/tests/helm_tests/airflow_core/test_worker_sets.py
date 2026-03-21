@@ -37,6 +37,22 @@ class TestWorkerSets:
 
         assert objects_number == len(docs)
 
+    def test_create_worker_with_sets_empty(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "workers": {
+                    "celery": {
+                        "enableDefault": True,
+                        "sets": [],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("[*].metadata.name", docs) == ['test-worker']
+
     @pytest.mark.parametrize(
         ("enable_default", "expected"),
         [
