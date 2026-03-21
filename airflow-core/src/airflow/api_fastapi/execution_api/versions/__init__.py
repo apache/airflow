@@ -40,9 +40,11 @@ from airflow.api_fastapi.execution_api.versions.v2026_03_31 import (
     RemoveUpstreamMapIndexesField,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_04_13 import AddDagEndpoint
+from airflow.api_fastapi.execution_api.versions.v2026_04_15 import AddTaskGroupMapIndexTemplateFields
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2026-04-15", AddTaskGroupMapIndexTemplateFields),
     Version("2026-04-13", AddDagEndpoint),
     Version(
         "2026-03-31",
