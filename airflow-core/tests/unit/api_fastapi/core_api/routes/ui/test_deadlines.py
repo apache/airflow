@@ -47,6 +47,7 @@ DAG_ID = "test_deadlines_dag"
 RUN_EMPTY = "run_empty"  # no deadlines
 RUN_SINGLE = "run_single"  # 1 deadline, not missed, no alert
 RUN_MISSED = "run_missed"  # 1 deadline, missed=True
+RUN_MET = "run_met"  # 1 deadline, met=True
 RUN_ALERT = "run_alert"  # 1 deadline linked to a DeadlineAlert
 RUN_MULTI = "run_multi"  # 3 deadlines added out-of-order (ordering test)
 RUN_OTHER = "run_other"  # has 1 deadline; used to verify per-run isolation
@@ -101,11 +102,19 @@ def setup(dag_maker, session):
         triggered_by=DagRunTriggeredByType.TEST,
     )
 
+    run_met = dag_maker.create_dagrun(
+        run_id=RUN_MET,
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=timezone.datetime(2024, 11, 4),
+        triggered_by=DagRunTriggeredByType.TEST,
+    )
+
     run_alert = dag_maker.create_dagrun(
         run_id=RUN_ALERT,
         state=DagRunState.SUCCESS,
         run_type=DagRunType.SCHEDULED,
-        logical_date=timezone.datetime(2024, 11, 4),
+        logical_date=timezone.datetime(2024, 11, 5),
         triggered_by=DagRunTriggeredByType.TEST,
     )
 
@@ -113,7 +122,7 @@ def setup(dag_maker, session):
         run_id=RUN_MULTI,
         state=DagRunState.SUCCESS,
         run_type=DagRunType.SCHEDULED,
-        logical_date=timezone.datetime(2024, 11, 5),
+        logical_date=timezone.datetime(2024, 11, 6),
         triggered_by=DagRunTriggeredByType.TEST,
     )
 
@@ -121,7 +130,7 @@ def setup(dag_maker, session):
         run_id=RUN_OTHER,
         state=DagRunState.SUCCESS,
         run_type=DagRunType.SCHEDULED,
-        logical_date=timezone.datetime(2024, 11, 6),
+        logical_date=timezone.datetime(2024, 11, 7),
         triggered_by=DagRunTriggeredByType.TEST,
     )
 
@@ -148,6 +157,16 @@ def setup(dag_maker, session):
     )
     missed_dl.missed = True
     session.add(missed_dl)
+
+    # run_met: one met deadline (dag run completed before deadline)
+    met_dl = Deadline(
+        deadline_time=timezone.datetime(2025, 1, 1, 12, 0, 0),
+        callback=_cb(),
+        dagrun_id=run_met.id,
+        deadline_alert_id=None,
+    )
+    met_dl.met = True
+    session.add(met_dl)
 
     # run_alert: one deadline linked to a DeadlineAlert
     serialized_dag = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == DAG_ID))
@@ -227,6 +246,8 @@ class TestGetDagRunDeadlines:
         assert deadline1["missed"] is False
         assert deadline1["alert_name"] is None
         assert deadline1["alert_description"] is None
+        assert deadline1["dag_id"] == DAG_ID
+        assert deadline1["dag_run_id"] == RUN_SINGLE
         assert "id" in deadline1
         assert "created_at" in deadline1
 
@@ -238,7 +259,7 @@ class TestGetDagRunDeadlines:
         assert data["deadlines"][0]["missed"] is True
 
     def test_deadline_with_alert_name_and_description(self, test_client):
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_ALERT}/deadlines")
         assert response.status_code == 200
         data = response.json()
@@ -247,7 +268,7 @@ class TestGetDagRunDeadlines:
         assert data["deadlines"][0]["alert_description"] == ALERT_DESCRIPTION
 
     def test_deadlines_ordered_by_deadline_time_ascending(self, test_client):
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines")
         assert response.status_code == 200
         data = response.json()
@@ -262,7 +283,7 @@ class TestGetDagRunDeadlines:
     )
     def test_should_response_200_order_by(self, test_client, order_by):
         url = f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines"
-        with assert_queries_count(8):
+        with assert_queries_count(10):
             response_asc = test_client.get(url, params={"order_by": order_by})
             response_desc = test_client.get(url, params={"order_by": f"-{order_by}"})
         assert response_asc.status_code == 200
@@ -309,4 +330,209 @@ class TestGetDagRunDeadlines:
 
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_EMPTY}/deadlines")
+        assert response.status_code == 403
+
+
+class TestGetDeadlines:
+    """Tests for GET /dags/{dag_id}/dagRuns/{dag_run_id}/deadlines with ~ wildcards."""
+
+    # ------------------------------------------------------------------
+    # 200 – happy paths
+    # ------------------------------------------------------------------
+
+    def test_returns_all_deadlines(self, test_client):
+        """All deadlines across all runs are returned when both dag_id and dag_run_id are ~."""
+        response = test_client.get("/dags/~/dagRuns/~/deadlines")
+        assert response.status_code == 200
+        data = response.json()
+        # Fixture creates: 1 (run_single) + 1 (run_missed) + 1 (run_met) + 1 (run_alert) + 3 (run_multi) + 1 (run_other) = 8
+        assert data["total_entries"] == 8
+        assert len(data["deadlines"]) == 8
+
+    def test_response_includes_dag_and_run_ids(self, test_client):
+        """Each deadline includes dag_id and dag_run_id for linking."""
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/~/deadlines", params={"limit": 1})
+        assert response.status_code == 200
+        dl = response.json()["deadlines"][0]
+        assert dl["dag_id"] == DAG_ID
+        assert "dag_run_id" in dl
+        assert "id" in dl
+        assert "deadline_time" in dl
+        assert "missed" in dl
+
+    def test_filter_by_dag_id(self, test_client):
+        """Specifying a dag_id path param (with ~ for dag_run_id) returns only that DAG's deadlines."""
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/~/deadlines")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == 8
+        for dl in data["deadlines"]:
+            assert dl["dag_id"] == DAG_ID
+
+    def test_filter_missed_true(self, test_client):
+        """Only missed deadlines are returned when missed=true."""
+        response = test_client.get("/dags/~/dagRuns/~/deadlines", params={"missed": "true"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == 1
+        assert data["deadlines"][0]["missed"] is True
+
+    def test_filter_missed_false(self, test_client):
+        """Only non-missed (pending) deadlines are returned when missed=false."""
+        response = test_client.get("/dags/~/dagRuns/~/deadlines", params={"missed": "false"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == 7
+        for dl in data["deadlines"]:
+            assert dl["missed"] is False
+
+    def test_filter_met_true(self, test_client):
+        """Only met deadlines are returned when met=true."""
+        response = test_client.get("/dags/~/dagRuns/~/deadlines", params={"met": "true"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == 1
+        assert data["deadlines"][0]["met"] is True
+
+    def test_filter_met_false(self, test_client):
+        """Only non-met deadlines are returned when met=false."""
+        response = test_client.get("/dags/~/dagRuns/~/deadlines", params={"met": "false"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == 7
+        for dl in data["deadlines"]:
+            assert dl["met"] is False
+
+    def test_filter_deadline_time_gte(self, test_client):
+        """deadline_time_gte filters out deadlines before the given time."""
+        response = test_client.get(
+            "/dags/~/dagRuns/~/deadlines", params={"deadline_time_gte": "2025-02-01T00:00:00Z"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # Deadline times at/after 2025-02-01: run_multi 2025-02-01, 2025-03-01, run_other 2025-06-01 = 3
+        assert data["total_entries"] == 3
+
+    def test_filter_deadline_time_lte(self, test_client):
+        """deadline_time_lte filters out deadlines after the given time."""
+        response = test_client.get(
+            "/dags/~/dagRuns/~/deadlines", params={"deadline_time_lte": "2024-12-31T23:59:59Z"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # Only run_missed's 2024-12-01 is before 2025
+        assert data["total_entries"] == 1
+
+    def test_ordered_by_deadline_time_ascending_by_default(self, test_client):
+        """Deadlines are ordered by deadline_time ascending by default."""
+        response = test_client.get("/dags/~/dagRuns/~/deadlines")
+        assert response.status_code == 200
+        times = [dl["deadline_time"] for dl in response.json()["deadlines"]]
+        assert times == sorted(times)
+
+    def test_pagination(self, test_client):
+        """limit and offset work correctly."""
+        all_resp = test_client.get("/dags/~/dagRuns/~/deadlines")
+        all_ids = [dl["id"] for dl in all_resp.json()["deadlines"]]
+
+        page1 = test_client.get("/dags/~/dagRuns/~/deadlines", params={"limit": 3, "offset": 0}).json()[
+            "deadlines"
+        ]
+        page2 = test_client.get("/dags/~/dagRuns/~/deadlines", params={"limit": 3, "offset": 3}).json()[
+            "deadlines"
+        ]
+
+        assert [dl["id"] for dl in page1] == all_ids[:3]
+        assert [dl["id"] for dl in page2] == all_ids[3:6]
+
+    def test_alert_name_present_when_linked(self, test_client):
+        """Deadlines linked to a DeadlineAlert include alert_name and alert_description."""
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/~/deadlines")
+        assert response.status_code == 200
+        deadlines = response.json()["deadlines"]
+        alerts = [dl for dl in deadlines if dl["alert_name"] is not None]
+        assert len(alerts) == 1
+        assert alerts[0]["alert_name"] == ALERT_NAME
+        assert alerts[0]["alert_description"] == ALERT_DESCRIPTION
+
+    def test_filter_nonexistent_dag_returns_empty(self, test_client):
+        """Filtering by a dag_id that doesn't exist returns an empty list."""
+        response = test_client.get("/dags/nonexistent_dag/dagRuns/~/deadlines")
+        assert response.status_code == 200
+        assert response.json() == {"deadlines": [], "total_entries": 0}
+
+    def test_dag_run_id_without_dag_id_returns_400(self, test_client):
+        """Specifying a concrete dag_run_id with dag_id=~ is a bad request."""
+        response = test_client.get(f"/dags/~/dagRuns/{RUN_SINGLE}/deadlines")
+        assert response.status_code == 400
+
+    # ------------------------------------------------------------------
+    # 401 / 403
+    # ------------------------------------------------------------------
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/dags/~/dagRuns/~/deadlines")
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/dags/~/dagRuns/~/deadlines")
+        assert response.status_code == 403
+
+
+class TestGetDagDeadlineAlerts:
+    """Tests for GET /dags/{dag_id}/deadlineAlerts."""
+
+    # ------------------------------------------------------------------
+    # 200 – happy paths
+    # ------------------------------------------------------------------
+
+    def test_returns_deadline_alerts_for_dag(self, test_client):
+        """Returns all deadline alerts defined on the DAG."""
+        response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_entries"] == 1
+        assert len(data["deadline_alerts"]) == 1
+
+    def test_alert_response_fields(self, test_client):
+        """Alert response includes expected fields with correct values."""
+        response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
+        assert response.status_code == 200
+        alert = response.json()["deadline_alerts"][0]
+        assert alert["name"] == ALERT_NAME
+        assert alert["description"] == ALERT_DESCRIPTION
+        assert alert["interval"] == 3600.0
+        assert alert["reference_type"] == "DagRunQueuedAtDeadline"
+        assert "id" in alert
+        assert "created_at" in alert
+
+    def test_dag_with_no_alerts_returns_empty_list(self, test_client, dag_maker, session):
+        """A DAG with no deadline alerts returns an empty list."""
+        with dag_maker("dag_no_alerts", serialized=True, session=session):
+            EmptyOperator(task_id="task")
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get("/dags/dag_no_alerts/deadlineAlerts")
+        assert response.status_code == 200
+        assert response.json() == {"deadline_alerts": [], "total_entries": 0}
+
+    # ------------------------------------------------------------------
+    # 404
+    # ------------------------------------------------------------------
+
+    def test_should_response_404_for_nonexistent_dag(self, test_client):
+        response = test_client.get("/dags/nonexistent_dag/deadlineAlerts")
+        assert response.status_code == 404
+
+    # ------------------------------------------------------------------
+    # 401 / 403
+    # ------------------------------------------------------------------
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
         assert response.status_code == 403

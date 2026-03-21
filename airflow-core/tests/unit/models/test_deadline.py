@@ -168,6 +168,7 @@ class TestDeadline:
         # Set up the query chain to return a list of (Deadline, DagRun) pairs
         mock_dagrun = mock.Mock(spec=DagRun, end_date=datetime.now())
         mock_deadline = mock.Mock(spec=Deadline, deadline_time=mock_dagrun.end_date + timedelta(days=365))
+        mock_deadline.met = False
         mock_query = mock_session.execute.return_value
         mock_query.all.return_value = [(mock_deadline, mock_dagrun)] if conditions else []
 
@@ -175,7 +176,8 @@ class TestDeadline:
         assert result == expected_result
         if conditions:
             mock_session.execute.return_value.all.assert_called_once()
-            mock_session.delete.assert_called_once_with(mock_deadline)
+            mock_session.add.assert_called_once_with(mock_deadline)
+            assert mock_deadline.met is True
         else:
             mock_session.execute.assert_not_called()
 

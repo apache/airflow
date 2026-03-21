@@ -1921,21 +1921,44 @@ export type DashboardDagStatsResponse = {
 };
 
 /**
- * Deadline Collection serializer for responses.
+ * DeadlineAlert Collection serializer for responses.
  */
-export type DeadlineCollectionResponse = {
-    deadlines: Array<DeadlineResponse>;
+export type DeadlineAlertCollectionResponse = {
+    deadline_alerts: Array<DeadlineAlertResponse>;
     total_entries: number;
 };
 
 /**
- * Deadline serializer for responses.
+ * DeadlineAlert serializer for responses.
  */
-export type DeadlineResponse = {
+export type DeadlineAlertResponse = {
+    id: string;
+    name?: string | null;
+    description?: string | null;
+    reference_type: string;
+    interval: number;
+    created_at: string;
+};
+
+/**
+ * Deadline Collection serializer for responses that includes DAG and DAG run identifiers.
+ */
+export type DeadlineWithDagRunCollectionResponse = {
+    deadlines: Array<DeadlineWithDagRunResponse>;
+    total_entries: number;
+};
+
+/**
+ * Deadline serializer for responses that includes DAG and DAG run identifiers.
+ */
+export type DeadlineWithDagRunResponse = {
     id: string;
     deadline_time: string;
     missed: boolean;
+    met: boolean;
     created_at: string;
+    dag_id: string;
+    dag_run_id: string;
     alert_name?: string | null;
     alert_description?: string | null;
 };
@@ -3550,20 +3573,6 @@ export type GenerateTokenData = {
 
 export type GenerateTokenResponse2 = GenerateTokenResponse;
 
-export type GetPartitionedDagRunsData = {
-    dagId?: string | null;
-    hasCreatedDagRunId?: boolean | null;
-};
-
-export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
-
-export type GetPendingPartitionedDagRunData = {
-    dagId: string;
-    partitionKey: string;
-};
-
-export type GetPendingPartitionedDagRunResponse = PartitionedDagRunDetailResponse;
-
 export type GetDependenciesData = {
     dependencyType?: 'scheduling' | 'data';
     nodeId?: string | null;
@@ -3580,18 +3589,34 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type DagStatsResponse2 = DashboardDagStatsResponse;
 
-export type GetDagRunDeadlinesData = {
+export type GetDeadlinesData = {
     dagId: string;
     dagRunId: string;
+    deadlineTimeGte?: string | null;
+    deadlineTimeLte?: string | null;
     limit?: number;
+    met?: boolean | null;
+    missed?: boolean | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, alert_name`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, missed, met, dag_id, dag_run_id, alert_name`
      */
     orderBy?: Array<(string)>;
 };
 
-export type GetDagRunDeadlinesResponse = DeadlineCollectionResponse;
+export type GetDeadlinesResponse = DeadlineWithDagRunCollectionResponse;
+
+export type GetDagDeadlineAlertsData = {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -3681,6 +3706,20 @@ export type GetCalendarData = {
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
+
+export type GetPartitionedDagRunsData = {
+    dagId?: string | null;
+    hasCreatedDagRunId?: boolean | null;
+};
+
+export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
+
+export type GetPendingPartitionedDagRunData = {
+    dagId: string;
+    partitionKey: string;
+};
+
+export type GetPendingPartitionedDagRunResponse = PartitionedDagRunDetailResponse;
 
 export type ListTeamsData = {
     limit?: number;
@@ -6774,36 +6813,6 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/partitioned_dag_runs': {
-        get: {
-            req: GetPartitionedDagRunsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: PartitionedDagRunCollectionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
-        get: {
-            req: GetPendingPartitionedDagRunData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: PartitionedDagRunDetailResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
     '/ui/dependencies': {
         get: {
             req: GetDependenciesData;
@@ -6854,12 +6863,35 @@ export type $OpenApiTs = {
     };
     '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines': {
         get: {
-            req: GetDagRunDeadlinesData;
+            req: GetDeadlinesData;
             res: {
                 /**
                  * Successful Response
                  */
-                200: DeadlineCollectionResponse;
+                200: DeadlineWithDagRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/deadlineAlerts': {
+        get: {
+            req: GetDagDeadlineAlertsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DeadlineAlertCollectionResponse;
                 /**
                  * Not Found
                  */
@@ -6986,6 +7018,36 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/partitioned_dag_runs': {
+        get: {
+            req: GetPartitionedDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: PartitionedDagRunCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
+        get: {
+            req: GetPendingPartitionedDagRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: PartitionedDagRunDetailResponse;
                 /**
                  * Validation Error
                  */
