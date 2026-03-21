@@ -342,7 +342,9 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cursor = conn.cursor()
 
-        sql_statement = f"LOAD DATA LOCAL INFILE %s {duplicate_key_handling} INTO TABLE `{table}` {extra_options}"
+        sql_statement = (
+            f"LOAD DATA LOCAL INFILE %s {duplicate_key_handling} INTO TABLE `{table}` {extra_options}"
+        )
         parameters = (tmp_file,)
         cursor.execute(
             sql_statement,
