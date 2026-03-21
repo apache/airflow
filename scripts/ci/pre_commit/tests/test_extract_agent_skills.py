@@ -31,7 +31,7 @@ def test_parse_skill_block_success():
     title: Run targeted tests
     preferred_context: host
     allowed_contexts: host,breeze
-    local_command: uv run --project {distribution_folder} pytest {test_path}
+    local_command: uv run --project {project} pytest {test_path}
     breeze_command: breeze exec pytest {test_path} -xvs
     inside_breeze_command: pytest {test_path} -xvs
     fallback_when: missing_system_dependencies|local_environment_mismatch|ci_local_discrepancy
@@ -58,7 +58,7 @@ def test_extract_skills_from_text_success():
     title: Run targeted tests
     preferred_context: host
     allowed_contexts: host,breeze
-    local_command: uv run --project {distribution_folder} pytest {test_path}
+    local_command: uv run --project {project} pytest {test_path}
     breeze_command: breeze exec pytest {test_path} -xvs
     inside_breeze_command: pytest {test_path} -xvs
     fallback_when: missing_system_dependencies|local_environment_mismatch|ci_local_discrepancy
@@ -96,7 +96,8 @@ def test_parse_skill_block_missing_required_keys_raises():
         assert False, "Expected ValueError for missing required keys"
     except ValueError as error:
         assert "Missing required keys" in str(error)
-        
+
+
 def test_extract_skills_from_text_multiple_blocks():
     text = """
     <!-- agent-skill:start -->
@@ -104,7 +105,7 @@ def test_extract_skills_from_text_multiple_blocks():
     title: Run targeted tests
     preferred_context: host
     allowed_contexts: host,breeze
-    local_command: uv run --project {distribution_folder} pytest {test_path}
+    local_command: uv run --project {project} pytest {test_path}
     breeze_command: breeze exec pytest {test_path} -xvs
     inside_breeze_command: pytest {test_path} -xvs
     fallback_when: missing_system_dependencies|local_environment_mismatch

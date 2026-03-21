@@ -22,10 +22,11 @@
 <!-- agent-skill:start -->
 id: run_targeted_tests
 title: Run targeted tests
+description: Run targeted tests using uv locally, falling back to Breeze when system dependencies are missing or results differ from CI
 preferred_context: host
 allowed_contexts: host,breeze
-local_command: uv run --project {distribution_folder} pytest {test_path}
-breeze_command: breeze exec pytest {test_path} -xvs
+local_command: uv run --project {project} pytest {test_path} -xvs
+breeze_command: breeze run pytest {test_path} -xvs
 inside_breeze_command: pytest {test_path} -xvs
 fallback_when: missing_system_dependencies|local_environment_mismatch|ci_local_discrepancy
 <!-- agent-skill:end -->
@@ -33,10 +34,11 @@ fallback_when: missing_system_dependencies|local_environment_mismatch|ci_local_d
 <!-- agent-skill:start -->
 id: setup_breeze_environment
 title: Set up Breeze environment
+description: Set up Breeze environment from host; should not be executed inside Breeze container
 preferred_context: host
 allowed_contexts: host,breeze
 local_command: breeze shell
 breeze_command: breeze shell
 inside_breeze_command: NONE
-fallback_when: not_applicable
+fallback_when: none
 <!-- agent-skill:end -->

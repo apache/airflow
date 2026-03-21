@@ -4,7 +4,8 @@
       "host",
       "breeze"
     ],
-    "breeze_command": "breeze exec pytest {test_path} -xvs",
+    "breeze_command": "breeze run pytest {test_path} -xvs",
+    "description": "Run targeted tests using uv locally, falling back to Breeze when system dependencies are missing or results differ from CI",
     "fallback_when": [
       "missing_system_dependencies",
       "local_environment_mismatch",
@@ -12,7 +13,7 @@
     ],
     "id": "run_targeted_tests",
     "inside_breeze_command": "pytest {test_path} -xvs",
-    "local_command": "uv run --project {distribution_folder} pytest {test_path}",
+    "local_command": "uv run --project {project} pytest {test_path} -xvs",
     "preferred_context": "host",
     "title": "Run targeted tests"
   },
@@ -22,8 +23,9 @@
       "breeze"
     ],
     "breeze_command": "breeze shell",
+    "description": "Set up Breeze environment from host; should not be executed inside Breeze container",
     "fallback_when": [
-      "not_applicable"
+      "none"
     ],
     "id": "setup_breeze_environment",
     "inside_breeze_command": "NONE",

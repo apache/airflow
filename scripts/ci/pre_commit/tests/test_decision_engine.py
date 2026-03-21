@@ -27,10 +27,11 @@ def test_host_prefers_local_command():
         workflow_id="run_targeted_tests",
         test_path="tests/models/test_example.py",
         context="host",
+        project="airflow-core",
     )
 
     assert result["mode"] == "command"
-    assert result["command"] == "uv run --project distribution_folder pytest tests/models/test_example.py"
+    assert result["command"] == "uv run --project airflow-core pytest tests/models/test_example.py -xvs"
     assert result["reason"] == "Host context prefers local-first execution."
 
 
@@ -43,7 +44,7 @@ def test_host_falls_back_to_breeze():
     )
 
     assert result["mode"] == "command"
-    assert result["command"] == "breeze exec pytest tests/models/test_example.py -xvs"
+    assert result["command"] == "breeze run pytest tests/models/test_example.py -xvs"
 
 
 def test_inside_breeze_runs_direct_pytest():
@@ -55,7 +56,8 @@ def test_inside_breeze_runs_direct_pytest():
 
     assert result["mode"] == "command"
     assert result["command"] == "pytest tests/models/test_example.py -xvs"
-    
+
+
 def test_setup_breeze_environment_inside_breeze_returns_guidance():
     result = get_recommended_command(
         workflow_id="setup_breeze_environment",
@@ -65,7 +67,8 @@ def test_setup_breeze_environment_inside_breeze_returns_guidance():
     assert result["mode"] == "guidance"
     assert "already inside Breeze" in result["message"]
     assert result["next_action"] == "stay_in_current_context"
-    
+
+
 def test_setup_breeze_environment_on_host_returns_command():
     result = get_recommended_command(
         workflow_id="setup_breeze_environment",
