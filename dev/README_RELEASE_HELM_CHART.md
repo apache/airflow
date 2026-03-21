@@ -37,7 +37,7 @@
   - [Licence check](#licence-check)
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
-- [Verify release candidates by Contributors](#verify-release-candidates-by-contributors)
+- [Verify the release candidates by Contributors](#verify-the-release-candidates-by-contributors)
 - [Publish the final release](#publish-the-final-release)
   - [Summarize the voting for the release](#summarize-the-voting-for-the-release)
   - [Publish release to SVN](#publish-release-to-svn)
@@ -223,7 +223,7 @@ rm -rf dist/*
 - Generate the source tarball:
 
 ```shell
-breeze release-management prepare-helm-chart-tarball --version ${VERSION} --version-suffix ${VERSION_SUFFIX}
+breeze release-management prepare-helm-chart-tarball --version ${VERSION}
 ```
 
 Note: The version suffix is only used for the RC tag and tag message. The version in the tarball is without the suffix, so the tarball can be released as-is when the vote passes.
@@ -313,31 +313,17 @@ you need to run several workflows to publish the documentation. More details abo
 [Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
 emergency cases.
 
-There are two steps to publish the documentation:
 
-1. Publish the documentation to the `staging` S3 bucket.
+You should use the `breeze` command to publish the documentation.
+The command does the following:
 
-The release manager publishes the documentation using GitHub Actions workflow
-[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
 
-You can specify the RC tag to use to build the docs and 'helm-chart' passed as packages to be built.
-
-The release manager publishes the documentation using GitHub Actions workflow
-[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By
-default `auto` selection should publish to the `staging` bucket - based on
-the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
-manually to be `live` or `staging`.
-
-After that step, the provider documentation should be available under the https://airflow.staged.apache.org
-(same as in the helm chart documentation).
-
-2. Invalidate Fastly cache for the documentation.
-
-In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
-workflow in `airflow-site` repository. Make sure to use `staging` branch.
-
-After that workflow completes, the new version should be available in the drop-down list and stable links
-should be updated and Fastly cache should be invalidated.
+```shell script
+breeze workflow-run publish-docs --ref helm-chart/${VERSION}${VERSION_SUFFIX} --site-env staging helm-chart
+```
 
 ## Prepare issue for testing status of rc
 
@@ -406,6 +392,8 @@ gpg:                using RSA key E1A1E984F55B8F280BD9CBA20BB7163892A2E48E
 gpg: Good signature from "Jed Cunningham <jedcunningham@apache.org>" [ultimate]
 plugin: Chart SHA verified. sha256:b33eac716e0416a18af89fb4fa1043fcfcf24f9f903cda3912729815213525df
 
+The documentation is available at https://airflow.staged.apache.org/helm-chart/${VERSION}/.
+
 The vote will be open for at least 72 hours ($VOTE_END_TIME UTC) or until the necessary number of votes is reached.
 
 https://www.timeanddate.com/countdown/$TIME_DATE_URL
@@ -418,6 +406,12 @@ Please vote accordingly:
 
 Only votes from PMC members are binding, but members of the community are
 encouraged to test the release and vote with "(non-binding)".
+
+The test procedure for PMC members is described in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_HELM_CHART.md#verify-the-release-candidate-by-pmc-members
+
+The test procedure for contributors and members of the community who would like to test this RC is described in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_HELM_CHART.md#verify-the-release-candidates-by-contributors
 
 Consider this my (binding) +1.
 
@@ -432,6 +426,7 @@ simply ${VERSION}. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release it.
 
 The status of testing the Helm Chart by the community is kept here:
+
 <TODO COPY LINK TO THE ISSUE CREATED>
 
 Thanks,
@@ -697,7 +692,7 @@ Checking airflow-1.0.0.tgz.sha512
 Checking airflow-chart-1.0.0-source.tar.gz.sha512
 ```
 
-# Verify release candidates by Contributors
+# Verify the release candidates by Contributors
 
 Contributors can run below commands to test the Helm Chart
 
@@ -986,7 +981,7 @@ EOF
 ## Bump chart version in Chart.yaml
 
 Bump the chart version to the next version in `chart/Chart.yaml` in main.
-
+Do not add `-dev` suffix to the version.
 
 ## Remove old releases
 
