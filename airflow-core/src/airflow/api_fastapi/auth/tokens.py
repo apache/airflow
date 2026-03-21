@@ -418,6 +418,10 @@ class JWTGenerator:
 
     kid: str = attrs.field(default=attrs.Factory(_generate_kid, takes_self=True))
     valid_for: float
+    workload_valid_for: float = attrs.field(
+        factory=_conf_factory("execution_api", "jwt_workload_token_expiration_time", fallback="86400"),
+        converter=float,
+    )
     audience: str
     issuer: str | list[str] | None = attrs.field(
         factory=_conf_list_factory("api_auth", "jwt_issuer", first_only=True, fallback=None)
@@ -447,15 +451,21 @@ class JWTGenerator:
             assert self._secret_key
         return self._secret_key
 
-    def generate(self, extras: dict[str, Any] | None = None, headers: dict[str, Any] | None = None) -> str:
+    def generate(
+        self,
+        extras: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        valid_for: float | None = None,
+    ) -> str:
         """Generate a signed JWT for the subject."""
         now = int(datetime.now(tz=timezone.utc).timestamp())
+        effective_valid_for = valid_for if valid_for is not None else self.valid_for
         claims = {
             "jti": uuid.uuid4().hex,
             "iss": self.issuer,
             "aud": self.audience,
             "nbf": now,
-            "exp": int(now + self.valid_for),
+            "exp": int(now + effective_valid_for),
             "iat": now,
         }
 

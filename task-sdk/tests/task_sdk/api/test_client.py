@@ -250,6 +250,36 @@ class TestClient:
         assert response.status_code == 200
         assert response.request.headers["Authorization"] == "Bearer abc"
 
+    def test_execution_token_swap(self):
+        """X-Execution-Token header should replace the auth token."""
+        responses: list[httpx.Response] = [
+            httpx.Response(200, json={"ok": "1"}, headers={"X-Execution-Token": "exec-token-123"}),
+            httpx.Response(200, json={"ok": "2"}),
+        ]
+        client = make_client_w_responses(responses)
+        response = client.get("/")
+        assert response.status_code == 200
+
+        assert client.auth is not None
+        assert client.auth.token == "exec-token-123"
+
+        response = client.get("/")
+        assert response.status_code == 200
+        assert response.request.headers["Authorization"] == "Bearer exec-token-123"
+
+    def test_execution_token_takes_priority_over_refreshed_token(self):
+        """When both headers present, X-Execution-Token should take priority."""
+        responses: list[httpx.Response] = [
+            httpx.Response(
+                200,
+                json={"ok": "1"},
+                headers={"X-Execution-Token": "exec-tok", "Refreshed-API-Token": "refresh-tok"},
+            ),
+        ]
+        client = make_client_w_responses(responses)
+        client.get("/")
+        assert client.auth.token == "exec-tok"
+
     @pytest.mark.parametrize(
         ("status_code", "description"),
         [

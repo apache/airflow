@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import time
 from contextlib import AsyncExitStack
 from functools import cached_property
@@ -76,6 +77,7 @@ def _jwt_generator():
 
     generator = JWTGenerator(
         valid_for=conf.getint("execution_api", "jwt_expiration_time"),
+        workload_valid_for=conf.getint("execution_api", "jwt_workload_token_expiration_time", fallback=86400),
         audience=conf.get_mandatory_list_value("execution_api", "jwt_audience")[0],
         issuer=conf.get("api_auth", "jwt_issuer", fallback=None),
         # Since this one is used across components/server, there is no point trying to generate one, error
@@ -141,6 +143,11 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
                 async with svcs.Container(request.app.state.svcs_registry) as services:
                     validator: JWTValidator = await services.aget(JWTValidator)
                     claims = await validator.avalidated_claims(token, {})
+
+                    # Workload tokens are long-lived and meant to survive queue
+                    # wait times so avoid refreshing them.
+                    if claims.get("scope") == "workload":
+                        return response
 
                     now = int(time.time())
                     validity = conf.getint("execution_api", "jwt_expiration_time")
@@ -311,9 +318,13 @@ class InProcessExecutionAPI:
     @cached_property
     def app(self):
         if not self._app:
+            import svcs
+
+            from airflow.api_fastapi.auth.tokens import JWTGenerator
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+            from airflow.api_fastapi.execution_api.deps import _container
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
@@ -332,10 +343,29 @@ class InProcessExecutionAPI:
                 )
                 return TIToken(id=ti_id, claims={"scope": "execution"})
 
+            # Override _container (the svcs service locator behind DepContainer).
+            # The default _container reads request.app.state.svcs_registry, but
+            # Cadwyn's versioned sub-apps don't inherit the main app's state,
+            # so lookups raise ServiceNotFoundError. This registry provides
+            # services needed by routes called during dag.test().
+            #
+            stub_generator = JWTGenerator(
+                secret_key=secrets.token_urlsafe(32),
+                audience="in-process",
+                valid_for=3600,
+            )
+            registry = svcs.Registry()
+            registry.register_value(JWTGenerator, stub_generator)
+
+            async def _in_process_container(request: Request):
+                async with svcs.Container(registry) as cont:
+                    yield cont
+
             self._app.dependency_overrides[_jwt_bearer] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow
+            self._app.dependency_overrides[_container] = _in_process_container
 
         return self._app
 
