@@ -41,7 +41,7 @@ from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 import airflow.logging_config as alc
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested

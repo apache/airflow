@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.plugins_manager import AirflowPlugin
 
 is_disabled = conf.getboolean("informatica", "listener_disabled", fallback=False)

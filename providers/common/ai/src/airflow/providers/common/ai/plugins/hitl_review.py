@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XComModel
 from airflow.plugins_manager import AirflowPlugin
