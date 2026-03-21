@@ -36,10 +36,11 @@ from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads.base import BundleInfo
-from airflow.executors.workloads.callback import CallbackDTO, execute_callback_workload
+from airflow.executors.workloads.callback import CallbackDTO
 from airflow.models.callback import CallbackFetchMethod
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.sdk import BaseOperator
+from airflow.sdk.execution_time.callback_supervisor import execute_callback
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.utils.state import State, TaskInstanceState
 
@@ -662,63 +663,34 @@ class TestCallbackSupport:
 
 class TestExecuteCallbackWorkload:
     def test_execute_function_callback_success(self):
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "builtins.dict",
-                "kwargs": {"a": 1, "b": 2, "c": 3},
-            },
-        )
         log = structlog.get_logger()
 
-        success, error = execute_callback_workload(callback_data, log)
+        success, error = execute_callback("builtins.dict", {"a": 1, "b": 2, "c": 3}, log)
 
         assert success is True
         assert error is None
 
     def test_execute_callback_missing_path(self):
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={"kwargs": {}},  # Missing 'path'
-        )
         log = structlog.get_logger()
 
-        success, error = execute_callback_workload(callback_data, log)
+        success, error = execute_callback("", {}, log)
 
         assert success is False
         assert "Callback path not found" in error
 
     def test_execute_callback_import_error(self):
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "nonexistent.module.function",
-                "kwargs": {},
-            },
-        )
         log = structlog.get_logger()
 
-        success, error = execute_callback_workload(callback_data, log)
+        success, error = execute_callback("nonexistent.module.function", {}, log)
 
         assert success is False
         assert "ModuleNotFoundError" in error
 
     def test_execute_callback_execution_error(self):
         # Use a function that will raise an error; len() requires an argument
-        callback_data = CallbackDTO(
-            id="12345678-1234-5678-1234-567812345678",
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
-            data={
-                "path": "builtins.len",
-                "kwargs": {},
-            },
-        )
         log = structlog.get_logger()
 
-        success, error = execute_callback_workload(callback_data, log)
+        success, error = execute_callback("builtins.len", {}, log)
 
         assert success is False
         assert "TypeError" in error

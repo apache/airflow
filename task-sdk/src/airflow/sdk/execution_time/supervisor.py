@@ -133,13 +133,12 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
     from typing_extensions import Self
 
-    from airflow.executors.workloads import BundleInfo
+    from airflow.executors.workloads import BundleInfo, ExecutorWorkload
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
-
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "supervise_task", "supervise_workload"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -2000,7 +1999,7 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
     return logger, log_file_descriptor
 
 
-def supervise(
+def supervise_task(
     *,
     ti: TaskInstance,
     bundle_info: BundleInfo,
@@ -2107,8 +2106,9 @@ def supervise(
         exit_code = process.wait()
         end = time.monotonic()
         log.info(
-            "Task finished",
-            task_instance_id=str(ti.id),
+            "Workload finished",
+            workload_type="ExecuteTask",
+            workload_id=str(ti.id),
             exit_code=exit_code,
             duration=end - start,
             final_state=process.final_state,
@@ -2120,3 +2120,99 @@ def supervise(
         if close_client and client:
             with suppress(Exception):
                 client.close()
+
+
+def supervise_workload(
+    workload: ExecutorWorkload,
+    *,
+    server: str | None = None,
+    dry_run: bool = False,
+    client: Client | None = None,
+    subprocess_logs_to_stdout: bool = False,
+    proctitle: str | None = None,
+) -> int:
+    """
+    Run any workload type to completion in a supervised subprocess.
+
+    Dispatch to the appropriate supervisor based on workload type. Workload-specific
+    attributes (log_path, sentry_integration, bundle_info, etc.) are read from the
+    workload object itself.
+
+    :param workload: The ``ExecutorWorkload`` to execute.
+    :param server: Base URL of the API server (used by task workloads).
+    :param dry_run: If True, execute without actual task execution (simulate run).
+    :param client: Optional preconfigured client for communication with the server.
+    :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
+    :param proctitle: Process title to set for this workload. If not provided, defaults to
+        ``"airflow supervisor: <workload.display_name>"``. Executors may pass a custom title
+        that includes executor-specific context (e.g. team name).
+    :return: Exit code of the process.
+    """
+    # Imports deferred to avoid an SDK/core dependency at module load time.
+    from airflow.executors.workloads.callback import ExecuteCallback
+    from airflow.executors.workloads.task import ExecuteTask
+
+    try:
+        from setproctitle import setproctitle
+
+        setproctitle(proctitle or f"airflow supervisor: {workload.display_name}")
+    except ImportError:
+        pass
+
+    # Resolve server URL from config when not explicitly provided.
+    # For example, team-specific executors may wish to pass their own server URL.
+    if server is None:
+        base_url = conf.get("api", "base_url", fallback="/")
+        if base_url.startswith("/"):
+            base_url = f"http://localhost:8080{base_url}"
+        server = conf.get(
+            "core",
+            "execution_api_server_url",
+            fallback=f"{base_url.rstrip('/')}/execution/",
+        )
+
+    if isinstance(workload, ExecuteTask):
+        return supervise_task(
+            # workload.ti is a TaskInstanceDTO which duck-types as TaskInstance.
+            # TODO: Create a protocol for this.
+            ti=workload.ti,  # type: ignore[arg-type]
+            bundle_info=workload.bundle_info,
+            dag_rel_path=workload.dag_rel_path,
+            token=workload.token,
+            server=server,
+            dry_run=dry_run,
+            log_path=workload.log_path,
+            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+            client=client,
+            sentry_integration=getattr(workload, "sentry_integration", ""),
+        )
+    if isinstance(workload, ExecuteCallback):
+        from airflow.sdk.execution_time.callback_supervisor import supervise_callback
+
+        return supervise_callback(
+            id=workload.callback.id,
+            callback_path=workload.callback.data.get("path", ""),
+            callback_kwargs=workload.callback.data.get("kwargs", {}),
+            log_path=workload.log_path,
+            bundle_info=workload.bundle_info,
+        )
+    raise ValueError(f"Unknown workload type: {type(workload).__name__}")
+
+
+def supervise(**kwargs) -> int:
+    """
+    Call ``supervise_task()`` with a deprecation warning.
+
+    This wrapper exists for backward compatibility with provider packages that may import ``supervise`` directly.
+
+    .. deprecated::
+        Use :func:`supervise_task` instead.
+    """
+    import warnings
+
+    warnings.warn(
+        "supervise() is deprecated, use supervise_task() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return supervise_task(**kwargs)
