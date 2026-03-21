@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Operator for running pydantic-ai agents with tools and multi-turn reasoning."""
+"""Operator for running AI agents with tools and multi-turn reasoning."""
 
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
+    BaseHook,
     BaseOperator,
     BaseOperatorLink,
 )
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from pydantic_ai import Agent
     from pydantic_ai.toolsets.abstract import AbstractToolset
 
+    from airflow.providers.common.ai.hooks.base import BaseAIHook
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
@@ -49,7 +51,7 @@ class HITLReviewLink(BaseOperatorLink):
     Link that opens the live chat window for a running feedback session.
 
     The URL is constructed directly from the task instance key so that the
-    link is available immediately — even while the task is still running —
+    link is available immediately -- even while the task is still running --
     without waiting for an XCom value to be committed.
     """
 
@@ -81,28 +83,42 @@ class HITLReviewLink(BaseOperatorLink):
 
 class AgentOperator(BaseOperator, HITLReviewMixin):
     """
-    Run a pydantic-ai Agent with tools and multi-turn reasoning.
+    Run an AI agent with tools and multi-turn reasoning.
 
-    Provide ``llm_conn_id`` and optional ``toolsets`` to let the operator build
-    and run the agent. The agent reasons about the prompt, calls tools in a
-    multi-turn loop, and returns a final answer.
+    Works with **any** AI framework that implements
+    :class:`~airflow.providers.common.ai.hooks.base.BaseAIHook` -- the backend
+    is selected by the **connection type**, not by choosing a different operator.
+
+    Supported backends:
+
+    * **pydantic-ai** (connection type ``pydanticai``) -- default.  Uses
+      `pydantic-ai <https://ai.pydantic.dev/>`__ agents.  All toolsets
+      (``SQLToolset``, ``HookToolset``, ``MCPToolset``) work natively.
+    * **Google ADK** (connection type ``adk``) -- uses Google's
+      `Agent Development Kit <https://google.github.io/adk-docs/>`__ with
+      Gemini models.  Toolsets are automatically bridged to ADK-compatible
+      callable tools.
 
     :param prompt: The prompt to send to the agent.
-    :param llm_conn_id: Connection ID for the LLM provider.
-    :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
-        Overrides the model stored in the connection's extra field.
+    :param llm_conn_id: Connection ID for the LLM provider.  The connection
+        type determines which AI framework is used.
+    :param model_id: Model identifier (e.g. ``"openai:gpt-5"`` for pydantic-ai
+        or ``"gemini-2.5-flash"`` for ADK).  Overrides the model stored in
+        the connection's extra field.
     :param system_prompt: System-level instructions for the agent.
     :param output_type: Expected output type. Default ``str``. Set to a Pydantic
         ``BaseModel`` subclass for structured output.
     :param toolsets: List of pydantic-ai toolsets the agent can use
-        (e.g. ``SQLToolset``, ``HookToolset``).
+        (e.g. ``SQLToolset``, ``HookToolset``).  When using ADK, toolsets are
+        bridged automatically to ADK-compatible callable tools.
     :param enable_tool_logging: When ``True`` (default), wraps each toolset in a
         ``LoggingToolset`` that logs tool calls with timing at INFO level and
-        arguments at DEBUG level. Set to ``False`` to disable.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+        arguments at DEBUG level.  Currently applies to pydantic-ai backend only.
+    :param agent_params: Additional keyword arguments passed to the underlying
+        agent constructor (e.g. ``retries``, ``model_settings`` for pydantic-ai,
+        or ``description``, ``tools`` for ADK).
 
-    **HITL Review parameters** (requires the ``hitl_review`` plugin):
+    **HITL Review parameters** (requires the ``hitl_review`` plugin, pydantic-ai only):
 
     :param enable_hitl_review: When ``True``, the operator enters an
         iterative review loop after the first generation.  A human reviewer
@@ -112,7 +128,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
     :param max_hitl_iterations: Maximum outputs shown to the reviewer (1 =
         initial output). When the reviewer requests changes at
         iteration >= this limit, the task fails with ``HITLMaxIterationsError``
-        without calling the LLM. E.g. 5 allows changes at iterations 1–4.
+        without calling the LLM. E.g. 5 allows changes at iterations 1--4.
         Default ``5``.
     :param hitl_timeout: Maximum wall-clock time to wait for
         all review rounds combined.  ``None`` means no timeout (the
@@ -142,7 +158,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         toolsets: list[AbstractToolset] | None = None,
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
-        # Agent feedback parameters
+        # HITL Review parameters
         enable_hitl_review: bool = False,
         max_hitl_iterations: int = 5,
         hitl_timeout: timedelta | None = None,
@@ -171,44 +187,81 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             )
 
     @cached_property
-    def llm_hook(self) -> PydanticAIHook:
-        """Return PydanticAIHook for the configured LLM connection."""
+    def llm_hook(self) -> BaseAIHook:
+        """
+        Resolve the AI hook from the connection type.
+
+        Checks the connection's ``conn_type`` to pick the right hook:
+
+        * ``adk`` -> :class:`~airflow.providers.common.ai.hooks.adk.AdkHook`
+        * ``pydanticai*`` -> delegates to
+          :meth:`~PydanticAIHook.get_hook` which instantiates the correct
+          subclass (e.g. ``PydanticAIAzureHook`` for ``pydanticai-azure``).
+
+        This allows users to switch backends by changing the connection type,
+        not the operator class.
+        """
+        conn_type = self._resolve_conn_type()
+
+        if conn_type == "adk":
+            from airflow.providers.common.ai.hooks.adk import AdkHook
+
+            return AdkHook(llm_conn_id=self.llm_conn_id, model_id=self.model_id)
+
         hook_params = {
             "model_id": self.model_id,
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
+    def _resolve_conn_type(self) -> str:
+        """Look up the connection type for ``llm_conn_id``."""
+        try:
+            conn = BaseHook.get_connection(self.llm_conn_id)
+            return conn.conn_type or "pydanticai"
+        except Exception:
+            return "pydanticai"
+
     def _build_agent(self) -> Agent[None, Any]:
-        """Build and return a pydantic-ai Agent from the operator's config."""
+        """Build and return an Agent from the operator's config."""
         extra_kwargs = dict(self.agent_params)
-        if self.toolsets:
-            if self.enable_tool_logging:
-                extra_kwargs["toolsets"] = wrap_toolsets_for_logging(self.toolsets, self.log)
-            else:
-                extra_kwargs["toolsets"] = self.toolsets
+
+        # Prepare toolsets -- wrap for logging when using pydantic-ai.
+        resolved_toolsets = self.toolsets
+        if self.toolsets and self.enable_tool_logging:
+            hook_type = self._resolve_conn_type()
+            if hook_type != "adk":
+                resolved_toolsets = wrap_toolsets_for_logging(self.toolsets, self.log)
+
         return self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self.system_prompt,
+            toolsets=resolved_toolsets,
             **extra_kwargs,
         )
 
     def execute(self, context: Context) -> Any:
-        agent = self._build_agent()
-        result = agent.run_sync(self.prompt)
-        log_run_summary(self.log, result)
-        output = result.output
-
         if self.enable_hitl_review:
+            # HITL path: run agent directly to access message_history
+            # for the iterative feedback loop (pydantic-ai only).
+            agent = self._build_agent()
+            result = agent.run_sync(self.prompt)
+            log_run_summary(self.log, result)
+            output = result.output
+
             result_str = self.run_hitl_review(  # type: ignore[misc]
                 context,
                 output,
                 message_history=result.all_messages(),
             )
-            # Deserialize back to dict
+            # Deserialize back to dict when output_type is a BaseModel
             try:
                 return json.loads(result_str)
             except (ValueError, TypeError):
                 return result_str
+
+        # Standard path: delegate to hook's run_agent (supports all backends).
+        agent = self._build_agent()
+        output = self.llm_hook.run_agent(agent=agent, prompt=self.prompt)
 
         if isinstance(output, BaseModel):
             return output.model_dump()

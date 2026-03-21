@@ -36,6 +36,7 @@
 
     Connection types <connections/pydantic_ai>
     MCP connection <connections/mcp>
+    ADK connection <connections/adk>
     Hooks <hooks/pydantic_ai>
     Toolsets <toolsets>
     Operators <operators/index>

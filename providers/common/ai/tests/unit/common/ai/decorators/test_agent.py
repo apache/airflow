@@ -46,7 +46,9 @@ class TestAgentDecoratedOperator:
         """The callable's return value becomes the agent prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("The top customer is Acme Corp.")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = "The top customer is Acme Corp."
 
         def my_prompt():
             return "Who is our top customer?"
@@ -56,7 +58,7 @@ class TestAgentDecoratedOperator:
 
         assert result == "The top customer is Acme Corp."
         assert op.prompt == "Who is our top customer?"
-        mock_agent.run_sync.assert_called_once_with("Who is our top customer?")
+        mock_hook.run_agent.assert_called_once_with(agent=mock_agent, prompt="Who is our top customer?")
 
     @pytest.mark.parametrize(
         "return_value",
@@ -78,7 +80,9 @@ class TestAgentDecoratedOperator:
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("done")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = "done"
 
         def my_prompt(topic):
             return f"Analyze {topic}"
@@ -92,14 +96,16 @@ class TestAgentDecoratedOperator:
         op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Analyze revenue trends"
-        mock_agent.run_sync.assert_called_once_with("Analyze revenue trends")
+        mock_hook.run_agent.assert_called_once_with(agent=mock_agent, prompt="Analyze revenue trends")
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_through(self, mock_hook_cls):
         """Toolsets passed to the decorator are forwarded to the agent."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("result")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = "result"
 
         mock_toolset = MagicMock()
 
@@ -124,9 +130,12 @@ class TestAgentDecoratedOperator:
         class Summary(BaseModel):
             text: str
 
+        summary = Summary(text="Great results")
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = _make_mock_run_result(Summary(text="Great results"))
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_agent.run_sync.return_value = _make_mock_run_result(summary)
+        mock_hook = mock_hook_cls.get_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = summary
 
         op = _AgentDecoratedOperator(
             task_id="test",

@@ -33,6 +33,15 @@ tool-call loop where the LLM decides which tools to call and when to stop.
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
 
+The same ``AgentOperator`` supports **multiple backends** — the backend is
+selected by the **connection type** of the ``llm_conn_id``:
+
+- **pydanticai** (default): Uses pydantic-ai as the agent framework.
+- **adk**: Uses Google's `Agent Development Kit <https://google.github.io/adk-docs/>`_.
+
+.. seealso::
+    :ref:`ADK connection configuration <howto/connection:adk>`
+
 
 SQL Agent
 ---------
@@ -116,20 +125,24 @@ Parameters
 
 - ``prompt``: The prompt to send to the agent (operator) or the return value
   of the decorated function (decorator).
-- ``llm_conn_id``: Airflow connection ID for the LLM provider.
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the
-  connection's extra field.
+- ``llm_conn_id``: Airflow connection ID for the LLM provider. The
+  connection type (``pydanticai`` or ``adk``) determines which backend is used.
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"`` for pydantic-ai,
+  ``"gemini-2.5-flash"`` for ADK). Overrides the connection's extra field.
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja
   templating.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic
   ``BaseModel`` for structured output.
 - ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
-  etc.).
+  etc.). Toolsets are automatically bridged to the ADK backend when an
+  ``adk`` connection is used.
 - ``enable_tool_logging``: Wrap each toolset in
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
-  every tool call is logged in real time. Default ``True``.
-- ``agent_params``: Additional keyword arguments passed to the pydantic-ai
-  ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+  every tool call is logged in real time. Default ``True``. Only applies to
+  the pydantic-ai backend.
+- ``agent_params``: Additional keyword arguments passed to the underlying
+  agent constructor (pydantic-ai ``Agent`` or ADK ``Agent``). For ADK, use
+  ``agent_params={"tools": [...]}`` to pass plain Python callable tools.
 
 
 Logging
@@ -178,6 +191,38 @@ To disable real-time tool logging while keeping the post-run summary:
         toolsets=[SQLToolset(db_conn_id="my_db")],
         enable_tool_logging=False,
     )
+
+
+Google ADK Backend
+------------------
+
+To use the ADK backend, create a connection of type ``adk`` and pass its ID
+as ``llm_conn_id``. Install the extra dependency first:
+
+.. code-block:: bash
+
+    pip install 'apache-airflow-providers-common-ai[adk]'
+
+ADK tools are plain Python callables whose **docstrings** are sent to the LLM.
+Pass them via ``agent_params``:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_adk_agent.py
+    :language: python
+    :start-after: [START howto_operator_adk_agent]
+    :end-before: [END howto_operator_adk_agent]
+
+The ``@task.agent`` decorator also works with the ADK backend:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_adk_agent.py
+    :language: python
+    :start-after: [START howto_decorator_adk_agent]
+    :end-before: [END howto_decorator_adk_agent]
+
+.. note::
+
+    When using the ADK backend, ``toolsets`` (``SQLToolset``, ``HookToolset``,
+    etc.) are automatically bridged to ADK-compatible tool functions. You can
+    use them the same way as with the pydantic-ai backend.
 
 
 Security

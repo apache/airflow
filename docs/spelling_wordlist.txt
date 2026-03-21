@@ -18,6 +18,8 @@ adb
 additionalProperties
 adf
 adhoc
+adk
+ADK
 adls
 adobjects
 AdsInsights
@@ -154,6 +156,7 @@ backticks
 balancer
 balancers
 Bas
+BaseAgent
 BaseClient
 BaseHook
 BaseOperator

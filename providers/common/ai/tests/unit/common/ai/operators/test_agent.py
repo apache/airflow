@@ -82,7 +82,9 @@ class TestAgentOperatorExecute:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_creates_agent_from_hook(self, mock_hook_cls):
         mock_agent = _make_mock_agent("The answer is 42.")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = mock_hook_cls.get_hook.return_value
+        mock_hook.create_agent.return_value = mock_agent
+        mock_hook.run_agent.return_value = "The answer is 42."
 
         op = AgentOperator(
             task_id="test",
@@ -94,10 +96,10 @@ class TestAgentOperatorExecute:
 
         assert result == "The answer is 42."
         mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": None})
-        mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
-            output_type=str, instructions="You are helpful."
+        mock_hook.create_agent.assert_called_once_with(
+            output_type=str, instructions="You are helpful.", toolsets=None
         )
-        mock_agent.run_sync.assert_called_once_with("What is the answer?")
+        mock_hook.run_agent.assert_called_once_with(agent=mock_agent, prompt="What is the answer?")
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_in_agent_kwargs(self, mock_hook_cls):
@@ -162,9 +164,10 @@ class TestAgentOperatorExecute:
             text: str
             score: float
 
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
-            Summary(text="Great", score=0.95)
-        )
+        summary = Summary(text="Great", score=0.95)
+        mock_hook = mock_hook_cls.get_hook.return_value
+        mock_hook.create_agent.return_value = _make_mock_agent(summary)
+        mock_hook.run_agent.return_value = summary
 
         op = AgentOperator(
             task_id="test",
