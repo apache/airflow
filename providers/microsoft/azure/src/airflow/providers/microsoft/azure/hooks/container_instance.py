@@ -22,11 +22,18 @@ from typing import TYPE_CHECKING, Any, cast
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.identity.aio import ClientSecretCredential as AsyncClientSecretCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
+from azure.mgmt.containerinstance.aio import (
+    ContainerInstanceManagementClient as AsyncContainerInstanceManagementClient,
+)
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
-from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
+from airflow.providers.microsoft.azure.utils import (
+    get_async_default_azure_credential,
+    get_sync_default_azure_credential,
+)
 
 if TYPE_CHECKING:
     from azure.mgmt.containerinstance.models import (
@@ -170,3 +177,97 @@ class AzureContainerInstanceHook(AzureBaseHook):
             return False, str(e)
 
         return True, "Successfully connected to Azure Container Instance."
+
+
+class AzureContainerInstanceAsyncHook(AzureContainerInstanceHook):
+    """
+    An async hook for communicating with Azure Container Instances.
+
+    :param azure_conn_id: :ref:`Azure connection id<howto/connection:azure>` of
+        a service principal which will be used to start the container instance.
+    """
+
+    def __init__(self, azure_conn_id: str = AzureContainerInstanceHook.default_conn_name) -> None:
+        self._async_conn: AsyncContainerInstanceManagementClient | None = None
+        self._async_credential: Any = None
+        super().__init__(azure_conn_id=azure_conn_id)
+
+    async def __aenter__(self) -> AzureContainerInstanceAsyncHook:
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        await self.close()
+
+    async def close(self) -> None:
+        """Close the async connection and credential."""
+        if self._async_conn is not None:
+            await self._async_conn.close()
+            self._async_conn = None
+        if self._async_credential is not None and hasattr(self._async_credential, "close"):
+            await self._async_credential.close()
+            self._async_credential = None
+
+    async def get_async_conn(self) -> AsyncContainerInstanceManagementClient:
+        """Return (or create) the async management client."""
+        if self._async_conn is not None:
+            return self._async_conn
+
+        conn = self.get_connection(self.conn_id)
+        tenant = conn.extra_dejson.get("tenantId")
+        subscription_id = cast("str", conn.extra_dejson.get("subscriptionId"))
+
+        if all([conn.login, conn.password, tenant]):
+            self._async_credential = AsyncClientSecretCredential(
+                client_id=cast("str", conn.login),
+                client_secret=cast("str", conn.password),
+                tenant_id=cast("str", tenant),
+            )
+        else:
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            self._async_credential = get_async_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
+
+        self._async_conn = AsyncContainerInstanceManagementClient(
+            credential=self._async_credential,
+            subscription_id=subscription_id,
+        )
+        return self._async_conn
+
+    async def get_state(self, resource_group: str, name: str) -> ContainerGroup:  # type: ignore[override]
+        """
+        Get the state of a container group asynchronously.
+
+        :param resource_group: the name of the resource group
+        :param name: the name of the container group
+        :return: ContainerGroup
+        """
+        client = await self.get_async_conn()
+        return await client.container_groups.get(resource_group, name)
+
+    async def get_logs(self, resource_group: str, name: str, tail: int = 1000) -> list:  # type: ignore[override]
+        """
+        Get the tail from logs of a container group asynchronously.
+
+        :param resource_group: the name of the resource group
+        :param name: the name of the container group
+        :param tail: the size of the tail
+        :return: A list of log messages
+        """
+        client = await self.get_async_conn()
+        logs = await client.containers.list_logs(resource_group, name, name, tail=tail)
+        if logs.content is None:
+            return [None]
+        return logs.content.splitlines(True)
+
+    async def delete(self, resource_group: str, name: str) -> None:  # type: ignore[override]
+        """
+        Delete a container group asynchronously.
+
+        :param resource_group: the name of the resource group
+        :param name: the name of the container group
+        """
+        client = await self.get_async_conn()
+        await client.container_groups.begin_delete(resource_group, name)

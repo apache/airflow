@@ -32,8 +32,10 @@ from azure.mgmt.containerinstance.models import (
     Event,
 )
 
+from airflow.exceptions import TaskDeferred
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.operators.container_instances import AzureContainerInstancesOperator
+from airflow.providers.microsoft.azure.triggers.container_instance import AzureContainerInstanceTrigger
 
 from tests_common.test_utils.compat import Context
 
@@ -641,6 +643,317 @@ class TestACIOperator:
         assert called_cg.identity is not None
         # user_assigned_identities should contain the resource id as a key
         assert resource_id in (called_cg.identity.user_assigned_identities or {})
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_deferrable_defers_when_container_running(self, aci_mock):
+        """When deferrable=True and the container is still running, defer() is called."""
+        running_cg = make_mock_container(state="Running", exit_code=0, detail_status="test")
+        aci_mock.return_value.get_state.return_value = running_cg
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id="azure_default",
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            deferrable=True,
+            polling_interval=10.0,
+        )
+        with pytest.raises(TaskDeferred) as exc_info:
+            aci.execute(None)
+
+        assert isinstance(exc_info.value.trigger, AzureContainerInstanceTrigger)
+        assert exc_info.value.trigger.resource_group == "resource-group"
+        assert exc_info.value.trigger.name == "container-name"
+        assert exc_info.value.trigger.polling_interval == 10.0
+        assert exc_info.value.method_name == "execute_complete"
+        # Container must NOT be deleted when deferring — it is still running
+        assert aci_mock.return_value.delete.call_count == 0
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_deferrable_completes_synchronously_if_already_terminated(self, aci_mock):
+        """When deferrable=True but container is already terminal, no deferral — sync completion."""
+        terminated_cg = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
+        aci_mock.return_value.get_state.return_value = terminated_cg
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id="azure_default",
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            deferrable=True,
+        )
+        result = aci.execute(None)
+        assert result == 0
+        assert aci_mock.return_value.create_or_update.call_count == 1
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_complete_success(self, aci_mock):
+        """execute_complete succeeds, does not raise, and deletes the container group."""
+        aci_mock.return_value.get_logs.return_value = None
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id="azure_default",
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            deferrable=True,
+            remove_on_success=True,
+        )
+        result = aci.execute_complete(
+            context=None,
+            event={
+                "status": "success",
+                "exit_code": 0,
+                "detail_status": "Completed",
+                "resource_group": "resource-group",
+                "name": "container-name",
+            },
+        )
+        assert result == 0
+        assert aci_mock.return_value.delete.call_count == 1
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_complete_success_with_remove_on_success_false(self, aci_mock):
+        """execute_complete with remove_on_success=False should NOT delete the container."""
+        aci_mock.return_value.get_logs.return_value = None
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id="azure_default",
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            deferrable=True,
+            remove_on_success=False,
+        )
+        aci.execute_complete(
+            context=None,
+            event={
+                "status": "success",
+                "exit_code": 0,
+                "detail_status": "Completed",
+                "resource_group": "resource-group",
+                "name": "container-name",
+            },
+        )
+        assert aci_mock.return_value.delete.call_count == 0
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_complete_error_event_raises(self, aci_mock):
+        """execute_complete raises AirflowException when event has status=error."""
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id="azure_default",
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            deferrable=True,
+            remove_on_error=False,
+        )
+        with pytest.raises(RuntimeError, match="Container group failed"):
+            aci.execute_complete(
+                context=None,
+                event={
+                    "status": "error",
+                    "exit_code": 1,
+                    "detail_status": "OOMKilled",
+                    "message": "Container group failed with exit code 1",
+                    "resource_group": "resource-group",
+                    "name": "container-name",
+                },
+            )
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_complete_error_event_removes_on_error(self, aci_mock):
+        """execute_complete with remove_on_error=True deletes the container on error."""
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id="azure_default",
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            deferrable=True,
+            remove_on_error=True,
+        )
+        with pytest.raises(RuntimeError):
+            aci.execute_complete(
+                context=None,
+                event={
+                    "status": "error",
+                    "exit_code": 1,
+                    "detail_status": "Failed",
+                    "message": "Container group failed with exit code 1",
+                    "resource_group": "resource-group",
+                    "name": "container-name",
+                },
+            )
+        assert aci_mock.return_value.delete.call_count == 1
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_complete_none_event_raises(self, aci_mock):
+        """execute_complete raises ValueError when event is None."""
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id="azure_default",
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            deferrable=True,
+        )
+        with pytest.raises(ValueError, match="event is None"):
+            aci.execute_complete(context=None, event=None)
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_complete_pushes_all_logs_to_xcom(self, aci_mock):
+        """execute_complete pushes all logs to XCom when xcom_all=True."""
+        aci_mock.return_value.get_logs.return_value = ["line1\n", "line2\n"]
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id="azure_default",
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            deferrable=True,
+            xcom_all=True,
+            remove_on_success=False,
+        )
+        context = Context(ti=XcomMock())
+        aci.execute_complete(
+            context=context,
+            event={
+                "status": "success",
+                "exit_code": 0,
+                "detail_status": "Completed",
+                "resource_group": "resource-group",
+                "name": "container-name",
+            },
+        )
+        assert context["ti"].xcom_pull(key="logs") == ["line1\n", "line2\n"]
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_complete_pushes_last_log_to_xcom(self, aci_mock):
+        """execute_complete pushes only last log line to XCom when xcom_all=False."""
+        aci_mock.return_value.get_logs.return_value = ["line1\n", "line2\n"]
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id="azure_default",
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            deferrable=True,
+            xcom_all=False,
+            remove_on_success=False,
+        )
+        context = Context(ti=XcomMock())
+        aci.execute_complete(
+            context=context,
+            event={
+                "status": "success",
+                "exit_code": 0,
+                "detail_status": "Completed",
+                "resource_group": "resource-group",
+                "name": "container-name",
+            },
+        )
+        assert context["ti"].xcom_pull(key="logs") == ["line2\n"]
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_remove_on_success_false_sync_path(self, aci_mock):
+        """Non-deferrable: remove_on_success=False should NOT delete the container on success."""
+        terminated_cg = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
+        aci_mock.return_value.get_state.return_value = terminated_cg
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            remove_on_success=False,
+        )
+        aci.execute(None)
+        assert aci_mock.return_value.delete.call_count == 0
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_remove_on_success_true_sync_path(self, aci_mock):
+        """Non-deferrable: remove_on_success=True (default) deletes the container on success."""
+        terminated_cg = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
+        aci_mock.return_value.get_state.return_value = terminated_cg
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            remove_on_success=True,
+        )
+        aci.execute(None)
+        assert aci_mock.return_value.delete.call_count == 1
 
 
 class XcomMock:
