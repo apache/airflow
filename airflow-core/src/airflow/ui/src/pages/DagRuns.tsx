@@ -214,9 +214,9 @@ const runColumns = (
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearRunButton dagRun={row.original} />
-        <MarkRunAsButton dagRun={row.original} />
-        <DeleteRunButton dagRun={row.original} />
+        <ClearRunButton dagRun={row.original} disabled={selectedRows.size > 0} />
+        <MarkRunAsButton dagRun={row.original} disabled={selectedRows.size > 0} />
+        <DeleteRunButton dagRun={row.original} disabled={selectedRows.size > 0} />
       </Flex>
     ),
     enableSorting: false,
@@ -332,10 +332,20 @@ export const DagRuns = () => {
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
             {selectedRows.size} {translate("common:selected")}
-          </ActionBar.SelectionTrigger>
-          <ActionBar.Separator />
-          <ActionBar.CloseTrigger onClick={clearSelections} />
-        </ActionBar.Content>
+         </ActionBar.SelectionTrigger>
+         <ActionBar.Separator />
+         <ClearRunButton
+           dagRun={undefined}
+           dagRunIds={[...selectedRows.keys()].map((key) => key.split(":")[1])}
+           onSuccess={clearSelections}
+         />
+         <MarkRunAsButton
+           dagRun={undefined}
+           dagRunIds={[...selectedRows.keys()].map((key) => key.split(":")[1])}
+           onSuccess={clearSelections}
+         />
+         <ActionBar.CloseTrigger onClick={clearSelections} />
+       </ActionBar.Content>
       </ActionBar.Root>
     </>
   );
