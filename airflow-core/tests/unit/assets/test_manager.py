@@ -300,7 +300,9 @@ class TestAssetManager:
         """partitioned asset events (events with partition key) must not queue non-partition-aware Dags."""
         asm = AssetModel(uri="test://asset/", name="test_asset", group="asset")
         session.add(asm)
-        dag = DagModel(dag_id="consumer_dag", is_paused=False, bundle_name="testing", timetable_partitioned=False)
+        dag = DagModel(
+            dag_id="consumer_dag", is_paused=False, bundle_name="testing", timetable_partitioned=False
+        )
         session.add(dag)
         asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag.dag_id)]
         session.execute(delete(AssetDagRunQueue))
