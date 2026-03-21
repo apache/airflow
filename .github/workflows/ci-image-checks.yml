@@ -316,54 +316,56 @@ jobs:
           path: ./slack-state/
           retention-days: 7
           overwrite: true
-      - name: "Notify Slack about missing inventories (new/changed)"
-        if: >-
-          inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only' &&
-          steps.inventory-notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
-        with:
-          method: chat.postMessage
-          token: ${{ env.SLACK_BOT_TOKEN }}
-          # yamllint disable rule:line-length
-          payload: |
-            channel: "internal-airflow-ci-cd"
-            text: "⚠️ Missing 3rd-party doc inventories in canary build on *${{ github.ref_name }}*: ${{ steps.check-missing-inventories.outputs.packages }}\n\n<${{ steps.get-job-url.outputs.url }}|View job log>"
-          # yamllint enable rule:line-length
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      - name: "Notify Slack about missing inventories (still not fixed)"
-        if: >-
-          inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only' &&
-          steps.inventory-notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
-        with:
-          method: chat.postMessage
-          token: ${{ env.SLACK_BOT_TOKEN }}
-          # yamllint disable rule:line-length
-          payload: |
-            channel: "internal-airflow-ci-cd"
-            text: "⚠️🔁 Still not fixed: Missing 3rd-party doc inventories in canary build on *${{ github.ref_name }}*: ${{ steps.check-missing-inventories.outputs.packages }}\n\n<${{ steps.get-job-url.outputs.url }}|View job log>"
-          # yamllint enable rule:line-length
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      - name: "Notify Slack about inventory recovery"
-        if: >-
-          inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only' &&
-          steps.inventory-notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
-        with:
-          method: chat.postMessage
-          token: ${{ env.SLACK_BOT_TOKEN }}
-          # yamllint disable rule:line-length
-          payload: |
-            channel: "internal-airflow-ci-cd"
-            text: "✅ All 3rd-party doc inventories are now available in canary build on *${{ github.ref_name }}*\n\n<${{ steps.get-job-url.outputs.url }}|View job log>"
-          # yamllint enable rule:line-length
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      # yamllint disable rule:line-length rule:comments-indentation
+      #      - name: "Notify Slack about missing inventories (new/changed)"
+      #        if: >-
+      #          inputs.canary-run == 'true' &&
+      #          matrix.flag == '--docs-only' &&
+      #          steps.inventory-notification.outputs.action == 'notify_new'
+      #        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+      #        with:
+      #          method: chat.postMessage
+      #          token: ${{ env.SLACK_BOT_TOKEN }}
+      #          # yamllint disable rule:line-length
+      #          payload: |
+      #            channel: "internal-airflow-ci-cd"
+      #            text: "⚠️ Missing 3rd-party doc inventories in canary build on *${{ github.ref_name }}*: ${{ steps.check-missing-inventories.outputs.packages }}\n\n<${{ steps.get-job-url.outputs.url }}|View job log>"
+      #          # yamllint enable rule:line-length
+      #        env:
+      #          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      #      - name: "Notify Slack about missing inventories (still not fixed)"
+      #        if: >-
+      #          inputs.canary-run == 'true' &&
+      #          matrix.flag == '--docs-only' &&
+      #          steps.inventory-notification.outputs.action == 'notify_reminder'
+      #        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+      #        with:
+      #          method: chat.postMessage
+      #          token: ${{ env.SLACK_BOT_TOKEN }}
+      #          # yamllint disable rule:line-length
+      #          payload: |
+      #            channel: "internal-airflow-ci-cd"
+      #            text: "⚠️🔁 Still not fixed: Missing 3rd-party doc inventories in canary build on *${{ github.ref_name }}*: ${{ steps.check-missing-inventories.outputs.packages }}\n\n<${{ steps.get-job-url.outputs.url }}|View job log>"
+      #          # yamllint enable rule:line-length
+      #        env:
+      #          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      #      - name: "Notify Slack about inventory recovery"
+      #        if: >-
+      #          inputs.canary-run == 'true' &&
+      #          matrix.flag == '--docs-only' &&
+      #          steps.inventory-notification.outputs.action == 'notify_recovery'
+      #        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95  # v3.0.1
+      #        with:
+      #          method: chat.postMessage
+      #          token: ${{ env.SLACK_BOT_TOKEN }}
+      #          # yamllint disable rule:line-length
+      #          payload: |
+      #            channel: "internal-airflow-ci-cd"
+      #            text: "✅ All 3rd-party doc inventories are now available in canary build on *${{ github.ref_name }}*\n\n<${{ steps.get-job-url.outputs.url }}|View job log>"
+      #          # yamllint enable rule:line-length
+      #        env:
+      #          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      # yamllint enable rule:line-length rule:comments-indentation
       - name: "Save docs inventory cache"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
