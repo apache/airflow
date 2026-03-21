@@ -67,7 +67,7 @@ spec:
         tier: airflow
         component: pgbouncer
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.pgbouncer.labels) }}
+        {{- if or .Values.labels .Values.pgbouncer.labels }}
           {{- mustMerge .Values.pgbouncer.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
@@ -165,7 +165,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ template "pgbouncer_stats_secret" . }}
-                  {{- if (and .Values.pgbouncer.metricsExporterSidecar.statsSecretName .Values.pgbouncer.metricsExporterSidecar.statsSecretKey) }}
+                  {{- if and .Values.pgbouncer.metricsExporterSidecar.statsSecretName .Values.pgbouncer.metricsExporterSidecar.statsSecretKey }}
                   key: {{ .Values.pgbouncer.metricsExporterSidecar.statsSecretKey }}
                   {{- else }}
                   key: "connection"

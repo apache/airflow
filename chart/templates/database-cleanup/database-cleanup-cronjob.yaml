@@ -47,7 +47,7 @@ spec:
   schedule: "{{ tpl .Values.databaseCleanup.schedule . }}"
   # The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
   concurrencyPolicy: Forbid
-  {{- if not ( eq .Values.databaseCleanup.failedJobsHistoryLimit nil) }}
+  {{- if not (eq .Values.databaseCleanup.failedJobsHistoryLimit nil) }}
   failedJobsHistoryLimit: {{ .Values.databaseCleanup.failedJobsHistoryLimit }}
   {{- end }}
   {{- if not (eq .Values.databaseCleanup.successfulJobsHistoryLimit nil) }}
@@ -62,7 +62,7 @@ spec:
             tier: airflow
             component: database-cleanup
             release: {{ .Release.Name }}
-            {{- if or (.Values.labels) (.Values.databaseCleanup.labels) }}
+            {{- if or .Values.labels .Values.databaseCleanup.labels }}
               {{- mustMerge .Values.databaseCleanup.labels .Values.labels | toYaml | nindent 12 }}
             {{- end }}
           annotations:

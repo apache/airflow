@@ -20,8 +20,7 @@
 ################################
 ## Airflow ConfigMap
 #################################
-{{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
-{{- if and .Values.apiServer.apiServerConfig (not .Values.apiServer.apiServerConfigConfigMapName) }}
+{{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.apiServer.apiServerConfig (not .Values.apiServer.apiServerConfigConfigMapName) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -42,5 +41,4 @@ metadata:
 data:
   webserver_config.py: |-
     {{- tpl .Values.apiServer.apiServerConfig . | nindent 4 }}
-{{- end }}
 {{- end }}

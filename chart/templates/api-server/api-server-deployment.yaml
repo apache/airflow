@@ -55,7 +55,7 @@ spec:
   {{- end }}
   strategy:
     {{- if .Values.apiServer.strategy }}
-    {{- toYaml .Values.apiServer.strategy | nindent 4 }}
+      {{- toYaml .Values.apiServer.strategy | nindent 4 }}
     {{- else }}
     # Here we define the rolling update strategy
     # - maxSurge define how many pod we can add at a time
@@ -80,7 +80,7 @@ spec:
         tier: airflow
         component: api-server
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.apiServer.labels) }}
+        {{- if or .Values.labels .Values.apiServer.labels }}
           {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
