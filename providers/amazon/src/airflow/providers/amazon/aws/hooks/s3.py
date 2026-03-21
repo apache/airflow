@@ -195,6 +195,7 @@ class S3Hook(AwsBaseHook):
         kwargs["client_type"] = "s3"
         kwargs["aws_conn_id"] = aws_conn_id
         self._requester_pays = kwargs.pop("requester_pays", False)
+        self.enable_hook_level_lineage = kwargs.pop("enable_hook_level_lineage", True)
 
         if transfer_config_args and not isinstance(transfer_config_args, dict):
             raise TypeError(f"transfer_config_args expected dict, got {type(transfer_config_args).__name__}.")
@@ -1237,9 +1238,10 @@ class S3Hook(AwsBaseHook):
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="file", asset_kwargs={"path": filename}
         )
-        get_hook_lineage_collector().add_output_asset(
-            context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
-        )
+        if self.enable_hook_level_lineage:
+            get_hook_lineage_collector().add_output_asset(
+                context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
+            )
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1383,9 +1385,10 @@ class S3Hook(AwsBaseHook):
             Config=self.transfer_config,
         )
         # No input because file_obj can be anything - handle in calling function if possible
-        get_hook_lineage_collector().add_output_asset(
-            context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
-        )
+        if getattr(self, "enable_hook_level_lineage", True):
+            get_hook_lineage_collector().add_output_asset(
+                context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
+            )
 
     def copy_object(
         self,
