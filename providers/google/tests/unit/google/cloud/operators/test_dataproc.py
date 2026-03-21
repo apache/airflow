@@ -82,7 +82,10 @@ AIRFLOW_VERSION_LABEL = "v" + str(AIRFLOW_VERSION).replace(".", "-").replace("+"
 
 cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
 
-DATAPROC_PATH = "airflow.providers.google.cloud.operators.dataproc.{}"
+# Operators live in dataproc package: Batch in ._batch (lazy, #62373), rest in ._core
+DATAPROC_PATH = "airflow.providers.google.cloud.operators.dataproc._core.{}"
+DATAPROC_BATCH_HOOK_PATH = "airflow.providers.google.cloud.hooks.dataproc.DataprocHook"
+DATAPROC_BATCH_TO_DICT_PATH = "google.cloud.dataproc_v1.Batch.to_dict"
 DATAPROC_TRIGGERS_PATH = "airflow.providers.google.cloud.triggers.dataproc.{}"
 
 TASK_ID = "task-id"
@@ -3520,8 +3523,8 @@ class TestDataprocCreateWorkflowTemplateOperator:
 
 class TestDataprocCreateBatchOperator:
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute(self, mock_hook, to_dict_mock, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3563,8 +3566,8 @@ class TestDataprocCreateBatchOperator:
             ]
         )
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_with_result_retry(self, mock_hook, to_dict_mock):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3594,8 +3597,8 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_batch_failed(self, mock_hook, to_dict_mock):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3615,7 +3618,7 @@ class TestDataprocCreateBatchOperator:
             op.execute(context=MagicMock())
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_batch_already_exists_succeeds(self, mock_hook, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3658,7 +3661,7 @@ class TestDataprocCreateBatchOperator:
         )
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_batch_already_exists_fails(self, mock_hook, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3694,7 +3697,7 @@ class TestDataprocCreateBatchOperator:
         mock_log.info.assert_any_call("Batch with given id already exists.")
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_batch_already_exists_cancelled(self, mock_hook, mock_log):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
@@ -3734,8 +3737,8 @@ class TestDataprocCreateBatchOperator:
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_openlineage_parent_job_info_injection(
         self,
         mock_hook,
@@ -3793,8 +3796,8 @@ class TestDataprocCreateBatchOperator:
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_openlineage_transport_info_injection(
         self,
         mock_hook,
@@ -3861,8 +3864,8 @@ class TestDataprocCreateBatchOperator:
     @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_openlineage_all_info_injection(
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
@@ -3914,8 +3917,8 @@ class TestDataprocCreateBatchOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_openlineage_parent_job_info_injection_skipped_when_already_present(
         self, mock_hook, to_dict_mock, mock_ol_accessible
     ):
@@ -3959,8 +3962,8 @@ class TestDataprocCreateBatchOperator:
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_openlineage_transport_info_injection_skipped_when_already_present(
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
@@ -4008,8 +4011,8 @@ class TestDataprocCreateBatchOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_openlineage_parent_job_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, to_dict_mock, mock_ol_accessible
     ):
@@ -4047,8 +4050,8 @@ class TestDataprocCreateBatchOperator:
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_openlineage_transport_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
@@ -4090,8 +4093,8 @@ class TestDataprocCreateBatchOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_openlineage_parent_job_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, to_dict_mock, mock_ol_accessible
     ):
@@ -4129,8 +4132,8 @@ class TestDataprocCreateBatchOperator:
 
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_execute_openlineage_transport_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
@@ -4184,8 +4187,8 @@ class TestDataprocCreateBatchOperator:
             metadata=ANY,
         )
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_create_batch_asdict_labels_updated(self, mock_hook, to_dict_mock):
         expected_batch = {
             **BATCH,
@@ -4200,8 +4203,8 @@ class TestDataprocCreateBatchOperator:
 
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_create_batch_asdict_labels_uppercase_transformed(self, mock_hook, to_dict_mock):
         expected_batch = {
             **BATCH,
@@ -4216,8 +4219,8 @@ class TestDataprocCreateBatchOperator:
 
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_create_batch_asdict_taskid_max_length_labels_updated(self, mock_hook, to_dict_mock):
         long_task_id = "a" * 63
         expected_batch = {
@@ -4237,8 +4240,8 @@ class TestDataprocCreateBatchOperator:
 
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_create_batch_invalid_taskid_labels_ignored(self, mock_hook, to_dict_mock):
         DataprocCreateBatchOperator(
             task_id=".task-id",
@@ -4249,8 +4252,8 @@ class TestDataprocCreateBatchOperator:
 
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, BATCH)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_create_batch_long_taskid_labels_ignored(self, mock_hook, to_dict_mock):
         DataprocCreateBatchOperator(
             task_id="a" * 64,
@@ -4261,8 +4264,8 @@ class TestDataprocCreateBatchOperator:
 
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, BATCH)
 
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
-    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
+    @mock.patch(DATAPROC_BATCH_HOOK_PATH)
     def test_create_batch_asobj_labels_updated(self, mock_hook, to_dict_mock):
         batch = Batch(name="test")
         batch.labels["foo"] = "bar"
@@ -4326,7 +4329,7 @@ class TestDataprocDeleteBatchOperator:
 
 
 class TestDataprocGetBatchOperator:
-    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_BATCH_TO_DICT_PATH)
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         op = DataprocGetBatchOperator(
