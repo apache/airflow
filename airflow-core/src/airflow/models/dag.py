@@ -679,6 +679,12 @@ class DagModel(Base):
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
+            timetable = ser_dag.dag.timetable
+
+            if not isinstance(timetable, AssetTriggeredTimetable):
+                del adrq_by_dag[dag_id]
+                continue
+
             ready = dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses)
             if not ready:
                 log.debug("Asset condition not met for dag '%s'", dag_id)
