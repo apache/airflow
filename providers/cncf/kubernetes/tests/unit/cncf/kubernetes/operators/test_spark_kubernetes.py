@@ -1536,7 +1536,8 @@ class TestSparkKubernetesLifecycle:
             op.on_kill()
             mock_launcher_cls.return_value.delete_spark_job.assert_called()
 
-    def test_spark_application_name_env_injected(self):
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    def test_spark_application_name_env_injected(self, mock_client):
         op = SparkKubernetesOperator(
             task_id="test_task",
             namespace="default",
@@ -1563,7 +1564,8 @@ class TestSparkKubernetesLifecycle:
             value = next(e["value"] for e in env if e["name"] == "SPARK_APPLICATION_NAME")
             assert value == "my-spark-app-abc123"
 
-    def test_spark_application_name_env_not_duplicated(self):
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    def test_spark_application_name_env_not_duplicated(self, mock_client):
         op = SparkKubernetesOperator(
             task_id="test_task",
             namespace="default",
