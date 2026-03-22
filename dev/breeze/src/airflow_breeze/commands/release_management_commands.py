@@ -164,6 +164,9 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_DIST_PATH,
     AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH,
     AIRFLOW_ROOT_PATH,
+    MYPY_DIST_PATH,
+    MYPY_ROOT_PATH,
+    MYPY_SOURCES_PATH,
     OUT_PATH,
     PROVIDER_METADATA_JSON_PATH,
     TASK_SDK_DIST_PATH,
@@ -296,6 +299,7 @@ class DistributionBuildType(Enum):
     PROVIDERS = "providers"
     TASK_SDK = "task-sdk"
     AIRFLOW_CTL = "airflow-ctl"
+    MYPY = "mypy"
 
 
 class DistributionPackageInfo(NamedTuple):
@@ -756,6 +760,35 @@ def prepare_airflow_ctl_distributions(
         distribution_name="airflow-ctl",
         distribution_pretty_name="",
         full_distribution_pretty_name="airflowctl",
+    )
+
+
+@release_management_group.command(
+    name="prepare-mypy-distributions",
+    help="Prepare sdist/whl distributions of Apache Airflow Mypy.",
+)
+@option_distribution_format
+@option_version_suffix
+@option_use_local_hatch
+@option_verbose
+@option_dry_run
+def prepare_mypy_distributions(
+    distribution_format: str,
+    version_suffix: str,
+    use_local_hatch: bool,
+):
+    _prepare_non_core_distributions(
+        # Argument parameters
+        distribution_format=distribution_format,
+        version_suffix=version_suffix,
+        use_local_hatch=use_local_hatch,
+        # Distribution specific parameters
+        root_path=MYPY_ROOT_PATH,
+        init_file_path=MYPY_SOURCES_PATH / "airflow_mypy" / "__init__.py",
+        distribution_path=MYPY_DIST_PATH,
+        distribution_name="mypy",
+        distribution_pretty_name="Mypy",
+        full_distribution_pretty_name="Apache Airflow Mypy",
     )
 
 
