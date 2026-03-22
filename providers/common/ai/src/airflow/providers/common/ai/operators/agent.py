@@ -65,7 +65,7 @@ class HITLReviewLink(BaseOperatorLink):
             return ""
         from urllib.parse import urlparse
 
-        from airflow.configuration import conf
+        from airflow.providers.common.compat.sdk import conf
 
         base_url = conf.get("api", "base_url", fallback="/")
         if base_url.startswith(("http://", "https://")):
