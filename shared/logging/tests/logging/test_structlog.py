@@ -623,3 +623,78 @@ class TestShowwarning:
                 _showwarning("some warning", UserWarning, "foo.py", 1)
 
         mock_get_logger.assert_called_once_with("py.warnings")
+
+
+@pytest.mark.parametrize(
+    ("get_logger", "message", "args", "expected_event"),
+    [
+        # dict passed as positional %s arg — should use positional formatting, not named
+        pytest.param(
+            logging.getLogger,
+            "Info message %s",
+            ({"a": 10},),
+            "Info message {'a': 10}",
+            id="stdlib-dict-positional",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "Info message %s",
+            ({"a": 10},),
+            "Info message {'a': 10}",
+            id="structlog-dict-positional",
+        ),
+        # named substitution with dict should still work
+        pytest.param(
+            logging.getLogger,
+            "%(a)s message",
+            ({"a": 10},),
+            "10 message",
+            id="stdlib-dict-named",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "%(a)s message",
+            ({"a": 10},),
+            "10 message",
+            id="structlog-dict-named",
+        ),
+        # simple non-dict positional arg
+        pytest.param(
+            logging.getLogger,
+            "message %s",
+            ("simple",),
+            "message simple",
+            id="stdlib-simple-positional",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "message %s",
+            ("simple",),
+            "message simple",
+            id="structlog-simple-positional",
+        ),
+        # no args
+        pytest.param(
+            logging.getLogger,
+            "message",
+            (),
+            "message",
+            id="stdlib-no-args",
+        ),
+        pytest.param(
+            structlog.get_logger,
+            "message",
+            (),
+            "message",
+            id="structlog-no-args",
+        ),
+    ],
+)
+def test_dict_positional_arg_formatting(structlog_config, get_logger, message, args, expected_event):
+    """Regression test for dict args passed as positional log arguments (GitHub issue #62201)."""
+    with structlog_config(json_output=True) as bio:
+        logger = get_logger("my.logger")
+        logger.warning(message, *args)
+
+    written = json.load(bio)
+    assert written["event"] == expected_event
