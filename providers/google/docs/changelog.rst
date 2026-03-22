@@ -27,6 +27,10 @@
 Changelog
 ---------
 
+
+21.0.0
+......
+
 .. warning::
   Deprecated classes, parameters and features have been removed from the Google provider package.
   The following breaking changes were introduced:
@@ -66,9 +70,6 @@ Changelog
 
   * Remove ``CloudDataCatalogHook`` use ``airflow.providers.google.cloud.hooks.dataplex.DataplexHook`` instead
   * Remove ``airflow.providers.google.cloud.hooks.vertex_ai.generative_model.ExperimentRunHook`` use ``airflow.providers.google.cloud.hooks.vertex_ai.experiment_service.ExperimentRunHook`` instead
-
-21.0.0
-......
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -519,9 +520,6 @@ Breaking changes
 
 
 * ``Remove deprecated from google provider scheduled for September 2025 except 30 September 2025. (#55683)``
-
-
-
 
 Features
 ~~~~~~~~
