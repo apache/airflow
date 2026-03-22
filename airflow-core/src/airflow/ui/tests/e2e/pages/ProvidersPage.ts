@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
@@ -44,8 +44,7 @@ export class ProvidersPage extends BasePage {
   }
 
   public async waitForLoad(): Promise<void> {
-    await this.table.waitFor({ state: "visible", timeout: 30_000 });
-    await this.table.locator("tbody tr").first().waitFor({ state: "visible", timeout: 30_000 });
-    await this.table.locator("tbody tr td a").first().waitFor({ state: "visible", timeout: 30_000 });
+    await expect(this.table).toBeVisible({ timeout: 30_000 });
+    await expect(this.rows.first().locator("td a")).toBeVisible({ timeout: 30_000 });
   }
 }
