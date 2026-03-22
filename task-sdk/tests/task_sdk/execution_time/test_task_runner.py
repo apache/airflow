@@ -3205,6 +3205,35 @@ class TestXComAfterTaskExecution:
         ]
         assert result == expected
 
+    def test_xcom_pull_with_explicit_dag_id_and_run_id(self, create_runtime_ti, mock_supervisor_comms):
+        task = BaseOperator(task_id="parent_task")
+        runtime_ti = create_runtime_ti(task=task, dag_id="parent_dag", run_id="parent_run")
+        value = {"child_result": "hello world"}
+        ser_value = BaseXCom.serialize_value(value)
+
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=[ser_value])
+
+        assert (
+            runtime_ti.xcom_pull(
+                task_ids="child_task",
+                dag_id="child_dag",
+                run_id="child_run",
+            )
+            == value
+        )
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetXComSequenceSlice(
+                key="return_value",
+                dag_id="child_dag",
+                run_id="child_run",
+                task_id="child_task",
+                start=None,
+                stop=None,
+                step=None,
+                include_prior_dates=False,
+            ),
+        )
+
     @pytest.mark.parametrize(
         ("include_prior_dates", "expected_value"),
         [
