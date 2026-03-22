@@ -124,47 +124,35 @@ def ensure_image_exists_and_build_if_needed(image_name: str, python: str) -> Non
     inspect_result = run_command(
         ["docker", "inspect", image_name], check=False, capture_output=True, text=True
     )
-    if inspect_result.returncode != 0:
-        console_print(f"[info]Image {image_name} not found locally[/]")
-        if "no such object" in inspect_result.stderr.lower():
-            # Check if it looks like a Docker Hub image (apache/airflow:*)
-            if image_name.startswith("apache/airflow:"):
-                console_print(f"[info]Pulling image from Docker Hub: {image_name}[/]")
-                pull_result = run_command(["docker", "pull", image_name], check=False)
-                if pull_result.returncode == 0:
-                    console_print(f"[success]Successfully pulled {image_name}[/]")
-                    return
-                console_print(f"[warning]Failed to pull {image_name}, will try to build[/]")
+    if inspect_result.returncode == 0:
+        return
 
-            console_print(f"[info]Building image with: breeze prod-image build --python {python}[/]")
-            build_result = run_command(["breeze", "prod-image", "build", "--python", python], check=False)
-            if build_result.returncode != 0:
-                console_print("[error]Failed to build image[/]")
-                sys.exit(1)
-            console_print(f"[info]Tagging the built image as {image_name}[/]")
-            list_images_result = run_command(
-                [
-                    "docker",
-                    "images",
-                    "--format",
-                    "{{.Repository}}:{{.Tag}}",
-                    "--filter",
-                    "reference=*/airflow:latest",
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            if list_images_result.returncode == 0 and list_images_result.stdout.strip():
-                built_image = list_images_result.stdout.strip().split("\n")[0]
-                console_print(f"[info]Found built image: {built_image}[/]")
-                tag_result = run_command(["docker", "tag", built_image, image_name], check=False)
-                if tag_result.returncode != 0:
-                    console_print(f"[error]Failed to tag image {built_image} as {image_name}[/]")
-                    sys.exit(1)
-                console_print(f"[success]Successfully tagged {built_image} as {image_name}[/]")
-            else:
-                console_print("[warning]Could not find built image to tag. Docker compose may fail.[/]")
-        else:
-            console_print(f"[error]Failed to inspect image {image_name}[/]")
-            sys.exit(1)
+    console_print(f"[info]Image {image_name} not found locally[/]")
+
+    # Check if it looks like a Docker Hub image (apache/airflow:*)
+    if image_name.startswith("apache/airflow:"):
+        console_print(f"[info]Pulling image from Docker Hub: {image_name}[/]")
+        pull_result = run_command(["docker", "pull", image_name], check=False)
+        if pull_result.returncode == 0:
+            console_print(f"[success]Successfully pulled {image_name}[/]")
+            return
+        console_print(f"[warning]Failed to pull {image_name}, will try to build[/]")
+
+    console_print(f"[info]Building image with: breeze prod-image build --python {python}[/]")
+    build_result = run_command(["breeze", "prod-image", "build", "--python", python], check=False)
+    if build_result.returncode != 0:
+        console_print("[error]Failed to build image[/]")
+        sys.exit(1)
+
+    # After building, check if the image now exists with the expected name.
+    # breeze prod-image build tags the image with the correct name, so no fallback search is needed.
+    re_inspect = run_command(["docker", "inspect", image_name], check=False, capture_output=True, text=True)
+    if re_inspect.returncode == 0:
+        console_print(f"[success]Image {image_name} is now available[/]")
+        return
+
+    console_print(
+        f"[error]Image {image_name} not found after build. "
+        f"Run 'breeze prod-image build --python {python}' manually to diagnose.[/]"
+    )
+    sys.exit(1)

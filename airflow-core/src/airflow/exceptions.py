@@ -179,7 +179,7 @@ class FileSyntaxError(NamedTuple):
     message: str
 
     def __str__(self):
-        return f"{self.message}. Line number: s{str(self.line_no)},"
+        return f"{self.message}. Line number: {str(self.line_no)},"
 
 
 class AirflowFileParseException(AirflowException):

@@ -24,12 +24,14 @@ import itertools
 import json
 import logging
 import os
+import re
 import signal
 import sys
 import time
 import traceback
 import warnings
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
+from contextvars import ContextVar
 from tempfile import gettempdir
 from typing import (
     TYPE_CHECKING,
@@ -113,11 +115,12 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.3": "fe199e1abd77",
     "3.1.0": "cc92b33c6709",
     "3.1.8": "509b94a1042d",
-    "3.2.0": "6222ce48e289",
+    "3.2.0": "1d6611b6ab7c",
 }
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
+_SKIP_EXTERNAL_DB_MANAGERS_UPGRADE = ContextVar("_SKIP_EXTERNAL_DB_MANAGERS_UPGRADE", default=False)
 
 
 @contextlib.contextmanager
@@ -823,8 +826,15 @@ def _single_connection_pool() -> Generator[None, None, None]:
 
 
 @provide_session
-def initdb(session: Session = NEW_SESSION):
-    """Initialize Airflow database."""
+def initdb(session: Session = NEW_SESSION, use_migration_files: bool = False):
+    """
+    Initialize Airflow database.
+
+    :param session: SQLAlchemy session
+    :param use_migration_files: If True, always use migration files (alembic upgrade)
+        to create the database instead of the ORM (create_all). Useful for verifying
+        that migration files produce the same schema as ORM models.
+    """
     # First validate external DB managers before running migration
     external_db_manager = RunDBManager()
     external_db_manager.validate()
@@ -833,12 +843,16 @@ def initdb(session: Session = NEW_SESSION):
 
     db_exists = _get_current_revision(session)
     with timeout_with_traceback(60 * 20, "DB upgrade/creation timed out."):
-        if db_exists:
-            upgradedb(session=session)
+        if db_exists or use_migration_files:
+            token = _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.set(True)
+            try:
+                upgradedb(session=session, use_migration_files=use_migration_files)
+            finally:
+                _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.reset(token)
         else:
             _create_db_from_orm(session=session)
 
-    external_db_manager.initdb(session)
+    external_db_manager.initdb(session, use_migration_files=use_migration_files)
     # Add default pool & sync log_template
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
@@ -1150,7 +1164,13 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
             )
 
 
-def _run_upgradedb(config, to_revision: str | None, session: Session) -> None:
+def _run_upgradedb(
+    config,
+    to_revision: str | None,
+    session: Session,
+    *,
+    use_migration_files: bool = False,
+) -> None:
     """Run database upgrade with appropriate locking for the dialect."""
     from alembic import command
 
@@ -1174,9 +1194,9 @@ def _run_upgradedb(config, to_revision: str | None, session: Session) -> None:
         with _configured_alembic_environment() as env:
             source_heads = env.script.get_heads()
 
-        if current_revision == source_heads[0]:
+        if current_revision == source_heads[0] and not _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.get():
             external_db_manager = RunDBManager()
-            external_db_manager.upgradedb(work_session)
+            external_db_manager.upgradedb(work_session, use_migration_files=use_migration_files)
 
         add_default_pool_if_not_exists(session=work_session)
         synchronize_log_template(session=work_session)
@@ -1188,6 +1208,7 @@ def upgradedb(
     to_revision: str | None = None,
     from_revision: str | None = None,
     show_sql_only: bool = False,
+    use_migration_files: bool = False,
     session: Session = NEW_SESSION,
 ):
     """
@@ -1198,6 +1219,8 @@ def upgradedb(
     :param from_revision: Optional Alembic revision ID to upgrade *from*.
         Not compatible with ``sql_only=False``.
     :param show_sql_only: if True, migration statements will be printed but not executed.
+    :param use_migration_files: If True, initialize it via Alembic migrations
+        instead of the ORM create-all path.
     :param session: sqlalchemy session with connection to Airflow metadata database
     :return: None
     """
@@ -1240,12 +1263,12 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not _get_current_revision(session=session) and not to_revision:
-        # New DB; initialize and exit
+    if not _get_current_revision(session=session) and not to_revision and not use_migration_files:
+        # New DB; initialize and exit.
         initdb(session=session)
         return
 
-    _run_upgradedb(config, to_revision, session)
+    _run_upgradedb(config, to_revision, session, use_migration_files=use_migration_files)
 
 
 def _resetdb_mysql(session: Session) -> None:
@@ -1294,8 +1317,15 @@ def _resetdb_default(session: Session) -> None:
 
 
 @provide_session
-def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
-    """Clear out the database."""
+def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migration_files: bool = False):
+    """
+    Clear out the database.
+
+    :param session: SQLAlchemy session
+    :param skip_init: If True, only drop tables without re-initializing.
+    :param use_migration_files: If True, use migration files (alembic upgrade)
+        instead of the ORM (create_all) when re-initializing the database.
+    """
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
     log.info("Dropping Airflow tables that exist")
@@ -1314,7 +1344,7 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
         from airflow.utils.session import create_session
 
         with create_session(scoped=False) as new_session:
-            initdb(session=new_session)
+            initdb(session=new_session, use_migration_files=use_migration_files)
 
 
 @provide_session
@@ -1655,7 +1685,34 @@ def compare_server_default(
         # where we added the column in the first place -- now that it exists and all
         # existing rows are populated with a value this server default is never used.
         return False
+    if dialect_name == "mysql":
+        normalized_inspected = _normalize_mysql_server_default(inspected_default)
+        normalized_metadata = _normalize_mysql_server_default(rendered_metadata_default)
+        if normalized_inspected is not None and normalized_inspected == normalized_metadata:
+            return False
     return None
+
+
+def _normalize_mysql_server_default(default: Any) -> str | None:
+    """Normalize equivalent MySQL-reflected server defaults for comparison."""
+    if default is None:
+        return None
+
+    normalized = str(default).strip().strip("'\"").lower()
+    while normalized.startswith("(") and normalized.endswith(")"):
+        normalized = normalized[1:-1].strip()
+    normalized = normalized.replace(" ", "")
+
+    if normalized in {"false", "0"}:
+        return "0"
+    if normalized in {"true", "1"}:
+        return "1"
+
+    numeric_expression = normalized.replace("(", "").replace(")", "")
+    if re.fullmatch(r"-?\d+", numeric_expression):
+        return numeric_expression
+
+    return normalized
 
 
 def get_sqla_model_classes():

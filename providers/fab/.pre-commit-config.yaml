@@ -42,6 +42,15 @@ repos:
         entry: ../../scripts/ci/prek/generate_openapi_spec_providers.py fab
         pass_filenames: false
         files: ^src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+      - id: update-migration-references-fab
+        name: Update migration ref doc for FAB
+        language: python
+        entry: ../../scripts/ci/prek/migration_reference.py
+        pass_filenames: false
+        files: >
+          (?x)
+          ^(providers/fab/)?src/airflow/providers/fab/migrations/versions/.*\.py$|
+          ^(providers/fab/)?docs/migrations-ref\.rst$
       - id: check-revision-heads-map-fab
         name: Check that the REVISION_HEADS_MAP is up-to-date
         language: python
@@ -49,9 +58,8 @@ repos:
         pass_filenames: false
         files: >
           (?x)
-          ^src/airflow/providers/fab/migrations/versions/.*$|
-          ^src/airflow/providers/fab/migrations/versions|
-          ^src/airflow/providers/fab/auth_manager/models/db\.py$
+          ^(providers/fab/)?src/airflow/providers/fab/migrations/versions/.*$|
+          ^(providers/fab/)?src/airflow/providers/fab/auth_manager/models/db\.py$
       - id: prevent-deprecated-sqlalchemy-usage-fab
         name: Prevent deprecated sqlalchemy usage
         entry: ../../scripts/ci/prek/prevent_deprecated_sqlalchemy_usage.py

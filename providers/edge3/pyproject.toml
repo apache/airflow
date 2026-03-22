@@ -56,6 +56,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -67,7 +68,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=3.0.0,!=3.1.0",
     "apache-airflow-providers-common-compat>=1.14.0",
-    "pydantic>=2.12.3",
+    "pydantic>=2.11.0",
     "retryhttp>=1.4.0",
     "aiofiles>=23.2.0",
     "aiohttp>=3.9.2",

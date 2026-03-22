@@ -98,9 +98,9 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)                 | Stable version (3.1.8) | Stable version (2.11.1)      |
+|            | Main version (dev)                 | Stable version (3.1.8) | Stable version (2.11.2)      |
 |------------|------------------------------------|------------------------|------------------------------|
-| Python     | 3.10, 3.11, 3.12, 3.13             | 3.10, 3.11, 3.12, 3.13 | 3.10, 3.11, 3.12             |
+| Python     | 3.10, 3.11, 3.12, 3.13, 3.14       | 3.10, 3.11, 3.12, 3.13 | 3.10, 3.11, 3.12             |
 | Platform   | AMD64/ARM64                        | AMD64/ARM64            | AMD64/ARM64(\*)              |
 | Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34, 1.35 | 1.30, 1.31, 1.32, 1.33 | 1.26, 1.27, 1.28, 1.29, 1.30 |
 | PostgreSQL | 14, 15, 16, 17, 18                 | 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16           |
@@ -294,7 +294,7 @@ Apache Airflow version life cycle:
 | Version   | Current Patch/Minor   | State               | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|---------------------|-----------------|-----------------------|------------------|
 | 3         | 3.1.8                 | Maintenance         | Apr 22, 2025    | TBD                   | TBD              |
-| 2         | 2.11.1                | Limited maintenance | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
+| 2         | 2.11.2                | Limited maintenance | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL                 | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL                 | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL                 | Mar 19, 2017    | Jan 03, 2018          | Jan 03, 2018     |
