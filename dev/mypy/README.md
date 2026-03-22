@@ -19,47 +19,4 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
-
-- [Apache Airflow Mypy Plugins](#apache-airflow-mypy-plugins)
-  - [Installation](#installation)
-  - [Usage](#usage)
-  - [Available Plugins](#available-plugins)
-
-# Apache Airflow Mypy Plugins
-
-This package provides Mypy plugins for Apache Airflow to enhance type checking capabilities.
-
-## Installation
-
-```bash
-pip install apache-airflow-mypy
-```
-
-## Usage
-
-Add the plugins to your `mypy.ini` or `pyproject.toml` configuration:
-
-### Using mypy.ini
-
-```ini
-[mypy]
-plugins = airflow_mypy.plugins.decorators, airflow_mypy.plugins.outputs
-```
-
-### Using pyproject.toml
-
-```toml
-[tool.mypy]
-plugins = ["airflow_mypy.plugins.decorators", "airflow_mypy.plugins.outputs"]
-```
-
-## Available Plugins
-
-### decorators Plugin
-
-Provides type checking support for Airflow decorators that modify function signatures.
-
-### outputs Plugin
-
-Handles type checking for operator outputs and XComArg types, allowing proper type inference when passing task outputs between tasks.
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
