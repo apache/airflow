@@ -254,6 +254,38 @@ class TestGetVariable(TestVariableEndpoint):
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
 
+    def test_get_variable_with_undecryptable_val(self, test_client, session):
+        """Variable with an undecryptable _val (e.g. migrated with a different Fernet key) should
+        return 200 with value=None instead of raising a 500 serialization error."""
+        var = Variable(key="bad_encrypted_var")
+        var._val = "not-a-valid-fernet-token"
+        var.is_encrypted = True
+        var.description = "migrated variable"
+        session.add(var)
+        session.commit()
+
+        response = test_client.get("/variables/bad_encrypted_var")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["key"] == "bad_encrypted_var"
+        assert body["value"] is None
+
+    def test_get_variables_with_undecryptable_val(self, test_client, session):
+        """Listing variables should not fail with 500 when some variables have undecryptable values."""
+        var = Variable(key="bad_encrypted_var")
+        var._val = "not-a-valid-fernet-token"
+        var.is_encrypted = True
+        var.description = "migrated variable"
+        session.add(var)
+        session.commit()
+
+        response = test_client.get("/variables")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert body["variables"][0]["key"] == "bad_encrypted_var"
+        assert body["variables"][0]["value"] is None
+
 
 class TestGetVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact

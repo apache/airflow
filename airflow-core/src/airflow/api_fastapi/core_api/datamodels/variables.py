@@ -32,7 +32,7 @@ class VariableResponse(BaseModel):
     """Variable serializer for responses."""
 
     key: str
-    val: str = Field(alias="value")
+    val: str | None = Field(alias="value")
     description: str | None
     is_encrypted: bool
     team_name: str | None
