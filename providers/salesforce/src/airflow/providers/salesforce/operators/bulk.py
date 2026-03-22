@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
 from airflow.providers.common.compat.sdk import BaseOperator
@@ -47,6 +47,8 @@ class SalesforceBulkOperator(BaseOperator):
     :param use_serial: Process batches in serial mode
     :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:salesforce>`.
     """
+
+    template_fields: Sequence[str] = ("object_name", "payload", "external_id_field")
 
     available_operations = ("insert", "update", "upsert", "delete", "hard_delete")
 
