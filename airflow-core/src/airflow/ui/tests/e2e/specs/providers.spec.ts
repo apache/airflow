@@ -47,7 +47,7 @@ test.describe("Providers Page", () => {
     await providers.waitForLoad();
     // Assert Providers page loaded
     await expect(providers.heading).toBeVisible();
-    expect(await providers.getRowCount()).toBeGreaterThan(0);
+    await expect(providers.rows.first()).toBeVisible();
   });
 
   test("Verify the providers list displays", async () => {
@@ -55,16 +55,15 @@ test.describe("Providers Page", () => {
   });
 
   test("Verify package name, version, and description are not blank", async () => {
-    const count = await providers.getRowCount();
-
-    expect(count).toBeGreaterThan(0);
+    await expect(providers.rows.first()).toBeVisible();
 
     for (let i = 0; i < 2; i++) {
-      const { description, packageName, version } = await providers.getRowDetails(i);
+      const row = providers.rows.nth(i);
+      const cells = row.locator("td");
 
-      expect(packageName).not.toEqual("");
-      expect(version).not.toEqual("");
-      expect(description).not.toEqual("");
+      await expect(cells.nth(0).locator("a")).not.toBeEmpty();
+      await expect(cells.nth(1)).not.toBeEmpty();
+      await expect(cells.nth(2)).not.toBeEmpty();
     }
   });
 });
