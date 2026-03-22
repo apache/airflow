@@ -18,12 +18,12 @@
  */
 import { test, expect } from "@playwright/test";
 import { AUTH_FILE } from "playwright.config";
+import { apiCreateVariable, apiDeleteVariable, uniqueRunId } from "tests/e2e/utils/test-helpers";
 
 import { VariablePage } from "../pages/VariablePage";
 
 test.describe("Variables Page", () => {
   let variablesPage: VariablePage;
-  let createVariables = 3;
 
   const createdVariables: Array<{
     description: string;
@@ -31,41 +31,32 @@ test.describe("Variables Page", () => {
     value: string;
   }> = [];
 
+  // Pre-registered keys for the import test so afterAll can clean them even if
+  // the test fails midway before pushing into createdVariables.
+  const importVarKeys: Array<string> = [];
+
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(420_000); // for slower browsers
+    test.setTimeout(60_000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
 
-    variablesPage = new VariablePage(page);
+    // Create test variables via API instead of UI to avoid dialog race conditions.
+    // Uses unique keys per worker to prevent cross-worker interference.
+    const prefix = uniqueRunId("e2e_var");
 
-    await variablesPage.navigate();
-
-    for (let i = 0; i < createVariables; i++) {
+    for (let i = 0; i < 3; i++) {
       const variable = {
         description: `description_${i}`,
-        key: `e2e_var_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 8)}`,
+        key: `${prefix}_${i}`,
         value: `value_${i}`,
       };
 
       createdVariables.push(variable);
-
-      // Wait for dialog backdrop to fully disappear
-      await expect(page.locator('[data-part="backdrop"]')).toHaveCount(0);
-
-      await variablesPage.addButton.click();
-
-      await expect(page.getByRole("heading", { name: /add/i })).toBeVisible({ timeout: 20_000 });
-
-      await page.getByLabel(/key/i).fill(variable.key);
-      await page.getByLabel(/value/i).fill(variable.value);
-
-      if (variable.description) {
-        await page.getByLabel(/description/i).fill(variable.description);
-      }
-
-      await page.getByRole("button", { name: /save/i }).click();
-
-      await expect(variablesPage.rowByKey(variable.key)).toHaveCount(1);
+      await apiCreateVariable(page, {
+        description: variable.description,
+        key: variable.key,
+        value: variable.value,
+      });
     }
 
     await context.close();
@@ -79,10 +70,7 @@ test.describe("Variables Page", () => {
 
   test("verify variables table displays", async () => {
     await expect(variablesPage.table).toBeVisible();
-
-    const rowCount = await variablesPage.tableRows.count();
-
-    expect(rowCount).toBeGreaterThan(0);
+    await expect(variablesPage.tableRows).not.toHaveCount(0);
   });
 
   test("verify search filters", async () => {
@@ -162,6 +150,10 @@ test.describe("Variables Page", () => {
   test("verify importing variables using Import Variables button", async ({ page }) => {
     const uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
+    // Pre-register keys before UI interactions so afterAll can clean them up
+    // even if the test fails before createdVariables is populated.
+    importVarKeys.push(`import_var_${uniqueId}_1`, `import_var_${uniqueId}_2`);
+
     const importPayload = {
       [`import_var_${uniqueId}_1`]: {
         description: "imported via e2e 1",
@@ -209,58 +201,30 @@ test.describe("Variables Page", () => {
   });
 
   test.afterAll(async ({ browser }) => {
-    test.setTimeout(300_000);
-    if (createdVariables.length === 0) {
+    test.setTimeout(60_000);
+
+    // Clean up test variables via API instead of UI to avoid dialog race conditions.
+    // Merge tracked variables with pre-registered import keys so cleanup is complete
+    // even if the import test failed before pushing into createdVariables.
+    const allKeys = [...new Set([...createdVariables.map((v) => v.key), ...importVarKeys])];
+
+    if (allKeys.length === 0) {
       return;
     }
 
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
 
-    variablesPage = new VariablePage(page);
-
-    await variablesPage.navigate();
-    await variablesPage.waitForLoad();
-
-    const keysToDelete: Array<string> = [];
-
-    for (const variable of createdVariables) {
-      const row = variablesPage.rowByKey(variable.key);
-
-      if ((await row.count()) > 0) {
-        await variablesPage.selectRow(variable.key);
-        keysToDelete.push(variable.key);
+    try {
+      for (const key of allKeys) {
+        try {
+          await apiDeleteVariable(page, key);
+        } catch {
+          // Ignore 404 or other errors - variable may not have been created
+        }
       }
-    }
-
-    if (keysToDelete.length === 0) {
+    } finally {
       await context.close();
-
-      return;
     }
-
-    await page.getByRole("button", { name: /^delete$/i }).click();
-
-    const dialog = page.getByRole("dialog");
-
-    await expect(
-      dialog.getByRole("heading", {
-        name: new RegExp(`delete\\s+${keysToDelete.length}\\s+variable`, "i"),
-      }),
-    ).toBeVisible();
-
-    const codeBlock = dialog.locator("code");
-
-    for (const key of keysToDelete) {
-      await expect(codeBlock).toContainText(key);
-    }
-
-    await dialog.getByRole("button", { name: /yes,\s*delete/i }).click();
-
-    for (const key of keysToDelete) {
-      await expect(variablesPage.rowByKey(key)).toHaveCount(0);
-    }
-
-    await context.close();
   });
 });

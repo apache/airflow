@@ -19,6 +19,12 @@
 import { expect, test } from "@playwright/test";
 import { AUTH_FILE, testConfig } from "playwright.config";
 import { DagRunsTabPage } from "tests/e2e/pages/DagRunsTabPage";
+import {
+  apiCreateDagRun,
+  apiSetDagRunState,
+  uniqueRunId,
+  waitForDagReady,
+} from "tests/e2e/utils/test-helpers";
 
 test.describe("DAG Runs Tab", () => {
   test.setTimeout(60_000);
@@ -26,27 +32,34 @@ test.describe("DAG Runs Tab", () => {
   let dagRunsTabPage: DagRunsTabPage;
   const testDagId = testConfig.testDag.id;
 
+  // API-based setup replaces UI-based triggerDagRun/markRunAs to avoid
+  // dialog race conditions. UI trigger coverage is maintained in dags-list.spec.ts.
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
+    test.setTimeout(120_000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
-    const setupPage = new DagRunsTabPage(page);
 
-    await setupPage.navigateToDag(testDagId);
-    const runId1 = await setupPage.triggerDagRun();
+    await waitForDagReady(page, testDagId);
 
-    if (runId1 !== undefined) {
-      await setupPage.navigateToRunDetails(testDagId, runId1);
-      await setupPage.markRunAs("success");
-    }
+    const timestamp = Date.now();
 
-    await setupPage.navigateToDag(testDagId);
-    const runId2 = await setupPage.triggerDagRun();
+    // Create a "success" run
+    const runId1 = uniqueRunId("runtab_success");
 
-    if (runId2 !== undefined) {
-      await setupPage.navigateToRunDetails(testDagId, runId2);
-      await setupPage.markRunAs("failed");
-    }
+    await apiCreateDagRun(page, testDagId, {
+      dag_run_id: runId1,
+      logical_date: new Date(timestamp).toISOString(),
+    });
+    await apiSetDagRunState(page, { dagId: testDagId, runId: runId1, state: "success" });
+
+    // Create a "failed" run
+    const runId2 = uniqueRunId("runtab_failed");
+
+    await apiCreateDagRun(page, testDagId, {
+      dag_run_id: runId2,
+      logical_date: new Date(timestamp + 60_000).toISOString(),
+    });
+    await apiSetDagRunState(page, { dagId: testDagId, runId: runId2, state: "failed" });
 
     await context.close();
   });
@@ -97,7 +110,7 @@ test.describe("DAG Runs Tab", () => {
   test("search for dag run by run ID pattern", async () => {
     await dagRunsTabPage.navigateToDag(testDagId);
     await dagRunsTabPage.clickRunsTab();
-    await dagRunsTabPage.searchByRunIdPattern("manual");
-    await dagRunsTabPage.verifySearchResults("manual");
+    await dagRunsTabPage.searchByRunIdPattern("runtab");
+    await dagRunsTabPage.verifySearchResults("runtab");
   });
 });

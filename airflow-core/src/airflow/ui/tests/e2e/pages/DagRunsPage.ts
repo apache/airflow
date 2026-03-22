@@ -132,10 +132,12 @@ export class DagRunsPage extends BasePage {
 
     await expect(rows).not.toHaveCount(0);
 
-    const rowCount = await rows.count();
+    await expect(async () => {
+      const rowCount = await rows.count();
 
-    for (let i = 0; i < rowCount; i++) {
-      await expect(rows.nth(i)).toContainText(new RegExp(expectedState, "i"));
-    }
+      for (let i = 0; i < rowCount; i++) {
+        await expect(rows.nth(i)).toContainText(new RegExp(expectedState, "i"));
+      }
+    }).toPass({ intervals: [1000], timeout: 15_000 });
   }
 }

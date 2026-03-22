@@ -18,8 +18,13 @@
  */
 import { test } from "@playwright/test";
 import { AUTH_FILE, testConfig } from "playwright.config";
-import { DagsPage } from "tests/e2e/pages/DagsPage";
 import { GridPage } from "tests/e2e/pages/GridPage";
+import {
+  apiCreateDagRun,
+  apiSetDagRunState,
+  uniqueRunId,
+  waitForDagReady,
+} from "tests/e2e/utils/test-helpers";
 
 test.describe("DAG Grid View", () => {
   test.setTimeout(60_000);
@@ -27,17 +32,22 @@ test.describe("DAG Grid View", () => {
   let gridPage: GridPage;
   const testDagId = testConfig.testDag.id;
 
+  // API-based setup replaces UI-based triggerDag/verifyDagRunStatus to avoid
+  // dialog race conditions and 7-minute timeout polling via page reloads.
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
+    test.setTimeout(120_000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
-    const setupDagsPage = new DagsPage(page);
 
-    const dagRunId = await setupDagsPage.triggerDag(testDagId);
+    await waitForDagReady(page, testDagId);
 
-    if (dagRunId !== null) {
-      await setupDagsPage.verifyDagRunStatus(testDagId, dagRunId);
-    }
+    const runId = uniqueRunId("grid_run");
+
+    await apiCreateDagRun(page, testDagId, {
+      dag_run_id: runId,
+      logical_date: new Date().toISOString(),
+    });
+    await apiSetDagRunState(page, { dagId: testDagId, runId, state: "success" });
 
     await context.close();
   });

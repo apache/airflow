@@ -18,8 +18,14 @@
  */
 import { expect, test } from "@playwright/test";
 import { AUTH_FILE, testConfig } from "playwright.config";
-import { DagsPage } from "tests/e2e/pages/DagsPage";
 import { XComsPage } from "tests/e2e/pages/XComsPage";
+import {
+  apiCreateDagRun,
+  uniqueRunId,
+  waitForDagReady,
+  waitForDagRunStatus,
+  waitForTableLoad,
+} from "tests/e2e/utils/test-helpers";
 
 test.describe("XComs Page", () => {
   test.setTimeout(60_000);
@@ -29,34 +35,43 @@ test.describe("XComs Page", () => {
   const testXComKey = "return_value";
   const triggerCount = 2;
 
+  // API-based setup replaces UI-based triggerDag/verifyDagRunStatus to avoid
+  // 7-minute timeout polling via page reloads.
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(3 * 60 * 1000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
-    const setupDagsPage = new DagsPage(page);
-    const setupXComsPage = new XComsPage(page);
 
+    await waitForDagReady(page, testDagId);
+
+    // Unpause the DAG so the scheduler can execute it and produce XCom values
+    const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080";
+
+    await page.request.patch(`${baseUrl}/api/v2/dags/${testDagId}`, {
+      data: { is_paused: false },
+    });
+
+    // Trigger runs and wait for completion via API
     for (let i = 0; i < triggerCount; i++) {
-      const dagRunId = await setupDagsPage.triggerDag(testDagId);
+      const runId = uniqueRunId(`xcom_run_${i}`);
 
-      await setupDagsPage.verifyDagRunStatus(testDagId, dagRunId);
+      await apiCreateDagRun(page, testDagId, {
+        dag_run_id: runId,
+        logical_date: new Date(Date.now() + i * 60_000).toISOString(),
+      });
+      await waitForDagRunStatus(page, {
+        dagId: testDagId,
+        expectedState: "success",
+        runId,
+        timeout: 120_000,
+      });
     }
 
+    // Verify XComs table has data using Playwright locator instead of document.querySelector
+    const setupXComsPage = new XComsPage(page);
+
     await setupXComsPage.navigate();
-    await page.waitForFunction(
-      (minCount) => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-        const rows = table.querySelectorAll("tbody tr");
-
-        return rows.length >= minCount;
-      },
-      triggerCount,
-      { timeout: 120_000 },
-    );
+    await waitForTableLoad(page, { timeout: 30_000 });
 
     await context.close();
   });

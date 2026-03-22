@@ -19,20 +19,33 @@
 import { test, expect } from "@playwright/test";
 import { testConfig, AUTH_FILE } from "playwright.config";
 import { DagsPage } from "tests/e2e/pages/DagsPage";
+import {
+  apiCreateDagRun,
+  apiSetDagRunState,
+  uniqueRunId,
+  waitForDagReady,
+} from "tests/e2e/utils/test-helpers";
 
 test.describe("Dag Tasks Tab", () => {
   const testDagId = testConfig.testDag.id;
 
+  // API-based setup replaces UI-based triggerDag/verifyDagRunStatus to avoid
+  // dialog race conditions and 7-minute timeout polling via page reloads.
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(7 * 60 * 1000);
+    test.setTimeout(120_000);
 
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
-    const dagPage = new DagsPage(page);
 
-    const dagRunId = await dagPage.triggerDag(testDagId);
+    await waitForDagReady(page, testDagId);
 
-    await dagPage.verifyDagRunStatus(testDagId, dagRunId);
+    const runId = uniqueRunId("tasks_run");
+
+    await apiCreateDagRun(page, testDagId, {
+      dag_run_id: runId,
+      logical_date: new Date().toISOString(),
+    });
+    await apiSetDagRunState(page, { dagId: testDagId, runId, state: "success" });
 
     await context.close();
   });
@@ -74,26 +87,32 @@ test.describe("Dag Tasks Tab", () => {
 
     await dagPage.navigateToDagTasks(testDagId);
 
-    const operators = await dagPage.getFilterOptions(dagPage.operatorFilter);
+    let operators: Array<string> = [];
 
-    expect(operators.length).toBeGreaterThan(0);
+    await expect
+      .poll(
+        async () => {
+          operators = await dagPage.getFilterOptions(dagPage.operatorFilter);
+
+          return operators.length;
+        },
+        { timeout: 10_000 },
+      )
+      .toBeGreaterThan(0);
 
     for (const operator of operators) {
       await dagPage.filterByOperator(operator);
 
+      // Use allTextContents() instead of nth(i).textContent() to avoid
+      // stale DOM references when React re-renders the table mid-iteration.
       await expect
         .poll(
           async () => {
-            const count = await dagPage.taskRows.count();
+            const texts = await dagPage.taskRows.allTextContents();
 
-            if (count === 0) return false;
-            for (let i = 0; i < count; i++) {
-              const text = await dagPage.taskRows.nth(i).textContent();
+            if (texts.length === 0) return false;
 
-              if (!text?.includes(operator)) return false;
-            }
-
-            return true;
+            return texts.every((text) => text.includes(operator));
           },
           { timeout: 20_000 },
         )
@@ -108,9 +127,18 @@ test.describe("Dag Tasks Tab", () => {
 
     await dagPage.navigateToDagTasks(testDagId);
 
-    const rules = await dagPage.getFilterOptions(dagPage.triggerRuleFilter);
+    let rules: Array<string> = [];
 
-    expect(rules.length).toBeGreaterThan(0);
+    await expect
+      .poll(
+        async () => {
+          rules = await dagPage.getFilterOptions(dagPage.triggerRuleFilter);
+
+          return rules.length;
+        },
+        { timeout: 10_000 },
+      )
+      .toBeGreaterThan(0);
 
     for (const rule of rules) {
       await dagPage.filterByTriggerRule(rule);
@@ -118,16 +146,11 @@ test.describe("Dag Tasks Tab", () => {
       await expect
         .poll(
           async () => {
-            const count = await dagPage.taskRows.count();
+            const texts = await dagPage.taskRows.allTextContents();
 
-            if (count === 0) return false;
-            for (let i = 0; i < count; i++) {
-              const text = await dagPage.taskRows.nth(i).textContent();
+            if (texts.length === 0) return false;
 
-              if (!text?.includes(rule)) return false;
-            }
-
-            return true;
+            return texts.every((text) => text.includes(rule));
           },
           { timeout: 20_000 },
         )

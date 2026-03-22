@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
@@ -56,7 +56,7 @@ export class VariablePage extends BasePage {
   }
 
   public rowByKey(key: string): Locator {
-    return this.page.locator(`tr:has-text("${key}")`);
+    return this.page.locator("tr").filter({ hasText: key });
   }
 
   public async search(key: string) {
@@ -65,37 +65,19 @@ export class VariablePage extends BasePage {
 
   public async selectRow(key: string) {
     const row = this.rowByKey(key);
-    const checkbox = row.locator('[id^="checkbox"][id$=":control"]');
+    const checkbox = row.getByRole("checkbox");
 
-    await checkbox.click();
+    // Use force:true because in Firefox the <label> overlay intercepts pointer events
+    await checkbox.click({ force: true });
   }
 
   public async waitForLoad(): Promise<void> {
-    await this.table.waitFor({ state: "visible", timeout: 15_000 });
-    await this.waitForTableData();
-  }
+    await expect(this.table).toBeVisible({ timeout: 15_000 });
 
-  private async waitForTableData(): Promise<void> {
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
+    // Wait for table data using Playwright locators instead of document.querySelector.
+    const firstRow = this.tableRows.first();
+    const emptyMessage = this.page.getByText(/no variables found/i);
 
-        if (!table) return false;
-
-        if (document.body.textContent.includes("No variables found")) {
-          return true;
-        }
-
-        const rows = table.querySelectorAll("tbody tr");
-
-        if (rows.length === 0) return false;
-
-        const keyCells = table.querySelectorAll("tbody tr td:nth-child(2)");
-
-        return [...keyCells].some((cell) => Boolean(cell.textContent.trim()));
-      },
-      undefined,
-      { timeout: 60_000 },
-    );
+    await expect(firstRow.or(emptyMessage)).toBeVisible({ timeout: 60_000 });
   }
 }

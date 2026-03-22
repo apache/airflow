@@ -19,11 +19,12 @@
 import { expect, test } from "@playwright/test";
 import { testConfig, AUTH_FILE } from "playwright.config";
 import { ConnectionsPage } from "tests/e2e/pages/ConnectionsPage";
+import { uniqueRunId } from "tests/e2e/utils/test-helpers";
 
 test.describe("Connections Page - List and Display", () => {
   let connectionsPage: ConnectionsPage;
   const { baseUrl } = testConfig.connection;
-  const timestamp = Date.now();
+  const timestamp = uniqueRunId("t");
   const seedConnection = {
     conn_type: "http",
     connection_id: `list_seed_conn_${timestamp}`,
@@ -51,10 +52,13 @@ test.describe("Connections Page - List and Display", () => {
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
 
-    const response = await page.request.delete(`${baseUrl}/api/v2/connections/list_seed_conn_${timestamp}`);
-
-    expect([204, 404]).toContain(response.status());
-    await context.close();
+    try {
+      await page.request.delete(`${baseUrl}/api/v2/connections/list_seed_conn_${timestamp}`);
+    } catch {
+      // Ignore - connection may not exist
+    } finally {
+      await context.close();
+    }
   });
 
   test("should display connections list page", async () => {
@@ -70,10 +74,10 @@ test.describe("Connections Page - List and Display", () => {
   test("should display connections with correct columns", async () => {
     await connectionsPage.navigate();
 
-    // Check that we have at least one row
-    const count = await connectionsPage.getConnectionCount();
-
-    expect(count).toBeGreaterThan(0);
+    // Wait for at least one row to appear (may take time after seed connection creation)
+    await expect
+      .poll(async () => connectionsPage.getConnectionCount(), { intervals: [1000], timeout: 15_000 })
+      .toBeGreaterThan(0);
 
     // Verify column headers exist
     await expect(connectionsPage.connectionIdHeader).toBeVisible();
@@ -93,7 +97,7 @@ test.describe("Connections Page - List and Display", () => {
 test.describe("Connections Page - CRUD Operations", () => {
   let connectionsPage: ConnectionsPage;
   const { baseUrl } = testConfig.connection;
-  const timestamp = Date.now();
+  const timestamp = uniqueRunId("t");
 
   // Connection created via API in beforeAll - used for edit and display tests
   const existingConnection = {
@@ -149,15 +153,21 @@ test.describe("Connections Page - CRUD Operations", () => {
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
 
-    for (const connId of [
-      existingConnection.connection_id,
-      newConnection.connection_id,
-      `temp_conn_${timestamp}_delete`,
-    ]) {
-      await page.request.delete(`${baseUrl}/api/v2/connections/${connId}`);
+    try {
+      for (const connId of [
+        existingConnection.connection_id,
+        newConnection.connection_id,
+        `temp_conn_${timestamp}_delete`,
+      ]) {
+        try {
+          await page.request.delete(`${baseUrl}/api/v2/connections/${connId}`);
+        } catch {
+          // Ignore - connection may not exist
+        }
+      }
+    } finally {
+      await context.close();
     }
-
-    await context.close();
   });
 
   test("should create a new connection and display it in list", async () => {
@@ -222,7 +232,7 @@ test.describe("Connections Page - CRUD Operations", () => {
 test.describe("Connections Page - Search and Filter", () => {
   let connectionsPage: ConnectionsPage;
   const { baseUrl } = testConfig.connection;
-  const timestamp = Date.now();
+  const timestamp = uniqueRunId("t");
 
   const searchTestConnections = [
     {
@@ -271,10 +281,16 @@ test.describe("Connections Page - Search and Filter", () => {
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
 
-    for (const conn of searchTestConnections) {
-      const response = await page.request.delete(`${baseUrl}/api/v2/connections/${conn.connection_id}`);
-
-      expect([204, 404]).toContain(response.status());
+    try {
+      for (const conn of searchTestConnections) {
+        try {
+          await page.request.delete(`${baseUrl}/api/v2/connections/${conn.connection_id}`);
+        } catch {
+          // Ignore - connection may not exist
+        }
+      }
+    } finally {
+      await context.close();
     }
   });
 
