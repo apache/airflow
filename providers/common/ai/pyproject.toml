@@ -80,6 +80,14 @@ dependencies = [
 "google" = ["pydantic-ai-slim[google]"]
 "openai" = ["pydantic-ai-slim[openai]"]
 "mcp" = ["pydantic-ai-slim[mcp]"]
+"avro" = [
+    'fastavro>=1.10.0; python_version < "3.14"',
+    'fastavro>=1.12.1; python_version >= "3.14"',
+]
+"parquet" = [
+    "pyarrow>=18.0.0; python_version < '3.14'",
+    "pyarrow>=22.0.0; python_version >= '3.14'",
+]
 "sql" = [
     "apache-airflow-providers-common-sql",
     "sqlglot>=30.0.0",
