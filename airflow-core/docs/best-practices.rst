@@ -317,7 +317,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.15.6"
+      pip install "ruff>=0.15.7"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
@@ -853,6 +853,8 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
 
 .. code-block:: python
 
+    from airflow.sdk import Connection
+
     conn = Connection(
         conn_type="gcpssh",
         login="cat",
@@ -860,7 +862,7 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
     )
     conn_uri = conn.get_uri()
     with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
-        assert "cat" == Connection.get_connection_from_secrets("my_conn").login
+        assert "cat" == Connection.get("my_conn").login
 
 Metadata DB maintenance
 ^^^^^^^^^^^^^^^^^^^^^^^

@@ -98,6 +98,7 @@ module.exports = function() {
   // Enriched provider list with totals
   const enrichedProviders = [...providers].map(p => ({
     ...p,
+    module_counts: countsByProvider[p.id] || {},
     totalModules: countsByProvider[p.id]
       ? Object.values(countsByProvider[p.id]).reduce((a, b) => a + b, 0)
       : 0,
