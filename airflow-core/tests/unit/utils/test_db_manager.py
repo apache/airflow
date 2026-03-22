@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import nullcontext
 from unittest import mock
 
 import pytest
 
 from airflow.models import Base
-from airflow.utils.db_manager import BaseDBManager
+from airflow.utils.db_manager import BaseDBManager, RunDBManager
 
 pytestmark = [pytest.mark.db_test]
 
@@ -47,6 +48,54 @@ class CustomDBManager(BaseDBManager):
         alembic_command.downgrade(config, revision=to_revision, sql=show_sql_only)
 
 
+class LegacySignatureExternalManager:
+    initdb_calls = 0
+    upgradedb_calls = 0
+
+    def __init__(self, _session):
+        pass
+
+    def initdb(self):
+        type(self).initdb_calls += 1
+
+    def upgradedb(self):
+        type(self).upgradedb_calls += 1
+
+
+class ExplicitKwargExternalManager:
+    initdb_kwargs: list[bool] = []
+    upgradedb_kwargs: list[bool] = []
+
+    def __init__(self, _session):
+        pass
+
+    def initdb(self, use_migration_files=False):
+        type(self).initdb_kwargs.append(use_migration_files)
+
+    def upgradedb(self, use_migration_files=False):
+        type(self).upgradedb_kwargs.append(use_migration_files)
+
+
+class VarKwargExternalManager:
+    initdb_kwargs: list[dict] = []
+    upgradedb_kwargs: list[dict] = []
+
+    def __init__(self, _session):
+        pass
+
+    def initdb(self, **kwargs):
+        type(self).initdb_kwargs.append(kwargs)
+
+    def upgradedb(self, **kwargs):
+        type(self).upgradedb_kwargs.append(kwargs)
+
+
+def _create_run_db_manager(*managers):
+    run_db_manager = RunDBManager.__new__(RunDBManager)
+    run_db_manager._managers = list(managers)
+    return run_db_manager
+
+
 class TestBaseDBManager:
     @mock.patch.object(BaseDBManager, "get_alembic_config")
     @mock.patch.object(BaseDBManager, "get_current_revision")
@@ -60,13 +109,35 @@ class TestBaseDBManager:
         manager.initdb()
         mock_create_db_from_orm.assert_called_once()
 
+    @mock.patch.object(BaseDBManager, "upgradedb")
+    @mock.patch.object(BaseDBManager, "get_current_revision")
+    def test_initdb_use_migration_files_calls_upgrade(self, mock_current_revision, mock_upgradedb, session):
+        mock_current_revision.return_value = None
+
+        manager = MockDBManager(session)
+        manager.initdb(use_migration_files=True)
+
+        mock_upgradedb.assert_called_once_with(use_migration_files=True)
+
     @mock.patch.object(BaseDBManager, "get_alembic_config")
     @mock.patch("alembic.command.upgrade")
-    def test_upgrade(self, mock_alembic_cmd, mock_alembic_config, session, caplog):
+    @mock.patch.object(BaseDBManager, "get_current_revision")
+    def test_upgrade(self, mock_current_revision, mock_alembic_cmd, mock_alembic_config, session, caplog):
+        mock_current_revision.return_value = "current-revision"
         manager = MockDBManager(session)
         manager.upgradedb()
         mock_alembic_cmd.assert_called_once()
         assert "Upgrading the MockDBManager database" in caplog.text
+
+    @mock.patch.object(BaseDBManager, "create_db_from_orm")
+    @mock.patch.object(BaseDBManager, "get_current_revision")
+    def test_upgrade_empty_db_without_migration_files_uses_create_db_from_orm(
+        self, mock_current_revision, mock_create_db_from_orm, session
+    ):
+        mock_current_revision.return_value = None
+        manager = MockDBManager(session)
+        manager.upgradedb()
+        mock_create_db_from_orm.assert_called_once()
 
     @mock.patch.object(BaseDBManager, "get_script_object")
     @mock.patch.object(BaseDBManager, "get_current_revision")
@@ -90,3 +161,79 @@ class TestBaseDBManager:
         with pytest.raises(TypeError):
             # Ensure the old kwarg name is not accepted anymore
             manager.downgrade(to_version="1.2.3")  # type: ignore[call-arg]
+
+    @mock.patch("airflow.utils.db.create_global_lock", return_value=nullcontext())
+    @mock.patch.object(MockDBManager, "drop_tables")
+    @mock.patch("airflow.utils.db_manager.settings.engine.connect")
+    def test_resetdb_supports_legacy_initdb_override(
+        self, mock_connect, mock_drop_tables, mock_create_global_lock, session
+    ):
+        class LegacyInitOverrideManager(MockDBManager):
+            initdb_calls = 0
+
+            def initdb(self):
+                type(self).initdb_calls += 1
+
+        LegacyInitOverrideManager.initdb_calls = 0
+        mock_connect.return_value.begin.return_value = nullcontext()
+
+        manager = LegacyInitOverrideManager(session)
+        manager.resetdb(use_migration_files=True)
+
+        assert LegacyInitOverrideManager.initdb_calls == 1
+        mock_drop_tables.assert_called_once()
+
+    @mock.patch.object(MockDBManager, "create_db_from_orm")
+    @mock.patch.object(MockDBManager, "get_current_revision", return_value=None)
+    def test_initdb_supports_legacy_upgradedb_override(
+        self, mock_get_current_revision, mock_create_db_from_orm, session
+    ):
+        class LegacyUpgradeOverrideManager(MockDBManager):
+            upgradedb_calls = 0
+
+            def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
+                type(self).upgradedb_calls += 1
+
+        LegacyUpgradeOverrideManager.upgradedb_calls = 0
+
+        manager = LegacyUpgradeOverrideManager(session)
+        manager.initdb(use_migration_files=True)
+
+        assert LegacyUpgradeOverrideManager.upgradedb_calls == 1
+        mock_create_db_from_orm.assert_not_called()
+        mock_get_current_revision.assert_called_once()
+
+
+class TestRunDBManager:
+    def test_initdb_and_upgradedb_support_legacy_manager_signatures(self, session):
+        LegacySignatureExternalManager.initdb_calls = 0
+        LegacySignatureExternalManager.upgradedb_calls = 0
+
+        run_db_manager = _create_run_db_manager(LegacySignatureExternalManager)
+        run_db_manager.initdb(session=session, use_migration_files=True)
+        run_db_manager.upgradedb(session=session, use_migration_files=True)
+
+        assert LegacySignatureExternalManager.initdb_calls == 1
+        assert LegacySignatureExternalManager.upgradedb_calls == 1
+
+    def test_initdb_and_upgradedb_pass_use_migration_files_to_explicit_kwarg_manager(self, session):
+        ExplicitKwargExternalManager.initdb_kwargs = []
+        ExplicitKwargExternalManager.upgradedb_kwargs = []
+
+        run_db_manager = _create_run_db_manager(ExplicitKwargExternalManager)
+        run_db_manager.initdb(session=session, use_migration_files=True)
+        run_db_manager.upgradedb(session=session, use_migration_files=False)
+
+        assert ExplicitKwargExternalManager.initdb_kwargs == [True]
+        assert ExplicitKwargExternalManager.upgradedb_kwargs == [False]
+
+    def test_initdb_and_upgradedb_pass_use_migration_files_to_var_kwarg_manager(self, session):
+        VarKwargExternalManager.initdb_kwargs = []
+        VarKwargExternalManager.upgradedb_kwargs = []
+
+        run_db_manager = _create_run_db_manager(VarKwargExternalManager)
+        run_db_manager.initdb(session=session, use_migration_files=True)
+        run_db_manager.upgradedb(session=session, use_migration_files=False)
+
+        assert VarKwargExternalManager.initdb_kwargs == [{"use_migration_files": True}]
+        assert VarKwargExternalManager.upgradedb_kwargs == [{"use_migration_files": False}]

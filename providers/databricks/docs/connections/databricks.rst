@@ -221,7 +221,7 @@ Extra (optional)
     **Important Notes:**
 
     * This method requires no secrets to be stored in the Airflow connection
-    * For TokenRequest API method: The TokenRequest API is called to request a token for the ``default`` service account, regardless of which service account the pod is running with. The pod's service account must have appropriate RBAC permissions to create TokenRequest resources for the ``default`` service account.
+    * For TokenRequest API method: The TokenRequest API is called to request a token for the ``default`` service account, regardless of which service account the pod is running with. The pod's service account must have appropriate RBAC permissions to create TokenRequest resources for the ``default`` service account. The call to the Kubernetes API server is TLS-verified using the in-cluster CA bundle at ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``.
     * For Projected Volume method: No special Kubernetes permissions needed, just standard service account token projection.
     * The Databricks workspace must have federation policy configured in Databricks Account for the Kubernetes identity provider. **Only service principal-level policies are supported** for Kubernetes OIDC token federation.
     * ``client_id`` is required in the connection extra parameters. Service principal-level Databricks federation must be used because Kubernetes service account tokens do not support custom claims, which are required for account-wide federation.
@@ -364,6 +364,8 @@ Extra (optional)
     **Troubleshooting Common Issues:**
 
     * **"Kubernetes service account token not found" error:** This authentication method only works when Airflow is running inside a Kubernetes cluster. Ensure your pods have the service account token mounted (default behavior in Kubernetes).
+
+    * **TLS certificate verification errors when calling the Kubernetes API:** The TokenRequest API call is verified against the in-cluster CA bundle at ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. This file is automatically mounted in standard Kubernetes deployments.
 
     * **Permission denied errors:** For the TokenRequest API method, verify your pod's service account has RBAC permissions to create TokenRequest resources for the ``default`` service account. By default, service accounts can only create TokenRequest resources for themselves, not for other service accounts. You must explicitly grant these permissions via RBAC policies (ClusterRole and ClusterRoleBinding or Role and RoleBinding).
 

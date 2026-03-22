@@ -211,6 +211,52 @@ def _show_pr_diff(token: str, github_repository: str, pr_number: int, pr_url: st
         console.print()
 
 
+class ContinueAction(Enum):
+    CONTINUE = "c"
+    FLAG = "f"
+    QUIT = "q"
+
+
+def prompt_space_continue(
+    message: str = "Press SPACE to continue, [f] to flag as suspicious, [q] to quit",
+    forced_answer: str | None = None,
+) -> ContinueAction:
+    """Wait for the user to press space/Enter to continue, 'f' to flag, or 'q' to quit.
+
+    Used for scrolling through diffs one-by-one without asking yes/no questions.
+    """
+    force = forced_answer or get_forced_answer() or os.environ.get("ANSWER")
+    if force:
+        upper = force.upper()
+        if upper in ("Q", "QUIT"):
+            return ContinueAction.QUIT
+        if upper in ("F", "FLAG"):
+            return ContinueAction.FLAG
+        return ContinueAction.CONTINUE
+
+    console_print(f"\n{message}: ", end="")
+
+    while True:
+        try:
+            ch = _read_char()
+        except (KeyboardInterrupt, EOFError):
+            console_print()
+            return ContinueAction.QUIT
+
+        if len(ch) > 1:
+            continue
+
+        if ch in (" ", "\r", "\n", ""):
+            console_print()
+            return ContinueAction.CONTINUE
+        if ch.upper() == "F":
+            console_print("flag")
+            return ContinueAction.FLAG
+        if ch.upper() == "Q":
+            console_print("quit")
+            return ContinueAction.QUIT
+
+
 def prompt_triage_action(
     message: str,
     default: TriageAction = TriageAction.DRAFT,

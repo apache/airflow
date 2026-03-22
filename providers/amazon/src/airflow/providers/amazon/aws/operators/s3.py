@@ -57,27 +57,36 @@ class S3CreateBucketOperator(AwsBaseOperator[S3Hook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param bucket_namespace: The namespace of the bucket. Set to ``account-regional`` to create
+        the bucket in the account-regional namespace. If not specified, the bucket is created
+        in the global namespace.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = aws_template_fields("bucket_name")
+    template_fields: Sequence[str] = aws_template_fields("bucket_name", "bucket_namespace")
     aws_hook_class = S3Hook
 
     def __init__(
         self,
         *,
         bucket_name: str,
+        bucket_namespace: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
+        self.bucket_namespace = bucket_namespace
 
     def execute(self, context: Context):
         if not self.hook.check_for_bucket(self.bucket_name):
-            self.hook.create_bucket(bucket_name=self.bucket_name, region_name=self.region_name)
+            self.hook.create_bucket(
+                bucket_name=self.bucket_name,
+                region_name=self.region_name,
+                bucket_namespace=self.bucket_namespace,
+            )
             self.log.info("Created bucket with name: %s", self.bucket_name)
         else:
             self.log.info("Bucket with name: %s already exists", self.bucket_name)

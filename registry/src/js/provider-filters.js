@@ -132,29 +132,32 @@
     });
   }
 
-  if (sortSelect) {
-    sortSelect.addEventListener('change', () => {
-      const sortBy = sortSelect.value;
-      const items = Array.from(providerItems);
+  function sortProviders() {
+    const sortBy = sortSelect.value;
+    const items = Array.from(providerItems);
 
-      items.sort((a, b) => {
-        switch (sortBy) {
-          case 'downloads':
-            return Number(b.dataset.downloads || 0) - Number(a.dataset.downloads || 0);
-          case 'name':
-            return (a.dataset.name || '').localeCompare(b.dataset.name || '');
-          case 'updated':
-            return (b.dataset.updated || '').localeCompare(a.dataset.updated || '');
-          default:
-            return 0;
-        }
-      });
-
-      items.forEach(item => providerGrid.appendChild(item));
+    items.sort((a, b) => {
+      switch (sortBy) {
+        case 'downloads':
+          return Number(b.dataset.downloads || 0) - Number(a.dataset.downloads || 0);
+        case 'name':
+          return (a.dataset.name || '').localeCompare(b.dataset.name || '');
+        case 'updated':
+          return (b.dataset.updated || '').localeCompare(a.dataset.updated || '');
+        default:
+          return 0;
+      }
     });
+
+    items.forEach(item => providerGrid.appendChild(item));
+  }
+
+  if (sortSelect) {
+    sortSelect.addEventListener('change', sortProviders);
   }
 
   readURLParams();
+  sortProviders();
   if (currentCategory !== 'all' || currentLifecycle !== 'all' || currentSearch) {
     filterProviders();
   }

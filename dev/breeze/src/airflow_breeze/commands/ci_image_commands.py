@@ -597,7 +597,7 @@ def load(
         )
         sys.exit(1)
 
-    if from_run or from_pr and not github_token:
+    if (from_run or from_pr) and not github_token:
         console_print(
             "[error]The parameter `--github-token` must be provided if `--from-run` or `--from-pr` is "
             "provided. Exiting.[/]"

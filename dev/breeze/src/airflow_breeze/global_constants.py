@@ -49,9 +49,11 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = (
+    "3.13"  # "highest complete" python version (where all providers are included)
+)
 
 
 # Maps each supported Python version to the minimum Airflow version that supports it.
@@ -170,11 +172,14 @@ ALLOWED_EXECUTORS = [
 SIMPLE_AUTH_MANAGER = "SimpleAuthManager"
 FAB_AUTH_MANAGER = "FabAuthManager"
 
+GOLANG_WORKER = "go"
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
 START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
+ALLOWED_WORKER_TYPES = [GOLANG_WORKER]
 
 CONSTRAINTS_SOURCE_PROVIDERS = "constraints-source-providers"
 CONSTRAINTS = "constraints"
@@ -276,7 +281,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.0.1"
-UV_VERSION = "0.10.10"
+UV_VERSION = "0.10.12"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -441,7 +446,7 @@ ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
-ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
 GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
 PR_NUMBER_PATTERN = r"^\d+$"
@@ -492,7 +497,7 @@ PRODUCTION_IMAGE = False
 # All python versions include all past python versions available in previous branches
 # Even if we remove them from the main version. This is needed to make sure we can cherry-pick
 # changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
 ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
@@ -513,6 +518,8 @@ PYTHON_3_7_TO_3_11 = ["3.7", "3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_11 = ["3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_12 = ["3.8", "3.9", "3.10", "3.11", "3.12"]
 PYTHON_3_9_TO_3_12 = ["3.9", "3.10", "3.11", "3.12"]
+PYTHON_3_10_TO_3_13 = ["3.10", "3.11", "3.12", "3.13"]
+PYTHON_3_10_TO_3_14 = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
@@ -566,6 +573,9 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.4": PYTHON_3_8_TO_3_12,
     "2.10.5": PYTHON_3_8_TO_3_12,
     "2.11.0": PYTHON_3_9_TO_3_12,
+    "3.0.0": PYTHON_3_9_TO_3_12,
+    "3.1.0": PYTHON_3_10_TO_3_13,
+    "3.2.0": PYTHON_3_10_TO_3_14,
 }
 
 DB_RESET = False
@@ -819,10 +829,14 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.11": "3.11.15",
     "3.12": "3.12.13",
     "3.13": "3.13.12",
+    "3.14": "3.14.3",
 }
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
+
+# Number of slices for core test types (splitting reduces memory per xdist collection)
+NUMBER_OF_CORE_SLICES = 2
 
 # Milestone Tag Assistant configuration
 # Labels indicating a bug fix PR that should have a milestone

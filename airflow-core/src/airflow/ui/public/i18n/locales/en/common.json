@@ -172,6 +172,7 @@
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
+    "asset_materialization": "Asset Materialization",
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
     "manual": "Manual",

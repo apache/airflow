@@ -1299,6 +1299,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_ROLE, name)
                 return role
+            except IntegrityError:
+                self.session.rollback()
+                role = self.find_role(name)
+                if role is not None:
+                    log.info("Role '%s' was created by a concurrent worker, using existing record", name)
+                    return role
+                raise
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_ROLE, e)
                 self.session.rollback()
@@ -1570,6 +1577,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.add(action)
                 self.session.commit()
                 return action
+            except IntegrityError:
+                self.session.rollback()
+                action = self.get_action(name)
+                if action is not None:
+                    log.info("Action '%s' was created by a concurrent worker, using existing record", name)
+                    return action
+                raise
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMISSION, e)
                 self.session.rollback()
@@ -1628,6 +1642,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.session.add(resource)
                 self.session.commit()
                 return resource
+            except IntegrityError:
+                self.session.rollback()
+                resource = self.get_resource(name)
+                if resource is not None:
+                    log.info("Resource '%s' was created by a concurrent worker, using existing record", name)
+                    return resource
+                raise
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_VIEWMENU, e)
                 self.session.rollback()
@@ -1698,6 +1719,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_PERMVIEW, perm)
             return perm
+        except IntegrityError:
+            self.session.rollback()
+            existing = self.get_permission(action_name, resource_name)
+            if existing is not None:
+                log.info(
+                    "Permission '%s'->'%s' was created by a concurrent worker, using existing record",
+                    action_name,
+                    resource_name,
+                )
+                return existing
+            raise
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, e)
             self.session.rollback()

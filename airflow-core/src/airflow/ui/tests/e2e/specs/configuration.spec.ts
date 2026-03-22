@@ -18,7 +18,7 @@
  */
 import { expect, test } from "@playwright/test";
 
-import { ConfigurationPage } from "../pages/configurationpage";
+import { ConfigurationPage } from "../pages/ConfigurationPage";
 
 test.describe("Configuration Page", () => {
   let configPage: ConfigurationPage;
