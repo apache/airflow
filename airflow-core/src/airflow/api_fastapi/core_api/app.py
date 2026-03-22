@@ -143,12 +143,18 @@ def init_config(app: FastAPI) -> None:
     allow_origins = conf.getlist("api", "access_control_allow_origins")
     allow_methods = conf.getlist("api", "access_control_allow_methods")
     allow_headers = conf.getlist("api", "access_control_allow_headers")
+    allow_credentials = conf.getboolean("api", "access_control_allow_credentials", fallback=False)
 
     if allow_origins or allow_methods or allow_headers:
+        if allow_credentials and "*" in allow_origins:
+            log.warning(
+                "CORS allow_credentials is True with wildcard (*) in allow_origins. "
+                "This is a security risk. Consider specifying explicit origins."
+            )
         app.add_middleware(
             CORSMiddleware,
             allow_origins=allow_origins,
-            allow_credentials=True,
+            allow_credentials=allow_credentials,
             allow_methods=allow_methods,
             allow_headers=allow_headers,
         )

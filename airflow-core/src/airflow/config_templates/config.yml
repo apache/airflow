@@ -1751,6 +1751,16 @@ api:
       version_added: 2.2.0
       example: ~
       default: ""
+    access_control_allow_credentials:
+      description: |
+        Indicates whether the response to the request can be exposed when the credentials flag is true.
+        When used as part of a response to a preflight request, this indicates whether or not the
+        actual request can be made using credentials. Setting this to True with a wildcard (*) in
+        access_control_allow_origins is a security risk.
+      type: boolean
+      version_added: 3.0.0
+      example: ~
+      default: "False"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
