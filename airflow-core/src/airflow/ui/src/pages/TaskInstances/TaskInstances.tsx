@@ -301,7 +301,12 @@ export const TaskInstances = () => {
 
   return (
     <>
-      <TaskInstancesFilter />
+      <Flex alignItems="center" justifyContent="space-between">
+        <TaskInstancesFilter />
+        {Boolean(dagId) && Boolean(runId) && Boolean(taskId) ? (
+          <ClearTaskInstanceButton allMapped dagId={dagId as string} dagRunId={runId as string} taskId={taskId as string} />
+        ) : undefined}
+      </Flex>
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}

@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
     "build": "vite build",
-    "lint": "eslint --quiet && tsc --p tsconfig.app.json",
+    "lint": "eslint --quiet",
+    "typecheck": "tsc --p tsconfig.app.json",
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
     "format": "pnpm prettier --write .",
     "preview": "vite preview",

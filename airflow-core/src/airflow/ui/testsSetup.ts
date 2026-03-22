@@ -17,12 +17,47 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
+import axios from "axios";
+import httpAdapter from "axios/lib/adapters/http.js";
 import { cleanup } from "@testing-library/react";
 import type { HttpHandler } from "msw";
 import { setupServer, type SetupServerApi } from "msw/node";
 import { beforeEach, beforeAll, afterAll, afterEach, vi } from "vitest";
 
 import { handlers } from "src/mocks/handlers";
+
+// Ensure MSW can intercept axios requests in the happy-dom environment.
+// Axios picks the XHR adapter in browser-like environments; switch to http.
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+axios.defaults.adapter = httpAdapter as any;
+
+/**
+ * A polyfill for `localStorage` in the test environment.
+ * This ensures consistent behavior and prevents DOM-related errors during testing.
+ */
+const createLocalStorage = () => {
+  const store = new Map<string, string>();
+
+  return {
+    clear: () => store.clear(),
+    getItem: (key: string) => store.get(key) ?? null,
+    key: (index: number) => [...store.keys()][index] ?? null,
+    get length() {
+      return store.size;
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+  };
+};
+
+Object.defineProperty(globalThis, "localStorage", {
+  configurable: true,
+  value: createLocalStorage(),
+});
 
 // Mock Chart.js to prevent DOM access errors during test cleanup
 vi.mock("react-chartjs-2", () => ({

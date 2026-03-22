@@ -34,20 +34,53 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
 
-type Props = {
+type CommonProps = {
+  readonly allMapped?: boolean;
   readonly onClose: () => void;
   readonly open: boolean;
-  readonly taskInstance: TaskInstanceResponse;
 };
 
-const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, taskInstance }: Props) => {
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
+type Props = (
+  | {
+      readonly dagId: string;
+      readonly dagRunId: string;
+      readonly mapIndex?: number;
+      readonly taskId: string;
+      readonly taskInstance?: never; // Ensure taskInstance is not present
+    }
+  | {
+      readonly dagId?: never; // Ensure individual props are not present
+      readonly dagRunId?: never;
+      readonly mapIndex?: never;
+      readonly taskId?: never;
+      readonly taskInstance: TaskInstanceResponse;
+    }
+) &
+  CommonProps;
+
+const ClearTaskInstanceDialog = ({
+  allMapped = false,
+  onClose: onCloseDialog,
+  open: openDialog,
+  ...rest
+}: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
 
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
+  const { dagId, dagRunId, taskId, taskInstance } = rest.taskInstance
+    ? {
+        dagId: rest.taskInstance.dag_id,
+        dagRunId: rest.taskInstance.dag_run_id,
+        taskId: rest.taskInstance.task_id,
+        taskInstance: rest.taskInstance,
+      }
+    : {
+        dagId: rest.dagId,
+        dagRunId: rest.dagRunId,
+        taskId: rest.taskId,
+        taskInstance: undefined,
+      };
+  const mapIndex = allMapped ? undefined : rest.taskInstance?.map_index ?? rest.mapIndex ?? -1;
 
   const { isPending, mutate } = useClearTaskInstances({
     dagId,
@@ -65,13 +98,15 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
-  const [note, setNote] = useState<string | null>(taskInstance.note);
-  const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
-    dagId,
-    dagRunId,
-    mapIndex,
-    taskId,
-  });
+  const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
+  const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = !allMapped
+    ? usePatchTaskInstance({
+        dagId,
+        dagRunId,
+        mapIndex: mapIndex as number,
+        taskId,
+      })
+    : { isPending: false, mutate: () => {} }; // Provide a no-op equivalent when the hook is not active
 
   // Get current DAG's bundle version to compare with task instance's DAG version bundle version
   const { data: dagDetails } = useDagServiceGetDagDetails({
@@ -80,7 +115,11 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
 
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const { data } = useClearTaskInstancesDryRun({
+  // When allMapped: pass just [taskId] to clear all map indices
+  // When single instance: pass [[taskId, mapIndex]] to clear specific instance
+  const taskIds: Array<string | [string, number]> = allMapped
+    ? [taskId || ""]
+    : [[taskId || "", mapIndex || -1]];  const { data } = useClearTaskInstancesDryRun({
     dagId,
     options: {
       enabled: openDialog,
@@ -98,7 +137,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
       include_upstream: upstream,
       only_failed: onlyFailed,
       run_on_latest_version: runOnLatestVersion,
-      task_ids: [[taskId, mapIndex]],
+      task_ids: taskIds,
     },
   });
 
@@ -109,12 +148,18 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
 
   // Check if bundle versions are different
   const currentDagBundleVersion = dagDetails?.bundle_version;
-  const taskInstanceDagVersionBundleVersion = taskInstance.dag_version?.bundle_version;
+  const taskInstanceDagVersionBundleVersion = taskInstance?.dag_version?.bundle_version;
   const bundleVersionsDiffer = currentDagBundleVersion !== taskInstanceDagVersionBundleVersion;
   const shouldShowBundleVersionOption =
-    bundleVersionsDiffer &&
-    taskInstanceDagVersionBundleVersion !== null &&
-    taskInstanceDagVersionBundleVersion !== "";
+    taskInstance && bundleVersionsDiffer && Boolean(taskInstanceDagVersionBundleVersion);
+
+  const dialogTitle = allMapped
+    ? translate("dags:runAndTaskActions.clearAllMapped.title", {
+        type: translate("taskInstance_other"),
+      })
+    : translate("dags:runAndTaskActions.clear.title", {
+        type: translate("taskInstance_one"),
+      });
 
   return (
     <>
@@ -123,13 +168,10 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
           <Dialog.Header>
             <VStack align="start" gap={4}>
               <Heading size="xl">
-                <strong>
-                  {translate("dags:runAndTaskActions.clear.title", {
-                    type: translate("taskInstance_one"),
-                  })}
-                  :
-                </strong>{" "}
-                {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
+                <strong>{dialogTitle}:</strong>{" "}
+                {taskInstance?.task_display_name ?? (taskId && taskId.length > 0 ? taskId : undefined)}{" "}
+                // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+                {taskInstance && Boolean(taskInstance.start_date) && <Time datetime={taskInstance.start_date} />}
               </Heading>
             </VStack>
           </Dialog.Header>
@@ -144,12 +186,12 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                 onChange={setSelectedOptions}
                 options={[
                   {
-                    disabled: taskInstance.logical_date === null,
+                    disabled: !taskInstance?.logical_date,
                     label: translate("dags:runAndTaskActions.options.past"),
                     value: "past",
                   },
                   {
-                    disabled: taskInstance.logical_date === null,
+                    disabled: !taskInstance?.logical_date,
                     label: translate("dags:runAndTaskActions.options.future"),
                     value: "future",
                   },
@@ -208,7 +250,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
             dagRunId,
             downstream,
             future,
-            mapIndex,
+            mapIndex: allMapped ? undefined : mapIndex,
             onlyFailed,
             past,
             taskId,
@@ -227,15 +269,15 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                 include_upstream: upstream,
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
-                task_ids: [[taskId, mapIndex]],
+                task_ids: taskIds,
                 ...(preventRunningTask ? { prevent_running_task: true } : {}),
               },
             });
-            if (note !== taskInstance.note) {
+            if (taskInstance && note !== taskInstance.note) {
               mutatePatchTaskInstance({
                 dagId,
                 dagRunId,
-                mapIndex,
+                mapIndex: allMapped ? undefined : mapIndex,
                 requestBody: { note },
                 taskId,
               });
