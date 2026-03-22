@@ -120,6 +120,17 @@ class TestClient:
         )
         assert client.timeout == httpx.Timeout(120.0)
 
+    def test_default_content_type_header(self):
+        """Verify the client sets a default Content-Type: application/json header."""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.headers["content-type"] == "application/json"
+            return httpx.Response(status_code=200, json={"ok": True})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        # A PATCH with content= should carry the default content-type header
+        client.patch("task-instances/fake-id/run", content=b'{"pid": 1}')
+
     def test_error_parsing(self):
         responses = [
             httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
