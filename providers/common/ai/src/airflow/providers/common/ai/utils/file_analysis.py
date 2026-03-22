@@ -420,8 +420,8 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int) -> tuple[str, int
         writer_schema = getattr(reader, "writer_schema", None)
         for record in reader:
             total_rows += 1
-            if len(sampled_rows) < sample_rows:
-                sampled_rows.append(record)
+            if len(sampled_rows) < sample_rows and isinstance(record, dict):
+                sampled_rows.append({str(key): value for key, value in record.items()})
     payload = [f"Schema: {json.dumps(writer_schema, indent=2, default=str)}", "Sample rows:"]
     payload.append(json.dumps(sampled_rows, indent=2, default=str))
     return _truncate_text("\n".join(payload)), total_rows

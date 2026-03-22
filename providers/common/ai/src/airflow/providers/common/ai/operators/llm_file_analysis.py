@@ -28,6 +28,8 @@ from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_
 from airflow.providers.common.ai.utils.logging import log_run_summary
 
 if TYPE_CHECKING:
+    from pydantic_ai import Agent
+
     from airflow.sdk import Context
 
 
@@ -127,7 +129,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             self.sample_rows,
         )
         self.log.debug("Resolved file analysis paths: %s", request.resolved_paths)
-        agent = self.llm_hook.create_agent(
+        agent: Agent[None, Any] = self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self._build_system_prompt(),
             **self.agent_params,
