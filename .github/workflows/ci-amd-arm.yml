@@ -966,7 +966,10 @@ jobs:
       - name: "Determine notification action"
         id: notification
         shell: bash
-        run: python3 scripts/ci/slack_notification_state.py
+        run: |
+          command -v gh >/dev/null 2>&1 || { echo "::error::gh CLI is not installed"; exit 1; }
+          gh auth status || gh auth login --with-token <<< "${GITHUB_TOKEN}"
+          python3 scripts/ci/slack_notification_state.py
         env:
           ARTIFACT_NAME: "slack-state-tests-${{ github.ref_name }}"
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
