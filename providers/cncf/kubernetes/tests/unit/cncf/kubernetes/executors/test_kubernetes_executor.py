@@ -64,7 +64,7 @@ except ImportError:
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
@@ -618,9 +618,12 @@ class TestKubernetesExecutor:
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubeConfig")
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.sync")
-    @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
+    @mock.patch(
+        "airflow.executors.base_executor.BaseExecutor."
+        + ("trigger_workloads" if AIRFLOW_V_3_3_PLUS else "trigger_tasks")
+    )
     @mock.patch("airflow.executors.base_executor.Stats.gauge")
-    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync, mock_kube_config):
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger, mock_sync, mock_kube_config):
         executor = self.kubernetes_executor
         executor.heartbeat()
         calls = [

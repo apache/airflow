@@ -33,13 +33,10 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.amazon.aws.executors.batch.boto_schema import (
@@ -92,11 +89,6 @@ class AwsBatchExecutor(BaseExecutor):
     # AWS only allows a maximum number of JOBs in the describe_jobs function
     DESCRIBE_JOBS_BATCH_SIZE = 99
 
-    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
-        # In the v3 path, we store workloads, not commands as strings.
-        # TODO: TaskSDK: move this type change into BaseExecutor
-        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.active_workers = BatchJobCollection()
@@ -124,16 +116,9 @@ class AwsBatchExecutor(BaseExecutor):
             fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS],
         )
 
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
-        from airflow.executors import workloads
-
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload
-
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         from airflow.executors.workloads import ExecuteTask
+        from airflow.executors.workloads.base import WorkloadType
 
         # Airflow V3 version
         for w in workloads:
@@ -144,7 +129,7 @@ class AwsBatchExecutor(BaseExecutor):
             queue = w.ti.queue
             executor_config = w.ti.executor_config or {}
 
-            del self.queued_tasks[key]
+            del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
             self.running.add(key)
 

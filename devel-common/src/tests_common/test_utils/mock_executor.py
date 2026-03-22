@@ -24,6 +24,7 @@ from unittest.mock import MagicMock
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_utils import ExecutorName
+from airflow.executors.workloads import WorkloadType
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.session import create_session
@@ -78,7 +79,7 @@ class MockExecutor(BaseExecutor):
             return
 
         with create_session() as session:
-            self.history.append(list(self.queued_tasks.values()))
+            self.history.append(list(self.executor_queues[WorkloadType.EXECUTE_TASK].values()))
 
             # Create a stable/predictable sort order for events in self.history
             # for tests!
@@ -91,9 +92,9 @@ class MockExecutor(BaseExecutor):
                 return -prio, date, dag_id, task_id, map_index, try_number
 
             open_slots = self.parallelism - len(self.running)
-            sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
+            sorted_queue = sorted(self.executor_queues[WorkloadType.EXECUTE_TASK].items(), key=sort_by)
             for key, workload in sorted_queue[:open_slots]:
-                self.queued_tasks.pop(key)
+                self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key)
                 state = self.mock_task_results[key]
                 ti = TaskInstance.get_task_instance(
                     task_id=workload.ti.task_id,

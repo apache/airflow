@@ -53,7 +53,7 @@ class TestEdgeExecutor:
         ti.dag_run.run_id = key.run_id
         ti.dag_run.start_date = datetime(2021, 1, 1)
         executor = EdgeExecutor()
-        executor.queued_tasks = {key: [None, None, None, ti]}
+        executor.queued_tasks[key] = [None, None, None, ti]
 
         return (executor, key)
 
