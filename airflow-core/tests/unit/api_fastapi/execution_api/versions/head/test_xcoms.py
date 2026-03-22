@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import urllib.parse
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -232,6 +233,10 @@ class TestXComsGetEndpoint:
             pytest.param(slice(-1, None, -1), id="-1::-1"),
             pytest.param(slice(-2, -1, None), id="-2:-1"),
             pytest.param(slice(-1, -3, -1), id="-1:-3:-1"),
+            pytest.param(slice(10, -1, None), id="10:-1"),
+            pytest.param(slice(-1, 10, None), id="-1:10"),
+            pytest.param(slice(1, -10, None), id="1:-10"),
+            pytest.param(slice(1, 2, -1), id="1:2:-1"),
         ],
     )
     def test_xcom_get_with_slice(self, client, dag_maker, session, key):
@@ -322,6 +327,46 @@ class TestXComsGetEndpoint:
         assert response.status_code == 200
 
         assert set(response.json()) == set(expected_xcoms)
+
+    @pytest.mark.parametrize(
+        ("start", "stop", "expected_count_calls"),
+        [
+            pytest.param(None, None, 0, id="no_slice"),
+            pytest.param(5, None, 0, id="positive_start_only"),
+            pytest.param(None, -5, 1, id="negative_stop_only"),
+            pytest.param(-5, None, 1, id="negative_start_only"),
+            pytest.param(5, -3, 1, id="positive_start_negative_stop"),
+            pytest.param(-5, 10, 1, id="negative_start_positive_stop"),
+            pytest.param(-5, -10, 0, id="both_negative_same_sign"),
+        ],
+    )
+    def test_xcom_slice_count_query_called_at_most_once(
+        self, client, dag_maker, session, start, stop, expected_count_calls
+    ):
+        """Test that get_query_count is called at most once for slice requests,
+        and exactly once whenever a negative bound needs normalization.
+
+        Empty slices that can be proven without knowing the collection size
+        still skip the COUNT query.
+        """
+        with dag_maker(dag_id="dag"):
+            EmptyOperator(task_id="task")
+        dag_maker.create_dagrun(run_id="runid")
+
+        with patch("airflow.api_fastapi.execution_api.routes.xcoms.get_query_count") as mock_count:
+            mock_count.return_value = 0
+            qs = {}
+            if start is not None:
+                qs["start"] = start
+            if stop is not None:
+                qs["stop"] = stop
+
+            response = client.get(
+                f"/execution/xcoms/dag/runid/task/test_key/slice?{urllib.parse.urlencode(qs)}"
+            )
+            assert response.status_code == 200
+            assert response.json() == []
+            assert mock_count.call_count == expected_count_calls
 
 
 class TestXComsSetEndpoint:

@@ -157,58 +157,63 @@ def get_mapped_xcom_by_slice(
 
     step = params.step or 1
 
-    # We want to optimize negative slicing (e.g. seq[-10:]) by not doing an
-    # additional COUNT query if possible. This is possible unless both start and
-    # stop are explicitly given and have different signs.
-    if (start := params.start) is None:
-        if (stop := params.stop) is None:
+    start = params.start
+    stop = params.stop
+
+    if (
+        start is not None
+        and stop is not None
+        and ((start >= 0 and stop >= 0) or (start < 0 and stop < 0))
+        and ((step > 0 and start >= stop) or (step < 0 and start <= stop))
+    ):
+        # When both bounds are on the same side of zero and the requested
+        # direction conflicts with the step, the slice is empty.
+        return XComSequenceSliceResponse([])
+
+    has_negative_bound = (start is not None and start < 0) or (stop is not None and stop < 0)
+
+    if has_negative_bound:
+        # Negative indices depend on the collection size. Normalize them with
+        # Python's slice semantics before translating the slice to SQL.
+        total_count = get_query_count(query, session=session)
+        start, stop, step = slice(start, stop, step).indices(total_count)
+        if step > 0:
+            if start >= stop:
+                return XComSequenceSliceResponse([])
+            query = query.order_by(XComModel.map_index.asc()).slice(start, stop)
+        else:
+            if start <= stop:
+                return XComSequenceSliceResponse([])
+            query = query.order_by(XComModel.map_index.desc()).slice(
+                total_count - 1 - start,
+                total_count - 1 - stop,
+            )
+            step = -step
+    elif start is None:
+        if stop is None:
             if step >= 0:
                 query = query.order_by(XComModel.map_index.asc())
             else:
                 query = query.order_by(XComModel.map_index.desc())
                 step = -step
-        elif stop >= 0:
+        else:
             query = query.order_by(XComModel.map_index.asc())
             if step >= 0:
                 query = query.limit(stop)
             else:
                 query = query.offset(stop + 1)
-        else:
-            query = query.order_by(XComModel.map_index.desc())
-            step = -step
-            if step > 0:
-                query = query.limit(-stop - 1)
-            else:
-                query = query.offset(-stop)
-    elif start >= 0:
+    else:
         query = query.order_by(XComModel.map_index.asc())
-        if (stop := params.stop) is None:
+        if stop is None:
             if step >= 0:
                 query = query.offset(start)
             else:
                 query = query.limit(start + 1)
         else:
-            if stop < 0:
-                stop += get_query_count(query, session=session)
             if step >= 0:
                 query = query.slice(start, stop)
             else:
                 query = query.slice(stop + 1, start + 1)
-    else:
-        query = query.order_by(XComModel.map_index.desc())
-        step = -step
-        if (stop := params.stop) is None:
-            if step > 0:
-                query = query.offset(-start - 1)
-            else:
-                query = query.limit(-start)
-        else:
-            if stop >= 0:
-                stop -= get_query_count(query, session=session)
-            if step > 0:
-                query = query.slice(-1 - start, -1 - stop)
-            else:
-                query = query.slice(-stop, -start)
 
     values = [row.value for row in session.execute(query.with_only_columns(XComModel.value)).all()]
     if step != 1:
