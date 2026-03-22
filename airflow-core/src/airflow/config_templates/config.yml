@@ -2650,6 +2650,19 @@ triggerer:
       type: boolean
       example: ~
       default: "False"
+    direct_queueing_executors:
+      description: |
+        Comma-separated allowlist of executor names for which the triggerer will directly enqueue
+        workloads when a deferred task's trigger fires, bypassing the scheduler's scheduling loop.
+        Each entry may be an executor alias (e.g. ``CeleryExecutor``), a fully-qualified module
+        path (e.g. ``airflow.providers.celery.executors.celery_executor.CeleryExecutor``), or the
+        bare class name. Only executors that maintain their own external queue (such as Celery) should
+        be listed here. When empty (the default), all deferred tasks are returned
+        to the scheduler via the normal SCHEDULED state transition.
+      version_added: 3.2.0
+      type: string
+      example: "CeleryExecutor"
+      default: ~
 kerberos:
   description: ~
   options:
