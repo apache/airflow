@@ -252,6 +252,155 @@ class TestDataFusionEngine:
         with pytest.raises(ValueError, match="Unknown connection type dummy"):
             engine._get_credentials(mock_conn)
 
+    def test_get_credentials_google_cloud_platform(self):
+        """GCP case passes the import guard and returns empty credentials (hook handles creds in provider)."""
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.conn_id = "gcp_default"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials == {}
+        assert extra_config == {}
+
+    def test_get_credentials_google_missing_provider(self):
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "google_cloud_platform"
+        mock_conn.conn_id = "gcp_default"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+
+        with patch.dict("sys.modules", {"airflow.providers.google.common.hooks.base_google": None}):
+            with pytest.raises(Exception, match="Failed to import GoogleBaseHook"):
+                engine._get_credentials(mock_conn)
+
+    def test_get_credentials_wasb(self):
+        """Key auth: conn.login is the storage account name."""
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.login = "myaccount"
+        mock_conn.password = "mykey"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials["account"] == "myaccount"
+        assert credentials["access_key"] == "mykey"
+        assert extra_config == {}
+
+    def test_get_credentials_wasb_account_key_from_extra(self):
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"account_key": "key_from_extra"}
+
+        engine = DataFusionEngine()
+        credentials, extra_config = engine._get_credentials(mock_conn)
+
+        assert credentials["account"] == "myaccount"
+        assert credentials["access_key"] == "key_from_extra"
+
+    def test_get_credentials_wasb_service_principal(self):
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.host = "mystorageaccount"
+        mock_conn.login = "my-client-id"
+        mock_conn.password = "my-client-secret"
+        mock_conn.extra_dejson = {"tenant_id": "my-tenant-id"}
+
+        engine = DataFusionEngine()
+        credentials, _ = engine._get_credentials(mock_conn)
+
+        assert credentials["account"] == "mystorageaccount"
+        assert credentials["client_id"] == "my-client-id"
+        assert credentials["client_secret"] == "my-client-secret"
+        assert credentials["tenant_id"] == "my-tenant-id"
+        assert "access_key" not in credentials
+
+    def test_get_credentials_wasb_service_principal_host_full_url(self):
+        """Account name is extracted from conn.host when it is a full URL, not passed raw."""
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.host = "https://mystorageaccount.blob.core.windows.net/"
+        mock_conn.login = "my-client-id"
+        mock_conn.password = "my-client-secret"
+        mock_conn.extra_dejson = {"tenant_id": "my-tenant-id"}
+
+        engine = DataFusionEngine()
+        credentials, _ = engine._get_credentials(mock_conn)
+
+        assert credentials["account"] == "mystorageaccount"
+
+    def test_get_credentials_wasb_service_principal_client_id_from_extra(self):
+        """client_id in extra takes priority over login when tenant_id is present."""
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.host = "mystorageaccount"
+        mock_conn.login = "fallback-login"
+        mock_conn.password = "fallback-password"
+        mock_conn.extra_dejson = {
+            "tenant_id": "my-tenant-id",
+            "client_id": "explicit-client-id",
+            "client_secret": "explicit-client-secret",
+        }
+
+        engine = DataFusionEngine()
+        credentials, _ = engine._get_credentials(mock_conn)
+
+        assert credentials["client_id"] == "explicit-client-id"
+        assert credentials["client_secret"] == "explicit-client-secret"
+
+    def test_get_credentials_wasb_missing_account(self):
+        """Raise early when both login and password/account_key are absent."""
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.login = None
+        mock_conn.password = None
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+
+        with pytest.raises(ValueError, match="Azure connection requires a storage account name"):
+            engine._get_credentials(mock_conn)
+
+    def test_get_credentials_wasb_service_principal_host_scheme_no_dots(self):
+        """Account name extracted from netloc even when host is scheme + bare name."""
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.host = "https://mystorageaccount"
+        mock_conn.login = "my-client-id"
+        mock_conn.password = "my-client-secret"
+        mock_conn.extra_dejson = {"tenant_id": "my-tenant-id"}
+
+        engine = DataFusionEngine()
+        credentials, _ = engine._get_credentials(mock_conn)
+
+        assert credentials["account"] == "mystorageaccount"
+
+    def test_get_credentials_azure_missing_provider(self):
+        mock_conn = MagicMock(spec=Connection)
+        mock_conn.conn_type = "wasb"
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.extra_dejson = {}
+
+        engine = DataFusionEngine()
+
+        with patch.dict("sys.modules", {"airflow.providers.microsoft.azure.hooks.wasb": None}):
+            with pytest.raises(Exception, match="Failed to import WasbHook"):
+                engine._get_credentials(mock_conn)
+
     def test_get_schema_success(self):
         engine = DataFusionEngine()
         engine.df_ctx = MagicMock(spec=SessionContext)

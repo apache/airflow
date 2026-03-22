@@ -34,6 +34,8 @@ class TestDataSourceConfig:
         [
             ("s3://bucket/path", StorageType.S3),
             ("file:///path/to/file", StorageType.LOCAL),
+            ("gs://bucket/path", StorageType.GCS),
+            ("az://container/path", StorageType.AZURE),
         ],
     )
     def test_extract_storage_type(self, uri, expected_type):

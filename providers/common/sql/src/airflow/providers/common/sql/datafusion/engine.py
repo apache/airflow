@@ -158,6 +158,65 @@ class DataFusionEngine(LoggingMixin):
                 credentials = self._remove_none_values(credentials)
                 extra_config = _fetch_extra_configs(["region", "endpoint"])
 
+            case "google_cloud_platform":
+                try:
+                    # Imported as a feature gate only: verifies the Google provider is installed.
+                    from airflow.providers.google.common.hooks.base_google import GoogleBaseHook  # noqa: F401
+                except ImportError:
+                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+                    raise AirflowOptionalProviderFeatureException(
+                        "Failed to import GoogleBaseHook. To use the GCS storage functionality, please install the "
+                        "apache-airflow-providers-google package."
+                    )
+                # Deferred to GCSObjectStorageProvider, provide_gcp_credential_file_as_context to handle key_path, keyfile_dict, and ADC.
+                extra_config = {}
+
+            case "wasb":
+                try:
+                    # Imported as a feature gate only: verifies the Azure provider is installed
+                    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook  # noqa: F401
+                except ImportError:
+                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+                    raise AirflowOptionalProviderFeatureException(
+                        "Failed to import WasbHook. To use the Azure storage functionality, please install the "
+                        "apache-airflow-providers-microsoft-azure package."
+                    )
+                tenant_id = conn.extra_dejson.get("tenant_id")
+                if tenant_id:
+                    # Service Principal auth: conn.host holds the storage account (name or full URL);
+                    # conn.login is the client_id (AAD app ID), matching WasbHook convention.
+                    # DataFusion requires just the account name, so strip any URL components.
+                    from urllib.parse import urlparse
+
+                    host = conn.host or ""
+                    parsed = urlparse(host if "://" in host else f"https://{host}")
+                    account = (
+                        parsed.netloc.split(".")[0]
+                        if "." in (parsed.netloc or "")
+                        else (parsed.netloc or host)
+                    )
+                    credentials = {
+                        "account": account or None,
+                        "client_id": conn.extra_dejson.get("client_id") or conn.login,
+                        "client_secret": conn.extra_dejson.get("client_secret") or conn.password,
+                        "tenant_id": tenant_id,
+                    }
+                else:
+                    # Key auth: conn.login = storage account name
+                    credentials = {
+                        "account": conn.login,
+                        "access_key": conn.password or conn.extra_dejson.get("account_key"),
+                    }
+                credentials = self._remove_none_values(credentials)
+                if "account" not in credentials:
+                    raise ValueError(
+                        "Azure connection requires a storage account name. "
+                        "Set 'login' for key auth or 'host' for Service Principal auth."
+                    )
+                extra_config = {}
+
             case _:
                 raise ValueError(f"Unknown connection type {conn.conn_type}")
         return credentials, extra_config
