@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
 from airflow.providers.common.compat.sdk import BaseOperator
@@ -48,6 +48,8 @@ class SalesforceBulkOperator(BaseOperator):
     :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:salesforce>`.
     """
 
+    template_fields: Sequence[str] = ("operation", "object_name", "payload", "external_id_field")
+
     available_operations = ("insert", "update", "upsert", "delete", "hard_delete")
 
     def __init__(
@@ -70,7 +72,6 @@ class SalesforceBulkOperator(BaseOperator):
         self.batch_size = batch_size
         self.use_serial = use_serial
         self.salesforce_conn_id = salesforce_conn_id
-        self._validate_inputs()
 
     def _validate_inputs(self) -> None:
         if not self.object_name:
@@ -89,6 +90,7 @@ class SalesforceBulkOperator(BaseOperator):
         :param context: The task context during execution.
         :return: API response if do_xcom_push is True
         """
+        self._validate_inputs()
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
         bulk: SFBulkHandler = cast("SFBulkHandler", conn.__getattr__("bulk"))
