@@ -4828,6 +4828,49 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 409
         assert "Task id print_the_context is already in success state" in response.text
 
+    def test_patch_success_clears_failed_downstream_and_requeues_dagrun(
+        self, test_client, dag_maker, session
+    ):
+        dag_id = "test_patch_success_clears_failed_downstream"
+        run_id = "test_patch_success_clears_failed_downstream"
+        endpoint = f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/fail_task"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            fail_task = EmptyOperator(task_id="fail_task")
+            cleared_upstream_failed = EmptyOperator(task_id="cleared_upstream_failed")
+            cleared_failed = EmptyOperator(task_id="cleared_failed")
+            preserved_success = EmptyOperator(task_id="preserved_success")
+            fail_task >> [cleared_upstream_failed, cleared_failed, preserved_success]
+
+        dagrun = dag_maker.create_dagrun(run_id=run_id, state=DagRunState.FAILED)
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["fail_task"].state = TaskInstanceState.FAILED
+        tis["cleared_upstream_failed"].state = TaskInstanceState.UPSTREAM_FAILED
+        tis["cleared_failed"].state = TaskInstanceState.FAILED
+        tis["preserved_success"].state = TaskInstanceState.SUCCESS
+        session.commit()
+
+        response = test_client.patch(endpoint, json={"new_state": "success"})
+        assert response.status_code == 200, response.text
+
+        session.expire_all()
+        refreshed_tis = {
+            ti.task_id: ti
+            for ti in session.scalars(
+                select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == run_id)
+            )
+        }
+        assert refreshed_tis["fail_task"].state == TaskInstanceState.SUCCESS
+        assert refreshed_tis["cleared_upstream_failed"].state is None
+        assert refreshed_tis["cleared_failed"].state is None
+        assert refreshed_tis["preserved_success"].state == TaskInstanceState.SUCCESS
+
+        refreshed_dagrun = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+        )
+        assert refreshed_dagrun is not None
+        assert refreshed_dagrun.state == DagRunState.QUEUED
+
 
 class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
     ENDPOINT_URL = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"

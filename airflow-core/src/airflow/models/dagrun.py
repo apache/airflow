@@ -800,6 +800,8 @@ class DagRun(Base, LoggingMixin):
         task_ids: list[str] | None = None,
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
+        *,
+        refresh_from_db: bool = False,
     ) -> list[TI]:
         """Return the task instances for this dag run."""
         tis = (
@@ -811,6 +813,8 @@ class DagRun(Base, LoggingMixin):
             )
             .order_by(TI.task_id, TI.map_index)
         )
+        if refresh_from_db:
+            tis = tis.execution_options(populate_existing=True)
 
         if state:
             if isinstance(state, str):
@@ -880,6 +884,8 @@ class DagRun(Base, LoggingMixin):
         self,
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
+        *,
+        refresh_from_db: bool = False,
     ) -> list[TI]:
         """
         Return the task instances for this dag run.
@@ -889,7 +895,12 @@ class DagRun(Base, LoggingMixin):
         """
         task_ids = DagRun._get_partial_task_ids(self.dag)
         return DagRun.fetch_task_instances(
-            dag_id=self.dag_id, run_id=self.run_id, task_ids=task_ids, state=state, session=session
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            task_ids=task_ids,
+            state=state,
+            session=session,
+            refresh_from_db=refresh_from_db,
         )
 
     @provide_session
@@ -1102,9 +1113,7 @@ class DagRun(Base, LoggingMixin):
                 are_runnable_tasks = schedulable_tis or changed_tis
                 # small speed up
                 if not are_runnable_tasks:
-                    are_runnable_tasks, changed_by_upstream = self._are_premature_tis(
-                        unfinished.tis, finished_tis, session
-                    )
+                    are_runnable_tasks, changed_by_upstream = self._are_premature_tis(unfinished.tis, session)
                     if changed_by_upstream:  # Something changed, we need to recalculate!
                         unfinished = unfinished.recalculate()
 
@@ -1238,7 +1247,7 @@ class DagRun(Base, LoggingMixin):
 
     @provide_session
     def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:
-        tis = self.get_task_instances(session=session, state=State.task_states)
+        tis = self.get_task_instances(session=session, state=State.task_states, refresh_from_db=True)
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
 
         def _filter_tis_and_exclude_removed(dag: SerializedDAG, tis: list[TI]) -> Iterable[TI]:
@@ -1263,7 +1272,6 @@ class DagRun(Base, LoggingMixin):
             self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
             schedulable_tis, changed_tis, expansion_happened = self._get_ready_tis(
                 schedulable_tis,
-                finished_tis,
                 session=session,
             )
 
@@ -1404,7 +1412,6 @@ class DagRun(Base, LoggingMixin):
     def _get_ready_tis(
         self,
         schedulable_tis: list[TI],
-        finished_tis: list[TI],
         session: Session,
     ) -> tuple[list[TI], bool, bool]:
         old_states: dict[TaskInstanceKey, Any] = {}
@@ -1420,7 +1427,6 @@ class DagRun(Base, LoggingMixin):
         dep_context = DepContext(
             flag_upstream_failed=True,
             ignore_unmapped_tasks=True,  # Ignore this Dep, as we will expand it if we can.
-            finished_tis=finished_tis,
         )
 
         def _expand_mapped_task_if_needed(ti: TI) -> Iterable[TI] | None:
@@ -1507,14 +1513,12 @@ class DagRun(Base, LoggingMixin):
     def _are_premature_tis(
         self,
         unfinished_tis: Sequence[TI],
-        finished_tis: list[TI],
         session: Session,
     ) -> tuple[bool, bool]:
         dep_context = DepContext(
             flag_upstream_failed=True,
             ignore_in_retry_period=True,
             ignore_in_reschedule_period=True,
-            finished_tis=finished_tis,
         )
         # there might be runnable tasks that are up for retry and for some reason(retry delay, etc.) are
         # not ready yet, so we set the flags to count them in

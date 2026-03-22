@@ -1,0 +1,1 @@
+Fixed a scheduler race where dependency checks could use stale finished task instance state after task recovery and write incorrect downstream terminal states.
