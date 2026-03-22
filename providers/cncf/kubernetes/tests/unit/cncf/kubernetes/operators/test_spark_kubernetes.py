@@ -202,7 +202,7 @@ def _get_expected_application_dict_without_task_context_labels(task_name="defaul
                 "memory": "512m",
                 "labels": original_file_labels.copy(),
                 "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
-                "env": [{"name": "SPARK_APPLICATION_NAME", "value": app_name}]
+                "env": [{"name": "SPARK_APPLICATION_NAME", "value": app_name}],
             },
         },
     }
@@ -381,7 +381,9 @@ class TestSparkKubernetesOperatorCreateApplication:
         assert isinstance(done_op.name, str)
         assert done_op.name != ""
 
-        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name,app_name=done_op.name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(
+            task_name, app_name=done_op.name
+        )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -427,7 +429,9 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name,app_name=done_op.name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(
+            task_name, app_name=done_op.name
+        )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -470,7 +474,9 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name,app_name=done_op.name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(
+            task_name, app_name=done_op.name
+        )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
