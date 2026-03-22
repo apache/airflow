@@ -567,6 +567,7 @@ class TestTIRunState:
             "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,
+            "start_date": None,
         }
 
     @pytest.mark.parametrize("resume", [True, False])
@@ -628,7 +629,10 @@ class TestTIRunState:
         session.commit()
 
         assert response.status_code == 200
-        assert response.json() == {
+        result = response.json()
+        assert timezone.parse(result["start_date"]) == orig_task_start_time
+        result.pop("start_date")
+        assert result == {
             "dag_run": mock.ANY,
             "task_reschedule_count": 0,
             "max_tries": 0,
@@ -642,6 +646,61 @@ class TestTIRunState:
         session.expunge_all()
         ti = session.get(TaskInstance, ti.id)
         assert ti.start_date == expected_start_date
+
+    def test_ti_run_resume_returns_original_start_date_in_context(
+        self,
+        client,
+        session,
+        create_task_instance,
+    ):
+        original_start_date = timezone.parse("2024-09-30T12:00:05Z")
+        payload_start_date = timezone.parse("2024-09-30T12:00:35Z")
+
+        ti = create_task_instance(
+            task_id="test_ti_run_resume_returns_original_start_date_in_context",
+            state=State.QUEUED,
+            session=session,
+            start_date=original_start_date,
+            dag_id=str(uuid4()),
+        )
+        ti.start_date = original_start_date
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {
+            "moment": {
+                "__classname__": "pendulum.datetime.DateTime",
+                "__version__": 2,
+                "__data__": {
+                    "timestamp": 1727697605.0,
+                    "tz": {
+                        "__classname__": "builtins.tuple",
+                        "__version__": 1,
+                        "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                    },
+                },
+            }
+        }
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": payload_start_date.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["start_date"] is not None
+        assert timezone.parse(result["start_date"]) == original_start_date
+
+        session.expunge_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert ti is not None
+        assert ti.start_date == original_start_date
 
     @pytest.mark.parametrize(
         "initial_ti_state",

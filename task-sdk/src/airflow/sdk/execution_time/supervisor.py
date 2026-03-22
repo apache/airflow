@@ -1036,6 +1036,9 @@ class ActivitySubprocess(WatchedSubprocess):
             self.kill(signal.SIGKILL)
             raise
 
+        if ti_context.start_date is not None:
+            start_date = ti_context.start_date
+
         msg = StartupDetails.model_construct(
             ti=ti,
             dag_rel_path=os.fspath(dag_rel_path),
