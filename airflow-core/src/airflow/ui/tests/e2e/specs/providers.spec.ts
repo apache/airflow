@@ -21,7 +21,6 @@ import { expect, test } from "tests/e2e/fixtures";
 test.describe("Providers Page", () => {
   test.beforeEach(async ({ providersPage }) => {
     await providersPage.navigate();
-    await providersPage.waitForLoad();
   });
 
   test("verify providers page heading", async ({ providersPage }) => {

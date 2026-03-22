@@ -42,6 +42,7 @@ export class PluginsPage extends BasePage {
     await expect(async () => {
       await this.navigateTo("/plugins");
       await this.page.waitForURL(/.*plugins/, { timeout: 10_000 });
+      await this.waitForLoad();
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
