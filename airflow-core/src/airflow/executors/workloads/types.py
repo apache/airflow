@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeAlias
 
 from airflow.models.callback import ExecutorCallback
-from airflow.models.connection_test import ConnectionTest
+from airflow.models.connection_test import ConnectionTestRequest
 from airflow.models.taskinstance import TaskInstance
 
 if TYPE_CHECKING:
@@ -38,4 +38,4 @@ if TYPE_CHECKING:
 
 # Type alias for scheduler workloads (ORM models that can be routed to executors)
 # Must be outside TYPE_CHECKING for use in function signatures
-SchedulerWorkload: TypeAlias = TaskInstance | ExecutorCallback | ConnectionTest
+SchedulerWorkload: TypeAlias = TaskInstance | ExecutorCallback | ConnectionTestRequest
