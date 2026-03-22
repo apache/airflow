@@ -385,7 +385,7 @@ def get_dag_runs(
     ],
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.dag_id, "dag_id_pattern"))],
     partition_key_pattern: QueryDagRunPartitionKeySearch,
-    consuming_asset: QueryConsumingAssetPatternSearch,
+    consuming_asset_pattern: QueryConsumingAssetPatternSearch,
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
@@ -421,7 +421,7 @@ def get_dag_runs(
             triggering_user_name_pattern,
             dag_id_pattern,
             partition_key_pattern,
-            consuming_asset,
+            consuming_asset_pattern,
         ],
         order_by=order_by,
         offset=offset,

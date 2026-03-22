@@ -740,13 +740,21 @@ class TestGetDagRuns:
             ),  # Test for debug key
             ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID]),  # Test for the key "version"
             ("~", {"conf_contains": "nonexistent_key"}, []),  # Test for a key that doesn't exist
-            # Test consuming_asset filter
-            ("~", {"consuming_asset": "sales"}, [DAG1_RUN1_ID]),  # Filter by asset name
-            ("~", {"consuming_asset": "s3://bucket/sales"}, [DAG1_RUN1_ID]),  # Filter by asset URI
-            ("~", {"consuming_asset": "customer"}, [DAG1_RUN2_ID]),  # Filter by another asset
-            ("~", {"consuming_asset": "s3://bucket/customer"}, [DAG1_RUN2_ID]),  # Filter by customer URI
-            ("~", {"consuming_asset": "s3://bucket"}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),  # Partial URI match
-            ("~", {"consuming_asset": "nonexistent_asset"}, []),  # Non-existent asset returns empty
+            # Test consuming_asset_pattern filter
+            ("~", {"consuming_asset_pattern": "sales"}, [DAG1_RUN1_ID]),  # Filter by asset name
+            ("~", {"consuming_asset_pattern": "s3://bucket/sales"}, [DAG1_RUN1_ID]),  # Filter by asset URI
+            ("~", {"consuming_asset_pattern": "customer"}, [DAG1_RUN2_ID]),  # Filter by another asset
+            (
+                "~",
+                {"consuming_asset_pattern": "s3://bucket/customer"},
+                [DAG1_RUN2_ID],
+            ),  # Filter by customer URI
+            (
+                "~",
+                {"consuming_asset_pattern": "s3://bucket"},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),  # Partial URI match
+            ("~", {"consuming_asset_pattern": "nonexistent_asset"}, []),  # Non-existent asset returns empty
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
