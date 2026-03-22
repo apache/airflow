@@ -164,8 +164,8 @@ spec:
         {{- if and $persistence .Values.workers.persistence.fixPermissions }}
         - name: volume-permissions
           resources: {{- toYaml .Values.workers.resources | nindent 12 }}
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          image: {{ template "airflow_worker_image" . }}
+          imagePullPolicy: {{ template "airflow_worker_image_pull_policy" . }}
           command:
             - chown
             - -R
@@ -181,12 +181,12 @@ spec:
         {{- end }}
         {{- if .Values.workers.kerberosInitContainer.enabled }}
         - name: kerberos-init
-          image: {{ template "airflow_image" . }}
+          image: {{ template "airflow_worker_image" . }}
           securityContext: {{ $containerSecurityContextKerberosInitContainer | nindent 12 }}
           {{- if $containerLifecycleHooksKerberosInitContainer }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosInitContainer) . | nindent 12 }}
           {{- end }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          imagePullPolicy: {{ template "airflow_worker_image_pull_policy" . }}
           args: ["kerberos", "-o"]
           resources: {{- toYaml .Values.workers.kerberosInitContainer.resources | nindent 12 }}
           volumeMounts:
@@ -228,8 +228,8 @@ spec:
         {{- if .Values.workers.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
           resources: {{- toYaml .Values.workers.resources | nindent 12 }}
-          image: {{ template "airflow_image_for_migrations" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          image: {{ template "airflow_worker_image_for_migrations" . }}
+          imagePullPolicy: {{ template "airflow_worker_image_pull_policy" . }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             - name: logs
@@ -264,8 +264,8 @@ spec:
         {{- end }}
       containers:
         - name: worker
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          image: {{ template "airflow_worker_image" . }}
+          imagePullPolicy: {{ template "airflow_worker_image_pull_policy" . }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
@@ -350,8 +350,8 @@ spec:
         {{- end }}
         {{- if and $persistence .Values.workers.logGroomerSidecar.enabled }}
         - name: worker-log-groomer
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          image: {{ template "airflow_worker_image" . }}
+          imagePullPolicy: {{ template "airflow_worker_image_pull_policy" . }}
           securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
           {{- if $containerLifecycleHooksLogGroomerSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
@@ -407,8 +407,8 @@ spec:
         {{- end }}
         {{- if .Values.workers.kerberosSidecar.enabled }}
         - name: worker-kerberos
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          image: {{ template "airflow_worker_image" . }}
+          imagePullPolicy: {{ template "airflow_worker_image_pull_policy" . }}
           securityContext: {{ $containerSecurityContextKerberosSidecar | nindent 12 }}
           {{- if $containerLifecycleHooksKerberosSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosSidecar) . | nindent 12 }}

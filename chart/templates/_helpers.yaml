@@ -385,6 +385,44 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
+{{/*
+  Worker image helper. Users configure image at Values.workers.celery.image (or per-set via
+  Values.workers.celery.sets[].image). By the time this template is invoked, workersMergeValues
+  in worker-deployment.yaml has already merged celery/set values into Values.workers, so the
+  effective image is at Values.workers.image (post-merge).
+*/}}
+{{- define "airflow_worker_image" -}}
+  {{- if .Values.workers.image -}}
+    {{- $workerImage := .Values.workers.image -}}
+    {{- $repository := $workerImage.repository | default .Values.images.airflow.repository | default .Values.defaultAirflowRepository -}}
+    {{- $tag := $workerImage.tag | default .Values.images.airflow.tag | default .Values.defaultAirflowTag -}}
+    {{- $digest := $workerImage.digest | default .Values.images.airflow.digest | default .Values.defaultAirflowDigest -}}
+    {{- if $digest }}
+      {{- printf "%s@%s" $repository $digest -}}
+    {{- else }}
+      {{- printf "%s:%s" $repository $tag -}}
+    {{- end }}
+  {{- else -}}
+    {{- template "airflow_image" . -}}
+  {{- end -}}
+{{- end }}
+
+{{- define "airflow_worker_image_pull_policy" -}}
+  {{- if and .Values.workers.image .Values.workers.image.pullPolicy -}}
+    {{- .Values.workers.image.pullPolicy -}}
+  {{- else -}}
+    {{- .Values.images.airflow.pullPolicy -}}
+  {{- end -}}
+{{- end }}
+
+{{- define "airflow_worker_image_for_migrations" -}}
+  {{- if .Values.images.useDefaultImageForMigration -}}
+    {{- template "default_airflow_image" . -}}
+  {{- else -}}
+    {{- template "airflow_worker_image" . -}}
+  {{- end -}}
+{{- end }}
+
 {{- define "flower_image" -}}
   {{- printf "%s:%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.images.flower.tag | default .Values.defaultAirflowTag) }}
 {{- end }}
@@ -1091,7 +1129,7 @@ Usage:
   {{- $orBoolean := index . 3 -}}
   {{- $outputMap := dict -}}
 
-  {{- $fullOverwrite := list "annotations" "podAnnotations" "persistentVolumeClaimRetentionPolicy" "pod" "container" "securityContext" "containerLifecycleHooks" "config" "advanced" "behavior" "resources" "nodeSelector" "affinity" "labels" -}}
+  {{- $fullOverwrite := list "annotations" "podAnnotations" "persistentVolumeClaimRetentionPolicy" "pod" "container" "securityContext" "containerLifecycleHooks" "config" "advanced" "behavior" "resources" "nodeSelector" "affinity" "labels" "image" -}}
 
   {{- range $key, $val := $inputMap -}}
     {{/* Below if holds logic for full overwrite map logic */}}
