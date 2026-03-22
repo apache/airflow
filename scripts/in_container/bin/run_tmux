@@ -65,10 +65,6 @@ fi
 if [[ ! ${USE_AIRFLOW_VERSION=} =~ ^2\..*  ]]; then
   tmux split-window -h
   tmux select-pane -t 2
-    if [[ ${GO_WORKER} == "true" ]]; then
-        API_SECRET_KEY="4cT8uMo04i5fOFoSICIMnw=="
-        tmux send-keys "export AIRFLOW__API_AUTH__JWT_SECRET=${API_SECRET_KEY}" C-m
-    fi
     if [[ ${BREEZE_DEBUG_APISERVER} == "true" ]]; then
         tmux set-option -p @airflow_component "API Server(Debug Mode)"
         tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_APISERVER_PORT} --wait-for-client -m airflow api-server -d" C-m
@@ -149,9 +145,6 @@ if [[ ${AIRFLOW__CORE__EXECUTOR} == "airflow.providers.edge3.executors.edge_exec
 
     # Ensure logs are smelling like Remote and are not visible to other components
     tmux send-keys 'export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs' C-m
-    if [[ ${GO_WORKER} == "true" ]]; then
-        tmux send-keys "export AIRFLOW__API_AUTH__JWT_SECRET=${API_SECRET_KEY}" C-m
-    fi
     # Start Edge Worker and make a "breeze" hostname, let it pick only default queue
     tmux send-keys 'airflow edge worker --edge-hostname breeze --queues default' C-m
 fi
@@ -176,9 +169,9 @@ if [[ ${GO_WORKER} == "true" ]]; then
     tmux send-keys "cd go-sdk" C-m
     tmux send-keys "export AIRFLOW__EDGE__API_URL=http://localhost:8080" C-m
     tmux send-keys "export AIRFLOW__BUNDLES__FOLDER=./bin" C-m
-    tmux send-keys "export AIRFLOW__API_AUTH__SECRET_KEY=${API_SECRET_KEY}" C-m
-    tmux send-keys "export AIRFLOW__LOGGING__SECRET_KEY=${API_SECRET_KEY}" C-m
-    tmux send-keys "./cmd/airflow-go-edge-worker/main.go run" C-m
+    tmux send-keys "export AIRFLOW__API_AUTH__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}" C-m
+    tmux send-keys "export AIRFLOW__LOGGING__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}" C-m
+    tmux send-keys "go run ./cmd/airflow-go-edge-worker/main.go run" C-m
 fi
 
 # Attach Session, on the Main window
