@@ -157,11 +157,30 @@ def get_mapped_xcom_by_slice(
 
     step = params.step or 1
 
-    # We want to optimize negative slicing (e.g. seq[-10:]) by not doing an
-    # additional COUNT query if possible. This is possible unless both start and
-    # stop are explicitly given and have different signs.
-    if (start := params.start) is None:
-        if (stop := params.stop) is None:
+    start = params.start
+    stop = params.stop
+
+    if (
+        start is not None
+        and stop is not None
+        and step > 0
+        and ((start >= 0 and stop >= 0) or (start < 0 and stop < 0))
+        and start >= stop
+    ):
+        # For positive step, when both bounds are on the same side of zero
+        # and start >= stop, the slice is empty. We can return early without
+        # a query or COUNT.
+        return XComSequenceSliceResponse([])
+
+    # We only need to do a COUNT query when BOTH start and stop are explicitly
+    # given AND they have different signs (one positive, one negative).
+    # In all other negative slicing cases we can avoid the COUNT query entirely.
+    total_count = None
+    if start is not None and stop is not None and bool(start >= 0) != bool(stop >= 0):
+        total_count = get_query_count(query, session=session)
+
+    if start is None:
+        if stop is None:
             if step >= 0:
                 query = query.order_by(XComModel.map_index.asc())
             else:
@@ -182,14 +201,14 @@ def get_mapped_xcom_by_slice(
                 query = query.offset(-stop)
     elif start >= 0:
         query = query.order_by(XComModel.map_index.asc())
-        if (stop := params.stop) is None:
+        if stop is None:
             if step >= 0:
                 query = query.offset(start)
             else:
                 query = query.limit(start + 1)
         else:
             if stop < 0:
-                stop += get_query_count(query, session=session)
+                stop = total_count + stop if total_count is not None else stop
             if step >= 0:
                 query = query.slice(start, stop)
             else:
@@ -197,14 +216,14 @@ def get_mapped_xcom_by_slice(
     else:
         query = query.order_by(XComModel.map_index.desc())
         step = -step
-        if (stop := params.stop) is None:
+        if stop is None:
             if step > 0:
                 query = query.offset(-start - 1)
             else:
                 query = query.limit(-start)
         else:
             if stop >= 0:
-                stop -= get_query_count(query, session=session)
+                stop = stop - total_count if total_count is not None else stop
             if step > 0:
                 query = query.slice(-1 - start, -1 - stop)
             else:
