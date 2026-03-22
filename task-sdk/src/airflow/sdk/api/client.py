@@ -708,6 +708,9 @@ class DagRunOperations:
                 f"dag-runs/{dag_id}/{run_id}", content=body.model_dump_json(exclude_defaults=True)
             )
         except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error("Dag not found.", dag_id=dag_id)
+                return ErrorResponse(error=ErrorType.DAG_NOT_FOUND)
             if e.response.status_code == HTTPStatus.CONFLICT:
                 if reset_dag_run:
                     log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
