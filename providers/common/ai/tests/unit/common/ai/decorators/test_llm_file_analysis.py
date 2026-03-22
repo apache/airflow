@@ -25,12 +25,17 @@ from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
 
 
 def _make_mock_run_result(output):
-    mock_result = MagicMock()
+    mock_result = MagicMock(spec=["output", "usage", "response", "all_messages"])
     mock_result.output = output
     mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+        spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens"],
+        requests=1,
+        tool_calls=0,
+        input_tokens=0,
+        output_tokens=0,
+        total_tokens=0,
     )
-    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.response = MagicMock(spec=["model_name"], model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
 
@@ -107,7 +112,7 @@ class TestLLMFileAnalysisDecoratedOperator:
             file_path="/tmp/app.log",
             op_kwargs={"topic": "system logs"},
         )
-        op.execute(context={"task_instance": MagicMock()})
+        op.execute(context={"task_instance": MagicMock(spec=["task_id"])})
 
         assert op.prompt == "Summarize system logs"
         mock_agent.run_sync.assert_called_once_with("prepared prompt")

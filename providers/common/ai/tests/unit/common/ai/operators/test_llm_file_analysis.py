@@ -30,21 +30,28 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 def _make_mock_run_result(output):
-    mock_result = MagicMock()
+    mock_result = MagicMock(spec=["output", "usage", "response", "all_messages"])
     mock_result.output = output
     mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
+        spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens"],
+        requests=1,
+        tool_calls=0,
+        input_tokens=0,
+        output_tokens=0,
+        total_tokens=0,
     )
-    mock_result.response = MagicMock(model_name="test-model")
+    mock_result.response = MagicMock(spec=["model_name"], model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
 
 
 def _make_context(ti_id=None):
     ti_id = ti_id or uuid4()
-    ti = MagicMock()
+    ti = MagicMock(spec=["id"])
     ti.id = ti_id
-    return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
+    context = MagicMock(spec=["__getitem__"])
+    context.__getitem__.side_effect = lambda key: {"task_instance": ti}[key]
+    return context
 
 
 class TestLLMFileAnalysisOperator:
@@ -80,7 +87,7 @@ class TestLLMFileAnalysisOperator:
             llm_conn_id="my_llm",
             file_path="/tmp/app.log",
         )
-        result = op.execute(context=MagicMock())
+        result = op.execute(context={})
 
         assert result == "Analysis complete"
         mock_build_request.assert_called_once_with(
@@ -120,7 +127,7 @@ class TestLLMFileAnalysisOperator:
             file_path="/tmp/app.log",
             output_type=Summary,
         )
-        result = op.execute(context=MagicMock())
+        result = op.execute(context={})
 
         assert result == {"findings": ["error spike"]}
 

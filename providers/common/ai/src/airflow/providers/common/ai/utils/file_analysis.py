@@ -23,6 +23,7 @@ import gzip
 import io
 import json
 import logging
+from bisect import insort
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any
@@ -62,6 +63,7 @@ _COMPRESSION_SUFFIXES = {
     "xz": "xz",
     "zst": "zstd",
 }
+_GZIP_SUPPORTED_FORMATS = frozenset({"csv", "json", "log"})
 _TEXT_SAMPLE_HEAD_CHARS = 8_000
 _TEXT_SAMPLE_TAIL_CHARS = 2_000
 _MEDIA_TYPES = {
@@ -96,6 +98,7 @@ class _PreparedFile:
     estimated_rows: int | None = None
     text_content: str | None = None
     attachment: BinaryContent | None = None
+    content_size_bytes: int = 0
     content_truncated: bool = False
     content_omitted: bool = False
 
@@ -106,6 +109,13 @@ class _DiscoveredFile:
     file_format: str
     size_bytes: int
     compression: str | None
+
+
+@dataclass
+class _RenderResult:
+    text: str
+    estimated_rows: int | None
+    content_size_bytes: int
 
 
 def build_file_analysis_request(
@@ -172,10 +182,22 @@ def build_file_analysis_request(
         total_size_bytes,
     )
 
-    prepared_files = [
-        _prepare_file(discovered_file=discovered, multi_modal=multi_modal, sample_rows=sample_rows)
-        for discovered in discovered_files
-    ]
+    prepared_files: list[_PreparedFile] = []
+    processed_size_bytes = 0
+    for discovered in discovered_files:
+        remaining_content_bytes = max_total_size_bytes - processed_size_bytes
+        if remaining_content_bytes <= 0:
+            raise LLMFileAnalysisLimitExceededError(
+                "Total processed input size exceeds the configured limit after decompression."
+            )
+        prepared = _prepare_file(
+            discovered_file=discovered,
+            multi_modal=multi_modal,
+            sample_rows=sample_rows,
+            max_content_bytes=min(max_file_size_bytes, remaining_content_bytes),
+        )
+        processed_size_bytes += prepared.content_size_bytes
+        prepared_files.append(prepared)
 
     text_truncated = _apply_text_budget(prepared_files=prepared_files, max_text_chars=max_text_chars)
     if text_truncated:
@@ -220,21 +242,33 @@ def _resolve_paths(*, root: ObjectStoragePath, max_files: int) -> tuple[list[Obj
         pass
 
     try:
-        candidates = [path for path in root.rglob("*") if path.is_file()]
+        selected: list[tuple[str, ObjectStoragePath]] = []
+        omitted_files = 0
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            path_key = str(path)
+            if len(selected) < max_files:
+                insort(selected, (path_key, path))
+                continue
+            if path_key < selected[-1][0]:
+                insort(selected, (path_key, path))
+                selected.pop()
+            omitted_files += 1
     except (FileNotFoundError, NotADirectoryError):
-        candidates = []
+        selected = []
+        omitted_files = 0
 
-    if not candidates:
+    if not selected:
         raise FileNotFoundError(f"No files found for {root}.")
 
-    ordered = sorted(candidates, key=str)
-    return ordered[:max_files], max(0, len(ordered) - max_files)
+    return [path for _, path in selected], omitted_files
 
 
 def _discover_file(*, path: ObjectStoragePath, max_file_size_bytes: int) -> _DiscoveredFile:
     file_format, compression = detect_file_format(path)
     size_bytes = path.stat().st_size
-    log.info(
+    log.debug(
         "Discovered file %s (format=%s, size_bytes=%s%s).",
         path,
         file_format,
@@ -264,12 +298,13 @@ def _prepare_file(
     discovered_file: _DiscoveredFile,
     multi_modal: bool,
     sample_rows: int,
+    max_content_bytes: int,
 ) -> _PreparedFile:
     path = discovered_file.path
     file_format = discovered_file.file_format
     size_bytes = discovered_file.size_bytes
     compression = discovered_file.compression
-    log.info(
+    log.debug(
         "Preparing file content for %s (format=%s, size_bytes=%s%s).",
         path,
         file_format,
@@ -291,28 +326,33 @@ def _prepare_file(
                 f"File {path} has format {file_format!r}; set multi_modal=True to analyze images or PDFs."
             )
         prepared.attachment = BinaryContent(
-            data=_read_raw_bytes(path, compression=compression),
+            data=_read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes),
             media_type=_MEDIA_TYPES[file_format],
             identifier=str(path),
         )
-        log.info(
+        prepared.content_size_bytes = len(prepared.attachment.data)
+        log.debug(
             "Attached %s as multimodal binary content with media_type=%s.", path, _MEDIA_TYPES[file_format]
         )
         return prepared
 
-    text_content, estimated_rows = _render_text_content(
+    render_result = _render_text_content(
         path=path,
         file_format=file_format,
         compression=compression,
         sample_rows=sample_rows,
+        max_content_bytes=max_content_bytes,
     )
-    prepared.text_content = text_content
-    prepared.estimated_rows = estimated_rows
+    prepared.text_content = render_result.text
+    prepared.estimated_rows = render_result.estimated_rows
+    prepared.content_size_bytes = render_result.content_size_bytes
     log.debug(
         "Normalized %s into text content of %s characters%s.",
         path,
-        len(text_content),
-        f"; estimated_rows={estimated_rows}" if estimated_rows is not None else "",
+        len(render_result.text),
+        f"; estimated_rows={render_result.estimated_rows}"
+        if render_result.estimated_rows is not None
+        else "",
     )
     return prepared
 
@@ -334,6 +374,10 @@ def detect_file_format(path: ObjectStoragePath) -> tuple[str, str | None]:
         raise LLMFileAnalysisUnsupportedFormatError(
             f"Compression {compression!r} is not supported for file analysis."
         )
+    if compression == "gzip" and detected not in _GZIP_SUPPORTED_FORMATS:
+        raise LLMFileAnalysisUnsupportedFormatError(
+            f"Compression {compression!r} is not supported for {detected!r} file analysis."
+        )
     return detected, compression
 
 
@@ -343,51 +387,69 @@ def _render_text_content(
     file_format: str,
     compression: str | None,
     sample_rows: int,
-) -> tuple[str, int | None]:
+    max_content_bytes: int,
+) -> _RenderResult:
     if file_format == "json":
-        return _render_json(path, compression=compression)
+        return _render_json(path, compression=compression, max_content_bytes=max_content_bytes)
     if file_format == "csv":
-        return _render_csv(path, compression=compression, sample_rows=sample_rows)
+        return _render_csv(
+            path, compression=compression, sample_rows=sample_rows, max_content_bytes=max_content_bytes
+        )
     if file_format == "parquet":
-        return _render_parquet(path, sample_rows=sample_rows)
+        return _render_parquet(path, sample_rows=sample_rows, max_content_bytes=max_content_bytes)
     if file_format == "avro":
-        return _render_avro(path, sample_rows=sample_rows)
-    return _render_text_like(path, compression=compression)
+        return _render_avro(path, sample_rows=sample_rows, max_content_bytes=max_content_bytes)
+    return _render_text_like(path, compression=compression, max_content_bytes=max_content_bytes)
 
 
-def _render_text_like(path: ObjectStoragePath, *, compression: str | None) -> tuple[str, int | None]:
-    text = _decode_text(_read_raw_bytes(path, compression=compression))
-    return _truncate_text(text), None
+def _render_text_like(
+    path: ObjectStoragePath, *, compression: str | None, max_content_bytes: int
+) -> _RenderResult:
+    raw_bytes = _read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes)
+    text = _decode_text(raw_bytes)
+    return _RenderResult(text=_truncate_text(text), estimated_rows=None, content_size_bytes=len(raw_bytes))
 
 
-def _render_json(path: ObjectStoragePath, *, compression: str | None) -> tuple[str, int | None]:
-    decoded = _decode_text(_read_raw_bytes(path, compression=compression))
+def _render_json(
+    path: ObjectStoragePath, *, compression: str | None, max_content_bytes: int
+) -> _RenderResult:
+    raw_bytes = _read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes)
+    decoded = _decode_text(raw_bytes)
     document = json.loads(decoded)
     if isinstance(document, list):
         estimated_rows = len(document)
     else:
         estimated_rows = None
     pretty = json.dumps(document, indent=2, sort_keys=True, default=str)
-    return _truncate_text(pretty), estimated_rows
+    return _RenderResult(
+        text=_truncate_text(pretty),
+        estimated_rows=estimated_rows,
+        content_size_bytes=len(raw_bytes),
+    )
 
 
 def _render_csv(
-    path: ObjectStoragePath, *, compression: str | None, sample_rows: int
-) -> tuple[str, int | None]:
-    decoded = _decode_text(_read_raw_bytes(path, compression=compression))
+    path: ObjectStoragePath, *, compression: str | None, sample_rows: int, max_content_bytes: int
+) -> _RenderResult:
+    raw_bytes = _read_raw_bytes(path, compression=compression, max_bytes=max_content_bytes)
+    decoded = _decode_text(raw_bytes)
     reader = list(csv.reader(io.StringIO(decoded)))
     if not reader:
-        return "", 0
+        return _RenderResult(text="", estimated_rows=0, content_size_bytes=len(raw_bytes))
     header, rows = reader[0], reader[1:]
     sampled_rows = rows[:sample_rows]
     payload = ["Header: " + ", ".join(header)]
     if sampled_rows:
         payload.append("Sample rows:")
-        payload.extend(", ".join(str(value) for value in row) for row in sampled_rows)
-    return _truncate_text("\n".join(payload)), len(rows)
+        payload += [", ".join(str(value) for value in row) for row in sampled_rows]
+    return _RenderResult(
+        text=_truncate_text("\n".join(payload)),
+        estimated_rows=len(rows),
+        content_size_bytes=len(raw_bytes),
+    )
 
 
-def _render_parquet(path: ObjectStoragePath, *, sample_rows: int) -> tuple[str, int | None]:
+def _render_parquet(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes: int) -> _RenderResult:
     try:
         import pyarrow.parquet as pq
     except ImportError as exc:
@@ -399,13 +461,22 @@ def _render_parquet(path: ObjectStoragePath, *, sample_rows: int) -> tuple[str, 
         parquet_file = pq.ParquetFile(handle)
         table = parquet_file.read()
         num_rows = parquet_file.metadata.num_rows
+        content_size_bytes = handle.tell()
     schema = ", ".join(f"{field.name}: {field.type}" for field in table.schema)
     sampled_rows = table.to_pylist()[:sample_rows]
     payload = [f"Schema: {schema}", "Sample rows:", json.dumps(sampled_rows, indent=2, default=str)]
-    return _truncate_text("\n".join(payload)), num_rows
+    if content_size_bytes > max_content_bytes:
+        raise LLMFileAnalysisLimitExceededError(
+            f"File {path} exceeds the configured processed-content limit: {content_size_bytes} bytes > {max_content_bytes} bytes."
+        )
+    return _RenderResult(
+        text=_truncate_text("\n".join(payload)),
+        estimated_rows=num_rows,
+        content_size_bytes=content_size_bytes,
+    )
 
 
-def _render_avro(path: ObjectStoragePath, *, sample_rows: int) -> tuple[str, int | None]:
+def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes: int) -> _RenderResult:
     try:
         import fastavro
     except ImportError as exc:
@@ -422,17 +493,42 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int) -> tuple[str, int
             total_rows += 1
             if len(sampled_rows) < sample_rows and isinstance(record, dict):
                 sampled_rows.append({str(key): value for key, value in record.items()})
+        content_size_bytes = handle.tell()
     payload = [f"Schema: {json.dumps(writer_schema, indent=2, default=str)}", "Sample rows:"]
     payload.append(json.dumps(sampled_rows, indent=2, default=str))
-    return _truncate_text("\n".join(payload)), total_rows
+    if content_size_bytes > max_content_bytes:
+        raise LLMFileAnalysisLimitExceededError(
+            f"File {path} exceeds the configured processed-content limit: {content_size_bytes} bytes > {max_content_bytes} bytes."
+        )
+    return _RenderResult(
+        text=_truncate_text("\n".join(payload)),
+        estimated_rows=total_rows,
+        content_size_bytes=content_size_bytes,
+    )
 
 
-def _read_raw_bytes(path: ObjectStoragePath, *, compression: str | None) -> bytes:
+def _read_raw_bytes(path: ObjectStoragePath, *, compression: str | None, max_bytes: int) -> bytes:
     with path.open("rb") as handle:
-        data = handle.read()
-    if compression == "gzip":
-        return gzip.decompress(data)
-    return data
+        if compression == "gzip":
+            with gzip.GzipFile(fileobj=handle) as gzip_handle:
+                return _read_limited_bytes(gzip_handle, path=path, max_bytes=max_bytes)
+        return _read_limited_bytes(handle, path=path, max_bytes=max_bytes)
+
+
+def _read_limited_bytes(handle: io.BufferedIOBase, *, path: ObjectStoragePath, max_bytes: int) -> bytes:
+    chunks: list[bytes] = []
+    total_bytes = 0
+    while True:
+        chunk = handle.read(min(64 * 1024, max_bytes - total_bytes + 1))
+        if not chunk:
+            break
+        total_bytes += len(chunk)
+        if total_bytes > max_bytes:
+            raise LLMFileAnalysisLimitExceededError(
+                f"File {path} exceeds the configured processed-content limit: > {max_bytes} bytes."
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def _decode_text(data: bytes) -> str:
@@ -484,38 +580,22 @@ def _build_text_preamble(
         "",
         "Resolved files:",
     ]
+    text_sections: list[str] = []
+    has_attachments = False
     for prepared in prepared_files:
-        metadata = [
-            f"path={prepared.path}",
-            f"format={prepared.file_format}",
-            f"size_bytes={prepared.size_bytes}",
-        ]
-        if prepared.compression:
-            metadata.append(f"compression={prepared.compression}")
-        if prepared.estimated_rows is not None:
-            metadata.append(f"estimated_rows={prepared.estimated_rows}")
-        if prepared.partitions:
-            metadata.append(f"partitions={list(prepared.partitions)}")
-        if prepared.content_truncated:
-            metadata.append("content_truncated=True")
-        if prepared.content_omitted:
-            metadata.append("content_omitted=True")
+        lines.append(f"- {_format_file_metadata(prepared)}")
+        if prepared.text_content is not None:
+            text_sections.append(f"### File: {prepared.path}\n{prepared.text_content}")
         if prepared.attachment is not None:
-            metadata.append("attached_as_binary=True")
-        lines.append(f"- {', '.join(metadata)}")
+            has_attachments = True
     if omitted_files:
         lines.append(f"- omitted_files={omitted_files} (max_files limit reached)")
     if text_truncated:
         lines.append("- text_context_truncated=True")
 
-    text_sections: list[str] = []
-    for prepared in prepared_files:
-        if prepared.text_content is None:
-            continue
-        text_sections.append(f"### File: {prepared.path}\n{prepared.text_content}")
     if text_sections:
         lines.extend(["", "Normalized content:", *text_sections])
-    if any(prepared.attachment is not None for prepared in prepared_files):
+    if has_attachments:
         lines.extend(
             [
                 "",
@@ -539,6 +619,27 @@ def _truncate_text(text: str, *, max_chars: int = _TEXT_SAMPLE_HEAD_CHARS + _TEX
     if tail <= 0:
         return text[:max_chars]
     return f"{text[:head]}\n...\n{text[-tail:]}"
+
+
+def _format_file_metadata(prepared: _PreparedFile) -> str:
+    metadata = [
+        f"path={prepared.path}",
+        f"format={prepared.file_format}",
+        f"size_bytes={prepared.size_bytes}",
+    ]
+    if prepared.compression:
+        metadata.append(f"compression={prepared.compression}")
+    if prepared.estimated_rows is not None:
+        metadata.append(f"estimated_rows={prepared.estimated_rows}")
+    if prepared.partitions:
+        metadata.append(f"partitions={list(prepared.partitions)}")
+    if prepared.content_truncated:
+        metadata.append("content_truncated=True")
+    if prepared.content_omitted:
+        metadata.append("content_omitted=True")
+    if prepared.attachment is not None:
+        metadata.append("attached_as_binary=True")
+    return ", ".join(metadata)
 
 
 def _infer_partitions(path: ObjectStoragePath) -> tuple[str, ...]:

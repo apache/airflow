@@ -76,11 +76,13 @@ class TestBuildFileAnalysisRequest:
             "airflow.providers.common.ai.utils.file_analysis.ObjectStoragePath", autospec=True
         ) as mock_path:
             mock_instance = MagicMock(spec=ObjectStoragePath)
+            mock_handle = MagicMock(spec=["read"])
+            mock_handle.read.side_effect = [b'{"status": "ok"}', b""]
             mock_instance.is_file.return_value = True
             mock_instance.stat.return_value.st_size = 16
             mock_instance.suffixes = [".json"]
             mock_instance.path = str(path)
-            mock_instance.open.return_value.__enter__.return_value.read.return_value = b'{"status": "ok"}'
+            mock_instance.open.return_value.__enter__.return_value = mock_handle
             mock_path.return_value = mock_instance
 
             build_file_analysis_request(
@@ -232,6 +234,40 @@ class TestBuildFileAnalysisRequest:
 
         mock_prepare.assert_not_called()
 
+    def test_gzip_expansion_respects_processed_content_limit(self, tmp_path):
+        path = tmp_path / "big.log.gz"
+        path.write_bytes(gzip.compress(b"A" * 20_000))
+
+        with pytest.raises(LLMFileAnalysisLimitExceededError, match="processed-content limit"):
+            build_file_analysis_request(
+                file_path=str(path),
+                file_conn_id=None,
+                prompt="Analyze",
+                multi_modal=False,
+                max_files=1,
+                max_file_size_bytes=256,
+                max_total_size_bytes=256,
+                max_text_chars=500,
+                sample_rows=10,
+            )
+
+    def test_gzip_expansion_respects_total_processed_content_limit(self, tmp_path):
+        (tmp_path / "a.log.gz").write_bytes(gzip.compress(b"A" * 1_000))
+        (tmp_path / "b.log.gz").write_bytes(gzip.compress(b"B" * 1_000))
+
+        with pytest.raises(LLMFileAnalysisLimitExceededError, match="processed-content limit"):
+            build_file_analysis_request(
+                file_path=str(tmp_path),
+                file_conn_id=None,
+                prompt="Analyze",
+                multi_modal=False,
+                max_files=10,
+                max_file_size_bytes=2_048,
+                max_total_size_bytes=1_500,
+                max_text_chars=500,
+                sample_rows=10,
+            )
+
     def test_json_is_pretty_printed(self, tmp_path):
         path = tmp_path / "data.json"
         path.write_text('{"b": 2, "a": 1}', encoding="utf-8")
@@ -318,11 +354,19 @@ class TestFileAnalysisHelpers:
         with pytest.raises(LLMFileAnalysisUnsupportedFormatError, match="Compression"):
             detect_file_format(ObjectStoragePath(str(path)))
 
+    @pytest.mark.parametrize("filename", ["sample.parquet.gz", "sample.avro.gz", "sample.png.gz"])
+    def test_detect_file_format_rejects_unsupported_gzip_format_combinations(self, tmp_path, filename):
+        path = tmp_path / filename
+        path.write_bytes(b"content")
+
+        with pytest.raises(LLMFileAnalysisUnsupportedFormatError, match="not supported for"):
+            detect_file_format(ObjectStoragePath(str(path)))
+
     def test_read_raw_bytes_decompresses_gzip(self, tmp_path):
         path = tmp_path / "events.log.gz"
         path.write_bytes(gzip.compress(b"line one\nline two\n"))
 
-        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression="gzip")
+        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression="gzip", max_bytes=1_024)
 
         assert content == b"line one\nline two\n"
 
@@ -363,12 +407,12 @@ class TestFormatReaders:
         table = pyarrow.Table.from_pylist([{"id": 1}, {"id": 2}])
         pq.write_table(table, path)
 
-        text, rows = _render_parquet(ObjectStoragePath(str(path)), sample_rows=1)
+        result = _render_parquet(ObjectStoragePath(str(path)), sample_rows=1, max_content_bytes=1_024)
 
-        assert rows == 2
-        assert "Schema: id: int64" in text
-        assert '"id": 1' in text
-        assert '"id": 2' not in text
+        assert result.estimated_rows == 2
+        assert "Schema: id: int64" in result.text
+        assert '"id": 1' in result.text
+        assert '"id": 2' not in result.text
 
     def test_render_parquet_missing_dependency_raises(self, tmp_path):
         path = tmp_path / "sample.parquet"
@@ -382,7 +426,7 @@ class TestFormatReaders:
 
         with patch("builtins.__import__", side_effect=failing_import):
             with pytest.raises(AirflowOptionalProviderFeatureException, match="parquet"):
-                _render_parquet(ObjectStoragePath(str(path)), sample_rows=1)
+                _render_parquet(ObjectStoragePath(str(path)), sample_rows=1, max_content_bytes=1_024)
 
     def test_render_avro_uses_lazy_import(self, tmp_path):
         fastavro = pytest.importorskip("fastavro")
@@ -396,12 +440,12 @@ class TestFormatReaders:
         with path.open("wb") as handle:
             fastavro.writer(handle, schema, [{"id": 1}, {"id": 2}])
 
-        text, rows = _render_avro(ObjectStoragePath(str(path)), sample_rows=1)
+        result = _render_avro(ObjectStoragePath(str(path)), sample_rows=1, max_content_bytes=1_024)
 
-        assert rows == 2
-        assert '"name": "sample"' in text
-        assert '"id": 1' in text
-        assert '"id": 2' not in text
+        assert result.estimated_rows == 2
+        assert '"name": "sample"' in result.text
+        assert '"id": 1' in result.text
+        assert '"id": 2' not in result.text
 
     def test_render_avro_missing_dependency_raises(self, tmp_path):
         path = tmp_path / "sample.avro"
@@ -415,4 +459,4 @@ class TestFormatReaders:
 
         with patch("builtins.__import__", side_effect=failing_import):
             with pytest.raises(AirflowOptionalProviderFeatureException, match="avro"):
-                _render_avro(ObjectStoragePath(str(path)), sample_rows=1)
+                _render_avro(ObjectStoragePath(str(path)), sample_rows=1, max_content_bytes=1_024)

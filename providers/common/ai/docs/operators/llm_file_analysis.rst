@@ -46,8 +46,8 @@ Directory / Prefix Analysis
 ---------------------------
 
 Use a directory or object-storage prefix when you want the operator to analyze
-multiple files in one request. ``max_files`` bounds discovery, while the size
-and text limits keep the request safe:
+multiple files in one request. ``max_files`` bounds how many resolved files are
+included in the request, while the size and text limits keep the request safe:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_file_analysis.py
     :language: python
@@ -122,6 +122,9 @@ Supported Formats
 
 - Text-like: ``.log``, ``.json``, ``.csv``, ``.parquet``, ``.avro``
 - Multimodal: ``.png``, ``.jpg``, ``.jpeg``, ``.pdf`` when ``multi_modal=True``
+- Gzip-compressed text inputs are supported for ``.log.gz``, ``.json.gz``, and
+  ``.csv.gz``.
+- Gzip is not supported for ``.parquet``, ``.avro``, image, or PDF inputs.
 
 Parquet and Avro readers require their corresponding optional extras:
 
