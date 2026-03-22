@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import textwrap
@@ -475,31 +474,28 @@ def trigger_dag_run(
     else:
         triggered_by = DagRunTriggeredByType.REST_API
 
-    try:
-        dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-        params = body.validate_context(dag)
+    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    params = body.validate_context(dag)
 
-        dag_run = dag.create_dagrun(
-            run_id=params["run_id"],
-            logical_date=params["logical_date"],
-            data_interval=params["data_interval"],
-            run_after=params["run_after"],
-            conf=params["conf"],
-            run_type=DagRunType.MANUAL,
-            triggered_by=triggered_by,
-            triggering_user_name=user.get_name(),
-            state=DagRunState.QUEUED,
-            partition_key=params["partition_key"],
-            session=session,
-        )
+    dag_run = dag.create_dagrun(
+        run_id=params["run_id"],
+        logical_date=params["logical_date"],
+        data_interval=params["data_interval"],
+        run_after=params["run_after"],
+        conf=params["conf"],
+        run_type=DagRunType.MANUAL,
+        triggered_by=triggered_by,
+        triggering_user_name=user.get_name(),
+        state=DagRunState.QUEUED,
+        partition_key=params["partition_key"],
+        session=session,
+    )
 
-        dag_run_note = body.note
-        if dag_run_note:
-            current_user_id = user.get_id()
-            dag_run.note = (dag_run_note, current_user_id)
-        return dag_run
-    except ValueError as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    dag_run_note = body.note
+    if dag_run_note:
+        current_user_id = user.get_id()
+        dag_run.note = (dag_run_note, current_user_id)
+    return dag_run
 
 
 @dag_run_router.get(
