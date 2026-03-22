@@ -35,6 +35,7 @@ from airflow.models.asset import (
     AssetModel,
     AssetWatcherModel,
     DagScheduleAssetReference,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dagrun import DagRun
@@ -1573,3 +1574,201 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
             response.json()["detail"]
             == "Queued event with dag_id: `not_exists` and asset_id: `1` was not found"
         )
+
+
+class TestGetAssetLineage(TestAssets):
+    @provide_session
+    def test_should_respond_200_with_lineage(self, test_client, testing_dag_bundle, session):
+        """Test basic lineage with direct producing and consuming tasks."""
+        asset1 = AssetModel(name="target_asset", uri="s3://target/asset")
+        session.add(asset1)
+        session.flush()
+
+        session.add(DagModel(dag_id="upstream_dag", bundle_name="testing"))
+        session.add(DagModel(dag_id="downstream_dag", bundle_name="testing"))
+        session.add(TaskOutletAssetReference(dag_id="upstream_dag", task_id="producer_task", asset=asset1))
+        session.add(TaskInletAssetReference(dag_id="downstream_dag", task_id="consumer_task", asset=asset1))
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset1.id}/lineage")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "nodes" in data
+        assert "edges" in data
+
+        nodes = {node["id"]: node for node in data["nodes"]}
+        assert f"asset:{asset1.id}" in nodes
+        assert nodes[f"asset:{asset1.id}"]["name"] == "target_asset"
+
+        assert "task:upstream_dag:producer_task" in nodes
+        assert "task:downstream_dag:consumer_task" in nodes
+
+        # DAG nodes should also be present
+        assert "dag:upstream_dag" in nodes
+        assert "dag:downstream_dag" in nodes
+
+    @provide_session
+    def test_multi_hop_downstream_lineage(self, test_client, testing_dag_bundle, session):
+        """Test multi-hop downstream: Asset A → T1 consumes A, produces B → T2 consumes B, produces C."""
+        asset_a = AssetModel(name="asset_a", uri="s3://a")
+        asset_b = AssetModel(name="asset_b", uri="s3://b")
+        asset_c = AssetModel(name="asset_c", uri="s3://c")
+        session.add_all([asset_a, asset_b, asset_c])
+        session.flush()
+
+        session.add(DagModel(dag_id="dag1", bundle_name="testing"))
+        session.add(DagModel(dag_id="dag2", bundle_name="testing"))
+
+        # T1 in dag1: consumes A, produces B
+        session.add(TaskInletAssetReference(dag_id="dag1", task_id="t1", asset=asset_a))
+        session.add(TaskOutletAssetReference(dag_id="dag1", task_id="t1", asset=asset_b))
+
+        # T2 in dag2: consumes B, produces C
+        session.add(TaskInletAssetReference(dag_id="dag2", task_id="t2", asset=asset_b))
+        session.add(TaskOutletAssetReference(dag_id="dag2", task_id="t2", asset=asset_c))
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset_a.id}/lineage")
+        assert response.status_code == 200
+
+        data = response.json()
+        nodes = {node["id"]: node for node in data["nodes"]}
+
+        # All three assets should be in the graph
+        assert f"asset:{asset_a.id}" in nodes
+        assert f"asset:{asset_b.id}" in nodes
+        assert f"asset:{asset_c.id}" in nodes
+
+        # Both tasks should be in the graph
+        assert "task:dag1:t1" in nodes
+        assert "task:dag2:t2" in nodes
+
+        # Both DAGs should be present
+        assert "dag:dag1" in nodes
+        assert "dag:dag2" in nodes
+
+        edges = {(e["source_id"], e["target_id"]) for e in data["edges"]}
+        # Downstream chain: A -> T1 -> B -> T2 -> C
+        assert (f"asset:{asset_a.id}", "task:dag1:t1") in edges
+        assert ("task:dag1:t1", f"asset:{asset_b.id}") in edges
+        assert (f"asset:{asset_b.id}", "task:dag2:t2") in edges
+        assert ("task:dag2:t2", f"asset:{asset_c.id}") in edges
+
+    @provide_session
+    def test_multi_hop_upstream_lineage(self, test_client, testing_dag_bundle, session):
+        """Test multi-hop upstream: querying from Asset C should show A → T1 → B → T2 → C."""
+        asset_a = AssetModel(name="asset_a", uri="s3://a")
+        asset_b = AssetModel(name="asset_b", uri="s3://b")
+        asset_c = AssetModel(name="asset_c", uri="s3://c")
+        session.add_all([asset_a, asset_b, asset_c])
+        session.flush()
+
+        session.add(DagModel(dag_id="dag1", bundle_name="testing"))
+        session.add(DagModel(dag_id="dag2", bundle_name="testing"))
+
+        # T1 in dag1: consumes A, produces B
+        session.add(TaskInletAssetReference(dag_id="dag1", task_id="t1", asset=asset_a))
+        session.add(TaskOutletAssetReference(dag_id="dag1", task_id="t1", asset=asset_b))
+
+        # T2 in dag2: consumes B, produces C
+        session.add(TaskInletAssetReference(dag_id="dag2", task_id="t2", asset=asset_b))
+        session.add(TaskOutletAssetReference(dag_id="dag2", task_id="t2", asset=asset_c))
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset_c.id}/lineage")
+        assert response.status_code == 200
+
+        data = response.json()
+        nodes = {node["id"]: node for node in data["nodes"]}
+
+        # All three assets should be in the graph via upstream traversal
+        assert f"asset:{asset_a.id}" in nodes
+        assert f"asset:{asset_b.id}" in nodes
+        assert f"asset:{asset_c.id}" in nodes
+
+        edges = {(e["source_id"], e["target_id"]) for e in data["edges"]}
+        # Upstream chain: T2 produces C, T2 consumes B, T1 produces B, T1 consumes A
+        assert ("task:dag2:t2", f"asset:{asset_c.id}") in edges
+        assert (f"asset:{asset_b.id}", "task:dag2:t2") in edges
+        assert ("task:dag1:t1", f"asset:{asset_b.id}") in edges
+        assert (f"asset:{asset_a.id}", "task:dag1:t1") in edges
+
+    @provide_session
+    def test_cycle_detection(self, test_client, testing_dag_bundle, session):
+        """Test that cycles are handled gracefully: A → T1 → B → T2 → A should not loop."""
+        asset_a = AssetModel(name="asset_a", uri="s3://a")
+        asset_b = AssetModel(name="asset_b", uri="s3://b")
+        session.add_all([asset_a, asset_b])
+        session.flush()
+
+        session.add(DagModel(dag_id="dag1", bundle_name="testing"))
+        session.add(DagModel(dag_id="dag2", bundle_name="testing"))
+
+        # T1: consumes A, produces B
+        session.add(TaskInletAssetReference(dag_id="dag1", task_id="t1", asset=asset_a))
+        session.add(TaskOutletAssetReference(dag_id="dag1", task_id="t1", asset=asset_b))
+
+        # T2: consumes B, produces A (creating a cycle)
+        session.add(TaskInletAssetReference(dag_id="dag2", task_id="t2", asset=asset_b))
+        session.add(TaskOutletAssetReference(dag_id="dag2", task_id="t2", asset=asset_a))
+        session.commit()
+
+        # Should return successfully without infinite loop
+        response = test_client.get(f"/assets/{asset_a.id}/lineage")
+        assert response.status_code == 200
+
+        data = response.json()
+        nodes = {node["id"]: node for node in data["nodes"]}
+
+        # Both assets and tasks should be present
+        assert f"asset:{asset_a.id}" in nodes
+        assert f"asset:{asset_b.id}" in nodes
+        assert "task:dag1:t1" in nodes
+        assert "task:dag2:t2" in nodes
+
+    @provide_session
+    def test_depth_parameter(self, test_client, testing_dag_bundle, session):
+        """Test that depth=1 limits traversal to one hop."""
+        asset_a = AssetModel(name="asset_a", uri="s3://a")
+        asset_b = AssetModel(name="asset_b", uri="s3://b")
+        asset_c = AssetModel(name="asset_c", uri="s3://c")
+        session.add_all([asset_a, asset_b, asset_c])
+        session.flush()
+
+        session.add(DagModel(dag_id="dag1", bundle_name="testing"))
+        session.add(DagModel(dag_id="dag2", bundle_name="testing"))
+
+        # T1: consumes A, produces B
+        session.add(TaskInletAssetReference(dag_id="dag1", task_id="t1", asset=asset_a))
+        session.add(TaskOutletAssetReference(dag_id="dag1", task_id="t1", asset=asset_b))
+
+        # T2: consumes B, produces C
+        session.add(TaskInletAssetReference(dag_id="dag2", task_id="t2", asset=asset_b))
+        session.add(TaskOutletAssetReference(dag_id="dag2", task_id="t2", asset=asset_c))
+        session.commit()
+
+        # depth=1 should only show A → T1 → B but NOT B → T2 → C
+        response = test_client.get(f"/assets/{asset_a.id}/lineage?depth=1")
+        assert response.status_code == 200
+
+        data = response.json()
+        nodes = {node["id"]: node for node in data["nodes"]}
+
+        assert f"asset:{asset_a.id}" in nodes
+        assert f"asset:{asset_b.id}" in nodes
+        # C should NOT be reached with depth=1
+        assert f"asset:{asset_c.id}" not in nodes
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.get("/assets/999/lineage")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "The Asset with ID: `999` was not found"
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/assets/1/lineage")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/assets/1/lineage")
+        assert response.status_code == 403

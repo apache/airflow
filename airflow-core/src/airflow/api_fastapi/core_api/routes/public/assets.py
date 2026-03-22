@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -52,6 +52,9 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetCollectionResponse,
     AssetEventCollectionResponse,
     AssetEventResponse,
+    AssetLineageEdge,
+    AssetLineageGraphResponse,
+    AssetLineageNode,
     AssetResponse,
     CreateAssetEventsBody,
     QueuedEventCollectionResponse,
@@ -74,6 +77,7 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetWatcherModel,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.typing_compat import Unpack
@@ -538,6 +542,212 @@ def get_asset(
             },
         }
     )
+
+
+_DEFAULT_LINEAGE_DEPTH = 5
+_MAX_LINEAGE_DEPTH = 10
+
+
+@assets_router.get(
+    "/assets/{asset_id}/lineage",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_asset(method="GET")),
+    ],
+)
+def get_asset_lineage(
+    asset_id: int,
+    session: SessionDep,
+    depth: int = _DEFAULT_LINEAGE_DEPTH,
+) -> AssetLineageGraphResponse:
+    """
+    Get the cross-DAG lineage graph for an asset.
+
+    Performs a breadth-first traversal across asset-task-asset chains in both
+    upstream and downstream directions, up to *depth* hops from the root asset.
+    """
+    if depth < 1:
+        depth = 1
+    elif depth > _MAX_LINEAGE_DEPTH:
+        depth = _MAX_LINEAGE_DEPTH
+
+    # Retrieve the root asset
+    asset = session.scalar(select(AssetModel).where(AssetModel.id == asset_id))
+
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
+
+    nodes: dict[str, AssetLineageNode] = {}
+    edges: list[AssetLineageEdge] = []
+
+    # Helper to add an asset node (deduplicating by node id)
+    def _add_asset_node(a: AssetModel) -> str:
+        node_id = f"asset:{a.id}"
+        if node_id not in nodes:
+            nodes[node_id] = AssetLineageNode(
+                id=node_id,
+                node_type="asset",
+                name=a.name,
+                uri=a.uri,
+                group=a.group,
+            )
+        return node_id
+
+    # Helper to add a task node and its parent DAG node + edge
+    def _add_task_node(dag_id: str, task_id: str) -> str:
+        task_node_id = f"task:{dag_id}:{task_id}"
+        if task_node_id not in nodes:
+            nodes[task_node_id] = AssetLineageNode(
+                id=task_node_id,
+                node_type="task",
+                name=task_id,
+            )
+            # Also ensure the parent DAG node exists and link it
+            dag_node_id = f"dag:{dag_id}"
+            if dag_node_id not in nodes:
+                nodes[dag_node_id] = AssetLineageNode(
+                    id=dag_node_id,
+                    node_type="dag",
+                    name=dag_id,
+                )
+            edges.append(AssetLineageEdge(source_id=dag_node_id, target_id=task_node_id))
+        return task_node_id
+
+    # Add the root asset
+    _add_asset_node(asset)
+
+    # ── Downstream BFS ──────────────────────────────────────────────
+    # Asset → consuming tasks → those tasks' outlet assets → repeat
+    downstream_frontier: set[int] = {asset.id}
+    visited_downstream: set[int] = {asset.id}
+
+    for _ in range(depth):
+        if not downstream_frontier:
+            break
+
+        # Find tasks that consume the frontier assets (inlet references)
+        consuming_tasks = session.execute(
+            select(
+                TaskInletAssetReference.asset_id,
+                TaskInletAssetReference.dag_id,
+                TaskInletAssetReference.task_id,
+            ).where(TaskInletAssetReference.asset_id.in_(downstream_frontier))
+        ).all()
+
+        # Collect (dag_id, task_id) pairs for the next step
+        task_keys: set[tuple[str, str]] = set()
+        for inlet_ref in consuming_tasks:
+            asset_node_id = f"asset:{inlet_ref.asset_id}"
+            task_node_id = _add_task_node(inlet_ref.dag_id, inlet_ref.task_id)
+            edges.append(AssetLineageEdge(source_id=asset_node_id, target_id=task_node_id))
+            task_keys.add((inlet_ref.dag_id, inlet_ref.task_id))
+
+        if not task_keys:
+            break
+
+        # Find outlet assets of those consuming tasks
+        outlet_conditions = [
+            and_(
+                TaskOutletAssetReference.dag_id == dag_id,
+                TaskOutletAssetReference.task_id == task_id,
+            )
+            for dag_id, task_id in task_keys
+        ]
+        outlet_refs = session.execute(
+            select(
+                TaskOutletAssetReference.asset_id,
+                TaskOutletAssetReference.dag_id,
+                TaskOutletAssetReference.task_id,
+            ).where(or_(*outlet_conditions))
+        ).all()
+
+        next_frontier: set[int] = set()
+        for outlet_ref in outlet_refs:
+            task_node_id = f"task:{outlet_ref.dag_id}:{outlet_ref.task_id}"
+            # Ensure task node exists (should already from above, but the task
+            # may produce assets without consuming any in the current frontier)
+            _add_task_node(outlet_ref.dag_id, outlet_ref.task_id)
+
+            # Load the asset model for this outlet
+            downstream_asset = session.scalar(select(AssetModel).where(AssetModel.id == outlet_ref.asset_id))
+            if downstream_asset is not None:
+                downstream_node_id = _add_asset_node(downstream_asset)
+                edges.append(AssetLineageEdge(source_id=task_node_id, target_id=downstream_node_id))
+                if downstream_asset.id not in visited_downstream:
+                    visited_downstream.add(downstream_asset.id)
+                    next_frontier.add(downstream_asset.id)
+
+        downstream_frontier = next_frontier
+
+    # ── Upstream BFS ────────────────────────────────────────────────
+    # Asset → producing tasks → those tasks' inlet assets → repeat
+    upstream_frontier: set[int] = {asset.id}
+    visited_upstream: set[int] = {asset.id}
+
+    for _ in range(depth):
+        if not upstream_frontier:
+            break
+
+        # Find tasks that produce the frontier assets (outlet references)
+        producing_tasks = session.execute(
+            select(
+                TaskOutletAssetReference.asset_id,
+                TaskOutletAssetReference.dag_id,
+                TaskOutletAssetReference.task_id,
+            ).where(TaskOutletAssetReference.asset_id.in_(upstream_frontier))
+        ).all()
+
+        task_keys_up: set[tuple[str, str]] = set()
+        for outlet_ref in producing_tasks:
+            asset_node_id = f"asset:{outlet_ref.asset_id}"
+            task_node_id = _add_task_node(outlet_ref.dag_id, outlet_ref.task_id)
+            edges.append(AssetLineageEdge(source_id=task_node_id, target_id=asset_node_id))
+            task_keys_up.add((outlet_ref.dag_id, outlet_ref.task_id))
+
+        if not task_keys_up:
+            break
+
+        # Find inlet assets of those producing tasks
+        inlet_conditions = [
+            and_(
+                TaskInletAssetReference.dag_id == dag_id,
+                TaskInletAssetReference.task_id == task_id,
+            )
+            for dag_id, task_id in task_keys_up
+        ]
+        inlet_refs = session.execute(
+            select(
+                TaskInletAssetReference.asset_id,
+                TaskInletAssetReference.dag_id,
+                TaskInletAssetReference.task_id,
+            ).where(or_(*inlet_conditions))
+        ).all()
+
+        next_frontier_up: set[int] = set()
+        for inlet_ref in inlet_refs:
+            task_node_id = f"task:{inlet_ref.dag_id}:{inlet_ref.task_id}"
+            _add_task_node(inlet_ref.dag_id, inlet_ref.task_id)
+
+            upstream_asset = session.scalar(select(AssetModel).where(AssetModel.id == inlet_ref.asset_id))
+            if upstream_asset is not None:
+                upstream_node_id = _add_asset_node(upstream_asset)
+                edges.append(AssetLineageEdge(source_id=upstream_node_id, target_id=task_node_id))
+                if upstream_asset.id not in visited_upstream:
+                    visited_upstream.add(upstream_asset.id)
+                    next_frontier_up.add(upstream_asset.id)
+
+        upstream_frontier = next_frontier_up
+
+    # Deduplicate edges
+    seen_edges: set[tuple[str, str]] = set()
+    unique_edges: list[AssetLineageEdge] = []
+    for edge in edges:
+        key = (edge.source_id, edge.target_id)
+        if key not in seen_edges:
+            seen_edges.add(key)
+            unique_edges.append(edge)
+
+    return AssetLineageGraphResponse(nodes=list(nodes.values()), edges=unique_edges)
 
 
 @assets_router.get(
