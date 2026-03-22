@@ -277,6 +277,7 @@ class TestLocalExecutor:
                 token=mock.ANY,
                 server=expected_server,
                 log_path=mock.ANY,
+                subprocess_logs_to_stdout=True,
             )
 
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
