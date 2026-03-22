@@ -48,6 +48,9 @@ class HookMetaService:
         ):
             pass
 
+        def __call__(self, form, field):
+            pass
+
     class MockEnum:
         """Mock for wtforms.validators.Optional."""
 
