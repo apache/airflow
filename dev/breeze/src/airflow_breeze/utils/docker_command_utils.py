@@ -182,8 +182,11 @@ def check_docker_is_running():
     )
     if response.returncode != 0:
         console_print(
-            "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
-        )
+            "[error]Docker is not running.[/]\n"
+            "[warning]Please make sure Docker is installed and running.[/]\n"
+            "[info]If you are using environments like GitHub Codespaces, Docker may not be available or properly configured.[/]\n"
+            "[info]Refer to the Breeze documentation for supported development environments and setup instructions.[/]"
+)
         if response.stderr:
             console_print(f"\n[warning]Docker error output:[/]\n{response.stderr.strip()}")
         if os.environ.get("CODESPACES", "").lower() == "true":
