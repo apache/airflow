@@ -33,7 +33,7 @@ description = "Scripts and utilities for Apache Airflow CI, Docker, and developm
 classifiers = [
     "Private :: Do Not Upload",
 ]
-requires-python = ">=3.10,!=3.14"
+requires-python = ">=3.10,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -45,12 +45,14 @@ version = "0.0.1"
 dependencies = [
     "astor>=0.8.1",
     "jsonschema>=4.19.1",
-    "libcst>=1.1.0",
+    "libcst>=1.1.0; python_version < '3.14'",
+    "libcst>=1.8.6; python_version >= '3.14'",
     "packaging>=25.0",
     "python-dateutil>=2.8.2",
     "pyyaml>=6.0.3",
     "requests>=2.31.0",
     "rich>=13.6.0",
+    "rich-click>=1.9.7",
     "tabulate>=0.9.0",
     "termcolor>=2.3.0",
 ]
@@ -73,4 +75,4 @@ packages = ["ci", "cov", "docker", "in_container", "tools"]
 # "." makes ci.prek.* importable as packages; "ci/prek" makes bare
 # "from common_prek_utils import ..." inside those modules resolve correctly
 # (mirroring what Python does automatically when scripts are run directly).
-pythonpath = [".", "ci/prek"]
+pythonpath = [".", "ci/prek", "in_container"]

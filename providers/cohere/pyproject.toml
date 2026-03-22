@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -61,7 +62,8 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.8.0",
     "cohere>=5.13.4",
-    'fastavro>=1.10.0;python_version>="3.13"',  # Need to pin to this version for Python 3.13 compatibility
+    'fastavro>=1.10.0; python_version>="3.13" and python_version<"3.14"',
+    'fastavro>=1.12.1; python_version>="3.14"',
 ]
 
 [dependency-groups]

@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -62,7 +63,8 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.10.1",
     "apache-airflow-providers-common-sql>=1.27.0",
     "slack-sdk>=3.36.0",
-    "asgiref>=2.3.0",
+    "asgiref>=2.3.0; python_version < '3.14'",
+    "asgiref>=3.11.1; python_version >= '3.14'",
 ]
 
 [dependency-groups]

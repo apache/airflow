@@ -477,7 +477,7 @@ class KubernetesExecutor(BaseExecutor):
         self.event_buffer[key] = state, termination_reason
 
     def _get_pod_namespace(self, ti: TaskInstance):
-        pod_override = ti.executor_config.get("pod_override")
+        pod_override = (ti.executor_config or {}).get("pod_override")
         namespace = None
         with suppress(Exception):
             if pod_override is not None:
