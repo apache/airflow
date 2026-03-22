@@ -17,15 +17,14 @@
 
 from __future__ import annotations
 
-import collections
-from collections.abc import Generator, Sequence
+from collections.abc import Generator, Iterable
 from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import exists, select
-from sqlalchemy.orm import joinedload, load_only, selectinload
+from sqlalchemy.orm import Session, joinedload, load_only
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -52,6 +51,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.grid import (
+    GridNodeAgg,
     _find_aggregates,
     _get_aggs_for_node,
     _merge_node_dicts,
@@ -60,7 +60,6 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
     get_task_group_children_getter,
     task_group_to_dict_grid,
 )
-from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
@@ -116,6 +115,67 @@ def _get_serdag(dag_id, dag_version_id, session) -> SerializedDagModel | None:
             version_number=version.version_number,
         )
     return serdag
+
+
+def _get_grid_run_dag_versions(
+    *,
+    dag_id: str,
+    dag_runs: list[DagRun],
+    session: Session,
+) -> dict[str, list[DagVersion]]:
+    """Fetch DAG version metadata for the selected grid runs without loading every task instance row."""
+    dag_versions_by_run_id: dict[str, list[DagVersion]] = {dag_run.run_id: [] for dag_run in dag_runs}
+    non_bundle_run_ids: list[str] = []
+
+    for dag_run in dag_runs:
+        if dag_run.bundle_version:
+            dag_versions_by_run_id[dag_run.run_id] = (
+                [dag_run.created_dag_version] if dag_run.created_dag_version is not None else []
+            )
+        else:
+            non_bundle_run_ids.append(dag_run.run_id)
+
+    if not non_bundle_run_ids:
+        return dag_versions_by_run_id
+
+    task_instance_versions = (
+        select(
+            TaskInstance.run_id.label("run_id"),
+            TaskInstance.dag_version_id.label("dag_version_id"),
+        )
+        .where(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id.in_(non_bundle_run_ids),
+            TaskInstance.dag_version_id.is_not(None),
+        )
+        .distinct()
+        .union(
+            select(
+                TaskInstanceHistory.run_id.label("run_id"),
+                TaskInstanceHistory.dag_version_id.label("dag_version_id"),
+            )
+            .where(
+                TaskInstanceHistory.dag_id == dag_id,
+                TaskInstanceHistory.run_id.in_(non_bundle_run_ids),
+                TaskInstanceHistory.dag_version_id.is_not(None),
+            )
+            .distinct()
+        )
+        .subquery()
+    )
+    dag_version_rows = session.execute(
+        select(task_instance_versions.c.run_id, DagVersion)
+        .join(DagVersion, DagVersion.id == task_instance_versions.c.dag_version_id)
+        .options(
+            joinedload(DagVersion.bundle),
+            joinedload(DagVersion.dag_model),
+        )
+        .order_by(task_instance_versions.c.run_id, DagVersion.id)
+    )
+    for run_id, dag_version in dag_version_rows:
+        dag_versions_by_run_id[run_id].append(dag_version)
+
+    return dag_versions_by_run_id
 
 
 @grid_router.get(
@@ -301,16 +361,8 @@ def get_grid_runs(
                 DagRun.run_type,
                 DagRun.bundle_version,
             ),
-            joinedload(DagRun.dag_model).load_only(DagModel._dag_display_property_value),
             joinedload(DagRun.created_dag_version).joinedload(DagVersion.bundle),
-            selectinload(DagRun.task_instances)
-            .load_only(TaskInstance.dag_version_id)
-            .joinedload(TaskInstance.dag_version)
-            .joinedload(DagVersion.bundle),
-            selectinload(DagRun.task_instances_histories)
-            .load_only(TaskInstanceHistory.dag_version_id)
-            .joinedload(TaskInstanceHistory.dag_version)
-            .joinedload(DagVersion.bundle),
+            joinedload(DagRun.created_dag_version).joinedload(DagVersion.dag_model),
         )
     )
 
@@ -332,38 +384,77 @@ def get_grid_runs(
         return_total_entries=False,
     )
     results = session.execute(dag_runs_select_filter).unique().all()
+    dag_versions_by_run_id = _get_grid_run_dag_versions(
+        dag_id=dag_id,
+        dag_runs=[run for run, _ in results],
+        session=session,
+    )
     grid_runs = []
     for run, has_missed in results:
-        run.has_missed_deadline = has_missed
-        grid_runs.append(GridRunsResponse.model_validate(run, from_attributes=True))
+        grid_runs.append(
+            GridRunsResponse.model_validate(
+                {
+                    "dag_id": run.dag_id,
+                    "run_id": run.run_id,
+                    "queued_at": run.queued_at,
+                    "start_date": run.start_date,
+                    "end_date": run.end_date,
+                    "run_after": run.run_after,
+                    "state": run.state,
+                    "run_type": run.run_type,
+                    "dag_versions": dag_versions_by_run_id[run.run_id],
+                    "has_missed_deadline": has_missed,
+                }
+            )
+        )
     return grid_runs
 
 
 def _build_ti_summaries(
-    dag_id: str, run_id: str, task_instances: Sequence, session, serdag: SerializedDagModel | None = None
-) -> dict:
-    ti_details: dict = collections.defaultdict(list)
+    dag_id: str,
+    run_id: str,
+    task_instances: Iterable[Any],
+    session: Session,
+    *,
+    serdag: SerializedDagModel | None = None,
+    serdag_cache: dict[Any, SerializedDagModel | None] | None = None,
+) -> dict[str, Any] | None:
+    ti_details: dict[str, GridNodeAgg] = {}
+    dag_version_id = None
     for ti in task_instances:
-        ti_details[ti.task_id].append(
-            {
-                "state": ti.state,
-                "start_date": ti.start_date,
-                "end_date": ti.end_date,
-                "dag_version_number": getattr(ti, "version_number", None),
-            }
+        dag_version_id = dag_version_id or ti.dag_version_id
+        summary = ti_details.get(ti.task_id)
+        if summary is None:
+            summary = ti_details[ti.task_id] = GridNodeAgg()
+        summary.add_ti(
+            state=ti.state,
+            start_date=ti.start_date,
+            end_date=ti.end_date,
+            dag_version_number=getattr(ti, "version_number", None),
         )
+    if not ti_details:
+        return None
     if serdag is None:
-        serdag = _get_serdag(
-            dag_id=dag_id,
-            dag_version_id=task_instances[0].dag_version_id,
-            session=session,
-        )
+        if serdag_cache is not None:
+            if dag_version_id not in serdag_cache:
+                serdag_cache[dag_version_id] = _get_serdag(
+                    dag_id=dag_id,
+                    dag_version_id=dag_version_id,
+                    session=session,
+                )
+            serdag = serdag_cache[dag_version_id]
+        else:
+            serdag = _get_serdag(
+                dag_id=dag_id,
+                dag_version_id=dag_version_id,
+                session=session,
+            )
     if TYPE_CHECKING:
         assert serdag
 
-    def get_node_summaries():
+    def get_node_summaries() -> Iterable[dict[str, Any]]:
         yielded_task_ids: set[str] = set()
-        for node in _find_aggregates(
+        for node, _ in _find_aggregates(
             node=serdag.dag.task_group,
             parent_node=None,
             ti_details=ti_details,
@@ -441,7 +532,7 @@ def get_grid_ti_summaries_stream(
     """
 
     def _generate() -> Generator[str, None, None]:
-        serdag_cache: dict = {}
+        serdag_cache: dict[Any, SerializedDagModel | None] = {}
         for run_id in run_ids or []:
             tis = session.execute(
                 select(
@@ -456,13 +547,17 @@ def get_grid_ti_summaries_stream(
                 .where(TaskInstance.dag_id == dag_id)
                 .where(TaskInstance.run_id == run_id)
                 .order_by(TaskInstance.task_id)
-            ).all()
-            if not tis:
+                .execution_options(yield_per=1000)
+            )
+            summary = _build_ti_summaries(
+                dag_id,
+                run_id,
+                tis,
+                session,
+                serdag_cache=serdag_cache,
+            )
+            if summary is None:
                 continue
-            version_id = tis[0].dag_version_id
-            if version_id not in serdag_cache:
-                serdag_cache[version_id] = _get_serdag(dag_id, version_id, session)
-            summary = _build_ti_summaries(dag_id, run_id, tis, session, serdag=serdag_cache[version_id])
             yield GridTISummaries.model_validate(summary).model_dump_json() + "\n"
 
     return StreamingResponse(content=_generate(), media_type="application/x-ndjson")
