@@ -494,7 +494,10 @@ def explain_package_upgrade(
         additional_args.extend(
             ["--group", "dev", "--group", "docs", "--group", "docs-gen", "--group", "leveldb"]
         )
-    with preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject:
+    with (
+        preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject,
+        preserve_pyproject_file(AIRFLOW_ROOT_PATH / "uv.lock"),
+    ):
         shell_params = ShellParams(
             github_repository=github_repository,
             python=python_version,
