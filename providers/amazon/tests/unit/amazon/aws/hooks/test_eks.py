@@ -53,7 +53,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
-from airflow.providers.amazon.aws.hooks.eks import EksHook
+from airflow.providers.amazon.aws.hooks.eks import EksHook, _ensure_eks_cache_dirs
 
 from unit.amazon.aws.utils.eks_test_constants import (
     DEFAULT_CONN_ID,
@@ -1272,6 +1272,50 @@ class TestEksHook:
             # Verify region arguments are properly included
             if expected_region_args:
                 assert expected_region_args in command_arg
+
+
+EKS_HOOK_MODULE = "airflow.providers.amazon.aws.hooks.eks"
+
+
+class TestEnsureEksCacheDirs:
+    """Tests for _ensure_eks_cache_dirs."""
+
+    def test_creates_cache_dir(self, tmp_path):
+        """Verify the AWS CLI cache directory is created when it does not exist."""
+        cache_dir = tmp_path / ".aws" / "cli" / "cache"
+
+        with mock.patch(f"{EKS_HOOK_MODULE}._AWS_CLI_CACHE_DIR", str(cache_dir)):
+            _ensure_eks_cache_dirs()
+
+        assert cache_dir.is_dir()
+
+    def test_no_error_when_dir_already_exists(self, tmp_path):
+        """Verify no error is raised when the cache directory already exists."""
+        cache_dir = tmp_path / ".aws" / "cli" / "cache"
+        cache_dir.mkdir(parents=True)
+
+        with mock.patch(f"{EKS_HOOK_MODULE}._AWS_CLI_CACHE_DIR", str(cache_dir)):
+            _ensure_eks_cache_dirs()
+
+        assert cache_dir.is_dir()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
+    def test_generate_config_file_calls_ensure_cache_dirs(self, mock_conn):
+        """Verify that generate_config_file() pre-creates the cache directory."""
+        mock_conn.describe_cluster.return_value = {
+            "cluster": {"certificateAuthority": {"data": "test-cert"}, "endpoint": "test-endpoint"}
+        }
+        hook = EksHook(aws_conn_id=None, region_name=None)
+        hook.get_connection = lambda _: None
+
+        with mock.patch(f"{EKS_HOOK_MODULE}._ensure_eks_cache_dirs") as mock_ensure:
+            with hook.generate_config_file(
+                eks_cluster_name="test-cluster",
+                pod_namespace="default",
+                credentials_file="/tmp/test_creds.aws_creds",
+            ):
+                pass
+            mock_ensure.assert_called_once()
 
 
 # Helper methods for repeated assert combinations.

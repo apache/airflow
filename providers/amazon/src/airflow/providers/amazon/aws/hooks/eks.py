@@ -110,6 +110,32 @@ COMMAND = """
             echo $json_string
             """
 
+# Cache directory used by the AWS CLI when running exec-based credential
+# plugins such as ``aws eks get-token``.  Older versions of the AWS CLI
+# create this directory with ``os.makedirs()`` without ``exist_ok=True``,
+# causing a ``FileExistsError`` race condition when parallel tasks on the
+# same Celery worker invoke the CLI simultaneously.
+# See: https://github.com/apache/airflow/issues/60943
+_AWS_CLI_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".aws", "cli", "cache")
+
+
+def _ensure_eks_cache_dirs() -> None:
+    """
+    Pre-create the AWS CLI cache directory to avoid a race condition.
+
+    When multiple tasks run concurrently on the same worker and each
+    invokes ``aws eks get-token`` via exec-based kubeconfig auth, the
+    AWS CLI may try to create ``~/.aws/cli/cache`` simultaneously.
+    Older botocore versions do not pass ``exist_ok=True``, so a
+    ``FileExistsError`` is raised when two processes race.
+
+    Pre-creating the directory here means it already exists by the
+    time the CLI runs.
+
+    .. seealso:: https://github.com/apache/airflow/issues/60943
+    """
+    os.makedirs(_AWS_CLI_CACHE_DIR, exist_ok=True)
+
 
 class EksHook(AwsBaseHook):
     """
@@ -604,6 +630,10 @@ class EksHook(AwsBaseHook):
         :param eks_cluster_name: The name of the cluster to generate kubeconfig file for.
         :param pod_namespace: The namespace to run within kubernetes.
         """
+        # Pre-create the AWS CLI cache directory so that concurrent
+        # exec-based auth calls on the same worker do not race.
+        _ensure_eks_cache_dirs()
+
         args = ""
         if self.region_name is not None:
             args = args + f" --region-name {self.region_name}"
