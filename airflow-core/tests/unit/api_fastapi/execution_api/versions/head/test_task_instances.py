@@ -246,6 +246,81 @@ class TestTIRunState:
         )
         assert response.status_code == 409
 
+    def test_ti_run_emits_queued_duration_metric(self, client, session, create_task_instance, time_machine):
+        """Test that transitioning a TI to RUNNING emits the queued_duration metric."""
+        queued_time = timezone.parse("2024-09-30T12:00:00Z")
+        run_time = timezone.parse("2024-09-30T12:05:00Z")
+        time_machine.move_to(queued_time, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_emits_queued_duration_metric",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=queued_time,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_time
+        session.commit()
+
+        time_machine.move_to(run_time, tick=False)
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.DualStatsManager",
+        ) as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_time.to_iso8601_string(),
+                },
+            )
+            assert response.status_code == 200
+            mock_stats.timing.assert_called_once_with(
+                "task.queued_duration",
+                run_time - queued_time,
+                tags={},
+                extra_tags={"task_id": ti.task_id, "dag_id": ti.dag_id, "queue": ti.queue or ""},
+            )
+
+    def test_ti_run_skips_queued_duration_metric_on_retry(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """Test that queued_duration metric is NOT emitted when end_date is set (retry)."""
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_skips_metric_on_retry",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = instant
+        ti.end_date = instant  # Simulates a retry (previous attempt had an end_date)
+        session.commit()
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.DualStatsManager",
+        ) as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": instant.to_iso8601_string(),
+                },
+            )
+            assert response.status_code == 200
+            mock_stats.timing.assert_not_called()
+
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""
         with dag_maker("test_dynamic_task_mapping_with_parse_time_value", serialized=True):
