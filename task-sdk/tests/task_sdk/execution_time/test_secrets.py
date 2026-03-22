@@ -178,6 +178,49 @@ class TestExecutionAPISecretsBackend:
         # Verify send was attempted first (and raised RuntimeError)
         mock_supervisor_comms.send.assert_called_once()
 
+    def test_get_variable_runtime_error_triggers_greenback_fallback(self, mocker, mock_supervisor_comms):
+        """
+        Test that RuntimeError from async_to_sync triggers greenback fallback for variables.
+
+        Same as the connection test but for get_variable — verifies the fix for #61676:
+        triggers calling Variable.get() fail because SUPERVISOR_COMMS.send() raises
+        RuntimeError in the async event loop, but the greenback fallback was missing.
+        """
+        expected_value = "10"
+
+        # Simulate the RuntimeError that triggers greenback fallback
+        mock_supervisor_comms.send.side_effect = RuntimeError(
+            "You cannot use AsyncToSync in the same thread as an async event loop"
+        )
+
+        # Mock the greenback and asyncio modules
+        mocker.patch("greenback.has_portal", return_value=True)
+        mocker.patch("asyncio.current_task")
+
+        import asyncio
+
+        def greenback_await_side_effect(coro):
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(coro)
+            finally:
+                loop.close()
+
+        mock_greenback_await = mocker.patch("greenback.await_", side_effect=greenback_await_side_effect)
+
+        # Mock aget_variable to return the expected value
+        async def mock_aget_variable(self, key):
+            return expected_value
+
+        mocker.patch.object(ExecutionAPISecretsBackend, "aget_variable", mock_aget_variable)
+
+        backend = ExecutionAPISecretsBackend()
+        result = backend.get_variable("retries")
+
+        assert result == expected_value
+        mock_greenback_await.assert_called_once()
+        mock_supervisor_comms.send.assert_called_once()
+
 
 class TestContextDetection:
     """Test context detection in ensure_secrets_backend_loaded."""
