@@ -81,6 +81,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook",
+                "hook-name": "Kubernetes Cluster Connection",
                 "connection-type": "kubernetes",
                 "conn-fields": {
                     "in_cluster": {

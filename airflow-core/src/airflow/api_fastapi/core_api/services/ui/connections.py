@@ -27,10 +27,11 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionHookMetaData,
     StandardHookFields,
 )
+from airflow.providers_manager import HookInfo
 from airflow.serialization.definitions.param import SerializedParam
 
 if TYPE_CHECKING:
-    from airflow.providers_manager import ConnectionFormWidgetInfo, HookInfo
+    from airflow.providers_manager import ConnectionFormWidgetInfo
 
 log = logging.getLogger(__name__)
 
@@ -222,19 +223,39 @@ class HookMetaService:
     @staticmethod
     @cache
     def hook_meta_data() -> list[ConnectionHookMetaData]:
-        hooks, connection_form_widgets, field_behaviours = HookMetaService._get_hooks_with_mocked_fab()
+        from airflow.providers_manager import ProvidersManager
+
+        pm = ProvidersManager()
+        pm.initialize_providers_hooks()
+
+        widgets = HookMetaService._convert_extra_fields(pm._connection_form_widgets)
         result: list[ConnectionHookMetaData] = []
-        widgets = HookMetaService._convert_extra_fields(connection_form_widgets)
-        for hook_key, hook_info in hooks.items():
-            if not hook_info:
-                continue
-            hook_meta = ConnectionHookMetaData(
-                connection_type=hook_key,
-                hook_class_name=hook_info.hook_class_name,
-                default_conn_name=None,  # TODO: later
-                hook_name=hook_info.hook_name,
-                standard_fields=HookMetaService._make_standard_fields(field_behaviours.get(hook_key)),
-                extra_fields=widgets.get(hook_key),
+
+        all_conn_types = set(pm._hooks_lazy_dict) | set(pm._hook_provider_dict)
+        for conn_type in sorted(all_conn_types):
+            raw_entry = pm._hooks_lazy_dict._raw_dict.get(conn_type)
+            provider_entry = pm._hook_provider_dict.get(conn_type)
+
+            if isinstance(raw_entry, HookInfo):
+                hook_name = raw_entry.hook_name
+                hook_class_name = raw_entry.hook_class_name
+            elif provider_entry:
+                hook_name = pm._hook_name_dict.get(conn_type, conn_type)
+                hook_class_name = provider_entry.hook_class_name
+            else:
+                hook_name = pm._hook_name_dict.get(conn_type, conn_type)
+                hook_class_name = None
+
+            result.append(
+                ConnectionHookMetaData(
+                    connection_type=conn_type,
+                    hook_class_name=hook_class_name,
+                    default_conn_name=None,
+                    hook_name=hook_name,
+                    standard_fields=HookMetaService._make_standard_fields(
+                        pm._field_behaviours.get(conn_type)
+                    ),
+                    extra_fields=widgets.get(conn_type),
+                )
             )
-            result.append(hook_meta)
         return result

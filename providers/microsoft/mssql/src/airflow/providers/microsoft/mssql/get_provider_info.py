@@ -50,6 +50,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook",
+                "hook-name": "Microsoft SQL Server",
                 "connection-type": "mssql",
             }
         ],

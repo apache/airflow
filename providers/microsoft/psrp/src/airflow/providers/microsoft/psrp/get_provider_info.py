@@ -48,6 +48,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.microsoft.psrp.hooks.psrp.PsrpHook",
+                "hook-name": "PowerShell Remoting Protocol",
                 "connection-type": "psrp",
             }
         ],

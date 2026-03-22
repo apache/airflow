@@ -78,6 +78,7 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.datadog.hooks.datadog.DatadogHook
+    hook-name: "Datadog"
     connection-type: datadog
     conn-fields:
       api_host:

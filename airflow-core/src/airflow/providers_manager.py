@@ -413,6 +413,8 @@ class ProvidersManager(LoggingMixin):
         self._dialect_provider_dict: dict[str, DialectInfo] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
+        # Keeps hook display names read from provider.yaml (hook-name field)
+        self._hook_name_dict: dict[str, str] = {}
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
         self._connection_form_widgets: dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
@@ -995,6 +997,9 @@ class ProvidersManager(LoggingMixin):
                 hook_class_name = conn_config.get("hook-class-name")
                 if not connection_type or not hook_class_name:
                     continue
+
+                if hook_name := conn_config.get("hook-name"):
+                    self._hook_name_dict[connection_type] = hook_name
 
                 if conn_fields := conn_config.get("conn-fields"):
                     self._add_widgets(package_name, hook_class_name, connection_type, conn_fields)
