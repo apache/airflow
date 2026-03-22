@@ -4333,7 +4333,7 @@ class TestTaskRunnerCallsCallbacks:
 class TestTriggerDagRunOperator:
     """Tests to verify various aspects of TriggerDagRunOperator"""
 
-    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    @time_machine.travel(datetime(2025, 1, 1, tzinfo=timezone.utc), tick=False)
     def test_handle_trigger_dag_run(self, create_runtime_ti, mock_supervisor_comms):
         """Test that TriggerDagRunOperator (with default args) sends the correct message to the Supervisor"""
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
@@ -4354,7 +4354,7 @@ class TestTriggerDagRunOperator:
 
         expected_calls = [
             mock.call.send(
-                msg=TriggerDagRun(
+                TriggerDagRun(
                     dag_id="test_dag",
                     run_id="test_run_id",
                     reset_dag_run=False,
@@ -4362,7 +4362,7 @@ class TestTriggerDagRunOperator:
                 ),
             ),
             mock.call.send(
-                msg=SetXCom(
+                SetXCom(
                     key="trigger_run_id",
                     value="test_run_id",
                     dag_id="test_handle_trigger_dag_run",
@@ -4381,7 +4381,7 @@ class TestTriggerDagRunOperator:
             (False, TaskInstanceState.FAILED),
         ],
     )
-    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    @time_machine.travel(datetime(2025, 1, 1, tzinfo=timezone.utc), tick=False)
     def test_handle_trigger_dag_run_conflict(
         self, skip_when_already_exists, expected_state, create_runtime_ti, mock_supervisor_comms
     ):
@@ -4405,7 +4405,7 @@ class TestTriggerDagRunOperator:
 
         expected_calls = [
             mock.call.send(
-                msg=TriggerDagRun(
+                TriggerDagRun(
                     dag_id="test_dag",
                     logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                     run_id="test_run_id",
@@ -4425,7 +4425,7 @@ class TestTriggerDagRunOperator:
             ([DagRunState.SUCCESS], None, DagRunState.FAILED, DagRunState.FAILED),
         ],
     )
-    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    @time_machine.travel(datetime(2025, 1, 1, tzinfo=timezone.utc), tick=False)
     def test_handle_trigger_dag_run_wait_for_completion(
         self,
         allowed_states,
@@ -4478,14 +4478,14 @@ class TestTriggerDagRunOperator:
 
         expected_calls = [
             mock.call.send(
-                msg=TriggerDagRun(
+                TriggerDagRun(
                     dag_id="test_dag",
                     run_id="test_run_id",
                     logical_date=datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                 ),
             ),
             mock.call.send(
-                msg=SetXCom(
+                SetXCom(
                     key="trigger_run_id",
                     value="test_run_id",
                     dag_id="test_handle_trigger_dag_run_wait_for_completion",
@@ -4546,7 +4546,7 @@ class TestTriggerDagRunOperator:
 
         assert state == intermediate_state
 
-    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    @time_machine.travel(datetime(2025, 1, 1, tzinfo=timezone.utc), tick=False)
     def test_handle_trigger_dag_run_deferred_with_reset_uses_run_id_only(
         self, create_runtime_ti, mock_supervisor_comms
     ):
