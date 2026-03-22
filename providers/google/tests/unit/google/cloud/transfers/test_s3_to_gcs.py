@@ -344,6 +344,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
         assert trigger.project_id == PROJECT_ID
         assert trigger.job_names == [TRANSFER_JOB_ID_0]
         assert trigger.poll_interval == operator.poll_interval
+        assert trigger.files == MOCK_FILES
 
         assert hasattr(exception_info.value, "method_name")
         assert exception_info.value.method_name == "execute_complete"
@@ -386,6 +387,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
         assert trigger.project_id == PROJECT_ID
         assert trigger.job_names == expected_job_names
         assert trigger.poll_interval == operator.poll_interval
+        assert trigger.files == MOCK_FILES
 
         assert hasattr(exception_info.value, "method_name")
         assert exception_info.value.method_name == expected_method_name
@@ -486,11 +488,28 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
             "message": expected_event_message,
         }
         operator = S3ToGCSOperator(task_id=TASK_ID, bucket=S3_BUCKET)
-        operator.execute_complete(context=mock.MagicMock(), event=event)
+        result = operator.execute_complete(context={}, event=event)
 
         mock_log.return_value.info.assert_called_once_with(
             "%s completed with response %s ", TASK_ID, event["message"]
         )
+        assert result is None
+
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator.log", new_callable=PropertyMock
+    )
+    def test_execute_complete_success_returns_copied_files(self, mock_log):
+        """Deferrable mode returns list of copied files for use in subsequent tasks via XCom."""
+        expected_files = [MOCK_FILE_1, MOCK_FILE_2]
+        event = {
+            "status": "success",
+            "message": "Transfer completed",
+            "files": expected_files,
+        }
+        operator = S3ToGCSOperator(task_id=TASK_ID, bucket=S3_BUCKET)
+        result = operator.execute_complete(context={}, event=event)
+
+        assert result == expected_files
 
     @mock.patch(
         "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator.log", new_callable=PropertyMock
