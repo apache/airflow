@@ -1138,7 +1138,7 @@ Usage:
       {{- if gt (len $nested) 0 -}}
         {{- $_ := set $newValues $key $nested -}}
       {{- end -}}
-    {{- else if not (eq $val nil) -}}
+    {{- else if $val -}}
       {{- $_ := set $newValues $key $val -}}
     {{- end -}}
   {{- end -}}
