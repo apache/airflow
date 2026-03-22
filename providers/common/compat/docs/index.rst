@@ -82,12 +82,13 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==================  ==================
+==================  ======================================
 PIP package         Version required
-==================  ==================
+==================  ======================================
 ``apache-airflow``  ``>=2.11.0``
-``asgiref``         ``>=2.3.0``
-==================  ==================
+``asgiref``         ``>=2.3.0; python_version < "3.14"``
+``asgiref``         ``>=3.11.1; python_version >= "3.14"``
+==================  ======================================
 
 Cross provider package dependencies
 -----------------------------------

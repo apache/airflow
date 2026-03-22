@@ -36,7 +36,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.10, 3.11, 3.12, 3.13)
+* Python (One of: 3.10, 3.11, 3.12, 3.13, 3.14)
 * MySQL 5.7+
 * libxml
 * helm (only for helm chart tests)
@@ -246,7 +246,7 @@ in editable mode.
 The dependencies for providers are configured in ``providers/PROVIDER/pyproject.toml`` files -
 separately for each provider. You can find there two types of ``dependencies`` - production runtime
 dependencies, and sometimes ``development dependencies`` (in ``dev`` dependency group) which are needed
-to run tests and are installed automatically when you install environment with ``uv-sync``.
+to run tests and are installed automatically when you install environment with ``uv sync``.
 
 If you want to add another dependency to a provider, you should add it to corresponding ``pyproject.toml``,
 add the files to your commit with ``git add`` and run ``prek`` to update generated dependencies.

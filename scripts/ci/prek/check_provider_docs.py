@@ -75,7 +75,7 @@ SECURITY_CONTENT_RST = """
 """
 
 INSTALLING_PROVIDERS_FROM_SOURCES_CONTENT_RST = """
-.. include:: .. include:: /../../../devel-common/src/sphinx_exts/includes/installing-providers-from-sources.rst
+.. include:: /../../../devel-common/src/sphinx_exts/includes/installing-providers-from-sources.rst
 """
 
 

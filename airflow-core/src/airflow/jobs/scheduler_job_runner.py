@@ -31,10 +31,10 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import CTE, and_, delete, exists, func, inspect, or_, select, text, tuple_, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
@@ -107,6 +107,7 @@ if TYPE_CHECKING:
     from types import FrameType
 
     from pendulum.datetime import DateTime
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
     from sqlalchemy.sql.selectable import Subquery
@@ -1838,7 +1839,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
                 dag_models=[d for d in asset_triggered_dags if d.dag_id not in partition_dag_ids],
-                triggered_date_by_dag=triggered_date_by_dag,
                 session=session,
             )
 
@@ -1913,18 +1913,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     active_runs=active_runs_of_dags.get(dag_model.dag_id),
                 )
                 continue
-            if dag_model.next_dagrun is None and dag_model.timetable_partitioned is False:
-                self.log.error(
-                    "dag_model.next_dagrun is None; expected datetime",
-                    dag_id=dag_model.dag_id,
-                )
-                continue
-            if dag_model.next_dagrun_create_after is None:
-                self.log.error(
-                    "dag_model.next_dagrun_create_after is None; expected datetime",
-                    dag_id=dag_model.dag_id,
-                )
-                continue
+            if dag_model.timetable_partitioned is False:
+                # non partition-aware Dags
+                if dag_model.next_dagrun is None:
+                    self.log.error(
+                        "dag_model.next_dagrun is None; expected datetime",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
+                if dag_model.next_dagrun_create_after is None:
+                    self.log.error(
+                        "dag_model.next_dagrun_create_after is None; expected datetime",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
+            else:
+                # partition-aware Dags
+                if dag_model.next_dagrun_partition_key is None:
+                    self.log.error(
+                        "dag_model.next_dagrun_partition_key is None; expected str",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
 
             serdag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not serdag:
@@ -2005,30 +2015,50 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dag_runs_asset_triggered(
         self,
+        *,
         dag_models: Collection[DagModel],
-        triggered_date_by_dag: dict[str, datetime],
         session: Session,
     ) -> None:
-        """For DAGs that are triggered by assets, create dag runs."""
-        triggered_dates: dict[str, DateTime] = {
-            dag_id: timezone.coerce_datetime(last_asset_event_time)
-            for dag_id, last_asset_event_time in triggered_date_by_dag.items()
-        }
-
+        """For Dags that are triggered by assets, create Dag runs."""
         for dag_model in dag_models:
             dag = self._get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not dag:
-                self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
+                self.log.error("Dag '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
             if not isinstance(dag.timetable, AssetTriggeredTimetable):
                 self.log.error(
-                    "DAG '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
+                    "Dag '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
                     dag_model.dag_id,
                 )
                 continue
 
-            triggered_date = triggered_dates[dag.dag_id]
+            queued_adrqs = session.scalars(
+                with_row_locks(
+                    select(AssetDagRunQueue)
+                    .where(AssetDagRunQueue.target_dag_id == dag.dag_id)
+                    .order_by(AssetDagRunQueue.created_at.desc()),
+                    of=AssetDagRunQueue,
+                    skip_locked=True,
+                    key_share=False,
+                    session=session,
+                )
+            ).all()
+            # If another scheduler already locked these ADRQ rows, SKIP LOCKED makes this scheduler skip them.
+            if not queued_adrqs:
+                self.log.debug(
+                    "Skipping asset-triggered DagRun creation for Dag '%s'; no queued assets remain.",
+                    dag.dag_id,
+                )
+                continue
+
+            triggered_date: DateTime = timezone.coerce_datetime(queued_adrqs[0].created_at)
+            self.log.debug(
+                "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
+                dag.dag_id,
+                len(queued_adrqs),
+                triggered_date,
+            )
             cte = (
                 select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
                 .where(
@@ -2077,7 +2107,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             Stats.incr("asset.triggered_dagruns")
             dag_run.consumed_asset_events.extend(asset_events)
-            session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id))
+            self.log.info(
+                "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                dag.dag_id,
+                dag_run.run_id,
+                len(asset_events),
+            )
+
+            # Delete only consumed ADRQ rows to avoid dropping newly queued events
+            # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
+            adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
+            result = cast(
+                "CursorResult",
+                session.execute(
+                    delete(AssetDagRunQueue).where(
+                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                    )
+                ),
+            )
+            self.log.info(
+                "Deleted %d ADRQ rows for '%s'",
+                result.rowcount,
+                dag.dag_id,
+            )
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
         """
@@ -2197,7 +2249,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
         """Make scheduling decisions for all `dag_runs`."""
-        callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
+        callback_tuples = []
+        for run in dag_runs:
+            try:
+                callback = self._schedule_dag_run(run, session=session)
+                callback_tuples.append((run, callback))
+            except DBAPIError:
+                raise  # let @retry_db_transaction handle DB errors
+            except Exception:
+                self.log.exception("Error scheduling DAG run %s of %s", run.run_id, run.dag_id)
         guard.commit()
         return callback_tuples
 

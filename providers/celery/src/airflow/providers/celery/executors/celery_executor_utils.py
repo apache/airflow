@@ -52,7 +52,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 try:
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 except ImportError:
-    from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
+    from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager  # type:ignore[no-redef]
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow.executors.workloads.callback import execute_callback_workload
@@ -228,7 +228,7 @@ def execute_workload(input: str) -> None:
 
 if not AIRFLOW_V_3_0_PLUS:
 
-    @app.task
+    @app.task(name="execute_command")
     def execute_command(command_to_exec: CommandType) -> None:
         """Execute command."""
         EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not hasattr(os, "fork") or conf.getboolean(

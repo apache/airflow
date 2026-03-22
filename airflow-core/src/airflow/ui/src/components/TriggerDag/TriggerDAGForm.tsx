@@ -265,6 +265,7 @@ const TriggerDAGForm = ({
           <Spacer />
           <Button
             colorPalette="brand"
+            data-testid="trigger-dag-submit"
             disabled={
               Boolean(errors.conf) ||
               Boolean(errors.date) ||

@@ -88,38 +88,37 @@ def user_confirm(
         allowed_answers = allowed_answers.replace(default_answer.value, default_answer.value.upper())
 
     prompt = f"\n{message} \nPress {allowed_answers}: "
-    console_print(prompt, end="")
 
-    try:
-        ch = _read_char()
-    except (KeyboardInterrupt, EOFError):
-        console_print()
-        if quit_allowed:
+    while True:
+        console_print(prompt, end="")
+
+        try:
+            ch = _read_char()
+        except (KeyboardInterrupt, EOFError):
+            console_print()
+            if quit_allowed:
+                return Answer.QUIT
+            sys.exit(1)
+
+        # Ignore multi-byte escape sequences (arrow keys, etc.)
+        if len(ch) > 1:
+            console_print()
+            console_print(f"  [warning]Invalid key. Press one of: {allowed_answers}[/]")
+            continue
+
+        console_print(ch)
+
+        if ch.upper() == "Y":
+            return Answer.YES
+        if ch.upper() == "N":
+            return Answer.NO
+        if ch.upper() == "Q" and quit_allowed:
             return Answer.QUIT
-        sys.exit(1)
-
-    # Ignore multi-byte escape sequences (arrow keys, etc.)
-    if len(ch) > 1:
-        console_print()
-        if default_answer:
+        # Enter/Return selects the default
+        if ch in ("\r", "\n", "") and default_answer:
             return default_answer
-        return Answer.NO
 
-    console_print(ch)
-
-    if ch.upper() == "Y":
-        return Answer.YES
-    if ch.upper() == "N":
-        return Answer.NO
-    if ch.upper() == "Q" and quit_allowed:
-        return Answer.QUIT
-    # Enter/Return selects the default
-    if ch in ("\r", "\n", "") and default_answer:
-        return default_answer
-    # Any other key — treat as default if available
-    if default_answer:
-        return default_answer
-    return Answer.NO
+        console_print(f"  [warning]Invalid key. Press one of: {allowed_answers}[/]")
 
 
 def confirm_action(
@@ -210,6 +209,52 @@ def _show_pr_diff(token: str, github_repository: str, pr_number: int, pr_url: st
         for f in sensitive_paths:
             console.print(f"  [bold red]  - {f}[/]")
         console.print()
+
+
+class ContinueAction(Enum):
+    CONTINUE = "c"
+    FLAG = "f"
+    QUIT = "q"
+
+
+def prompt_space_continue(
+    message: str = "Press SPACE to continue, [f] to flag as suspicious, [q] to quit",
+    forced_answer: str | None = None,
+) -> ContinueAction:
+    """Wait for the user to press space/Enter to continue, 'f' to flag, or 'q' to quit.
+
+    Used for scrolling through diffs one-by-one without asking yes/no questions.
+    """
+    force = forced_answer or get_forced_answer() or os.environ.get("ANSWER")
+    if force:
+        upper = force.upper()
+        if upper in ("Q", "QUIT"):
+            return ContinueAction.QUIT
+        if upper in ("F", "FLAG"):
+            return ContinueAction.FLAG
+        return ContinueAction.CONTINUE
+
+    console_print(f"\n{message}: ", end="")
+
+    while True:
+        try:
+            ch = _read_char()
+        except (KeyboardInterrupt, EOFError):
+            console_print()
+            return ContinueAction.QUIT
+
+        if len(ch) > 1:
+            continue
+
+        if ch in (" ", "\r", "\n", ""):
+            console_print()
+            return ContinueAction.CONTINUE
+        if ch.upper() == "F":
+            console_print("flag")
+            return ContinueAction.FLAG
+        if ch.upper() == "Q":
+            console_print("quit")
+            return ContinueAction.QUIT
 
 
 def prompt_triage_action(

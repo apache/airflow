@@ -109,7 +109,7 @@ class LLMSQLQueryOperator(LLMOperator):
         table_names: list[str] | None = None,
         schema_context: str | None = None,
         validate_sql: bool = True,
-        allowed_sql_types: tuple[type[exp.Expression], ...] = DEFAULT_ALLOWED_TYPES,
+        allowed_sql_types: tuple[type[exp.Expr], ...] = DEFAULT_ALLOWED_TYPES,
         dialect: str | None = None,
         datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,

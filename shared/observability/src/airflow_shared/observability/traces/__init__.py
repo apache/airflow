@@ -21,6 +21,7 @@ import logging
 import os
 from contextlib import contextmanager
 from importlib.metadata import entry_points
+from typing import TYPE_CHECKING
 
 from opentelemetry import context, trace
 from opentelemetry.sdk.resources import Resource
@@ -30,8 +31,8 @@ from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
 from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from airflow.configuration import conf
-
+if TYPE_CHECKING:
+    from configparser import ConfigParser
 log = logging.getLogger(__name__)
 
 OVERRIDE_SPAN_ID_KEY = context.create_key("override_span_id")
@@ -80,7 +81,7 @@ def override_ids(trace_id, span_id, ctx=None):
         context.detach(token)
 
 
-def _get_backcompat_config() -> tuple[str | None, Resource | None]:
+def _get_backcompat_config(conf: ConfigParser) -> tuple[str | None, Resource | None]:
     """
     Possibly get deprecated Airflow configs for otel.
 
@@ -128,7 +129,7 @@ def _load_exporter_from_env() -> SpanExporter:
     return ep.load()()
 
 
-def configure_otel():
+def configure_otel(conf: ConfigParser):
     otel_on = conf.getboolean("traces", "otel_on", fallback=False)
     if not otel_on:
         return
@@ -136,7 +137,7 @@ def configure_otel():
     # ideally both endpoint and resource are None here
     # they would only be something other than None if user is using deprecated
     # Airflow-defined otel configs
-    backcompat_endpoint, resource = _get_backcompat_config()
+    backcompat_endpoint, resource = _get_backcompat_config(conf)
 
     # backcompat: if old-style host/port config provided an endpoint, set the
     # env var so the exporter (loaded below) picks it up automatically

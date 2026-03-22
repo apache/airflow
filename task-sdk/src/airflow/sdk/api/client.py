@@ -45,6 +45,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    DagResponse,
     DagRun,
     DagRunStateResponse,
     DagRunType,
@@ -772,6 +773,18 @@ class DagRunOperations:
         return PreviousDagRunResult(dag_run=resp.json())
 
 
+class DagsOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, dag_id: str) -> DagResponse:
+        """Get a DAG via the API server."""
+        resp = self.client.get(f"dags/{dag_id}")
+        return DagResponse.model_validate_json(resp.read())
+
+
 class HITLOperations:
     """
     Operations related to Human in the loop. Require Airflow 3.1+.
@@ -1011,6 +1024,12 @@ class Client(httpx.Client):
     def hitl(self):
         """Operations related to HITL Responses."""
         return HITLOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def dags(self) -> DagsOperations:
+        """Operations related to DAGs."""
+        return DagsOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

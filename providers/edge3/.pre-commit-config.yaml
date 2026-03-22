@@ -46,6 +46,15 @@ repos:
         additional_dependencies: ['pnpm@10.25.0']
         pass_filenames: true
         require_serial: true
+      - id: update-migration-references-edge3
+        name: Update migration ref doc for Edge3
+        language: python
+        entry: ../../scripts/ci/prek/migration_reference.py
+        pass_filenames: false
+        files: >
+          (?x)
+          ^(providers/edge3/)?src/airflow/providers/edge3/migrations/versions/.*\.py$|
+          ^(providers/edge3/)?docs/migrations-ref\.rst$
       - id: check-revision-heads-map-edge3
         name: Check that the REVISION_HEADS_MAP is up-to-date
         language: python
@@ -53,9 +62,8 @@ repos:
         pass_filenames: false
         files: >
           (?x)
-          ^src/airflow/providers/edge3/migrations/versions/.*$|
-          ^src/airflow/providers/edge3/migrations/versions|
-          ^src/airflow/providers/edge3/models/db\.py$
+          ^(providers/edge3/)?src/airflow/providers/edge3/migrations/versions/.*$|
+          ^(providers/edge3/)?src/airflow/providers/edge3/models/db\.py$
       - id: compile-edge-assets
         name: Compile Edge provider assets
         language: node

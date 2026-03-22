@@ -434,6 +434,10 @@ class SerializedDagModel(Base):
         :param session: Database session
         :return: UUID mapping dict if all match, None if any mismatch detected
         """
+        # defensive check for old 3.1.x format
+        if existing_deadline_uuids and not isinstance(existing_deadline_uuids[0], str):
+            # this triggers _generate_deadline_uuids to create fresh UUIDs
+            return None
 
         def _definitions_match(deadline_data: dict, existing: DeadlineAlertModel) -> bool:
             """Check if raw deadline data matches an existing DeadlineAlert's definition."""

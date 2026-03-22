@@ -24,7 +24,13 @@ import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { Tooltip } from "src/components/ui";
 
-const runTypes: Array<DAGRunResponse["run_type"]> = ["scheduled", "manual", "backfill", "asset_triggered"];
+const runTypes: Array<DAGRunResponse["run_type"]> = [
+  "scheduled",
+  "manual",
+  "backfill",
+  "asset_triggered",
+  "asset_materialization",
+];
 
 export const RunTypeLegend = () => {
   const { t: translate } = useTranslation(["dag", "common"]);

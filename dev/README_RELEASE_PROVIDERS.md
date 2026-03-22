@@ -844,7 +844,7 @@ You can run this command to do it for you (including checksum verification for y
 
 ```shell script
 # Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
-wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
 echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
 tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 ```
@@ -1413,8 +1413,9 @@ Trying to send HTML content will result in failure.
 ## Send announcements about security issues fixed in the release
 
 The release manager should review and mark as READY all the security issues fixed in the release.
-Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
-at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+Such issues can be listed under the `Next wave of providers` milestone in [security issues](https://github.com/airflow-s/airflow-s/issues?q=is%3Aissue%20state%3Aopen%20milestone%3A%22Next%20wave%20of%20providers%22).
+Go through the list of these issues and check for each of them the fix has been released as part of this release.
+Then the release manager should announce the issues via the CVE management tool at https://cveprocess.apache.org/.
 
 Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
 URL to the announcement published automatically by the CVE management tool.
