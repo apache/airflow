@@ -175,6 +175,41 @@ class TestClient:
         assert unpickled.response.status_code == 404
         assert unpickled.request.url == "http://error"
 
+    def test_server_response_error_str_includes_detail(self):
+        """Test that ServerResponseError string representation includes error details."""
+        responses = [httpx.Response(409, json={"detail": {"reason": "invalid_state", "message": "TI was not in the running state"}})]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.get("http://error")
+
+        err = exc_info.value
+        error_str = str(err)
+        assert "Detail:" in error_str
+        assert "invalid_state" in error_str
+
+    def test_server_response_error_str_without_detail(self):
+        """Test that ServerResponseError string without detail doesn't include Detail section."""
+        # 422 with a string detail: the string becomes the message, detail attr is None
+        responses = [httpx.Response(422, json={"detail": "Simple error"})]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as exc_info:
+            client.get("http://error")
+
+        err = exc_info.value
+        error_str = str(err)
+        assert "Simple error" in error_str
+        # detail is None when the detail string is used as the message itself
+        assert "Detail:" not in error_str
+
+    def test_server_response_error_str_missing_detail_attr(self):
+        """Test that __str__ handles missing detail attribute gracefully."""
+        err = ServerResponseError.__new__(ServerResponseError)
+        # Simulate an instance where detail was never set (e.g. unpickling edge case)
+        err.args = ("test error",)
+        assert "Detail:" not in str(err)
+
     def test_retry_handling_unrecoverable_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
             responses: list[httpx.Response] = [

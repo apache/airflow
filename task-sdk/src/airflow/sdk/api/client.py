@@ -1046,6 +1046,13 @@ class ServerResponseError(httpx.HTTPStatusError):
 
     detail: list[RemoteValidationError] | str | dict[str, Any] | None
 
+    def __str__(self) -> str:
+        base = super().__str__()
+        detail = getattr(self, "detail", None)
+        if detail:
+            return f"{base}\nDetail: {detail}"
+        return base
+
     def __reduce__(self) -> tuple[Any, ...]:
         # Needed because https://github.com/encode/httpx/pull/3108 isn't merged yet.
         return Exception.__new__, (type(self),) + self.args, self.__dict__
