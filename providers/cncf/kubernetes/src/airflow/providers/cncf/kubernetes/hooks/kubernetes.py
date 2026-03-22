@@ -503,6 +503,27 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             **kwargs,
         )
 
+    @generic_api_retry
+    def list_custom_objects(
+        self, group: str, version: str, plural: str, namespace: str | None = None, **kwargs
+    ):
+        """
+        List custom resource definition objects in Kubernetes.
+
+        :param group: api group
+        :param version: api version
+        :param plural: api plural
+        :param namespace: kubernetes namespace
+        """
+        api = client.CustomObjectsApi(self.api_client)
+        return api.list_namespaced_custom_object(
+            group=group,
+            version=version,
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
+            plural=plural,
+            **kwargs,
+        )
+
     def get_namespace(self) -> str | None:
         """Return the namespace that defined in the connection."""
         if self.conn_id:

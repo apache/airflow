@@ -49,6 +49,7 @@ def get_provider_info():
                     "airflow.providers.cncf.kubernetes.operators.kueue",
                     "airflow.providers.cncf.kubernetes.operators.pod",
                     "airflow.providers.cncf.kubernetes.operators.spark_kubernetes",
+                    "airflow.providers.cncf.kubernetes.operators.ray",
                     "airflow.providers.cncf.kubernetes.operators.resource",
                     "airflow.providers.cncf.kubernetes.operators.job",
                 ],

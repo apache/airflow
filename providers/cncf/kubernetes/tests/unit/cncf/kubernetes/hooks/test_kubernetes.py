@@ -600,6 +600,29 @@ class TestKubernetesHook:
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch(f"{HOOK_MODULE}.client.CustomObjectsApi")
+    def test_list_custom_objects(
+        self, mock_custom_object_api, mock_kube_config_merger, mock_kube_config_loader
+    ):
+        hook = KubernetesHook()
+        hook.list_custom_objects(
+            group="group",
+            version="version",
+            plural="plural",
+            namespace="namespace",
+            label_selector="app=test",
+        )
+
+        mock_custom_object_api.return_value.list_namespaced_custom_object.assert_called_once_with(
+            group="group",
+            version="version",
+            plural="plural",
+            namespace="namespace",
+            label_selector="app=test",
+        )
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
     def test_get_job_status(self, mock_client, mock_kube_config_merger, mock_kube_config_loader):
         job_expected = mock_client.read_namespaced_job_status.return_value
