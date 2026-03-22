@@ -64,6 +64,8 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
   const downstream = selectedOptions.includes("downstream");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
+  const [clearAllMapped, setClearAllMapped] = useState(false);
+  const isMapped = mapIndex > -1;
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
@@ -98,7 +100,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
       include_upstream: upstream,
       only_failed: onlyFailed,
       run_on_latest_version: runOnLatestVersion,
-      task_ids: [[taskId, mapIndex]],
+      task_ids: isMapped && clearAllMapped ? [taskId] : [[taskId, mapIndex]],
     },
   });
 
@@ -182,6 +184,14 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                   {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
                 </Checkbox>
               ) : undefined}
+              {isMapped ? (
+                <Checkbox
+                  checked={clearAllMapped}
+                  onCheckedChange={(event) => setClearAllMapped(Boolean(event.checked))}
+                >
+                  {translate("dags:runAndTaskActions.options.clearAllMappedTasks")}
+                </Checkbox>
+              ) : undefined}
               <Checkbox
                 checked={preventRunningTask}
                 onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
@@ -204,6 +214,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
       {open ? (
         <ClearTaskInstanceConfirmationDialog
           dagDetails={{
+            clearAllMapped: isMapped && clearAllMapped,
             dagId,
             dagRunId,
             downstream,
@@ -227,7 +238,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                 include_upstream: upstream,
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
-                task_ids: [[taskId, mapIndex]],
+                task_ids: isMapped && clearAllMapped ? [taskId] : [[taskId, mapIndex]],
                 ...(preventRunningTask ? { prevent_running_task: true } : {}),
               },
             });

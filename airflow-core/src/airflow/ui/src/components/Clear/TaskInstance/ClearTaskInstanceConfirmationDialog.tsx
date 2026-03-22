@@ -27,6 +27,7 @@ import { getRelativeTime } from "src/utils/datetimeUtils";
 
 type Props = {
   readonly dagDetails?: {
+    clearAllMapped?: boolean;
     dagId: string;
     dagRunId: string;
     downstream?: boolean;
@@ -67,7 +68,10 @@ const ClearTaskInstanceConfirmationDialog = ({
       include_past: dagDetails?.past,
       include_upstream: dagDetails?.upstream,
       only_failed: dagDetails?.onlyFailed,
-      task_ids: [[dagDetails?.taskId ?? "", dagDetails?.mapIndex ?? 0]],
+      task_ids:
+        dagDetails?.clearAllMapped && dagDetails.mapIndex !== undefined && dagDetails.mapIndex > -1
+          ? [dagDetails.taskId]
+          : [[dagDetails?.taskId ?? "", dagDetails?.mapIndex ?? 0]],
     },
   });
 
