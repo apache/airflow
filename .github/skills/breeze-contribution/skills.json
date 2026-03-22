@@ -1,0 +1,19 @@
+{
+  "$schema": "breeze-agent-skills/v1",
+  "source": ".github/skills/breeze-contribution/SKILL.md",
+  "description": "Auto-generated from agent-skill-sync markers in SKILL.md. Do not edit manually — update SKILL.md markers instead.",
+  "skills": [
+    {
+      "workflow": "static-checks",
+      "host": "",
+      "breeze": "prek",
+      "fallback_condition": "never"
+    },
+    {
+      "workflow": "run-tests",
+      "host": "",
+      "breeze": "pytest {test_path} -xvs",
+      "fallback_condition": "missing_system_deps"
+    }
+  ]
+}
