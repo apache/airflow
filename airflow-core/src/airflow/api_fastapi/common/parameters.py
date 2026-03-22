@@ -794,26 +794,27 @@ class _ConsumingAssetFilter(BaseParam[str | None]):
         if self.value is None and self.skip_none:
             return select
 
-        return (
-            select.distinct()
-            .join(
-                association_table,
-                DagRun.id == association_table.c.dag_run_id,
-            )
-            .join(
-                AssetEvent,
-                association_table.c.event_id == AssetEvent.id,
-            )
-            .join(
-                AssetModel,
-                AssetEvent.asset_id == AssetModel.id,
-            )
+        event_subquery = (
+            sql_select(association_table.c.event_id)
+            .join(AssetEvent, association_table.c.event_id == AssetEvent.id)
+            .join(AssetModel, AssetEvent.asset_id == AssetModel.id)
             .where(
                 or_(
                     AssetModel.name.ilike(f"%{self.value}%"),
                     AssetModel.uri.ilike(f"%{self.value}%"),
                 )
             )
+            .distinct()
+            .subquery()
+        )
+
+        return (
+            select.distinct()
+            .join(
+                association_table,
+                DagRun.id == association_table.c.dag_run_id,
+            )
+            .where(association_table.c.event_id.in_(sql_select(event_subquery.c.event_id)))
         )
 
     @classmethod
