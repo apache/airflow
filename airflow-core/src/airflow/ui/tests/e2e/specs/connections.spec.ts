@@ -61,7 +61,7 @@ test.describe("Connections Page - List and Display", () => {
     await connectionsPage.navigate();
 
     // Verify the page is loaded
-    expect(connectionsPage.page.url()).toContain("/connections");
+    await expect(connectionsPage.page).toHaveURL(/\/connections/);
 
     // Verify table or list is visible
     await expect(connectionsPage.connectionsTable).toBeVisible();
@@ -71,9 +71,7 @@ test.describe("Connections Page - List and Display", () => {
     await connectionsPage.navigate();
 
     // Check that we have at least one row
-    const count = await connectionsPage.getConnectionCount();
-
-    expect(count).toBeGreaterThan(0);
+    await expect(connectionsPage.connectionRows).not.toHaveCount(0);
 
     // Verify column headers exist
     await expect(connectionsPage.connectionIdHeader).toBeVisible();
@@ -166,10 +164,8 @@ test.describe("Connections Page - CRUD Operations", () => {
 
     // Create connection via UI
     await connectionsPage.createConnection(newConnection);
-    const exists = await connectionsPage.connectionExists(newConnection.connection_id);
 
-    expect(exists).toBeTruthy();
-    // Verify it appears in the list with correct type
+    // Verify it appears in the list with correct type (web-first assertion)
     await connectionsPage.verifyConnectionInList(newConnection.connection_id, newConnection.conn_type);
   });
 
@@ -177,18 +173,14 @@ test.describe("Connections Page - CRUD Operations", () => {
     test.setTimeout(120_000);
     await connectionsPage.navigate();
 
-    // Verify connection exists before editing (created in beforeAll)
-    const exists = await connectionsPage.connectionExists(existingConnection.connection_id);
-
-    expect(exists).toBeTruthy();
+    // Verify connection exists before editing (web-first assertion)
+    await expect(connectionsPage.getConnectionRow(existingConnection.connection_id)).toBeVisible();
 
     // Edit the connection
     await connectionsPage.editConnection(existingConnection.connection_id, updatedConnection);
 
-    // Verify the connection still exists after editing
-    const stillExists = await connectionsPage.connectionExists(existingConnection.connection_id);
-
-    expect(stillExists).toBeTruthy();
+    // Verify the connection still exists after editing (web-first assertion)
+    await expect(connectionsPage.getConnectionRow(existingConnection.connection_id)).toBeVisible();
   });
 
   test("should delete a connection", async () => {
@@ -206,16 +198,14 @@ test.describe("Connections Page - CRUD Operations", () => {
     await connectionsPage.navigate();
     await connectionsPage.createConnection(tempConnection);
 
-    const exists = await connectionsPage.connectionExists(tempConnection.connection_id);
-
-    expect(exists).toBeTruthy();
+    // Verify it exists before deleting (web-first assertion)
+    await expect(connectionsPage.getConnectionRow(tempConnection.connection_id)).toBeVisible();
 
     // Delete the connection
     await connectionsPage.deleteConnection(tempConnection.connection_id);
 
-    const stillExists = await connectionsPage.connectionExists(tempConnection.connection_id);
-
-    expect(stillExists).toBeFalsy();
+    // Verify it is gone (web-first assertion)
+    await expect(connectionsPage.getConnectionRow(tempConnection.connection_id)).not.toBeVisible();
   });
 });
 
@@ -281,62 +271,35 @@ test.describe("Connections Page - Search and Filter", () => {
   test("should filter connections by search term", async () => {
     await connectionsPage.navigate();
 
-    const initialCount = await connectionsPage.getConnectionCount();
+    const targetConnection = searchTestConnections[0]!;
+    const searchTerm = targetConnection.connection_id;
 
-    expect(initialCount).toBeGreaterThan(0);
-
-    const searchTerm = "production";
-
+    // Check that we have at least one row before searching (web-first assertion)
     await connectionsPage.searchConnections(searchTerm);
 
-    await expect
-      .poll(
-        async () => {
-          const ids = await connectionsPage.getConnectionIds();
-
-          // Verify we have results AND they match the search term
-          return ids.length > 0 && ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
-        },
-        { intervals: [500], timeout: 10_000 },
-      )
-      .toBe(true);
-
-    const filteredIds = await connectionsPage.getConnectionIds();
-
-    expect(filteredIds.length).toBeGreaterThan(0);
-    for (const id of filteredIds) {
-      expect(id.toLowerCase()).toContain(searchTerm.toLowerCase());
-    }
+    // Verify filtered results contain the search term
+    await expect(connectionsPage.connectionRows).toHaveCount(1);
+    await expect(connectionsPage.getConnectionRow(searchTerm)).toBeVisible();
   });
 
   test("should display all connections when search is cleared", async () => {
     test.setTimeout(120_000);
     await connectionsPage.navigate();
 
+    // Verify rows exist before searching (web-first assertion)
+    await expect(connectionsPage.connectionRows).not.toHaveCount(0);
     const initialCount = await connectionsPage.getConnectionCount();
 
-    expect(initialCount).toBeGreaterThan(0);
-
-    // Search for something
+    // Search for something and wait for results
     await connectionsPage.searchConnections("production");
+    await expect(connectionsPage.connectionRows).not.toHaveCount(0);
 
-    // Wait for search results
-    await expect
-      .poll(
-        async () => {
-          const count = await connectionsPage.getConnectionCount();
-
-          return count > 0; // Just verify we have some results
-        },
-        { intervals: [500], timeout: 10_000 },
-      )
-      .toBe(true);
-
-    // Clear search
+    // Clear search and verify at least as many rows as before
     await connectionsPage.searchConnections("");
+    await expect(async () => {
+      const finalCount = await connectionsPage.getConnectionCount();
 
-    const finalCount = await connectionsPage.getConnectionCount();
-
-    expect(finalCount).toBeGreaterThanOrEqual(initialCount);
+      expect(finalCount).toBeGreaterThanOrEqual(initialCount);
+    }).toPass({ timeout: 10_000 });
   });
 });

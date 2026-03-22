@@ -42,6 +42,7 @@ export class ConnectionsPage extends BasePage {
   public readonly connectionForm: Locator;
   public readonly connectionIdHeader: Locator;
   public readonly connectionIdInput: Locator;
+  public readonly connectionRows: Locator;
   // Core page elements
   public readonly connectionsTable: Locator;
   public readonly connectionTypeHeader: Locator;
@@ -51,12 +52,12 @@ export class ConnectionsPage extends BasePage {
   public readonly hostHeader: Locator;
   public readonly hostInput: Locator;
   public readonly loginInput: Locator;
-  public readonly passwordInput: Locator;
 
+  public readonly passwordInput: Locator;
   public readonly portInput: Locator;
   public readonly rowsPerPageSelect: Locator;
-  public readonly saveButton: Locator;
 
+  public readonly saveButton: Locator;
   public readonly schemaInput: Locator;
   public readonly searchInput: Locator;
   public readonly successAlert: Locator;
@@ -72,7 +73,7 @@ export class ConnectionsPage extends BasePage {
 
     // Action buttons
     this.addButton = page.getByRole("button", { name: "Add Connection" });
-    this.testConnectionButton = page.locator('button:has-text("Test")');
+    this.testConnectionButton = page.getByRole("button", { name: "Test" });
     this.saveButton = page.getByRole("button", { name: /^save$/i });
 
     // Form inputs (Chakra UI inputs)
@@ -91,15 +92,19 @@ export class ConnectionsPage extends BasePage {
     this.successAlert = page.locator('[data-scope="toast"][data-part="root"]');
 
     // Delete confirmation dialog
-    this.confirmDeleteButton = page.locator('button:has-text("Delete")').first();
+    this.confirmDeleteButton = page.getByRole("button", { name: "Delete" }).first();
     this.rowsPerPageSelect = page.locator("select");
 
     // Sorting and filtering
-    this.tableHeader = page.locator('[role="columnheader"]').first();
-    this.connectionIdHeader = page.locator("th:has-text('Connection ID')").first();
-    this.connectionTypeHeader = page.locator('th:has-text("Connection Type")').first();
-    this.hostHeader = page.locator('th:has-text("Host")').first();
+    this.tableHeader = page.getByRole("columnheader").first();
+
+    this.connectionIdHeader = page.getByRole("columnheader", { name: "Connection ID" });
+    this.connectionTypeHeader = page.getByRole("columnheader", { name: "Connection Type" });
+    this.hostHeader = page.getByRole("columnheader", { name: "Host" });
+
     this.searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').first();
+    // All table body rows (used by connectionRows for web-first assertions)
+    this.connectionRows = page.locator("tbody tr");
   }
 
   // Click the Add button to create a new connection
@@ -113,6 +118,13 @@ export class ConnectionsPage extends BasePage {
 
   // Click edit button for a specific connection
   public async clickEditButton(connectionId: string): Promise<void> {
+    // Wait for any stale dialog backdrop to clear before interacting
+    const backdrop = this.page.locator('[data-scope="dialog"][data-part="backdrop"]');
+
+    if (await backdrop.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await backdrop.waitFor({ state: "detached", timeout: 5000 });
+    }
+
     const row = await this.findConnectionRow(connectionId);
 
     if (!row) {
@@ -126,23 +138,6 @@ export class ConnectionsPage extends BasePage {
     await editButton.click();
     await expect(this.connectionForm).toBeVisible({ timeout: 10_000 });
   }
-
-  // Check if a connection exists in the current view
-  public async connectionExists(connectionId: string): Promise<boolean> {
-    const emptyState = await this.page
-      .locator("text=No connection found!")
-      .isVisible({ timeout: 1000 })
-      .catch(() => false);
-
-    if (emptyState) {
-      return false;
-    }
-    const row = await this.findConnectionRow(connectionId);
-    const visible = row !== null;
-
-    return visible;
-  }
-
   // Create a new connection with full workflow
   public async createConnection(details: ConnectionDetails): Promise<void> {
     await this.clickAddButton();
@@ -160,18 +155,6 @@ export class ConnectionsPage extends BasePage {
       throw new Error(`Connection ${connectionId} not found`);
     }
 
-    // Find delete button in the row
-    await this.page.evaluate(() => {
-      const backdrops = document.querySelectorAll<HTMLElement>('[data-scope="dialog"][data-part="backdrop"]');
-
-      backdrops.forEach((backdrop) => {
-        const { state } = backdrop.dataset;
-
-        if (state === "closed") {
-          backdrop.remove();
-        }
-      });
-    });
     const deleteButton = row.getByRole("button", { name: "Delete Connection" });
 
     await expect(deleteButton).toBeVisible({ timeout: 10_000 });
@@ -182,17 +165,11 @@ export class ConnectionsPage extends BasePage {
     await expect(this.confirmDeleteButton).toBeEnabled({ timeout: 5000 });
     await this.confirmDeleteButton.click();
 
-    await expect(this.emptyState).toBeVisible({ timeout: 5000 });
+    await expect(this.getConnectionRow(connectionId)).not.toBeVisible();
   }
 
   // Edit a connection by connection ID
   public async editConnection(connectionId: string, updates: Partial<ConnectionDetails>): Promise<void> {
-    const row = await this.findConnectionRow(connectionId);
-
-    if (!row) {
-      throw new Error(`Connection ${connectionId} not found`);
-    }
-
     await this.clickEditButton(connectionId);
 
     // Wait for form to load
@@ -215,17 +192,13 @@ export class ConnectionsPage extends BasePage {
 
       await expect(selectCombobox).toBeEnabled({ timeout: 25_000 });
 
-      await selectCombobox.click({ timeout: 3000 });
+      await selectCombobox.click();
 
       // Wait for options to appear and click the matching option
       const option = this.page.getByRole("option", { name: new RegExp(details.conn_type, "i") }).first();
 
-      await option.click({ timeout: 2000 }).catch(() => {
-        // If option click fails, try typing in the input
-        if (details.conn_type !== undefined && details.conn_type !== "") {
-          void this.page.keyboard.type(details.conn_type);
-        }
-      });
+      await expect(option).toBeVisible({ timeout: 10_000 });
+      await option.click();
     }
 
     if (details.host !== undefined && details.host !== "") {
@@ -259,7 +232,7 @@ export class ConnectionsPage extends BasePage {
     }
 
     if (details.extra !== undefined && details.extra !== "") {
-      const extraAccordion = this.page.locator('button:has-text("Extra Fields JSON")').first();
+      const extraAccordion = this.page.getByRole("button", { name: "Extra Fields JSON" }).first();
       const accordionVisible = await extraAccordion.isVisible({ timeout: 5000 }).catch(() => false);
 
       if (accordionVisible) {
@@ -309,13 +282,10 @@ export class ConnectionsPage extends BasePage {
     await expect
       .poll(
         async () => {
-          const count1 = await this.page.locator("tbody tr").count();
+          const count = await this.page.locator("tbody tr").count();
 
-          await this.page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
-          const count2 = await this.page.locator("tbody tr").count();
-
-          if (count1 === count2 && count1 > 0) {
-            stableRowCount = count1;
+          if (count > 0) {
+            stableRowCount = count;
 
             return true;
           }
@@ -362,6 +332,11 @@ export class ConnectionsPage extends BasePage {
     return connectionIds;
   }
 
+  // Returns a locator for a specific connection row (for web-first assertions in specs)
+  public getConnectionRow(connectionId: string): Locator {
+    return this.page.locator("tbody tr").filter({ hasText: connectionId }).first();
+  }
+
   // Navigate to Connections list page
   public async navigate(): Promise<void> {
     await this.navigateTo(ConnectionsPage.connectionsListUrl);
@@ -381,45 +356,18 @@ export class ConnectionsPage extends BasePage {
     ]);
   }
 
-  // Search for connections using the search input
   public async searchConnections(searchTerm: string): Promise<void> {
-    await (searchTerm === "" ? this.searchInput.clear() : this.searchInput.fill(searchTerm));
+    await this.searchInput.fill(searchTerm);
 
-    // Wait for search to complete by checking results stability
-    await expect
-      .poll(
-        async () => {
-          const ids = await this.getConnectionIds();
+    if (searchTerm === "") {
+      await expect(this.connectionRows.first().or(this.emptyState)).toBeVisible({ timeout: 10_000 });
+    } else {
+      const nonMatchingRow = this.page.locator("tbody tr").filter({ hasNotText: searchTerm });
 
-          // If we expect no results
-          const isEmptyVisible = await this.emptyState.isVisible().catch(() => false);
+      await expect(nonMatchingRow).toHaveCount(0, { timeout: 10_000 });
 
-          if (isEmptyVisible) {
-            return ids.length === 0;
-          }
-
-          // If we expect results, verify they match the search term
-          if (ids.length === 0) {
-            return false; // Still loading
-          }
-
-          if (searchTerm === "") {
-            // Get count twice to ensure it's stable
-            const count1 = ids.length;
-
-            await this.page.evaluate(() => new Promise((r) => setTimeout(r, 200)));
-            const count2 = await this.getConnectionIds().then((allIds) => allIds.length);
-
-            // Stable when count doesn't change
-            return count1 === count2 && count1 > 0;
-          }
-
-          // All visible IDs should contain the search term (case-insensitive)
-          return ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
-        },
-        { message: "Search results did not match search term", timeout: 20_000 },
-      )
-      .toBeTruthy();
+      await expect(this.connectionRows.first()).toBeVisible();
+    }
   }
 
   // Verify connection details are displayed in the list
@@ -430,15 +378,13 @@ export class ConnectionsPage extends BasePage {
       throw new Error(`Connection ${connectionId} not found in list`);
     }
 
-    const rowText = await row.textContent();
-
-    expect(rowText).toContain(connectionId);
-    expect(rowText).toContain(expectedType);
+    await expect(row).toContainText(connectionId);
+    await expect(row).toContainText(expectedType);
   }
 
   private async findConnectionRow(connectionId: string): Promise<Locator | null> {
     // Try search first (faster)
-    const hasSearch = await this.searchInput.isVisible({ timeout: 500 }).catch(() => false);
+    const hasSearch = await this.searchInput.isVisible({ timeout: 3000 }).catch(() => false);
 
     if (hasSearch) {
       return await this.findConnectionRowUsingSearch(connectionId);
@@ -448,6 +394,7 @@ export class ConnectionsPage extends BasePage {
   }
 
   private async findConnectionRowUsingSearch(connectionId: string): Promise<Locator | null> {
+    await this.waitForConnectionsListLoad();
     await this.searchConnections(connectionId);
 
     // Check if table is visible (without throwing)
@@ -478,35 +425,10 @@ export class ConnectionsPage extends BasePage {
     // Wait for either table or empty state
     await expect(table.or(this.emptyState)).toBeVisible({ timeout: 10_000 });
 
-    // If table exists, wait for rows
     if (await table.isVisible().catch(() => false)) {
-      await this.page
-        .locator("tbody tr")
-        .first()
-        .waitFor({ state: "visible", timeout: 10_000 })
-        .catch(() => {
-          // No rows found
-        });
-
-      // Wait for row count to stabilize
-      await expect
-        .poll(
-          async () => {
-            const count1 = await this.page.locator("tbody tr").count();
-
-            if (count1 === 0) return true;
-
-            await this.page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
-            const count2 = await this.page.locator("tbody tr").count();
-
-            return count1 === count2;
-          },
-          { timeout: 15_000 },
-        )
-        .toBeTruthy()
-        .catch(() => {
-          // Timeout - proceed anyway
-        });
+      await expect(this.connectionRows.first()).toBeVisible({
+        timeout: 10_000,
+      });
     }
   }
 }
