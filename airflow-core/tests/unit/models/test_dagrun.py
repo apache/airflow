@@ -1354,6 +1354,34 @@ class TestDagRun:
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
 
+    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(DeadlineAlertModel, "get_by_id")
+    def test_dagrun_failure_does_not_prune_deadlines(
+        self, mock_get_by_id, mock_prune, session, deadline_test_dag
+    ):
+
+        mock_deadline_alert = mock.MagicMock()
+        mock_deadline_alert.reference_class = SerializedReferenceModels.FixedDatetimeDeadline
+        mock_get_by_id.return_value = mock_deadline_alert
+
+        scheduler_dag = deadline_test_dag()
+
+        deadline_ids = ["deadline-uuid-1", "deadline-uuid-2"]
+        scheduler_dag.deadline = deadline_ids
+
+        dag_run = self.create_dag_run(
+            dag=scheduler_dag,
+            task_states={"task_1": TaskInstanceState.SUCCESS, "task_2": TaskInstanceState.FAILED},
+            session=session,
+        )
+        dag_run.dag = scheduler_dag
+
+        dag_run.update_state(session=session)
+
+        # prune should NOT be called on failure — only on success
+        mock_prune.assert_not_called()
+        assert dag_run.state == DagRunState.FAILED
+
 
 @pytest.mark.parametrize(
     ("run_type", "expected_tis"),
