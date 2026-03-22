@@ -144,5 +144,4 @@ class TestElasticsearchRemoteLogIOIntegration:
         assert len(log_messages) == 1
         log_entry = json.loads(log_messages[0])
         assert "error_detail" in log_entry
-        assert "RuntimeError: Woopsie. Something went wrong." in log_entry["error_detail"]
-        assert 'File "/opt/airflow/dags/fail.py", line 13, in log_and_raise' in log_entry["error_detail"]
+        assert log_entry["error_detail"] == error_detail

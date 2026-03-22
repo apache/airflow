@@ -88,14 +88,10 @@ def _format_error_detail(error_detail: Any) -> str | None:
 
 
 def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
-    """Filter an OpenSearch hit to ``TASK_LOG_FIELDS``, formatting ``error_detail`` as a plain-text traceback."""
+    """Filter an OpenSearch hit to ``TASK_LOG_FIELDS``."""
     fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS}
-    if "error_detail" in fields:
-        formatted = _format_error_detail(fields["error_detail"])
-        if formatted:
-            fields["error_detail"] = formatted
-        else:
-            fields.pop("error_detail")
+    if "error_detail" in fields and not fields["error_detail"]:
+        fields.pop("error_detail")
     return fields
 
 

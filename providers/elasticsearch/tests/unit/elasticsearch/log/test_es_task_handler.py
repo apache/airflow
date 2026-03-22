@@ -1097,8 +1097,7 @@ class TestElasticsearchRemoteLogIO:
             assert len(log_messages) == 1
             log_entry = json.loads(log_messages[0])
             assert "error_detail" in log_entry
-            assert "RuntimeError: Woopsie. Something went wrong." in log_entry["error_detail"]
-            assert 'File "/opt/airflow/dags/fail.py", line 13, in log_and_raise' in log_entry["error_detail"]
+            assert log_entry["error_detail"] == error_detail
 
 
 # ---------------------------------------------------------------------------
@@ -1201,24 +1200,23 @@ class TestBuildStructuredLogFields:
         assert "level" in result
         assert "unknown_field" not in result
 
-    def test_error_detail_formatted_as_string(self):
+    def test_error_detail_is_kept_as_list(self):
         from airflow.providers.elasticsearch.log.es_task_handler import _build_log_fields
 
+        error_detail = [
+            {
+                "is_cause": False,
+                "frames": [{"filename": "/dag.py", "lineno": 10, "name": "run"}],
+                "exc_type": "RuntimeError",
+                "exc_value": "Woopsie.",
+            }
+        ]
         hit = {
             "event": "Task failed with exception",
-            "error_detail": [
-                {
-                    "is_cause": False,
-                    "frames": [{"filename": "/dag.py", "lineno": 10, "name": "run"}],
-                    "exc_type": "RuntimeError",
-                    "exc_value": "Woopsie.",
-                }
-            ],
+            "error_detail": error_detail,
         }
         result = _build_log_fields(hit)
-        assert isinstance(result["error_detail"], str)
-        assert "RuntimeError: Woopsie." in result["error_detail"]
-        assert 'File "/dag.py", line 10, in run' in result["error_detail"]
+        assert result["error_detail"] == error_detail
 
     def test_error_detail_dropped_when_empty(self):
         from airflow.providers.elasticsearch.log.es_task_handler import _build_log_fields
@@ -1284,5 +1282,4 @@ class TestBuildStructuredLogFields:
 
                 assert msg.event == "Task failed with exception"
                 assert hasattr(msg, "error_detail")
-                assert "RuntimeError: Woopsie. Something went wrong." in msg.error_detail
-                assert 'File "/opt/airflow/dags/fail.py", line 13, in log_and_raise' in msg.error_detail
+                assert msg.error_detail == body["error_detail"]
