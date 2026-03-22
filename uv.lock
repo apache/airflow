@@ -161,6 +161,7 @@ members = [
     "apache-airflow-e2e-tests",
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
+    "apache-airflow-mypy",
     "apache-airflow-providers",
     "apache-airflow-providers-airbyte",
     "apache-airflow-providers-alibaba",
@@ -2049,6 +2050,7 @@ name = "apache-airflow-dev"
 version = "0.0.1"
 source = { editable = "dev" }
 dependencies = [
+    { name = "apache-airflow-mypy" },
     { name = "beautifulsoup4" },
     { name = "click" },
     { name = "icalendar" },
@@ -2074,6 +2076,7 @@ mypy = [
 
 [package.metadata]
 requires-dist = [
+    { name = "apache-airflow-mypy", editable = "dev/mypy" },
     { name = "beautifulsoup4", specifier = ">=4.12.0" },
     { name = "click", specifier = ">=8.3.0" },
     { name = "icalendar", specifier = ">=5.0.0" },
@@ -2617,6 +2620,16 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-mypy"
+source = { editable = "dev/mypy" }
+dependencies = [
+    { name = "mypy" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "mypy", specifier = ">=1.0.0" }]
 
 [[package]]
 name = "apache-airflow-providers"

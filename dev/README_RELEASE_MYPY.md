@@ -165,15 +165,17 @@ Best regards,
 Verify the release by:
 
 1. Installing from TestPyPI:
-```bash
-pip install --index-url https://test.pypi.org/simple/ apache-airflow-mypy==<VERSION>rc<RC>
-```
+
+   ```bash
+   pip install --index-url https://test.pypi.org/simple/ apache-airflow-mypy==<VERSION>rc<RC>
+   ```
 
 2. Testing the plugins in a mypy configuration:
-```ini
-[mypy]
-plugins = airflow.mypy.plugins.decorators, airflow.mypy.plugins.outputs
-```
+
+   ```ini
+   [mypy]
+   plugins = airflow.mypy.plugins.decorators, airflow.mypy.plugins.outputs
+   ```
 
 3. Running the test suite if available
 
