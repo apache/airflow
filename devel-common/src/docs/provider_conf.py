@@ -266,7 +266,6 @@ autodoc_typehints = "description"
 autodoc_typehints_description_target = "documented"
 autodoc_typehints_format = "short"
 
-
 # -- Options for sphinx.ext.intersphinx ----------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
 
@@ -276,6 +275,24 @@ autodoc_typehints_format = "short"
 intersphinx_mapping = get_intersphinx_mapping()
 if PACKAGE_NAME in ["apache-airflow-providers-google"]:
     intersphinx_mapping.update(get_google_intersphinx_mapping())
+
+# Add task-sdk to intersphinx mapping for proper cross-referencing of SDK classes
+# This allows proper linking to BaseSensorOperator and other SDK classes from provider docs
+try:
+    # Import airflow.sdk at runtime to get version for intersphinx mapping
+    # We need to import it here rather than at the top because the SDK may not be installed
+    # when building provider docs separately
+    import airflow.sdk as _airflow_sdk
+
+    task_sdk_version = parse_version(_airflow_sdk.__version__).base_version
+    intersphinx_mapping["task-sdk"] = (
+        f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/",
+        (f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/objects.inv",),
+    )
+except ModuleNotFoundError:
+    # If airflow.sdk is not available, skip adding the intersphinx mapping
+    # This can happen when building docs in environments where task-sdk is not installed
+    pass
 
 # -- Options for sphinx.ext.viewcode -------------------------------------------
 # See: https://www.sphinx-doc.org/es/master/usage/extensions/viewcode.html
@@ -290,6 +307,27 @@ viewcode_follow_imported_members = True
 # Paths (relative or absolute) to the source code that you wish to generate
 # your API documentation from.
 autoapi_dirs = [BASE_PROVIDER_SRC_PATH.as_posix()]
+
+# Add task-sdk source path so autoapi can find SDK classes like BaseSensorOperator
+# This enables proper cross-referencing between provider docs and task-sdk docs
+TASK_SDK_SRC_PATH = AIRFLOW_REPO_ROOT_PATH / "task-sdk" / "src" / "airflow"
+if TASK_SDK_SRC_PATH.exists():
+    autoapi_dirs.append(TASK_SDK_SRC_PATH.as_posix())
+
+# Add common-compat source path so autoapi can find compat module classes
+COMMON_COMPAT_SRC_PATH = (
+    AIRFLOW_REPO_ROOT_PATH
+    / "providers"
+    / "common"
+    / "compat"
+    / "src"
+    / "airflow"
+    / "providers"
+    / "common"
+    / "compat"
+)
+if COMMON_COMPAT_SRC_PATH.exists():
+    autoapi_dirs.append(COMMON_COMPAT_SRC_PATH.as_posix())
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = BASIC_AUTOAPI_IGNORE_PATTERNS
@@ -310,9 +348,10 @@ autoapi_ignore.extend(
 
 # Here we remove all other providers from the autoapi list, only leaving the current provider,
 # Otherwise all the other provider indexes will no be found in any TOC.
+# Exception: common provider is needed for compat layer (BaseSensorOperator, etc.)
 
 for p in load_package_data(include_suspended=True):
-    if p["package-name"] == PACKAGE_NAME:
+    if p["package-name"] == PACKAGE_NAME or p["package-name"] == "apache-airflow-providers-common":
         continue
     autoapi_ignore.extend((p["package-dir"] + "/*", p["system-tests-dir"] + "/*"))
 

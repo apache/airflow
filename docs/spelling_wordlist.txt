@@ -117,6 +117,7 @@ authenticator
 Authlib
 authMechanism
 authorised
+autoapi
 autoclass
 autocommit
 autocomplete
@@ -586,6 +587,7 @@ executables
 exitcode
 expanduser
 explicit
+exponential_backoff
 exportingmultiple
 Expr
 ext
@@ -816,6 +818,9 @@ instanceTemplates
 InstanceType
 instantiation
 integrations
+interdependencies
+internalIpOnly
+intersphinx
 ints
 intvl
 io
@@ -986,6 +991,8 @@ MarketingTeam
 Masternode
 materializations
 Matomo
+matomo
+max_wait
 MaxCompute
 maxcompute
 Maxime
@@ -1065,6 +1072,10 @@ neo4j
 neptune
 neq
 NetworkPolicy
+networkUri
+never_fail
+Nextdoor
+nextToken
 NFS
 nginx
 nobr
@@ -1445,6 +1456,9 @@ shm
 shouldn
 sie
 SIGTERM
+sigv
+silent_fail
+skipable
 sku
 sla
 slack_sdk
