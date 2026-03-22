@@ -496,11 +496,48 @@ export type ConnectionResponse = {
 };
 
 /**
- * Connection Test serializer for responses.
+ * Response returned when an async connection test is queued.
+ */
+export type ConnectionTestQueuedResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+};
+
+/**
+ * Request body for async connection test.
+ */
+export type ConnectionTestRequestBody = {
+    connection_id: string;
+    conn_type: string;
+    host?: string | null;
+    login?: string | null;
+    schema?: string | null;
+    port?: number | null;
+    password?: string | null;
+    extra?: string | null;
+    commit_on_success?: boolean;
+    executor?: string | null;
+    queue?: string | null;
+};
+
+/**
+ * Connection Test serializer for synchronous test responses.
  */
 export type ConnectionTestResponse = {
     status: boolean;
     message: string;
+};
+
+/**
+ * Response returned when polling for async connection test status.
+ */
+export type ConnectionTestStatusResponse = {
+    token: string;
+    connection_id: string;
+    state: string;
+    result_message?: string | null;
+    created_at: string;
 };
 
 /**
@@ -2482,6 +2519,18 @@ export type TestConnectionData = {
 
 export type TestConnectionResponse = ConnectionTestResponse;
 
+export type TestConnectionAsyncData = {
+    requestBody: ConnectionTestRequestBody;
+};
+
+export type TestConnectionAsyncResponse = ConnectionTestQueuedResponse;
+
+export type GetConnectionTestData = {
+    connectionTestToken: string;
+};
+
+export type GetConnectionTestResponse = ConnectionTestStatusResponse;
+
 export type CreateDefaultConnectionsResponse = void;
 
 export type HookMetaDataResponse = Array<ConnectionHookMetaData>;
@@ -4309,6 +4358,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -4458,6 +4511,60 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/connections/test-async': {
+        post: {
+            req: TestConnectionAsyncData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                202: ConnectionTestQueuedResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/connections/test-async/{connection_test_token}': {
+        get: {
+            req: GetConnectionTestData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ConnectionTestStatusResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

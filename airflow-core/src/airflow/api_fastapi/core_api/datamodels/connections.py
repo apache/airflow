@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Mapping
+from datetime import datetime
 from typing import Annotated, Any
 
 from pydantic import Field, field_validator
@@ -72,10 +73,44 @@ class ConnectionCollectionResponse(BaseModel):
 
 
 class ConnectionTestResponse(BaseModel):
-    """Connection Test serializer for responses."""
+    """Connection Test serializer for synchronous test responses."""
 
     status: bool
     message: str
+
+
+class ConnectionTestRequestBody(StrictBaseModel):
+    """Request body for async connection test."""
+
+    connection_id: str
+    conn_type: str
+    host: str | None = None
+    login: str | None = None
+    schema_: str | None = Field(None, alias="schema")
+    port: int | None = None
+    password: str | None = None
+    extra: str | None = None
+    commit_on_success: bool = False
+    executor: str | None = None
+    queue: str | None = None
+
+
+class ConnectionTestQueuedResponse(BaseModel):
+    """Response returned when an async connection test is queued."""
+
+    token: str
+    connection_id: str
+    state: str
+
+
+class ConnectionTestStatusResponse(BaseModel):
+    """Response returned when polling for async connection test status."""
+
+    token: str
+    connection_id: str
+    state: str
+    result_message: str | None = None
+    created_at: datetime
 
 
 class ConnectionHookFieldBehavior(BaseModel):

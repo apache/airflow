@@ -29,6 +29,7 @@ import ctypes
 import multiprocessing
 import multiprocessing.sharedctypes
 import os
+import signal
 import sys
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
@@ -38,6 +39,8 @@ import structlog
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.workloads.callback import execute_callback_workload
+from airflow.models.connection import Connection
+from airflow.models.connection_test import ConnectionTestState, run_connection_test
 from airflow.utils.state import CallbackState, TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
@@ -117,6 +120,12 @@ def _run_worker(
                 log.exception("Callback execution failed")
                 output.put((workload.callback.id, CallbackState.FAILED, e))
 
+        elif isinstance(workload, workloads.TestConnection):
+            try:
+                _execute_connection_test(log, workload, team_conf)
+            except Exception:
+                log.exception("Connection test failed")
+
         else:
             raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
 
@@ -168,6 +177,81 @@ def _execute_callback(log: Logger, workload: workloads.ExecuteCallback, team_con
         raise RuntimeError(error_msg or "Callback execution failed")
 
 
+def _execute_connection_test(log: Logger, workload: workloads.TestConnection, team_conf) -> None:
+    """
+    Execute a connection test workload.
+
+    Constructs an SDK ``Client``, fetches the connection via the Execution API,
+    enforces a timeout via ``signal.alarm``, and reports all outcomes back
+    through the Execution API.
+
+    :param log: Logger instance
+    :param workload: The TestConnection workload to execute
+    :param team_conf: Team-specific executor configuration
+    """
+    # Lazy import: SDK modules must not be loaded at module level to avoid
+    # coupling core (scheduler-loaded) code to the SDK.
+    from airflow.sdk.api.client import Client
+
+    setproctitle(
+        f"{_get_executor_process_title_prefix(team_conf.team_name)} connection-test {workload.connection_id}",
+        log,
+    )
+
+    base_url = team_conf.get("api", "base_url", fallback="/")
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
+    server = team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
+
+    client = Client(base_url=server, token=workload.token)
+
+    def _handle_timeout(signum, frame):
+        raise TimeoutError(f"Connection test timed out after {workload.timeout}s")
+
+    signal.signal(signal.SIGALRM, _handle_timeout)
+    signal.alarm(workload.timeout)
+    try:
+        client.connection_tests.update_state(workload.connection_test_id, ConnectionTestState.RUNNING)
+
+        conn_response = client.connection_tests.get_connection(workload.connection_test_id)
+
+        conn = Connection(
+            conn_id=conn_response.conn_id,
+            conn_type=conn_response.conn_type,
+            host=conn_response.host,
+            login=conn_response.login,
+            password=conn_response.password,
+            schema=conn_response.schema_,
+            port=conn_response.port,
+            extra=conn_response.extra,
+        )
+        success, message = run_connection_test(conn=conn)
+
+        state = ConnectionTestState.SUCCESS if success else ConnectionTestState.FAILED
+        client.connection_tests.update_state(workload.connection_test_id, state, message)
+    except TimeoutError:
+        log.error(
+            "Connection test timed out after %ds",
+            workload.timeout,
+            connection_id=workload.connection_id,
+        )
+        client.connection_tests.update_state(
+            workload.connection_test_id,
+            ConnectionTestState.FAILED,
+            f"Connection test timed out after {workload.timeout}s",
+        )
+    except Exception as e:
+        log.exception("Connection test failed unexpectedly", connection_id=workload.connection_id)
+        client.connection_tests.update_state(
+            workload.connection_test_id,
+            ConnectionTestState.FAILED,
+            f"Connection test failed unexpectedly: {type(e).__name__}",
+        )
+    finally:
+        signal.alarm(0)
+
+
 class LocalExecutor(BaseExecutor):
     """
     LocalExecutor executes tasks locally in parallel.
@@ -183,6 +267,7 @@ class LocalExecutor(BaseExecutor):
     supports_multi_team: bool = True
     serve_logs: bool = True
     supports_callbacks: bool = True
+    supports_connection_test: bool = True
 
     activity_queue: SimpleQueue[workloads.All | None]
     result_queue: SimpleQueue[WorkloadResultType]
@@ -336,6 +421,8 @@ class LocalExecutor(BaseExecutor):
                 del self.queued_tasks[workload.ti.key]
             elif isinstance(workload, workloads.ExecuteCallback):
                 del self.queued_callbacks[workload.callback.id]
+            elif isinstance(workload, workloads.TestConnection):
+                del self.queued_connection_tests[str(workload.connection_test_id)]
         with self._unread_messages:
             self._unread_messages.value += len(workload_list)
         self._check_workers()

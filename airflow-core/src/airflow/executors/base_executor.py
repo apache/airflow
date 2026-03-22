@@ -143,6 +143,7 @@ class BaseExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = False
     supports_callbacks: bool = False
     supports_multi_team: bool = False
+    supports_connection_test: bool = False
     sentry_integration: str = ""
 
     is_local: bool = False
@@ -186,6 +187,7 @@ class BaseExecutor(LoggingMixin):
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
         self.queued_callbacks: dict[str, workloads.ExecuteCallback] = {}
+        self.queued_connection_tests: dict[str, workloads.TestConnection] = {}
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -231,10 +233,18 @@ class BaseExecutor(LoggingMixin):
                     f"See LocalExecutor or CeleryExecutor for reference implementation."
                 )
             self.queued_callbacks[workload.callback.id] = workload
+        elif isinstance(workload, workloads.TestConnection):
+            if not self.supports_connection_test:
+                raise NotImplementedError(
+                    f"{type(self).__name__} does not support TestConnection workloads. "
+                    f"Set supports_connection_test = True and implement connection test handling "
+                    f"in _process_workloads(). See LocalExecutor for reference implementation."
+                )
+            self.queued_connection_tests[str(workload.connection_test_id)] = workload
         else:
             raise ValueError(
                 f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
-                f"Workload must be one of: ExecuteTask, ExecuteCallback."
+                f"Workload must be one of: ExecuteTask, ExecuteCallback, TestConnection."
             )
 
     def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, workloads.All]]:
@@ -305,9 +315,23 @@ class BaseExecutor(LoggingMixin):
         self._emit_metrics(open_slots, num_running_workloads, num_queued_workloads)
         self.trigger_tasks(open_slots)
 
+        self.trigger_connection_tests()
+
         # Calling child class sync method
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
+
+    def trigger_connection_tests(self) -> None:
+        """Process queued connection tests, respecting available slot capacity."""
+        if not self.supports_connection_test or not self.queued_connection_tests:
+            return
+
+        available = self.slots_available
+        if available <= 0:
+            return
+
+        tests_to_run = list(self.queued_connection_tests.values())[:available]
+        self._process_workloads(tests_to_run)
 
     def _get_metric_name(self, metric_base_name: str) -> str:
         return (
@@ -529,13 +553,24 @@ class BaseExecutor(LoggingMixin):
 
     @property
     def slots_available(self):
-        """Number of new workloads (tasks and callbacks) this executor instance can accept."""
-        return self.parallelism - len(self.running) - len(self.queued_tasks) - len(self.queued_callbacks)
+        """Number of new workloads (tasks, callbacks, and connection tests) this executor instance can accept."""
+        return (
+            self.parallelism
+            - len(self.running)
+            - len(self.queued_tasks)
+            - len(self.queued_callbacks)
+            - len(self.queued_connection_tests)
+        )
 
     @property
     def slots_occupied(self):
-        """Number of workloads (tasks and callbacks) this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks) + len(self.queued_callbacks)
+        """Number of workloads (tasks, callbacks, and connection tests) this executor instance is currently managing."""
+        return (
+            len(self.running)
+            + len(self.queued_tasks)
+            + len(self.queued_callbacks)
+            + len(self.queued_connection_tests)
+        )
 
     def debug_dump(self):
         """Get called in response to SIGUSR2 by the scheduler."""

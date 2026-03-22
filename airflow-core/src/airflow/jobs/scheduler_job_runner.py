@@ -73,6 +73,12 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill
 from airflow.models.callback import Callback, CallbackType, ExecutorCallback
+from airflow.models.connection_test import (
+    ACTIVE_STATES,
+    DISPATCHED_STATES,
+    ConnectionTestRequest,
+    ConnectionTestState,
+)
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -1585,6 +1591,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     action=bundle_cleanup_mgr.remove_stale_bundle_versions,
                 )
 
+        timers.call_regular_interval(
+            delay=conf.getfloat("scheduler", "connection_test_reaper_interval", fallback=30.0),
+            action=self._reap_stale_connection_tests,
+        )
+
         idle_count = 0
 
         for loop_count in itertools.count(start=1):
@@ -1628,6 +1639,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     # Route ExecutorCallback workloads to executors (similar to task routing)
                     self._enqueue_executor_callbacks(session)
+
+                    # Enqueue pending connection tests to executors
+                    self._enqueue_connection_tests(session=session)
 
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(
@@ -3103,6 +3117,86 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
+
+    def _enqueue_connection_tests(self, *, session: Session) -> None:
+        """Enqueue pending connection tests to executors that support them."""
+        max_concurrency = conf.getint("core", "max_connection_test_concurrency", fallback=4)
+        timeout = conf.getint("core", "connection_test_timeout", fallback=60)
+
+        num_occupied_slots = sum(executor.slots_occupied for executor in self.executors)
+        parallelism_budget = conf.getint("core", "parallelism") - num_occupied_slots
+        if parallelism_budget <= 0:
+            return
+
+        active_count = session.scalar(
+            select(func.count(ConnectionTestRequest.id)).where(
+                ConnectionTestRequest.state.in_(DISPATCHED_STATES)
+            )
+        )
+        concurrency_budget = max_concurrency - (active_count or 0)
+        budget = min(concurrency_budget, parallelism_budget)
+        if budget <= 0:
+            return
+
+        pending_stmt = (
+            select(ConnectionTestRequest)
+            .where(ConnectionTestRequest.state == ConnectionTestState.PENDING)
+            .order_by(ConnectionTestRequest.created_at)
+            .limit(budget)
+        )
+        pending_stmt = with_row_locks(pending_stmt, session, of=ConnectionTestRequest, skip_locked=True)
+        pending_tests = session.scalars(pending_stmt).all()
+
+        if not pending_tests:
+            return
+
+        for ct in pending_tests:
+            executor = self._try_to_load_executor(ct, session)
+            if executor is not None and not executor.supports_connection_test:
+                executor = None
+            if executor is None:
+                reason = (
+                    f"No executor matches '{ct.executor}'"
+                    if ct.executor
+                    else "No executor supports connection testing"
+                )
+                ct.state = ConnectionTestState.FAILED
+                ct.result_message = reason
+                self.log.warning("Failing connection test %s: %s", ct.id, reason)
+                continue
+
+            workload = workloads.TestConnection.make(
+                connection_test_id=ct.id,
+                connection_id=ct.connection_id,
+                timeout=timeout,
+                queue=ct.queue,
+                generator=executor.jwt_generator,
+            )
+            executor.queue_workload(workload, session=session)
+            ct.state = ConnectionTestState.QUEUED
+
+        session.flush()
+
+    @provide_session
+    def _reap_stale_connection_tests(self, *, session: Session = NEW_SESSION) -> None:
+        """Mark connection tests that have exceeded their timeout as FAILED."""
+        timeout = conf.getint("core", "connection_test_timeout", fallback=60)
+        grace_period = max(30, timeout // 2)
+        cutoff = timezone.utcnow() - timedelta(seconds=timeout + grace_period)
+
+        stale_stmt = select(ConnectionTestRequest).where(
+            ConnectionTestRequest.state.in_(ACTIVE_STATES),
+            ConnectionTestRequest.updated_at < cutoff,
+        )
+        stale_stmt = with_row_locks(stale_stmt, session, of=ConnectionTestRequest, skip_locked=True)
+        stale_tests = session.scalars(stale_stmt).all()
+
+        for ct in stale_tests:
+            ct.state = ConnectionTestState.FAILED
+            ct.result_message = f"Connection test timed out (exceeded {timeout}s + {grace_period}s grace)"
+            self.log.warning("Reaped stale connection test %s", ct.id)
+
+        session.flush()
 
     def _executor_to_workloads(
         self,

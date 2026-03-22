@@ -14,35 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Workload schemas for executor communication."""
 
 from __future__ import annotations
 
-from typing import Annotated
-
 from pydantic import Field
 
-from airflow.executors.workloads.base import BaseWorkload, BundleInfo
-from airflow.executors.workloads.callback import CallbackFetchMethod, ExecuteCallback
-from airflow.executors.workloads.connection_test import TestConnection
-from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
-from airflow.executors.workloads.trigger import RunTrigger
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.models.connection_test import ConnectionTestState
 
-All = Annotated[
-    ExecuteTask | ExecuteCallback | RunTrigger | TestConnection,
-    Field(discriminator="type"),
-]
 
-TaskInstance = TaskInstanceDTO
+class ConnectionTestResultBody(StrictBaseModel):
+    """Payload sent by workers to report connection test results."""
 
-__all__ = [
-    "All",
-    "BaseWorkload",
-    "BundleInfo",
-    "CallbackFetchMethod",
-    "ExecuteCallback",
-    "ExecuteTask",
-    "TaskInstance",
-    "TaskInstanceDTO",
-    "TestConnection",
-]
+    state: ConnectionTestState
+    result_message: str | None = None
+
+
+class ConnectionTestConnectionResponse(BaseModel):
+    """Connection data returned to workers from a test request."""
+
+    conn_id: str
+    conn_type: str
+    host: str | None = None
+    login: str | None = None
+    password: str | None = None
+    schema_: str | None = Field(None, alias="schema")
+    port: int | None = None
+    extra: str | None = None

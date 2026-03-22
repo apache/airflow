@@ -45,6 +45,8 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    ConnectionTestResultBody,
+    ConnectionTestState,
     DagResponse,
     DagRun,
     DagRunStateResponse,
@@ -851,6 +853,25 @@ class HITLOperations:
         return HITLDetailResponse.model_validate_json(resp.read())
 
 
+class ConnectionTestOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get_connection(self, connection_test_id: uuid.UUID) -> ConnectionResponse:
+        """Fetch connection data for a test request from the API server."""
+        resp = self.client.get(f"connection-tests/{connection_test_id}/connection")
+        return ConnectionResponse.model_validate_json(resp.read())
+
+    def update_state(
+        self, id: uuid.UUID, state: ConnectionTestState, result_message: str | None = None
+    ) -> None:
+        """Report the state of a connection test to the API server."""
+        body = ConnectionTestResultBody(state=state, result_message=result_message)
+        self.client.patch(f"connection-tests/{id}", content=body.model_dump_json())
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -1024,6 +1045,12 @@ class Client(httpx.Client):
     def hitl(self):
         """Operations related to HITL Responses."""
         return HITLOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def connection_tests(self) -> ConnectionTestOperations:
+        """Operations related to Connection Tests."""
+        return ConnectionTestOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

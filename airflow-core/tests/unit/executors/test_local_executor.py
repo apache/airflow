@@ -23,16 +23,20 @@ import os
 from unittest import mock
 
 import pytest
+import structlog
 from kgb import spy_on
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
-from airflow.executors.local_executor import LocalExecutor, _execute_work
+from airflow.executors.base_executor import ExecutorConf
+from airflow.executors.local_executor import LocalExecutor, _execute_connection_test, _execute_work
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.models.callback import CallbackFetchMethod
+from airflow.models.connection_test import ConnectionTestState
+from airflow.sdk.api.datamodels._generated import ConnectionResponse
 from airflow.settings import Session
 from airflow.utils.state import State
 
@@ -374,6 +378,244 @@ class TestLocalExecutor:
             assert len(executor.workers) == 0
 
         executor.end()
+
+
+class TestLocalExecutorConnectionTestSupport:
+    def test_supports_connection_test_flag_is_true(self):
+        executor = LocalExecutor()
+        assert executor.supports_connection_test is True
+
+
+@mock.patch("airflow.executors.local_executor.signal", autospec=True)
+@mock.patch("airflow.sdk.api.client.Client", autospec=True)
+class TestLocalExecutorConnectionTestExecution:
+    def test_successful_connection_test(self, MockClient, _mock_signal):
+        """Fetches connection via Execution API, runs test, reports SUCCESS."""
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+            conn_id="test_conn",
+            conn_type="http",
+            host="httpbin.org",
+            port=443,
+        )
+
+        test_id = uuid7()
+        workload = workloads.TestConnection(
+            connection_test_id=test_id,
+            connection_id="test_conn",
+            timeout=60,
+            token="test-token",
+        )
+
+        with mock.patch(
+            "airflow.executors.local_executor.run_connection_test",
+            return_value=(True, "Connection OK"),
+        ):
+            _execute_connection_test(
+                mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+                workload,
+                ExecutorConf(team_name=None),
+            )
+
+        calls = mock_client.connection_tests.update_state.call_args_list
+        assert len(calls) == 2
+        assert calls[0].args == (test_id, ConnectionTestState.RUNNING)
+        assert calls[1].args == (test_id, ConnectionTestState.SUCCESS, "Connection OK")
+
+    def test_failed_connection_test(self, MockClient, _mock_signal):
+        """Fetches connection via Execution API, test fails, reports FAILED."""
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+            conn_id="test_conn",
+            conn_type="postgres",
+            host="db.example.com",
+        )
+
+        test_id = uuid7()
+        workload = workloads.TestConnection(
+            connection_test_id=test_id,
+            connection_id="test_conn",
+            timeout=60,
+            token="test-token",
+        )
+
+        with mock.patch(
+            "airflow.executors.local_executor.run_connection_test",
+            return_value=(False, "Connection refused"),
+        ):
+            _execute_connection_test(
+                mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+                workload,
+                ExecutorConf(team_name=None),
+            )
+
+        calls = mock_client.connection_tests.update_state.call_args_list
+        assert len(calls) == 2
+        assert calls[0].args == (test_id, ConnectionTestState.RUNNING)
+        assert calls[1].args == (test_id, ConnectionTestState.FAILED, "Connection refused")
+
+    def test_connection_not_found_via_execution_api(self, MockClient, _mock_signal):
+        """Reports FAILED when connection test is not found via Execution API."""
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.side_effect = RuntimeError("Connection test not found")
+
+        test_id = uuid7()
+        workload = workloads.TestConnection(
+            connection_test_id=test_id,
+            connection_id="missing_conn",
+            timeout=60,
+            token="test-token",
+        )
+
+        _execute_connection_test(
+            mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+            workload,
+            ExecutorConf(team_name=None),
+        )
+
+        calls = mock_client.connection_tests.update_state.call_args_list
+        assert calls[-1].args[1] == ConnectionTestState.FAILED
+        assert "Connection test failed unexpectedly" in calls[-1].args[2]
+
+    def test_unexpected_exception_reports_failed(self, MockClient, _mock_signal):
+        """Reports FAILED when an unexpected exception occurs."""
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+            conn_id="test_conn",
+            conn_type="http",
+        )
+
+        test_id = uuid7()
+        workload = workloads.TestConnection(
+            connection_test_id=test_id,
+            connection_id="test_conn",
+            timeout=60,
+            token="test-token",
+        )
+
+        with mock.patch(
+            "airflow.executors.local_executor.run_connection_test",
+            side_effect=RuntimeError("Something broke"),
+        ):
+            _execute_connection_test(
+                mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+                workload,
+                ExecutorConf(team_name=None),
+            )
+
+        calls = mock_client.connection_tests.update_state.call_args_list
+        assert calls[-1].args[1] == ConnectionTestState.FAILED
+        assert "Connection test failed unexpectedly: RuntimeError" in calls[-1].args[2]
+
+    def test_connection_fields_passed_correctly(self, MockClient, _mock_signal):
+        """Verifies all connection fields from the API response are passed to Connection."""
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+            conn_id="full_conn",
+            conn_type="postgres",
+            host="db.example.com",
+            login="admin",
+            password="s3cret",
+            schema="mydb",
+            port=5432,
+            extra='{"sslmode": "require"}',
+        )
+
+        workload = workloads.TestConnection(
+            connection_test_id=uuid7(),
+            connection_id="full_conn",
+            timeout=60,
+            token="test-token",
+        )
+
+        captured_conn = None
+
+        def capture_conn(*, conn):
+            nonlocal captured_conn
+            captured_conn = conn
+            return True, "OK"
+
+        with mock.patch(
+            "airflow.executors.local_executor.run_connection_test",
+            side_effect=capture_conn,
+        ):
+            _execute_connection_test(
+                mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+                workload,
+                ExecutorConf(team_name=None),
+            )
+
+        assert captured_conn is not None
+        assert captured_conn.conn_id == "full_conn"
+        assert captured_conn.conn_type == "postgres"
+        assert captured_conn.host == "db.example.com"
+        assert captured_conn.login == "admin"
+        assert captured_conn.password == "s3cret"
+        assert captured_conn.schema == "mydb"
+        assert captured_conn.port == 5432
+        assert captured_conn.extra == '{"sslmode": "require"}'
+
+    def test_timeout_reports_failed(self, MockClient, _mock_signal):
+        """Reports FAILED with timeout message when TimeoutError is raised."""
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+            conn_id="test_conn",
+            conn_type="http",
+        )
+
+        test_id = uuid7()
+        workload = workloads.TestConnection(
+            connection_test_id=test_id,
+            connection_id="test_conn",
+            timeout=30,
+            token="test-token",
+        )
+
+        def raise_timeout(*, conn):
+            raise TimeoutError("Connection test timed out after 30s")
+
+        with mock.patch(
+            "airflow.executors.local_executor.run_connection_test",
+            side_effect=raise_timeout,
+        ):
+            _execute_connection_test(
+                mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+                workload,
+                ExecutorConf(team_name=None),
+            )
+
+        calls = mock_client.connection_tests.update_state.call_args_list
+        assert calls[-1].args[1] == ConnectionTestState.FAILED
+        assert "timed out" in calls[-1].args[2]
+
+    def test_alarm_is_cancelled_in_finally(self, MockClient, mock_signal):
+        """signal.alarm(0) is called to cancel the timer even on success."""
+        mock_client = MockClient.return_value
+        mock_client.connection_tests.get_connection.return_value = ConnectionResponse(
+            conn_id="test_conn",
+            conn_type="http",
+        )
+
+        workload = workloads.TestConnection(
+            connection_test_id=uuid7(),
+            connection_id="test_conn",
+            timeout=60,
+            token="test-token",
+        )
+
+        with mock.patch(
+            "airflow.executors.local_executor.run_connection_test",
+            return_value=(True, "OK"),
+        ):
+            _execute_connection_test(
+                mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+                workload,
+                ExecutorConf(team_name=None),
+            )
+
+        alarm_calls = mock_signal.alarm.call_args_list
+        assert alarm_calls[0].args == (60,)
+        assert alarm_calls[-1].args == (0,)
 
 
 class TestLocalExecutorCallbackSupport:
