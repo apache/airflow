@@ -1061,6 +1061,45 @@ class TestElasticsearchRemoteLogIO:
         assert f"*** Log {log_id} not found in Elasticsearch" in log_messages[0]
         mocked_count.assert_called_once()
 
+    def test_read_error_detail(self, ti):
+        """Verify that error_detail is correctly retrieved and formatted."""
+        error_detail = [
+            {
+                "is_cause": False,
+                "frames": [{"filename": "/opt/airflow/dags/fail.py", "lineno": 13, "name": "log_and_raise"}],
+                "exc_type": "RuntimeError",
+                "exc_value": "Woopsie. Something went wrong.",
+            }
+        ]
+        body = {
+            "event": "Task failed with exception",
+            "log_id": _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number),
+            "offset": 1,
+            "error_detail": error_detail,
+        }
+
+        from airflow.providers.elasticsearch.log.es_response import Hit
+
+        mock_hit = Hit({"_source": body})
+        with (
+            patch.object(self.elasticsearch_io, "_es_read") as mock_es_read,
+            patch.object(
+                self.elasticsearch_io,
+                "_group_logs_by_host",
+                return_value={"http://localhost:9200": [mock_hit]},
+            ),
+        ):
+            mock_es_read.return_value = mock.MagicMock()
+            mock_es_read.return_value.hits = [mock_hit]
+
+            log_source_info, log_messages = self.elasticsearch_io.read("", ti)
+
+            assert len(log_messages) == 1
+            log_entry = json.loads(log_messages[0])
+            assert "error_detail" in log_entry
+            assert "RuntimeError: Woopsie. Something went wrong." in log_entry["error_detail"]
+            assert 'File "/opt/airflow/dags/fail.py", line 13, in log_and_raise' in log_entry["error_detail"]
+
 
 # ---------------------------------------------------------------------------
 # Tests for the error_detail helpers (issue #63736)
