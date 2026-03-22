@@ -21,7 +21,6 @@ from check_excluded_provider_markers import _check_dependency
 
 EXCLUDED = {
     "apache-airflow-providers-amazon": ["3.14"],
-    "apache-airflow-providers-google": ["3.14"],
 }
 
 

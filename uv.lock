@@ -883,7 +883,7 @@ all = [
     { name = "apache-airflow-providers-ftp" },
     { name = "apache-airflow-providers-git" },
     { name = "apache-airflow-providers-github" },
-    { name = "apache-airflow-providers-google", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-google" },
     { name = "apache-airflow-providers-grpc" },
     { name = "apache-airflow-providers-hashicorp" },
     { name = "apache-airflow-providers-http" },
@@ -1100,7 +1100,7 @@ github-enterprise = [
     { name = "authlib" },
 ]
 google = [
-    { name = "apache-airflow-providers-google", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-google" },
 ]
 google-auth = [
     { name = "apache-airflow-providers-fab" },
@@ -1451,8 +1451,8 @@ requires-dist = [
     { name = "apache-airflow-providers-git", marker = "extra == 'git'", editable = "providers/git" },
     { name = "apache-airflow-providers-github", marker = "extra == 'all'", editable = "providers/github" },
     { name = "apache-airflow-providers-github", marker = "extra == 'github'", editable = "providers/github" },
-    { name = "apache-airflow-providers-google", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/google" },
-    { name = "apache-airflow-providers-google", marker = "python_full_version != '3.14.*' and extra == 'google'", editable = "providers/google" },
+    { name = "apache-airflow-providers-google", marker = "extra == 'all'", editable = "providers/google" },
+    { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
     { name = "apache-airflow-providers-grpc", marker = "extra == 'all'", editable = "providers/grpc" },
     { name = "apache-airflow-providers-grpc", marker = "extra == 'grpc'", editable = "providers/grpc" },
     { name = "apache-airflow-providers-hashicorp", marker = "extra == 'all'", editable = "providers/hashicorp" },

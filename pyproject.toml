@@ -230,7 +230,7 @@ packages = []
     "apache-airflow-providers-github>=2.8.0"
 ]
 "google" = [
-    "apache-airflow-providers-google>=10.24.0; python_version !=\"3.14\""
+    "apache-airflow-providers-google>=10.24.0"
 ]
 "grpc" = [
     "apache-airflow-providers-grpc>=3.7.0"
@@ -436,7 +436,7 @@ packages = []
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-github>=2.8.0",
-    "apache-airflow-providers-google>=10.24.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-google>=10.24.0",
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",

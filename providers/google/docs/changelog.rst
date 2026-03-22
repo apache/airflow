@@ -31,6 +31,11 @@ Changelog
 21.0.0
 ......
 
+.. note::
+  This version of the provider introduces support for Python 3.14.
+  However, the Ray package doesn't yet support Python 3.14, thus ``RayJobHook`` will not work.
+  If you use ``RayJobHook`` you should stay on Python<3.14 until the upstream library issues a fix.
+
 .. warning::
   Deprecated classes, parameters and features have been removed from the Google provider package.
   The following breaking changes were introduced:
@@ -193,7 +198,8 @@ Doc-only
 ......
 
 .. warning::
-  We have identified the following regressions for this version.
+  We have identified the following regressions for this version:
+
   - The return value of the ``GenAIGeminiCreateBatchJobOperator`` and ``GenAIGeminiGetBatchJobOperator`` were incompatible with Airflow 2. The issues fixed in the following PRs #61253 and #61842.
   - The ``transport`` parameter broke the deferrable mode for ``CloudRunExecuteJobOperator``. The issue fixed in #61546.
 
