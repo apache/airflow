@@ -95,3 +95,11 @@ class MakeDagRunStartDateNullable(VersionChange):
         """Ensure start_date is never None in direct DagRun responses for previous API versions."""
         if response.body.get("start_date") is None:
             response.body["start_date"] = response.body.get("run_after")
+
+
+class AddMessageResponseModel(VersionChange):
+    """Add MessageResponse schema to common datamodels."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = ()

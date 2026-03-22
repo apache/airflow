@@ -177,6 +177,14 @@ class IntermediateTIState(str, Enum):
     DEFERRED = "deferred"
 
 
+class MessageResponse(BaseModel):
+    """
+    Message response schema.
+    """
+
+    message: Annotated[str, Field(title="Message")]
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
