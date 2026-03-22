@@ -370,6 +370,10 @@ class DAG:
         beyond this the scheduler will disable the DAG
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
+    :param max_dag_retries: Maximum number of times to retry the entire DAG run when it fails. 0 (default)
+        disables DAG-level retries.
+    :param dag_retry_delay: Delay between DAG-level retry attempts. If None, the next retry is scheduled
+        immediately.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with DeadlineAlerts in 3.1
     :param deadline: An optional DeadlineAlert for the Dag.
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
@@ -483,6 +487,14 @@ class DAG:
         validator=attrs.validators.instance_of(int),
     )
     dagrun_timeout: timedelta | None = attrs.field(
+        default=None,
+        validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
+    )
+    max_dag_retries: int = attrs.field(
+        default=0,
+        validator=attrs.validators.and_(attrs.validators.instance_of(int), attrs.validators.ge(0)),
+    )
+    dag_retry_delay: timedelta | None = attrs.field(
         default=None,
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
@@ -1551,6 +1563,8 @@ if TYPE_CHECKING:
         max_active_runs: int = ...,
         max_consecutive_failed_dag_runs: int = ...,
         dagrun_timeout: timedelta | None = None,
+        max_dag_retries: int = 0,
+        dag_retry_delay: timedelta | None = None,
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,

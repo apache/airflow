@@ -528,6 +528,265 @@ class TestDagRun:
         # Callbacks is None as execute_callbacks=True
         assert callback is None
 
+    def test_dag_level_retry_requeues_run_and_clears_tasks(self, dag_maker, session):
+        """Retry should requeue the DagRun and clear only failed task instances."""
+        with dag_maker(
+            dag_id="test_dag_level_retry_requeues_run_and_clears_tasks",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            max_dag_retries=1,
+        ) as dag:
+            EmptyOperator(task_id="task_a")
+            EmptyOperator(task_id="task_b")
+
+        initial_task_states = {
+            "task_a": TaskInstanceState.SUCCESS,
+            "task_b": TaskInstanceState.FAILED,
+        }
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        # Ensure get_dag() returns a DAG with max_dag_retries (patch if not serialized)
+        dag_run.dag = dag
+        assert dag_run.dag_try_number == 0
+
+        schedulable, callback = dag_run.update_state(session=session)
+        assert callback is None
+        assert dag_run.state == DagRunState.QUEUED
+        assert dag_run.dag_try_number == 1
+        # Successful tasks should be preserved; failed ones should be cleared.
+        tis = dag_run.get_task_instances(session=session)
+        ti_by_id = {ti.task_id: ti for ti in tis}
+        assert ti_by_id["task_a"].state == TaskInstanceState.SUCCESS
+        assert ti_by_id["task_b"].state is None
+
+    def test_dag_level_retry_exhausted_marks_failed(self, dag_maker, session):
+        """When dag_try_number >= max_dag_retries, run is marked FAILED and callback can run."""
+        with dag_maker(
+            dag_id="test_dag_level_retry_exhausted_marks_failed",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            max_dag_retries=1,
+        ) as dag:
+            EmptyOperator(task_id="task_a")
+            EmptyOperator(task_id="task_b")
+
+        initial_task_states = {
+            "task_a": TaskInstanceState.SUCCESS,
+            "task_b": TaskInstanceState.FAILED,
+        }
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.dag = dag
+        dag_run.dag_try_number = 1  # Already used one retry
+
+        _, callback = dag_run.update_state(session=session)
+        assert dag_run.state == DagRunState.FAILED
+        assert dag_run.dag_try_number == 1
+
+    def test_dag_level_retry_suppresses_callbacks_until_exhausted(self, dag_maker, session):
+        """While retrying, DAG failure callbacks should not fire yet."""
+        mock_failure_callback = mock.MagicMock()
+        mock_failure_callback.__name__ = "mock_failure_callback"
+
+        with dag_maker(
+            dag_id="test_dag_level_retry_suppresses_callbacks_until_exhausted",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            max_dag_retries=1,
+            on_failure_callback=mock_failure_callback,
+        ) as dag:
+            EmptyOperator(task_id="task_a")
+            EmptyOperator(task_id="task_b")
+
+        initial_task_states = {
+            "task_a": TaskInstanceState.SUCCESS,
+            "task_b": TaskInstanceState.FAILED,
+        }
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.dag = dag
+
+        with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
+            _, callback = dag_run.update_state(session=session)
+
+        assert callback is None
+        assert dag_run.state == DagRunState.QUEUED
+        assert execute_dag_callbacks.call_count == 0
+        mock_failure_callback.assert_not_called()
+
+    def test_dag_level_retry_applies_delay_to_run_after(self, dag_maker, session):
+        """When dag_retry_delay is set, the next retry should be scheduled after it."""
+        retry_delay = datetime.timedelta(minutes=5)
+
+        with dag_maker(
+            dag_id="test_dag_level_retry_applies_delay_to_run_after",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            max_dag_retries=1,
+            dag_retry_delay=retry_delay,
+        ) as dag:
+            EmptyOperator(task_id="task_a")
+            EmptyOperator(task_id="task_b")
+
+        initial_task_states = {
+            "task_a": TaskInstanceState.SUCCESS,
+            "task_b": TaskInstanceState.FAILED,
+        }
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.dag = dag
+
+        before_run_after = dag_run.run_after
+        dag_run.update_state(session=session)
+
+        assert dag_run.state == DagRunState.QUEUED
+        assert dag_run.run_after > before_run_after
+
+    def test_dag_level_retry_delay_accepts_float_seconds(self, dag_maker, session):
+        """When dag_retry_delay comes as seconds (float), we still schedule correctly."""
+        with dag_maker(
+            dag_id="test_dag_level_retry_delay_accepts_float_seconds",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            max_dag_retries=1,
+        ) as dag:
+            EmptyOperator(task_id="task_a")
+            EmptyOperator(task_id="task_b")
+
+        dag_run = self.create_dag_run(
+            dag=dag,
+            task_states={"task_a": TaskInstanceState.SUCCESS, "task_b": TaskInstanceState.FAILED},
+            session=session,
+        )
+        dag_run.dag = dag
+        dag_run.dag.dag_retry_delay = 300.0  # seconds
+
+        fixed_now = timezone.utcnow()
+        with mock.patch("airflow.models.dagrun.timezone.utcnow", return_value=fixed_now):
+            dag_run.update_state(session=session)
+
+        assert dag_run.state == DagRunState.QUEUED
+        assert dag_run.run_after == fixed_now + datetime.timedelta(seconds=300.0)
+
+    def test_dag_level_retry_delay_accepts_int_seconds(self, dag_maker, session):
+        """When dag_retry_delay comes as seconds (int), we still schedule correctly."""
+        with dag_maker(
+            dag_id="test_dag_level_retry_delay_accepts_int_seconds",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            max_dag_retries=1,
+        ) as dag:
+            EmptyOperator(task_id="task_a")
+            EmptyOperator(task_id="task_b")
+
+        dag_run = self.create_dag_run(
+            dag=dag,
+            task_states={"task_a": TaskInstanceState.SUCCESS, "task_b": TaskInstanceState.FAILED},
+            session=session,
+        )
+        dag_run.dag = dag
+        dag_run.dag.dag_retry_delay = 300  # seconds
+
+        fixed_now = timezone.utcnow()
+        with mock.patch("airflow.models.dagrun.timezone.utcnow", return_value=fixed_now):
+            dag_run.update_state(session=session)
+
+        assert dag_run.state == DagRunState.QUEUED
+        assert dag_run.run_after == fixed_now + datetime.timedelta(seconds=300)
+
+    def test_dag_level_retry_none_delay_keeps_run_after(self, dag_maker, session):
+        """When dag_retry_delay is None, we should not move run_after."""
+        with dag_maker(
+            dag_id="test_dag_level_retry_none_delay_keeps_run_after",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            max_dag_retries=1,
+            dag_retry_delay=None,
+        ) as dag:
+            EmptyOperator(task_id="task_a")
+            EmptyOperator(task_id="task_b")
+
+        dag_run = self.create_dag_run(
+            dag=dag,
+            task_states={"task_a": TaskInstanceState.SUCCESS, "task_b": TaskInstanceState.FAILED},
+            session=session,
+        )
+        dag_run.dag = dag
+
+        before_run_after = dag_run.run_after
+        dag_run.update_state(session=session)
+
+        assert dag_run.state == DagRunState.QUEUED
+        assert dag_run.run_after == before_run_after
+
+    def test_dag_level_retry_invalid_delay_type_raises(self, dag_maker, session):
+        """If dag_retry_delay is an invalid type, we should raise TypeError."""
+        with dag_maker(
+            dag_id="test_dag_level_retry_invalid_delay_type_raises",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            max_dag_retries=1,
+        ) as dag:
+            EmptyOperator(task_id="task_a")
+            EmptyOperator(task_id="task_b")
+
+        dag_run = self.create_dag_run(
+            dag=dag,
+            task_states={"task_a": TaskInstanceState.SUCCESS, "task_b": TaskInstanceState.FAILED},
+            session=session,
+        )
+        dag_run.dag = dag
+        dag_run.dag.dag_retry_delay = "not-a-timedelta"
+
+        with pytest.raises(TypeError, match="Expected `dag_retry_delay`"):
+            dag_run.update_state(session=session)
+
+    def test_dag_level_retry_delay_not_applied_when_retries_exhausted(self, dag_maker, session):
+        """When retries are exhausted, dag_retry_delay should not change run_after."""
+        with dag_maker(
+            dag_id="test_dag_level_retry_delay_not_applied_when_retries_exhausted",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            max_dag_retries=1,
+            dag_retry_delay=datetime.timedelta(minutes=5),
+        ) as dag:
+            EmptyOperator(task_id="task_a")
+            EmptyOperator(task_id="task_b")
+
+        dag_run = self.create_dag_run(
+            dag=dag,
+            task_states={"task_a": TaskInstanceState.SUCCESS, "task_b": TaskInstanceState.FAILED},
+            session=session,
+        )
+        dag_run.dag = dag
+        dag_run.dag_try_number = 1  # already used last retry
+
+        before_run_after = dag_run.run_after
+        dag_run.update_state(session=session)
+
+        assert dag_run.state == DagRunState.FAILED
+        assert dag_run.dag_try_number == 1
+        assert dag_run.run_after == before_run_after
+
+    def test_dag_level_retry_disabled_marks_failed_and_does_not_increment(self, dag_maker, session):
+        """With max_dag_retries=0, we should mark FAILED and keep dag_try_number=0."""
+        with dag_maker(
+            dag_id="test_dag_level_retry_disabled_marks_failed_and_does_not_increment",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2017, 1, 1),
+            max_dag_retries=0,
+        ) as dag:
+            EmptyOperator(task_id="task_a")
+            EmptyOperator(task_id="task_b")
+
+        dag_run = self.create_dag_run(
+            dag=dag,
+            task_states={"task_a": TaskInstanceState.SUCCESS, "task_b": TaskInstanceState.FAILED},
+            session=session,
+        )
+        dag_run.dag = dag
+
+        dag_run.update_state(session=session)
+
+        assert dag_run.state == DagRunState.FAILED
+        assert dag_run.dag_try_number == 0
+
     def test_on_success_callback_when_task_skipped(self, session, testing_dag_bundle):
         mock_on_success = mock.MagicMock()
         mock_on_success.__name__ = "mock_on_success"
