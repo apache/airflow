@@ -766,6 +766,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         load_op_links=False,
         bundle_path=bundle_instance.path,
         bundle_name=bundle_info.name,
+        validate_executors=False,
     )
     if TYPE_CHECKING:
         assert what.ti.dag_id

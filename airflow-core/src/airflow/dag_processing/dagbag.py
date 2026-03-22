@@ -194,10 +194,12 @@ class DagBag(LoggingMixin):
         known_pools: set[str] | None = None,
         bundle_path: Path | None = None,
         bundle_name: str | None = None,
+        validate_executors: bool = True,
     ):
         super().__init__()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
+        self.validate_executors = validate_executors
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -347,7 +349,8 @@ class DagBag(LoggingMixin):
                     dag.fileloc = filepath
                 # Validate before adding to bag (matches original _process_modules behavior)
                 dag.validate()
-                _validate_executor_fields(dag, self.bundle_name)
+                if self.validate_executors:
+                    _validate_executor_fields(dag, self.bundle_name)
                 self.bag_dag(dag=dag)
                 bagged_dags.append(dag)
             except AirflowClusterPolicySkipDag:

@@ -325,6 +325,41 @@ def test_validate_executor_field():
         _validate_executor_fields(dag)
 
 
+def test_validate_executors_false_skips_validation(tmp_path):
+    """When validate_executors=False, unknown executors should not cause import errors.
+
+    This is the fix for https://github.com/apache/airflow/issues/56271
+    Worker pods (e.g. KubernetesExecutor) only have LocalExecutor configured,
+    so they should not validate executor fields during DAG parsing.
+    """
+    dag_file = tmp_path / "test_dag.py"
+    dag_file.write_text(
+        textwrap.dedent("""\
+        from airflow.sdk import DAG
+        from airflow.sdk import BaseOperator
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="t1", executor="KubernetesExecutor")
+        """)
+    )
+    # With validate_executors=True (default), the DAG should fail to load
+    dagbag_strict = DagBag(
+        dag_folder=os.fspath(tmp_path),
+        include_examples=False,
+        validate_executors=True,
+    )
+    assert "test-dag" not in dagbag_strict.dags
+    assert any("UnknownExecutorException" in err for err in dagbag_strict.import_errors.values())
+
+    # With validate_executors=False, the DAG should load successfully
+    dagbag_lenient = DagBag(
+        dag_folder=os.fspath(tmp_path),
+        include_examples=False,
+        validate_executors=False,
+    )
+    assert "test-dag" in dagbag_lenient.dags
+    assert not dagbag_lenient.import_errors
+
+
 class TestDagBag:
     def setup_class(self):
         db_clean_up()
