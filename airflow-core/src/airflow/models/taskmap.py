@@ -245,9 +245,17 @@ class TaskMap(TaskInstanceDependencies):
         else:
             dag_version_id = None
 
-        dr = None
         if unmapped_ti:
             dr = unmapped_ti.dag_run
+        else:
+            from airflow.models import DagRun
+
+            dr = session.scalar(
+                select(DagRun).where(
+                    DagRun.dag_id == task.dag_id,
+                    DagRun.run_id == run_id,
+                )
+            )
 
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
@@ -261,15 +269,6 @@ class TaskMap(TaskInstanceDependencies):
             task.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)
-            if not dr:
-                from airflow.models import DagRun
-
-                dr = session.scalar(
-                    select(DagRun).where(
-                        DagRun.dag_id == task.dag_id,
-                        DagRun.run_id == run_id,
-                    )
-                )
             ti.context_carrier = new_task_run_carrier(dr.context_carrier)
             ti.refresh_from_task(task)  # session.merge() loses task information.
             all_expanded_tis.append(ti)
