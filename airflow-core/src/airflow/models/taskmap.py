@@ -25,10 +25,10 @@ from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
 
+from airflow._shared.observability.traces import new_task_run_carrier
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
@@ -53,17 +53,6 @@ class TaskMapVariant(enum.Enum):
 
     DICT = "dict"
     LIST = "list"
-
-
-def _make_task_carrier(dag_run_context_carrier):
-    parent_context = (
-        TraceContextTextMapPropagator().extract(dag_run_context_carrier) if dag_run_context_carrier else None
-    )
-    span = tracer.start_span("notused", context=parent_context)  # intentionally never closed
-    new_ctx = trace.set_span_in_context(span)
-    carrier: dict[str, str] = {}
-    TraceContextTextMapPropagator().inject(carrier, context=new_ctx)
-    return carrier
 
 
 class TaskMap(TaskInstanceDependencies):
@@ -279,7 +268,7 @@ class TaskMap(TaskInstanceDependencies):
                         DagRun.run_id == run_id,
                     )
                 )
-            ti.context_carrier = _make_task_carrier(dr.context_carrier)
+            ti.context_carrier = new_task_run_carrier(dr.context_carrier)
             ti.refresh_from_task(task)  # session.merge() loses task information.
             all_expanded_tis.append(ti)
 

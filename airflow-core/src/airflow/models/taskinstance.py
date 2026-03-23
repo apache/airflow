@@ -33,7 +33,6 @@ import attrs
 import dill
 import uuid6
 from opentelemetry import trace
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
     Float,
@@ -69,7 +68,7 @@ from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from airflow import settings
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import Stats
-from airflow._shared.observability.traces import new_dagrun_trace_carrier
+from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -430,7 +429,7 @@ def clear_task_instances(
                     dr.last_scheduling_decision = None
                     dr.start_date = None
     for ti in tis:
-        ti.context_carrier = _make_task_carrier(ti.dag_run.context_carrier)
+        ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
     session.flush()
 
 
@@ -490,17 +489,6 @@ def _date_or_empty(*, task_instance: TaskInstance, attr: str) -> str:
 def uuid7() -> UUID:
     """Generate a new UUID7."""
     return uuid6.uuid7()
-
-
-def _make_task_carrier(dag_run_context_carrier):
-    parent_context = (
-        TraceContextTextMapPropagator().extract(dag_run_context_carrier) if dag_run_context_carrier else None
-    )
-    span = tracer.start_span("notused", context=parent_context)  # intentionally never closed
-    new_ctx = trace.set_span_in_context(span)
-    carrier: dict[str, str] = {}
-    TraceContextTextMapPropagator().inject(carrier, context=new_ctx)
-    return carrier
 
 
 class TaskInstance(Base, LoggingMixin, BaseWorkload):
@@ -706,7 +694,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         priority_weight = task.weight_rule.get_weight(
             TaskInstance(task=task, run_id=run_id, map_index=map_index, dag_version_id=dag_version_id)
         )
-        context_carrier = _make_task_carrier(dag_run.context_carrier)
+        context_carrier = new_task_run_carrier(dag_run.context_carrier)
 
         return {
             "dag_id": task.dag_id,

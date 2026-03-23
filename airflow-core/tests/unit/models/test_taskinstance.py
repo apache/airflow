@@ -35,6 +35,7 @@ from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
 from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.traces import new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
@@ -59,7 +60,6 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
-    _make_task_carrier,
     clear_task_instances,
     find_relevant_relatives,
 )
@@ -3316,7 +3316,7 @@ class TestMakeTaskCarrier:
     def test_make_task_carrier_returns_traceparent(self):
         from airflow._shared.observability.traces import new_dagrun_trace_carrier
 
-        carrier = _make_task_carrier(new_dagrun_trace_carrier())
+        carrier = new_task_run_carrier(new_dagrun_trace_carrier())
         assert isinstance(carrier, dict)
         assert "traceparent" in carrier
 
@@ -3327,7 +3327,7 @@ class TestMakeTaskCarrier:
         from airflow._shared.observability.traces import new_dagrun_trace_carrier
 
         parent_carrier = new_dagrun_trace_carrier()
-        child_carrier = _make_task_carrier(parent_carrier)
+        child_carrier = new_task_run_carrier(parent_carrier)
 
         propagator = TraceContextTextMapPropagator()
         parent_trace_id = (
@@ -3342,7 +3342,7 @@ class TestMakeTaskCarrier:
         assert child_trace_id != 0
 
     def test_make_task_carrier_with_none_carrier(self):
-        carrier = _make_task_carrier(None)
+        carrier = new_task_run_carrier(None)
         assert isinstance(carrier, dict)
         assert "traceparent" in carrier
 

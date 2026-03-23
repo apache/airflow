@@ -35,6 +35,7 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
+from airflow._shared.observability.traces import new_task_run_carrier
 from airflow.listeners import hookimpl
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
@@ -424,7 +425,6 @@ def test_task_span_is_child_of_dag_run_span(make_ti_context):
 
     from airflow._shared.observability.traces import OverrideableRandomIdGenerator
     from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-    from airflow.models.taskinstance import _make_task_carrier
     from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
 
     # Single provider shared by all spans so contexts are compatible.
@@ -442,7 +442,7 @@ def test_task_span_is_child_of_dag_run_span(make_ti_context):
     # Step 2: derive the parent task span carrier (child of dag run), as the scheduler does.
     ti_model_tracer = provider.get_tracer("airflow.models.taskinstance")
     with mock.patch("airflow.models.taskinstance.tracer", ti_model_tracer):
-        ti_carrier = _make_task_carrier(dag_run_carrier)
+        ti_carrier = new_task_run_carrier(dag_run_carrier)
 
     # Extract the parent task span context (the stable span ID stored in ti_carrier).
     parent_task_span_ctx = otel_trace.get_current_span(
