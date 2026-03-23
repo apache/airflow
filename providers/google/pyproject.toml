@@ -49,9 +49,10 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
-requires-python = ">=3.10,!=3.14.*"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
@@ -82,7 +83,7 @@ dependencies = [
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
     "google-cloud-aiplatform[evaluation]>=1.98.0",
     "ray[default]>=2.42.0;python_version<'3.13'",
-    "ray[default]>=2.49.0;python_version>='3.13'",
+    "ray[default]>=2.49.0;python_version>='3.13' and python_version <'3.14'",
     "google-cloud-bigquery-storage>=2.31.0;python_version<'3.13'",
     "google-cloud-bigquery-storage>=2.33.0;python_version>='3.13'",
     "google-cloud-alloydb>=0.4.0",

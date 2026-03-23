@@ -59,18 +59,45 @@ def upgrade():
 
 def downgrade():
     """Revert external_executor_id column from TEXT to VARCHAR(250)."""
-    with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
-        batch_op.alter_column(
-            "external_executor_id",
-            existing_type=sa.Text(),
-            type_=sa.VARCHAR(length=250),
-            existing_nullable=True,
-        )
+    conn = op.get_bind()
+    dialect = conn.dialect.name
 
-    with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.alter_column(
-            "external_executor_id",
-            existing_type=sa.Text(),
-            type_=sa.VARCHAR(length=250),
-            existing_nullable=True,
+    if dialect == "postgresql":
+        op.execute(
+            """
+            ALTER TABLE task_instance_history
+            ALTER
+            COLUMN external_executor_id TYPE VARCHAR(250)
+            USING CASE
+                WHEN external_executor_id IS NOT NULL THEN external_executor_id::VARCHAR(250)
+                ELSE NULL
+            END
+            """
         )
+        op.execute(
+            """
+            ALTER TABLE task_instance
+            ALTER
+            COLUMN external_executor_id TYPE VARCHAR(250)
+            USING CASE
+                WHEN external_executor_id IS NOT NULL THEN external_executor_id::VARCHAR(250)
+                ELSE NULL
+            END
+            """
+        )
+    else:
+        with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
+            batch_op.alter_column(
+                "external_executor_id",
+                existing_type=sa.Text(),
+                type_=sa.VARCHAR(length=250),
+                existing_nullable=True,
+            )
+
+        with op.batch_alter_table("task_instance", schema=None) as batch_op:
+            batch_op.alter_column(
+                "external_executor_id",
+                existing_type=sa.Text(),
+                type_=sa.VARCHAR(length=250),
+                existing_nullable=True,
+            )

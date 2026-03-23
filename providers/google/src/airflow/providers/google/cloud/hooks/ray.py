@@ -19,8 +19,13 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
+
+# Remove the below after https://github.com/ray-project/ray/issues/56434 is resolved
+if sys.version_info >= (3, 14):
+    raise ImportError("Ray is not supported on Python 3.14 yet")
 
 from ray.job_submission import JobSubmissionClient
 
