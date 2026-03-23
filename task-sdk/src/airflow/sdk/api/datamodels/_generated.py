@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-03-31"
+API_VERSION: Final[str] = "2026-04-13"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -76,6 +76,21 @@ class ConnectionResponse(BaseModel):
     password: Annotated[str | None, Field(title="Password")] = None
     port: Annotated[int | None, Field(title="Port")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+
+
+class DagResponse(BaseModel):
+    """
+    Schema for DAG response.
+    """
+
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    is_paused: Annotated[bool, Field(title="Is Paused")]
+    bundle_name: Annotated[str | None, Field(title="Bundle Name")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
+    relative_fileloc: Annotated[str | None, Field(title="Relative Fileloc")] = None
+    owners: Annotated[str | None, Field(title="Owners")] = None
+    tags: Annotated[list[str], Field(title="Tags")]
+    next_dagrun: Annotated[AwareDatetime | None, Field(title="Next Dagrun")] = None
 
 
 class DagRunAssetReference(BaseModel):

@@ -73,10 +73,12 @@ from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
     CommsDecoder,
+    DagResult,
     DagRunStateResult,
     DeferTask,
     DRCount,
     ErrorResponse,
+    GetDag,
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
@@ -669,6 +671,16 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, DagRunStateResult)
 
         return response.state
+
+    @staticmethod
+    def get_dag(dag_id: str) -> DagResult:
+        """Return the DAG with the given dag_id."""
+        response = SUPERVISOR_COMMS.send(msg=GetDag(dag_id=dag_id))
+
+        if TYPE_CHECKING:
+            assert isinstance(response, DagResult)
+
+        return response
 
     @property
     def log_url(self) -> str:

@@ -99,9 +99,14 @@ def count_versions_between(releases: dict[str, Any], current_version: str, lates
 
 
 def get_status_emoji(constraint_date, latest_date, is_latest_version):
-    """Determine status emoji based on how outdated the package is"""
+    """Determine status emoji based on how outdated the package is.
+
+    All emojis used here (✅, 📢, 🔶, 🚨) are single Python chars with ~2 visual cells,
+    so ljust produces consistent alignment without any offset workarounds.
+    """
+    col_target = 16
     if is_latest_version:
-        return "✅ OK             "  # Package is up to date (15 chars padding)
+        return "✅ OK".ljust(col_target)
 
     try:
         constraint_dt = datetime.strptime(constraint_date, "%Y-%m-%d")
@@ -109,12 +114,12 @@ def get_status_emoji(constraint_date, latest_date, is_latest_version):
         days_diff = (latest_dt - constraint_dt).days
 
         if days_diff <= 5:
-            return "📢 <5d          "
+            return "📢 <5d".ljust(col_target)
         if days_diff <= 30:
-            return "⚠️ <30d           "
-        return f"🚨 >{days_diff}d".ljust(15)
+            return "🔶 <30d".ljust(col_target)
+        return f"🚨 >{days_diff}d".ljust(col_target)
     except Exception:
-        return "📢 N/A           "
+        return "📢 N/A".ljust(col_target)
 
 
 def get_max_package_length(packages: list[tuple[str, str]]) -> int:
@@ -447,16 +452,15 @@ def print_package_table_row(
     color = (
         "green"
         if is_latest_version
-        else ("yellow" if status.startswith("📢") or status.startswith("⚠️") else "red")
+        else ("yellow" if status.startswith("📢") or status.startswith("🔶") else "red")
     )
-    offset = 1 if status.startswith("⚠️") else 0
     string_to_print = format_str.format(
         pkg,
         pinned_version[: col_widths["Constraint Version"]],
         constraint_release_date[: col_widths["Constraint Date"]],
         latest_version[: col_widths["Latest Version"]],
         latest_release_date[: col_widths["Latest Date"]],
-        status[: (col_widths["📢 Status"] + offset)],
+        status[: col_widths["📢 Status"]],
         versions_behind_str,
         pypi_link,
     )
@@ -490,7 +494,10 @@ def explain_package_upgrade(
         additional_args.extend(
             ["--group", "dev", "--group", "docs", "--group", "docs-gen", "--group", "leveldb"]
         )
-    with preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject:
+    with (
+        preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject,
+        preserve_pyproject_file(AIRFLOW_ROOT_PATH / "uv.lock"),
+    ):
         shell_params = ShellParams(
             github_repository=github_repository,
             python=python_version,

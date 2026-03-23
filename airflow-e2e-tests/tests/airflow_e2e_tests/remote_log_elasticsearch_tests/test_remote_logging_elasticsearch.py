@@ -101,3 +101,45 @@ class TestRemoteLoggingElasticsearch:
         assert any(self.expected_message in event for event in events), (
             f"Expected task logs to contain {self.expected_message!r}, got events: {events}"
         )
+
+    def test_remote_logging_elasticsearch_error_detail(self):
+        """Test that log error_detail is retrieved correctly from Elasticsearch."""
+        dag_id = "example_failed_dag"
+        task_id = "fail_task"
+
+        self.airflow_client.un_pause_dag(dag_id)
+        resp = self.airflow_client.trigger_dag(
+            dag_id,
+            json={"logical_date": datetime.now(timezone.utc).isoformat()},
+        )
+        run_id = resp["dag_run_id"]
+        state = self.airflow_client.wait_for_dag_run(dag_id=dag_id, run_id=run_id)
+
+        assert state == "failed"
+
+        # Logs might take some time to appear in ES
+        task_logs_content = []
+        for _ in range(self.max_retries):
+            task_logs_resp = self.airflow_client.get_task_logs(
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+            )
+            task_logs_content = task_logs_resp.get("content", [])
+            # Search for the log entry with error_detail
+            if any("error_detail" in item for item in task_logs_content if isinstance(item, dict)):
+                break
+            time.sleep(self.retry_interval_in_seconds)
+
+        error_entries = [
+            item for item in task_logs_content if isinstance(item, dict) and "error_detail" in item
+        ]
+        assert len(error_entries) > 0, (
+            f"Expected error_detail in logs, but none found. Logs: {task_logs_content}"
+        )
+
+        error_detail = error_entries[0]["error_detail"]
+        assert isinstance(error_detail, list), f"Expected error_detail to be a list, got {type(error_detail)}"
+        assert len(error_detail) > 0, "Expected error_detail to have at least one exception"
+        assert error_detail[0]["exc_type"] == "RuntimeError"
+        assert "This is a test exception for stacktrace rendering" in error_detail[0]["exc_value"]

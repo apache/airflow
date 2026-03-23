@@ -1129,35 +1129,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/grid/ti_summaries/{dag_id}/{run_id}:
+  /ui/grid/ti_summaries/{dag_id}:
     get:
       tags:
       - Grid
-      summary: Get Grid Ti Summaries
-      description: 'Get states for TIs / "groups" of TIs.
+      summary: Get Grid Ti Summaries Stream
+      description: 'Stream TI summaries for multiple Dag runs as NDJSON (one JSON
+        line per run).
 
 
-        Essentially this is to know what color to put in the squares in the grid.
+        Each line is a serialized ``GridTISummaries`` object emitted as soon as that
+
+        run''s task instances have been processed, so the client can render columns
+
+        progressively without waiting for all runs to complete.
 
 
-        The tricky part here is that we aggregate the state for groups and mapped
-        tasks.
+        The serialized Dag structure is loaded once and reused for all runs that
 
-
-        We don''t add all the TIs for mapped TIs -- we only add one entry for the
-        mapped task and
-
-        its state is an aggregate of its TI states.
-
-
-        And for task groups, we add a "task" for that which is not really a task but
-        is just
-
-        an entry that represents the group (so that we can show a filled in box when
-        the group
-
-        is not expanded) and its state is an agg of those within it.'
-      operationId: get_grid_ti_summaries
+        share the same ``dag_version_id``, avoiding repeated deserialization.'
+      operationId: get_grid_ti_summaries_stream
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -1168,19 +1159,24 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: run_id
-        in: path
-        required: true
+      - name: run_ids
+        in: query
+        required: false
         schema:
-          type: string
-          title: Run Id
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Run Ids
       responses:
         '200':
-          description: Successful Response
+          description: "NDJSON stream \u2014 one ``GridTISummaries`` JSON object per\
+            \ line, one per Dag run"
           content:
-            application/json:
+            application/x-ndjson:
               schema:
-                $ref: '#/components/schemas/GridTISummaries'
+                type: string
         '400':
           content:
             application/json:
@@ -1305,6 +1301,42 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lt
+      - name: partition_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Gte
+      - name: partition_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Gt
+      - name: partition_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Lte
+      - name: partition_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Lt
       responses:
         '200':
           description: Successful Response

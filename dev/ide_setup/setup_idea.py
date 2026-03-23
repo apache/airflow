@@ -101,6 +101,7 @@ EXCLUDE_PATTERNS: list[str] = [
     ".ruff-cache",
     ".hypothesis",
     ".cache",
+    ".claude",
     ".tox",
     "htmlcov",
     # Node / frontend
@@ -132,6 +133,7 @@ EXCLUDE_PATTERNS: list[str] = [
 # Derived from root-anchored .gitignore entries (those starting with /).
 ROOT_EXCLUDE_FOLDERS: list[str] = [
     ".build",
+    ".claude",
     ".kube",
     ".venv",
     ".uv-cache",

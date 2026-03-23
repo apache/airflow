@@ -73,18 +73,6 @@ def get_version_from_provider_yaml(provider_yaml_path: Path) -> str | None:
     return None
 
 
-def get_version_from_pyproject_toml(pyproject_path: Path) -> str | None:
-    """Get version from pyproject.toml file."""
-    if not pyproject_path.exists():
-        return None
-
-    content = pyproject_path.read_text()
-    match = re.search(r'^version\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
-    if match:
-        return match.group(1)
-    return None
-
-
 def get_helm_chart_version(chart_yaml_path: Path) -> str | None:
     """Get version from Chart.yaml file."""
     if not chart_yaml_path.exists():
@@ -97,30 +85,28 @@ def get_helm_chart_version(chart_yaml_path: Path) -> str | None:
     return None
 
 
+def get_version_from_init_py(init_py_path: Path) -> str | None:
+    """Get version from __version__ in an __init__.py file."""
+    if not init_py_path.exists():
+        return None
+
+    content = init_py_path.read_text()
+    match = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
+    if match:
+        return match.group(1)
+    return None
+
+
 def get_package_version(package_name: str, airflow_root: Path) -> str | None:
     """Get version for a package based on its type and metadata location."""
     if package_name == "apache-airflow":
         return get_airflow_version(airflow_root)
 
     if package_name == "apache-airflow-ctl":
-        # Try provider.yaml first
-        provider_yaml = airflow_root / "airflow-ctl" / "src" / "airflow_ctl" / "provider.yaml"
-        version = get_version_from_provider_yaml(provider_yaml)
-        if version:
-            return version
-        # Fallback to pyproject.toml
-        pyproject = airflow_root / "airflow-ctl" / "pyproject.toml"
-        return get_version_from_pyproject_toml(pyproject)
+        return get_version_from_init_py(airflow_root / "airflow-ctl" / "src" / "airflowctl" / "__init__.py")
 
     if package_name == "task-sdk":
-        # Try provider.yaml first
-        provider_yaml = airflow_root / "task-sdk" / "src" / "task_sdk" / "provider.yaml"
-        version = get_version_from_provider_yaml(provider_yaml)
-        if version:
-            return version
-        # Fallback to pyproject.toml
-        pyproject = airflow_root / "task-sdk" / "pyproject.toml"
-        return get_version_from_pyproject_toml(pyproject)
+        return get_version_from_init_py(airflow_root / "task-sdk" / "src" / "airflow" / "sdk" / "__init__.py")
 
     if package_name == "helm-chart":
         chart_yaml = airflow_root / "chart" / "Chart.yaml"

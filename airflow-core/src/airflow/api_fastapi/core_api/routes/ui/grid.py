@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import collections
+from collections.abc import Generator, Sequence
 from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import exists, select
 from sqlalchemy.orm import joinedload, load_only, selectinload
 
@@ -337,14 +339,76 @@ def get_grid_runs(
     return grid_runs
 
 
+def _build_ti_summaries(
+    dag_id: str, run_id: str, task_instances: Sequence, session, serdag: SerializedDagModel | None = None
+) -> dict:
+    ti_details: dict = collections.defaultdict(list)
+    for ti in task_instances:
+        ti_details[ti.task_id].append(
+            {
+                "state": ti.state,
+                "start_date": ti.start_date,
+                "end_date": ti.end_date,
+                "dag_version_number": getattr(ti, "version_number", None),
+            }
+        )
+    if serdag is None:
+        serdag = _get_serdag(
+            dag_id=dag_id,
+            dag_version_id=task_instances[0].dag_version_id,
+            session=session,
+        )
+    if TYPE_CHECKING:
+        assert serdag
+
+    def get_node_summaries():
+        yielded_task_ids: set[str] = set()
+        for node in _find_aggregates(
+            node=serdag.dag.task_group,
+            parent_node=None,
+            ti_details=ti_details,
+        ):
+            if node["type"] in {"task", "mapped_task"}:
+                yielded_task_ids.add(node["task_id"])
+                if node["type"] == "task":
+                    node["child_states"] = None
+            yield node
+        missing_task_ids = set(ti_details.keys()) - yielded_task_ids
+        for task_id in sorted(missing_task_ids):
+            detail = ti_details[task_id]
+            agg = _get_aggs_for_node(detail)
+            yield {
+                "task_id": task_id,
+                "task_display_name": task_id,
+                "type": "task",
+                "parent_id": None,
+                **agg,
+                "child_states": None,
+            }
+
+    nodes = list(get_node_summaries())
+    # If a group id and a task id collide, prefer the group record
+    group_ids = {n.get("task_id") for n in nodes if n.get("type") == "group"}
+    filtered = [n for n in nodes if not (n.get("type") == "task" and n.get("task_id") in group_ids)]
+    return {"run_id": run_id, "dag_id": dag_id, "task_instances": filtered}
+
+
 @grid_router.get(
-    "/ti_summaries/{dag_id}/{run_id}",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_400_BAD_REQUEST,
-            status.HTTP_404_NOT_FOUND,
-        ]
-    ),
+    "/ti_summaries/{dag_id}",
+    response_class=StreamingResponse,
+    response_model=GridTISummaries,
+    responses={
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_404_NOT_FOUND,
+            ]
+        ),
+        200: {
+            "content": {"application/x-ndjson": {"schema": {"type": "string"}}},
+            "description": "NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run",
+        },
+    },
     dependencies=[
         Depends(
             requires_access_dag(
@@ -360,108 +424,45 @@ def get_grid_runs(
         ),
     ],
 )
-def get_grid_ti_summaries(
+def get_grid_ti_summaries_stream(
     dag_id: str,
-    run_id: str,
     session: SessionDep,
-) -> GridTISummaries:
+    run_ids: Annotated[list[str] | None, Query()] = None,
+) -> StreamingResponse:
     """
-    Get states for TIs / "groups" of TIs.
+    Stream TI summaries for multiple Dag runs as NDJSON (one JSON line per run).
 
-    Essentially this is to know what color to put in the squares in the grid.
+    Each line is a serialized ``GridTISummaries`` object emitted as soon as that
+    run's task instances have been processed, so the client can render columns
+    progressively without waiting for all runs to complete.
 
-    The tricky part here is that we aggregate the state for groups and mapped tasks.
-
-    We don't add all the TIs for mapped TIs -- we only add one entry for the mapped task and
-    its state is an aggregate of its TI states.
-
-    And for task groups, we add a "task" for that which is not really a task but is just
-    an entry that represents the group (so that we can show a filled in box when the group
-    is not expanded) and its state is an agg of those within it.
+    The serialized Dag structure is loaded once and reused for all runs that
+    share the same ``dag_version_id``, avoiding repeated deserialization.
     """
-    tis_of_dag_runs, _ = paginated_select(
-        statement=(
-            select(
-                TaskInstance.task_id,
-                TaskInstance.state,
-                TaskInstance.dag_version_id,
-                TaskInstance.start_date,
-                TaskInstance.end_date,
-                DagVersion.version_number,
-            )
-            .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
-            .where(TaskInstance.dag_id == dag_id)
-            .where(
-                TaskInstance.run_id == run_id,
-            )
-        ),
-        filters=[],
-        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).set_value(["task_id"]),
-        limit=None,
-        return_total_entries=False,
-    )
-    task_instances = list(session.execute(tis_of_dag_runs))
-    if not task_instances:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"No task instances for dag_id={dag_id} run_id={run_id}"
-        )
-    ti_details = collections.defaultdict(list)
-    for ti in task_instances:
-        ti_details[ti.task_id].append(
-            {
-                "state": ti.state,
-                "start_date": ti.start_date,
-                "end_date": ti.end_date,
-                "dag_version_number": ti.version_number,
-            }
-        )
-    serdag = _get_serdag(
-        dag_id=dag_id,
-        dag_version_id=task_instances[0].dag_version_id,
-        session=session,
-    )
-    if TYPE_CHECKING:
-        assert serdag
 
-    def get_node_sumaries():
-        yielded_task_ids: set[str] = set()
+    def _generate() -> Generator[str, None, None]:
+        serdag_cache: dict = {}
+        for run_id in run_ids or []:
+            tis = session.execute(
+                select(
+                    TaskInstance.task_id,
+                    TaskInstance.state,
+                    TaskInstance.dag_version_id,
+                    TaskInstance.start_date,
+                    TaskInstance.end_date,
+                    DagVersion.version_number,
+                )
+                .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+                .where(TaskInstance.dag_id == dag_id)
+                .where(TaskInstance.run_id == run_id)
+                .order_by(TaskInstance.task_id)
+            ).all()
+            if not tis:
+                continue
+            version_id = tis[0].dag_version_id
+            if version_id not in serdag_cache:
+                serdag_cache[version_id] = _get_serdag(dag_id, version_id, session)
+            summary = _build_ti_summaries(dag_id, run_id, tis, session, serdag=serdag_cache[version_id])
+            yield GridTISummaries.model_validate(summary).model_dump_json() + "\n"
 
-        # Yield all nodes discoverable from the serialized DAG structure
-        for node in _find_aggregates(
-            node=serdag.dag.task_group,
-            parent_node=None,
-            ti_details=ti_details,
-        ):
-            if node["type"] in {"task", "mapped_task"}:
-                yielded_task_ids.add(node["task_id"])
-                if node["type"] == "task":
-                    node["child_states"] = None
-            yield node
-
-        # For good history: add synthetic leaf nodes for task_ids that have TIs in this run
-        # but are not present in the current DAG structure (e.g. removed tasks)
-        missing_task_ids = set(ti_details.keys()) - yielded_task_ids
-        for task_id in sorted(missing_task_ids):
-            detail = ti_details[task_id]
-            # Create a leaf task node with aggregated state from its TIs
-            agg = _get_aggs_for_node(detail)
-            yield {
-                "task_id": task_id,
-                "task_display_name": task_id,
-                "type": "task",
-                "parent_id": None,
-                **agg,
-                # Leaf tasks have no children
-                "child_states": None,
-            }
-
-    task_instances = list(get_node_sumaries())
-    # If a group id and a task id collide, prefer the group record
-    group_ids = {n.get("task_id") for n in task_instances if n.get("type") == "group"}
-    filtered = [n for n in task_instances if not (n.get("type") == "task" and n.get("task_id") in group_ids)]
-
-    return {  # type: ignore[return-value]
-        "run_id": run_id,
-        "dag_id": dag_id,
-        "task_instances": filtered,
-    }
+    return StreamingResponse(content=_generate(), media_type="application/x-ndjson")
