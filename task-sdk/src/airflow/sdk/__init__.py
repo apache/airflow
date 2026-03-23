@@ -37,6 +37,7 @@ __all__ = [
     "BaseSensorOperator",
     "BaseXCom",
     "BranchMixIn",
+    "ChainMapper",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -61,7 +62,6 @@ __all__ = [
     "PartitionMapper",
     "PokeReturnValue",
     "ProductMapper",
-    "SequenceMapper",
     "SkipMixin",
     "SyncCallback",
     "TaskGroup",
@@ -126,9 +126,9 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+    from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
-    from airflow.sdk.definitions.partition_mappers.sequence import SequenceMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
         ToDailyMapper,
         ToHourlyMapper,
@@ -180,6 +180,7 @@ __lazy_imports: dict[str, str] = {
     "BaseSensorOperator": ".bases.sensor",
     "BaseXCom": ".bases.xcom",
     "BranchMixIn": ".bases.branch",
+    "ChainMapper": ".definitions.partition_mappers.sequence",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",
@@ -204,7 +205,6 @@ __lazy_imports: dict[str, str] = {
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
     "ProductMapper": ".definitions.partition_mappers.product",
-    "SequenceMapper": ".definitions.partition_mappers.sequence",
     "SecretCache": ".execution_time.cache",
     "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",

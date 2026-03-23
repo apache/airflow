@@ -34,6 +34,7 @@ from airflow.sdk import (
     AssetAll,
     AssetAny,
     AssetOrTimeSchedule,
+    ChainMapper,
     CronDataIntervalTimetable,
     CronTriggerTimetable,
     DeltaDataIntervalTimetable,
@@ -43,7 +44,6 @@ from airflow.sdk import (
     MultipleCronTriggerTimetable,
     PartitionMapper,
     ProductMapper,
-    SequenceMapper,
     ToDailyMapper,
     ToMonthlyMapper,
     ToQuarterlyMapper,
@@ -393,6 +393,7 @@ class _Serializer:
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
+        ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
         IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
         ToHourlyMapper: "airflow.partition_mappers.temporal.ToHourlyMapper",
         ToDailyMapper: "airflow.partition_mappers.temporal.ToDailyMapper",
@@ -401,7 +402,6 @@ class _Serializer:
         ToQuarterlyMapper: "airflow.partition_mappers.temporal.ToQuarterlyMapper",
         ToYearlyMapper: "airflow.partition_mappers.temporal.ToYearlyMapper",
         ProductMapper: "airflow.partition_mappers.product.ProductMapper",
-        SequenceMapper: "airflow.partition_mappers.sequence.SequenceMapper",
         AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
     }
 
@@ -412,6 +412,10 @@ class _Serializer:
         if not isinstance(partition_mapper, CorePartitionMapper):
             raise NotImplementedError(f"can not serialize timetable {type(partition_mapper).__name__}")
         return partition_mapper.serialize()
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: ChainMapper) -> dict[str, Any]:
+        return {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
@@ -443,10 +447,6 @@ class _Serializer:
             "delimiter": partition_mapper.delimiter,
             "mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers],
         }
-
-    @serialize_partition_mapper.register
-    def _(self, partition_mapper: SequenceMapper) -> dict[str, Any]:
-        return {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: AllowedKeyMapper) -> dict[str, Any]:

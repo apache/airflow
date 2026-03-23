@@ -201,6 +201,8 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.PartitionMapper
 
+.. autoapiclass:: airflow.sdk.ChainMapper
+
 .. autoapiclass:: airflow.sdk.IdentityMapper
 
 .. autoapiclass:: airflow.sdk.ToHourlyMapper
@@ -216,8 +218,6 @@ Partition Mapper
 .. autoapiclass:: airflow.sdk.ToYearlyMapper
 
 .. autoapiclass:: airflow.sdk.ProductMapper
-
-.. autoapiclass:: airflow.sdk.SequenceMapper
 
 .. autoapiclass:: airflow.sdk.AllowedKeyMapper
 

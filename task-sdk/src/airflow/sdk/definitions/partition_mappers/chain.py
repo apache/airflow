@@ -19,7 +19,7 @@ from __future__ import annotations
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
 
-class SequenceMapper(PartitionMapper):
+class ChainMapper(PartitionMapper):
     """Partition mapper that applies multiple mappers sequentially."""
 
     def __init__(

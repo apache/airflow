@@ -896,12 +896,12 @@ def test_decode_product_mapper():
 
 
 def test_encode_sequence_mapper():
-    from airflow.sdk import SequenceMapper, ToDailyMapper, ToHourlyMapper
+    from airflow.sdk import ChainMapper, ToDailyMapper, ToHourlyMapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = SequenceMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+    partition_mapper = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
     assert encode_partition_mapper(partition_mapper) == {
-        Encoding.TYPE: "airflow.partition_mappers.sequence.SequenceMapper",
+        Encoding.TYPE: "airflow.partition_mappers.sequence.ChainMapper",
         Encoding.VAR: {
             "mappers": [
                 {
@@ -924,17 +924,17 @@ def test_encode_sequence_mapper():
 
 
 def test_decode_sequence_mapper():
-    from airflow.partition_mappers.sequence import SequenceMapper as CoreSequenceMapper
-    from airflow.sdk import SequenceMapper, ToDailyMapper, ToHourlyMapper
+    from airflow.partition_mappers.chain import ChainMapper as CoreChainMapper
+    from airflow.sdk import ChainMapper, ToDailyMapper, ToHourlyMapper
     from airflow.serialization.decoders import decode_partition_mapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = SequenceMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+    partition_mapper = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
     encoded_pm = encode_partition_mapper(partition_mapper)
 
     core_pm = decode_partition_mapper(encoded_pm)
 
-    assert isinstance(core_pm, CoreSequenceMapper)
+    assert isinstance(core_pm, CoreChainMapper)
     assert len(core_pm.mappers) == 2
     assert core_pm.to_downstream("2024-06-15T10:30:00") == "2024-06-15"
 

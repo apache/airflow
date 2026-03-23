@@ -23,7 +23,7 @@ from typing import Any
 from airflow.partition_mappers.base import PartitionMapper
 
 
-class SequenceMapper(PartitionMapper):
+class ChainMapper(PartitionMapper):
     """Partition mapper that applies multiple mappers sequentially."""
 
     def __init__(
@@ -43,7 +43,7 @@ class SequenceMapper(PartitionMapper):
                 mapped = mapper.to_downstream(current_key)
                 if not isinstance(mapped, (str, Iterable)):
                     raise TypeError(
-                        f"SequenceMapper child mappers must return a string or iterable of strings, "
+                        f"ChainMapper child mappers must return a string or iterable of strings, "
                         f"but {type(mapper).__name__} returned {type(mapped).__name__}"
                     )
 
@@ -53,7 +53,7 @@ class SequenceMapper(PartitionMapper):
                     for mapped_key in mapped:
                         if not isinstance(mapped_key, str):
                             raise TypeError(
-                                f"SequenceMapper child mappers must return an iterable of strings, "
+                                f"ChainMapper child mappers must return an iterable of strings, "
                                 f"but {type(mapper).__name__} yielded {type(mapped_key).__name__}"
                             )
                         next_keys.append(mapped_key)
