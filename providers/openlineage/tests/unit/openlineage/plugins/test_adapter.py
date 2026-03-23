@@ -60,7 +60,12 @@ from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_ma
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-stats_reference = "airflow.providers.openlineage.plugins.adapter.Stats"
+if AIRFLOW_V_3_2_PLUS:
+    stats_reference = "airflow.sdk.observability.stats"
+else:
+    from airflow.providers.common.compat.sdk import Stats
+
+    stats_reference = f"{Stats.__module__}.Stats"
 
 
 @pytest.mark.parametrize(
@@ -1222,7 +1227,7 @@ def test_emit_dag_failed_event(
 @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.get_or_create_openlineage_client")
 @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageRedactor")
 @patch(f"{stats_reference}.timer")
-@patch("airflow.providers.common.compat.sdk.Stats.incr")
+@patch(f"{stats_reference}.incr")
 def test_openlineage_adapter_stats_emit_failed(
     mock_stats_incr, mock_stats_timer, mock_redact, mock_get_client
 ):

@@ -66,6 +66,13 @@ from airflow.utils.state import State, TaskInstanceState
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
+if AIRFLOW_V_3_2_PLUS:
+    stats_reference = "airflow.observability.stats"
+else:
+    from airflow.providers.common.compat.sdk import Stats
+
+    stats_reference = f"{Stats.__module__}.Stats"
+
 if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
 else:
@@ -718,7 +725,7 @@ class TestKubernetesExecutor:
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubeConfig")
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
-    @mock.patch("airflow.executors.base_executor.stats.gauge")
+    @mock.patch(f"{stats_reference}.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync, mock_kube_config):
         executor = self.kubernetes_executor
         executor.heartbeat()

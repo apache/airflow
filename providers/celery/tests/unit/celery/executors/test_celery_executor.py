@@ -53,6 +53,13 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_2_PLUS,
 )
 
+if AIRFLOW_V_3_2_PLUS:
+    stats_reference = "airflow.observability.stats"
+else:
+    from airflow.providers.common.compat.sdk import Stats
+
+    stats_reference = f"{Stats.__module__}.Stats"
+
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
 if AIRFLOW_V_3_2_PLUS:
@@ -175,7 +182,7 @@ class TestCeleryExecutor:
 
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.sync")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.trigger_tasks")
-    @mock.patch("airflow.executors.base_executor.stats.gauge")
+    @mock.patch(f"{stats_reference}.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()
