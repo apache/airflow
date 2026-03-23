@@ -3324,7 +3324,7 @@ class TestEmitTaskSpan:
 
     def test_emit_task_span_name_mapped(self):
         _emit_task_span(self._make_ti(task_id="my_task", map_index=3), TaskInstanceState.SUCCESS)
-        assert self.exporter.get_finished_spans()[0].name == "task_run.my_task_3"
+        assert self.exporter.get_finished_spans()[0].name == "task_run.my_task[3]"
 
     def test_emit_task_span_start_time_uses_queued_dttm(self):
         queued_dttm = timezone.parse("2024-01-01T10:00:00Z")
