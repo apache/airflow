@@ -23,6 +23,7 @@ import { useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
+import { BackfillProgressBar } from "src/components/BackfillProgressBar";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -100,6 +101,33 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
     accessorKey: "max_active_runs",
     enableSorting: false,
     header: translate("table.maxActiveRuns"),
+  },
+  {
+    accessorKey: "dag_run_state_counts",
+    cell: ({ row }) => {
+      if (row.original.completed_at !== null) {
+        return (
+          <Text fontSize="sm" fontWeight="medium">
+            {translate("common:completed")}
+          </Text>
+        );
+      }
+
+      const total = row.original.num_runs ?? 0;
+      const counts = row.original.dag_run_state_counts ?? {};
+
+      if (total === 0) {
+        return (
+          <Text color="fg.muted" fontSize="sm">
+            —
+          </Text>
+        );
+      }
+
+      return <BackfillProgressBar stateCounts={counts} total={total} />;
+    },
+    enableSorting: false,
+    header: translate("table.progress"),
   },
 ];
 

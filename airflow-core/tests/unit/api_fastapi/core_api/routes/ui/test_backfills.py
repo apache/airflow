@@ -120,6 +120,8 @@ class TestListBackfills(TestBackfillEndpoint):
                 "max_active_runs": 10,
                 "to_date": from_datetime_to_zulu(to_date),
                 "updated_at": mock.ANY,
+                "num_runs": 0,
+                "dag_run_state_counts": {},
             },
             "backfill2": {
                 "completed_at": None,
@@ -134,6 +136,8 @@ class TestListBackfills(TestBackfillEndpoint):
                 "max_active_runs": 10,
                 "to_date": from_datetime_to_zulu(to_date),
                 "updated_at": mock.ANY,
+                "num_runs": 0,
+                "dag_run_state_counts": {},
             },
             "backfill3": {
                 "completed_at": None,
@@ -148,12 +152,14 @@ class TestListBackfills(TestBackfillEndpoint):
                 "max_active_runs": 10,
                 "to_date": from_datetime_to_zulu(to_date),
                 "updated_at": mock.ANY,
+                "num_runs": 0,
+                "dag_run_state_counts": {},
             },
         }
         expected_response = []
         for backfill in response_params:
             expected_response.append(backfill_responses[backfill])
-        with assert_queries_count(3 if test_params.get("dag_id") is None else 4):
+        with assert_queries_count(4 if test_params.get("dag_id") is None else 5):
             response = test_client.get("/backfills", params=test_params)
         assert response.status_code == 200
         assert response.json() == {

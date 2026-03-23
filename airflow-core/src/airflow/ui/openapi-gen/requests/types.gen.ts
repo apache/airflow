@@ -147,6 +147,10 @@ export type BackfillResponse = {
     completed_at: string | null;
     updated_at: string;
     dag_display_name: string;
+    num_runs?: number;
+    dag_run_state_counts?: {
+        [key: string]: (number);
+    };
 };
 
 /**

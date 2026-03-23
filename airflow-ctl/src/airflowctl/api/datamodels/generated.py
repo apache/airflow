@@ -1155,6 +1155,8 @@ class BackfillResponse(BaseModel):
     completed_at: Annotated[datetime | None, Field(title="Completed At")] = None
     updated_at: Annotated[datetime, Field(title="Updated At")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    num_runs: Annotated[int | None, Field(title="Num Runs")] = 0
+    dag_run_state_counts: Annotated[dict[str, int] | None, Field(title="Dag Run State Counts")] = {}
 
 
 class BulkCreateActionConnectionBody(BaseModel):

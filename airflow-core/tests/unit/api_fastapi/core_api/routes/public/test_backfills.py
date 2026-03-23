@@ -126,7 +126,7 @@ class TestListBackfills(TestBackfillEndpoint):
         session.add(b)
         session.commit()
 
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
 
         assert response.status_code == 200
@@ -145,6 +145,8 @@ class TestListBackfills(TestBackfillEndpoint):
                     "max_active_runs": 10,
                     "to_date": to_iso(to_date),
                     "updated_at": mock.ANY,
+                    "num_runs": 0,
+                    "dag_run_state_counts": {},
                 }
             ],
             "total_entries": 1,
@@ -174,6 +176,54 @@ class TestGetBackfill(TestBackfillEndpoint):
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
+            "num_runs": 0,
+            "dag_run_state_counts": {},
+        }
+
+    def test_get_backfill_with_dag_run_state_counts(self, session, test_client):
+        (dag,) = self._create_dag_models()
+        from_date = timezone.utcnow()
+        to_date = timezone.utcnow()
+        backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
+        session.add(backfill)
+        session.flush()
+
+        # Create dag runs associated with this backfill via BackfillDagRun
+        dag_runs_data = [
+            (DagRunState.SUCCESS, pendulum.datetime(2024, 1, 1)),
+            (DagRunState.SUCCESS, pendulum.datetime(2024, 1, 2)),
+            (DagRunState.FAILED, pendulum.datetime(2024, 1, 3)),
+            (DagRunState.RUNNING, pendulum.datetime(2024, 1, 4)),
+            (DagRunState.QUEUED, pendulum.datetime(2024, 1, 5)),
+        ]
+        for i, (state, logical_date) in enumerate(dag_runs_data):
+            dr = DagRun(
+                dag_id=dag.dag_id,
+                run_id=f"backfill__{logical_date.isoformat()}",
+                logical_date=logical_date,
+                state=state,
+                run_type="backfill",
+                backfill_id=backfill.id,
+            )
+            session.add(dr)
+            session.flush()
+            bdr = BackfillDagRun(
+                backfill_id=backfill.id,
+                dag_run_id=dr.id,
+                logical_date=logical_date,
+                sort_ordinal=i + 1,
+            )
+            session.add(bdr)
+        session.commit()
+
+        response = test_client.get(f"/backfills/{backfill.id}")
+        assert response.status_code == 200
+        assert response.json()["num_runs"] == 5
+        assert response.json()["dag_run_state_counts"] == {
+            "success": 2,
+            "failed": 1,
+            "running": 1,
+            "queued": 1,
         }
 
     def test_get_backfill_with_null_conf(self, session, test_client):
@@ -252,6 +302,8 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "max_active_runs": 5,
             "to_date": to_date_iso,
             "updated_at": mock.ANY,
+            "num_runs": 0,
+            "dag_run_state_counts": {},
         }
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
 
@@ -830,6 +882,8 @@ class TestCancelBackfill(TestBackfillEndpoint):
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
+            "num_runs": 0,
+            "dag_run_state_counts": {},
         }
         assert pendulum.parse(response.json()["completed_at"])
         # now it is marked as completed
@@ -910,6 +964,8 @@ class TestPauseBackfill(TestBackfillEndpoint):
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
+            "num_runs": 0,
+            "dag_run_state_counts": {},
         }
         check_last_log(session, dag_id=None, event="pause_backfill", logical_date=None)
 
@@ -969,6 +1025,8 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
+            "num_runs": 0,
+            "dag_run_state_counts": {},
         }
         check_last_log(session, dag_id=None, event="unpause_backfill", logical_date=None)
 

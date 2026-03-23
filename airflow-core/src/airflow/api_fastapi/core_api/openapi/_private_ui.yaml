@@ -1643,6 +1643,16 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        num_runs:
+          type: integer
+          title: Num Runs
+          default: 0
+        dag_run_state_counts:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Dag Run State Counts
+          default: {}
       type: object
       required:
       - id

@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import NonNegativeInt
-from sqlalchemy import select, update
-from sqlalchemy.orm import joinedload
+from sqlalchemy import func, select, update
+from sqlalchemy.orm import Session, joinedload
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.db.common import (
@@ -61,6 +62,40 @@ from airflow.utils.state import DagRunState
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 
 
+def _enrich_backfill_responses(
+    backfills: list[BackfillResponse],
+    *,
+    session: Session,
+) -> list[BackfillResponse]:
+    """Populate num_runs and dag_run_state_counts on each backfill response."""
+    ids = [b.id for b in backfills]
+    if not ids:
+        return backfills
+    # Single query: get state counts per backfill, derive num_runs by summing counts.
+    rows = session.execute(
+        select(
+            BackfillDagRun.backfill_id,
+            DagRun.state,
+            func.count().label("count"),
+        )
+        .join(DagRun, BackfillDagRun.dag_run_id == DagRun.id)
+        .where(
+            BackfillDagRun.backfill_id.in_(ids),
+            DagRun.backfill_id == BackfillDagRun.backfill_id,
+        )
+        .group_by(BackfillDagRun.backfill_id, DagRun.state)
+    ).all()
+    counts: dict[int, dict[str, int]] = defaultdict(dict)
+    num_runs: dict[int, int] = defaultdict(int)
+    for backfill_id, state, count in rows:
+        counts[backfill_id][state] = count
+        num_runs[backfill_id] += count
+    for backfill in backfills:
+        backfill.num_runs = num_runs.get(backfill.id, 0)
+        backfill.dag_run_state_counts = counts.get(backfill.id, {})
+    return backfills
+
+
 @backfills_router.get(
     path="",
     dependencies=[
@@ -84,8 +119,10 @@ def list_backfills(
         limit=limit,
         session=session,
     )
+    backfills = [BackfillResponse.model_validate(b) for b in session.scalars(select_stmt)]
+    _enrich_backfill_responses(backfills, session=session)
     return BackfillCollectionResponse(
-        backfills=session.scalars(select_stmt),
+        backfills=backfills,
         total_entries=total_entries,
     )
 
@@ -104,9 +141,11 @@ def get_backfill(
     backfill = session.scalars(
         select(Backfill).where(Backfill.id == backfill_id).options(joinedload(Backfill.dag_model))
     ).one_or_none()
-    if backfill:
-        return backfill
-    raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
+    if not backfill:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
+    response = BackfillResponse.model_validate(backfill)
+    _enrich_backfill_responses([response], session=session)
+    return response
 
 
 @backfills_router.put(
@@ -133,7 +172,9 @@ def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfill
     if b.is_paused is False:
         b.is_paused = True
     session.commit()
-    return b
+    response = BackfillResponse.model_validate(b)
+    _enrich_backfill_responses([response], session=session)
+    return response
 
 
 @backfills_router.put(
@@ -159,7 +200,9 @@ def unpause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfi
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused:
         b.is_paused = False
-    return b
+    response = BackfillResponse.model_validate(b)
+    _enrich_backfill_responses([response], session=session)
+    return response
 
 
 @backfills_router.put(
@@ -210,7 +253,9 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
     # this is in separate transaction just to avoid potential conflicts
     session.refresh(b)
     b.completed_at = timezone.utcnow()
-    return b
+    response = BackfillResponse.model_validate(b)
+    _enrich_backfill_responses([response], session=session)
+    return response
 
 
 @backfills_router.post(
