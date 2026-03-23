@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest import mock
 
 import pytest
@@ -81,6 +82,29 @@ class TestTriggererCommand:
             job=mock_trigger_job_runner.return_value.job,
             execute_callable=mock_trigger_job_runner.return_value._execute,
         )
+
+    @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
+    @mock.patch("airflow.cli.commands.triggerer_command.run_job")
+    @mock.patch("airflow.cli.commands.triggerer_command._serve_logs")
+    def test_triggerer_run_sets_airflow_process_context_server(
+        self, mock_serve, mock_run_job, mock_triggerer_job_runner, monkeypatch: pytest.MonkeyPatch
+    ):
+        """triggerer_run sets _AIRFLOW_PROCESS_CONTEXT=server before starting the job runner."""
+        mock_triggerer_job_runner.return_value.job_type = "TriggererJob"
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
+
+        triggerer_command.triggerer_run(
+            skip_serve_logs=True, capacity=100, triggerer_heartrate=5, queues=None
+        )
+
+        assert os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server"
+        mock_triggerer_job_runner.assert_called_once_with(job=mock.ANY, capacity=100, queues=None)
+        mock_run_job.assert_called_once_with(
+            job=mock_triggerer_job_runner.return_value.job,
+            execute_callable=mock_triggerer_job_runner.return_value._execute,
+        )
+        mock_serve.return_value.__enter__.assert_called_once()
+        mock_serve.return_value.__exit__.assert_called_once()
 
     @mock.patch("airflow.cli.hot_reload.run_with_reloader")
     def test_triggerer_with_dev_flag(self, mock_reloader):
