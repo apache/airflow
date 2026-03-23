@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Generator
 from contextlib import contextmanager
 from functools import partial
@@ -59,8 +58,6 @@ def triggerer_run(
     queues: set[str] | None = None,
     team_name: str | None = None,
 ):
-    # Triggerer is a server context: use the server secrets backend chain.
-    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
     with _serve_logs(skip_serve_logs):
         triggerer_job_runner = TriggererJobRunner(
             job=Job(heartrate=triggerer_heartrate), capacity=capacity, queues=queues, team_name=team_name

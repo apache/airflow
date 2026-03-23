@@ -1886,6 +1886,29 @@ class TestTriggererJobRunner:
         call_kwargs = stats_init_mock.call_args.kwargs
         assert "factory" in call_kwargs
 
+    @patch.object(TriggerRunnerSupervisor, "start")
+    def test_execute_sets_server_process_context(self, mock_supervisor_start, session, monkeypatch):
+        """_execute marks triggerer as server context for secrets backend detection."""
+        mock_supervisor = MagicMock()
+        mock_supervisor._exit_code = 0
+        mock_supervisor_start.return_value = mock_supervisor
+
+        job = Job()
+        session.add(job)
+        session.flush()
+
+        monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
+        job_runner = TriggererJobRunner(job)
+
+        with (
+            patch.object(job_runner, "register_signals"),
+            patch("airflow.jobs.triggerer_job_runner.Stats.initialize"),
+        ):
+            result = job_runner._execute()
+
+        assert result == 0
+        assert os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server"
+
 
 class TestTriggererMessageTypes:
     def test_message_types_in_triggerer(self):
