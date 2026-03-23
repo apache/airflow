@@ -452,7 +452,7 @@ def _emit_task_span(ti, state):
     start_time_candidates = (x for x in (ti.queued_dttm, ti.start_date, timezone.utcnow()) if x)
     name = f"task_run.{ti.task_id}"
     if ti.map_index >= 0:
-        name += f"_{ti.map_index}"
+        name += f"[{ti.map_index}]"
     with override_ids(span_context.trace_id, span_context.span_id):
         span = tracer.start_span(
             name=name,
