@@ -66,5 +66,6 @@ export class ProvidersPage extends BasePage {
   public async waitForLoad(): Promise<void> {
     await expect(this.table).toBeVisible({ timeout: 30_000 });
     await expect(this.rows.first()).toBeVisible({ timeout: 30_000 });
+    await expect(this.packageLinkAt(0)).toBeVisible({ timeout: 30_000 });
   }
 }
