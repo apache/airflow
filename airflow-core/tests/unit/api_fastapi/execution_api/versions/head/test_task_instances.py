@@ -24,13 +24,21 @@ from uuid import UUID, uuid4
 
 import pytest
 import uuid6
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
 from airflow.exceptions import AirflowSkipException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
@@ -3249,12 +3257,6 @@ class TestEmitTaskSpan:
 
     @pytest.fixture(autouse=True)
     def sdk_tracer_provider(self):
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-
-        from airflow._shared.observability.traces import OverrideableRandomIdGenerator
-
         self.exporter = InMemorySpanExporter()
         provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
         provider.add_span_processor(SimpleSpanProcessor(self.exporter))
@@ -3264,10 +3266,6 @@ class TestEmitTaskSpan:
 
     def _make_carriers(self):
         """Return a (dr_carrier, ti_carrier) pair built with a real SDK provider."""
-        from opentelemetry import trace as otel_trace
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
         p = TracerProvider()
         t = p.get_tracer("setup")
         dr_span = t.start_span("dr")
@@ -3281,10 +3279,8 @@ class TestEmitTaskSpan:
         return dr_carrier, ti_carrier
 
     def _make_ti(self, task_id="my_task", map_index=-1, queued_dttm=None, start_date=None):
-        from unittest.mock import MagicMock
-
         dr_carrier, ti_carrier = self._make_carriers()
-        ti = MagicMock()
+        ti = mock.MagicMock()
         ti.dag_id = "test_dag"
         ti.task_id = task_id
         ti.run_id = "test_run"
@@ -3297,10 +3293,6 @@ class TestEmitTaskSpan:
         return ti
 
     def test_emit_task_span_success_sets_ok_status(self):
-        from opentelemetry.trace import StatusCode
-
-        from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-
         _emit_task_span(self._make_ti(), TaskInstanceState.SUCCESS)
 
         spans = self.exporter.get_finished_spans()
@@ -3308,10 +3300,6 @@ class TestEmitTaskSpan:
         assert spans[0].status.status_code == StatusCode.OK
 
     def test_emit_task_span_failed_sets_error_status(self):
-        from opentelemetry.trace import StatusCode
-
-        from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-
         _emit_task_span(self._make_ti(), TaskInstanceState.FAILED)
 
         spans = self.exporter.get_finished_spans()
@@ -3319,8 +3307,6 @@ class TestEmitTaskSpan:
         assert spans[0].status.status_code == StatusCode.ERROR
 
     def test_emit_task_span_sets_attributes(self):
-        from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-
         ti = self._make_ti(task_id="my_task", map_index=2)
         _emit_task_span(ti, TaskInstanceState.SUCCESS)
 
@@ -3333,20 +3319,14 @@ class TestEmitTaskSpan:
         assert attrs["airflow.task_instance.state"] == TaskInstanceState.SUCCESS
 
     def test_emit_task_span_name_unmapped(self):
-        from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-
         _emit_task_span(self._make_ti(task_id="my_task", map_index=-1), TaskInstanceState.SUCCESS)
         assert self.exporter.get_finished_spans()[0].name == "task_run.my_task"
 
     def test_emit_task_span_name_mapped(self):
-        from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-
         _emit_task_span(self._make_ti(task_id="my_task", map_index=3), TaskInstanceState.SUCCESS)
         assert self.exporter.get_finished_spans()[0].name == "task_run.my_task_3"
 
     def test_emit_task_span_start_time_uses_queued_dttm(self):
-        from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-
         queued_dttm = timezone.parse("2024-01-01T10:00:00Z")
         start_date = timezone.parse("2024-01-01T10:05:00Z")
         ti = self._make_ti(queued_dttm=queued_dttm, start_date=start_date)
@@ -3355,8 +3335,6 @@ class TestEmitTaskSpan:
         assert self.exporter.get_finished_spans()[0].start_time == int(queued_dttm.timestamp() * 1e9)
 
     def test_emit_task_span_start_time_falls_back_to_start_date(self):
-        from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-
         start_date = timezone.parse("2024-01-01T10:05:00Z")
         ti = self._make_ti(queued_dttm=None, start_date=start_date)
         _emit_task_span(ti, TaskInstanceState.SUCCESS)
@@ -3364,8 +3342,6 @@ class TestEmitTaskSpan:
         assert self.exporter.get_finished_spans()[0].start_time == int(start_date.timestamp() * 1e9)
 
     def test_emit_task_span_skips_if_no_ti_carrier(self):
-        from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-
         ti = mock.MagicMock()
         ti.dag_run.context_carrier = {
             "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
@@ -3376,8 +3352,6 @@ class TestEmitTaskSpan:
         assert len(self.exporter.get_finished_spans()) == 0
 
     def test_emit_task_span_skips_if_no_dagrun_carrier(self):
-        from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-
         ti = mock.MagicMock()
         ti.dag_run.context_carrier = None
         ti.context_carrier = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}

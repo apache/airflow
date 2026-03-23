@@ -112,7 +112,7 @@ def _make_trigger_span(
     attributes: dict[str, str | int] = {
         "airflow.trigger.name": name,
     }
-    if ti:
+    if isinstance(ti, TaskInstanceDTO):
         span_name = f"trigger.{ti.task_id}" if ti else f"trigger.{trigger_id}"
         if ti.map_index >= 0:
             span_name += f"_{ti.map_index}"

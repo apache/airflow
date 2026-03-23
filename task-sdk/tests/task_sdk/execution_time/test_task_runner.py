@@ -32,10 +32,16 @@ from unittest.mock import call, patch
 
 import pandas as pd
 import pytest
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow._shared.observability.traces import new_task_run_carrier
+from airflow._shared.observability.traces import OverrideableRandomIdGenerator, new_task_run_carrier
+from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
 from airflow.listeners import hookimpl
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
@@ -417,16 +423,6 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
 
 def test_task_span_is_child_of_dag_run_span(make_ti_context):
     """Full trace hierarchy: dag_run → task_run.my_task (API server) → worker.my_task (task runner)."""
-    from opentelemetry import trace as otel_trace
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-    from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
-    from airflow._shared.observability.traces import OverrideableRandomIdGenerator
-    from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
-    from airflow.sdk.api.datamodels._generated import TaskInstanceState as TIState
-
     # Single provider shared by all spans so contexts are compatible.
     in_mem_exporter = InMemorySpanExporter()
     provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
@@ -486,7 +482,7 @@ def test_task_span_is_child_of_dag_run_span(make_ti_context):
     mock_ti.context_carrier = ti_carrier
     api_tracer = provider.get_tracer("airflow.api_fastapi.execution_api.routes.task_instances")
     with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.tracer", api_tracer):
-        _emit_task_span(mock_ti, TIState.SUCCESS)
+        _emit_task_span(mock_ti, TaskInstanceState.SUCCESS)
 
     finished = in_mem_exporter.get_finished_spans()
 

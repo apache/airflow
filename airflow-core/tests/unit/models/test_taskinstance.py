@@ -30,12 +30,15 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
 from airflow._shared.observability.metrics.stats import Stats
-from airflow._shared.observability.traces import new_task_run_carrier
+from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
@@ -3306,26 +3309,20 @@ class TestMakeTaskCarrier:
 
     @pytest.fixture(autouse=True)
     def sdk_tracer_provider(self):
-        from opentelemetry.sdk.trace import TracerProvider
-
         provider = TracerProvider()
         real_tracer = provider.get_tracer("airflow.models.taskinstance")
-        with mock.patch("airflow.models.taskinstance.tracer", real_tracer):
+        with (
+            mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+            mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+        ):
             yield
 
     def test_make_task_carrier_returns_traceparent(self):
-        from airflow._shared.observability.traces import new_dagrun_trace_carrier
-
         carrier = new_task_run_carrier(new_dagrun_trace_carrier())
         assert isinstance(carrier, dict)
         assert "traceparent" in carrier
 
     def test_make_task_carrier_child_of_parent(self):
-        from opentelemetry import trace as otel_trace
-        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
-        from airflow._shared.observability.traces import new_dagrun_trace_carrier
-
         parent_carrier = new_dagrun_trace_carrier()
         child_carrier = new_task_run_carrier(parent_carrier)
 
@@ -3350,10 +3347,6 @@ class TestMakeTaskCarrier:
 @pytest.mark.db_test
 def test_insert_mapping_includes_context_carrier(dag_maker, session):
     """insert_mapping should include a context_carrier with a traceparent derived from the dag run."""
-    from opentelemetry.sdk.trace import TracerProvider
-
-    from airflow._shared.observability.traces import new_dagrun_trace_carrier
-
     provider = TracerProvider()
     real_tracer = provider.get_tracer("airflow.models.taskinstance")
     with mock.patch("airflow.models.taskinstance.tracer", real_tracer):
@@ -3384,8 +3377,6 @@ def test_insert_mapping_includes_context_carrier(dag_maker, session):
 @pytest.mark.db_test
 def test_clear_task_instances_resets_context_carrier(dag_maker, session):
     """clear_task_instances should assign fresh context carriers to both the TI and its dag run."""
-    from opentelemetry.sdk.trace import TracerProvider
-
     provider = TracerProvider()
     real_tracer = provider.get_tracer("airflow.models.taskinstance")
     with mock.patch("airflow.models.taskinstance.tracer", real_tracer):

@@ -24,6 +24,7 @@ import os
 import selectors
 import time
 import typing
+import uuid
 from collections.abc import AsyncIterator
 from socket import socket
 from typing import TYPE_CHECKING, Any
@@ -33,10 +34,16 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import pendulum
 import pytest
 from asgiref.sync import sync_to_async
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
+from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     ToTriggerRunner,
@@ -320,7 +327,6 @@ def test_trigger_logger_close():
 
 
 def test_trigger_logger_fd_closed_when_removed(session):
-
     trigger = TimeDeltaTrigger(datetime.timedelta(seconds=0.5))
 
     create_trigger_in_db(session, trigger)
@@ -1370,10 +1376,6 @@ class TestMakeTriggerSpan:
 
     @pytest.fixture(autouse=True)
     def sdk_tracer_provider(self):
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-
         self.exporter = InMemorySpanExporter()
         provider = TracerProvider()
         provider.add_span_processor(SimpleSpanProcessor(self.exporter))
@@ -1382,10 +1384,6 @@ class TestMakeTriggerSpan:
             yield
 
     def _make_ti_dto(self, task_id="my_task", map_index=-1, context_carrier=None):
-        import uuid
-
-        from airflow.executors.workloads.task import TaskInstanceDTO
-
         return TaskInstanceDTO(
             id=uuid.uuid4(),
             dag_version_id=uuid.uuid4(),
@@ -1413,15 +1411,11 @@ class TestMakeTriggerSpan:
         assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task_2"
 
     def test_make_trigger_span_name_without_task_instance(self):
-        with _make_trigger_span(ti=None, trigger_id=42, name="MySensor"):
+        with _make_trigger_span(ti=None, trigger_id=42, name="Some trigger name"):
             pass
-        assert self.exporter.get_finished_spans()[0].name == "trigger.42"
+        assert self.exporter.get_finished_spans()[0].name == "trigger.Some trigger name"
 
     def test_make_trigger_span_uses_task_context_carrier(self):
-        from opentelemetry import trace as otel_trace
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
         # Build a valid ti carrier from a separate provider so we have a known parent span.
         setup_provider = TracerProvider()
         setup_tracer = setup_provider.get_tracer("setup")
