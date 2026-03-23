@@ -214,8 +214,6 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             sys.exit(os.EX_SOFTWARE)
 
     def _execute(self) -> int | None:
-        import os
-
         # Mark this as a server context for secrets backend detection
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
         self.log.info("Starting the triggerer")
