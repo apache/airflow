@@ -33,6 +33,18 @@ test.describe("DAG Calendar Tab", () => {
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
 
+    // Wait for Dag to be parsed before making API calls
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(`/api/v2/dags/${dagId}`);
+
+          return response.ok();
+        },
+        { intervals: [2000], timeout: 60_000 },
+      )
+      .toBe(true);
+
     await page.request.patch(`/api/v2/dags/${dagId}`, {
       data: { is_paused: false },
     });

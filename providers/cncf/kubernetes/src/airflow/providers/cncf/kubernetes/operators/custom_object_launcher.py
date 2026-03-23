@@ -248,7 +248,8 @@ class CustomObjectLauncher(LoggingMixin):
                 self.body.spec["imagePullSecrets"] = k8s_spec.image_pull_secrets
             for item in ["driver", "executor"]:
                 # Env List
-                self.body.spec[item]["env"] = k8s_spec.env_vars
+                existing_env = self.body.spec[item].get("env") or []
+                self.body.spec[item]["env"] = existing_env + k8s_spec.env_vars
                 self.body.spec[item]["envFrom"] = k8s_spec.env_from
                 # Volumes
                 self.body.spec[item]["volumeMounts"] = k8s_spec.volume_mounts

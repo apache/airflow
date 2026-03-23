@@ -10,6 +10,7 @@ overrides:
   serialize-javascript@<=7.0.2: '>=7.0.3'
   svgo@<4.0.1: '>=4.0.1'
   flatted@<3.4.0: '>=3.4.0'
+  flatted@<=3.4.1: '>=3.4.2'
 
 importers:
 
@@ -1326,8 +1327,8 @@ packages:
     resolution: {integrity: sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==}
     hasBin: true
 
-  flatted@3.4.1:
-    resolution: {integrity: sha512-IxfVbRFVlV8V/yRaGzk0UVIcsKKHMSfYw66T/u4nTwlWteQePsxe//LjudR1AMX4tZW3WFCh3Zqa/sjlqpbURQ==}
+  flatted@3.4.2:
+    resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
 
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
@@ -3729,18 +3730,18 @@ snapshots:
 
   flat-cache@4.0.1:
     dependencies:
-      flatted: 3.4.1
+      flatted: 3.4.2
       keyv: 4.5.4
 
   flat-cache@6.1.20:
     dependencies:
       cacheable: 2.3.3
-      flatted: 3.4.1
+      flatted: 3.4.2
       hookified: 1.15.1
 
   flat@5.0.2: {}
 
-  flatted@3.4.1: {}
+  flatted@3.4.2: {}
 
   function-bind@1.1.2: {}
 
