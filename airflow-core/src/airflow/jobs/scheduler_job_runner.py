@@ -1905,14 +1905,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
-            if dag_model.exceeds_max_non_backfill:
-                self.log.warning(
-                    "Dag run cannot be created; max active runs exceeded.",
-                    dag_id=dag_model.dag_id,
-                    max_active_runs=dag_model.max_active_runs,
-                    active_runs=active_runs_of_dags.get(dag_model.dag_id),
-                )
-                continue
             if dag_model.timetable_partitioned is False:
                 # non partition-aware Dags
                 if dag_model.next_dagrun is None:
@@ -3221,6 +3213,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return executor
 
+    # TODO: remove as it moved to the get_queued_dag_runs_to_set_running method in dagrun.py
     def _set_exceeds_max_active_runs(
         self,
         *,
