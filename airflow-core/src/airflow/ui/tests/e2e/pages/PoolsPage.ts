@@ -57,13 +57,15 @@ export class PoolsPage extends BasePage {
 
     await expect(saveButton).toBeEnabled({ timeout: 5000 });
 
-    const responsePromise = this.page.waitForResponse(
-      (response) => response.url().includes("/api/v2/pools") && response.request().method() === "POST",
-      { timeout: 10_000 },
-    );
+    await Promise.all([
+      this.page.waitForResponse(
+        (response) =>
+          response.url().includes("/api/v2/pools") && response.request().method() === "POST",
+        { timeout: 10_000 },
+      ),
+      saveButton.click(),
+    ]);
 
-    await saveButton.click();
-    await responsePromise;
     await expect(dialog).toBeHidden({ timeout: 10_000 });
     await this.waitForPoolsList();
   }
@@ -80,13 +82,15 @@ export class PoolsPage extends BasePage {
 
     const confirmDeleteButton = confirmDialog.getByRole("button", { name: "Delete" });
 
-    const responsePromise = this.page.waitForResponse(
-      (response) => response.url().includes("/api/v2/pools") && response.request().method() === "DELETE",
-      { timeout: 10_000 },
-    );
+    await Promise.all([
+      this.page.waitForResponse(
+        (response) =>
+          response.url().includes("/api/v2/pools") && response.request().method() === "DELETE",
+        { timeout: 10_000 },
+      ),
+      confirmDeleteButton.click(),
+    ]);
 
-    await confirmDeleteButton.click();
-    await responsePromise;
     await expect(confirmDialog).toBeHidden({ timeout: 10_000 });
     await this.waitForPoolsList();
   }
@@ -110,13 +114,15 @@ export class PoolsPage extends BasePage {
 
     await expect(saveButton).toBeEnabled({ timeout: 5000 });
 
-    const responsePromise = this.page.waitForResponse(
-      (response) => response.url().includes("/api/v2/pools") && response.request().method() === "PATCH",
-      { timeout: 10_000 },
-    );
+    await Promise.all([
+      this.page.waitForResponse(
+        (response) =>
+          response.url().includes("/api/v2/pools") && response.request().method() === "PATCH",
+        { timeout: 10_000 },
+      ),
+      saveButton.click(),
+    ]);
 
-    await saveButton.click();
-    await responsePromise;
     await expect(dialog).toBeHidden({ timeout: 10_000 });
     await this.waitForPoolsList();
   }
