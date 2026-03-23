@@ -76,9 +76,9 @@ PR should target `chart/v1-2x-test` branch.
 > The `chart/v1-2x-test` branch is **strictly for maintenance, stability, and compatibility**.
 > No new features will be added here.
 >
-> We do not accept new features or non-trivial refactorings.
+> We do not accept new features or refactorings.
 > We only accept bug-fixes and documentation changes that are relevant to the latest release.
-> If you want to contribute new features or non-trivial refactorings, please target `main` branch.
+> If you want to contribute new features or refactorings, please target `main` branch.
 > We will cherry-pick it to `chart/v1-2x-test` branch if we decide that it is relevant to the latest release.
 > `1.2x.x` will be the latest release of Airflow Helm Chart 1.2x series.
 > We will not cut any new major release from `chart/v1-2x-test` branch.
@@ -97,7 +97,7 @@ We will cherry-pick relevant changes to `chart/v1-2x-test` branch if we decide t
 
 The `chart/v1-2x-test` branch is for development of Airflow Helm Chart `1.2x.x`.
 We will backport bug-fixes and documentation changes that are relevant to the latest release.
-We will not backport new features or non-trivial refactorings.
+We will not backport new features or refactorings.
 
 * **Cleanup/Deprecations** cherry-pick according to version deprecation policy.
   * Each minor version of Airflow Helm Chart will include some level of deprecation warnings.
@@ -106,14 +106,14 @@ We will not backport new features or non-trivial refactorings.
 * **Bug-fixes** cherry-pick only those relevant to the latest chart release and not difficult to apply.
 * **CI changes** cherry-pick most CI changes to keep the bugfix branch up-to-date and CI green.
 * **Documentation changes** cherry-pick only if relevant to the latest chart release and not about features only in `main`.
-* **Minor refactorings in active areas** do not cherry-pick.
+* **Refactorings in active areas** do not cherry-pick.
 * **New features** do not cherry-pick.
 
 
 ## Merging PRs for Airflow Chart 1.2x.x
 
 PRs should target `chart/v1-2x-test` branch.
-We will not merge new features or non-trivial refactorings.
+We will not merge new features or refactorings.
 We will only merge bug-fixes and documentation changes that are relevant to the latest release.
 
 
@@ -123,7 +123,7 @@ We will only merge bug-fixes and documentation changes that are relevant to the 
 
 Milestone will be added only to the original PR.
 
-* PR targeting `main` branch for cleanup, deprecations, preparation work, or non-trivial refactoring should be added to `Airflow Helm Chart 2.0.0` milestone.
+* PR targeting `main` branch for cleanup, deprecations, preparation work, or refactoring should be added to `Airflow Helm Chart 2.0.0` milestone.
 
 ## Set Airflow Helm Chart 1.2x.x
 
