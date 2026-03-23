@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.operators.neptune_analytics import (
     NeptuneDeletePrivateGraphEndpointOperator,
     NeptuneStartImportTaskOperator,
 )
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 GRAPH_NAME = "test_graph"
 GRAPH_ID = "test-graph-id"
@@ -149,13 +150,16 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
             "vpcEndpointId": ENDPOINT_ID,
             "vpcId": VPC_ID,
         }
+        mock_conn.get_private_graph_endpoint.return_value = {
+            "vpcEndpointId": ENDPOINT_ID,
+        }
 
         operator = NeptuneCreatePrivateGraphEndpointOperator(
             task_id="test_task",
             graph_identifier=GRAPH_ID,
         )
 
-        assert operator.graph_id == GRAPH_ID
+        assert operator.graph_identifier == GRAPH_ID
         assert operator.vpc_id is None
         assert operator.subnet_ids is None
         assert operator.vpc_security_group_ids is None
@@ -167,6 +171,10 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
 
         mock_conn.create_private_graph_endpoint.assert_called_once_with(
             graphIdentifier=GRAPH_ID,
+        )
+        mock_conn.get_private_graph_endpoint.assert_called_once_with(
+            graphIdentifier=GRAPH_ID,
+            vpcId=VPC_ID,
         )
 
         assert result is not None
@@ -181,6 +189,9 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
             "vpcEndpointId": ENDPOINT_ID,
             "vpcId": VPC_ID,
         }
+        mock_conn.get_private_graph_endpoint.return_value = {
+            "vpcEndpointId": ENDPOINT_ID,
+        }
 
         operator = NeptuneCreatePrivateGraphEndpointOperator(
             task_id="test_task",
@@ -192,7 +203,7 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
             waiter_max_attempts=100,
         )
 
-        assert operator.graph_id == GRAPH_ID
+        assert operator.graph_identifier == GRAPH_ID
         assert operator.vpc_id == VPC_ID
         assert operator.subnet_ids == SUBNET_IDS
         assert operator.vpc_security_group_ids == SECURITY_GROUP_IDS
@@ -216,6 +227,9 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
             "vpcEndpointId": ENDPOINT_ID,
             "vpcId": VPC_ID,
         }
+        mock_conn.get_private_graph_endpoint.return_value = {
+            "vpcEndpointId": ENDPOINT_ID,
+        }
 
         operator = NeptuneCreatePrivateGraphEndpointOperator(
             task_id="test_task",
@@ -235,6 +249,9 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
             "vpcEndpointId": ENDPOINT_ID,
             "vpcId": VPC_ID,
         }
+        mock_conn.get_private_graph_endpoint.return_value = {
+            "vpcEndpointId": ENDPOINT_ID,
+        }
 
         operator = NeptuneCreatePrivateGraphEndpointOperator(
             task_id="test_task",
@@ -242,11 +259,39 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
             vpc_id=VPC_ID,
             wait_for_completion=True,
         )
-        operator.execute(None)
+        result = operator.execute(None)
 
-        # Note: The operator currently has 'pass' for wait_for_completion
-        # This test documents the current behavior
-        # When wait_for_completion is implemented, this test should verify the waiter is called
+        mock_hook_get_waiter.assert_called_once_with("private_graph_endpoint_available")
+        mock_hook_get_waiter.return_value.wait.assert_called_once_with(
+            graphIdentifier=GRAPH_ID,
+            vpcId=VPC_ID,
+            WaiterConfig={"Delay": 30, "MaxAttempts": 60},
+        )
+        assert result == {"vpc_endpoint_id": ENDPOINT_ID, "graph_id": GRAPH_ID, "vpc_id": VPC_ID}
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_create_endpoint_sets_vpc_id_from_response(self, mock_conn):
+        """When vpc_id is not provided, the operator should use the vpc_id from the API response."""
+        mock_conn.create_private_graph_endpoint.return_value = {
+            "status": "CREATING",
+            "vpcEndpointId": ENDPOINT_ID,
+            "vpcId": VPC_ID,
+        }
+        mock_conn.get_private_graph_endpoint.return_value = {
+            "vpcEndpointId": ENDPOINT_ID,
+        }
+
+        operator = NeptuneCreatePrivateGraphEndpointOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+        )
+
+        assert operator.vpc_id is None
+        result = operator.execute(None)
+
+        # vpc_id should be set from the create response
+        assert operator.vpc_id == VPC_ID
+        assert result["vpc_id"] == VPC_ID
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_create_endpoint_failed_status(self, mock_conn):
@@ -267,33 +312,41 @@ class TestNeptuneCreatePrivateGraphEndpointOperator:
         with pytest.raises(AirflowException, match=f"Private endpoint failed to create for graph {GRAPH_ID}"):
             operator.execute(None)
 
-    def test_execute_complete_success(self):
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_execute_complete(self, mock_conn):
+        mock_conn.get_private_graph_endpoint.return_value = {
+            "vpcEndpointId": ENDPOINT_ID,
+        }
+
         operator = NeptuneCreatePrivateGraphEndpointOperator(
             task_id="test_task", graph_identifier=GRAPH_ID, vpc_id=VPC_ID
         )
 
-        event = {
-            "status": "success",
-            "endpoint_id": ENDPOINT_ID,
-        }
+        result = operator.execute_complete(None, {"status": "success"})
 
-        result = operator.execute_complete(None, event)
-
+        mock_conn.get_private_graph_endpoint.assert_called_once_with(
+            graphIdentifier=GRAPH_ID,
+            vpcId=VPC_ID,
+        )
         assert result == {"vpc_endpoint_id": ENDPOINT_ID, "graph_id": GRAPH_ID, "vpc_id": VPC_ID}
 
-    def test_execute_complete_failure_status(self):
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_get_graph_endpoint_id(self, mock_conn):
+        mock_conn.get_private_graph_endpoint.return_value = {
+            "vpcEndpointId": ENDPOINT_ID,
+        }
+
         operator = NeptuneCreatePrivateGraphEndpointOperator(
             task_id="test_task", graph_identifier=GRAPH_ID, vpc_id=VPC_ID
         )
 
-        event = {
-            "status": "failure",
-            "endpoint_id": ENDPOINT_ID,
-        }
+        result = operator._get_graph_endpoint_id()
 
-        result = operator.execute_complete(None, event)
-
-        assert result == {"vpc_endpoint_id": "", "graph_id": GRAPH_ID, "vpc_id": VPC_ID}
+        assert result == ENDPOINT_ID
+        mock_conn.get_private_graph_endpoint.assert_called_once_with(
+            graphIdentifier=GRAPH_ID,
+            vpcId=VPC_ID,
+        )
 
 
 class TestNeptuneDeletePrivateGraphEndpointOperator:
@@ -311,7 +364,7 @@ class TestNeptuneDeletePrivateGraphEndpointOperator:
             vpc_id=VPC_ID,
         )
 
-        assert operator.graph_id == GRAPH_ID
+        assert operator.graph_identifier == GRAPH_ID
         assert operator.vpc_id == VPC_ID
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == 30
@@ -340,7 +393,7 @@ class TestNeptuneDeletePrivateGraphEndpointOperator:
             waiter_max_attempts=100,
         )
 
-        assert operator.graph_id == GRAPH_ID
+        assert operator.graph_identifier == GRAPH_ID
         assert operator.vpc_id == VPC_ID
         assert operator.waiter_delay == 60
         assert operator.waiter_max_attempts == 100
@@ -585,10 +638,13 @@ class TestNeptuneDeleteGraphOperator:
 
 
 class TestNeptuneCreateGraphWithImportOperator:
+    IMPORT_TASK_ID = "import-task-12345"
+
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_init_defaults(self, mock_conn):
         mock_conn.create_graph_using_import_task.return_value = {
             "graphId": GRAPH_ID,
+            "taskId": self.IMPORT_TASK_ID,
             "status": "IMPORTING",
         }
 
@@ -633,6 +689,7 @@ class TestNeptuneCreateGraphWithImportOperator:
     def test_init_with_all_optional_params(self, mock_conn):
         mock_conn.create_graph_using_import_task.return_value = {
             "graphId": GRAPH_ID,
+            "taskId": self.IMPORT_TASK_ID,
             "status": "IMPORTING",
         }
 
@@ -701,6 +758,7 @@ class TestNeptuneCreateGraphWithImportOperator:
     def test_import_options_handling(self, mock_conn):
         mock_conn.create_graph_using_import_task.return_value = {
             "graphId": GRAPH_ID,
+            "taskId": self.IMPORT_TASK_ID,
             "status": "IMPORTING",
         }
 
@@ -726,6 +784,7 @@ class TestNeptuneCreateGraphWithImportOperator:
     def test_create_graph_with_import_no_wait(self, mock_hook_get_waiter, mock_conn):
         mock_conn.create_graph_using_import_task.return_value = {
             "graphId": GRAPH_ID,
+            "taskId": self.IMPORT_TASK_ID,
             "status": "IMPORTING",
         }
 
@@ -747,6 +806,7 @@ class TestNeptuneCreateGraphWithImportOperator:
     def test_create_graph_with_import_wait_for_completion(self, mock_hook_get_waiter, mock_conn):
         mock_conn.create_graph_using_import_task.return_value = {
             "graphId": GRAPH_ID,
+            "taskId": self.IMPORT_TASK_ID,
             "status": "IMPORTING",
         }
 
@@ -760,13 +820,17 @@ class TestNeptuneCreateGraphWithImportOperator:
         )
         result = operator.execute(None)
 
-        mock_hook_get_waiter.assert_called_once_with("graph_available")
+        # Should wait for both graph_available and import_task_successful
+        assert mock_hook_get_waiter.call_count == 2
+        mock_hook_get_waiter.assert_any_call("graph_available")
+        mock_hook_get_waiter.assert_any_call("import_task_successful")
         assert result == {"graph_id": GRAPH_ID}
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_import_options_none_values_filtered(self, mock_conn):
         mock_conn.create_graph_using_import_task.return_value = {
             "graphId": GRAPH_ID,
+            "taskId": self.IMPORT_TASK_ID,
             "status": "IMPORTING",
         }
 
@@ -786,6 +850,60 @@ class TestNeptuneCreateGraphWithImportOperator:
         call_args = mock_conn.create_graph_using_import_task.call_args[1]
         # importOptions should not be in call_args if all values are None
         assert "importOptions" not in call_args
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_defer_wait_for_task(self, mock_conn):
+        """Test that defer_wait_for_task defers with the import task trigger."""
+        from airflow.providers.amazon.aws.triggers.neptune_analytics import NeptuneImportTaskCompleteTrigger
+
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"dimension": 128},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+            waiter_delay=30,
+            waiter_max_attempts=60,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.defer_wait_for_task(
+                import_task_id=self.IMPORT_TASK_ID,
+                context=None,
+                event={"status": "success"},
+            )
+
+        trigger = exc_info.value.trigger
+        assert isinstance(trigger, NeptuneImportTaskCompleteTrigger)
+        assert exc_info.value.method_name == "execute_complete"
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_deferrable_defers_with_graph_available_trigger(self, mock_conn):
+        """Test that execute defers with graph_available trigger and passes import_task_id."""
+        from airflow.providers.amazon.aws.triggers.neptune_analytics import NeptuneGraphAvailableTrigger
+
+        mock_conn.create_graph_using_import_task.return_value = {
+            "graphId": GRAPH_ID,
+            "taskId": self.IMPORT_TASK_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneCreateGraphWithImportOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"dimension": 128},
+            source=SOURCE_S3_URI,
+            role_arn=ROLE_ARN,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        trigger = exc_info.value.trigger
+        assert isinstance(trigger, NeptuneGraphAvailableTrigger)
+        assert exc_info.value.method_name == "defer_wait_for_task"
+        assert exc_info.value.kwargs == {"import_task_id": self.IMPORT_TASK_ID}
 
 
 TASK_ID = "import-task-id-12345"
@@ -810,7 +928,7 @@ class TestNeptuneStartImportTaskOperator:
         assert operator.graph_identifier == GRAPH_ID
         assert operator.role_arn == ROLE_ARN
         assert operator.source == SOURCE_S3_URI
-        assert operator.blank_node_handling == "convertToIri"
+        assert operator.blank_node_handling is None
         assert operator.fail_on_error is True
         assert operator.format is None
         assert operator.import_options is None
@@ -825,7 +943,6 @@ class TestNeptuneStartImportTaskOperator:
             graphIdentifier=GRAPH_ID,
             roleArn=ROLE_ARN,
             source=SOURCE_S3_URI,
-            blankNodeHandling="convertToIri",
             failOnError=True,
             parquetType="COLUMNAR",
         )
@@ -910,7 +1027,7 @@ class TestNeptuneStartImportTaskOperator:
         )
         result = operator.execute(None)
 
-        mock_get_waiter.assert_called_once_with("import_task_completed")
+        mock_get_waiter.assert_called_once_with("import_task_successful")
         assert result == {"task_id": TASK_ID, "graph_id": GRAPH_ID}
 
     def test_execute_complete_success(self):
@@ -953,7 +1070,7 @@ class TestNeptuneCancelImportTaskOperator:
             task_identifier=TASK_ID,
         )
 
-        assert operator.import_task_id == TASK_ID
+        assert operator.task_identifier == TASK_ID
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == 30
         assert operator.waiter_max_attempts == 60
@@ -977,7 +1094,7 @@ class TestNeptuneCancelImportTaskOperator:
             waiter_max_attempts=100,
         )
 
-        assert operator.import_task_id == TASK_ID
+        assert operator.task_identifier == TASK_ID
         assert operator.waiter_delay == 60
         assert operator.waiter_max_attempts == 100
 
