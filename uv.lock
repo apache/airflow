@@ -827,7 +827,7 @@ dependencies = [
 
 [package.optional-dependencies]
 aiobotocore = [
-    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore"], marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore"] },
 ]
 airbyte = [
     { name = "apache-airflow-providers-airbyte" },
@@ -840,7 +840,7 @@ all = [
     { name = "apache-airflow-core", extra = ["all", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd"] },
     { name = "apache-airflow-providers-airbyte" },
     { name = "apache-airflow-providers-alibaba" },
-    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "python3-saml", "s3fs"], marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "python3-saml", "s3fs"] },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
     { name = "apache-airflow-providers-apache-drill" },
     { name = "apache-airflow-providers-apache-druid" },
@@ -951,10 +951,10 @@ all-task-sdk = [
     { name = "apache-airflow-task-sdk", extra = ["all"] },
 ]
 amazon = [
-    { name = "apache-airflow-providers-amazon", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-amazon" },
 ]
 amazon-aws-auth = [
-    { name = "apache-airflow-providers-amazon", extra = ["python3-saml"], marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-amazon", extra = ["python3-saml"] },
 ]
 apache-atlas = [
     { name = "atlasclient" },
@@ -1227,7 +1227,7 @@ redis = [
     { name = "apache-airflow-providers-redis" },
 ]
 s3fs = [
-    { name = "apache-airflow-providers-amazon", extra = ["s3fs"], marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-amazon", extra = ["s3fs"] },
 ]
 salesforce = [
     { name = "apache-airflow-providers-salesforce" },
@@ -1357,11 +1357,11 @@ requires-dist = [
     { name = "apache-airflow-providers-airbyte", marker = "extra == 'all'", editable = "providers/airbyte" },
     { name = "apache-airflow-providers-alibaba", marker = "extra == 'alibaba'", editable = "providers/alibaba" },
     { name = "apache-airflow-providers-alibaba", marker = "extra == 'all'", editable = "providers/alibaba" },
-    { name = "apache-airflow-providers-amazon", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-amazon", marker = "python_full_version != '3.14.*' and extra == 'amazon'", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], marker = "python_full_version != '3.14.*' and extra == 'aiobotocore'", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-amazon", extras = ["python3-saml"], marker = "python_full_version != '3.14.*' and extra == 'amazon-aws-auth'", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-amazon", extras = ["s3fs"], marker = "python_full_version != '3.14.*' and extra == 's3fs'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", marker = "extra == 'all'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], marker = "extra == 'aiobotocore'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", extras = ["python3-saml"], marker = "extra == 'amazon-aws-auth'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", extras = ["s3fs"], marker = "extra == 's3fs'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'all'", editable = "providers/apache/drill" },
