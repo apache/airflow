@@ -1226,7 +1226,9 @@ class TriggerRunner:
                     timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                     if timeout < timezone.utcnow():
                         await self.log.aerror("Trigger cancelled due to timeout")
-                    span.set_status(Status(StatusCode.ERROR), description=str(e))
+                        span.set_status(Status(StatusCode.ERROR), description=str(e))
+                        raise
+                span.set_status(Status(StatusCode.OK), description=str(e))
                 raise
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR), description=str(e))
