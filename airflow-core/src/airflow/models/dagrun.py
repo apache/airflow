@@ -653,7 +653,9 @@ class DagRun(Base, LoggingMixin):
             select(
                 DagRun.dag_id,
                 DagRun.id,
-                func.row_number().over(partition_by=[DagRun.dag_id, DagRun.backfill_id]).label("rn"),
+                func.row_number()
+                .over(partition_by=[DagRun.dag_id, DagRun.backfill_id], uorder_by=DagRun.logical_date)
+                .label("rn"),
             )
             .where(DagRun.state == DagRunState.QUEUED)
             .subquery()
