@@ -80,21 +80,22 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* ``Delete google provider deprecated items sheduled for Jan 2026 (#62802)``
+* ``Remove deprecated classes scheduled for January 2026 (#62802)``
+* ``Remove deprecated classes scheduled for March 2026 (#64098)``
 
 Features
 ~~~~~~~~
 
 * ``Add drift detection and optional recreation to ComputeEngineInsertInstanceOperator (#61830)``
-* ``Return destination GCS URIs from ADLSToGCSOperator (#61463)``
-* ``Return GCS URIs from GoogleAdsToGcsOperator (#61334)``
 * ``Add bounded best-effort cluster deletion when PermissionDenied occurs after cluster creation has been initiated in non-deferrable mode. Deletion is triggered with wait_to_complete=False and retried on FailedPrecondition until cleanup_timeout_seconds is reached, and the original exception is always re-raised. Add unit tests covering cleanup initiation, retry behavior, and error propagation. (#62302)``
 * ``Add ClusterType field for Zero-Scale cluster support (#62207)``
-* ``Adds match_glob to template_fields in GCS operators (#61819)``
+* ``Add match_glob to template_fields in GCS operators (#61819)``
 * ``Add parallel download and upload support to 'GCSTimeSpanFileTransformOperator' (#62196)``
 * ``Add retry logic to BigQueryInsertJobOperator for 429 error (#63181)``
 * ``Add direct-to-triggerer support for DataprocSubmitJobOperator (#62331)``
 * ``Add operators for Google BidManager API (#62521)``
+* ``Return destination GCS URIs from ADLSToGCSOperator (#61463)``
+* ``Return GCS URIs from GoogleAdsToGcsOperator (#61334)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -111,13 +112,13 @@ Misc
 * ``Add Python 3.14 Support (#64061)``
 * ``Upgrade version of Campaign Manager API to v5 (#62510)``
 * ``Mypy fix errors in kubernetes, fab, google, and amazon providers (#63947)``
+* ``Mypy fix errors in TrinoToGCSOperator (#62998)``
 * ``Remove PyOpenSSL from dependencies (#63869)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add exception test for GenAICountTokensOperator (#61391)``
    * ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
-   * ``Fix mypy issues from trinodb 0.337.0 (#62998)``
    * ``Replace connexion with FastAPI for FAB provider (#62664)``
    * ``Update provider's compatibility matrix with 2.11.1 (#62295)``
    * ``Suspend Apache Beam Provider due to grpcio limitation (#61926)``
@@ -132,6 +133,7 @@ Misc
    * ``Fix AIR004* in multiple example DAGs (#62529)``
    * ``Prepare providers release 2026-03-09 (#63198)``
    * ``Add known issue notice for version 19.5.0 (#61927)``
+   * ``Update google change log for release 21.0 (#64091)``
 
 20.0.0
 ......
