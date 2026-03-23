@@ -26,25 +26,33 @@ body:
         instead.
         <br clear='left'/>"
       # yamllint enable rule:line-length
-  - type: input
+  - type: dropdown
     attributes:
       label: Apache Airflow version
-      # yamllint disable rule:line-length
       description: >
-        Enter your Airflow version.
+        Select your Airflow version.
         **Please note:** Airflow 2.x is in limited support (critical and security fixes only), and reaches
         EOL on April 22, 2026 - see the
         [Airflow 2 EOL page]
         (https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html)
         for more information.
-        Remember, you are encouraged to
-        test with the latest release or on the `main` branch to verify your issue still exists, especially if
-        your version is at least a minor version older than the [current stable release]
-        (https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html#version-life-cycle).
-      placeholder: "e.g.,`3.0.1`, `2.10.4`,`main`"
-      # yamllint enable rule:line-length
+      multiple: false
+      options:
+        - "3.1.8"
+        - "2.11.X"
+        - "main (development)"
+        - "Other Airflow 3 version (please specify below)"
     validations:
       required: true
+  - type: input
+    attributes:
+      label: If "Other Airflow 3 version" selected, which one?
+      # yamllint disable rule:line-length
+      description: >
+        On what 3.X version of Airflow are you currently experiencing the issue? Remember, you are encouraged to
+        test with the latest release or on the `main` branch to verify your issue still exists, especially if
+        your version is at least a minor version older than the [current stable release](https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html#version-life-cycle).
+      # yamllint enable rule:line-length
   - type: textarea
     attributes:
       label: What happened and how to reproduce it?
