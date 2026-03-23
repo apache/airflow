@@ -2519,6 +2519,15 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
+    max_new_dagruns_per_loop_to_schedule:
+      description: |
+        How many NEW dagruns should be scheduled and examined (and locked) when scheduling
+        and queuing tasks.
+        Total max_dagruns_per_loop_to_schedule does not change.
+      example: ~
+      version_added: 3.2.1
+      type: integer
+      default: "0"
     use_job_schedule:
       description: |
         Turn off scheduler use of cron intervals by setting this to ``False``.

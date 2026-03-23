@@ -605,23 +605,48 @@ class DagRun(Base, LoggingMixin):
         from airflow.models.backfill import BackfillDagRun
         from airflow.models.dag import DagModel
 
-        query = (
-            select(cls)
-            .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
-            .where(cls.state == DagRunState.RUNNING)
-            .join(DagModel, DagModel.dag_id == cls.dag_id)
-            .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
-            .where(
-                DagModel.is_paused == false(),
-                DagModel.is_stale == false(),
+        def _get_dagrun_query(filters: list[any], order_by: list[any], limit: int):
+            return (
+                select(cls)
+                .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
+                .where(cls.state == DagRunState.RUNNING)
+                .join(DagModel, DagModel.dag_id == cls.dag_id)
+                .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
+                .where(*filters)
+                .order_by(*order_by)
+                .limit(limit)
             )
-            .order_by(
-                nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
-                nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
-                cls.run_after,
+
+        filters = [
+            DagModel.is_paused == false(),
+            DagModel.is_stale == false(),
+        ]
+        order = [
+            nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
+            nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
+            cls.run_after,
+        ]
+
+        new_dagruns_to_examine = airflow_conf.getint("scheduler", "max_new_dagruns_per_loop_to_schedule")
+        dagruns_to_examine = cls.DEFAULT_DAGRUNS_TO_EXAMINE - new_dagruns_to_examine
+
+        if new_dagruns_to_examine < 0 or new_dagruns_to_examine > cls.DEFAULT_DAGRUNS_TO_EXAMINE:
+            log.warning(
+                "'max_new_dagruns_per_loop_to_schedule' is greater or equal to max_dagruns_per_loop_to_schedule or smaller than 0, ignoring configuration"
             )
-            .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
+            dagruns_to_examine = cls.DEFAULT_DAGRUNS_TO_EXAMINE
+            new_dagruns_to_examine = 0
+
+        query = _get_dagrun_query(
+            filters,
+            order,
+            dagruns_to_examine,
         )
+
+        if new_dagruns_to_examine > 0:
+            query = query.union(
+                _get_dagrun_query([*filters, DagRun.last_scheduling_decision.is_not(None)], order, new_dagruns_to_examine)
+            )
 
         query = query.where(DagRun.run_after <= func.now())
 
