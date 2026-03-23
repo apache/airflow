@@ -925,14 +925,14 @@ def test_retrieve_config_keys():
     with conf_vars(
         {
             ("elasticsearch_configs", "http_compress"): "False",
-            ("elasticsearch_configs", "request_timeout"): "10",
+            ("elasticsearch_configs", "timeout"): "10",
         }
     ):
         args_from_config = get_es_kwargs_from_config().keys()
         # verify_certs comes from default config value
         assert "verify_certs" in args_from_config
-        # request_timeout comes from config provided value
-        assert "request_timeout" in args_from_config
+        # timeout comes from config provided value
+        assert "timeout" in args_from_config
         # http_compress comes from config value
         assert "http_compress" in args_from_config
         assert "self" not in args_from_config
