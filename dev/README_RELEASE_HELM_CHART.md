@@ -835,10 +835,8 @@ git push
 # and finally open a PR
 ```
 
-When the PR is merged, you need to rebuild the docs to invalidate the Fastly cache.
-
-In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
-workflow in `airflow-site` repository. Make sure to use `main` branch.
+When the PR is merged, the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
+workflow in `airflow-site` is triggered automatically by the push to `main` and will deploy the updated site.
 
 You can check the latest chart version that is in the `index.yaml` with:
 

@@ -123,9 +123,6 @@ versions:
   - 2.0.0
   - 1.0.0
 
-excluded-python-versions:
-  - "3.14"
-
 integrations:
   - integration-name: Google Analytics (GA4)
     external-doc-url: https://analytics.google.com/
