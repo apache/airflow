@@ -20,7 +20,7 @@
 Add team_name column to edge_job and edge_worker tables.
 
 Revision ID: a09c3ee8e1d3
-Revises: 9d34dfc2de06
+Revises: 8c275b6fbaa8
 Create Date: 2026-02-07 00:00:00.000000
 """
 
