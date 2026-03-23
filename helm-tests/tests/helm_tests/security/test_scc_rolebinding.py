@@ -24,6 +24,107 @@ from chart_utils.helm_template_generator import render_chart
 class TestSCCActivation:
     """Tests SCCs."""
 
+    def test_zero_subjects_when_all_disabled_airflow_2(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "multiNamespaceMode": False,
+                "executor": "LocalExecutor",
+                "data": {"brokerUrlSecretName": "test"},
+                "cleanup": {"enabled": False},
+                "databaseCleanup": {"enabled": False},
+                "flower": {"enabled": False},
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+                "dagProcessor": {"enabled": False},
+                "webserver": {"enabled": False},
+                "scheduler": {"enabled": False},
+                "statsd": {"enabled": False},
+                "triggerer": {"enabled": False},
+                "redis": {"enabled": False},
+                "migrateDatabaseJob": {"enabled": False},
+                "createUserJob": {"enabled": False},
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("kind", docs[0]) == "RoleBinding"
+        assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
+        assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
+        assert jmespath.search("subjects", docs[0]) is None
+
+    def test_zero_subjects_when_all_disabled(self):
+        docs = render_chart(
+            values={
+                "multiNamespaceMode": False,
+                "executor": "LocalExecutor",
+                "data": {"brokerUrlSecretName": "test"},
+                "cleanup": {"enabled": False},
+                "databaseCleanup": {"enabled": False},
+                "flower": {"enabled": False},
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+                "dagProcessor": {"enabled": False},
+                "apiServer": {"enabled": False},
+                "scheduler": {"enabled": False},
+                "statsd": {"enabled": False},
+                "triggerer": {"enabled": False},
+                "redis": {"enabled": False},
+                "migrateDatabaseJob": {"enabled": False},
+                "createUserJob": {"enabled": False},
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("kind", docs[0]) == "RoleBinding"
+        assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
+        assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
+        assert jmespath.search("subjects", docs[0]) is None
+
+    @pytest.mark.parametrize(
+        ("rbac_enabled", "scc_enabled", "created"),
+        [
+            (False, False, False),
+            (False, True, False),
+            (True, True, True),
+            (True, False, False),
+        ],
+    )
+    def test_create_scc_airflow_2(self, rbac_enabled, scc_enabled, created):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "multiNamespaceMode": False,
+                "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
+                "flower": {"enabled": True},
+                "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
+                "dagProcessor": {"enabled": True},
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert bool(docs) is created
+        if created:
+            assert jmespath.search("kind", docs[0]) == "RoleBinding"
+            assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
+            assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
+            assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
+            assert jmespath.search("subjects | [*].name", docs[0]) == [
+                "release-name-airflow-webserver",
+                "release-name-airflow-worker",
+                "release-name-airflow-scheduler",
+                "release-name-airflow-statsd",
+                "release-name-airflow-flower",
+                "release-name-airflow-redis",
+                "release-name-airflow-triggerer",
+                "release-name-airflow-migrate-database-job",
+                "release-name-airflow-create-user-job",
+                "release-name-airflow-cleanup",
+                "release-name-airflow-database-cleanup",
+                "release-name-airflow-dag-processor",
+            ]
+
     @pytest.mark.parametrize(
         ("rbac_enabled", "scc_enabled", "created"),
         [
@@ -52,28 +153,29 @@ class TestSCCActivation:
             assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
             assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
             assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
-            assert jmespath.search("subjects[0].name", docs[0]) == "release-name-airflow-webserver"
-            assert jmespath.search("subjects[1].name", docs[0]) == "release-name-airflow-worker"
-            assert jmespath.search("subjects[2].name", docs[0]) == "release-name-airflow-scheduler"
-            assert jmespath.search("subjects[3].name", docs[0]) == "release-name-airflow-api-server"
-            assert jmespath.search("subjects[4].name", docs[0]) == "release-name-airflow-statsd"
-            assert jmespath.search("subjects[5].name", docs[0]) == "release-name-airflow-flower"
-            assert jmespath.search("subjects[6].name", docs[0]) == "release-name-airflow-redis"
-            assert jmespath.search("subjects[7].name", docs[0]) == "release-name-airflow-triggerer"
-            assert jmespath.search("subjects[8].name", docs[0]) == "release-name-airflow-migrate-database-job"
-            assert jmespath.search("subjects[9].name", docs[0]) == "release-name-airflow-create-user-job"
-            assert jmespath.search("subjects[10].name", docs[0]) == "release-name-airflow-cleanup"
-            assert jmespath.search("subjects[11].name", docs[0]) == "release-name-airflow-database-cleanup"
-            assert jmespath.search("subjects[12].name", docs[0]) == "release-name-airflow-dag-processor"
+            assert jmespath.search("subjects | [*].name", docs[0]) == [
+                "release-name-airflow-worker",
+                "release-name-airflow-scheduler",
+                "release-name-airflow-api-server",
+                "release-name-airflow-statsd",
+                "release-name-airflow-flower",
+                "release-name-airflow-redis",
+                "release-name-airflow-triggerer",
+                "release-name-airflow-migrate-database-job",
+                "release-name-airflow-create-user-job",
+                "release-name-airflow-cleanup",
+                "release-name-airflow-database-cleanup",
+                "release-name-airflow-dag-processor",
+            ]
 
     @pytest.mark.parametrize(
-        ("rbac_enabled", "scc_enabled", "created", "namespace", "expected_name"),
+        ("namespace", "expected_name"),
         [
-            (True, True, True, "default", "default-release-name-scc-rolebinding"),
-            (True, True, True, "other-ns", "other-ns-release-name-scc-rolebinding"),
+            ("default", "default-release-name-scc-rolebinding"),
+            ("other-ns", "other-ns-release-name-scc-rolebinding"),
         ],
     )
-    def test_create_scc_multinamespace(self, rbac_enabled, scc_enabled, created, namespace, expected_name):
+    def test_create_scc_multinamespace(self, namespace, expected_name):
         docs = render_chart(
             namespace=namespace,
             values={
@@ -82,25 +184,45 @@ class TestSCCActivation:
                 "cleanup": {"enabled": False},
                 "databaseCleanup": {"enabled": False},
                 "flower": {"enabled": False},
-                "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
+                "rbac": {"create": True, "createSCCRoleBinding": True},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
         )
 
-        assert bool(docs) is created
-        if created:
-            assert jmespath.search("kind", docs[0]) == "ClusterRoleBinding"
-            assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
-            assert expected_name == jmespath.search("metadata.name", docs[0])
-            assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
+        assert jmespath.search("kind", docs[0]) == "ClusterRoleBinding"
+        assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
+        assert expected_name == jmespath.search("metadata.name", docs[0])
+        assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
 
-    @pytest.mark.parametrize(
-        ("rbac_enabled", "scc_enabled", "created"),
-        [
-            (True, True, True),
-        ],
-    )
-    def test_create_scc_worker_only(self, rbac_enabled, scc_enabled, created):
+    def test_create_scc_worker_only_airflow_2(self):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "multiNamespaceMode": False,
+                "createUserJob": {"enabled": False},
+                "cleanup": {"enabled": False},
+                "databaseCleanup": {"enabled": False},
+                "flower": {"enabled": False},
+                "statsd": {"enabled": False},
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("kind", docs[0]) == "RoleBinding"
+        assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
+        assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
+        assert jmespath.search("subjects | [*].name", docs[0]) == [
+            "release-name-airflow-webserver",
+            "release-name-airflow-worker",
+            "release-name-airflow-scheduler",
+            "release-name-airflow-redis",
+            "release-name-airflow-triggerer",
+            "release-name-airflow-migrate-database-job",
+        ]
+
+    def test_create_scc_worker_only(self):
         docs = render_chart(
             values={
                 "multiNamespaceMode": False,
@@ -109,25 +231,23 @@ class TestSCCActivation:
                 "databaseCleanup": {"enabled": False},
                 "flower": {"enabled": False},
                 "statsd": {"enabled": False},
-                "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
+                "rbac": {"create": True, "createSCCRoleBinding": True},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
         )
 
-        assert bool(docs) is created
-        if created:
-            assert jmespath.search("kind", docs[0]) == "RoleBinding"
-            assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
-            assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
-            assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
-            assert jmespath.search("subjects[0].name", docs[0]) == "release-name-airflow-webserver"
-            assert jmespath.search("subjects[1].name", docs[0]) == "release-name-airflow-worker"
-            assert jmespath.search("subjects[2].name", docs[0]) == "release-name-airflow-scheduler"
-            assert jmespath.search("subjects[3].name", docs[0]) == "release-name-airflow-api-server"
-            assert jmespath.search("subjects[4].name", docs[0]) == "release-name-airflow-redis"
-            assert jmespath.search("subjects[5].name", docs[0]) == "release-name-airflow-triggerer"
-            assert jmespath.search("subjects[6].name", docs[0]) == "release-name-airflow-migrate-database-job"
-            assert len(docs[0]["subjects"]) == 7
+        assert jmespath.search("kind", docs[0]) == "RoleBinding"
+        assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
+        assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
+        assert jmespath.search("subjects | [*].name", docs[0]) == [
+            "release-name-airflow-worker",
+            "release-name-airflow-scheduler",
+            "release-name-airflow-api-server",
+            "release-name-airflow-redis",
+            "release-name-airflow-triggerer",
+            "release-name-airflow-migrate-database-job",
+        ]
 
     def test_deprecated_default_user_disabled_excludes_create_user_subject(self):
         """webserver.defaultUser.enabled=false should exclude the create-user-job service account."""

@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Weaviate",
                 "external-doc-url": "https://weaviate.io/developers/weaviate",
+                "logo": "/docs/integration-logos/Weaviate.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-weaviate/operators/weaviate.rst"],
                 "tags": ["software"],
             }
@@ -41,6 +42,26 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.weaviate.hooks.weaviate.WeaviateHook",
                 "connection-type": "weaviate",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema"],
+                    "relabeling": {"login": "OIDC Username", "password": "OIDC Password"},
+                },
+                "conn-fields": {
+                    "http_secure": {
+                        "label": "Use https",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                    "token": {
+                        "label": "Weaviate API Key",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "grpc_host": {"label": "gRPC host", "schema": {"type": ["string", "null"]}},
+                    "grpc_port": {"label": "gRPC port", "schema": {"type": ["string", "null"]}},
+                    "grpc_secure": {
+                        "label": "Use a secure channel for the underlying gRPC API",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                    },
+                },
             }
         ],
         "operators": [

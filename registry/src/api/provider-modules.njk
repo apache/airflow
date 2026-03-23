@@ -1,0 +1,15 @@
+---
+pagination:
+  data: providers.providers
+  size: 1
+  alias: provider
+permalink: "/api/providers/{{ provider.id }}/modules.json"
+eleventyExcludeFromCollections: true
+---
+{%- set providerModules = [] -%}
+{%- for module in modules.modules -%}
+  {%- if module.provider_id == provider.id -%}
+    {%- set providerModules = (providerModules.push(module), providerModules) -%}
+  {%- endif -%}
+{%- endfor -%}
+{{ { "provider_id": provider.id, "provider_name": provider.name, "version": provider.version, "modules": providerModules } | dump | safe }}

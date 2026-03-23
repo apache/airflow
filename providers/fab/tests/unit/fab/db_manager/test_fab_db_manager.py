@@ -26,6 +26,7 @@ from airflow.utils.db import initdb
 from airflow.utils.db_manager import RunDBManager
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 pytestmark = [pytest.mark.db_test]
 
@@ -62,7 +63,10 @@ class TestRunDBManagerWithFab:
     def test_init_db_calls_rundbmanager(self, mock_initdb, mock_upgrade_db, session):
         initdb(session=session)
         mock_initdb.assert_called()
-        mock_initdb.assert_called_once_with(session)
+        if AIRFLOW_V_3_2_PLUS:
+            mock_initdb.assert_called_once_with(session, use_migration_files=False)
+        else:
+            mock_initdb.assert_called_once_with(session)
 
     @conf_vars(
         {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}

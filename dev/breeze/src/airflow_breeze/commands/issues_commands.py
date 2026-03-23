@@ -30,7 +30,7 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -58,15 +58,28 @@ def _resolve_github_token(github_token: str | None) -> str | None:
 
 def _get_collaborator_logins(repo) -> set[str]:
     """Fetch all collaborator logins for the repository."""
-    get_console().print("[info]Fetching repository collaborators...[/]")
+    console_print("[info]Fetching repository collaborators...[/]")
     collaborators = {c.login for c in repo.get_collaborators()}
-    get_console().print(f"[info]Found {len(collaborators)} collaborators.[/]")
+    console_print(f"[info]Found {len(collaborators)} collaborators.[/]")
     return collaborators
+
+
+def _issue_link(github_repository: str, number: int) -> str:
+    """Return a Rich-formatted clickable link for a GitHub issue."""
+    url = f"https://github.com/{github_repository}/issues/{number}"
+    return f"[link={url}]#{number}[/link]"
+
+
+def _user_link(login: str) -> str:
+    """Return a Rich-formatted clickable link for a GitHub user."""
+    url = f"https://github.com/{login}"
+    return f"[link={url}]@{login}[/link]"
 
 
 def _process_batch(
     batch: list[tuple],
     dry_run: bool,
+    github_repository: str,
 ) -> int:
     """Display a batch of proposed unassignments and handle confirmation.
 
@@ -81,28 +94,30 @@ def _process_batch(
     table.add_column("Non-collaborator assignees", style="red")
     for issue, non_collab_logins in batch:
         table.add_row(
-            str(issue.number),
+            _issue_link(github_repository, issue.number),
             issue.title[:80],
-            ", ".join(sorted(non_collab_logins)),
+            ", ".join(_user_link(login) for login in sorted(non_collab_logins)),
         )
-    get_console().print(table)
+    console_print(table)
 
     if dry_run:
-        get_console().print("[warning]Dry run — skipping actual unassignment.[/]")
+        console_print("[warning]Dry run — skipping actual unassignment.[/]")
         return 0
 
     answer = user_confirm("Unassign the above non-collaborators?")
     if answer == Answer.QUIT:
-        get_console().print("[warning]Quitting.[/]")
+        console_print("[warning]Quitting.[/]")
         sys.exit(0)
     if answer == Answer.NO:
-        get_console().print("[info]Skipping this batch.[/]")
+        console_print("[info]Skipping this batch.[/]")
         return 0
 
     unassigned_count = 0
     for issue, non_collab_logins in batch:
+        issue_ref = _issue_link(github_repository, issue.number)
         for login in non_collab_logins:
-            get_console().print(f"  Removing [red]{login}[/] from issue #{issue.number}")
+            user_ref = _user_link(login)
+            console_print(f"  Removing [red]{user_ref}[/] from issue {issue_ref}")
             issue.remove_from_assignees(login)
             comment = (
                 f"@{login} We are unassigning you from this issue as part of our "
@@ -117,7 +132,7 @@ def _process_batch(
                 f"prevented others from contributing when the assignee was not actively "
                 f"working on the issue."
             )
-            get_console().print(f"  Commenting on issue #{issue.number} about @{login}")
+            console_print(f"  Commenting on issue {issue_ref} about {user_ref}")
             issue.create_comment(comment)
             unassigned_count += 1
     return unassigned_count
@@ -133,6 +148,13 @@ def _process_batch(
     show_default=True,
     help="Number of flagged issues to accumulate before prompting.",
 )
+@click.option(
+    "--max-num",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Maximum number of issues to flag for unassignment. 0 means no limit.",
+)
 @option_dry_run
 @option_verbose
 @option_answer
@@ -140,12 +162,13 @@ def unassign(
     github_token: str | None,
     github_repository: str,
     batch_size: int,
+    max_num: int,
 ):
     from github import Github
 
     token = _resolve_github_token(github_token)
     if not token:
-        get_console().print(
+        console_print(
             "[error]GitHub token not found. Provide --github-token, "
             "set GITHUB_TOKEN, or authenticate with `gh auth login`.[/]"
         )
@@ -162,7 +185,7 @@ def unassign(
     total_flagged = 0
     total_unassigned = 0
 
-    get_console().print(f"[info]Scanning open issues in {github_repository}...[/]")
+    console_print(f"[info]Scanning open issues in {github_repository}...[/]")
 
     for issue in repo.get_issues(state="open"):
         total_issues_scanned += 1
@@ -175,15 +198,18 @@ def unassign(
         batch.append((issue, non_collab))
         total_flagged += 1
 
+        if max_num and total_flagged >= max_num:
+            break
+
         if len(batch) >= batch_size:
-            total_unassigned += _process_batch(batch, dry_run)
+            total_unassigned += _process_batch(batch, dry_run, github_repository)
             batch = []
 
     # Process remaining batch
-    total_unassigned += _process_batch(batch, dry_run)
+    total_unassigned += _process_batch(batch, dry_run, github_repository)
 
-    get_console().print()
-    get_console().print("[success]Done![/]")
-    get_console().print(f"  Issues scanned:    {total_issues_scanned}")
-    get_console().print(f"  Issues flagged:    {total_flagged}")
-    get_console().print(f"  Assignees removed: {total_unassigned}")
+    console_print()
+    console_print("[success]Done![/]")
+    console_print(f"  Issues scanned:    {total_issues_scanned}")
+    console_print(f"  Issues flagged:    {total_flagged}")
+    console_print(f"  Assignees removed: {total_unassigned}")

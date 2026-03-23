@@ -19,7 +19,8 @@ from __future__ import annotations
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from cadwyn import VersionedAPIRouter
+from fastapi import HTTPException, Security, status
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
@@ -29,9 +30,16 @@ from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLDetailResponse,
     UpdateHITLDetailPayload,
 )
+from airflow.api_fastapi.execution_api.security import ExecutionAPIRoute, require_auth
 from airflow.models.hitl import HITLDetail
 
-router = APIRouter()
+router = VersionedAPIRouter(
+    route_class=ExecutionAPIRoute,
+    dependencies=[
+        # Validates that the JWT sub matches the task_instance_id path parameter.
+        Security(require_auth, scopes=["ti:self"]),
+    ],
+)
 
 log = structlog.get_logger(__name__)
 

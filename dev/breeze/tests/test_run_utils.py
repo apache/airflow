@@ -47,8 +47,8 @@ def test_change_directory_permission(tmp_path):
 
 
 @mock.patch("airflow_breeze.utils.run_utils.run_command")
-@mock.patch("airflow_breeze.utils.run_utils.get_console")
-def test_check_buildah_is_installed(mock_get_console, mock_run_command):
+@mock.patch("airflow_breeze.utils.run_utils.console_print")
+def test_check_buildah_is_installed(mock_console_print, mock_run_command):
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "buildah 1.33.7"
     assert check_if_buildx_plugin_installed() is False
@@ -59,7 +59,7 @@ def test_check_buildah_is_installed(mock_get_console, mock_run_command):
         text=True,
         check=False,
     )
-    mock_get_console.return_value.print.assert_called_with(
+    mock_console_print.assert_called_with(
         "[warning]Detected buildah installation.[/]\n"
         "[warning]The Dockerfiles are only compatible with BuildKit.[/]\n"
         "[warning]Please see the syntax declaration at the top of the Dockerfiles for BuildKit version\n"
@@ -67,8 +67,8 @@ def test_check_buildah_is_installed(mock_get_console, mock_run_command):
 
 
 @mock.patch("airflow_breeze.utils.run_utils.run_command")
-@mock.patch("airflow_breeze.utils.run_utils.get_console")
-def test_check_buildkit_is_installed(mock_get_console, mock_run_command):
+@mock.patch("airflow_breeze.utils.run_utils.console_print")
+def test_check_buildkit_is_installed(mock_console_print, mock_run_command):
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "github.com/docker/buildx v0.29.1-desktop.1"
     assert check_if_buildx_plugin_installed() is True
@@ -79,14 +79,14 @@ def test_check_buildkit_is_installed(mock_get_console, mock_run_command):
         text=True,
         check=False,
     )
-    mock_get_console.return_value.print.assert_called_with(
+    mock_console_print.assert_called_with(
         "[success]Docker BuildKit is installed and will be used for the image build.[/]\n"
     )
 
 
 @mock.patch("airflow_breeze.utils.run_utils.run_command")
-@mock.patch("airflow_breeze.utils.run_utils.get_console")
-def test_check_buildx_not_detected(mock_get_console, mock_run_command):
+@mock.patch("airflow_breeze.utils.run_utils.console_print")
+def test_check_buildx_not_detected(mock_console_print, mock_run_command):
     mock_run_command.return_value.returncode = 1
     assert check_if_buildx_plugin_installed() is False
     mock_run_command.assert_called_with(
@@ -96,4 +96,4 @@ def test_check_buildx_not_detected(mock_get_console, mock_run_command):
         text=True,
         check=False,
     )
-    mock_get_console.return_value.print.assert_not_called()
+    mock_console_print.assert_not_called()

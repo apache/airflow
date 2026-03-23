@@ -33,14 +33,28 @@ test.describe("DAG Calendar Tab", () => {
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
 
+    // Wait for Dag to be parsed before making API calls
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(`/api/v2/dags/${dagId}`);
+
+          return response.ok();
+        },
+        { intervals: [2000], timeout: 60_000 },
+      )
+      .toBe(true);
+
     await page.request.patch(`/api/v2/dags/${dagId}`, {
       data: { is_paused: false },
     });
 
     const now = dayjs();
+    const yesterday = now.subtract(1, "day");
+    const baseDate = yesterday.isSame(now, "month") ? yesterday : now;
 
-    const successIso = now.subtract(3, "day").hour(10).toISOString();
-    const failedIso = now.subtract(2, "day").hour(12).toISOString();
+    const successIso = baseDate.startOf("day").hour(10).toISOString();
+    const failedIso = baseDate.startOf("day").hour(14).toISOString();
 
     async function createRun(runId: string, iso: string, state: string) {
       const response = await page.request.post(`/api/v2/dags/${dagId}/dagRuns`, {
@@ -51,6 +65,12 @@ test.describe("DAG Calendar Tab", () => {
           note: "e2e test",
         },
       });
+
+      // 409 = a run at this logical_date already exists (parallel worker race);
+      // another worker's beforeAll already created the test data, so skip.
+      if (response.status() === 409) {
+        return;
+      }
 
       if (!response.ok()) {
         const body = await response.text();
@@ -96,6 +116,10 @@ test.describe("DAG Calendar Tab", () => {
 
     expect(states.length).toBeGreaterThanOrEqual(2);
   });
+
+  // These tests depend on a "failed" dag run being present. The scheduler
+  // can override the PATCH-to-failed state back to success before tests run
+  // because the shared testDag may already be unpaused by parallel tests.
 
   test("verify hover shows correct run states", async () => {
     await calendar.switchToHourly();

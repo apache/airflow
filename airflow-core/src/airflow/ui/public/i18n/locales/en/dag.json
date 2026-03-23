@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "Reset to latest",
       "toggleGroup": "Toggle group"
-    }
+    },
+    "runTypeLegend": "Run Type Legend"
   },
   "header": {
     "buttons": {
@@ -138,7 +139,7 @@
       "direction": "Direction",
       "label": "Filter",
       "mode": "Mode",
-      "modeTooltip": "Static mode keeps the current view when navigating to different tasks, while Traverse mode automatically updates the active filter to the clicked task for easier DAG traversal.",
+      "modeTooltip": "Static mode keeps the current view when navigating to different tasks, while Traverse mode automatically updates the active filter to the clicked task for easier Dag traversal.",
       "modes": {
         "static": "Static",
         "traverse": "Traverse"

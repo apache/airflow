@@ -94,6 +94,8 @@ def upgrade():
 
 
 def downgrade():
+    import uuid as uuid_mod
+
     # Drop FKs pointing to name
     for table in ("connection", "variable", "slot_pool"):
         with op.batch_alter_table(table) as batch_op:
@@ -103,11 +105,23 @@ def downgrade():
         batch_op.drop_constraint("dag_bundle_team_team_name_fkey", type_="foreignkey")
         batch_op.drop_index("idx_dag_bundle_team_team_name")
 
-    # Add back team.id
+    # Add back team.id — nullable first so existing rows don't fail
     with op.batch_alter_table("team") as batch_op:
         batch_op.drop_constraint("team_pkey", type_="primary")
-        batch_op.add_column(sa.Column("id", sa.String(36), nullable=False))
+        batch_op.add_column(sa.Column("id", sa.String(36), nullable=True))
         batch_op.create_unique_constraint("team_name_uq", ["name"])
+
+    # Generate UUIDs for existing team rows
+    conn = op.get_bind()
+    teams = conn.execute(sa.text("SELECT name FROM team")).fetchall()
+    for team in teams:
+        conn.execute(
+            sa.text("UPDATE team SET id = :id WHERE name = :name"),
+            {"id": str(uuid_mod.uuid4()), "name": team.name},
+        )
+
+    with op.batch_alter_table("team") as batch_op:
+        batch_op.alter_column("id", existing_type=sa.String(36), nullable=False)
         batch_op.create_primary_key("team_pkey", ["id"])
 
     # Rename team_name → team_id
@@ -128,6 +142,21 @@ def downgrade():
             nullable=False,
         )
 
+    # Convert team name values back to generated UUIDs in referencing tables
+    for table in ("connection", "variable", "slot_pool"):
+        conn.execute(
+            sa.text(
+                f"UPDATE {table} SET team_id = "
+                f"(SELECT id FROM team WHERE name = {table}.team_id) "
+                f"WHERE team_id IS NOT NULL"
+            )
+        )
+    conn.execute(
+        sa.text(
+            "UPDATE dag_bundle_team SET team_id = (SELECT id FROM team WHERE name = dag_bundle_team.team_id)"
+        )
+    )
+
     # Re-create FK on old id
     for table in ("connection", "variable", "slot_pool"):
         with op.batch_alter_table(table) as batch_op:
@@ -139,6 +168,7 @@ def downgrade():
             )
 
     with op.batch_alter_table("dag_bundle_team") as batch_op:
+        batch_op.create_index("idx_dag_bundle_team_team_id", ["team_id"])
         batch_op.create_foreign_key(
             "dag_bundle_team_team_id_fkey",
             "team",

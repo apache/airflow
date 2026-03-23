@@ -113,7 +113,27 @@ def read_airflow_version() -> str:
     raise RuntimeError("Couldn't find __version__ in AST")
 
 
-def pre_process_files(files: list[str]) -> list[str]:
+GLOBAL_CONSTANTS_PATH = (
+    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
+)
+
+
+def read_allowed_kubernetes_versions() -> list[str]:
+    """Parse ALLOWED_KUBERNETES_VERSIONS from global_constants.py (single source of truth).
+
+    Returns versions without the ``v`` prefix, e.g. ``["1.30.13", "1.31.12", ...]``.
+    """
+    tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "ALLOWED_KUBERNETES_VERSIONS":
+                    versions: list[str] = ast.literal_eval(node.value)
+                    return [v.lstrip("v") for v in versions]
+    raise RuntimeError("ALLOWED_KUBERNETES_VERSIONS not found in global_constants.py")
+
+
+def pre_process_mypy_files(files: list[str]) -> list[str]:
     """Pre-process files passed to mypy.
 
     * Exclude conftest.py files and __init__.py files
@@ -429,6 +449,35 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
                 imports.append(fullname)
 
     return imports
+
+
+def get_remote_for_main() -> str:
+    """
+    Return the remote name to use when fetching main.
+    Prefers the remote that points to apache/airflow; otherwise uses origin.
+    """
+    result = subprocess.run(
+        ["git", "remote", "-v"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return "origin"
+
+    apache_remote = None
+    origin_remote = None
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            name, url = parts[0], parts[1]
+            if "apache/airflow" in url:
+                apache_remote = name
+                break
+            if name == "origin":
+                origin_remote = name
+
+    return apache_remote or origin_remote or "origin"
 
 
 def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str) -> str:

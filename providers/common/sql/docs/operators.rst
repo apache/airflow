@@ -299,8 +299,10 @@ DataSourceConfig Parameters
 * ``uri`` (str, required): URI of the datasource.
 * ``format`` (str, required): Format of the data.
 * ``table_name`` (str, required): Name of the table. Note: This name can be any identifier and should match the table name used in the SQL queries.
+* ``db_name`` (str, optional): Name of the database. Default is None. Ideally this is for catalog based storages like iceberg, provide the database name here and it will be used to fetch the table metadata.
 * ``storage_type`` (StorageType, optional): Type of storage. Default is None. If not provided, it will be inferred from the URI.
 * ``options`` (dict, optional): Additional options for the datasource. eg: if the datasource is partitioned, you can provide partitioning information in the options, e.g: ``{"table_partition_cols": [("year", "integer")]}``
+    look at here for more options: `<https://datafusion.apache.org/python/autoapi/datafusion/context/index.html#datafusion.context.SessionContext>_.`
 
 S3 Storage
 ----------
@@ -328,3 +330,11 @@ analytics sql queries:
     :language: python
     :start-after: [START howto_analytics_decorator]
     :end-before: [END howto_analytics_decorator]
+
+Analytics with Iceberg
+-------------------------
+.. exampleinclude:: /../../sql/src/airflow/providers/common/sql/example_dags/example_analytics.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_analytics_iceberg]
+    :end-before: [END howto_analytics_iceberg]

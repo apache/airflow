@@ -16,25 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from airflow.security.permissions import (
-        RESOURCE_ASSET,
-        RESOURCE_ASSET_ALIAS,
-        RESOURCE_BACKFILL,
-        RESOURCE_DAG_VERSION,
-    )
-else:
-    try:
-        from airflow.security.permissions import (
-            RESOURCE_ASSET,
-            RESOURCE_ASSET_ALIAS,
-            RESOURCE_BACKFILL,
-            RESOURCE_DAG_VERSION,
-        )
-    except ImportError:
-        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
-
-
-__all__ = ["RESOURCE_ASSET", "RESOURCE_ASSET_ALIAS", "RESOURCE_BACKFILL", "RESOURCE_DAG_VERSION"]
+# Resource Constants
+RESOURCE_BACKFILL = "Backfills"
+RESOURCE_DAG_VERSION = "DAG Versions"
+RESOURCE_ASSET = "Assets"
+RESOURCE_ASSET_ALIAS = "Asset Aliases"

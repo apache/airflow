@@ -32,7 +32,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-edge3"
-version = "3.1.0"
+version = "3.2.0"
 description = "Provider package apache-airflow-providers-edge3 for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -56,6 +56,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -108,8 +109,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-edge3/3.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-edge3/3.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-edge3/3.2.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-edge3/3.2.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

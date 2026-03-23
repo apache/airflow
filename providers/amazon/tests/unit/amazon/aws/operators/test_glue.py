@@ -533,6 +533,59 @@ class TestGlueJobOperator:
         assert len(xcom_calls) == 1, "Should push new glue_job_run_id"
         assert xcom_calls[0][1]["value"] == new_job_run_id
 
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    def test_resume_glue_job_on_retry_find_job_run_by_task_uuid(self, mock_initialize_job, mock_get_conn):
+        """Test that when XCom is missing, job run is found by task UUID."""
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            resume_glue_job_on_retry=True,
+            wait_for_completion=False,
+        )
+
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id = "test_dag_id"
+        mock_ti.task_id = TASK_ID
+        mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
+        mock_ti.map_index = -1
+        mock_ti.xcom_pull.return_value = None
+        mock_context = {"ti": mock_ti}
+
+        task_uuid = f"{mock_ti.dag_id}:{mock_ti.task_id}:{mock_ti.run_id}:{mock_ti.map_index}"
+
+        mock_glue_client = mock.MagicMock()
+        glue.hook.conn = mock_glue_client
+        mock_glue_client.get_job_runs.return_value = {
+            "JobRuns": [
+                {
+                    "Id": "existing_run_123",
+                    "Arguments": {GlueJobOperator.TASK_UUID_ARG: task_uuid},
+                    "JobRunState": "STARTING",
+                }
+            ]
+        }
+        mock_glue_client.get_job_run.return_value = {
+            "JobRun": {
+                "JobRunState": "RUNNING",
+            }
+        }
+
+        glue.execute(mock_context)
+
+        assert glue._job_run_id == "existing_run_123"
+        mock_initialize_job.assert_not_called()
+        xcom_calls = [
+            call for call in mock_ti.xcom_push.call_args_list if call[1].get("key") == "glue_job_run_id"
+        ]
+        assert len(xcom_calls) == 1, "Should push existing glue_job_run_id when found by task UUID"
+        assert xcom_calls[0][1]["value"] == "existing_run_123"
+
 
 class TestGlueDataQualityOperator:
     RULE_SET_NAME = "TestRuleSet"

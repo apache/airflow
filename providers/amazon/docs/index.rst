@@ -87,7 +87,7 @@ apache-airflow-providers-amazon package
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 9.22.0
+Release: 9.23.0
 
 Provider package
 ----------------
@@ -120,12 +120,11 @@ PIP package                                 Version required
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
 ``redshift_connector``                      ``>=2.1.3``
-``asgiref``                                 ``>=2.3.0``
+``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
+``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``PyAthena``                                ``>=3.10.0``
 ``jmespath``                                ``>=0.7.0``
-``sagemaker-studio``                        ``>=1.0.9``
-``pydynamodb``                              ``>=0.7.5; python_version >= "3.13"``
-``sqlean.py``                               ``>=3.47.0; python_version >= "3.13"``
+``sagemaker-studio``                        ``>=1.0.25,<1.1.0``
 ``marshmallow``                             ``>=3``
 ==========================================  ======================================
 
@@ -168,5 +167,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 9.22.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.22.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.22.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.22.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 9.22.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.22.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.22.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.22.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-amazon 9.23.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.23.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.23.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.23.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 9.23.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.23.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.23.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.23.0-py3-none-any.whl.sha512>`__)

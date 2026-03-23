@@ -28,42 +28,53 @@ from pathlib import Path
 
 VALID_CHANGE_TYPES = {"significant", "feature", "improvement", "bugfix", "doc", "misc"}
 
-files = sys.argv[1:]
 
-failed = False
-for filename in files:
-    with open(filename) as f:
-        lines = [line.strip() for line in f.readlines()]
+def validate_newsfragment(filename: str, lines: list[str]) -> list[str]:
+    """Validate a single newsfragment file. Returns a list of error messages."""
+    errors: list[str] = []
     num_lines = len(lines)
 
     name_parts = Path(filename).name.split(".")
     if len(name_parts) != 3:
-        print(f"Newsfragment {filename} has an unexpected filename. Should be {{pr_number}}.{{type}}.rst.")
-        failed = True
-        continue
+        errors.append(
+            f"Newsfragment {filename} has an unexpected filename. Should be {{pr_number}}.{{type}}.rst."
+        )
+        return errors
 
     change_type = name_parts[1]
     if change_type not in VALID_CHANGE_TYPES:
-        print(f"Newsfragment {filename} has an unexpected type. Should be one of {VALID_CHANGE_TYPES}.")
-        failed = True
-        continue
+        errors.append(
+            f"Newsfragment {filename} has an unexpected type. Should be one of {VALID_CHANGE_TYPES}."
+        )
+        return errors
 
     if change_type != "significant":
         if num_lines != 1:
-            print(f"Newsfragment {filename} can only have a single line.")
-            failed = True
+            errors.append(f"Newsfragment {filename} can only have a single line.")
     else:
         # significant newsfragment
         if num_lines == 1:
-            continue
-        if num_lines == 2:
-            print(f"Newsfragment {filename} can have 1, or 3+ lines.")
-            failed = True
-            continue
-        if lines[1] != "":
-            print(f"Newsfragment {filename} must have an empty second line.")
-            failed = True
-            continue
+            pass  # OK
+        elif num_lines == 2:
+            errors.append(f"Newsfragment {filename} can have 1, or 3+ lines.")
+        elif lines[1] != "":
+            errors.append(f"Newsfragment {filename} must have an empty second line.")
 
-if failed:
-    sys.exit(1)
+    return errors
+
+
+def main(filenames: list[str]) -> int:
+    failed = False
+    for filename in filenames:
+        with open(filename) as f:
+            lines = [line.strip() for line in f.readlines()]
+        errors = validate_newsfragment(filename, lines)
+        for error in errors:
+            print(error)
+        if errors:
+            failed = True
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

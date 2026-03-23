@@ -26,6 +26,8 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -404,6 +406,17 @@ def materialize_asset(
             f"More than one DAG materializes asset with ID: {asset_id}",
         )
 
+    if not get_auth_manager().is_authorized_dag(
+        method="POST",
+        access_entity=DagAccessEntity.RUN,
+        details=DagDetails(id=dag_id),
+        user=user,
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"User is not authorized to trigger a run for DAG: {dag_id} that materializes this asset",
+        )
+
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
     if dag.allowed_run_types is not None and DagRunType.ASSET_MATERIALIZATION not in dag.allowed_run_types:
@@ -429,7 +442,6 @@ def materialize_asset(
 
 @assets_router.get(
     "/assets/{asset_id}/queuedEvents",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_asset_queued_events(
@@ -446,12 +458,6 @@ def get_asset_queued_events(
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.scalars(dag_asset_queued_events_select).all()
-
-    if not adrqs:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"Queue event with asset_id: `{asset_id}` was not found",
-        )
 
     queued_events = [
         QueuedEventResponse(
@@ -536,7 +542,6 @@ def get_asset(
 
 @assets_router.get(
     "/dags/{dag_id}/assets/queuedEvents",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_asset_queued_events(
@@ -553,8 +558,6 @@ def get_dag_asset_queued_events(
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.scalars(dag_asset_queued_events_select).all()
-    if not adrqs:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 
     queued_events = [
         QueuedEventResponse(

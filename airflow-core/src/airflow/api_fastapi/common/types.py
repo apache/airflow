@@ -71,6 +71,28 @@ class TimeDelta(BaseModel):
 TimeDeltaWithValidation = Annotated[TimeDelta, BeforeValidator(_validate_timedelta_field)]
 
 
+# Common validator for theme icon fields (SVG-only, http(s) or app-relative path).
+def _validate_theme_icon(value: str | None) -> str | None:
+    if value is None:
+        return value
+    from urllib.parse import urlparse
+
+    parsed = urlparse(value)
+    if parsed.scheme in ("http", "https"):
+        path = parsed.path or ""
+    elif parsed.scheme == "" and value.startswith("/"):
+        path = value
+    else:
+        raise ValueError("theme.icon must be http(s) URL or app-relative path starting with '/'")
+    if not path.lower().endswith(".svg"):
+        raise ValueError("theme.icon must point to an SVG file (*.svg)")
+    return value
+
+
+# Alias type for theme icon fields with shared validation
+ThemeIconType = Annotated[str | None, BeforeValidator(_validate_theme_icon)]
+
+
 class Mimetype(str, Enum):
     """Mimetype for the `Content-Type` header."""
 
@@ -180,3 +202,5 @@ class Theme(BaseModel):
         ],
     ]
     globalCss: dict[str, dict] | None = None
+    icon: ThemeIconType = None
+    icon_dark_mode: ThemeIconType = None

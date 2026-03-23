@@ -20,6 +20,37 @@
 Changelog
 ---------
 
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Replace connexion with FastAPI for FAB provider (#62664)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add missing HTTP timeout to FAB JWKS fetching (#63058)``
+* ``Fix race condition in auth manager initialization (#62431)``
+* ``Fix/FabAuthManager race condition on startup with multiple workers (#62737)``
+* ``Scope session token in cookie to base_url (#62771)``
+
+Misc
+~~~~
+
+* ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``chore(deps-dev): bump the fab-ui-package-updates group across 1 directory with 3 updates (#63067)``
+   * ``chore(deps-dev): bump copy-webpack-plugin (#63004)``
+   * ``Upgrade 'sgvo' (#62941)``
+   * ``chore(deps-dev): bump the fab-ui-package-updates group across 1 directory with 3 updates (#62719)``
+   * ``Update dependencies for TS code in Fab Provider (#62679)``
+   * ``CI: Upgrade important CI environment (#62610)``
+   * ``Fix all build-system/requires including transitive dependencies (#62570)``
+
 3.4.0
 .....
 

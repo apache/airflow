@@ -27,8 +27,10 @@ from airflow.providers.common.compat.version_compat import (
 
 _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Re-export from sdk (which handles Airflow 2.x/3.x fallbacks)
+    "BaseBranchOperator": "airflow.providers.common.compat.sdk",
     "BaseOperator": "airflow.providers.common.compat.sdk",
     "BaseAsyncOperator": "airflow.providers.common.compat.sdk",
+    "BranchMixIn": "airflow.providers.common.compat.sdk",
     "get_current_context": "airflow.providers.common.compat.sdk",
     "is_async_callable": "airflow.providers.common.compat.sdk",
     # Standard provider items with direct fallbacks

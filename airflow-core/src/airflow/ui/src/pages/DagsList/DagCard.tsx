@@ -76,8 +76,8 @@ export const DagCard = ({ dag }: Props) => {
           <Schedule
             assetExpression={dag.asset_expression}
             dagId={dag.dag_id}
-            latestRunAfter={latestRun?.run_after}
             timetableDescription={dag.timetable_description}
+            timetablePartitioned={dag.timetable_partitioned}
             timetableSummary={dag.timetable_summary}
           />
         </Stat>

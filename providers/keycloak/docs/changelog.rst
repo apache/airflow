@@ -25,6 +25,25 @@
 Changelog
 ---------
 
+0.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add method to retrieve teams from Keycloak as resources (#62715)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Check 'id_token' format before redirecting in Keycloak auth manager (#62813)``
+* ``Do not get 'logout_callback_url' from request in keycloak auth manager (#62795)``
+* ``Scope session token in cookie to base_url (#62771)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add Apache Airflow Provider Registry (#62261)``
+
 0.5.3
 .....
 

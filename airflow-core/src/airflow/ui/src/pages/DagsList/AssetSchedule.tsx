@@ -23,7 +23,7 @@ import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
-import { useAssetServiceNextRunAssets } from "openapi/queries";
+import { useAssetServiceGetDagAssetQueuedEvents, useAssetServiceNextRunAssets } from "openapi/queries";
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
 import type { NextRunEvent } from "src/components/AssetExpression/types";
 import { TruncatedText } from "src/components/TruncatedText";
@@ -34,7 +34,7 @@ import { PartitionScheduleModal } from "./PartitionScheduleModal";
 type Props = {
   readonly assetExpression?: ExpressionType | null;
   readonly dagId: string;
-  readonly latestRunAfter?: string;
+  readonly timetablePartitioned: boolean | null;
   readonly timetableSummary: string | null;
 };
 
@@ -59,24 +59,40 @@ const PartitionSchedule = ({ dagId, isLoading, pendingCount }: PartitionSchedule
   );
 };
 
-export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetableSummary }: Props) => {
+export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, timetableSummary }: Props) => {
   const { t: translate } = useTranslation(["dags", "common"]);
-  const { data: nextRun, isLoading } = useAssetServiceNextRunAssets({ dagId });
 
-  const isPartitioned = timetableSummary === "Partitioned Asset";
+  const { data: nextRun, isLoading: isNextRunLoading } = useAssetServiceNextRunAssets({ dagId });
+  const { data: queuedEventsData, isLoading: isQueuedEventsLoading } = useAssetServiceGetDagAssetQueuedEvents(
+    { dagId },
+    undefined,
+    { enabled: !timetablePartitioned },
+  );
 
   const nextRunEvents = (nextRun?.events ?? []) as Array<NextRunEvent>;
+  const queuedAssetEvents = new Map<number, string>();
 
-  const pendingEvents = nextRunEvents.filter((ev) => {
-    if (ev.lastUpdate === null) {
-      return false;
+  if (!timetablePartitioned) {
+    for (const event of queuedEventsData?.queued_events ?? []) {
+      // Keep a single event timestamp per asset, using the latest one when duplicates exist.
+      const existingEventDate = queuedAssetEvents.get(event.asset_id);
+
+      if (existingEventDate === undefined || dayjs(event.created_at).isAfter(existingEventDate)) {
+        queuedAssetEvents.set(event.asset_id, event.created_at);
+      }
     }
-    if (isPartitioned) {
-      return true;
+  }
+
+  const pendingEvents = nextRunEvents.flatMap((event) => {
+    if (timetablePartitioned) {
+      return event.lastUpdate === null ? [] : [event];
     }
 
-    return latestRunAfter !== undefined && dayjs(ev.lastUpdate).isAfter(latestRunAfter);
+    const queuedAt = queuedAssetEvents.get(event.id);
+
+    return queuedAt === undefined ? [] : [{ ...event, lastUpdate: event.lastUpdate ?? queuedAt }];
   });
+  const isLoading = isNextRunLoading || (!timetablePartitioned && isQueuedEventsLoading);
 
   if (!nextRunEvents.length) {
     return (
@@ -87,7 +103,7 @@ export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetabl
     );
   }
 
-  if (isPartitioned) {
+  if (timetablePartitioned) {
     const pendingCount = (nextRun?.pending_partition_count as number | undefined) ?? 0;
 
     if (pendingCount === 0) {

@@ -28,7 +28,10 @@ export class BasePage {
 
   public constructor(page: Page) {
     this.page = page;
-    this.welcomeHeading = page.locator('h2.chakra-heading:has-text("Welcome")');
+    this.welcomeHeading = page.getByRole("heading", {
+      level: 2,
+      name: "Welcome",
+    });
   }
 
   public async isLoggedIn(): Promise<boolean> {
@@ -37,9 +40,7 @@ export class BasePage {
 
       return true;
     } catch {
-      const currentUrl = this.page.url();
-
-      return !currentUrl.includes("/login");
+      return !this.page.url().includes("/login");
     }
   }
 

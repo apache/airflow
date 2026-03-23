@@ -142,15 +142,40 @@ class DatabricksReposCreateOperator(BaseOperator):
                 )
             payload["path"] = self.repo_path
         existing_repo_id = None
+
         if self.repo_path is not None:
             existing_repo_id = self._hook.get_repo_by_path(self.repo_path)
             if existing_repo_id is not None and not self.ignore_existing_repo:
                 raise AirflowException(f"Repo with path '{self.repo_path}' already exists")
+
         if existing_repo_id is None:
-            result = self._hook.create_repo(payload)
-            repo_id = result["id"]
+            try:
+                result = self._hook.create_repo(payload)
+                repo_id = result["id"]
+            except Exception:
+                # If ignore_existing_repo is False, preserve existing behavior
+                # and propagate the original create failure.
+                if not self.ignore_existing_repo:
+                    raise
+
+                # When ignore_existing_repo=True, attempt to recover from a possible
+                # create-time conflict (e.g., repo created concurrently).
+                if self.repo_path is not None:
+                    repo_id = self._hook.get_repo_by_path(self.repo_path)
+
+                # Only treat this as success if the repo now exists.
+                # If it still does not exist, re-raise the original exception
+                # to avoid masking genuine create failures.
+                if repo_id is None:
+                    raise
+
+                self.log.info(
+                    "Repository at path '%s' already exists; continuing because ignore_existing_repo=True.",
+                    self.repo_path,
+                )
         else:
             repo_id = existing_repo_id
+
         # update repo if necessary
         if self.branch is not None:
             self._hook.update_repo(str(repo_id), {"branch": str(self.branch)})

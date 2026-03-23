@@ -27,7 +27,6 @@ from functools import cache
 from pathlib import Path
 from typing import NamedTuple
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_DIST_PATH,

@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -60,7 +61,8 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-sql>=1.32.0",
-    "pymssql>=2.3.5",
+    "pymssql>=2.3.5; python_version < '3.14'",
+    "pymssql>=2.3.13; python_version >= '3.14'",
     "methodtools>=0.4.7",
 ]
 

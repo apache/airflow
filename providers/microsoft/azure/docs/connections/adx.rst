@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:adx:
+.. _howto/connection:azure_data_explorer:
 
 Microsoft Azure Data Explorer
 =============================

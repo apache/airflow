@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, Link, useDisclosure, VStack } from "@chakra-ui/react";
+import { Flex, Heading, Link, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
@@ -98,7 +98,7 @@ const createColumns = (
     accessorKey: "extra",
     cell: ({ row: { original } }) => {
       if (original.extra !== null) {
-        return <RenderedJsonField content={original.extra ?? {}} jsonProps={{ collapsed: !open }} />;
+        return <RenderedJsonField collapsed={!open} content={original.extra ?? {}} />;
       }
 
       return undefined;
@@ -170,19 +170,17 @@ export const AssetsList = () => {
           />
         </Flex>
       </VStack>
-      <Box overflow="auto">
-        <DataTable
-          columns={columns}
-          data={data?.assets ?? []}
-          errorMessage={<ErrorAlert error={error} />}
-          initialState={tableURLState}
-          isLoading={isLoading}
-          modelName="common:asset"
-          onStateChange={setTableURLState}
-          showRowCountHeading={false}
-          total={data?.total_entries}
-        />
-      </Box>
+      <DataTable
+        columns={columns}
+        data={data?.assets ?? []}
+        errorMessage={<ErrorAlert error={error} />}
+        initialState={tableURLState}
+        isLoading={isLoading}
+        modelName="common:asset"
+        onStateChange={setTableURLState}
+        showRowCountHeading={false}
+        total={data?.total_entries}
+      />
     </>
   );
 };

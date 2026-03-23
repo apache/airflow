@@ -27,7 +27,7 @@ from airflow.providers.common.compat.sdk import dag, task
 @dag
 def example_llm_classification():
     @task.llm(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt=(
             "Classify the severity of the given pipeline incident. "
             "Use 'critical' for data loss or complete pipeline failure, "

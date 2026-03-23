@@ -18,7 +18,9 @@
 Contribution Workflow
 =====================
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Typically, you start your first contribution by reviewing open tickets
 at `GitHub issues <https://github.com/apache/airflow/issues>`__.
@@ -198,6 +200,10 @@ Step 4: Prepare PR
 
      In general newsfragments must be one line.  For newsfragment type ``significant``, you may include summary and body separated by a blank line, similar to ``git`` commit messages.
      One thing to note here is that a ``significant`` newsfragment doesn't have to be a breaking change, it can be something that is notable but not breaking.
+
+     A CI check validates that newsfragment filenames use the correct PR number. If you need to skip
+     this check (e.g. when cherry-picking a newsfragment from another PR), add the
+     ``skip newsfragment check`` label to your PR.
 
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <10_working_with_git.rst#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to

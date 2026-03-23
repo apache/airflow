@@ -48,21 +48,21 @@ class TestPoolImportCommand:
         """Test import with missing file."""
         non_existent = tmp_path / "non_existent.json"
         with pytest.raises(SystemExit, match=f"Missing pools file {non_existent}"):
-            pool_command.import_(mock.MagicMock(file=non_existent))
+            pool_command.import_(mock.MagicMock(file=non_existent, action_on_existing_key="fail"))
 
     def test_import_invalid_json(self, mock_client, tmp_path):
         """Test import with invalid JSON file."""
         invalid_json = tmp_path / "invalid.json"
         invalid_json.write_text("invalid json")
         with pytest.raises(SystemExit, match="Invalid json file"):
-            pool_command.import_(mock.MagicMock(file=invalid_json))
+            pool_command.import_(mock.MagicMock(file=invalid_json, action_on_existing_key="fail"))
 
     def test_import_invalid_pool_config(self, mock_client, tmp_path):
         """Test import with invalid pool configuration."""
         invalid_pool = tmp_path / "invalid_pool.json"
         invalid_pool.write_text(json.dumps([{"invalid": "config"}]))
         with pytest.raises(SystemExit, match="Invalid pool configuration: {'invalid': 'config'}"):
-            pool_command.import_(mock.MagicMock(file=invalid_pool))
+            pool_command.import_(mock.MagicMock(file=invalid_pool, action_on_existing_key="fail"))
 
     def test_import_success(self, mock_client, tmp_path, capsys):
         """Test successful pool import."""
@@ -87,7 +87,7 @@ class TestPoolImportCommand:
 
         mock_client.pools.bulk.return_value = mock_bulk_builder
 
-        pool_command.import_(mock.MagicMock(file=pools_file))
+        pool_command.import_(mock.MagicMock(file=pools_file, action_on_existing_key="fail"))
 
         # Verify bulk operation was called with correct parameters
         mock_client.pools.bulk.assert_called_once()
@@ -107,6 +107,34 @@ class TestPoolImportCommand:
         # Update the assertion to match the actual output format
         captured = capsys.readouterr()
         assert str(["test_pool"]) in captured.out
+
+    @pytest.mark.parametrize(
+        ("action_on_existing_key", "expected_enum"),
+        [
+            ("overwrite", BulkActionOnExistence.OVERWRITE),
+            ("skip", BulkActionOnExistence.SKIP),
+            ("fail", BulkActionOnExistence.FAIL),
+        ],
+    )
+    def test_import_action_on_existing_key(
+        self, mock_client, tmp_path, action_on_existing_key, expected_enum
+    ):
+        """Test that --action-on-existing-key is passed through to the bulk API."""
+        pools_file = tmp_path / "pools.json"
+        pools_file.write_text(json.dumps([{"name": "test_pool", "slots": 1}]))
+
+        mock_response = mock.MagicMock()
+        mock_response.success = ["test_pool"]
+        mock_response.errors = []
+        mock_bulk_builder = mock.MagicMock()
+        mock_bulk_builder.create = mock_response
+        mock_client.pools.bulk.return_value = mock_bulk_builder
+
+        pool_command.import_(mock.MagicMock(file=pools_file, action_on_existing_key=action_on_existing_key))
+
+        call_args = mock_client.pools.bulk.call_args[1]
+        action = call_args["pools"].actions[0]
+        assert action.action_on_existence == expected_enum
 
 
 class TestPoolExportCommand:
@@ -149,35 +177,32 @@ class TestPoolExportCommand:
         expected_output = f"Exported {len(exported_data)} pool(s) to {export_file}"
         assert expected_output in captured.out.replace("\n", "")
 
-    def test_export_non_json_output(self, mock_client, tmp_path, capsys):
-        """Test pool export with non-json output format."""
-        # Create a proper dictionary structure
-        mock_pool = {
+    @pytest.mark.parametrize("output_format", ["table", "yaml", "plain"])
+    def test_export_non_json_uses_airflow_console(self, mock_client, tmp_path, output_format):
+        """Test that non-JSON export delegates to AirflowConsole.print_as() with correct data and format."""
+        pool_attrs = {
             "name": "test_pool",
-            "slots": 1,
+            "slots": 5,
             "description": "Test pool",
             "include_deferred": True,
             "occupied_slots": 0,
             "running_slots": 0,
             "queued_slots": 0,
             "scheduled_slots": 0,
-            "open_slots": 1,
+            "open_slots": 5,
             "deferred_slots": 0,
         }
-        # Create a mock response with a proper pools attribute
         mock_pools = mock.MagicMock()
-        mock_pools.pools = [mock.MagicMock(**mock_pool)]
+        mock_pools.pools = [type("Pool", (), pool_attrs)()]
         mock_pools.total_entries = 1
         mock_client.pools.list.return_value = mock_pools
 
-        pool_command.export(mock.MagicMock(file=tmp_path / "unused.json", output="table"))
-
-        # Verify console output contains the raw dict
-        captured = capsys.readouterr()
-        assert "test_pool" in captured.out
-        assert "slots" in captured.out
-        assert "description" in captured.out
-        assert "include_deferred" in captured.out
+        with mock.patch("airflowctl.ctl.commands.pool_command.AirflowConsole") as mock_console_cls:
+            pool_command.export(mock.MagicMock(file=tmp_path / "unused.json", output=output_format))
+            mock_console_cls.return_value.print_as.assert_called_once_with(
+                data=[pool_attrs],
+                output=output_format,
+            )
 
     def test_export_failure(self, mock_client, tmp_path):
         """Test pool export with API failure."""

@@ -1127,7 +1127,7 @@ class BackfillResponse(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     from_date: Annotated[datetime, Field(title="From Date")]
     to_date: Annotated[datetime, Field(title="To Date")]
-    dag_run_conf: Annotated[dict[str, Any], Field(title="Dag Run Conf")]
+    dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = None
     is_paused: Annotated[bool, Field(title="Is Paused")]
     reprocess_behavior: ReprocessBehavior
     max_active_runs: Annotated[int, Field(title="Max Active Runs")]
@@ -1357,6 +1357,7 @@ class DAGDetailsResponse(BaseModel):
     description: Annotated[str | None, Field(title="Description")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
+    timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = None
@@ -1421,6 +1422,7 @@ class DAGResponse(BaseModel):
     description: Annotated[str | None, Field(title="Description")] = None
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")] = None
     timetable_description: Annotated[str | None, Field(title="Timetable Description")] = None
+    timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = None

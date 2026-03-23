@@ -378,12 +378,14 @@ class DagModel(Base):
     )
     # Description of the dag
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Timetable Type
+    timetable_type: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     # Timetable summary
     timetable_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Timetable description
     timetable_description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    # Timetable Type
-    timetable_type: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    # Whether the timetable do partitioning.
+    timetable_partitioned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     # Asset expression based on asset triggers
     asset_expression: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON(), nullable=True)
     # DAG deadline information
@@ -402,7 +404,7 @@ class DagModel(Base):
     max_consecutive_failed_dag_runs: Mapped[int] = mapped_column(Integer, nullable=False)
 
     has_task_concurrency_limits: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    has_import_errors: Mapped[bool] = mapped_column(Boolean(), default=False, server_default="0")
+    has_import_errors: Mapped[bool | None] = mapped_column(Boolean(), default=False, server_default="0")
     fail_fast: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     allowed_run_types: Mapped[list[str] | None] = mapped_column(sa.JSON(), nullable=True)
 
@@ -412,6 +414,9 @@ class DagModel(Base):
     # Must be either both NULL or both datetime.
     next_dagrun_data_interval_start: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     next_dagrun_data_interval_end: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+
+    next_dagrun_partition_key: Mapped[str | None] = mapped_column(String(255))
+    next_dagrun_partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Earliest time at which this ``next_dagrun`` can be created.
     next_dagrun_create_after: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
@@ -660,6 +665,12 @@ class DagModel(Base):
             else:
                 adrq_by_dag[adrq.target_dag_id].append(adrq)
 
+        if adrq_by_dag:
+            log.info(
+                "Asset-triggered Dags with queued events: %s",
+                {dag_id: len(adrqs) for dag_id, adrqs in adrq_by_dag.items()},
+            )
+
         dag_statuses: dict[str, dict[UKey, bool]] = {
             dag_id: {SerializedAssetUniqueKey.from_asset(adrq.asset): True for adrq in adrqs}
             for dag_id, adrqs in adrq_by_dag.items()
@@ -668,7 +679,9 @@ class DagModel(Base):
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
-            if not dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses):
+            ready = dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses)
+            if not ready:
+                log.debug("Asset condition not met for dag '%s'", dag_id)
                 del adrq_by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
@@ -693,6 +706,10 @@ class DagModel(Base):
                 )
             )
             if exclusion_list:
+                log.info(
+                    "Asset-triggered Dags at max_active_runs, deferring: %s",
+                    exclusion_list,
+                )
                 asset_triggered_dag_ids -= exclusion_list
                 triggered_date_by_dag = {
                     k: v for k, v in triggered_date_by_dag.items() if k not in exclusion_list
@@ -748,11 +765,14 @@ class DagModel(Base):
             last_run_info = dag.timetable.run_info_from_dag_run(dag_run=last_automated_run)
         next_dagrun_info = dag.next_dagrun_info(last_automated_run_info=last_run_info)
         if next_dagrun_info is None:
-            # there is no next dag run after the last dag run; set to None
+            # there is no next dag run after the last dag run; set everything to None
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
+            self.next_dagrun_partition_key = self.next_dagrun_partition_date = None
         else:
+            self.next_dagrun = next_dagrun_info.logical_date
             self.next_dagrun_data_interval = next_dagrun_info.data_interval
-            self.next_dagrun = next_dagrun_info.logical_date or next_dagrun_info.partition_date
+            self.next_dagrun_partition_key = next_dagrun_info.partition_key
+            self.next_dagrun_partition_date = next_dagrun_info.partition_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
         log.info(
             "setting next dagrun info",
@@ -760,6 +780,8 @@ class DagModel(Base):
             next_dagrun_create_after=str(self.next_dagrun_create_after),
             next_dagrun_data_interval_start=str(self.next_dagrun_data_interval_start),
             next_dagrun_data_interval_end=str(self.next_dagrun_data_interval_end),
+            next_dagrun_partition_key=self.next_dagrun_partition_key,
+            next_dagrun_partition_date=str(self.next_dagrun_partition_date),
         )
 
     @provide_session

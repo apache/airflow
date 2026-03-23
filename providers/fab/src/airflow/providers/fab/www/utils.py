@@ -31,19 +31,17 @@ from airflow.providers.fab.www.security.permissions import (
 )
 
 if TYPE_CHECKING:
-    try:
-        from airflow.api_fastapi.auth.managers.base_auth_manager import ExtendedResourceMethod
-    except ImportError:
-        from airflow.api_fastapi.auth.managers.base_auth_manager import (
-            ResourceMethod as ExtendedResourceMethod,
-        )
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
-# Convert methods to FAB action name
-_MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ExtendedResourceMethod, str] = {
+# Convert methods to FAB action name.
+# Keyed on ``str`` rather than ``ExtendedResourceMethod`` so that HTTP verbs
+# not part of the auth model (e.g. PATCH) can be mapped to FAB actions
+# without extending the enum.  See https://github.com/apache/airflow/issues/59510
+_MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[str, str] = {
     "POST": ACTION_CAN_CREATE,
     "GET": ACTION_CAN_READ,
     "PUT": ACTION_CAN_EDIT,
+    "PATCH": ACTION_CAN_EDIT,
     "DELETE": ACTION_CAN_DELETE,
     "MENU": ACTION_CAN_ACCESS_MENU,
 }

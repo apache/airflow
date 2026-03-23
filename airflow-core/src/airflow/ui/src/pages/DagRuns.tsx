@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Flex, HStack, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
@@ -43,6 +45,7 @@ import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
+  BUNDLE_VERSION: BUNDLE_VERSION_PARAM,
   CONF_CONTAINS: CONF_CONTAINS_PARAM,
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
@@ -50,6 +53,8 @@ const {
   DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE_GTE: END_DATE_GTE_PARAM,
   END_DATE_LTE: END_DATE_LTE_PARAM,
+  LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
+  LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
   PARTITION_KEY_PATTERN: PARTITION_KEY_PATTERN_PARAM,
   RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
   RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
@@ -164,7 +169,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
       original.conf && Object.keys(original.conf).length > 0 ? (
-        <RenderedJsonField content={original.conf} jsonProps={{ collapsed: true }} />
+        <RenderedJsonField collapsed content={original.conf} />
       ) : undefined,
     header: translate("dagRun.conf"),
   },
@@ -209,10 +214,13 @@ export const DagRuns = () => {
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
   const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
+  const bundleVersion = searchParams.get(BUNDLE_VERSION_PARAM);
   const startDateGte = searchParams.get(START_DATE_GTE_PARAM);
   const startDateLte = searchParams.get(START_DATE_LTE_PARAM);
   const endDateGte = searchParams.get(END_DATE_GTE_PARAM);
   const endDateLte = searchParams.get(END_DATE_LTE_PARAM);
+  const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE_PARAM);
+  const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
   const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
   const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
   const durationGte = searchParams.get(DURATION_GTE_PARAM);
@@ -224,6 +232,7 @@ export const DagRuns = () => {
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
+      bundleVersion: bundleVersion ?? undefined,
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
@@ -234,6 +243,8 @@ export const DagRuns = () => {
       endDateGte: endDateGte ?? undefined,
       endDateLte: endDateLte ?? undefined,
       limit: pageSize,
+      logicalDateGte: logicalDateGte ?? undefined,
+      logicalDateLte: logicalDateLte ?? undefined,
       offset: pageIndex * pageSize,
       orderBy,
       partitionKeyPattern: partitionKeyPattern ?? undefined,

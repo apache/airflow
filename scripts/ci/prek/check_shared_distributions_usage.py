@@ -41,7 +41,6 @@ try:
 except ImportError:
     import tomli as tomllib
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # for common_prek_utils import
 from common_prek_utils import AIRFLOW_ROOT_PATH, console, insert_documentation
 
 SHARED_DIR = AIRFLOW_ROOT_PATH / "shared"

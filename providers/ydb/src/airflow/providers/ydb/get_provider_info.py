@@ -38,6 +38,47 @@ def get_provider_info():
         "operators": [{"integration-name": "YDB", "python-modules": ["airflow.providers.ydb.operators.ydb"]}],
         "hooks": [{"integration-name": "YDB", "python-modules": ["airflow.providers.ydb.hooks.ydb"]}],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.ydb.hooks.ydb.YDBHook", "connection-type": "ydb"}
+            {
+                "hook-class-name": "airflow.providers.ydb.hooks.ydb.YDBHook",
+                "connection-type": "ydb",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "extra"],
+                    "placeholders": {
+                        "host": "eg. grpcs://my_host or ydb.serverless.yandexcloud.net or lb.etn9txxxx.ydb.mdb.yandexcloud.net",
+                        "login": "root",
+                        "password": "my_password",
+                        "database": "e.g. /local or /ru-central1/b1gtl2kg13him37quoo6/etndqstq7ne4v68n6c9b",
+                        "service_account_json": 'e.g. {"id": "...", "service_account_id": "...", "private_key": "..."}',
+                        "token": "t1.9....AAQ",
+                    },
+                },
+                "conn-fields": {
+                    "database": {
+                        "label": "Database name",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "Required. YDB database name",
+                    },
+                    "service_account_json": {
+                        "label": "Service account auth JSON",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                        "description": 'Service account auth JSON. Looks like {"id": "...", "service_account_id": "...", "private_key": "..."}. Will be used instead of IAM token and SA JSON file path field if specified.',
+                    },
+                    "service_account_json_path": {
+                        "label": "Service account auth JSON file path",
+                        "schema": {"type": ["string", "null"]},
+                        "description": 'Service account auth JSON file path. File content looks like {"id": "...", "service_account_id": "...", "private_key": "..."}.',
+                    },
+                    "token": {
+                        "label": "IAM token",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                        "description": "User account IAM token.",
+                    },
+                    "use_vm_metadata": {
+                        "label": "Use VM metadata",
+                        "schema": {"type": ["boolean", "null"], "default": False},
+                        "description": "Optional. Whether to use VM metadata to retrieve IAM token",
+                    },
+                },
+            }
         ],
     }

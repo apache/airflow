@@ -31,19 +31,23 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_8_PLUS
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.providers.fab.www.extensions.init_security import init_api_auth
 from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
 from airflow.providers.fab.www.extensions.init_views import (
-    init_api_auth_provider,
-    init_api_error_handlers,
     init_error_handlers,
     init_plugins,
 )
 from airflow.providers.fab.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 from airflow.providers.fab.www.utils import get_session_lifetime_config
+
+if AIRFLOW_V_3_1_8_PLUS:
+    from airflow.api_fastapi.app import get_cookie_path
+else:
+    get_cookie_path = lambda: "/"
 
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
@@ -61,6 +65,7 @@ def create_app(enable_plugins: bool):
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
 
     flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
+    flask_app.config["SESSION_COOKIE_PATH"] = get_cookie_path()
     if conf.has_option("fab", "COOKIE_SECURE"):
         flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("fab", "COOKIE_SECURE")
     if conf.has_option("fab", "COOKIE_SAMESITE"):
@@ -105,8 +110,6 @@ def create_app(enable_plugins: bool):
         if enable_plugins:
             init_plugins(flask_app)
         elif isinstance(get_auth_manager(), FabAuthManager):
-            init_api_auth_provider(flask_app)
-            init_api_error_handlers(flask_app)
             init_airflow_session_interface(flask_app, db)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_wsgi_middleware(flask_app)

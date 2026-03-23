@@ -112,6 +112,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
     ui_color = "#ededed"
 
     operator_extra_links = (GlueJobRunDetailsLink(),)
+    TASK_UUID_ARG = "--airflow_task_uuid"
 
     def __init__(
         self,
@@ -212,6 +213,40 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         )
         self.s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
 
+    def _get_task_uuid(self, context: Context) -> str:
+        ti = context["ti"]
+        map_index = getattr(ti, "map_index", -1)
+        if map_index is None:
+            map_index = -1
+        return f"{ti.dag_id}:{ti.task_id}:{ti.run_id}:{map_index}"
+
+    def _prepare_script_args_with_task_uuid(self, context: Context) -> tuple[dict, str]:
+        script_args = dict(self.script_args or {})
+        if self.TASK_UUID_ARG in script_args:
+            task_uuid = str(script_args[self.TASK_UUID_ARG])
+        else:
+            task_uuid = self._get_task_uuid(context)
+            script_args[self.TASK_UUID_ARG] = task_uuid
+        return script_args, task_uuid
+
+    def _find_job_run_id_by_task_uuid(self, task_uuid: str) -> tuple[str, str] | None:
+        next_token: str | None = None
+        while True:
+            request = {"JobName": self.job_name, "MaxResults": 50}
+            if next_token:
+                request["NextToken"] = next_token
+            response = self.hook.conn.get_job_runs(**request)
+            for job_run in response.get("JobRuns", []):
+                args = job_run.get("Arguments", {}) or {}
+                if args.get(self.TASK_UUID_ARG) == task_uuid:
+                    job_run_id = job_run.get("Id")
+                    job_run_state = job_run.get("JobRunState")
+                    if job_run_id and job_run_state:
+                        return job_run_id, job_run_state
+            next_token = response.get("NextToken")
+            if not next_token:
+                return None
+
     def execute(self, context: Context):
         """
         Execute AWS Glue Job from Airflow.
@@ -219,18 +254,36 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         :return: the current Glue job ID.
         """
         previous_job_run_id = None
+        script_args = self.script_args
+        task_uuid = None
         if self.resume_glue_job_on_retry:
             ti = context["ti"]
+            script_args, task_uuid = self._prepare_script_args_with_task_uuid(context)
             previous_job_run_id = ti.xcom_pull(key="glue_job_run_id", task_ids=ti.task_id)
             if previous_job_run_id:
                 try:
                     job_run = self.hook.conn.get_job_run(JobName=self.job_name, RunId=previous_job_run_id)
                     state = job_run.get("JobRun", {}).get("JobRunState")
                     self.log.info("Previous Glue job_run_id: %s, state: %s", previous_job_run_id, state)
-                    if state in ("RUNNING", "STARTING", "STOPPING"):
+                    if state in ("RUNNING", "STARTING"):
                         self._job_run_id = previous_job_run_id
                 except Exception:
                     self.log.warning("Failed to get previous Glue job run state", exc_info=True)
+            elif task_uuid:
+                try:
+                    existing = self._find_job_run_id_by_task_uuid(task_uuid)
+                    if existing:
+                        existing_job_run_id, existing_job_run_state = existing
+                        self.log.info(
+                            "Found Glue job_run_id by task UUID: %s, state: %s",
+                            existing_job_run_id,
+                            existing_job_run_state,
+                        )
+                        if existing_job_run_state in ("RUNNING", "STARTING"):
+                            self._job_run_id = existing_job_run_id
+                            ti.xcom_push(key="glue_job_run_id", value=self._job_run_id)
+                except Exception:
+                    self.log.warning("Failed to find previous Glue job run by task UUID", exc_info=True)
 
         if not self._job_run_id:
             self.log.info(
@@ -238,7 +291,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
                 self.job_name,
                 self.wait_for_completion,
             )
-            glue_job_run = self.hook.initialize_job(self.script_args, self.run_job_kwargs)
+            glue_job_run = self.hook.initialize_job(script_args, self.run_job_kwargs)
             self._job_run_id = glue_job_run["JobRunId"]
             context["ti"].xcom_push(key="glue_job_run_id", value=self._job_run_id)
 

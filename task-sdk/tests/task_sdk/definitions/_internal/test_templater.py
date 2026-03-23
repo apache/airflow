@@ -81,6 +81,26 @@ class TestTemplater:
 
         assert rendered_content == "Hello {{ name }}"
 
+    def test_render_template_pathlib_path_not_resolved(self):
+        """Test that pathlib.Path objects are not incorrectly resolved via their resolve() method.
+
+        pathlib.Path has a resolve() method for filesystem resolution, which should not be
+        confused with the Resolvable.resolve(context) protocol used by the templater.
+        See: https://github.com/apache/airflow/issues/55412
+        """
+        import pathlib
+
+        templater = Templater()
+        templater.template_ext = []
+        context = {"ds": "2006-02-01"}
+        path = pathlib.PurePosixPath("/some/path/to/file.txt")
+
+        rendered = templater.render_template(path, context)
+
+        # The path should be returned as-is, not passed through resolve(context)
+        assert rendered == path
+        assert isinstance(rendered, pathlib.PurePosixPath)
+
     def test_not_render_file_literal_value(self):
         templater = Templater()
         templater.template_ext = [".txt"]

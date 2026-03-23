@@ -434,6 +434,10 @@ class SerializedDagModel(Base):
         :param session: Database session
         :return: UUID mapping dict if all match, None if any mismatch detected
         """
+        # defensive check for old 3.1.x format
+        if existing_deadline_uuids and not isinstance(existing_deadline_uuids[0], str):
+            # this triggers _generate_deadline_uuids to create fresh UUIDs
+            return None
 
         def _definitions_match(deadline_data: dict, existing: DeadlineAlertModel) -> bool:
             """Check if raw deadline data matches an existing DeadlineAlert's definition."""
@@ -599,7 +603,15 @@ class SerializedDagModel(Base):
         has_task_instances: bool = False
         if dag_version:
             has_task_instances = bool(
-                session.scalar(select(exists().where(TaskInstance.dag_version_id == dag_version.id)))
+                session.scalar(
+                    select(
+                        exists().where(
+                            # Using dag_id filter to speed up query via the composite index.
+                            TaskInstance.dag_id == dag.dag_id,
+                            TaskInstance.dag_version_id == dag_version.id,
+                        )
+                    )
+                )
             )
 
         if dag_version and not has_task_instances:

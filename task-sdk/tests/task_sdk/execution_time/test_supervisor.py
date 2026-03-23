@@ -30,7 +30,7 @@ import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 from operator import attrgetter
 from random import randint
 from textwrap import dedent
@@ -71,6 +71,7 @@ from airflow.sdk.execution_time.comms import (
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagResult,
     DagRunResult,
     DagRunStateResult,
     DeferTask,
@@ -83,6 +84,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDag,
     GetDagRun,
     GetDagRunState,
     GetDRCount,
@@ -2499,6 +2501,37 @@ REQUEST_TEST_CASES = [
         },
         test_id="get_task_breadcrumbs",
     ),
+    RequestTestCase(
+        message=GetDag(dag_id="test_dag"),
+        expected_body={
+            "dag_id": "test_dag",
+            "is_paused": False,
+            "bundle_name": "dags-folder",
+            "bundle_version": "bundle-version",
+            "relative_fileloc": "dags/example.py",
+            "owners": "owner_1",
+            "tags": ["a_tag", "z_tag"],
+            "next_dagrun": datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            "type": "DagResult",
+        },
+        client_mock=ClientMock(
+            method_path="dags.get",
+            kwargs={
+                "dag_id": "test_dag",
+            },
+            response=DagResult(
+                dag_id="test_dag",
+                is_paused=False,
+                bundle_name="dags-folder",
+                bundle_version="bundle-version",
+                relative_fileloc="dags/example.py",
+                owners="owner_1",
+                tags=["a_tag", "z_tag"],
+                next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            ),
+        ),
+        test_id="get_dag",
+    ),
 ]
 
 
@@ -3167,9 +3200,10 @@ def test_nondumpable_blocks_sibling_proc_read():
     """A sibling process (same non-root UID) cannot read /proc/<pid>/environ or /proc/<pid>/mem of a nondumpable process."""
     import multiprocessing
 
-    ready = multiprocessing.Event()
-    done = multiprocessing.Event()
-    result_queue = multiprocessing.Queue()
+    ctx = multiprocessing.get_context("fork")
+    ready = ctx.Event()
+    done = ctx.Event()
+    result_queue = ctx.Queue()
 
     def target_fn():
         _drop_root_if_needed()
@@ -3187,11 +3221,11 @@ def test_nondumpable_blocks_sibling_proc_read():
                 blocked.append(proc_file)
         result_queue.put(blocked)
 
-    target = multiprocessing.Process(target=target_fn)
+    target = ctx.Process(target=target_fn)
     target.start()
     try:
         assert ready.wait(timeout=5), "target process did not become ready"
-        reader = multiprocessing.Process(target=reader_fn, args=(target.pid,))
+        reader = ctx.Process(target=reader_fn, args=(target.pid,))
         reader.start()
         reader.join(timeout=5)
         blocked = result_queue.get(timeout=5)
@@ -3209,7 +3243,8 @@ def test_nondumpable_blocks_child_memory_read():
     """A forked child (same non-root UID) cannot read its nondumpable parent's /proc/<pid>/mem."""
     import multiprocessing
 
-    result_queue = multiprocessing.Queue()
+    ctx = multiprocessing.get_context("fork")
+    result_queue = ctx.Queue()
 
     def parent_fn():
         _drop_root_if_needed()
@@ -3226,7 +3261,7 @@ def test_nondumpable_blocks_child_memory_read():
         _, status = os.waitpid(child_pid, 0)
         result_queue.put(os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1)
 
-    proc = multiprocessing.Process(target=parent_fn)
+    proc = ctx.Process(target=parent_fn)
     proc.start()
     proc.join(timeout=10)
     exit_code = result_queue.get(timeout=5)

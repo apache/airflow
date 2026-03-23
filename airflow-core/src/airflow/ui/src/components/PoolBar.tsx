@@ -26,6 +26,8 @@ import { Tooltip } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { type Slots, slotConfigs } from "src/utils/slots";
 
+export const UNLIMITED_SLOTS = -1;
+
 export const PoolBar = ({
   pool,
   poolsWithSlotType,
@@ -37,6 +39,7 @@ export const PoolBar = ({
 }) => {
   const { t: translate } = useTranslation("common");
 
+  const isUnlimited = totalSlots === UNLIMITED_SLOTS;
   const isDashboard = Boolean(poolsWithSlotType);
   const includeDeferredInBar = "include_deferred" in pool && pool.include_deferred;
   const barSlots = ["running", "queued", "open"];
@@ -51,59 +54,69 @@ export const PoolBar = ({
   }
 
   const preparedSlots = slotConfigs.map((config) => {
-    const slotType = config.key.replace("_slots", "") as TaskInstanceState;
+    const slotType = config.key.replace("_slots", "") as TaskInstanceState | "open";
+    const rawValue = (pool[config.key] as number | undefined) ?? 0;
 
     return {
       ...config,
       label: translate(`common:states.${slotType}`),
       slotType,
-      slotValue: (pool[config.key] as number | undefined) ?? 0,
+      slotValue: slotType === "open" && rawValue === UNLIMITED_SLOTS ? Infinity : rawValue,
     };
   });
+
+  const displayedSlots = preparedSlots.filter(
+    (slot) => barSlots.includes(slot.slotType) && slot.slotValue > 0,
+  );
+  const usedSlots = displayedSlots
+    .filter((slot) => slot.slotType !== "open")
+    .reduce((sum, slot) => sum + slot.slotValue, 0);
 
   return (
     <VStack align="stretch" gap={1} w="100%">
       <Flex bg="bg.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
-        {preparedSlots
-          .filter((slot) => barSlots.includes(slot.slotType) && slot.slotValue > 0)
-          .map((slot) => {
-            const flexValue = slot.slotValue / totalSlots || 0;
+        {displayedSlots.map((slot) => {
+          const flexValue = isUnlimited
+            ? slot.slotType === "open"
+              ? Math.max(1, usedSlots) // open takes at least as much space as all used slots combined
+              : slot.slotValue
+            : slot.slotValue / totalSlots || 0;
 
-            const poolContent = (
-              <Tooltip content={slot.label} key={slot.key} showArrow={true}>
-                <Flex
-                  alignItems="center"
-                  bg={`${slot.color}.solid`}
-                  color={`${slot.color}.contrast`}
-                  gap={1}
-                  h="100%"
-                  justifyContent="center"
-                  overflow="hidden"
-                  px={1}
-                  w="100%"
-                >
-                  {slot.icon}
-                  <Text fontSize="xs" fontWeight="bold" truncate>
-                    {slot.slotValue}
-                  </Text>
-                </Flex>
-              </Tooltip>
-            );
+          const poolContent = (
+            <Tooltip content={slot.label} key={slot.key} showArrow={true}>
+              <Flex
+                alignItems="center"
+                bg={`${slot.color}.solid`}
+                color={`${slot.color}.contrast`}
+                gap={1}
+                h="100%"
+                justifyContent="center"
+                overflow="hidden"
+                px={1}
+                w="100%"
+              >
+                {slot.icon}
+                <Text fontSize="xs" fontWeight="bold" truncate>
+                  {slot.slotValue === Infinity ? "∞" : slot.slotValue}
+                </Text>
+              </Flex>
+            </Tooltip>
+          );
 
-            return slot.color !== "success" && "name" in pool ? (
-              <Link asChild flex={flexValue} key={slot.key}>
-                <RouterLink
-                  to={`/task_instances?${SearchParamsKeys.STATE}=${slot.color}&${SearchParamsKeys.POOL}=${pool.name}`}
-                >
-                  {poolContent}
-                </RouterLink>
-              </Link>
-            ) : (
-              <Box flex={flexValue} key={slot.key}>
+          return slot.color !== "success" && "name" in pool ? (
+            <Link asChild flex={flexValue} key={slot.key}>
+              <RouterLink
+                to={`/task_instances?${SearchParamsKeys.STATE}=${slot.color}&${SearchParamsKeys.POOL}=${pool.name}`}
+              >
                 {poolContent}
-              </Box>
-            );
-          })}
+              </RouterLink>
+            </Link>
+          ) : (
+            <Box flex={flexValue} key={slot.key}>
+              {poolContent}
+            </Box>
+          );
+        })}
       </Flex>
 
       <HStack gap={4} wrap="wrap">
@@ -111,7 +124,7 @@ export const PoolBar = ({
           .filter((slot) => infoSlots.includes(slot.slotType) && slot.slotValue > 0)
           .map((slot) => (
             <HStack gap={1} key={slot.key}>
-              <StateIcon size={12} state={slot.slotType} />
+              <StateIcon size={12} state={slot.slotType as TaskInstanceState} />
               <Text color="fg.muted" fontSize="xs" fontWeight="medium">
                 {slot.label}: {slot.slotValue}
               </Text>

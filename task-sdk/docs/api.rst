@@ -81,6 +81,8 @@ Bases
 -----
 .. autoapiclass:: airflow.sdk.BaseAsyncOperator
 
+.. autoapiclass:: airflow.sdk.BaseBranchOperator
+
 .. autoapiclass:: airflow.sdk.BaseOperator
 
 .. autoapiclass:: airflow.sdk.BaseSensorOperator
@@ -91,7 +93,11 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseXCom
 
+.. autoapiclass:: airflow.sdk.BranchMixIn
+
 .. autoapiclass:: airflow.sdk.PokeReturnValue
+
+.. autoapiclass:: airflow.sdk.SkipMixin
 
 .. autoapiclass:: airflow.sdk.BaseHook
 
@@ -116,6 +122,8 @@ Connections & Variables
 Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
+
+.. autoclass:: airflow.sdk.TaskInstance
 
 .. autoapiclass:: airflow.sdk.XComArg
 
@@ -193,19 +201,25 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.PartitionMapper
 
+.. autoapiclass:: airflow.sdk.ChainMapper
+
 .. autoapiclass:: airflow.sdk.IdentityMapper
 
-.. autoapiclass:: airflow.sdk.HourlyMapper
+.. autoapiclass:: airflow.sdk.ToHourlyMapper
 
-.. autoapiclass:: airflow.sdk.DailyMapper
+.. autoapiclass:: airflow.sdk.ToDailyMapper
 
-.. autoapiclass:: airflow.sdk.WeeklyMapper
+.. autoapiclass:: airflow.sdk.ToWeeklyMapper
 
-.. autoapiclass:: airflow.sdk.MonthlyMapper
+.. autoapiclass:: airflow.sdk.ToMonthlyMapper
 
-.. autoapiclass:: airflow.sdk.QuarterlyMapper
+.. autoapiclass:: airflow.sdk.ToQuarterlyMapper
 
-.. autoapiclass:: airflow.sdk.YearlyMapper
+.. autoapiclass:: airflow.sdk.ToYearlyMapper
+
+.. autoapiclass:: airflow.sdk.ProductMapper
+
+.. autoapiclass:: airflow.sdk.AllowedKeyMapper
 
 I/O Helpers
 -----------
@@ -238,7 +252,7 @@ Everything else
 .. autoapimodule:: airflow.sdk
   :members:
   :special-members: __version__
-  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, XComArg, get_current_context, get_parsing_context
+  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context
   :undoc-members:
   :imported-members:
   :no-index:

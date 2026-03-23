@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import socket
 from collections.abc import Sequence
@@ -206,10 +207,18 @@ class SFTPOperator(BaseOperator):
                 for _remote_filepath in remote_filepath_array:
                     file_msg = f"{_remote_filepath}"
                     self.log.info("Starting to delete %s", file_msg)
-                    if self.sftp_hook.isdir(_remote_filepath):
-                        self.sftp_hook.delete_directory(_remote_filepath, include_files=True)
-                    else:
-                        self.sftp_hook.delete_file(_remote_filepath)
+                    try:
+                        if self.sftp_hook.isdir(_remote_filepath):
+                            self.sftp_hook.delete_directory(_remote_filepath, include_files=True)
+                        else:
+                            self.sftp_hook.delete_file(_remote_filepath)
+                    except OSError as exc:
+                        if self._is_missing_path_error(exc):
+                            self.log.warning(
+                                "Remote path %s does not exist. Skipping delete.", _remote_filepath
+                            )
+                            continue
+                        raise
 
         except Exception as e:
             raise AirflowException(
@@ -217,6 +226,16 @@ class SFTPOperator(BaseOperator):
             )
 
         return self.local_filepath
+
+    @staticmethod
+    def _is_missing_path_error(exc: Exception) -> bool:
+        if isinstance(exc, FileNotFoundError):
+            return True
+        if isinstance(exc, OSError) and exc.errno == errno.ENOENT:
+            return True
+        if exc.args and isinstance(exc.args[0], int) and exc.args[0] == errno.ENOENT:
+            return True
+        return False
 
     def get_openlineage_facets_on_start(self):
         """

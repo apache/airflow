@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import copy
+
+import jmespath
 import pytest
+import yaml
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -479,6 +483,42 @@ class TestPerComponentPodAnnotations:
             assert k in annotations
             assert v == annotations[k]
 
+    def test_pod_annotations_are_templated(self, values, show_only, expected_annotations):
+        templated_values = copy.deepcopy(values)
+        for val in templated_values.values():
+            if isinstance(val, dict) and "podAnnotations" in val:
+                val["podAnnotations"] = {"release-name": "{{ .Release.Name }}"}
+
+        k8s_objects = render_chart(
+            values=templated_values,
+            show_only=[show_only],
+        )
+
+        assert len(k8s_objects) == 1
+        annotations = get_object_annotations(k8s_objects[0])
+        assert annotations["release-name"] == "release-name"
+
+    def test_airflow_pod_annotations_are_templated(self, values, show_only, expected_annotations):
+        templated_values = copy.deepcopy(values)
+        templated_values["airflowPodAnnotations"] = {"global-release": "{{ .Release.Name }}"}
+
+        k8s_objects = render_chart(
+            values=templated_values,
+            show_only=[show_only],
+        )
+
+        assert len(k8s_objects) == 1
+        annotations = get_object_annotations(k8s_objects[0])
+        # pgbouncer, statsd, and redis do not render airflowPodAnnotations
+        if "global-release" in annotations:
+            assert annotations["global-release"] == "release-name"
+        else:
+            assert show_only in (
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+            )
+
 
 class TestRedisAnnotations:
     """Tests Redis Annotations."""
@@ -504,3 +544,113 @@ class TestRedisAnnotations:
         for k, v in expected_annotations.items():
             assert k in obj["metadata"]["annotations"]
             assert v == obj["metadata"]["annotations"][k]
+
+
+class TestPodTemplateFileAnnotationsTemplating:
+    """Tests that podAnnotations are templated in the pod template file."""
+
+    def test_pod_template_file_annotations_are_templated(self):
+        k8s_objects = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
+                    "podAnnotations": {
+                        "release-name": "{{ .Release.Name }}",
+                    },
+                },
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        assert len(k8s_objects) == 1
+        pod_template = k8s_objects[0]["data"]["pod_template_file.yaml"]
+        annotations = jmespath.search(
+            "metadata.annotations",
+            yaml.safe_load(pod_template),
+        )
+        assert annotations["release-name"] == "release-name"
+
+    def test_pod_template_file_global_annotations_are_templated(self):
+        k8s_objects = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "airflowPodAnnotations": {
+                    "global-release": "{{ .Release.Name }}",
+                },
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        assert len(k8s_objects) == 1
+        pod_template = k8s_objects[0]["data"]["pod_template_file.yaml"]
+        annotations = jmespath.search(
+            "metadata.annotations",
+            yaml.safe_load(pod_template),
+        )
+        assert annotations["global-release"] == "release-name"
+
+
+class TestWebserverPodAnnotationsTemplating:
+    """Tests webserver podAnnotations templating (requires airflowVersion < 3.0.0)."""
+
+    def test_webserver_pod_annotations_are_templated(self):
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "webserver": {
+                    "podAnnotations": {
+                        "release-name": "{{ .Release.Name }}",
+                    },
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert len(k8s_objects) == 1
+        annotations = get_object_annotations(k8s_objects[0])
+        assert annotations["release-name"] == "release-name"
+
+    def test_webserver_airflow_pod_annotations_are_templated(self):
+        k8s_objects = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "airflowPodAnnotations": {
+                    "global-release": "{{ .Release.Name }}",
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert len(k8s_objects) == 1
+        annotations = get_object_annotations(k8s_objects[0])
+        assert annotations["global-release"] == "release-name"
+
+
+class TestJobAnnotationsTemplating:
+    """Tests that annotations are templated in job templates."""
+
+    @pytest.mark.parametrize(
+        ("values", "show_only"),
+        [
+            (
+                {"createUserJob": {"annotations": {"job-ann": "{{ .Release.Name }}"}}},
+                "templates/jobs/create-user-job.yaml",
+            ),
+            (
+                {"migrateDatabaseJob": {"annotations": {"job-ann": "{{ .Release.Name }}"}}},
+                "templates/jobs/migrate-database-job.yaml",
+            ),
+        ],
+    )
+    def test_job_annotations_are_templated(self, values, show_only):
+        templated_values = copy.deepcopy(values)
+        templated_values["airflowPodAnnotations"] = {"global-ann": "{{ .Release.Name }}"}
+        k8s_objects = render_chart(
+            values=templated_values,
+            show_only=[show_only],
+        )
+
+        assert len(k8s_objects) == 1
+        annotations = k8s_objects[0]["spec"]["template"]["metadata"]["annotations"]
+        assert annotations["global-ann"] == "release-name"
+        assert annotations["job-ann"] == "release-name"

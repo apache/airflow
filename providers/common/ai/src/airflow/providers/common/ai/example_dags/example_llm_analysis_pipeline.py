@@ -53,7 +53,7 @@ def example_llm_analysis_pipeline():
         ]
 
     @task.llm(
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         system_prompt=(
             "Analyze the support ticket and extract: "
             "priority (critical/high/medium/low), "

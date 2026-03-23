@@ -40,5 +40,9 @@ E2E_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "tests" / "airflow_e
 LOGS_FOLDER = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "logs"
 TEST_REPORT_FILE = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "_e2e_test_report.json"
 LOCALSTACK_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "localstack.yml"
+ELASTICSEARCH_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "elasticsearch.yml"
 E2E_TEST_MODE = os.environ.get("E2E_TEST_MODE", "basic")
 AWS_INIT_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "scripts" / "init-aws.sh"
+
+# s3 bucket name for XComObjectStorageBackend tests. This bucket will be created in the `init-aws.sh` script that is run as part of the LocalStack container initialization.
+XCOM_BUCKET = "test-xcom-objectstorage-backend"

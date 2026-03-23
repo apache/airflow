@@ -46,11 +46,14 @@ Bug Fixes
 
 * ``fix the write-to-es feature for Airflow 3 (#53821)``
 * ``add max_line_per_pages setting to ElasticsearchTaskHandler (#61492)``
+* ``Fix max_lines_per_page config setting for ElasticsearchRemoteLogIO (#62562)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
    * ``Providers ad-hoc 2026-02-20 (#62209)``
+   * ``Update provider's compatibility matrix with 2.11.1 (#62295)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
 
 6.4.4
 .....
