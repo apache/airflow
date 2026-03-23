@@ -439,12 +439,12 @@ core:
       example: ~
       default: "1024"
 
-    allow_dotdot_in_ids:
+    allow_double_dot_in_ids:
       description: |
         Allow ``..`` (consecutive dots) in DAG IDs and run IDs. By default, ``..`` is blocked to prevent
         path traversal attacks. Set to ``True`` only if you have existing DAGs or runs whose IDs contain
         ``..`` and cannot be renamed.
-      version_added: 3.0.0
+      version_added: 3.3.0
       type: boolean
       example: ~
       default: "False"
