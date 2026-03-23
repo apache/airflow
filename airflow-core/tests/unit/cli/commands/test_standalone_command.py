@@ -53,6 +53,7 @@ class TestStandaloneCommand:
 
     @mock.patch("airflow.cli.commands.standalone_command.ExecutorLoader.import_default_executor_cls")
     @mock.patch("airflow.cli.commands.standalone_command.conf.get")
+    @mock.patch.dict(os.environ, {}, clear=True)
     def test_calculate_env_force_executor_and_auth(self, mock_conf_get, mock_import):
         class FakeExecutor:
             is_local = False
@@ -64,6 +65,22 @@ class TestStandaloneCommand:
 
         assert env["AIRFLOW__CORE__EXECUTOR"] == "LocalExecutor"
         assert "AIRFLOW__CORE__AUTH_MANAGER" in env
+
+    @mock.patch("airflow.cli.commands.standalone_command.ExecutorLoader.import_default_executor_cls")
+    @mock.patch("airflow.cli.commands.standalone_command.conf.get")
+    @mock.patch.dict(os.environ, {}, clear=True)
+    def test_calculate_env_does_not_override_auth_if_already_set(self, mock_conf_get, mock_import):
+        class FakeExecutor:
+            is_local = True
+
+        mock_import.return_value = (FakeExecutor, None)
+        mock_conf_get.return_value = (
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+        )
+        cmd = StandaloneCommand()
+        env = cmd.calculate_env()
+
+        assert "AIRFLOW__CORE__AUTH_MANAGER" not in env
 
     @mock.patch("airflow.cli.commands.standalone_command.os.path.exists", return_value=False)
     @mock.patch("airflow.cli.commands.standalone_command.create_auth_manager")
@@ -191,7 +208,8 @@ class TestStandaloneCommand:
 
         assert cmd.is_ready() is False
 
-    def test_port_open_returns_false_on_socket_error(self, monkeypatch):
+    @pytest.mark.parametrize("exc", [OSError, ValueError])
+    def test_port_open_returns_false_on_errors(self, monkeypatch, exc):
         cmd = StandaloneCommand()
 
         class FakeSocket:
@@ -199,7 +217,7 @@ class TestStandaloneCommand:
                 pass
 
             def connect(self, *_):
-                raise OSError()
+                raise exc()
 
             def close(self):
                 pass
@@ -208,7 +226,6 @@ class TestStandaloneCommand:
             "airflow.cli.commands.standalone_command.socket.socket",
             lambda *a, **k: FakeSocket(),
         )
-
         assert cmd.port_open(1234) is False
 
     def test_port_open_returns_true_when_connect_succeeds(self, monkeypatch):
