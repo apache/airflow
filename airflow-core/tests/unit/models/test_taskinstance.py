@@ -3349,7 +3349,10 @@ def test_insert_mapping_includes_context_carrier(dag_maker, session):
     """insert_mapping should include a context_carrier with a traceparent derived from the dag run."""
     provider = TracerProvider()
     real_tracer = provider.get_tracer("airflow.models.taskinstance")
-    with mock.patch("airflow.models.taskinstance.tracer", real_tracer):
+    with (
+        mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+        mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+    ):
         with dag_maker("test_insert_mapping_carrier"):
             EmptyOperator(task_id="t1")
         session.flush()
@@ -3379,7 +3382,10 @@ def test_clear_task_instances_resets_context_carrier(dag_maker, session):
     """clear_task_instances should assign fresh context carriers to both the TI and its dag run."""
     provider = TracerProvider()
     real_tracer = provider.get_tracer("airflow.models.taskinstance")
-    with mock.patch("airflow.models.taskinstance.tracer", real_tracer):
+    with (
+        mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+        mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+    ):
         with dag_maker("test_clear_carrier"):
             EmptyOperator(task_id="t1")
         dag_run = dag_maker.create_dagrun()
