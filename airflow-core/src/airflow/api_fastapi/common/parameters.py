@@ -795,8 +795,7 @@ class _ConsumingAssetFilter(BaseParam[str | None]):
             return select
 
         event_subquery = (
-            sql_select(association_table.c.event_id)
-            .join(AssetEvent, association_table.c.event_id == AssetEvent.id)
+            sql_select(AssetEvent.id)
             .join(AssetModel, AssetEvent.asset_id == AssetModel.id)
             .where(
                 or_(
@@ -805,17 +804,15 @@ class _ConsumingAssetFilter(BaseParam[str | None]):
                 )
             )
             .distinct()
-            .subquery()
         )
 
-        return (
-            select.distinct()
-            .join(
-                association_table,
-                DagRun.id == association_table.c.dag_run_id,
-            )
-            .where(association_table.c.event_id.in_(sql_select(event_subquery.c.event_id)))
+        dagrun_subquery = (
+            sql_select(association_table.c.dag_run_id)
+            .where(association_table.c.event_id.in_(event_subquery))
+            .distinct()
         )
+
+        return select.where(DagRun.id.in_(dagrun_subquery))
 
     @classmethod
     def depends(
