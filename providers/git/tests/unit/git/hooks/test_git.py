@@ -128,25 +128,25 @@ class TestGitHook:
         ("conn_id", "hook_kwargs", "expected_repo_url", "warns_on_default"),
         [
             (CONN_DEFAULT, {}, AIRFLOW_GIT, True),
-            (CONN_HTTPS, {}, f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git", False),
-            (
-                CONN_HTTPS,
-                {"repo_url": "https://github.com/apache/zzzairflow"},
-                f"https://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
-                False,
-            ),
-            (
-                CONN_HTTPS,
-                {"repo_url": AIRFLOW_GIT},
-                AIRFLOW_GIT,
-                True,
-            ),
-            (CONN_HTTP, {}, f"http://user:{ACCESS_TOKEN}@github.com/apache/airflow.git", False),
-            (
-                CONN_HTTP,
-                {"repo_url": "http://github.com/apache/zzzairflow"},
-                f"http://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
-                False,
+                        (CONN_HTTPS, {}, AIRFLOW_HTTPS_URL, False),
+                        (
+                            CONN_HTTPS,
+                            {"repo_url": "https://github.com/apache/zzzairflow"},
+                            "https://github.com/apache/zzzairflow",
+                            False,
+                        ),
+                        (
+                            CONN_HTTPS,
+                            {"repo_url": AIRFLOW_GIT},
+                            AIRFLOW_GIT,
+                            True,
+                        ),
+                        (CONN_HTTP, {}, AIRFLOW_HTTP_URL, False),
+                        (
+                            CONN_HTTP,
+                            {"repo_url": "http://github.com/apache/zzzairflow"},
+                            "http://github.com/apache/zzzairflow",
+                            False,
             ),
             (CONN_HTTP_NO_AUTH, {}, AIRFLOW_HTTP_URL, False),
             (
@@ -413,4 +413,20 @@ class TestGitHook:
             assert askpass_path is not None
             assert os.path.exists(askpass_path)
         # Both the askpass script and the temp key file should be cleaned up
+        assert not os.path.exists(askpass_path)
+
+    def test_token_askpass_env_and_cleanup(self):
+        hook = GitHook(git_conn_id=CONN_HTTPS)
+        askpass_path = None
+
+        with hook.configure_hook_env():
+            assert "GIT_ASKPASS" in hook.env
+            askpass_path = hook.env["GIT_ASKPASS"]
+            assert os.path.exists(askpass_path)
+
+            with open(askpass_path) as f:
+                content = f.read()
+                assert f"echo '{ACCESS_TOKEN}'" in content
+                assert "#!/bin/sh" in content
+        # The askpass script should be cleaned up after exiting the context
         assert not os.path.exists(askpass_path)
