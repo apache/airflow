@@ -700,7 +700,7 @@ class DagRun(Base, LoggingMixin):
                 # it could return many more dag runs than runnable if there is even
                 # capacity for 1.  this could be improved.
                 available_dagruns_rn.c.rn
-                <= coalesce(Backfill.max_active_runs, DagModel.max_active_runs,999999)
+                <= coalesce(Backfill.max_active_runs, DagModel.max_active_runs, 999999)
                 - coalesce(running_drs.c.num_running, 0),
                 # don't set paused dag runs as running
                 not_(coalesce(cast("ColumnElement[bool]", Backfill.is_paused), False)),

@@ -5996,10 +5996,7 @@ class TestSchedulerJob:
         # now we finish all lower priority backfill tasks, and observe new higher priority tasks are started
         session.execute(
             update(DagRun)
-            .where(
-                DagRun.dag_id == "test_dag2",
-                DagRun.state == DagRunState.RUNNING
-            )
+            .where(DagRun.dag_id == "test_dag2", DagRun.state == DagRunState.RUNNING)
             .values(state=DagRunState.SUCCESS)
         )
         session.commit()
