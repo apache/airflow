@@ -5965,14 +5965,14 @@ class TestSchedulerJob:
             EmptyOperator(task_id="mytask")
 
         dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
-        for _ in range(9):
+        for _ in range(29):
             dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
 
         # initial state -- nothing is running
         assert dag1_non_b_running == 0
         assert dag1_b_running == 0
         assert total_running == 0
-        assert session.scalar(select(func.count(DagRun.id))) == 46
+        assert session.scalar(select(func.count(DagRun.id))) == 66
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
         # now let's run it once
@@ -5980,26 +5980,43 @@ class TestSchedulerJob:
         session.flush()
 
         # after running the scheduler one time, observe that only one dag run is started
-        # this is because there are 30 runs for dag 1 so neither the backfills nor
+        # and 3 backfill dagruns are started
+        # this is because there are 30 dags, most of which get filtered due to max_active_runs
+        # and so due to the default dagruns to examine, we look at the first 20 dags which CAN be run
+        # according to the max_active_runs parameter, meaning 3 backfill runs will start, 1 non backfill and
+        # all dagruns of dag2
         # any runs for dag2 get started
         assert DagRun.DEFAULT_DAGRUNS_TO_EXAMINE == 20
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
         assert dag1_non_b_running == 1
-        assert dag1_b_running == 0
-        assert total_running == 1
-        assert session.scalar(select(func.count()).select_from(DagRun)) == 46
+        assert dag1_b_running == 3
+        assert total_running == 20
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 66
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
+        # now we finish all lower priority backfill tasks, and observe new higher priority tasks are started
+        session.execute(
+            update(DagRun)
+            .where(
+                DagRun.dag_id == "test_dag2",
+                DagRun.state == DagRunState.RUNNING
+            )
+            .values(state=DagRunState.SUCCESS)
+        )
+        session.commit()
+        session.flush()
 
         # we run scheduler again and observe that now all the runs are created
+        # other than the finished runs of the backfill
         # this must be because sorting is working
+        # new tasks from test dag 2 should run, and so they are scheduled
         self.job_runner._start_queued_dagruns(session)
         session.flush()
 
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
         assert dag1_non_b_running == 1
         assert dag1_b_running == 3
-        assert total_running == 14
-        assert session.scalar(select(func.count()).select_from(DagRun)) == 46
+        assert total_running == 18
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 66
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
         # run it a 3rd time and nothing changes
@@ -6009,8 +6026,8 @@ class TestSchedulerJob:
         dag1_non_b_running, dag1_b_running, total_running = _running_counts()
         assert dag1_non_b_running == 1
         assert dag1_b_running == 3
-        assert total_running == 14
-        assert session.scalar(select(func.count()).select_from(DagRun)) == 46
+        assert total_running == 18
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 66
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
     def test_backfill_runs_are_started_with_lower_priority_catchup_false(self, dag_maker, session):
@@ -6230,24 +6247,10 @@ class TestSchedulerJob:
         assert dag1_non_b_running == 1
         assert dag1_b_running == 3
 
-        # this should be 14 but it is not. why?
-        # answer: because dag2 got starved out by dag1
-        # if we run the scheduler again, dag2 should get queued
-        assert total_running == 4
+        assert total_running == 14
 
         assert session.scalar(select(func.count()).select_from(DagRun)) == 46
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
-
-        # run scheduler a second time
-        self.job_runner._start_queued_dagruns(session)
-        session.flush()
-
-        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
-        assert dag1_non_b_running == 1
-        assert dag1_b_running == 3
-
-        # on the second try, dag 2's 10 runs now start running
-        assert total_running == 14
 
         assert session.scalar(select(func.count()).select_from(DagRun)) == 46
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36

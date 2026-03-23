@@ -649,9 +649,25 @@ class DagRun(Base, LoggingMixin):
             .subquery()
         )
 
+        available_dagruns_rn = (
+            select(
+                DagRun.dag_id,
+                DagRun.id,
+                func.row_number().over(partition_by=[DagRun.dag_id, DagRun.backfill_id]).label("rn"),
+            )
+            .where(DagRun.state == DagRunState.QUEUED)
+            .subquery()
+        )
+
         query = (
             select(cls)
-            .where(cls.state == DagRunState.QUEUED)
+            .join(
+                available_dagruns_rn,
+                and_(
+                    available_dagruns_rn.c.id == DagRun.id,
+                    available_dagruns_rn.c.dag_id == DagRun.dag_id,
+                ),
+            )
             .join(
                 DagModel,
                 and_(
@@ -683,8 +699,9 @@ class DagRun(Base, LoggingMixin):
                 # the one done in this query verifies that the dag is not maxed out
                 # it could return many more dag runs than runnable if there is even
                 # capacity for 1.  this could be improved.
-                coalesce(running_drs.c.num_running, text("0"))
-                < coalesce(Backfill.max_active_runs, DagModel.max_active_runs),
+                available_dagruns_rn.c.rn
+                <= coalesce(Backfill.max_active_runs, DagModel.max_active_runs,999999)
+                - coalesce(running_drs.c.num_running, 0),
                 # don't set paused dag runs as running
                 not_(coalesce(cast("ColumnElement[bool]", Backfill.is_paused), False)),
             )
@@ -703,6 +720,8 @@ class DagRun(Base, LoggingMixin):
         )
 
         query = query.where(DagRun.run_after <= func.now())
+
+        print(str(query))
 
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
