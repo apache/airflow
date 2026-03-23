@@ -622,7 +622,7 @@ class DagRunOperations(BaseOperations):
             dag_id = "~"
 
         params: dict[str, Any] = {
-            "state": state,
+            "state": str(state),
             "limit": limit,
         }
         if start_date is not None:
