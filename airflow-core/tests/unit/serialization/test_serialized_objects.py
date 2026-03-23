@@ -895,6 +895,50 @@ def test_decode_product_mapper():
     assert core_pm.to_downstream("2024-06-15T10:30:00|2024-06-15T10:30:00") == "2024-06-15T10|2024-06-15"
 
 
+def test_encode_chain_mapper():
+    from airflow.sdk import ChainMapper, ToDailyMapper, ToHourlyMapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mappers.chain.ChainMapper",
+        Encoding.VAR: {
+            "mappers": [
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.ToHourlyMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H:%M:%S",
+                        "output_format": "%Y-%m-%dT%H",
+                    },
+                },
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.ToDailyMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H",
+                        "output_format": "%Y-%m-%d",
+                    },
+                },
+            ]
+        },
+    }
+
+
+def test_decode_chain_mapper():
+    from airflow.partition_mappers.chain import ChainMapper as CoreChainMapper
+    from airflow.sdk import ChainMapper, ToDailyMapper, ToHourlyMapper
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreChainMapper)
+    assert len(core_pm.mappers) == 2
+    assert core_pm.to_downstream("2024-06-15T10:30:00") == "2024-06-15"
+
+
 def test_encode_allowed_key_mapper():
     from airflow.sdk import AllowedKeyMapper
     from airflow.serialization.encoders import encode_partition_mapper
