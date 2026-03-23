@@ -40,7 +40,7 @@ export const usePatchTaskInstance = ({
 }: {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
+  mapIndex?: number;
   onSuccess?: () => void;
   taskId: string;
 }) => {
@@ -60,7 +60,9 @@ export const usePatchTaskInstance = ({
   const onSuccessFn = async () => {
     const queryKeys = [
       UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
-      UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
+      ...(mapIndex === undefined
+        ? []
+        : [UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId })]),
       [useTaskInstanceServiceGetTaskInstancesKey],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
       [useClearTaskInstancesDryRunKey, dagId],

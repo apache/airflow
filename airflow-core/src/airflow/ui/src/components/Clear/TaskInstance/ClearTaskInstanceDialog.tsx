@@ -173,6 +173,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
             <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
             <Flex
               {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+              gap={4}
               justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
               mt={3}
             >

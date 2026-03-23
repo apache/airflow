@@ -24,7 +24,7 @@ import type { PatchTaskInstanceBody, PatchTaskInstanceDryRunResponse } from "ope
 type Props<TData, TError> = {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
+  mapIndex?: number;
   options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">;
   requestBody: PatchTaskInstanceBody;
   taskId: string;

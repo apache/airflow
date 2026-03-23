@@ -64,6 +64,7 @@
       "downstream": "Downstream",
       "existingTasks": "Clear existing tasks",
       "future": "Future",
+      "markAllMappedTasks": "Mark all mapped task instances",
       "onlyFailed": "Clear only failed tasks",
       "past": "Past",
       "preventRunningTasks": "Prevent rerun if task is running",

@@ -24,7 +24,7 @@ import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/t
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Dialog } from "src/components/ui";
+import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
@@ -44,6 +44,8 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const { t: translate } = useTranslation();
 
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
+  const [markAllMapped, setMarkAllMapped] = useState(false);
+  const isMapped = mapIndex > -1;
 
   const past = selectedOptions.includes("past");
   const future = selectedOptions.includes("future");
@@ -52,17 +54,19 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
 
+  const effectiveMapIndex = isMapped && markAllMapped ? undefined : mapIndex;
+
   const { isPending, mutate } = usePatchTaskInstance({
     dagId,
     dagRunId,
-    mapIndex,
+    mapIndex: effectiveMapIndex,
     onSuccess: onClose,
     taskId,
   });
   const { data, isPending: isPendingDryRun } = usePatchTaskInstanceDryRun({
     dagId,
     dagRunId,
-    mapIndex,
+    mapIndex: effectiveMapIndex,
     options: {
       enabled: open,
       refetchOnMount: "always",
@@ -134,6 +138,15 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
           </Flex>
           <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
+            {isMapped ? (
+              <Checkbox
+                checked={markAllMapped}
+                mr="auto"
+                onCheckedChange={(event) => setMarkAllMapped(Boolean(event.checked))}
+              >
+                {translate("dags:runAndTaskActions.options.markAllMappedTasks")}
+              </Checkbox>
+            ) : undefined}
             <Button
               colorPalette="brand"
               loading={isPending || isPendingDryRun}
@@ -141,7 +154,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
                 mutate({
                   dagId,
                   dagRunId,
-                  mapIndex,
+                  mapIndex: effectiveMapIndex,
                   requestBody: {
                     include_downstream: downstream,
                     include_future: future,
