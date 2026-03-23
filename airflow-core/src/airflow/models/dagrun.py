@@ -721,8 +721,6 @@ class DagRun(Base, LoggingMixin):
 
         query = query.where(DagRun.run_after <= func.now())
 
-        print(str(query))
-
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
     @classmethod
