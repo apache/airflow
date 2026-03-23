@@ -139,7 +139,7 @@ class TestElasticsearchTaskHandler:
             "offset": 1,
             "event": self.test_message,
         }
-        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=1)
+        self.es.index(index=self.index_name, doc_type=self.doc_type, document=self.body, id=1)
 
     def teardown_method(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
@@ -375,7 +375,7 @@ class TestElasticsearchTaskHandler:
             "log_id": similar_log_id,
             "offset": 1,
         }
-        self.es.index(index=self.index_name, doc_type=self.doc_type, body=another_body, id=1)
+        self.es.index(index=self.index_name, doc_type=self.doc_type, document=another_body, id=1)
 
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
@@ -624,7 +624,7 @@ class TestElasticsearchTaskHandler:
             "levelname": "INFO",
         }
         self.es_task_handler.set_context(ti)
-        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+        self.es.index(index=self.index_name, doc_type=self.doc_type, document=self.body, id=id)
 
         logs, _ = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
@@ -658,7 +658,7 @@ class TestElasticsearchTaskHandler:
             "levelname": "INFO",
         }
         self.es_task_handler.set_context(ti)
-        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+        self.es.index(index=self.index_name, doc_type=self.doc_type, document=self.body, id=id)
 
         logs, _ = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
@@ -685,7 +685,7 @@ class TestElasticsearchTaskHandler:
             "log": {"offset": 1},
             "host": {"name": "somehostname"},
         }
-        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+        self.es.index(index=self.index_name, doc_type=self.doc_type, document=self.body, id=id)
 
         logs, _ = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
@@ -925,14 +925,14 @@ def test_retrieve_config_keys():
     with conf_vars(
         {
             ("elasticsearch_configs", "http_compress"): "False",
-            ("elasticsearch_configs", "timeout"): "10",
+            ("elasticsearch_configs", "request_timeout"): "10",
         }
     ):
         args_from_config = get_es_kwargs_from_config().keys()
         # verify_certs comes from default config value
         assert "verify_certs" in args_from_config
-        # timeout comes from config provided value
-        assert "timeout" in args_from_config
+        # request_timeout comes from config provided value
+        assert "request_timeout" in args_from_config
         # http_compress comes from config value
         assert "http_compress" in args_from_config
         assert "self" not in args_from_config
@@ -1290,7 +1290,7 @@ class TestBuildStructuredLogFields:
                 }
             ],
         }
-        es.index(index="test_index", doc_type="log", body=body, id=1)
+        es.index(index="test_index", doc_type="log", document=body, id=1)
 
         # Patch the IO layer to return our fake document
         mock_hit_dict = body.copy()

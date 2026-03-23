@@ -315,6 +315,10 @@ class DagRun(Base, LoggingMixin):
     _ti_dag_versions = association_proxy("task_instances", "dag_version")
     _tih_dag_versions = association_proxy("task_instances_histories", "dag_version")
 
+    # Can be set by manual prefetch, such as attach_dag_versions_to_runs()
+    # as an alternative to traversing all TI/TIH ORM relationships. Maps version_id -> DagVersion.
+    _prefetched_dag_version_ids: dict[UUID, DagVersion] | None = None
+
     def __init__(
         self,
         dag_id: str | None = None,
@@ -406,13 +410,16 @@ class DagRun(Base, LoggingMixin):
         # when the dag is in a versioned bundle, we keep the dag version fixed
         if self.bundle_version:
             return [self.created_dag_version] if self.created_dag_version is not None else []
-        dag_versions = [
-            dv
-            for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
-            if dv is not None
-        ]
-        sorted_ = sorted(dag_versions, key=lambda dv: dv.id)
-        return sorted_
+
+        if self._prefetched_dag_version_ids is not None:
+            dag_version_objects = list(self._prefetched_dag_version_ids.values())
+        else:
+            dag_version_objects = [
+                dv
+                for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
+                if dv is not None
+            ]
+        return sorted(dag_version_objects, key=lambda dv: dv.id)
 
     @property
     def version_number(self) -> int | None:
@@ -1020,7 +1027,7 @@ class DagRun(Base, LoggingMixin):
         return leaf_tis
 
     def _emit_dagrun_span(self, state: DagRunState):
-        ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
+        ctx = TraceContextTextMapPropagator().extract(self.context_carrier or {})
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
         with override_ids(span_context.trace_id, span_context.span_id):
