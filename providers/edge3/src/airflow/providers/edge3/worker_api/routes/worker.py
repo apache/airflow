@@ -221,7 +221,7 @@ def set_state(
 
         stats.incr("edge_worker.heartbeat_count", 1, 1, legacy_name_tags={"worker_name": worker_name})
     else:
-        from airflow.stats import Stats
+        from airflow.providers.common.compat.sdk import Stats
 
         Stats.incr(f"edge_worker.heartbeat_count.{worker_name}", 1, 1)
         Stats.incr("edge_worker.heartbeat_count", 1, 1, tags={"worker_name": worker_name})

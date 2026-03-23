@@ -609,7 +609,7 @@ class AwsEcsExecutor(BaseExecutor):
 
             ctx = stats.timer("ecs_executor.adopt_task_instances.duration")
         else:
-            from airflow.stats import Stats
+            from airflow.providers.common.compat.sdk import Stats
 
             ctx = Stats.timer("ecs_executor.adopt_task_instances.duration")
         with ctx:

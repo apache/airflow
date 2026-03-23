@@ -29,7 +29,7 @@ from .metrics_registry import MetricsRegistry
 
 if TYPE_CHECKING:
     from .base_stats_logger import StatsLogger
-    from .protocols import DeltaType
+    from .protocols import DeltaType, Timer
 
 log = logging.getLogger(__name__)
 
@@ -251,7 +251,7 @@ def timer(
     tags: dict[str, Any] | None = None,
     legacy_name_tags: dict[str, Any] | None = None,
     **kwargs,
-) -> AbstractContextManager[Any]:
+) -> Timer:
     """
     Context manager that times a block and emits a timer metric.
 
@@ -284,6 +284,6 @@ def timer(
             )
         )
         stack.enter_context(_get_backend().timer(stat, **modern_kw))
-        return stack
+        return cast("Timer", stack)
 
     return _get_backend().timer(stat, **modern_kw)

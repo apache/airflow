@@ -235,7 +235,7 @@ class OpenLineageListener:
                     "ol.extract", legacy_name_tags={"event_type": event_type, "operator_name": operator_name}
                 )
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 ctx = Stats.timer(f"ol.extract.{event_type}.{operator_name}")
             with ctx:
@@ -280,7 +280,7 @@ class OpenLineageListener:
                     legacy_name_tags={"event_type": event_type, "operator_name": operator_name},
                 )
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 Stats.gauge(f"ol.event.size.{event_type}.{operator_name}", event_size)
 
@@ -384,7 +384,7 @@ class OpenLineageListener:
                     "ol.extract", legacy_name_tags={"event_type": event_type, "operator_name": operator_name}
                 )
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 ctx = Stats.timer(f"ol.extract.{event_type}.{operator_name}")
             with ctx:
@@ -428,7 +428,7 @@ class OpenLineageListener:
                     legacy_name_tags={"event_type": event_type, "operator_name": operator_name},
                 )
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 Stats.gauge(f"ol.event.size.{event_type}.{operator_name}", event_size)
 
@@ -547,7 +547,7 @@ class OpenLineageListener:
                     "ol.extract", legacy_name_tags={"event_type": event_type, "operator_name": operator_name}
                 )
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 ctx = Stats.timer(f"ol.extract.{event_type}.{operator_name}")
             with ctx:
@@ -592,7 +592,7 @@ class OpenLineageListener:
                     legacy_name_tags={"event_type": event_type, "operator_name": operator_name},
                 )
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 Stats.gauge(f"ol.event.size.{event_type}.{operator_name}", event_size)
 
@@ -687,7 +687,7 @@ class OpenLineageListener:
                     "ol.extract", legacy_name_tags={"event_type": event_type, "operator_name": operator_name}
                 )
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 ctx = Stats.timer(f"ol.extract.{event_type}.{operator_name}")
             with ctx:
@@ -731,7 +731,7 @@ class OpenLineageListener:
                     legacy_name_tags={"event_type": event_type, "operator_name": operator_name},
                 )
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 Stats.gauge(f"ol.event.size.{event_type}.{operator_name}", event_size)
 

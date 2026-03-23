@@ -557,7 +557,7 @@ class KubernetesExecutor(BaseExecutor):
 
             ctx = stats.timer("kubernetes_executor.adopt_task_instances.duration")
         else:
-            from airflow.stats import Stats
+            from airflow.providers.common.compat.sdk import Stats
 
             ctx = Stats.timer("kubernetes_executor.adopt_task_instances.duration")
         with ctx:

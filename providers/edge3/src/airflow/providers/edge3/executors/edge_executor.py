@@ -231,7 +231,7 @@ class EdgeExecutor(BaseExecutor):
 
                     stats.incr("edge_worker.ti.finish", legacy_name_tags=tags)
                 else:
-                    from airflow.stats import Stats
+                    from airflow.providers.common.compat.sdk import Stats
 
                     Stats.incr(
                         f"edge_worker.ti.finish.{job.queue}.{TaskInstanceState.FAILED}.{job.dag_id}.{job.task_id}",
@@ -328,7 +328,7 @@ class EdgeExecutor(BaseExecutor):
 
             ctx = stats.timer("edge_executor.sync.duration")
         else:
-            from airflow.stats import Stats
+            from airflow.providers.common.compat.sdk import Stats
 
             ctx = Stats.timer("edge_executor.sync.duration")
         with ctx:

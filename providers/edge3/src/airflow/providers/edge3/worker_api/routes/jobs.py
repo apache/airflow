@@ -93,7 +93,7 @@ def fetch(
 
         stats.incr("edge_worker.ti.start", legacy_name_tags=tags)
     else:
-        from airflow.stats import Stats
+        from airflow.providers.common.compat.sdk import Stats
 
         Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
         Stats.incr("edge_worker.ti.start", tags=tags)
@@ -154,7 +154,7 @@ def state(
 
                 stats.incr("edge_worker.ti.finish", legacy_name_tags=tags)
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 Stats.incr(f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}", tags=tags)
                 Stats.incr("edge_worker.ti.finish", tags=tags)

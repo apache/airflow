@@ -202,7 +202,7 @@ def set_metrics(
             legacy_name_tags={"worker_name": worker_name, "queues": ",".join(queues)},
         )
     else:
-        from airflow.stats import Stats
+        from airflow.providers.common.compat.sdk import Stats
         Stats.gauge(
             "edge_worker.status",
             sysinfo.get("status", logging.NOTSET),  # type: ignore

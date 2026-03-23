@@ -1326,7 +1326,7 @@ class DagFileProcessorManager(LoggingMixin):
         if self._parsing_start_time is not None:
             emit_metrics(
                 parse_time=time.perf_counter() - self._parsing_start_time,
-                stats=list(self._file_stats.values()),
+                dag_file_stats=list(self._file_stats.values()),
             )
             self._parsing_start_time = None
 
@@ -1472,7 +1472,7 @@ class DagFileProcessorManager(LoggingMixin):
             kill_child_processes_by_pids(pids_to_kill)
 
 
-def emit_metrics(*, parse_time: float, stats: Sequence[DagFileStat]):
+def emit_metrics(*, parse_time: float, dag_file_stats: Sequence[DagFileStat]):
     """
     Emit metrics about dag parsing summary.
 
@@ -1480,8 +1480,8 @@ def emit_metrics(*, parse_time: float, stats: Sequence[DagFileStat]):
     all files have been parsed.
     """
     stats.gauge("dag_processing.total_parse_time", parse_time)
-    stats.gauge("dagbag_size", sum(stat.num_dags for stat in stats))
-    stats.gauge("dag_processing.import_errors", sum(stat.import_errors for stat in stats))
+    stats.gauge("dagbag_size", sum(stat.num_dags for stat in dag_file_stats))
+    stats.gauge("dag_processing.import_errors", sum(stat.import_errors for stat in dag_file_stats))
 
 
 def process_parse_results(

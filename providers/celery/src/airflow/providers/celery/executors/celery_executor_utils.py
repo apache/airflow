@@ -309,7 +309,7 @@ if not AIRFLOW_V_3_0_PLUS:
 
                     stats.incr("celery.execute_command.failure")
                 else:
-                    from airflow.stats import Stats
+                    from airflow.providers.common.compat.sdk import Stats
 
                     Stats.incr("celery.execute_command.failure")
                 raise

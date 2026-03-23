@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 import traceback
-from contextlib import ExitStack
+from contextlib import AbstractContextManager, ExitStack
 from typing import TYPE_CHECKING, Literal
 
 import yaml
@@ -158,6 +158,7 @@ class OpenLineageAdapter(LoggingMixin):
         transport_type = f"{self._client.transport.kind}".lower()
 
         try:
+            ctx: AbstractContextManager[object]
             if AIRFLOW_V_3_2_PLUS:
                 from airflow.sdk.observability import stats
 
@@ -166,7 +167,7 @@ class OpenLineageAdapter(LoggingMixin):
                     legacy_name_tags={"event_type": event_type, "transport_type": transport_type},
                 )
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 stack = ExitStack()
                 stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
@@ -185,7 +186,7 @@ class OpenLineageAdapter(LoggingMixin):
 
                 stats.incr("ol.emit.failed")
             else:
-                from airflow.stats import Stats
+                from airflow.providers.common.compat.sdk import Stats
 
                 Stats.incr("ol.emit.failed")
             self.log.warning(

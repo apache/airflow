@@ -69,7 +69,6 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XComModel
-from airflow.observability.stats import Stats
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -2308,12 +2307,15 @@ class TestTaskInstance:
         ti.handle_failure("test queued ti", test_mode=True)
         assert ti.state == State.UP_FOR_RETRY
 
-    @patch.object(Stats, "incr")
-    def test_handle_failure_no_task(self, Stats_incr, dag_maker):
+    @patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_handle_failure_no_task(self, mock_get_backend, dag_maker):
         """
         When a task instance heartbeat timeout is detected for a DAG with a parse error,
         we need to be able to run handle_failure _without_ ti.task being set
         """
+        mock_backend = mock.MagicMock()
+        mock_get_backend.return_value = mock_backend
+
         session = settings.Session()
         with dag_maker():
             task = EmptyOperator(task_id="mytask", retries=1)
@@ -2336,9 +2338,9 @@ class TestTaskInstance:
         # try_number remains at 1
         assert ti.try_number == 1
 
-        Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
-        Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
-        Stats_incr.assert_any_call(
+        mock_backend.incr.assert_any_call("ti_failures", tags=expected_stats_tags)
+        mock_backend.incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
+        mock_backend.incr.assert_any_call(
             "operator_failures", tags={**expected_stats_tags, "operator_name": "EmptyOperator"}
         )
 
