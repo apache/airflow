@@ -214,7 +214,7 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.graph_id = graph_identifier
+        self.graph_identifier = graph_identifier
         self.vpc_id = vpc_id
         self.subnet_ids = subnet_ids
         self.vpc_security_group_ids = vpc_security_group_ids
@@ -224,10 +224,10 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> dict:
-        self.log.info("Creating private endpoint for graph %s", self.graph_id)
+        self.log.info("Creating private endpoint for graph %s", self.graph_identifier)
 
         create_params = {
-            "graphIdentifier": self.graph_id,
+            "graphIdentifier": self.graph_identifier,
             **{
                 k: v
                 for k, v in {
@@ -243,50 +243,52 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
 
         result = self.hook.conn.create_private_graph_endpoint(**create_params)
         status = result.get("status", "Unknown")
-        endpoint_id = result.get("vpcEndpointId", "Unknown")
 
-        self.log.info("Status of endpoint %s: %s", endpoint_id, status)
+        self.log.info("Status of endpoint: %s", status)
 
         if status in ["FAILED"]:
-            raise AirflowException(f"Private endpoint failed to create for graph {self.graph_id}")
+            raise AirflowException(f"Private endpoint failed to create for graph {self.graph_identifier}")
 
-        # if VPC not provided, use the one that is returned. Required for the waiter
+        # if VPC not provided, use the one that is returned, which is the default VPC. Required for the waiter
         self.vpc_id = result.get("vpcId", self.vpc_id)
 
         # TODO extra link to console
 
         if self.deferrable:
-            self.log.info("Deferring until endpoint %s is available", endpoint_id)
+            self.log.info("Deferring until endpoint is available")
             self.defer(
                 trigger=NeptuneGraphPrivateEndpointAvailableTrigger(
                     aws_conn_id=self.aws_conn_id,
-                    graph_id=self.graph_id,
+                    graph_id=self.graph_identifier,
                     vpc_id=self.vpc_id,
-                    endpoint_id=endpoint_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="execute_complete",
             )
 
-        # TODO add test
         if self.wait_for_completion:
-            self.log.info("Waiting until endpoint %s is available", endpoint_id)
+            self.log.info("Waiting until endpoint is available")
             self.hook.get_waiter("private_graph_endpoint_available").wait(
-                graphIdentifier=self.graph_id,
+                graphIdentifier=self.graph_identifier,
                 vpcId=self.vpc_id,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
-        return {"vpc_endpoint_id": endpoint_id, "graph_id": self.graph_id, "vpc_id": self.vpc_id}
+        endpoint_id = self._get_graph_endpoint_id()
+        return {"vpc_endpoint_id": endpoint_id, "graph_id": self.graph_identifier, "vpc_id": self.vpc_id}
+
+    def _get_graph_endpoint_id(self):
+        """Return the vpc endpoint id for this graph."""
+        result = self.hook.conn.get_private_graph_endpoint(
+            graphIdentifier=self.graph_identifier, vpcId=self.vpc_id
+        )
+        return result.get("vpcEndpointId")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        vpc_endpoint_id = ""
+        vpc_endpoint_id = self._get_graph_endpoint_id()
 
-        if event and event.get("status") == "success":
-            vpc_endpoint_id = event.get("endpoint_id", "")
-
-        return {"vpc_endpoint_id": vpc_endpoint_id, "graph_id": self.graph_id, "vpc_id": self.vpc_id}
+        return {"vpc_endpoint_id": vpc_endpoint_id, "graph_id": self.graph_identifier, "vpc_id": self.vpc_id}
 
 
 class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
@@ -334,7 +336,7 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.graph_id = graph_identifier
+        self.graph_identifier = graph_identifier
         self.vpc_id = vpc_id
         self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
@@ -342,10 +344,10 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> None:
-        self.log.info("Deleting private endpoint for graph %s", self.graph_id)
+        self.log.info("Deleting private endpoint for graph %s", self.graph_identifier)
 
         result = self.hook.conn.delete_private_graph_endpoint(
-            graphIdentifier=self.graph_id, vpcId=self.vpc_id
+            graphIdentifier=self.graph_identifier, vpcId=self.vpc_id
         )
 
         status = result.get("status")
@@ -359,7 +361,7 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
             self.defer(
                 trigger=NeptuneGraphPrivateEndpointDeletedTrigger(
                     aws_conn_id=self.aws_conn_id,
-                    graph_id=self.graph_id,
+                    graph_id=self.graph_identifier,
                     vpc_id=self.vpc_id,
                     endpoint_id=endpoint_id,
                     waiter_delay=self.waiter_delay,
@@ -370,10 +372,11 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         if self.wait_for_completion:
             self.log.info("Waiting until endpoint %s is deleted", endpoint_id)
             self.hook.get_waiter("private_graph_endpoint_deleted").wait(
-                graphIdentifier=self.graph_id,
+                graphIdentifier=self.graph_identifier,
                 vpcId=self.vpc_id,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
+            self.log.info("Endpoint %s deleted", endpoint_id)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         vpc_endpoint_id = ""
@@ -519,7 +522,13 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
     """
 
     aws_hook_class = NeptuneAnalyticsHook
-    template_fields: Sequence[str] = aws_template_fields()
+    template_fields: Sequence[str] = aws_template_fields(
+        "graph_name", "vector_search_config", "source", "role_arn", "kms_key"
+    )
+
+    template_fields_renderers = {
+        "vector_search_config": "json",
+    }
 
     def __init__(
         self,
@@ -610,9 +619,10 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
 
         self.log.info("Graph %s import task in status %s", self.graph_name, response.get("status", "Unknown"))
         self.graph_id = response.get("graphId", None)
+        import_task_id = response.get("taskId")
 
         # TODO build extra link to console
-
+        # TODO - second defer for task completion.
         if self.deferrable:
             self.log.info("Deferring until graph %s is available", self.graph_id)
             self.defer(
@@ -622,7 +632,8 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
-                method_name="execute_complete",
+                method_name="defer_wait_for_task",
+                kwargs={"import_task_id": import_task_id},
             )
 
         if self.wait_for_completion:
@@ -631,11 +642,33 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
                 graphIdentifier=self.graph_id,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
+            # Once the graph is available, wait for the task to complete
+
+            self.log.info("Waiting for import task %s", import_task_id)
+            self.hook.get_waiter("import_task_successful").wait(
+                taskIdentifier=import_task_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
 
         return {"graph_id": self.graph_id}
 
+    def defer_wait_for_task(
+        self, import_task_id: str, context: Context, event: dict[str, Any] | None = None
+    ) -> None:
+        """Defers for import task completion."""
+        self.log.info("Deferring for import task %s completion", import_task_id)
+        self.defer(
+            trigger=NeptuneImportTaskCompleteTrigger(
+                task_id=import_task_id,
+                waiter_delay=self.waiter_delay,
+                waiter_max_attempts=self.waiter_max_attempts,
+                aws_conn_id=self.aws_conn_id,
+            ),
+            method_name="execute_complete",
+        )
+
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        self.log.info("Trigger complete for graph %s", self.graph_id)
+        self.log.info("Import complete for graph %s", self.graph_id)
         return {"graph_id": self.graph_id}
 
 
@@ -686,7 +719,7 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         graph_identifier: str,
         role_arn: str,
         source: str,
-        blank_node_handling: str | None = "convertToIri",
+        blank_node_handling: str | None = None,
         fail_on_error: bool = True,
         format: str | None = None,
         import_options: dict | None = None,
@@ -750,7 +783,7 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
 
         if self.wait_for_completion:
             self.log.info("Waiting for import task %s to complete", task_id)
-            self.hook.get_waiter("import_task_completed").wait(
+            self.hook.get_waiter("import_task_successful").wait(
                 taskIdentifier=task_id,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
@@ -806,24 +839,24 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.import_task_id = task_identifier
+        self.task_identifier = task_identifier
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> dict:
-        self.log.info("Cancelling import task %s", self.import_task_id)
+        self.log.info("Cancelling import task %s", self.task_identifier)
 
-        response = self.hook.conn.cancel_import_task(taskIdentifier=self.import_task_id)
+        response = self.hook.conn.cancel_import_task(taskIdentifier=self.task_identifier)
 
-        self.log.info("Import task %s status is %s", self.import_task_id, response.get("status", "Unknown"))
+        self.log.info("Import task %s status is %s", self.task_identifier, response.get("status", "Unknown"))
 
         if self.deferrable:
-            self.log.info("Deferring until import task %s is cancelled", self.import_task_id)
+            self.log.info("Deferring until import task %s is cancelled", self.task_identifier)
             self.defer(
                 trigger=NeptuneImportTaskCancelledTrigger(
-                    task_identifier=self.import_task_id,
+                    task_identifier=self.task_identifier,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
@@ -832,13 +865,13 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
             )
 
         if self.wait_for_completion:
-            self.log.info("Waiting for import task %s to be cancelled", self.import_task_id)
+            self.log.info("Waiting for import task %s to be cancelled", self.task_identifier)
             self.hook.get_waiter("import_task_cancelled").wait(
-                taskIdentifier=self.import_task_id,
+                taskIdentifier=self.task_identifier,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
-        return {"task_identifier": self.import_task_id}
+        return {"task_identifier": self.task_identifier}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
         task_id = ""
