@@ -48,8 +48,12 @@ class HookMetaService:
         ):
             pass
 
+        def __call__(self, form, field):
+            """No-op call to satisfy WTForms validator protocol."""
+            return None
+
     class MockEnum:
-        """Mock for wtforms.validators.Optional."""
+        """Mock for wtforms.validators.AnyOf."""
 
         def __init__(self, allowed_values):
             self.allowed_values = allowed_values
@@ -180,6 +184,9 @@ class HookMetaService:
                 ),
                 mock.patch("wtforms.validators.Optional", HookMetaService.MockOptional),
                 mock.patch("wtforms.validators.any_of", mock_any_of),
+                # Prevent poisoning the global ProvidersManager singleton with mocks
+                mock.patch("airflow.providers_manager.ProvidersManager._instance", None),
+                mock.patch("airflow.providers_manager.ProvidersManager.initialized", return_value=False),
             ):
                 pm = ProvidersManager()
                 return pm.hooks, pm.connection_form_widgets, pm.field_behaviours  # Will init providers hooks
