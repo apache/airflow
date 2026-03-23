@@ -23,6 +23,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import subprocess
 import sys
 from functools import lru_cache
@@ -185,6 +186,7 @@ def check_docker_is_running():
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
         if response.stderr:
+            console_print(f"\n[warning]Command attempted:[/]\n{shlex.join(response.args)}")
             console_print(f"\n[warning]Docker error output:[/]\n{response.stderr.strip()}")
         if os.environ.get("CODESPACES", "").lower() == "true":
             console_print(

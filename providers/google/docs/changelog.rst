@@ -70,6 +70,7 @@ Changelog
   * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.CreateCachedContentOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICreateCachedContentOperator`` instead
   * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateFromCachedContentOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator`` instead
   * Remove ``airflow.providers.google.cloud.operators.vertex_ai.generative_model.DeleteExperimentRunOperator`` use ``airflow.providers.google.cloud.operators.vertex_ai.experiment_service.DeleteExperimentRunOperator`` instead
+  * Remove ``airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`` use ``airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAISupervisedFineTuningTrainOperator`` instead
 
 * Hooks
 
@@ -79,41 +80,60 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* ``Delete google provider deprecated items sheduled for Jan 2026 (#62802)``
+* ``Remove deprecated classes scheduled for January 2026 (#62802)``
+* ``Remove deprecated classes scheduled for March 2026 (#64098)``
 
 Features
 ~~~~~~~~
 
 * ``Add drift detection and optional recreation to ComputeEngineInsertInstanceOperator (#61830)``
-* ``Return destination GCS URIs from ADLSToGCSOperator (#61463)``
-* ``Return GCS URIs from GoogleAdsToGcsOperator (#61334)``
 * ``Add bounded best-effort cluster deletion when PermissionDenied occurs after cluster creation has been initiated in non-deferrable mode. Deletion is triggered with wait_to_complete=False and retried on FailedPrecondition until cleanup_timeout_seconds is reached, and the original exception is always re-raised. Add unit tests covering cleanup initiation, retry behavior, and error propagation. (#62302)``
 * ``Add ClusterType field for Zero-Scale cluster support (#62207)``
+* ``Add match_glob to template_fields in GCS operators (#61819)``
+* ``Add parallel download and upload support to 'GCSTimeSpanFileTransformOperator' (#62196)``
+* ``Add retry logic to BigQueryInsertJobOperator for 429 error (#63181)``
+* ``Add direct-to-triggerer support for DataprocSubmitJobOperator (#62331)``
+* ``Add operators for Google BidManager API (#62521)``
+* ``Return destination GCS URIs from ADLSToGCSOperator (#61463)``
+* ``Return GCS URIs from GoogleAdsToGcsOperator (#61334)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``fix DataprocSubmitTrigger deferred tasks stuck forever (#62082)``
+* ``fix(google-ads): support flat extra format from connection form (#62791)``
+* ``fix sanitize Dataproc batch labels to use dashes instead of underscores (#62926)``
+* ``fix wrap sync get_job with sync_to_async in BigQueryAsyncHook (#63230)``
+* ``fix non-deferrable reconciliation and handle deletion during creation in DataprocCreateClusterOperator (#61951)``
 
 Misc
 ~~~~
 
+* ``Add Python 3.14 Support (#64061)``
 * ``Upgrade version of Campaign Manager API to v5 (#62510)``
-* ``Add .json template_ext to BigQueryCreateTableOperator (#62058)``
-
-Doc-only
-~~~~~~~~
-
-* ``Add known issue notice for version 19.5.0 (#61927)``
+* ``Mypy fix errors in kubernetes, fab, google, and amazon providers (#63947)``
+* ``Mypy fix errors in TrinoToGCSOperator (#62998)``
+* ``Remove PyOpenSSL from dependencies (#63869)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add exception test for GenAICountTokensOperator (#61391)``
    * ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
-   * ``Fix mypy issues from trinodb 0.337.0 (#62998)``
    * ``Replace connexion with FastAPI for FAB provider (#62664)``
    * ``Update provider's compatibility matrix with 2.11.1 (#62295)``
    * ``Suspend Apache Beam Provider due to grpcio limitation (#61926)``
+   * ``Update google change log (#64065)``
+   * ``Fix Python 3.14 ARM failures by removing side-loaded packages (#64028)``
+   * ``Add Python 3.14 Support (#63520)``
+   * ``Bugfix/63173 k8s unicode log read (#63673)``
+   * ``Add .json template_ext to BigQueryCreateTableOperator (#62058)``
+   * ``Revert "Add .json template_ext to BigQueryCreateTableOperator (#62058)" (#63725)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+   * ``Fix AIR004* in multiple example DAGs (#62529)``
+   * ``Prepare providers release 2026-03-09 (#63198)``
+   * ``Add known issue notice for version 19.5.0 (#61927)``
+   * ``Update google change log for release 21.0 (#64091)``
 
 20.0.0
 ......
