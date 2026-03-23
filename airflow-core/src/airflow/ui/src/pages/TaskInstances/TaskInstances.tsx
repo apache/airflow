@@ -29,20 +29,29 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { ActionBar } from "src/components/ui/ActionBar";
+import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
+import BulkDeleteTaskInstancesButton from "./BulkDeleteTaskInstancesButton";
+import BulkMarkTaskInstancesAsButton from "./BulkMarkTaskInstancesAsButton";
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
+
+const getRowKey = (ti: TaskInstanceResponse) =>
+  `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -63,161 +72,192 @@ const {
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
+type ColumnProps = {
+  readonly dagId?: string;
+  readonly runId?: string;
+  readonly taskId?: string;
+  readonly translate: TFunction;
+};
+
 const taskInstanceColumns = ({
+  allRowsSelected,
   dagId,
+  onRowSelect,
+  onSelectAll,
   runId,
+  selectedRows,
   taskId,
   translate,
-}: {
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
-  translate: TFunction;
-}): Array<ColumnDef<TaskInstanceResponse>> => [
-  ...(Boolean(dagId)
-    ? []
-    : [
-        {
-          accessorKey: "dag_display_name",
-          cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info">
-              <RouterLink to={`/dags/${original.dag_id}`}>
-                <TruncatedText text={original.dag_display_name} />
-              </RouterLink>
-            </Link>
-          ),
-          enableSorting: false,
-          header: translate("dagId"),
-        },
-      ]),
-  ...(Boolean(runId)
-    ? []
-    : [
-        {
-          accessorKey: "run_after",
-          // If we don't show the taskId column, make the dag run a link to the task instance
-          cell: ({ row: { original } }: TaskInstanceRow) =>
-            Boolean(taskId) ? (
-              <Link asChild color="fg.info" fontWeight="bold">
-                <RouterLink to={getTaskInstanceLink(original)}>
-                  <Time datetime={original.run_after} />
+}: ColumnProps & GetColumnsParams): Array<ColumnDef<TaskInstanceResponse>> => {
+  return [
+    {
+      accessorKey: "select",
+      cell: ({ row }) => (
+        <Checkbox
+          borderWidth={1}
+          checked={selectedRows.get(getRowKey(row.original))}
+          colorPalette="brand"
+          onCheckedChange={(event) => onRowSelect(getRowKey(row.original), Boolean(event.checked))}
+        />
+      ),
+      enableHiding: false,
+      enableSorting: false,
+      header: () => (
+        <Checkbox
+          borderWidth={1}
+          checked={allRowsSelected}
+          colorPalette="brand"
+          onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+        />
+      ),
+      meta: {
+        skeletonWidth: 10,
+      },
+    },
+    ...(Boolean(dagId)
+      ? []
+      : [
+          {
+            accessorKey: "dag_display_name",
+            cell: ({ row: { original } }: TaskInstanceRow) => (
+              <Link asChild color="fg.info">
+                <RouterLink to={`/dags/${original.dag_id}`}>
+                  <TruncatedText text={original.dag_display_name} />
                 </RouterLink>
               </Link>
-            ) : (
-              <Time datetime={original.run_after} />
             ),
-          header: translate("dagRun_one"),
-        },
-      ]),
-  ...(Boolean(taskId)
-    ? []
-    : [
-        {
-          accessorKey: "task_display_name",
-          cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={getTaskInstanceLink(original)}>
-                <TruncatedText text={original.task_display_name} />
-              </RouterLink>
-            </Link>
-          ),
-          enableSorting: false,
-          header: translate("taskId"),
-        },
-      ]),
-  {
-    accessorKey: "rendered_map_index",
-    header: translate("mapIndex"),
-  },
-  {
-    accessorKey: "state",
-    cell: ({
-      row: {
-        original: { state },
-      },
-    }) => (
-      <StateBadge state={state}>
-        {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
-      </StateBadge>
-    ),
-    header: () => translate("state"),
-  },
-  {
-    accessorKey: "start_date",
-    cell: ({ row: { original } }) =>
-      Boolean(taskId) && Boolean(runId) ? (
-        <Link asChild color="fg.info" fontWeight="bold">
-          <RouterLink to={getTaskInstanceLink(original)}>
-            <Time datetime={original.start_date} />
-          </RouterLink>
-        </Link>
-      ) : (
-        <Time datetime={original.start_date} />
-      ),
-    header: translate("startDate"),
-  },
-  {
-    accessorKey: "end_date",
-    cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
-    header: translate("endDate"),
-  },
-  {
-    accessorKey: "try_number",
-    enableSorting: false,
-    header: translate("tryNumber"),
-  },
-  {
-    accessorKey: "pool",
-    enableSorting: false,
-    header: translate("taskInstance.pool"),
-  },
-  {
-    accessorKey: "queue",
-    enableSorting: false,
-    header: translate("taskInstance.queue"),
-  },
-  {
-    accessorKey: "executor",
-    enableSorting: false,
-    header: translate("taskInstance.executor"),
-  },
-  {
-    accessorKey: "hostname",
-    enableSorting: false,
-    header: translate("taskInstance.hostname"),
-  },
-  {
-    accessorKey: "operator_name",
-    enableSorting: false,
-    header: translate("task.operator"),
-  },
-  {
-    accessorKey: "duration",
-    cell: ({ row: { original } }) => renderDuration(original.duration),
-    header: translate("duration"),
-  },
-  {
-    accessorKey: "dag_version",
-    cell: ({ row: { original } }) => <DagVersion version={original.dag_version} />,
-    enableSorting: false,
-    header: translate("taskInstance.dagVersion"),
-  },
-  {
-    accessorKey: "actions",
-    cell: ({ row }) => (
-      <Flex justifyContent="end">
-        <ClearTaskInstanceButton taskInstance={row.original} />
-        <MarkTaskInstanceAsButton taskInstance={row.original} />
-        <DeleteTaskInstanceButton taskInstance={row.original} />
-      </Flex>
-    ),
-    enableSorting: false,
-    header: "",
-    meta: {
-      skeletonWidth: 10,
+            enableSorting: false,
+            header: translate("dagId"),
+          },
+        ]),
+    ...(Boolean(runId)
+      ? []
+      : [
+          {
+            accessorKey: "run_after",
+            cell: ({ row: { original } }: TaskInstanceRow) =>
+              Boolean(taskId) ? (
+                <Link asChild color="fg.info" fontWeight="bold">
+                  <RouterLink to={getTaskInstanceLink(original)}>
+                    <Time datetime={original.run_after} />
+                  </RouterLink>
+                </Link>
+              ) : (
+                <Time datetime={original.run_after} />
+              ),
+            header: translate("dagRun_one"),
+          },
+        ]),
+    ...(Boolean(taskId)
+      ? []
+      : [
+          {
+            accessorKey: "task_display_name",
+            cell: ({ row: { original } }: TaskInstanceRow) => (
+              <Link asChild color="fg.info" fontWeight="bold">
+                <RouterLink to={getTaskInstanceLink(original)}>
+                  <TruncatedText text={original.task_display_name} />
+                </RouterLink>
+              </Link>
+            ),
+            enableSorting: false,
+            header: translate("taskId"),
+          },
+        ]),
+    {
+      accessorKey: "rendered_map_index",
+      header: translate("mapIndex"),
     },
-  },
-];
+    {
+      accessorKey: "state",
+      cell: ({
+        row: {
+          original: { state },
+        },
+      }) => (
+        <StateBadge state={state}>
+          {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
+        </StateBadge>
+      ),
+      header: () => translate("state"),
+    },
+    {
+      accessorKey: "start_date",
+      cell: ({ row: { original } }) =>
+        Boolean(taskId) && Boolean(runId) ? (
+          <Link asChild color="fg.info" fontWeight="bold">
+            <RouterLink to={getTaskInstanceLink(original)}>
+              <Time datetime={original.start_date} />
+            </RouterLink>
+          </Link>
+        ) : (
+          <Time datetime={original.start_date} />
+        ),
+      header: translate("startDate"),
+    },
+    {
+      accessorKey: "end_date",
+      cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
+      header: translate("endDate"),
+    },
+    {
+      accessorKey: "try_number",
+      enableSorting: false,
+      header: translate("tryNumber"),
+    },
+    {
+      accessorKey: "pool",
+      enableSorting: false,
+      header: translate("taskInstance.pool"),
+    },
+    {
+      accessorKey: "queue",
+      enableSorting: false,
+      header: translate("taskInstance.queue"),
+    },
+    {
+      accessorKey: "executor",
+      enableSorting: false,
+      header: translate("taskInstance.executor"),
+    },
+    {
+      accessorKey: "hostname",
+      enableSorting: false,
+      header: translate("taskInstance.hostname"),
+    },
+    {
+      accessorKey: "operator_name",
+      enableSorting: false,
+      header: translate("task.operator"),
+    },
+    {
+      accessorKey: "duration",
+      cell: ({ row: { original } }) => renderDuration(original.duration),
+      header: translate("duration"),
+    },
+    {
+      accessorKey: "dag_version",
+      cell: ({ row: { original } }) => <DagVersion version={original.dag_version} />,
+      enableSorting: false,
+      header: translate("taskInstance.dagVersion"),
+    },
+    {
+      accessorKey: "actions",
+      cell: ({ row }) => (
+        <Flex justifyContent="end">
+          <ClearTaskInstanceButton taskInstance={row.original} />
+          <MarkTaskInstanceAsButton taskInstance={row.original} />
+          <DeleteTaskInstanceButton taskInstance={row.original} />
+        </Flex>
+      ),
+      enableSorting: false,
+      header: "",
+      meta: {
+        skeletonWidth: 10,
+      },
+    },
+  ];
+};
 
 export const TaskInstances = () => {
   const { t: translate } = useTranslation();
@@ -292,9 +332,24 @@ export const TaskInstances = () => {
     },
   );
 
+  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: data?.task_instances,
+      getKey: getRowKey,
+    });
+
+  const selectedTaskInstances = (data?.task_instances ?? []).filter((ti) =>
+    selectedRows.has(getRowKey(ti)),
+  );
+
   const columns = taskInstanceColumns({
+    allRowsSelected,
     dagId,
+    multiTeam: false,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
     runId,
+    selectedRows,
     taskId: Boolean(groupId) ? undefined : taskId,
     translate,
   });
@@ -312,6 +367,27 @@ export const TaskInstances = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
+      <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
+        <ActionBar.Content>
+          <ActionBar.SelectionTrigger>
+            {selectedRows.size} {translate("selected")}
+          </ActionBar.SelectionTrigger>
+          <ActionBar.Separator />
+          <BulkClearTaskInstancesButton
+            clearSelections={clearSelections}
+            selectedTaskInstances={selectedTaskInstances}
+          />
+          <BulkMarkTaskInstancesAsButton
+            clearSelections={clearSelections}
+            selectedTaskInstances={selectedTaskInstances}
+          />
+          <BulkDeleteTaskInstancesButton
+            clearSelections={clearSelections}
+            selectedTaskInstances={selectedTaskInstances}
+          />
+          <ActionBar.CloseTrigger onClick={clearSelections} />
+        </ActionBar.Content>
+      </ActionBar.Root>
     </>
   );
 };
