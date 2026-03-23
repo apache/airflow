@@ -187,7 +187,7 @@ class GitHook(BaseHook):
         if not isinstance(self.repo_url, str):
             return
 
-        if not self.repo_url.startswith("git@") or not self.repo_url.startswith("https://"):
+        if not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
 
     @contextlib.contextmanager
@@ -197,7 +197,7 @@ class GitHook(BaseHook):
             return
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
-            askpass_script.write(f"#!/bin/sh\necho '{self.auth_token}'\n")
+            askpass_script.write(f"#!/bin/sh\necho {shlex.quote(self.auth_token)}\n")
             askpass_script.flush()
             os.chmod(askpass_script.name, stat.S_IRWXU)
 
