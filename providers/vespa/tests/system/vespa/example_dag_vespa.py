@@ -104,9 +104,9 @@ def vespa_dynamic():
     send_batches >> [update_doc3, delete_doc4] >> verify_docs_task
 
 
-dag = vespa_dynamic()
+example_dag = vespa_dynamic()
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-test_run = get_test_run(dag)
+test_run = get_test_run(example_dag)

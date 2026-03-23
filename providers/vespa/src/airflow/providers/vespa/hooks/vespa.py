@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import types
 import uuid
 from collections.abc import Callable, Iterable
 from queue import Empty, Queue
@@ -94,12 +93,16 @@ class VespaHook(BaseHook):
         conn: Connection = self.get_connection(conn_id)
         self.conn = conn
         extra = self.conn.extra_dejson or {}
+        host = self.conn.host
+
+        if not host:
+            raise ValueError("Vespa connection requires a host")
 
         resolved_schema = schema or self.conn.schema or self._get_field(extra, "schema")
         resolved_namespace = namespace or self._get_field(extra, "namespace") or "default"
 
         self._configure_from_connection(
-            host=self.conn.host,
+            host=host,
             port=self.conn.port,
             namespace=resolved_namespace,
             schema=resolved_schema,
@@ -125,8 +128,6 @@ class VespaHook(BaseHook):
         """
         self = cls.__new__(cls)
         BaseHook.__init__(self)
-
-        self.conn = types.SimpleNamespace(host=host, extra=extra)
 
         resolved_schema = schema or cls._get_field(extra, "schema")
         resolved_namespace = namespace or cls._get_field(extra, "namespace") or "default"
