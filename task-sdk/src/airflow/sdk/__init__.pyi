@@ -66,6 +66,7 @@ from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapp
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.partition_mappers.product import ProductMapper
+from airflow.sdk.definitions.partition_mappers.sequence import SequenceMapper
 from airflow.sdk.definitions.partition_mappers.temporal import (
     ToDailyMapper,
     ToHourlyMapper,
@@ -138,6 +139,7 @@ __all__ = [
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "ProductMapper",
+    "SequenceMapper",
     "SecretCache",
     "SkipMixin",
     "TaskGroup",

@@ -559,8 +559,8 @@ def test_ser_of_asset_event_accessor():
         Asset("hi")
     ].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
     d[Asset(name="yo", uri="test://yo")].extra = {"this": "that", "the": "other"}
-    ser = BaseSerialization.serialize(var=d)
-    deser = BaseSerialization.deserialize(ser)
+    set = BaseSerialization.serialize(var=d)
+    deser = BaseSerialization.deserialize(set)
     assert deser[Asset(uri="hi", name="hi")].extra == "blah1"
     assert d[Asset(name="yo", uri="test://yo")].extra == {"this": "that", "the": "other"}
 
@@ -583,11 +583,11 @@ def test_roundtrip_exceptions():
     """
     some_date = pendulum.now()
     resched_exc = AirflowRescheduleException(reschedule_date=some_date)
-    ser = BaseSerialization.serialize(resched_exc)
-    deser = BaseSerialization.deserialize(ser)
+    set = BaseSerialization.serialize(resched_exc)
+    deser = BaseSerialization.deserialize(set)
     assert isinstance(deser, AirflowRescheduleException)
     assert deser.reschedule_date == some_date
-    del ser
+    del set
     del deser
     exc = TaskDeferred(
         trigger=MyTrigger(hi="yo"),
@@ -595,8 +595,8 @@ def test_roundtrip_exceptions():
         kwargs={"have": "pie"},
         timeout=timedelta(seconds=30),
     )
-    ser = BaseSerialization.serialize(exc)
-    deser = BaseSerialization.deserialize(ser)
+    set = BaseSerialization.serialize(exc)
+    deser = BaseSerialization.deserialize(set)
     assert deser.trigger.hi == "yo"
     assert deser.method_name == "meth_name"
     assert deser.kwargs == {"have": "pie"}
@@ -893,6 +893,50 @@ def test_decode_product_mapper():
     assert len(core_pm.mappers) == 2
     assert core_pm.delimiter == "|"
     assert core_pm.to_downstream("2024-06-15T10:30:00|2024-06-15T10:30:00") == "2024-06-15T10|2024-06-15"
+
+
+def test_encode_sequence_mapper():
+    from airflow.sdk import SequenceMapper, ToDailyMapper, ToHourlyMapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = SequenceMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mappers.sequence.SequenceMapper",
+        Encoding.VAR: {
+            "mappers": [
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.ToHourlyMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H:%M:%S",
+                        "output_format": "%Y-%m-%dT%H",
+                    },
+                },
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.ToDailyMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H",
+                        "output_format": "%Y-%m-%d",
+                    },
+                },
+            ]
+        },
+    }
+
+
+def test_decode_sequence_mapper():
+    from airflow.partition_mappers.sequence import SequenceMapper as CoreSequenceMapper
+    from airflow.sdk import SequenceMapper, ToDailyMapper, ToHourlyMapper
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = SequenceMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreSequenceMapper)
+    assert len(core_pm.mappers) == 2
+    assert core_pm.to_downstream("2024-06-15T10:30:00") == "2024-06-15"
 
 
 def test_encode_allowed_key_mapper():
