@@ -705,14 +705,6 @@ paths:
         schema:
           type: string
           title: Worker Name
-      - name: team_name
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
       requestBody:
         required: true
         content:
@@ -747,14 +739,6 @@ paths:
         schema:
           type: string
           title: Worker Name
-      - name: team_name
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
       requestBody:
         required: true
         content:
@@ -789,14 +773,6 @@ paths:
         schema:
           type: string
           title: Worker Name
-      - name: team_name
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
       responses:
         '200':
           description: Successful Response
@@ -826,14 +802,6 @@ paths:
         schema:
           type: string
           title: Worker Name
-      - name: team_name
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
       responses:
         '200':
           description: Successful Response
@@ -863,14 +831,6 @@ paths:
         schema:
           type: string
           title: Worker Name
-      - name: team_name
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
       responses:
         '200':
           description: Successful Response
@@ -906,14 +866,6 @@ paths:
         schema:
           type: string
           title: Queue Name
-      - name: team_name
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
       responses:
         '200':
           description: Successful Response
@@ -948,14 +900,6 @@ paths:
         schema:
           type: string
           title: Queue Name
-      - name: team_name
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Team Name
       responses:
         '200':
           description: Successful Response

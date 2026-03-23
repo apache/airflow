@@ -260,12 +260,8 @@ def reset_metrics(worker_name: str) -> None:
     )
 
 
-def get_query_filter_by_team_and_worker_name(worker_name: str, team_name: str | None):
-    return (
-        select(EdgeWorkerModel)
-        .where(EdgeWorkerModel.worker_name == worker_name)
-        .where(EdgeWorkerModel.team_name == team_name)
-    )
+def get_query_filter_by_worker_name(worker_name: str):
+    return select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
 
 
 @providers_configuration_loaded
@@ -273,10 +269,9 @@ def get_query_filter_by_team_and_worker_name(worker_name: str, team_name: str | 
 def _fetch_edge_hosts_from_db(
     hostname: str | None = None,
     states: list | None = None,
-    team_name: str | None = None,
     session: Session = NEW_SESSION,
 ) -> Sequence[EdgeWorkerModel]:
-    query = select(EdgeWorkerModel).where(EdgeWorkerModel.team_name == team_name)
+    query = select(EdgeWorkerModel)
     if states:
         query = query.where(EdgeWorkerModel.state.in_(states))
     if hostname:
@@ -287,62 +282,47 @@ def _fetch_edge_hosts_from_db(
 
 @providers_configuration_loaded
 @provide_session
-def get_registered_edge_hosts(
-    states: list | None = None, team_name: str | None = None, session: Session = NEW_SESSION
-):
-    return _fetch_edge_hosts_from_db(states=states, team_name=team_name, session=session)
+def get_registered_edge_hosts(states: list | None = None, session: Session = NEW_SESSION):
+    return _fetch_edge_hosts_from_db(states=states, session=session)
 
 
 @provide_session
 def request_maintenance(
-    worker_name: str, team_name: str | None, maintenance_comment: str | None, session: Session = NEW_SESSION
+    worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
 ) -> None:
     """Write maintenance request to the db."""
-    query = get_query_filter_by_team_and_worker_name(worker_name=worker_name, team_name=team_name)
+    query = get_query_filter_by_worker_name(worker_name=worker_name)
     worker = session.scalar(query)
     if not worker:
-        team_name_suffix = f"with team name: {team_name}" if team_name else "with no team"
-        raise ValueError(
-            f"Edge Worker {worker_name} not found in list of registered workers {team_name_suffix}"
-        )
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
     worker.maintenance_comment = maintenance_comment
 
 
 @provide_session
-def exit_maintenance(worker_name: str, team_name: str | None, session: Session = NEW_SESSION) -> None:
+def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Write maintenance exit to the db."""
-    query = get_query_filter_by_team_and_worker_name(worker_name, team_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
-        team_name_suffix = f"with team name: {team_name}" if team_name else "with no team"
-        raise ValueError(
-            f"Edge Worker {worker_name} not found in list of registered workers {team_name_suffix}"
-        )
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     worker.state = EdgeWorkerState.MAINTENANCE_EXIT
     worker.maintenance_comment = None
 
 
 @provide_session
-def remove_worker(worker_name: str, team_name: str | None = None, session: Session = NEW_SESSION) -> None:
+def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Remove a worker that is offline or just gone from DB."""
-    query = get_query_filter_by_team_and_worker_name(worker_name, team_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
-        team_name_suffix = f"with team name: {team_name}" if team_name else "with no team"
-        raise ValueError(
-            f"Edge Worker {worker_name} not found in list of registered workers {team_name_suffix}"
-        )
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     if worker.state in (
         EdgeWorkerState.OFFLINE,
         EdgeWorkerState.OFFLINE_MAINTENANCE,
         EdgeWorkerState.UNKNOWN,
     ):
-        session.execute(
-            delete(EdgeWorkerModel)
-            .where(EdgeWorkerModel.worker_name == worker_name)
-            .where(EdgeWorkerModel.team_name == team_name)
-        )
+        session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
     else:
         error_message = f"Cannot remove edge worker {worker_name} as it is in {worker.state} state!"
         logger.error(error_message)
@@ -351,16 +331,13 @@ def remove_worker(worker_name: str, team_name: str | None = None, session: Sessi
 
 @provide_session
 def change_maintenance_comment(
-    worker_name: str, team_name: str | None, maintenance_comment: str | None, session: Session = NEW_SESSION
+    worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
 ) -> None:
     """Write maintenance comment in the db."""
-    query = get_query_filter_by_team_and_worker_name(worker_name, team_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
-        team_name_suffix = f"with team name: {team_name}" if team_name else "with no team"
-        raise ValueError(
-            f"Edge Worker {worker_name} not found in list of registered workers {team_name_suffix}"
-        )
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     if worker.state in (
         EdgeWorkerState.MAINTENANCE_MODE,
         EdgeWorkerState.MAINTENANCE_PENDING,
@@ -375,15 +352,12 @@ def change_maintenance_comment(
 
 
 @provide_session
-def request_shutdown(worker_name: str, team_name: str | None, session: Session = NEW_SESSION) -> None:
+def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Request to shutdown the edge worker."""
-    query = get_query_filter_by_team_and_worker_name(worker_name, team_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
-        team_name_suffix = f"with team name: {team_name}" if team_name else "with no team"
-        raise ValueError(
-            f"Edge Worker {worker_name} not found in list of registered workers {team_name_suffix}"
-        )
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     if worker.state not in (
         EdgeWorkerState.OFFLINE,
         EdgeWorkerState.OFFLINE_MAINTENANCE,
@@ -393,17 +367,12 @@ def request_shutdown(worker_name: str, team_name: str | None, session: Session =
 
 
 @provide_session
-def add_worker_queues(
-    worker_name: str, team_name: str | None, queues: list[str], session: Session = NEW_SESSION
-) -> None:
+def add_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
     """Add queues to an edge worker."""
-    query = get_query_filter_by_team_and_worker_name(worker_name, team_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
-        team_name_suffix = f"with team name: {team_name}" if team_name else "with no team"
-        raise ValueError(
-            f"Edge Worker {worker_name} not found in list of registered workers {team_name_suffix}"
-        )
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     if worker.state in (
         EdgeWorkerState.OFFLINE,
         EdgeWorkerState.OFFLINE_MAINTENANCE,
@@ -416,17 +385,12 @@ def add_worker_queues(
 
 
 @provide_session
-def remove_worker_queues(
-    worker_name: str, team_name: str | None, queues: list[str], session: Session = NEW_SESSION
-) -> None:
+def remove_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
     """Remove queues from an edge worker."""
-    query = get_query_filter_by_team_and_worker_name(worker_name, team_name)
+    query = get_query_filter_by_worker_name(worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
-        team_name_suffix = f"with team name: {team_name}" if team_name else "with no team"
-        raise ValueError(
-            f"Edge Worker {worker_name} not found in list of registered workers {team_name_suffix}"
-        )
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     if worker.state in (
         EdgeWorkerState.OFFLINE,
         EdgeWorkerState.OFFLINE_MAINTENANCE,

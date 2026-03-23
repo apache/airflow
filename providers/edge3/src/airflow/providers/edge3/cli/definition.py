@@ -177,7 +177,6 @@ EDGE_COMMANDS: list[ActionCommand] = [
         args=(
             ARG_OUTPUT,
             ARG_STATE,
-            ARG_TEAM_NAME,
         ),
     ),
     ActionCommand(
@@ -187,7 +186,6 @@ EDGE_COMMANDS: list[ActionCommand] = [
         args=(
             ARG_REQUIRED_EDGE_HOSTNAME,
             ARG_REQUIRED_MAINTENANCE_COMMENT,
-            ARG_TEAM_NAME,
         ),
     ),
     ActionCommand(
@@ -196,10 +194,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
         func=lazy_load_command(
             "airflow.providers.edge3.cli.edge_command.remove_remote_worker_from_maintenance"
         ),
-        args=(
-            ARG_REQUIRED_EDGE_HOSTNAME,
-            ARG_TEAM_NAME,
-        ),
+        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
     ),
     ActionCommand(
         name="remote-edge-worker-update-maintenance-comment",
@@ -210,26 +205,19 @@ EDGE_COMMANDS: list[ActionCommand] = [
         args=(
             ARG_REQUIRED_EDGE_HOSTNAME,
             ARG_REQUIRED_MAINTENANCE_COMMENT,
-            ARG_TEAM_NAME,
         ),
     ),
     ActionCommand(
         name="remove-remote-edge-worker",
         help="Remove remote edge worker entry from db.",
         func=lazy_load_command("airflow.providers.edge3.cli.edge_command.remove_remote_worker"),
-        args=(
-            ARG_REQUIRED_EDGE_HOSTNAME,
-            ARG_TEAM_NAME,
-        ),
+        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
     ),
     ActionCommand(
         name="shutdown-remote-edge-worker",
         help="Initiate the shutdown of the remote edge worker.",
         func=lazy_load_command("airflow.providers.edge3.cli.edge_command.remote_worker_request_shutdown"),
-        args=(
-            ARG_REQUIRED_EDGE_HOSTNAME,
-            ARG_TEAM_NAME,
-        ),
+        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
     ),
     ActionCommand(
         name="add-worker-queues",
@@ -238,7 +226,6 @@ EDGE_COMMANDS: list[ActionCommand] = [
         args=(
             ARG_REQUIRED_EDGE_HOSTNAME,
             ARG_QUEUES_MANAGE,
-            ARG_TEAM_NAME,
         ),
     ),
     ActionCommand(
@@ -248,14 +235,13 @@ EDGE_COMMANDS: list[ActionCommand] = [
         args=(
             ARG_REQUIRED_EDGE_HOSTNAME,
             ARG_QUEUES_MANAGE,
-            ARG_TEAM_NAME,
         ),
     ),
     ActionCommand(
         name="shutdown-all-workers",
         help="Request graceful shutdown of all edge workers.",
         func=lazy_load_command("airflow.providers.edge3.cli.edge_command.shutdown_all_workers"),
-        args=(ARG_YES, ARG_TEAM_NAME),
+        args=(ARG_YES,),
     ),
     ActionCommand(
         name="set-worker-concurrency",

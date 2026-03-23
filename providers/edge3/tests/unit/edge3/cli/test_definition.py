@@ -152,13 +152,10 @@ class TestEdgeCliDefinition:
             "--state",
             "running",
             "maintenance",
-            "--team-name",
-            "team_y",
         ]
         args = self.arg_parser.parse_args(params)
         assert args.output == "json"
         assert args.state == ["running", "maintenance"]
-        assert args.team_name == "team_y"
 
     def test_remote_edge_worker_request_maintenance_args(self):
         """Test remote-edge-worker-request-maintenance command with required arguments."""
@@ -169,13 +166,10 @@ class TestEdgeCliDefinition:
             "remote-worker-1",
             "--comments",
             "Emergency maintenance",
-            "--team-name",
-            "team_ops",
         ]
         args = self.arg_parser.parse_args(params)
         assert args.edge_hostname == "remote-worker-1"
         assert args.comments == "Emergency maintenance"
-        assert args.team_name == "team_ops"
 
     def test_remote_edge_worker_exit_maintenance_args(self):
         """Test remote-edge-worker-exit-maintenance command with required hostname."""
@@ -233,13 +227,10 @@ class TestEdgeCliDefinition:
             "remote-worker-1",
             "--queues",
             "queue3,queue4",
-            "--team-name",
-            "team_z",
         ]
         args = self.arg_parser.parse_args(params)
         assert args.edge_hostname == "remote-worker-1"
         assert args.queues == "queue3,queue4"
-        assert args.team_name == "team_z"
 
     def test_remove_worker_queues_args(self):
         """Test remove-worker-queues command with required arguments."""
@@ -250,13 +241,10 @@ class TestEdgeCliDefinition:
             "remote-worker-1",
             "--queues",
             "queue1",
-            "--team-name",
-            "team_z",
         ]
         args = self.arg_parser.parse_args(params)
         assert args.edge_hostname == "remote-worker-1"
         assert args.queues == "queue1"
-        assert args.team_name == "team_z"
 
     def test_shutdown_all_workers_args(self):
         """Test shutdown-all-workers command with yes flag."""

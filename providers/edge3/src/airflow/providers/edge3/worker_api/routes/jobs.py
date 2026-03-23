@@ -80,7 +80,7 @@ def fetch(
     )
     if body.queues:
         query = query.where(EdgeJobModel.queue.in_(body.queues))
-    if body.team_name is not None:
+    if hasattr(EdgeJobModel, "team_name"):
         query = query.where(EdgeJobModel.team_name == body.team_name)
     query = query.limit(1)
     query = query.with_for_update(skip_locked=True)
