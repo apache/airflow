@@ -158,6 +158,9 @@ class TestLLMFileAnalysisOperator:
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
 )
 class TestLLMFileAnalysisOperatorApproval:
+    class Summary(BaseModel):
+        findings: list[str]
+
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -193,6 +196,76 @@ class TestLLMFileAnalysisOperatorApproval:
         assert exc_info.value.method_name == "execute_complete"
         assert exc_info.value.kwargs["generated_output"] == "LLM response"
         mock_upsert.assert_called_once()
+
+    @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_execute_with_approval_defers_structured_output_as_json(
+        self, mock_build_request, mock_hook_cls, mock_upsert, mock_trigger_cls
+    ):
+        from airflow.providers.common.compat.sdk import TaskDeferred
+
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content="prepared prompt",
+            resolved_paths=["/tmp/app.log"],
+            total_size_bytes=10,
+        )
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result(self.Summary(findings=["error spike"]))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMFileAnalysisOperator(
+            task_id="approval_structured_test",
+            prompt="Summarize this",
+            llm_conn_id="my_llm",
+            file_path="/tmp/app.log",
+            output_type=self.Summary,
+            require_approval=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute(context=_make_context())
+
+        assert exc_info.value.kwargs["generated_output"] == '{"findings":["error spike"]}'
+        mock_upsert.assert_called_once()
+
+    def test_execute_complete_with_approval_restores_structured_output(self):
+        op = LLMFileAnalysisOperator(
+            task_id="approval_complete_test",
+            prompt="Summarize this",
+            llm_conn_id="my_llm",
+            file_path="/tmp/app.log",
+            output_type=self.Summary,
+            require_approval=True,
+        )
+        event = {"chosen_options": [op.APPROVE], "params_input": {}, "responded_by_user": "reviewer"}
+
+        result = op.execute_complete({}, generated_output='{"findings":["error spike"]}', event=event)
+
+        assert result == {"findings": ["error spike"]}
+
+    def test_execute_complete_with_approval_restores_modified_structured_output(self):
+        op = LLMFileAnalysisOperator(
+            task_id="approval_complete_modified_test",
+            prompt="Summarize this",
+            llm_conn_id="my_llm",
+            file_path="/tmp/app.log",
+            output_type=self.Summary,
+            require_approval=True,
+            allow_modifications=True,
+        )
+        event = {
+            "chosen_options": [op.APPROVE],
+            "params_input": {"output": '{"findings":["reviewed output"]}'},
+            "responded_by_user": "reviewer",
+        }
+
+        result = op.execute_complete({}, generated_output='{"findings":["error spike"]}', event=event)
+
+        assert result == {"findings": ["reviewed output"]}
 
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")

@@ -146,6 +146,13 @@ class LLMFileAnalysisOperator(LLMOperator):
 
         return output
 
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
+        """Resume after human review, restoring structured outputs for XCom consumers."""
+        output = super().execute_complete(context, generated_output, event)
+        if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
+            return self.output_type.model_validate_json(output).model_dump()
+        return output
+
     def _build_system_prompt(self) -> str:
         prompt = (
             "You are a read-only file analysis assistant.\n"
