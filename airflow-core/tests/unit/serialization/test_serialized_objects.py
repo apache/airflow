@@ -583,11 +583,11 @@ def test_roundtrip_exceptions():
     """
     some_date = pendulum.now()
     resched_exc = AirflowRescheduleException(reschedule_date=some_date)
-    set = BaseSerialization.serialize(resched_exc)
-    deser = BaseSerialization.deserialize(set)
+    ser = BaseSerialization.serialize(resched_exc)
+    deser = BaseSerialization.deserialize(ser)
     assert isinstance(deser, AirflowRescheduleException)
     assert deser.reschedule_date == some_date
-    del set
+    del ser
     del deser
     exc = TaskDeferred(
         trigger=MyTrigger(hi="yo"),
@@ -595,8 +595,8 @@ def test_roundtrip_exceptions():
         kwargs={"have": "pie"},
         timeout=timedelta(seconds=30),
     )
-    set = BaseSerialization.serialize(exc)
-    deser = BaseSerialization.deserialize(set)
+    ser = BaseSerialization.serialize(exc)
+    deser = BaseSerialization.deserialize(ser)
     assert deser.trigger.hi == "yo"
     assert deser.method_name == "meth_name"
     assert deser.kwargs == {"have": "pie"}
