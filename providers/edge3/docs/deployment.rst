@@ -256,13 +256,5 @@ instance. The commands are:
 - ``airflow edge remove-worker-queues``: Remove queues from an edge worker
 - ``airflow edge set-worker-concurrency``: Set the concurrency of a running remote edge worker
 
-When using Multi-Team mode, several of these commands accept a ``--team-name``
-option to target workers belonging to a specific team. See the :doc:`cli-ref` for
-the full list of arguments.
-
-.. important::
-
-    Workers are identified by the combination of hostname **and** team name. When a
-    worker belongs to a team, you must pass the matching ``--team-name`` to any CLI
-    command that targets it — otherwise the command will not find the worker. For
-    workers without a team, ``--team-name`` can be omitted.
+Workers are identified by hostname. See the :doc:`cli-ref` for the full list of
+arguments.

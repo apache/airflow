@@ -110,11 +110,11 @@ team name and section):
 .. warning::
 
     **Security limitation:** Multi-team in the EdgeExecutor provides **logical
-    isolation only**. All teams currently share a single authentication secret
-    (``jwt_secret``). A worker administrator could change the ``--team-name`` flag
-    and access another team's jobs. Treat multi-team as an organizational
-    separation for trusted administrators, not as a security boundary. Per-team
-    authentication tokens are planned for a future release.
+    isolation only**. Worker management CLI commands (maintenance, shutdown, remove,
+    etc.) operate without team distinction — any administrator can manage any
+    worker regardless of its team. Treat multi-team as an organizational separation
+    for trusted administrators, not as a security boundary. Per-team authentication
+    tokens are planned for a future release.
 
 .. _edge_executor:concurrency_slots:
 
