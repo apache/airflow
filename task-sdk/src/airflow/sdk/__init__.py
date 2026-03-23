@@ -180,7 +180,7 @@ __lazy_imports: dict[str, str] = {
     "BaseSensorOperator": ".bases.sensor",
     "BaseXCom": ".bases.xcom",
     "BranchMixIn": ".bases.branch",
-    "ChainMapper": ".definitions.partition_mappers.sequence",
+    "ChainMapper": ".definitions.partition_mappers.chain",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",

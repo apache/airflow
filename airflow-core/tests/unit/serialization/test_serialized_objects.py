@@ -901,7 +901,7 @@ def test_encode_sequence_mapper():
 
     partition_mapper = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
     assert encode_partition_mapper(partition_mapper) == {
-        Encoding.TYPE: "airflow.partition_mappers.sequence.ChainMapper",
+        Encoding.TYPE: "airflow.partition_mappers.chain.ChainMapper",
         Encoding.VAR: {
             "mappers": [
                 {

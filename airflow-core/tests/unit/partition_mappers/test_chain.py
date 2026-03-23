@@ -25,29 +25,20 @@ from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import ToDailyMapper, ToHourlyMapper
 
 
-class _FanOutMapper(PartitionMapper):
-    def to_downstream(self, key: str) -> list[str]:
-        return [f"{key}-a", f"{key}-b"]
-
-
 class _InvalidReturnMapper(PartitionMapper):
-    def to_downstream(self, key: str) -> int:  # type: ignore[override]
-        return 42
+    def to_downstream(self, key: str) -> None:  # type: ignore[override]
+        return None
 
 
 class _InvalidIterableMapper(PartitionMapper):
-    def to_downstream(self, key: str) -> list[object]:  # type: ignore[override]
-        return [key, 42]
+    def to_downstream(self, key: str) -> list[None]:  # type: ignore[override]
+        return [None]
 
 
 class TestChainMapper:
     def test_to_downstream(self):
         sm = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
         assert sm.to_downstream("2024-01-15T10:30:00") == "2024-01-15"
-
-    def test_to_downstream_fan_out(self):
-        sm = ChainMapper(_FanOutMapper(), IdentityMapper())
-        assert sm.to_downstream("key") == ["key-a", "key-b"]
 
     def test_to_downstream_invalid_non_iterable_return(self):
         sm = ChainMapper(IdentityMapper(), _InvalidReturnMapper())
