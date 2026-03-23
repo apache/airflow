@@ -559,8 +559,8 @@ def test_ser_of_asset_event_accessor():
         Asset("hi")
     ].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?
     d[Asset(name="yo", uri="test://yo")].extra = {"this": "that", "the": "other"}
-    set = BaseSerialization.serialize(var=d)
-    deser = BaseSerialization.deserialize(set)
+    ser = BaseSerialization.serialize(var=d)
+    deser = BaseSerialization.deserialize(ser)
     assert deser[Asset(uri="hi", name="hi")].extra == "blah1"
     assert d[Asset(name="yo", uri="test://yo")].extra == {"this": "that", "the": "other"}
 
@@ -895,7 +895,7 @@ def test_decode_product_mapper():
     assert core_pm.to_downstream("2024-06-15T10:30:00|2024-06-15T10:30:00") == "2024-06-15T10|2024-06-15"
 
 
-def test_encode_sequence_mapper():
+def test_encode_chain_mapper():
     from airflow.sdk import ChainMapper, ToDailyMapper, ToHourlyMapper
     from airflow.serialization.encoders import encode_partition_mapper
 
@@ -923,7 +923,7 @@ def test_encode_sequence_mapper():
     }
 
 
-def test_decode_sequence_mapper():
+def test_decode_chain_mapper():
     from airflow.partition_mappers.chain import ChainMapper as CoreChainMapper
     from airflow.sdk import ChainMapper, ToDailyMapper, ToHourlyMapper
     from airflow.serialization.decoders import decode_partition_mapper
