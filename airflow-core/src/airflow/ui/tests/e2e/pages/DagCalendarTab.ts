@@ -121,10 +121,6 @@ export class DagCalendarTab extends BasePage {
 
     await this.page.getByTestId("calendar-grid").waitFor({ state: "visible", timeout: 120_000 });
 
-    await this.page.waitForFunction(() => {
-      const cells = document.querySelectorAll('[data-testid="calendar-cell"]');
-
-      return cells.length > 0;
-    });
+    await expect(this.calendarCells.first()).toBeVisible({ timeout: 120_000 });
   }
 }
