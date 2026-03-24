@@ -52,8 +52,27 @@ def hook() -> Generator[NeptuneAnalyticsHook, None, None]:
 
 
 class TestNeptuneCreateGraphOperator:
+    def test_template_fields(self):
+        # Verify template_fields includes the expected fields
+        fields = NeptuneCreateGraphOperator.template_fields
+        assert "graph_name" in fields
+        assert "vector_search_config" in fields
+        assert "provisioned_memory" in fields
+
+    def test_template_fields_renderers(self):
+        assert NeptuneCreateGraphOperator.template_fields_renderers == {"vector_search_config": "json"}
+
+    def test_operator_extra_links(self):
+        from airflow.providers.amazon.aws.links.neptune_analytics import NeptuneGraphLink
+
+        assert len(NeptuneCreateGraphOperator.operator_extra_links) == 1
+        assert isinstance(NeptuneCreateGraphOperator.operator_extra_links[0], NeptuneGraphLink)
+
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneGraphLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_init_defaults(self, mock_conn):
+    def test_init_defaults(self, mock_conn, mock_persist):
+        mock_conn.create_graph.return_value = {"id": GRAPH_ID, "status": "CREATING"}
+
         operator = NeptuneCreateGraphOperator(
             task_id="test_task",
             graph_name=GRAPH_NAME,
@@ -76,8 +95,11 @@ class TestNeptuneCreateGraphOperator:
             deletionProtection=False,
         )
 
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneGraphLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_init_custom_args(self, mock_conn):
+    def test_init_custom_args(self, mock_conn, mock_persist):
+        mock_conn.create_graph.return_value = {"id": GRAPH_ID, "status": "CREATING"}
+
         operator = NeptuneCreateGraphOperator(
             task_id="test_task",
             graph_name=GRAPH_NAME,
@@ -109,9 +131,12 @@ class TestNeptuneCreateGraphOperator:
             tags={"key1": "test"},
         )
 
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneGraphLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
-    def test_create_graph(self, mock_hook_get_waiter, mock_conn):
+    def test_create_graph(self, mock_hook_get_waiter, mock_conn, mock_persist):
+        mock_conn.create_graph.return_value = {"id": GRAPH_ID, "status": "CREATING"}
+
         operator = NeptuneCreateGraphOperator(
             task_id="test_task",
             graph_name=GRAPH_NAME,
@@ -123,11 +148,14 @@ class TestNeptuneCreateGraphOperator:
 
         mock_hook_get_waiter.assert_not_called()
         assert "graph_id" in resp
-        assert resp["graph_id"] is not None
+        assert resp["graph_id"] == GRAPH_ID
 
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneGraphLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
-    def test_create_graph_wait_for_completion(self, mock_hook_get_waiter, mock_conn):
+    def test_create_graph_wait_for_completion(self, mock_hook_get_waiter, mock_conn, mock_persist):
+        mock_conn.create_graph.return_value = {"id": GRAPH_ID, "status": "CREATING"}
+
         operator = NeptuneCreateGraphOperator(
             task_id="test_task",
             graph_name=GRAPH_NAME,
@@ -139,7 +167,57 @@ class TestNeptuneCreateGraphOperator:
 
         mock_hook_get_waiter.assert_called_once_with("graph_available")
         assert "graph_id" in resp
-        assert resp["graph_id"] is not None
+        assert resp["graph_id"] == GRAPH_ID
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_persist_called_with_correct_args(self, mock_conn):
+        """Test that NeptuneGraphLink.persist is called with the correct arguments."""
+        mock_conn.create_graph.return_value = {"id": GRAPH_ID, "status": "CREATING"}
+
+        operator = NeptuneCreateGraphOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"test": 123},
+            provisioned_memory=16,
+            wait_for_completion=False,
+        )
+
+        mock_context = mock.MagicMock()
+        with mock.patch(
+            "airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneGraphLink.persist"
+        ) as mock_persist:
+            operator.execute(mock_context)
+
+            mock_persist.assert_called_once_with(
+                context=mock_context,
+                operator=operator,
+                region_name=mock.ANY,
+                aws_partition=mock.ANY,
+                graph_id=GRAPH_ID,
+            )
+
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneGraphLink.persist")
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_deferrable_defers_with_graph_available_trigger(self, mock_conn, mock_persist):
+        """Test that deferrable mode defers with NeptuneGraphAvailableTrigger."""
+        from airflow.providers.amazon.aws.triggers.neptune_analytics import NeptuneGraphAvailableTrigger
+
+        mock_conn.create_graph.return_value = {"id": GRAPH_ID, "status": "CREATING"}
+
+        operator = NeptuneCreateGraphOperator(
+            task_id="test_task",
+            graph_name=GRAPH_NAME,
+            vector_search_config={"test": 123},
+            provisioned_memory=16,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        trigger = exc_info.value.trigger
+        assert isinstance(trigger, NeptuneGraphAvailableTrigger)
+        assert exc_info.value.method_name == "execute_complete"
 
 
 class TestNeptuneCreatePrivateGraphEndpointOperator:
@@ -910,8 +988,25 @@ TASK_ID = "import-task-id-12345"
 
 
 class TestNeptuneStartImportTaskOperator:
+    def test_template_fields(self):
+        fields = NeptuneStartImportTaskOperator.template_fields
+        assert "graph_identifier" in fields
+        assert "role_arn" in fields
+        assert "source" in fields
+        assert "import_options" in fields
+
+    def test_template_fields_renderers(self):
+        assert NeptuneStartImportTaskOperator.template_fields_renderers == {"import_options": "json"}
+
+    def test_operator_extra_links(self):
+        from airflow.providers.amazon.aws.links.neptune_analytics import NeptuneImportTaskLink
+
+        assert len(NeptuneStartImportTaskOperator.operator_extra_links) == 1
+        assert isinstance(NeptuneStartImportTaskOperator.operator_extra_links[0], NeptuneImportTaskLink)
+
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_init_defaults(self, mock_conn):
+    def test_init_defaults(self, mock_conn, mock_persist):
         mock_conn.start_import_task.return_value = {
             "taskId": TASK_ID,
             "graphId": GRAPH_ID,
@@ -947,8 +1042,9 @@ class TestNeptuneStartImportTaskOperator:
             parquetType="COLUMNAR",
         )
 
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
-    def test_init_custom_args(self, mock_conn):
+    def test_init_custom_args(self, mock_conn, mock_persist):
         mock_conn.start_import_task.return_value = {
             "taskId": TASK_ID,
             "graphId": GRAPH_ID,
@@ -988,9 +1084,10 @@ class TestNeptuneStartImportTaskOperator:
             importOptions={"neptune.csv.allowEmptyStrings": True},
         )
 
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
-    def test_start_import_no_wait(self, mock_get_waiter, mock_conn):
+    def test_start_import_no_wait(self, mock_get_waiter, mock_conn, mock_persist):
         mock_conn.start_import_task.return_value = {
             "taskId": TASK_ID,
             "graphId": GRAPH_ID,
@@ -1009,9 +1106,10 @@ class TestNeptuneStartImportTaskOperator:
         mock_get_waiter.assert_not_called()
         assert result == {"task_id": TASK_ID, "graph_id": GRAPH_ID}
 
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
-    def test_start_import_wait_for_completion(self, mock_get_waiter, mock_conn):
+    def test_start_import_wait_for_completion(self, mock_get_waiter, mock_conn, mock_persist):
         mock_conn.start_import_task.return_value = {
             "taskId": TASK_ID,
             "graphId": GRAPH_ID,
@@ -1029,6 +1127,64 @@ class TestNeptuneStartImportTaskOperator:
 
         mock_get_waiter.assert_called_once_with("import_task_successful")
         assert result == {"task_id": TASK_ID, "graph_id": GRAPH_ID}
+
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_persist_called_with_correct_args(self, mock_conn):
+        """Test that NeptuneImportTaskLink.persist is called with the correct arguments."""
+        mock_conn.start_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneStartImportTaskOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            role_arn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+            wait_for_completion=False,
+        )
+
+        mock_context = mock.MagicMock()
+        with mock.patch(
+            "airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist"
+        ) as mock_persist:
+            operator.execute(mock_context)
+
+            mock_persist.assert_called_once_with(
+                context=mock_context,
+                operator=operator,
+                region_name=mock.ANY,
+                aws_partition=mock.ANY,
+                import_task_id=TASK_ID,
+            )
+
+    @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist")
+    @mock.patch.object(NeptuneAnalyticsHook, "conn")
+    def test_deferrable_defers_with_import_task_trigger(self, mock_conn, mock_persist):
+        """Test that deferrable mode defers with NeptuneImportTaskCompleteTrigger."""
+        from airflow.providers.amazon.aws.triggers.neptune_analytics import NeptuneImportTaskCompleteTrigger
+
+        mock_conn.start_import_task.return_value = {
+            "taskId": TASK_ID,
+            "graphId": GRAPH_ID,
+            "status": "IMPORTING",
+        }
+
+        operator = NeptuneStartImportTaskOperator(
+            task_id="test_task",
+            graph_identifier=GRAPH_ID,
+            role_arn=ROLE_ARN,
+            source=SOURCE_S3_URI,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            operator.execute(None)
+
+        trigger = exc_info.value.trigger
+        assert isinstance(trigger, NeptuneImportTaskCompleteTrigger)
+        assert exc_info.value.method_name == "execute_complete"
 
     def test_execute_complete_success(self):
         operator = NeptuneStartImportTaskOperator(
