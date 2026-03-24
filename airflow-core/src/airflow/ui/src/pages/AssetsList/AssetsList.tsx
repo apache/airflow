@@ -21,7 +21,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
 
-import { useAssetServiceGetAssets } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -32,6 +31,7 @@ import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
+import { useAssetListData } from "src/queries/useMockAssetData";
 
 import { DependencyPopover } from "./DependencyPopover";
 
@@ -39,13 +39,16 @@ type AssetRow = { row: { original: AssetResponse } };
 
 const createColumns = (
   translate: (key: string) => string,
+  useMockAssets: boolean,
   open?: boolean,
 ): Array<ColumnDef<AssetResponse>> => [
   {
     accessorKey: "name",
     cell: ({ row: { original } }: AssetRow) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/assets/${original.id}`}>{original.name}</RouterLink>
+        <RouterLink to={`/assets/${original.id}${useMockAssets ? "?mockAssets=true" : ""}`}>
+          {original.name}
+        </RouterLink>
       </Link>
     ),
     header: () => translate("name"),
@@ -117,6 +120,7 @@ export const AssetsList = () => {
   const { t: translate } = useTranslation(["assets", "common"]);
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const useMockAssets = searchParams.get("mockAssets") === "true";
   const namePattern = searchParams.get(NAME_PATTERN) ?? "";
 
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -126,14 +130,14 @@ export const AssetsList = () => {
 
   const { onClose, onOpen, open } = useDisclosure();
 
-  const { data, error, isLoading } = useAssetServiceGetAssets({
+  const { data, error, isLoading } = useAssetListData({
     limit: pagination.pageSize,
     namePattern,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
   });
 
-  const columns = createColumns(translate, open);
+  const columns = createColumns(translate, useMockAssets, open);
 
   const handleSearchChange = (value: string) => {
     setTableURLState({

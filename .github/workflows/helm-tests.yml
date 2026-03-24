@@ -139,7 +139,10 @@ jobs:
         env:
           SIGN_WITH: dev@airflow.apache.org
       - name: "Fetch Git Tags"
-        run: git fetch --tags
+        run: |
+          git remote | grep -q "^upstream$" || git remote add upstream https://github.com/apache/airflow.git
+          git fetch origin --tags
+          git fetch upstream --tags
       - name: "Test helm chart issue generation"
         run: >
           breeze release-management generate-issue-content-helm-chart --limit-pr-count 2

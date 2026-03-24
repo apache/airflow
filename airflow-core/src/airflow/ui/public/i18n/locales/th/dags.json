@@ -34,6 +34,10 @@
       "error": "ล้าง {{type}} ไม่สำเร็จ",
       "title": "ล้าง {{type}}"
     },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
+    },
     "delete": {
       "button": "ลบ {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "งานในอนาคต",
       "onlyFailed": "ล้างเฉพาะงานที่ล้มเหลว",
       "past": "งานในอดีต",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "จัดคิวงานใหม่",
       "runOnLatestVersion": "ทำงานด้วยเวอร์ชันล่าสุดของชุดรวม (Bundle)",
       "upstream": "งานก่อนหน้า"

@@ -49,6 +49,33 @@ class AssetAliasResponse(BaseModel):
     group: Annotated[str, Field(title="Group")]
 
 
+class AssetLineageEdge(BaseModel):
+    """
+    An edge in the asset lineage graph.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    source_id: Annotated[str, Field(title="Source Id")]
+    target_id: Annotated[str, Field(title="Target Id")]
+
+
+class AssetLineageNode(BaseModel):
+    """
+    A node in the asset lineage graph.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[str, Field(title="Id")]
+    node_type: Annotated[str, Field(title="Node Type")]
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str | None, Field(title="Uri")] = None
+    group: Annotated[str | None, Field(title="Group")] = None
+
+
 class AssetWatcherResponse(BaseModel):
     """
     Asset watcher serializer for responses.
@@ -1078,6 +1105,18 @@ class AssetEventResponse(BaseModel):
     created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+
+
+class AssetLineageGraphResponse(BaseModel):
+    """
+    Asset lineage graph response.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    nodes: Annotated[list[AssetLineageNode], Field(title="Nodes")]
+    edges: Annotated[list[AssetLineageEdge], Field(title="Edges")]
 
 
 class AssetResponse(BaseModel):

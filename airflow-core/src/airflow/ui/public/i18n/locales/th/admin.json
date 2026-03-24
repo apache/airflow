@@ -3,6 +3,7 @@
     "description": "คำอธิบาย",
     "key": "คีย์",
     "name": "ชื่อ",
+    "team": "Team",
     "value": "ค่า"
   },
   "config": {
@@ -49,6 +50,12 @@
     "searchPlaceholder": "ค้นหาการเชื่อมต่อ",
     "test": "ทดสอบการเชื่อมต่อ",
     "testDisabled": "ฟีเจอร์ทดสอบการเชื่อมต่อถูกปิดใช้งาน โปรดติดต่อผู้ดูแลระบบเพื่อเปิดใช้งาน",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "ไม่สามารถดึงข้อมูล Connection Type Meta ได้",
       "standardFields": {
@@ -74,6 +81,23 @@
   "formActions": {
     "save": "บันทึก"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Executor Class",
+      "hostname": "Hostname",
+      "id": "ID",
+      "jobType": "Job Type",
+      "latestHeartbeat": "Latest Heartbeat",
+      "unixname": "Unix Name"
+    },
+    "filters": {
+      "allStates": "All States",
+      "allTypes": "All Types",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "แหล่งที่มา"
@@ -96,7 +120,8 @@
       "includeDeferred": "รวมงานที่ถูกเลื่อน",
       "nameMaxLength": "ชื่อยาวได้ไม่เกิน 256 ตัวอักษร",
       "nameRequired": "กรุณาระบุชื่อ",
-      "slots": "จำนวนช่อง"
+      "slots": "จำนวนช่อง",
+      "slotsHelperText": "Use -1 for unlimited slots."
     },
     "noPoolsFound": "ไม่พบพูล",
     "pool_one": "พูล",

@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "Body",
+    "createdAt": "Created At",
     "response": {
       "all": "Όλα",
       "pending": "Σε εκκρεμότητα",
@@ -12,11 +14,13 @@
   "requiredActionCount_other": "Απαιτούμενες Ενέργειες ({{count}})",
   "requiredActionState": "Κατάσταση Απαιτούμενης Ενέργειας",
   "response": {
+    "created": "Response created at ",
     "error": "Αποτυχημένη απάντηση",
     "optionsDescription": "Επιλέξτε τις επιλογές σας για αυτήν την εκτέλεση εργασίας",
     "optionsLabel": "Επιλογές",
     "received": "Η απάντηση ελήφθη στις ",
     "respond": "Απάντηση",
+    "responded_by_user_name": "Responded by (User Name)",
     "success": "Η απάντηση για το {{taskId}} ήταν επιτυχής",
     "title": "Εκτέλεση Εργασίας με Παρέμβαση Χρήστη - {{taskId}}"
   },

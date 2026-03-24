@@ -16,44 +16,50 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Box, Text, Code } from "@chakra-ui/react";
+import { HStack, Box, Text, Code, Button } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
-import { useParams } from "react-router-dom";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
-import { useAssetServiceGetAsset, useAssetServiceGetAssetEvents } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { SearchBar } from "src/components/SearchBar";
 import { ProgressBar } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { OpenGroupsProvider } from "src/context/openGroups";
+import { useAssetDetailData, useAssetEventsData } from "src/queries/useMockAssetData";
 
 import { AssetGraph } from "./AssetGraph";
+import { AssetLineageGraph } from "./AssetLineageGraph";
 import { AssetPanelButtons } from "./AssetPanelButtons";
 import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
+import type { LineageDirection } from "./lineageHighlightUtils";
 
 export const AssetLayout = () => {
   const { i18n, t: translate } = useTranslation(["assets", "common"]);
   const { assetId } = useParams();
   const direction = i18n.dir();
-  const [dependencyType, setDependencyType] = useState<"data" | "scheduling">("scheduling");
+  const useMockAssets = new URLSearchParams(globalThis.location.search).get("mockAssets") === "true";
+  const [dependencyType, setDependencyType] = useState<"data" | "lineage" | "scheduling">(
+    useMockAssets ? "lineage" : "scheduling",
+  );
+  const [activeNodeId, setActiveNodeId] = useState<string | undefined>(
+    assetId === undefined ? undefined : `asset:${assetId}`,
+  );
+  const [lineageSearch, setLineageSearch] = useState("");
+  const [lineageDirection, setLineageDirection] = useState<LineageDirection>("downstream");
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-timestamp"];
 
-  const { data: asset, isLoading } = useAssetServiceGetAsset(
-    { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },
-    undefined,
-    {
-      enabled: Boolean(assetId),
-    },
+  const { data: asset, isLoading } = useAssetDetailData(
+    assetId === undefined ? undefined : parseInt(assetId, 10),
   );
 
   const links = [
@@ -66,20 +72,16 @@ export const AssetLayout = () => {
 
   const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
   const [searchParams] = useSearchParams();
-  const { data, isLoading: isLoadingEvents } = useAssetServiceGetAssetEvents(
-    {
-      assetId: asset?.id,
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
-      orderBy,
-      sourceDagId: searchParams.get(DAG_ID) ?? undefined,
-      sourceTaskId: searchParams.get(TASK_ID) ?? undefined,
-      timestampGte: searchParams.get(START_DATE) ?? undefined,
-      timestampLte: searchParams.get(END_DATE) ?? undefined,
-    },
-    undefined,
-    { enabled: Boolean(asset?.id) },
-  );
+  const { data, isLoading: isLoadingEvents } = useAssetEventsData({
+    assetId: asset?.id,
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    orderBy,
+    sourceDagId: searchParams.get(DAG_ID) ?? undefined,
+    sourceTaskId: searchParams.get(TASK_ID) ?? undefined,
+    timestampGte: searchParams.get(START_DATE) ?? undefined,
+    timestampLte: searchParams.get(END_DATE) ?? undefined,
+  });
 
   const setOrderBy = (value: string) => {
     setTableURLState({
@@ -94,6 +96,10 @@ export const AssetLayout = () => {
   };
 
   const { fitView, getZoom } = useReactFlow();
+
+  useEffect(() => {
+    setActiveNodeId(assetId === undefined ? undefined : `asset:${assetId}`);
+  }, [assetId]);
 
   return (
     <>
@@ -112,8 +118,52 @@ export const AssetLayout = () => {
           <Panel defaultSize={70} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
               <AssetPanelButtons dependencyType={dependencyType} setDependencyType={setDependencyType} />
+              {dependencyType === "lineage" ? (
+                <Box left={3} position="absolute" right={3} top={14} zIndex={5}>
+                  <HStack>
+                    <Box flex={1}>
+                      <SearchBar
+                        defaultValue={lineageSearch}
+                        hotkeyDisabled
+                        onChange={setLineageSearch}
+                        placeholder="Search lineage nodes"
+                      />
+                    </Box>
+                    <Button
+                      colorPalette={lineageDirection === "upstream" ? "blue" : "gray"}
+                      onClick={() => {
+                        setLineageDirection("upstream");
+                      }}
+                      size="sm"
+                      variant={lineageDirection === "upstream" ? "solid" : "outline"}
+                    >
+                      {translate("assets:lineage_upstream", { defaultValue: "Upstream" })}
+                    </Button>
+                    <Button
+                      colorPalette={lineageDirection === "downstream" ? "blue" : "gray"}
+                      onClick={() => {
+                        setLineageDirection("downstream");
+                      }}
+                      size="sm"
+                      variant={lineageDirection === "downstream" ? "solid" : "outline"}
+                    >
+                      {translate("assets:lineage_downstream", { defaultValue: "Downstream" })}
+                    </Button>
+                  </HStack>
+                </Box>
+              ) : undefined}
               <OpenGroupsProvider dagId="~">
-                <AssetGraph asset={asset} dependencyType={dependencyType} />
+                {dependencyType === "lineage" ? (
+                  <AssetLineageGraph
+                    activeNodeId={activeNodeId}
+                    asset={asset}
+                    highlightDirection={lineageDirection}
+                    searchTerm={lineageSearch}
+                    setActiveNodeId={setActiveNodeId}
+                  />
+                ) : (
+                  <AssetGraph asset={asset} dependencyType={dependencyType} />
+                )}
               </OpenGroupsProvider>
             </Box>
           </Panel>
@@ -146,10 +196,10 @@ export const AssetLayout = () => {
                   w="full"
                   whiteSpace="pre"
                 >
-                  {JSON.stringify(asset.extra, null, 2)}
+                  {JSON.stringify(asset.extra, undefined, 2)}
                 </Code>
               </Box>
-            ) : null}
+            ) : undefined}
 
             <Box h="100%" overflow="auto" pt={2}>
               <AssetEvents

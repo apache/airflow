@@ -3,6 +3,7 @@
     "description": "説明",
     "key": "キー",
     "name": "名前",
+    "team": "Team",
     "value": "値"
   },
   "config": {
@@ -49,6 +50,12 @@
     "searchPlaceholder": "接続を検索",
     "test": "接続をテストする",
     "testDisabled": "接続をテストする機能は無効化されています。有効化するには管理者に問い合わせてください",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "接続タイプの取得に失敗しました",
       "standardFields": {
@@ -74,6 +81,23 @@
   "formActions": {
     "save": "保存"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Executor Class",
+      "hostname": "Hostname",
+      "id": "ID",
+      "jobType": "Job Type",
+      "latestHeartbeat": "Latest Heartbeat",
+      "unixname": "Unix Name"
+    },
+    "filters": {
+      "allStates": "All States",
+      "allTypes": "All Types",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "ソース"
@@ -96,7 +120,8 @@
       "includeDeferred": "遅延も含める",
       "nameMaxLength": "名前の最大長は 256 文字です",
       "nameRequired": "名前は必須です",
-      "slots": "スロット"
+      "slots": "スロット",
+      "slotsHelperText": "Use -1 for unlimited slots."
     },
     "noPoolsFound": "プールが見つかりません",
     "pool_one": "プール",

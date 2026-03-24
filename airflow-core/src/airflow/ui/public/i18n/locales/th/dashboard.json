@@ -29,7 +29,8 @@
   "poolSlots": "จำนวนช่องในพูล",
   "sortBy": {
     "newestFirst": "ใหม่สุดก่อน",
-    "oldestFirst": "เก่าสุดก่อน"
+    "oldestFirst": "เก่าสุดก่อน",
+    "placeholder": "Sort by"
   },
   "source": "แหล่งที่มา",
   "stats": {

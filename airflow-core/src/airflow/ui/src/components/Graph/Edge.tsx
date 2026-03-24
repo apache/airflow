@@ -27,10 +27,12 @@ import type { EdgeData } from "./reactflowUtils";
 type Props = EdgeType<EdgeData>;
 
 const CustomEdge = ({ data }: Props) => {
-  const [strokeColor, blueColor, dataEdgeColor] = useToken("colors", [
+  const [strokeColor, blueColor, dataEdgeColor, upstreamColor, downstreamColor] = useToken("colors", [
     "border.inverted",
     "blue.500",
     "purple.500",
+    "orange.400",
+    "teal.400",
   ]);
 
   if (data === undefined) {
@@ -41,6 +43,14 @@ const CustomEdge = ({ data }: Props) => {
   // Determine edge color based on type
   const getEdgeColor = () => {
     if (rest.isSelected) {
+      if (rest.lineageDirection === "upstream") {
+        return upstreamColor;
+      }
+
+      if (rest.lineageDirection === "downstream") {
+        return downstreamColor;
+      }
+
       return rest.edgeType === "data" ? dataEdgeColor : blueColor;
     }
 
@@ -73,8 +83,11 @@ const CustomEdge = ({ data }: Props) => {
         <LinePath
           data={[section.startPoint, ...(section.bendPoints ?? []), section.endPoint]}
           key={section.id}
+          opacity={rest.lineageDirection === undefined ? 1 : rest.isSelected ? 1 : 0.35}
           stroke={getEdgeColor()}
           strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
+          strokeLinecap="round"
+          strokeLinejoin="round"
           strokeWidth={rest.isSelected ? 3 : 1}
           x={(point: ElkPoint) => point.x}
           y={(point: ElkPoint) => point.y}

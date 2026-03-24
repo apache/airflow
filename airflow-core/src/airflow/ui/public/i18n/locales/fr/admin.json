@@ -3,6 +3,7 @@
     "description": "Description",
     "key": "Clé",
     "name": "Nom",
+    "team": "Team",
     "value": "Valeur"
   },
   "config": {
@@ -83,6 +84,23 @@
   "formActions": {
     "save": "Sauvegarder"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Executor Class",
+      "hostname": "Hostname",
+      "id": "ID",
+      "jobType": "Job Type",
+      "latestHeartbeat": "Latest Heartbeat",
+      "unixname": "Unix Name"
+    },
+    "filters": {
+      "allStates": "All States",
+      "allTypes": "All Types",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "Source"
@@ -106,7 +124,8 @@
       "includeDeferred": "Inclure les Tâches Différées",
       "nameMaxLength": "Le nom peut contenir un maximum de 250 caractères",
       "nameRequired": "Le nom est requis",
-      "slots": "Slots"
+      "slots": "Slots",
+      "slotsHelperText": "Use -1 for unlimited slots."
     },
     "noPoolsFound": "Aucun pool trouvé",
     "pool_many": "Pools",

@@ -676,6 +676,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/assets/{asset_id}/lineage:
+    get:
+      tags:
+      - Asset
+      summary: Get Asset Lineage
+      description: Get the lineage graph for an asset.
+      operationId: get_asset_lineage
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetLineageGraphResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/assets/queuedEvents:
     get:
       tags:
@@ -9099,6 +9147,69 @@ components:
       - timestamp
       title: AssetEventResponse
       description: Asset event serializer for responses.
+    AssetLineageEdge:
+      properties:
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
+      additionalProperties: false
+      type: object
+      required:
+      - source_id
+      - target_id
+      title: AssetLineageEdge
+      description: An edge in the asset lineage graph.
+    AssetLineageGraphResponse:
+      properties:
+        nodes:
+          items:
+            $ref: '#/components/schemas/AssetLineageNode'
+          type: array
+          title: Nodes
+        edges:
+          items:
+            $ref: '#/components/schemas/AssetLineageEdge'
+          type: array
+          title: Edges
+      additionalProperties: false
+      type: object
+      required:
+      - nodes
+      - edges
+      title: AssetLineageGraphResponse
+      description: Asset lineage graph response.
+    AssetLineageNode:
+      properties:
+        id:
+          type: string
+          title: Id
+        node_type:
+          type: string
+          title: Node Type
+        name:
+          type: string
+          title: Name
+        uri:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
+        group:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - node_type
+      - name
+      title: AssetLineageNode
+      description: A node in the asset lineage graph.
     AssetResponse:
       properties:
         id:

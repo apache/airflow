@@ -115,6 +115,17 @@ export const ensureUseAssetServiceGetAssetData = (queryClient: QueryClient, { as
   assetId: number;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }), queryFn: () => AssetService.getAsset({ assetId }) });
 /**
+* Get Asset Lineage
+* Get the lineage graph for an asset.
+* @param data The data for the request.
+* @param data.assetId
+* @returns AssetLineageGraphResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseAssetServiceGetAssetLineageData = (queryClient: QueryClient, { assetId }: {
+  assetId: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetLineageKeyFn({ assetId }), queryFn: () => AssetService.getAssetLineage({ assetId }) });
+/**
 * Get Dag Asset Queued Events
 * Get queued asset events for a DAG.
 * @param data The data for the request.

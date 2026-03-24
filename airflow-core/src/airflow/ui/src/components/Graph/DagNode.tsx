@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, LinkOverlay } from "@chakra-ui/react";
+import { Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -25,25 +25,35 @@ import { DagIcon } from "src/assets/DagIcon";
 import { TogglePause } from "src/components/TogglePause";
 
 import { NodeWrapper } from "./NodeWrapper";
+import { getLineageNodeStyle } from "./lineageStyles";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const DagNode = ({
-  data: { height, isOpen, isSelected, label, width },
+  data: { disableNavigation, height, isOpen, isSelected, label, lineageStyle, width },
 }: NodeProps<NodeType<CustomNodeProps, "dag">>) => {
   const { data: dag } = useDagServiceGetDag({ dagId: label });
+  const nodeStyles = getLineageNodeStyle({
+    defaultBackground: isOpen ? "bg.muted" : "bg",
+    defaultBorderColor: isSelected ? "border.inverted" : "border",
+    defaultBorderWidth: isSelected ? 4 : 2,
+    lineageStyle,
+  });
 
   return (
     <NodeWrapper>
       <Flex
-        bg={isOpen ? "bg.muted" : "bg"}
-        borderColor={isSelected ? "border.inverted" : "border"}
+        bg={nodeStyles.background}
+        borderColor={nodeStyles.borderColor}
         borderRadius={5}
-        borderWidth={isSelected ? 4 : 2}
+        borderWidth={nodeStyles.borderWidth}
+        boxShadow={nodeStyles.boxShadow}
         cursor="default"
         flexDirection="column"
         height={`${height}px`}
         px={3}
         py={1}
+        transform={nodeStyles.transform}
+        transition="background-color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s"
         width={`${width}px`}
       >
         <HStack alignItems="center" justifyContent="space-between">
@@ -55,9 +65,13 @@ export const DagNode = ({
             style={{ zIndex: 2 }}
           />
         </HStack>
-        <LinkOverlay asChild>
-          <RouterLink to={`/dags/${dag?.dag_id ?? label}`}>{dag?.dag_display_name ?? label}</RouterLink>
-        </LinkOverlay>
+        {disableNavigation ? (
+          <Text>{dag?.dag_display_name ?? label}</Text>
+        ) : (
+          <LinkOverlay asChild>
+            <RouterLink to={`/dags/${dag?.dag_id ?? label}`}>{dag?.dag_display_name ?? label}</RouterLink>
+          </LinkOverlay>
+        )}
       </Flex>
     </NodeWrapper>
   );

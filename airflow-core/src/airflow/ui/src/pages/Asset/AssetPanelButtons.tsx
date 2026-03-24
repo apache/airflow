@@ -20,8 +20,8 @@ import { Box, Button, ButtonGroup } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 type Props = {
-  readonly dependencyType: "data" | "scheduling";
-  readonly setDependencyType: React.Dispatch<React.SetStateAction<"data" | "scheduling">>;
+  readonly dependencyType: "data" | "lineage" | "scheduling";
+  readonly setDependencyType: React.Dispatch<React.SetStateAction<"data" | "lineage" | "scheduling">>;
 };
 
 export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) => {
@@ -45,6 +45,14 @@ export const AssetPanelButtons = ({ dependencyType, setDependencyType }: Props) 
           onClick={() => setDependencyType("data")}
         >
           {translate("assets:taskDependencies")}
+        </Button>
+        <Button
+          bg={dependencyType === "lineage" ? "brand.500" : "bg.subtle"}
+          color={dependencyType === "lineage" ? "white" : "fg.default"}
+          colorPalette="brand"
+          onClick={() => setDependencyType("lineage")}
+        >
+          {translate("Data Lineage")}
         </Button>
       </ButtonGroup>
     </Box>

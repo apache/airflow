@@ -21,12 +21,14 @@ import type { ElkExtendedEdge } from "elkjs";
 
 import type { LightGridTaskInstanceSummary, NodeResponse } from "openapi/requests/types.gen";
 
+import type { LineageStyle } from "./lineageStyles";
 import type { LayoutNode } from "./useGraphLayout";
 
 export type CustomNodeProps = {
   assetCondition?: NodeResponse["asset_condition_type"];
   childCount?: number;
   depth?: number;
+  disableNavigation?: boolean;
   height?: number;
   id: string;
   isGroup?: boolean;
@@ -34,6 +36,7 @@ export type CustomNodeProps = {
   isOpen?: boolean;
   isSelected?: boolean;
   label: string;
+  lineageStyle?: LineageStyle;
   operator?: string | null;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
   taskInstance?: LightGridTaskInstanceSummary;
@@ -140,6 +143,7 @@ export type EdgeData = {
     edgeType?: "data" | "scheduling";
     isSelected?: boolean;
     isSetupTeardown?: boolean;
+    lineageDirection?: "downstream" | "upstream";
   } & ElkExtendedEdge;
 };
 

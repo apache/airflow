@@ -1,6 +1,7 @@
 {
   "filters": {
     "body": "Corpo",
+    "createdAt": "Created At",
     "createdAtFrom": "Creato da",
     "createdAtTo": "Creato fino a",
     "response": {

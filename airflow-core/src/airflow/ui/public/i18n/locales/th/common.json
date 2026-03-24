@@ -22,6 +22,7 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "บันทึกการตรวจสอบ (Audit Log)",
+    "jobs": "Jobs",
     "requiredActions": "การดำเนินการที่จำเป็น",
     "xcoms": "XComs"
   },
@@ -60,6 +61,8 @@
     "dataIntervalEnd": "สิ้นสุดช่วงข้อมูล",
     "dataIntervalStart": "เริ่มต้นช่วงข้อมูล",
     "lastSchedulingDecision": "การตัดสินใจกำหนดเวลาล่าสุด",
+    "mappedPartitionKey": "Mapped Partition key",
+    "partitionKey": "Partition key",
     "queuedAt": "เข้าคิวเมื่อ",
     "runAfter": "ทำงานหลังจาก",
     "runType": "ประเภทการทำงาน",
@@ -73,18 +76,30 @@
   "dagWarnings": "คำเตือน/ข้อผิดพลาดของ Dag",
   "defaultToGraphView": "ค่าเริ่มต้นเป็นมุมมองกราฟ",
   "defaultToGridView": "ค่าเริ่มต้นเป็นมุมมองกริด",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "ทิศทาง",
   "docs": {
     "documentation": "เอกสารประกอบ",
     "githubRepo": "GitHub Repo",
     "restApiReference": "เอกสารอ้างอิง REST API"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
+  },
   "duration": "ระยะเวลา",
+  "edit": "Edit",
   "endDate": "วันที่สิ้นสุด",
   "error": {
     "back": "ย้อนกลับ",
     "defaultMessage": "เกิดข้อผิดพลาดที่ไม่คาดคิดขึ้น",
     "home": "หน้าแรก",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "ไม่พบหน้านี้",
     "title": "เกิดข้อผิดพลาด"
   },
@@ -105,22 +120,28 @@
   "filters": {
     "durationFrom": "ระยะเวลาตั้งแต่",
     "durationTo": "ระยะเวลาถึง",
+    "endTime": "End Time",
     "logicalDateFrom": "วันที่ตามกำหนดทำงานตั้งแต่",
     "logicalDateTo": "วันที่ตามกำหนดทำงานถึง",
     "runAfterFrom": "ทำงานตั้งแต่",
-    "runAfterTo": "ทำงานถึง"
+    "runAfterTo": "ทำงานถึง",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
+  "generateToken": "Generate Token",
   "logicalDate": "วันที่ตามกำหนดทำงาน",
   "logout": "ออกจากระบบ",
   "logoutConfirmation": "คุณกำลังจะออกจากระบบแอปพลิเคชัน",
   "mapIndex": "ดัชนีแผนที่",
   "modal": {
+    "add": "Add",
     "cancel": "ยกเลิก",
     "confirm": "ยืนยัน",
     "delete": {
       "button": "ลบ",
       "confirmation": "คุณแน่ใจหรือไม่ว่าต้องการลบ {{resourceName}}? การดำเนินการนี้ไม่สามารถย้อนกลับได้"
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "ผู้ดูแลระบบ",
@@ -141,6 +162,13 @@
     "placeholder": "เพิ่มโน้ต...",
     "taskInstance": "โน้ตของ Task Instance"
   },
+  "partitionedDagRun_one": "Partitioned Dag Run",
+  "partitionedDagRun_other": "Partitioned Dag Runs",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Received Asset Events"
+  },
+  "pendingDagRun_one": "{{count}} Pending Dag Run",
+  "pendingDagRun_other": "{{count}} Pending Dag Runs",
   "pools": {
     "deferred": "เลื่อนออกไป",
     "open": "เปิด",
@@ -153,6 +181,7 @@
   "reset": "รีเซ็ต",
   "runId": "Run ID",
   "runTypes": {
+    "asset_materialization": "Asset Materialization",
     "asset_triggered": "ทริกเกอร์โดย Asset",
     "backfill": "Backfill",
     "manual": "ทำด้วยตนเอง",
@@ -174,6 +203,7 @@
   },
   "selectLanguage": "เลือกภาษา",
   "showDetailsPanel": "แสดงแผงรายละเอียด",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "ซ่อนแหล่งที่มา",
     "hotkey": "s",
@@ -188,6 +218,7 @@
     "failed": "ล้มเหลว",
     "no_status": "ไม่มีสถานะ",
     "none": "ยังไม่กำหนดสถานะ",
+    "open": "Open",
     "planned": "วางแผนแล้ว",
     "queued": "เข้าคิวแล้ว",
     "removed": "ถูกลบแล้ว",
@@ -292,6 +323,10 @@
         "title": "ส่งคำขอลบ {{resourceName}} แล้ว"
       }
     },
+    "forbidden": {
+      "description": "You do not have permission to perform this action.",
+      "title": "Access Denied"
+    },
     "import": {
       "error": "คำขอนำเข้า {{resourceName}} ล้มเหลว",
       "success": {
@@ -306,6 +341,18 @@
         "title": "ส่งคำขออัปเดต {{resourceName}} แล้ว"
       }
     }
+  },
+  "tokenGeneration": {
+    "apiToken": "API Token",
+    "cliToken": "CLI Token",
+    "errorDescription": "An error occurred while generating the token. Please try again.",
+    "errorTitle": "Token Generation Failed",
+    "generate": "Generate",
+    "selectType": "Select the type of token to generate.",
+    "title": "Generate Token",
+    "tokenExpiresIn": "This token expires in {{duration}}.",
+    "tokenGenerated": "Your token has been generated.",
+    "tokenShownOnce": "This token will only be shown once. Copy it now."
   },
   "total": "รวม {{state}}",
   "triggered": "ทริกเกอร์แล้ว",

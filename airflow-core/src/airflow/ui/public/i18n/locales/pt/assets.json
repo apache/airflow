@@ -1,5 +1,11 @@
 {
+  "additional_data": "Additional Data",
+  "asset_many": "Asset",
+  "asset_one": "Asset",
+  "asset_other": "Asset",
+  "asset_zero": "Asset",
   "consumingDags": "Consumindo Dags",
+  "consumingTasks": "Consuming Tasks",
   "createEvent": {
     "button": "Criar Evento",
     "manual": {
@@ -21,10 +27,18 @@
     },
     "title": "Criar Evento de Asset para {{name}}"
   },
+  "dataLineage": "Data Lineage",
+  "extra": "Extra",
   "group": "Grupo",
   "lastAssetEvent": "Último Evento de Asset",
+  "lineageDownstream": "Downstream",
+  "lineageSearchPlaceholder": "Search lineage nodes",
+  "lineageUpstream": "Upstream",
   "name": "Nome",
+  "noLineageDataFound": "No lineage data found.",
   "producingTasks": "Produzindo Tarefas",
   "scheduledDags": "Dags Programados",
-  "searchPlaceholder": "Pesquisar Assets"
+  "scheduling": "Scheduling",
+  "searchPlaceholder": "Pesquisar Assets",
+  "taskDependencies": "Task Dependencies"
 }

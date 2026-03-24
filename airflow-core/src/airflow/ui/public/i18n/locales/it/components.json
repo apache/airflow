@@ -12,6 +12,7 @@
     "maxRuns": "Numero massimo di Runs attive",
     "missingAndErroredRuns": "Run Mancanti ed Errati",
     "missingRuns": "Run Mancanti",
+    "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Comportamento di Reprocesso",
     "run": "Correre Backfill",
     "selectDescription": "Esegui questo Dag per un intervallo di date",
@@ -55,6 +56,13 @@
     "warning_one": "1 Avviso",
     "warning_other": "{{count}} Avvisi",
     "warning_zero": "Nessun avviso"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
   },
   "durationChart": {
     "duration": "Durata (secondi)",
@@ -123,22 +131,40 @@
   "sortedDescending": "ordinato in ordine decrescente",
   "sortedUnsorted": "non ordinato",
   "taskTries": "Tentativi di Task",
+  "taskTryPlaceholder": "Task Try",
+  "team": {
+    "selector": {
+      "helperText": "Optional. Restrict usage to a specific team.",
+      "label": "Team",
+      "placeHolder": "Select a team"
+    }
+  },
   "toggleCardView": "Mostra la vista in card",
   "toggleTableView": "Mostra la vista in tabella",
   "triggerDag": {
     "button": "Trigger",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Caricamento informazioni del Dag...",
     "loadingFailed": "Impossibile caricare le informazioni del Dag. Per favore, riprova.",
+    "manualRunDenied": "Manual runs are not allowed for this Dag",
     "runIdHelp": "Opzionale - verrà generato se non fornito",
     "selectDescription": "Triggera un singolo run di questo Dag",
     "selectLabel": "Singolo Run",
     "title": "Trigger del Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "Il run del Dag è stato attivato con successo.",
         "title": "Run del Dag attivato"
       }
     },
+    "triggerAgainWithConfig": "Trigger again with this config",
     "unpause": "Sospendi {{dagDisplayName}} al trigger"
   },
   "trimText": {
@@ -154,6 +180,7 @@
     "versionId": "ID della Versione"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Versione del Dag",
     "versionCode": "v{{versionCode}}"
   }

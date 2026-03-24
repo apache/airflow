@@ -25,11 +25,18 @@
     },
     "title": "{{name}} 用のアセットイベントを作成"
   },
+  "dataLineage": "Data Lineage",
   "extra": "追加情報",
   "group": "グループ",
   "lastAssetEvent": "最終アセットイベント",
+  "lineageDownstream": "Downstream",
+  "lineageSearchPlaceholder": "Search lineage nodes",
+  "lineageUpstream": "Upstream",
   "name": "名前",
+  "noLineageDataFound": "No lineage data found.",
   "producingTasks": "タスクを生成",
   "scheduledDags": "スケジュール済 Dag",
-  "searchPlaceholder": "アセットを検索"
+  "scheduling": "Scheduling",
+  "searchPlaceholder": "アセットを検索",
+  "taskDependencies": "Task Dependencies"
 }

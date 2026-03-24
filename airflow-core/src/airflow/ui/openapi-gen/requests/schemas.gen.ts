@@ -287,6 +287,92 @@ export const $AssetEventResponse = {
     description: 'Asset event serializer for responses.'
 } as const;
 
+export const $AssetLineageEdge = {
+    properties: {
+        source_id: {
+            type: 'string',
+            title: 'Source Id'
+        },
+        target_id: {
+            type: 'string',
+            title: 'Target Id'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['source_id', 'target_id'],
+    title: 'AssetLineageEdge',
+    description: 'An edge in the asset lineage graph.'
+} as const;
+
+export const $AssetLineageGraphResponse = {
+    properties: {
+        nodes: {
+            items: {
+                '$ref': '#/components/schemas/AssetLineageNode'
+            },
+            type: 'array',
+            title: 'Nodes'
+        },
+        edges: {
+            items: {
+                '$ref': '#/components/schemas/AssetLineageEdge'
+            },
+            type: 'array',
+            title: 'Edges'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['nodes', 'edges'],
+    title: 'AssetLineageGraphResponse',
+    description: 'Asset lineage graph response.'
+} as const;
+
+export const $AssetLineageNode = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        node_type: {
+            type: 'string',
+            title: 'Node Type'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        uri: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Uri'
+        },
+        group: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Group'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['id', 'node_type', 'name'],
+    title: 'AssetLineageNode',
+    description: 'A node in the asset lineage graph.'
+} as const;
+
 export const $AssetResponse = {
     properties: {
         id: {

@@ -26,10 +26,11 @@ import { useAssetServiceGetAssetEvents, useDagRunServiceGetUpstreamAssetEvents }
 
 import Time from "../Time";
 import { NodeWrapper } from "./NodeWrapper";
+import { getLineageNodeStyle } from "./lineageStyles";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const AssetNode = ({
-  data: { height, id, isSelected, label, width },
+  data: { disableNavigation, height, id, isSelected, label, lineageStyle, width },
 }: NodeProps<NodeType<CustomNodeProps, "asset">>) => {
   const { t: translate } = useTranslation("components");
   const { dagId = "", runId = "" } = useParams();
@@ -51,28 +52,41 @@ export const AssetNode = ({
   ].find((event) => event.name === label);
 
   const assetId = id.replace("asset:", "");
+  const nodeStyles = getLineageNodeStyle({
+    defaultBackground: "bg",
+    defaultBorderColor: isSelected ? "border.inverted" : "border",
+    defaultBorderWidth: isSelected ? 4 : 2,
+    lineageStyle,
+  });
 
   return (
     <NodeWrapper>
       <Flex
-        bg="bg"
-        borderColor={isSelected ? "border.inverted" : "border"}
+        bg={nodeStyles.background}
+        borderColor={nodeStyles.borderColor}
         borderRadius={5}
-        borderWidth={isSelected ? 4 : 2}
+        borderWidth={nodeStyles.borderWidth}
+        boxShadow={nodeStyles.boxShadow}
         cursor="default"
         flexDirection="column"
         height={`${height}px`}
         px={3}
-        py={isSelected ? 0 : 1}
+        py={lineageStyle === "focus" ? 0 : 1}
+        transform={nodeStyles.transform}
+        transition="background-color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s"
         width={`${width}px`}
       >
         <HStack>
           <Heading ml={-2} size="sm">
             <FiDatabase />
           </Heading>
-          <LinkOverlay asChild>
-            <RouterLink to={`/assets/${assetId}`}>{label}</RouterLink>
-          </LinkOverlay>
+          {disableNavigation ? (
+            <Text>{label}</Text>
+          ) : (
+            <LinkOverlay asChild>
+              <RouterLink to={`/assets/${assetId}`}>{label}</RouterLink>
+            </LinkOverlay>
+          )}
         </HStack>
         {assetEvent === undefined ? undefined : (
           <>

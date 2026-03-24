@@ -34,6 +34,10 @@
       "error": "Error al limpiar {{type}}",
       "title": "Limpiar {{type}}"
     },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
+    },
     "delete": {
       "button": "Eliminar {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "Futuro",
       "onlyFailed": "Limpiar solo tareas fallidas",
       "past": "Pasado",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Poner en cola nuevas tareas",
       "runOnLatestVersion": "Ejecutar en la última versión del bundle",
       "upstream": "Upstream"

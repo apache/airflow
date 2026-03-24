@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "Body",
+    "createdAt": "Created At",
     "response": {
       "all": "Tous",
       "pending": "En attente",
@@ -14,11 +16,13 @@
   "requiredActionCount_other": "Actions requises ({{count}})",
   "requiredActionState": "État de l'action requise",
   "response": {
+    "created": "Response created at ",
     "error": "Échec de la réponse",
     "optionsDescription": "Choisissez vos options pour cette instance de tâche",
     "optionsLabel": "Options",
     "received": "Réponse reçue à ",
     "respond": "Répondre",
+    "responded_by_user_name": "Responded by (User Name)",
     "success": "Réponse pour {{taskId}} réussie",
     "title": "Instance de tâche humaine - {{taskId}}"
   },

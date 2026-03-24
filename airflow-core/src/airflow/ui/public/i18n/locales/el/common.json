@@ -22,6 +22,7 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Καταγραφή Ελέγχου",
+    "jobs": "Jobs",
     "requiredActions": "Απαιτούμενες Ενέργειες",
     "xcoms": "XComs"
   },
@@ -60,6 +61,8 @@
     "dataIntervalEnd": "Τέλος Διαστήματος Δεδομένων",
     "dataIntervalStart": "Έναρξη Διαστήματος Δεδομένων",
     "lastSchedulingDecision": "Τελευταία Απόφαση Προγραμματισμού",
+    "mappedPartitionKey": "Mapped Partition key",
+    "partitionKey": "Partition key",
     "queuedAt": "Σε Ουρά Στις",
     "runAfter": "Εκτέλεση Μετά",
     "runType": "Τύπος Εκτέλεσης",
@@ -73,18 +76,30 @@
   "dagWarnings": "Προειδοποιήσεις/Σφάλματα Dag",
   "defaultToGraphView": "Προεπιλογή σε γραφική προβολή",
   "defaultToGridView": "Προεπιλογή σε πλέγμα",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Κατεύθυνση",
   "docs": {
     "documentation": "Τεκμηρίωση",
     "githubRepo": "Αποθετήριο GitHub",
     "restApiReference": "REST API Αναφορά"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
+  },
   "duration": "Διάρκεια",
+  "edit": "Edit",
   "endDate": "Ημερομηνία Λήξης",
   "error": {
     "back": "Πίσω",
     "defaultMessage": "Παρουσιάστηκε απρόσμενο σφάλμα",
     "home": "Αρχική",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Η σελίδα δεν βρέθηκε",
     "title": "Σφάλμα"
   },
@@ -105,22 +120,28 @@
   "filters": {
     "durationFrom": "Διάρκεια Από",
     "durationTo": "Διάρκεια Έως",
+    "endTime": "End Time",
     "logicalDateFrom": "Λογική Ημερομηνία Από",
     "logicalDateTo": "Λογική Ημερομηνία Έως",
     "runAfterFrom": "Εκτέλεση Μετά Από",
-    "runAfterTo": "Εκτέλεση Μετά Έως"
+    "runAfterTo": "Εκτέλεση Μετά Έως",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
+  "generateToken": "Generate Token",
   "logicalDate": "Λογική Ημερομηνία",
   "logout": "Αποσύνδεση",
   "logoutConfirmation": "Πρόκειται να αποσυνδεθείτε από την εφαρμογή.",
   "mapIndex": "Δείκτης Χάρτη",
   "modal": {
+    "add": "Add",
     "cancel": "Ακύρωση",
     "confirm": "Επιβεβαίωση",
     "delete": {
       "button": "Διαγραφή",
       "confirmation": "Είστε σίγουροι ότι θέλετε να διαγράψετε το {{resourceName}}; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Διαχείριση",
@@ -141,6 +162,13 @@
     "placeholder": "Προσθέστε μια σημείωση...",
     "taskInstance": "Σημείωση Εκτέλεσης Εργασίας"
   },
+  "partitionedDagRun_one": "Partitioned Dag Runs",
+  "partitionedDagRun_other": "Partitioned Dag Runs",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "Received Asset Events"
+  },
+  "pendingDagRun_one": "{{count}} Pending Dag Runs",
+  "pendingDagRun_other": "{{count}} Pending Dag Runs",
   "pools": {
     "deferred": "Αναβληθέν",
     "open": "Ανοιχτό",
@@ -153,6 +181,7 @@
   "reset": "Επαναφορά",
   "runId": "ID Εκτέλεσης",
   "runTypes": {
+    "asset_materialization": "Asset Materialization",
     "asset_triggered": "Ενεργοποιήθηκε από Οντότητα",
     "backfill": "Backfill",
     "manual": "Χειροκίνητο",
@@ -174,6 +203,7 @@
   },
   "selectLanguage": "Επιλογή Γλώσσας",
   "showDetailsPanel": "Εμφάνιση Πίνακα Λεπτομερειών",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Απόκρυψη Πηγαίου Κώδικα",
     "hotkey": "s",
@@ -188,6 +218,7 @@
     "failed": "Αποτυχία",
     "no_status": "Χωρίς Κατάσταση",
     "none": "Χωρίς Κατάσταση",
+    "open": "Open",
     "planned": "Προγραμματισμένο",
     "queued": "Σε Ουρά",
     "removed": "Αφαιρέθηκε",
@@ -292,6 +323,10 @@
         "title": "Υποβλήθηκε αίτημα διαγραφής {{resourceName}}"
       }
     },
+    "forbidden": {
+      "description": "You do not have permission to perform this action.",
+      "title": "Access Denied"
+    },
     "import": {
       "error": "Αποτυχία εισαγωγής {{resourceName}}",
       "success": {
@@ -306,6 +341,18 @@
         "title": "Υποβλήθηκε αίτημα ενημέρωσης {{resourceName}}"
       }
     }
+  },
+  "tokenGeneration": {
+    "apiToken": "API Token",
+    "cliToken": "CLI Token",
+    "errorDescription": "An error occurred while generating the token. Please try again.",
+    "errorTitle": "Token Generation Failed",
+    "generate": "Generate",
+    "selectType": "Select the type of token to generate.",
+    "title": "Generate Token",
+    "tokenExpiresIn": "This token expires in {{duration}}.",
+    "tokenGenerated": "Your token has been generated.",
+    "tokenShownOnce": "This token will only be shown once. Copy it now."
   },
   "total": "Σύνολο {{state}}",
   "triggered": "Ενεργοποιήθηκε",

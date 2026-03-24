@@ -1,4 +1,5 @@
 {
+  "allTags_other": "All Tags ({{count}})",
   "backfill": {
     "affected_one": "จะมีการทริกเกอร์ให้ทำงาน 1 ครั้ง",
     "affected_other": "จะมีการทริกเกอร์ให้ทำงาน {{count}} ครั้ง",
@@ -10,6 +11,7 @@
     "maxRuns": "จำนวนการทำงานที่ทำพร้อมกันสูงสุด",
     "missingAndErroredRuns": "การทำงานที่หายไปและเกิดข้อผิดพลาด",
     "missingRuns": "การทำงานที่หายไป",
+    "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "พฤติกรรมการประมวลผลซ้ำ",
     "run": "สั่ง Backfill",
     "selectDescription": "สั่งให้ Dag นี้ทำงานตามช่วงเวลาที่กำหนด",
@@ -49,6 +51,13 @@
     "warning_one": "1 คำเตือน",
     "warning_other": "{{count}} คำเตือน"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "ระยะเวลา (วินาที)",
     "lastDagRun_one": "Dag Run ล่าสุด",
@@ -86,31 +95,58 @@
     "taskGroup": "กลุ่มงาน"
   },
   "limitedList": "+{{count}} เพิ่มเติม",
+  "limitedList.allItems": "All {{count}} items:",
+  "limitedList.allTags_one": "All Tags (1)",
+  "limitedList.allTags_other": "All Tags ({{count}})",
+  "limitedList.clickToInteract": "Click a tag to filter Dags",
+  "limitedList.clickToOpenFull": "Click \"+{{count}} more\" to open full view",
+  "limitedList.copyPasteText": "You can copy and paste the text above",
+  "limitedList.showingItems_one": "Showing 1 item",
+  "limitedList.showingItems_other": "Showing {{count}} items",
   "logs": {
     "file": "ไฟล์",
     "location": "บรรทัด {{line}} ใน {{name}}"
   },
   "reparseDag": "ประมวลผล Dag ใหม่",
+  "showingItems_other": "Showing {{count}} items",
   "sortedAscending": "เรียงจากน้อยไปมาก",
   "sortedDescending": "เรียงจากมากไปน้อย",
   "sortedUnsorted": "ไม่เรียงลำดับ",
   "taskTries": "จำนวนครั้งที่ทำงาน",
+  "taskTryPlaceholder": "Task Try",
+  "team": {
+    "selector": {
+      "helperText": "Optional. Restrict usage to a specific team.",
+      "label": "Team",
+      "placeHolder": "Select a team"
+    }
+  },
   "toggleCardView": "แสดงมุมมองแบบการ์ด",
   "toggleTableView": "แสดงมุมมองแบบตาราง",
   "triggerDag": {
     "button": "ทริกเกอร์",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "กำลังโหลดข้อมูล Dag...",
     "loadingFailed": "โหลดข้อมูล Dag ไม่สำเร็จ กรุณาลองใหม่",
+    "manualRunDenied": "Manual runs are not allowed for this Dag",
     "runIdHelp": "ไม่บังคับ - จะถูกสร้างอัตโนมัติหากไม่ระบุ",
     "selectDescription": "ทริกเกอร์ Dag นี้สำหรับการทำงานครั้งเดียว",
     "selectLabel": "ทำงานครั้งเดียว",
     "title": "ทริกเกอร์ Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "Dag Run ถูกทริกเกอร์สำเร็จแล้ว",
         "title": "ทริกเกอร์ Dag Run แล้ว"
       }
     },
+    "triggerAgainWithConfig": "Trigger again with this config",
     "unpause": "ยกเลิกการหยุดพัก {{dagDisplayName}} เมื่อทริกเกอร์"
   },
   "trimText": {
@@ -126,6 +162,7 @@
     "versionId": "ID เวอร์ชัน"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "เวอร์ชัน Dag",
     "versionCode": "v{{versionCode}}"
   }

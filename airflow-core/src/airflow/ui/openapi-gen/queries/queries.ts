@@ -115,6 +115,17 @@ export const useAssetServiceGetAsset = <TData = Common.AssetServiceGetAssetDefau
   assetId: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }, queryKey), queryFn: () => AssetService.getAsset({ assetId }) as TData, ...options });
 /**
+* Get Asset Lineage
+* Get the lineage graph for an asset.
+* @param data The data for the request.
+* @param data.assetId
+* @returns AssetLineageGraphResponse Successful Response
+* @throws ApiError
+*/
+export const useAssetServiceGetAssetLineage = <TData = Common.AssetServiceGetAssetLineageDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId }: {
+  assetId: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetLineageKeyFn({ assetId }, queryKey), queryFn: () => AssetService.getAssetLineage({ assetId }) as TData, ...options });
+/**
 * Get Dag Asset Queued Events
 * Get queued asset events for a DAG.
 * @param data The data for the request.

@@ -1,5 +1,9 @@
 {
+  "additional_data": "Additional Data",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
   "consumingDags": "Dags ที่ใช้",
+  "consumingTasks": "Consuming Tasks",
   "createEvent": {
     "button": "สร้างอีเวนต์",
     "manual": {
@@ -21,10 +25,18 @@
     },
     "title": "สร้างอีเวนต์ให้กับ Asset สำหรับ {{name}}"
   },
+  "dataLineage": "Data Lineage",
+  "extra": "Extra",
   "group": "กลุ่ม",
   "lastAssetEvent": "อีเวนต์ของ Asset ล่าสุด",
+  "lineageDownstream": "Downstream",
+  "lineageSearchPlaceholder": "Search lineage nodes",
+  "lineageUpstream": "Upstream",
   "name": "ชื่อ",
+  "noLineageDataFound": "No lineage data found.",
   "producingTasks": "งานที่ถูกสร้าง",
   "scheduledDags": "Dags ที่ถูกตั้งเวลา",
-  "searchPlaceholder": "ค้นหา Assets"
+  "scheduling": "Scheduling",
+  "searchPlaceholder": "ค้นหา Assets",
+  "taskDependencies": "Task Dependencies"
 }

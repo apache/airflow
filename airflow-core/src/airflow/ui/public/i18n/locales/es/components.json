@@ -11,6 +11,7 @@
     "maxRuns": "Máximo de Ejecuciones Activas",
     "missingAndErroredRuns": "Ejecutaciones Faltantes y con Errores",
     "missingRuns": "Ejecutaciones Faltantes",
+    "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Comportamiento de Reprocesamiento",
     "run": "Ejecutar Backfill",
     "selectDescription": "Ejecutar este Dag para un rango de fechas",
@@ -52,6 +53,13 @@
     "warning_many": "{{count}} Advertencias",
     "warning_one": "1 Advertencia",
     "warning_other": "{{count}} Advertencias"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
   },
   "durationChart": {
     "duration": "Duración (segundos)",
@@ -114,22 +122,40 @@
   "sortedDescending": "ordenado descendente",
   "sortedUnsorted": "sin ordenar",
   "taskTries": "Intentos de Tarea",
+  "taskTryPlaceholder": "Task Try",
+  "team": {
+    "selector": {
+      "helperText": "Optional. Restrict usage to a specific team.",
+      "label": "Team",
+      "placeHolder": "Select a team"
+    }
+  },
   "toggleCardView": "Mostrar vista de tarjeta",
   "toggleTableView": "Mostrar vista de tabla",
   "triggerDag": {
     "button": "Trigger",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Cargando información del Dag...",
     "loadingFailed": "Error al cargar la información del Dag. Por favor, inténtelo de nuevo.",
+    "manualRunDenied": "Manual runs are not allowed for this Dag",
     "runIdHelp": "Opcional - se generará si no se proporciona",
     "selectDescription": "Activar una ejecución única de este Dag",
     "selectLabel": "Ejecución Única",
     "title": "Activar Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "La ejecución del Dag ha sido activada exitosamente.",
         "title": "Ejecución del Dag Activada"
       }
     },
+    "triggerAgainWithConfig": "Trigger again with this config",
     "unpause": "Reanudar {{dagDisplayName}} al activarse"
   },
   "trimText": {
@@ -145,6 +171,7 @@
     "versionId": "ID de la Versión"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Versión del Dag",
     "versionCode": "v{{versionCode}}"
   }

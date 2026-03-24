@@ -10,6 +10,7 @@
     "maxRuns": "最大アクティブ実行数",
     "missingAndErroredRuns": "欠落およびエラー発生した実行",
     "missingRuns": "欠落実行",
+    "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "再処理動作",
     "run": "過去分再実行の実行",
     "selectDescription": "この Dag を指定した日付範囲で実行します",
@@ -110,12 +111,26 @@
   "sortedDescending": "降順でソート",
   "sortedUnsorted": "未ソート",
   "taskTries": "タスクの試行",
+  "taskTryPlaceholder": "Task Try",
+  "team": {
+    "selector": {
+      "helperText": "Optional. Restrict usage to a specific team.",
+      "label": "Team",
+      "placeHolder": "Select a team"
+    }
+  },
   "toggleCardView": "カードビューを表示",
   "toggleTableView": "テーブルビューを表示",
   "triggerDag": {
     "button": "トリガー",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Dag 情報を読込中...",
     "loadingFailed": "情報読込に失敗しました。もう一度試してください",
+    "manualRunDenied": "Manual runs are not allowed for this Dag",
     "runIdHelp": "オプション- 指定しない場合自動的に生成されます",
     "selectDescription": "この Dag の単体での実行をトリガーします",
     "selectLabel": "単体での実行",
@@ -129,6 +144,7 @@
         "title": "Dag の実行がトリガーされました"
       }
     },
+    "triggerAgainWithConfig": "Trigger again with this config",
     "unpause": "{{dagDisplayName}} トリガーで停止を解除します"
   },
   "trimText": {
@@ -144,6 +160,7 @@
     "versionId": "バージョン ID"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Dag バージョン",
     "versionCode": "v{{versionCode}}"
   }
