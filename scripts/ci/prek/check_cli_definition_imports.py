@@ -39,10 +39,7 @@ from pathlib import Path
 from common_prek_utils import console, get_imports_from_file
 
 # Allowed modules that can be imported in CLI definition files
-ALLOWED_MODULES = {
-    "airflow.configuration",
-    "airflow.cli.cli_config",
-}
+ALLOWED_MODULES = {"airflow.configuration", "airflow.cli.cli_config", "airflow.providers.common.compat.sdk"}
 
 # Standard library and __future__ modules are also allowed
 STDLIB_PREFIXES = (
@@ -164,6 +161,7 @@ def main() -> int:
             f"[yellow]CLI definition files (*/cli/definition.py) should only import from:[/]\n"
             "  - airflow.configuration\n"
             "  - airflow.cli.cli_config\n"
+            "  - airflow.providers.common.compat.sdk\n"
             "  - Their own provider's version_compat module\n"
             f"  - Standard library modules ({', '.join(STDLIB_PREFIXES)})\n"
         )
