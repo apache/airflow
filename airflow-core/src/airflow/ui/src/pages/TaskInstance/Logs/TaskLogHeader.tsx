@@ -113,8 +113,8 @@ export const TaskLogHeader = ({
     } else {
       searchParams.delete(SearchParamsKeys.LOG_LEVEL);
       value
-        .filter((state) => state !== "all")
-        .forEach((state) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
+        .filter((state: string) => state !== "all")
+        .forEach((state: string) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
     }
     setSearchParams(searchParams);
   };
@@ -128,8 +128,8 @@ export const TaskLogHeader = ({
     } else {
       searchParams.delete(SearchParamsKeys.SOURCE);
       value
-        .filter((state) => state !== "all")
-        .forEach((state) => searchParams.append(SearchParamsKeys.SOURCE, state));
+        .filter((state: string) => state !== "all")
+        .forEach((state: string) => searchParams.append(SearchParamsKeys.SOURCE, state));
     }
     setSearchParams(searchParams);
   };
@@ -165,7 +165,7 @@ export const TaskLogHeader = ({
               {() =>
                 hasLogLevels ? (
                   <HStack flexWrap="wrap" fontSize="md" gap="4px" paddingY="8px">
-                    {logLevels.map((level) => (
+                    {logLevels.map((level: string) => (
                       <Badge colorPalette={logLevelColorMapping[level as LogLevel]} key={level}>
                         {level.toUpperCase()}
                       </Badge>
@@ -178,7 +178,7 @@ export const TaskLogHeader = ({
             </Select.ValueText>
           </Select.Trigger>
           <Select.Content zIndex={zIndex}>
-            {logLevelOptions.items.map((option) => (
+            {logLevelOptions.items.map((option: { label: string; value: string }) => (
               <Select.Item item={option} key={option.label}>
                 {option.value === "all" ? (
                   translate(option.label)
@@ -203,7 +203,7 @@ export const TaskLogHeader = ({
               <Select.ValueText placeholder={translate("dag:logs.allSources")} />
             </Select.Trigger>
             <Select.Content zIndex={zIndex}>
-              {sourceOptionList.items.map((option) => (
+              {sourceOptionList.items.map((option: { label: string; value: string }) => (
                 <Select.Item item={option} key={option.label}>
                   {option.label}
                 </Select.Item>
