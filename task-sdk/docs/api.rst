@@ -205,17 +205,17 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.IdentityMapper
 
-.. autoapiclass:: airflow.sdk.ToHourlyMapper
+.. autoapiclass:: airflow.sdk.TruncateToHourlyMapper
 
-.. autoapiclass:: airflow.sdk.ToDailyMapper
+.. autoapiclass:: airflow.sdk.TruncateToDailyMapper
 
-.. autoapiclass:: airflow.sdk.ToWeeklyMapper
+.. autoapiclass:: airflow.sdk.TruncateToWeeklyMapper
 
-.. autoapiclass:: airflow.sdk.ToMonthlyMapper
+.. autoapiclass:: airflow.sdk.TruncateToMonthlyMapper
 
-.. autoapiclass:: airflow.sdk.ToQuarterlyMapper
+.. autoapiclass:: airflow.sdk.TruncateToQuarterlyMapper
 
-.. autoapiclass:: airflow.sdk.ToYearlyMapper
+.. autoapiclass:: airflow.sdk.TruncateToYearlyMapper
 
 .. autoapiclass:: airflow.sdk.ProductMapper
 

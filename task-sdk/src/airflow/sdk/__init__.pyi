@@ -68,12 +68,12 @@ from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
 from airflow.sdk.definitions.partition_mappers.product import ProductMapper
 from airflow.sdk.definitions.partition_mappers.temporal import (
-    ToDailyMapper,
-    ToHourlyMapper,
-    ToMonthlyMapper,
-    ToQuarterlyMapper,
-    ToWeeklyMapper,
-    ToYearlyMapper,
+    TruncateToDailyMapper,
+    TruncateToHourlyMapper,
+    TruncateToMonthlyMapper,
+    TruncateToQuarterlyMapper,
+    TruncateToWeeklyMapper,
+    TruncateToYearlyMapper,
 )
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
@@ -144,12 +144,12 @@ __all__ = [
     "SkipMixin",
     "TaskGroup",
     "TaskInstanceState",
-    "ToDailyMapper",
-    "ToHourlyMapper",
-    "ToMonthlyMapper",
-    "ToQuarterlyMapper",
-    "ToWeeklyMapper",
-    "ToYearlyMapper",
+    "TruncateToDailyMapper",
+    "TruncateToHourlyMapper",
+    "TruncateToMonthlyMapper",
+    "TruncateToQuarterlyMapper",
+    "TruncateToWeeklyMapper",
+    "TruncateToYearlyMapper",
     "TriggerRule",
     "Variable",
     "WeightRule",

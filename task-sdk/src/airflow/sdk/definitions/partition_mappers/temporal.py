@@ -31,37 +31,37 @@ class _BaseTemporalMapper(PartitionMapper):
         self.output_format = output_format or self.default_output_format
 
 
-class ToHourlyMapper(_BaseTemporalMapper):
+class TruncateToHourlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to hour."""
 
     default_output_format = "%Y-%m-%dT%H"
 
 
-class ToDailyMapper(_BaseTemporalMapper):
+class TruncateToDailyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to day."""
 
     default_output_format = "%Y-%m-%d"
 
 
-class ToWeeklyMapper(_BaseTemporalMapper):
+class TruncateToWeeklyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to week."""
 
     default_output_format = "%Y-%m-%d (W%V)"
 
 
-class ToMonthlyMapper(_BaseTemporalMapper):
+class TruncateToMonthlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to month."""
 
     default_output_format = "%Y-%m"
 
 
-class ToQuarterlyMapper(_BaseTemporalMapper):
+class TruncateToQuarterlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to quarter."""
 
     default_output_format = "%Y-Q{quarter}"
 
 
-class ToYearlyMapper(_BaseTemporalMapper):
+class TruncateToYearlyMapper(_BaseTemporalMapper):
     """Map a time-based partition key to year."""
 
     default_output_format = "%Y"
