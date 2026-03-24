@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from operator import attrgetter
 from typing import cast
 
 from fastapi import Depends, HTTPException, status
@@ -32,6 +31,12 @@ from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.exceptions import TaskNotFound
 
 tasks_router = AirflowRouter(tags=["Task"], prefix="/dags/{dag_id}/tasks")
+
+_VALID_TASK_ORDER_BY_FIELDS = {
+    field_name
+    for field_name, field_info in TaskResponse.model_fields.items()
+    if field_name not in ("class_ref", "template_fields", "downstream_task_ids", "params")
+}
 
 
 @tasks_router.get(
@@ -51,10 +56,21 @@ def get_tasks(
     order_by: str = "task_id",
 ) -> TaskCollectionResponse:
     """Get tasks for DAG."""
+    sort_key = order_by.lstrip("-")
+    if sort_key not in _VALID_TASK_ORDER_BY_FIELDS:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Invalid order_by parameter: '{sort_key}'. "
+            f"Valid fields are: {', '.join(sorted(_VALID_TASK_ORDER_BY_FIELDS))}",
+        )
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     try:
-        tasks = sorted(dag.tasks, key=attrgetter(order_by.lstrip("-")), reverse=(order_by[0:1] == "-"))
-    except AttributeError as err:
+        tasks = sorted(
+            dag.tasks,
+            key=lambda task: (getattr(task, sort_key) is None, getattr(task, sort_key)),
+            reverse=(order_by[0:1] == "-"),
+        )
+    except (AttributeError, TypeError) as err:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err))
     return TaskCollectionResponse(
         tasks=cast("list[TaskResponse]", tasks),
