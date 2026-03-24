@@ -216,16 +216,22 @@ class TestMetadataEngineHooks:
 
     def setup_method(self):
         self.old_modules = dict(sys.modules)
+        from airflow import settings
+
+        self._orig_create_metadata_engine = settings.create_metadata_engine
+        self._orig_create_async_metadata_engine = settings.create_async_metadata_engine
 
     def teardown_method(self):
+        from airflow import settings
+
+        settings.create_metadata_engine = self._orig_create_metadata_engine
+        settings.create_async_metadata_engine = self._orig_create_async_metadata_engine
         for mod in [m for m in sys.modules if m not in self.old_modules]:
             del sys.modules[mod]
 
     @patch("airflow.settings.create_metadata_engine")
     @patch("airflow.settings._configure_async_session")
-    def test_configure_orm_delegates_to_create_metadata_engine(
-        self, mock_async_session, mock_create_engine
-    ):
+    def test_configure_orm_delegates_to_create_metadata_engine(self, mock_async_session, mock_create_engine):
         """configure_orm() must call create_metadata_engine, not create_engine directly."""
         from airflow import settings
 
@@ -285,9 +291,7 @@ class TestMetadataEngineHooks:
         engine_args = {"pool_size": 5, "pool_recycle": 1800}
         connect_args = {"timeout": 30}
 
-        settings.create_metadata_engine(
-            "sqlite://", engine_args=engine_args, connect_args=connect_args
-        )
+        settings.create_metadata_engine("sqlite://", engine_args=engine_args, connect_args=connect_args)
 
         mock_sa_create_engine.assert_called_once_with(
             "sqlite://",
@@ -305,9 +309,7 @@ class TestMetadataEngineHooks:
         mock_sa_create_async.return_value = MagicMock()
         connect_args = {"timeout": 30}
 
-        settings.create_async_metadata_engine(
-            "sqlite+aiosqlite://", connect_args=connect_args
-        )
+        settings.create_async_metadata_engine("sqlite+aiosqlite://", connect_args=connect_args)
 
         mock_sa_create_async.assert_called_once_with(
             "sqlite+aiosqlite://",
@@ -329,9 +331,7 @@ class TestMetadataEngineHooks:
             assert not airflow_local_settings._engine_created
 
             # Actually call the override and verify it runs the custom code
-            engine = settings.create_metadata_engine(
-                "sqlite://", engine_args={}, connect_args={}
-            )
+            engine = settings.create_metadata_engine("sqlite://", engine_args={}, connect_args={})
             assert airflow_local_settings._engine_created
             assert engine is not None
 
