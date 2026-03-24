@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
+import urllib.parse
 import urllib.request
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
@@ -317,8 +318,15 @@ class GoogleBidManagerDownloadReportOperator(BaseOperator):
 
         # If no custom report_name provided, use Bid Manager name
         file_url = resource["metadata"]["googleCloudStoragePath"]
-        if urllib.parse.urlparse(file_url).scheme == "file":
-            raise AirflowException("Accessing local file is not allowed in this operator")
+        parsed_url = urllib.parse.urlparse(file_url)
+        if parsed_url.scheme != "https" or parsed_url.hostname not in (
+            "storage.googleapis.com",
+            "storage.cloud.google.com",
+        ):
+            raise AirflowException(
+                f"Unexpected report URL: {file_url!r}. "
+                "Only https://storage.googleapis.com and https://storage.cloud.google.com URLs are allowed."
+            )
         report_name = self.report_name or urlsplit(file_url).path.split("/")[-1]
         report_name = self._resolve_file_name(report_name)
 
