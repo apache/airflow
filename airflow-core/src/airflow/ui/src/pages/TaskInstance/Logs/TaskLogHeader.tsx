@@ -114,7 +114,7 @@ export const TaskLogHeader = ({
       searchParams.delete(SearchParamsKeys.LOG_LEVEL);
       value
         .filter((state) => state !== "all")
-        .map((state) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
+        .forEach((state) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
     }
     setSearchParams(searchParams);
   };
@@ -129,7 +129,7 @@ export const TaskLogHeader = ({
       searchParams.delete(SearchParamsKeys.SOURCE);
       value
         .filter((state) => state !== "all")
-        .map((state) => searchParams.append(SearchParamsKeys.SOURCE, state));
+        .forEach((state) => searchParams.append(SearchParamsKeys.SOURCE, state));
     }
     setSearchParams(searchParams);
   };
@@ -139,7 +139,7 @@ export const TaskLogHeader = ({
     sources.length > 0
       ? sources
       : defaultLogSource && defaultLogSource !== "All Sources"
-        ? [defaultLogSource]
+        ? [defaultLogSource as string]
         : ["all"];
 
   return (
