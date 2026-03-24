@@ -1034,6 +1034,7 @@ connection-types:
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
+  - airflow.providers.amazon.aws.notifications.ses.SesNotifier
   - airflow.providers.amazon.aws.notifications.sns.SnsNotifier
   - airflow.providers.amazon.aws.notifications.sqs.SqsNotifier
 
@@ -1400,6 +1401,8 @@ config:
         default: ~
 
 executors:
+  - airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor
+  - airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor
   - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor
 
 auth-managers:

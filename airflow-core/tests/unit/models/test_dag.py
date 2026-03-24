@@ -842,7 +842,7 @@ class TestDag:
 
         DagModel.deactivate_deleted_dags(
             bundle_name=orm_dag.bundle_name,
-            rel_filelocs=list_py_file_paths(settings.DAGS_FOLDER),
+            rel_filelocs=set(list_py_file_paths(settings.DAGS_FOLDER)),
         )
 
         orm_dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))

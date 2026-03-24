@@ -448,7 +448,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.6']
+        additional_dependencies: ['ruff==0.15.7']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -585,6 +585,7 @@ repos:
         exclude: >
           (?x)
           ^README\.md$|
+          ^pyproject\.toml$|
           ^generated/PYPI_README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
@@ -816,6 +817,17 @@ repos:
           ^providers/.*/provider\.yaml$
         pass_filenames: false
         require_serial: true
+      - id: check-excluded-provider-markers
+        name: Check excluded-provider python_version markers in pyproject.toml
+        language: python
+        entry: ./scripts/ci/prek/check_excluded_provider_markers.py
+        files: >
+          (?x)
+          ^pyproject\.toml$|
+          ^providers/.*/provider\.yaml$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['packaging>=25', 'pyyaml', 'tomli>=2.0.1', 'rich>=13.6.0']
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python
@@ -1044,7 +1056,7 @@ repos:
         name: Check execution API datamodel changes have corresponding version updates
         entry: ./scripts/ci/prek/check_execution_api_versions.py
         language: python
-        pass_filenames: false
+        pass_filenames: true
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
         require_serial: true
       - id: generate-tasksdk-datamodels

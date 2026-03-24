@@ -114,7 +114,7 @@ class CeleryExecutor(BaseExecutor):
         # Can be removed when minimum supported provider version is equal to the version of core airflow
         # which introduces multi-team configuration (3.2+).
         if not hasattr(self, "conf") or not hasattr(self.conf, "getint"):
-            from airflow.configuration import conf as global_conf
+            from airflow.providers.common.compat.sdk import conf as global_conf
 
             self.conf = global_conf
         # Also set team_name to None if it doesn't exist, since the Celery app creation expects it to be

@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -72,7 +73,8 @@ dependencies = [
     "watchtower>=3.3.1,<4",
     "jsonpath_ng>=1.5.3",
     "redshift_connector>=2.1.3",
-    "asgiref>=2.3.0",
+    "asgiref>=2.3.0; python_version < '3.14'",
+    "asgiref>=3.11.1; python_version >= '3.14'",
     "PyAthena>=3.10.0",
     "jmespath>=0.7.0",
     # Do not change sagemaker-studio versions without approval from AWS.
@@ -130,7 +132,8 @@ dependencies = [
 ]
 "pandas" = [
     'pandas>=2.1.2; python_version <"3.13"',
-    'pandas>=2.2.3; python_version >="3.13"',
+    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3; python_version >="3.14"',
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"

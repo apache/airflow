@@ -357,7 +357,7 @@ class AssetManager(LoggingMixin):
         )
 
         non_partitioned_dags = dags_to_queue.difference(partition_dags)  # don't double process
-        if not non_partitioned_dags:
+        if not non_partitioned_dags or partition_key is not None:
             return None
 
         # Possible race condition: if multiple dags or multiple (usually

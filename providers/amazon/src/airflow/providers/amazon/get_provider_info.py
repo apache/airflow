@@ -1140,6 +1140,7 @@ def get_provider_info():
         ],
         "notifications": [
             "airflow.providers.amazon.aws.notifications.chime.ChimeNotifier",
+            "airflow.providers.amazon.aws.notifications.ses.SesNotifier",
             "airflow.providers.amazon.aws.notifications.sns.SnsNotifier",
             "airflow.providers.amazon.aws.notifications.sqs.SqsNotifier",
         ],
@@ -1437,7 +1438,11 @@ def get_provider_info():
                 },
             },
         },
-        "executors": ["airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"],
+        "executors": [
+            "airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor",
+            "airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor",
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor",
+        ],
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
         "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
         "queues": ["airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider"],

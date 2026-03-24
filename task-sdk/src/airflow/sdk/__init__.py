@@ -37,6 +37,7 @@ __all__ = [
     "BaseSensorOperator",
     "BaseXCom",
     "BranchMixIn",
+    "ChainMapper",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -85,6 +86,7 @@ __all__ = [
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "lineage",
     "macros",
     "setup",
     "task",
@@ -125,6 +127,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+    from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
@@ -178,6 +181,7 @@ __lazy_imports: dict[str, str] = {
     "BaseSensorOperator": ".bases.sensor",
     "BaseXCom": ".bases.xcom",
     "BranchMixIn": ".bases.branch",
+    "ChainMapper": ".definitions.partition_mappers.chain",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "CronDataIntervalTimetable": ".definitions.timetables.interval",
@@ -227,6 +231,7 @@ __lazy_imports: dict[str, str] = {
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
     "literal": ".definitions.template",
+    "lineage": ".lineage",
     "macros": ".execution_time",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
