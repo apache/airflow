@@ -183,12 +183,8 @@ class CallbackSubprocess(WatchedSubprocess):
             def default(self, o):
                 if isinstance(o, UUID):
                     return str(o)
-                if isinstance(o, datetime):
+                if isinstance(o, (datetime, date)):
                     return o.isoformat()
-                if isinstance(o, date):
-                    return o.isoformat()
-                if hasattr(o, "__str__"):
-                    return str(o)
                 return super().default(o)
 
         # Pass the callback data to the child process via environment variables.
