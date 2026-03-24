@@ -98,12 +98,14 @@ export const useBulkClearTaskInstances = ({ clearSelections, onSuccessConfirm }:
       await invalidateQueries();
 
       toaster.create({
-        description: translate("toaster.bulkDelete.success.description", {
+        description: translate("toaster.bulkClear.success.description", {
           count: taskInstances.length,
           keys: taskInstances.map((ti) => ti.task_id).join(", "),
           resourceName: translate("taskInstance_other"),
         }),
-        title: translate("toaster.bulkDelete.success.title"),
+        title: translate("toaster.bulkClear.success.title", {
+          resourceName: translate("taskInstance_other"),
+        }),
         type: "success",
       });
 

@@ -60,17 +60,21 @@ export const useBulkTaskInstances = ({ clearSelections, onSuccessConfirm }: Prop
       queryClient.invalidateQueries({ queryKey: [useDagRunServiceGetDagRunsKey] }),
     ]);
 
+    const isDelete = Boolean(responseData.delete);
     const actionResult = responseData.delete ?? responseData.update;
+    const toasterKey = isDelete ? "toaster.bulkDelete" : "toaster.bulkUpdate";
 
     if (actionResult) {
       handleActionResult(actionResult, setError, (count, keys) => {
         toaster.create({
-          description: translate("toaster.bulkDelete.success.description", {
+          description: translate(`${toasterKey}.success.description`, {
             count,
             keys: keys.join(", "),
             resourceName: translate("taskInstance_other"),
           }),
-          title: translate("toaster.bulkDelete.success.title"),
+          title: translate(`${toasterKey}.success.title`, {
+            resourceName: translate("taskInstance_other"),
+          }),
           type: "success",
         });
         clearSelections();
