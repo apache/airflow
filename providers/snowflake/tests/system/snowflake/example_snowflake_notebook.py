@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.snowflake.operators.snowflake_notebook import SnowflakeNotebookOperator
+from airflow.providers.snowflake.operators.snowflake import SnowflakeNotebookOperator
 
 SNOWFLAKE_CONN_ID = "my_snowflake_conn"
 SNOWFLAKE_NOTEBOOK = os.environ.get("SNOWFLAKE_NOTEBOOK", "MY_DB.MY_SCHEMA.MY_NOTEBOOK")

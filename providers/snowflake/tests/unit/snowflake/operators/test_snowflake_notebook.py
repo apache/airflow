@@ -28,7 +28,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.snowflake.operators.snowflake import SnowflakeSqlApiOperator
-from airflow.providers.snowflake.operators.snowflake_notebook import SnowflakeNotebookOperator
+from airflow.providers.snowflake.operators.snowflake import SnowflakeNotebookOperator
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 from airflow.utils.types import DagRunType
 
