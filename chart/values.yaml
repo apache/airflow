@@ -498,19 +498,14 @@ extraEnvFrom: ~
 
 # Airflow database & redis config
 data:
-  # If secret names are provided, use those secrets
-  # These secrets must be created manually, eg:
-  #
-  # kind: Secret
-  # apiVersion: v1
-  # metadata:
-  #   name: custom-airflow-metadata-secret
-  # type: Opaque
-  # data:
-  #   connection: base64_encoded_connection_string
-
+  # Must contain a 'connection' key (e.g., postgresql://user:pass@host:5432/db).
+  # Optional: 'kedaConnection'. Note: URL-encode special characters in passwords.
   metadataSecretName: ~
+
+  # Must contain a 'connection' key. If not provided, it falls back to 'metadataSecretName'.
   resultBackendSecretName: ~
+
+  # Must contain a 'connection' key (e.g., redis://:pass@host:6379/0).
   brokerUrlSecretName: ~
 
   # Otherwise pass connection values in
@@ -545,6 +540,10 @@ data:
 # Fernet key settings
 # Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
+# The Secret MUST contain a 'fernet-key' key.
+#
+# To handle rotation, provide multiple comma-separated keys in the Secret.
+# New values are encrypted with the first key; decryption is attempted with all keys.
 fernetKeySecretName: ~
 # Add custom annotations to the fernet key secret
 fernetKeySecretAnnotations: {}
@@ -553,18 +552,24 @@ fernetKeySecretAnnotations: {}
 apiSecretKey: ~
 # Add custom annotations to the api secret
 apiSecretAnnotations: {}
+# Must contain an 'api-secret-key' key (suggested: random 32-char string).
+# Note: Values in K8s Secrets must be Base64 encoded.
 apiSecretKeySecretName: ~
 
 # Secret key used to encode and decode JWTs: `[api_auth] jwt_secret` in airflow.cfg
 jwtSecret: ~
 # Add custom annotations to the JWT secret
 jwtSecretAnnotations: {}
+# Must contain a 'jwt-secret' key (suggested: random 32-char string).
+# Note: Values in K8s Secrets must be Base64 encoded.
 jwtSecretName: ~
 
 # Flask secret key for Airflow <3 Webserver: `[webserver] secret_key` in airflow.cfg
 webserverSecretKey: ~
 # Add custom annotations to the webserver secret
 webserverSecretAnnotations: {}
+# Must contain a 'webserver-secret-key' key (suggested: random 32-char string).
+# Note: Values in K8s Secrets must be Base64 encoded.
 webserverSecretKeySecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
@@ -2777,6 +2782,8 @@ flower:
     annotations: {}
 
   # A secret containing the connection
+  # The Secret MUST contain a 'basicAuth' key (formatted as 'username:password').
+  # Note: Values in K8s Secrets must be Base64 encoded.
   secretName: ~
   # Add custom annotations to the flower secret
   secretAnnotations: {}
