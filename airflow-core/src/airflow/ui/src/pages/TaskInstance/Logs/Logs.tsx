@@ -89,8 +89,8 @@ export const Logs = () => {
       ? sourceFiltersParam.includes("all")
         ? []
         : sourceFiltersParam
-      : defaultLogSource && defaultLogSource !== "All Sources"
-        ? [defaultLogSource as string]
+      : defaultLogSource !== undefined && defaultLogSource !== "" && defaultLogSource !== "All Sources"
+        ? [defaultLogSource]
         : [];
 
   const {

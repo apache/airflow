@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -138,8 +139,8 @@ export const TaskLogHeader = ({
   const sourcesToSelect =
     sources.length > 0
       ? sources
-      : defaultLogSource && defaultLogSource !== "All Sources"
-        ? [defaultLogSource as string]
+      : defaultLogSource !== undefined && defaultLogSource !== "" && defaultLogSource !== "All Sources"
+        ? [defaultLogSource]
         : ["all"];
 
   return (
