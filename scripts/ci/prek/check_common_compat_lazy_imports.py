@@ -35,7 +35,7 @@ import sys
 from pathlib import Path
 
 
-def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str], frozenset[str]]:
+def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str], set[str]]:
     """
     Extract all names from _IMPORT_MAP, _RENAME_MAP, _MODULE_MAP, and _LEGACY_COMPAT_ONLY.
 
@@ -47,7 +47,7 @@ def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str], f
     import_map = set()
     rename_map = set()
     module_map = set()
-    legacy_compat_only: frozenset[str] = frozenset()
+    legacy_compat_only = set()
 
     for node in tree.body:
         # Handle both annotated assignments and regular assignments
@@ -76,7 +76,7 @@ def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str], f
                 module_map = set(data.keys())
             elif target.id == "_LEGACY_COMPAT_ONLY" and value:
                 data = ast.literal_eval(value)
-                legacy_compat_only = frozenset(data)
+                legacy_compat_only = set(data.keys())
 
     return import_map, rename_map, module_map, legacy_compat_only
 
