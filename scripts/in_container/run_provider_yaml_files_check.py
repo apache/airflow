@@ -476,7 +476,7 @@ def check_hook_class_name_entries_in_connection_types(yaml_files: dict[str, dict
 @run_check("Checking that hook classes defining conn_type are registered in connection-types")
 def check_hook_classes_with_conn_type_are_registered(yaml_files: dict[str, dict]) -> tuple[int, int]:
     """Find Hook subclasses that define conn_type but are not listed in connection-types."""
-    from airflow.hooks.base import BaseHook
+    from airflow.sdk.bases.hook import BaseHook
 
     num_checks = 0
     num_errors = 0
@@ -546,8 +546,8 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
     when updating provider.yaml.
     """
     from airflow.executors.base_executor import BaseExecutor
-    from airflow.hooks.base import BaseHook
     from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
     from airflow.sensors.base import BaseSensorOperator
     from airflow.triggers.base import BaseTrigger
