@@ -26,7 +26,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, select
 
-from airflow.providers.common.compat.sdk import Stats, TaskInstanceKey, conf, timezone
+from airflow.providers.common.compat.sdk import TaskInstanceKey, conf, timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
@@ -37,6 +37,14 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 pytestmark = pytest.mark.db_test
+
+
+if AIRFLOW_V_3_2_PLUS:
+    stats_reference = "airflow.sdk.observability.stats"
+else:
+    from airflow.providers.common.compat.sdk import Stats
+
+    stats_reference = f"{Stats.__module__}.Stats"
 
 
 class TestEdgeExecutor:
@@ -59,7 +67,7 @@ class TestEdgeExecutor:
 
         return (executor, key)
 
-    @patch(f"{Stats.__module__}.Stats.incr")
+    @patch(f"{stats_reference}.incr")
     def test_sync_orphaned_tasks(self, mock_stats_incr):
         executor = EdgeExecutor()
 

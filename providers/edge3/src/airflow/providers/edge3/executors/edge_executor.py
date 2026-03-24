@@ -28,7 +28,7 @@ from sqlalchemy import delete, select
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.common.compat.sdk import Stats, timezone
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_config
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
