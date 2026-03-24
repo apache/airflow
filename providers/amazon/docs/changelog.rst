@@ -161,7 +161,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Remove the compatibility shim for log_task_event AwsEcsExecutor and AwsBatchExecutor (#60301)``
-* ``Fixed timestamp comparision bug in s3hook _sync_to_local_dir_if_changed method (#60299)``
+* ``Fixed timestamp comparison bug in s3hook _sync_to_local_dir_if_changed method (#60299)``
 
 Misc
 ~~~~
@@ -1193,7 +1193,7 @@ Bug Fixes
 * ``validate aws service exceptions in waiters (#41941)``
 * ``Fix treatment of "#" in S3Hook.parse_s3_url() (#41796)``
 * ``fix: remove part of openlineage extraction from S3ToRedshiftOperator (#41631)``
-* ``filename template arg in providers file task handlers backward compitability support (#41633)``
+* ``filename template arg in providers file task handlers backward compatibility support (#41633)``
 * ``fix: select_query should have precedence over default query in RedshiftToS3Operator (#41634)``
 
 Misc
@@ -2248,7 +2248,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add D400 pydocstyle check (#31742)``
    * ``Add D400 pydocstyle check - Amazon provider only (#31423)``
-   * ``AWS system test example_dynamodb_to_s3: add retry when fecthing the export time (#31388)``
+   * ``AWS system test example_dynamodb_to_s3: add retry when fetching the export time (#31388)``
    * ``Amazon provider docstring improvements (#31729)``
    * ``Replace spelling directive with spelling:word-list (#31752)``
    * ``Remove aws unused code (#31610)``
@@ -2458,7 +2458,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Impovements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
+* ``Improvements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
 * ``Standardize AWS lambda naming (#29749)``
 * ``AWS Glue job hook: Make s3_bucket parameter optional (#29659)``
 * ``'RedshiftDataOperator' replace 'await_result' with 'wait_for_completion' (#29633)``

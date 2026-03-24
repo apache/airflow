@@ -131,7 +131,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Clarify why 'EmbedByTypeResponseEmbeddings' return type is ommitted (#51517)``
+* ``Clarify why 'EmbedByTypeResponseEmbeddings' return type is omitted (#51517)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

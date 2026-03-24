@@ -464,7 +464,7 @@ Misc
    * ``Make sure all test version imports come from test_common (#52425)``
    * ``Separate out creation of default Connections for tests and non-tests (#52129)``
    * ``Remove @pytest.mark.db_test for cncf (#52153)``
-   * ``Remove residual occurences of 'merge_conn' from cncf tests (#52064)``
+   * ``Remove residual occurrences of 'merge_conn' from cncf tests (#52064)``
    * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
 
 10.6.0
