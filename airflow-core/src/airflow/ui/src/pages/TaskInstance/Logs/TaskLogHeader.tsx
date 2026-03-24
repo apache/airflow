@@ -42,6 +42,7 @@ import { TaskTrySelect } from "src/components/TaskTrySelect";
 import { Menu, Select } from "src/components/ui";
 import { LazyClipboard } from "src/components/ui/LazyClipboard";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
@@ -123,6 +124,7 @@ export const TaskLogHeader = ({
 
     if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
       searchParams.delete(SearchParamsKeys.SOURCE);
+      searchParams.append(SearchParamsKeys.SOURCE, "all");
     } else {
       searchParams.delete(SearchParamsKeys.SOURCE);
       value
@@ -131,6 +133,14 @@ export const TaskLogHeader = ({
     }
     setSearchParams(searchParams);
   };
+
+  const defaultLogSource = useConfig("default_ui_log_source") as string | undefined;
+  const sourcesToSelect =
+    sources.length > 0
+      ? sources
+      : defaultLogSource && defaultLogSource !== "All Sources"
+        ? [defaultLogSource]
+        : ["all"];
 
   return (
     <Box>
@@ -187,7 +197,7 @@ export const TaskLogHeader = ({
             maxW="250px"
             multiple
             onValueChange={handleSourceChange}
-            value={sources}
+            value={sourcesToSelect}
           >
             <Select.Trigger clearable>
               <Select.ValueText placeholder={translate("dag:logs.allSources")} />

@@ -1791,6 +1791,14 @@ api:
       type: boolean
       example: ~
       default: "False"
+    default_ui_log_source:
+      description: |
+        Default setting for log_source toggle in task logs web UI.
+        If not set, it defaults to All Sources. Optionally, you can set it to any standard log source e.g., task, operator, task.stderr, etc.
+      version_added: 3.2.0
+      type: string
+      example: "task"
+      default: ""
     auto_refresh_interval:
       description: |
         How frequently, in seconds, the DAG data will auto-refresh in graph or grid view

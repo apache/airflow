@@ -7268,6 +7268,17 @@ export const $ConfigResponse = {
             type: 'boolean',
             title: 'Default Wrap'
         },
+        default_ui_log_source: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Default Ui Log Source'
+        },
         test_connection: {
             type: 'string',
             title: 'Test Connection'

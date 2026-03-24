@@ -30,6 +30,7 @@ class ConfigResponse(BaseModel):
     enable_swagger_ui: bool
     require_confirmation_dag_change: bool
     default_wrap: bool
+    default_ui_log_source: str | None = None
     test_connection: str
     dashboard_alert: list[UIAlert]
     show_external_log_redirect: bool

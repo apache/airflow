@@ -1791,6 +1791,7 @@ export type ConfigResponse = {
     enable_swagger_ui: boolean;
     require_confirmation_dag_change: boolean;
     default_wrap: boolean;
+    default_ui_log_source?: string | null;
     test_connection: string;
     dashboard_alert: Array<UIAlert>;
     show_external_log_redirect: boolean;

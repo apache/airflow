@@ -43,7 +43,7 @@ export const Logs = () => {
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
-  const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
+  const sourceFiltersParam = searchParams.getAll(SearchParamsKeys.SOURCE);
   const parsedMapIndex = parseInt(mapIndex, 10);
 
   const {
@@ -81,6 +81,17 @@ export const Logs = () => {
   const [showSource, setShowSource] = useLocalStorage<boolean>(LOG_SHOW_SOURCE_KEY, false);
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  const defaultLogSource = useConfig("default_ui_log_source") as string | undefined;
+
+  const sourceFilters =
+    sourceFiltersParam.length > 0
+      ? sourceFiltersParam.includes("all")
+        ? []
+        : sourceFiltersParam
+      : defaultLogSource && defaultLogSource !== "All Sources"
+        ? [defaultLogSource]
+        : [];
 
   const {
     error: logError,

@@ -38,6 +38,7 @@ API_CONFIG_KEYS = [
     "hide_paused_dags_by_default",
     "fallback_page_limit",
     "default_wrap",
+    "default_ui_log_source",
     "auto_refresh_interval",
     "require_confirmation_dag_change",
 ]
