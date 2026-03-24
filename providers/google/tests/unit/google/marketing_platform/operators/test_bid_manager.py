@@ -83,6 +83,7 @@ class TestGoogleBidManagerDownloadReportOperator:
             ("https://evil.com/report.csv", True),
             ("https://internal-service.local/secret", True),
             ("ftp://storage.googleapis.com/bucket/report.csv", True),
+            ("https://storage.googleapis.com@evil.com/report.csv", True),
         ],
     )
     @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.shutil")

@@ -22,11 +22,10 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
-import urllib.parse
 import urllib.request
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urlsplit
+from urllib.parse import urlparse, urlsplit
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -318,7 +317,7 @@ class GoogleBidManagerDownloadReportOperator(BaseOperator):
 
         # If no custom report_name provided, use Bid Manager name
         file_url = resource["metadata"]["googleCloudStoragePath"]
-        parsed_url = urllib.parse.urlparse(file_url)
+        parsed_url = urlparse(file_url)
         if parsed_url.scheme != "https" or parsed_url.hostname not in (
             "storage.googleapis.com",
             "storage.cloud.google.com",
@@ -330,10 +329,16 @@ class GoogleBidManagerDownloadReportOperator(BaseOperator):
         report_name = self.report_name or urlsplit(file_url).path.split("/")[-1]
         report_name = self._resolve_file_name(report_name)
 
-        # Download the report
+        # Download the report using an opener that rejects redirects so a crafted
+        # 302 from a compromised GCS endpoint cannot bounce to an internal host.
+        class _NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                raise AirflowException(f"Redirect from GCS report URL to {newurl!r} is not allowed.")
+
+        no_redirect_opener = urllib.request.build_opener(_NoRedirect)
         self.log.info("Starting downloading report %s", self.report_id)
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            with urllib.request.urlopen(file_url) as response:  # nosec
+            with no_redirect_opener.open(file_url) as response:  # nosec
                 shutil.copyfileobj(response, temp_file, length=self.chunk_size)
 
             temp_file.flush()
