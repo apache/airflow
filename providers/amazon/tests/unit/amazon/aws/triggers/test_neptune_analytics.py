@@ -90,9 +90,7 @@ class TestNeptuneGraphPrivateEndpointAvailableTrigger:
         Asserts that the NeptuneGraphPrivateEndpointAvailableTrigger correctly serializes its arguments
         and classpath.
         """
-        trigger = NeptuneGraphPrivateEndpointAvailableTrigger(
-            graph_id=GRAPH_ID, vpc_id=VPC_ID, endpoint_id=ENDPOINT_ID
-        )
+        trigger = NeptuneGraphPrivateEndpointAvailableTrigger(graph_id=GRAPH_ID, vpc_id=VPC_ID)
         classpath, kwargs = trigger.serialize()
         assert (
             classpath
@@ -102,8 +100,6 @@ class TestNeptuneGraphPrivateEndpointAvailableTrigger:
         assert kwargs["graph_id"] == GRAPH_ID
         assert "vpc_id" in kwargs
         assert kwargs["vpc_id"] == VPC_ID
-        assert "endpoint_id" in kwargs
-        assert kwargs["endpoint_id"] == ENDPOINT_ID
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.neptune_analytics.NeptuneAnalyticsHook.get_waiter")
@@ -111,13 +107,11 @@ class TestNeptuneGraphPrivateEndpointAvailableTrigger:
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.return_value.__aenter__.return_value = "AVAILABLE"
         mock_get_waiter().wait = AsyncMock()
-        trigger = NeptuneGraphPrivateEndpointAvailableTrigger(
-            graph_id=GRAPH_ID, vpc_id=VPC_ID, endpoint_id=ENDPOINT_ID
-        )
+        trigger = NeptuneGraphPrivateEndpointAvailableTrigger(graph_id=GRAPH_ID, vpc_id=VPC_ID)
         generator = trigger.run()
         resp = await generator.asend(None)
 
-        assert resp == TriggerEvent({"status": "success", "endpoint_id": ENDPOINT_ID})
+        assert resp == TriggerEvent({"status": "success", "graph_id": GRAPH_ID})
         assert mock_get_waiter().wait.call_count == 1
 
     @pytest.mark.asyncio
@@ -132,9 +126,7 @@ class TestNeptuneGraphPrivateEndpointAvailableTrigger:
         )
         mock_get_waiter.return_value.wait = wait_mock
 
-        trigger = NeptuneGraphPrivateEndpointAvailableTrigger(
-            graph_id=GRAPH_ID, vpc_id=VPC_ID, endpoint_id=ENDPOINT_ID
-        )
+        trigger = NeptuneGraphPrivateEndpointAvailableTrigger(graph_id=GRAPH_ID, vpc_id=VPC_ID)
 
         with pytest.raises(AirflowException):
             await trigger.run().asend(None)
