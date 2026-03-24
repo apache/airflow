@@ -94,9 +94,13 @@ def execute_callback(
 
         # If the callback is a class then it is now instantiated and callable, call it.
         if callable(result):
-            context = callback_kwargs.get("context", {}) if accepts_context(result) else {}
-            log.debug("Calling result with context for %s", callback_path)
-            result = result(context)
+            if accepts_context(result):
+                context = callback_kwargs.get("context", {})
+                log.debug("Calling result with context for %s", callback_path)
+                result = result(context)
+            else:
+                log.debug("Calling result without context for %s", callback_path)
+                result = result()
 
         log.info("Callback %s executed successfully.", callback_path)
         return True, None
