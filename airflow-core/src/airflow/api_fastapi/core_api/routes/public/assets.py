@@ -52,6 +52,9 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetCollectionResponse,
     AssetEventCollectionResponse,
     AssetEventResponse,
+    AssetLineageEdge,
+    AssetLineageGraphResponse,
+    AssetLineageNode,
     AssetResponse,
     CreateAssetEventsBody,
     QueuedEventCollectionResponse,
@@ -538,6 +541,82 @@ def get_asset(
             },
         }
     )
+
+
+@assets_router.get(
+    "/assets/{asset_id}/lineage",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_asset(method="GET")),
+    ],
+)
+def get_asset_lineage(
+    asset_id: int,
+    session: SessionDep,
+) -> AssetLineageGraphResponse:
+    """Get the lineage graph for an asset."""
+    # Retrieve the Asset
+    asset = session.scalar(
+        select(AssetModel)
+        .where(AssetModel.id == asset_id)
+        .options(
+            joinedload(AssetModel.producing_tasks),
+            joinedload(AssetModel.consuming_tasks),
+        )
+    )
+
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
+
+    nodes: dict[str, AssetLineageNode] = {}
+    edges: list[AssetLineageEdge] = []
+
+    # Add the central asset node
+    asset_node_id = f"asset:{asset.id}"
+    nodes[asset_node_id] = AssetLineageNode(
+        id=asset_node_id,
+        node_type="asset",
+        name=asset.name,
+        uri=asset.uri,
+        group=asset.group,
+    )
+
+    # 1. Add upstream tasks (tasks that produce this asset)
+    for task_ref in asset.producing_tasks:
+        task_node_id = f"task:{task_ref.dag_id}:{task_ref.task_id}"
+        if task_node_id not in nodes:
+            nodes[task_node_id] = AssetLineageNode(
+                id=task_node_id,
+                node_type="task",
+                name=task_ref.task_id,
+            )
+        edges.append(
+            AssetLineageEdge(
+                source_id=task_node_id,
+                target_id=asset_node_id,
+            )
+        )
+
+    # 2. Add downstream tasks (tasks that consume this asset)
+    for task_ref in asset.consuming_tasks:
+        task_node_id = f"task:{task_ref.dag_id}:{task_ref.task_id}"
+        if task_node_id not in nodes:
+            nodes[task_node_id] = AssetLineageNode(
+                id=task_node_id,
+                node_type="task",
+                name=task_ref.task_id,
+            )
+        edges.append(
+            AssetLineageEdge(
+                source_id=asset_node_id,
+                target_id=task_node_id,
+            )
+        )
+
+    # Convert nodes dict to list
+    node_list = list(nodes.values())
+
+    return AssetLineageGraphResponse(nodes=node_list, edges=edges)
 
 
 @assets_router.get(

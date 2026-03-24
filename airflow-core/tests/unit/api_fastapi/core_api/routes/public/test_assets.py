@@ -35,6 +35,7 @@ from airflow.models.asset import (
     AssetModel,
     AssetWatcherModel,
     DagScheduleAssetReference,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dagrun import DagRun
@@ -1573,3 +1574,51 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
             response.json()["detail"]
             == "Queued event with dag_id: `not_exists` and asset_id: `1` was not found"
         )
+
+
+class TestGetAssetLineage(TestAssets):
+    @provide_session
+    def test_should_respond_200_with_lineage(self, test_client, testing_dag_bundle, session):
+        # Create an asset
+        asset1 = AssetModel(name="target_asset", uri="s3://target/asset")
+        session.add(asset1)
+        session.flush()
+
+        # Add inlet and outlet tasks
+        session.add(DagModel(dag_id="upstream_dag", bundle_name="testing"))
+        session.add(DagModel(dag_id="downstream_dag", bundle_name="testing"))
+        session.add(TaskOutletAssetReference(dag_id="upstream_dag", task_id="producer_task", asset=asset1))
+        session.add(TaskInletAssetReference(dag_id="downstream_dag", task_id="consumer_task", asset=asset1))
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset1.id}/lineage")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "nodes" in data
+        assert "edges" in data
+
+        nodes = {node["id"]: node for node in data["nodes"]}
+        assert f"asset:{asset1.id}" in nodes
+        assert nodes[f"asset:{asset1.id}"]["name"] == "target_asset"
+
+        assert "task:upstream_dag:producer_task" in nodes
+        assert "task:downstream_dag:consumer_task" in nodes
+
+        edges = data["edges"]
+        assert len(edges) == 2
+        assert {"source_id": "task:upstream_dag:producer_task", "target_id": f"asset:{asset1.id}"} in edges
+        assert {"source_id": f"asset:{asset1.id}", "target_id": "task:downstream_dag:consumer_task"} in edges
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.get("/assets/999/lineage")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "The Asset with ID: `999` was not found"
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/assets/1/lineage")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/assets/1/lineage")
+        assert response.status_code == 403
