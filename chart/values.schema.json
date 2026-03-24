@@ -6843,7 +6843,7 @@
             }
         },
         "webserver": {
-            "description": "Airflow webserver settings. Airflow 2 only.",
+            "description": "Airflow webserver settings (deprecated, the webserver has been replaced by the API server in Airflow 3. Use the apiServer section instead).",
             "type": "object",
             "x-docsSection": "Webserver",
             "additionalProperties": false,

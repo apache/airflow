@@ -2010,6 +2010,8 @@ apiServer:
     scheme: HTTP
 
 # Airflow webserver settings
+# (deprecated, the webserver component has been replaced by the API server in Airflow 3.
+#  Use the apiServer section instead. This entire section will be removed in a future version.)
 webserver:
   enabled: true
   # Add custom annotations to the webserver configmap

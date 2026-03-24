@@ -222,6 +222,10 @@ your Airflow components only restart when necessary.
 
    This section also applies to the webserver for Airflow 2 (simply replace ``api`` with ``webserver``).
 
+.. deprecated::
+   The ``webserver`` section is deprecated. The webserver component has been replaced by the
+   API server in Airflow 3. Use the ``apiServer`` section instead.
+
 .. warning::
 
    You should use a different secret key for every instance you run, as this key is used to sign

@@ -237,6 +237,15 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if and .Values.webserver.enabled (semverCompare "<3.0.0" .Values.airflowVersion) }}
+
+ DEPRECATION WARNING:
+    The entire `webserver` section is deprecated. The webserver component has been replaced by the
+    API server in Airflow 3. Use the `apiServer` section instead.
+    This section will be removed in a future release.
+
+{{- end }}
+
 {{- if .Values.webserver.securityContext }}
 
  DEPRECATION WARNING:
