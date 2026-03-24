@@ -152,15 +152,33 @@ class TestHITLOperator:
                 params=ParamsDict({"_options": 1}),
             )
 
-    def test_param_without_default_does_not_raise_on_init(self) -> None:
+    @pytest.mark.parametrize(
+        ("params", "expected_key"),
+        [
+            pytest.param(
+                {"my_param": Param(type="string")},
+                "my_param",
+                id="no_default",
+            ),
+            pytest.param(
+                {"my_param": Param("hello", type="string")},
+                "my_param",
+                id="with_default",
+            ),
+            pytest.param(
+                {"param": Param("", type="integer")},
+                "param",
+                id="wrong_value_type",
+            ),
+        ],
+    )
+    def test_param_value_validation_deferred_to_runtime(self, params: dict, expected_key: str) -> None:
         """Regression test for #59551.
 
-        HITLOperator params are form fields filled by a human at runtime. A param with no
-        default value is valid — the human provides the value when submitting the form.
-        Validating param values in __init__ incorrectly raises ParamValidationError at DAG
-        parse time, before any value exists.
+        HITLOperator params are form fields filled by a human at runtime.
+        Value validation (required, schema) must NOT happen in __init__ — it is
+        deferred to ``validate_params_input`` after the human submits the form.
         """
-        # Must not raise ParamValidationError
         op = HITLOperator(
             task_id="hitl_test",
             subject="This is subject",
@@ -168,37 +186,9 @@ class TestHITLOperator:
             body="This is body",
             defaults=["1"],
             multiple=False,
-            params={"my_param": Param(type="string")},
+            params=params,
         )
-        assert "my_param" in op.params
-
-    def test_param_with_default_does_not_raise_on_init(self) -> None:
-        """Params with explicit defaults continue to work normally."""
-        op = HITLOperator(
-            task_id="hitl_test",
-            subject="This is subject",
-            options=["1", "2"],
-            body="This is body",
-            defaults=["1"],
-            multiple=False,
-            params={"my_param": Param("hello", type="string")},
-        )
-        assert "my_param" in op.params
-
-    def test_param_with_wrong_value_type_does_not_raise_on_init(self) -> None:
-        """Value validation is deferred to validate_params_input at runtime, not __init__."""
-        # Param("", type="integer") has a value that doesn't match the schema, but
-        # this must NOT raise at init time — the human will provide the correct value at runtime.
-        op = HITLOperator(
-            task_id="hitl_test",
-            subject="This is subject",
-            options=["1", "2"],
-            body="This is body",
-            defaults=["1"],
-            multiple=False,
-            params={"param": Param("", type="integer")},
-        )
-        assert "param" in op.params
+        assert expected_key in op.params
 
     def test_validate_defaults(self) -> None:
         hitl_op = HITLOperator(

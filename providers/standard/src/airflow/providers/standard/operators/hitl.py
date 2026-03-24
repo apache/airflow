@@ -149,7 +149,7 @@ class HITLOperator(BaseOperator):
 
         Note: Value validation (e.g., required fields, schema) is intentionally skipped here
         because HITLOperator params represent form fields that are filled by a human at runtime.
-        Values do not exist at DAG parse time, so validating them in ``__init__`` would cause
+        Values do not exist at Dag parse time, so validating them in ``__init__`` would cause
         a ``ParamValidationError`` for any param without a default. Value validation happens
         in ``validate_params_input`` after the human submits the form.
 
