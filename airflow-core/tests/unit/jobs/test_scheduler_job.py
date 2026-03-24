@@ -3321,16 +3321,61 @@ class TestSchedulerJob:
                 dag_run = dag_maker.create_dagrun_after(
                     dag_run, run_type=DagRunType.SCHEDULED, state=State.QUEUED
                 )
-        # unique something
 
         self.job_runner._start_queued_dagruns(session)
         session.flush()
 
-        dagrun_count = session.scalar(
+        running_dagrun_count = session.scalar(
             select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
         )
 
-        assert dagrun_count == max_active_runs * len(dag_ids)
+        assert running_dagrun_count == max_active_runs * len(dag_ids)
+
+    def test_no_more_dagruns_are_set_to_running_when_max_active_runs_exceeded(self, dag_maker, session):
+        """
+        Test that dagruns are not moved to running if there are more than the max_active_runs running dagruns
+        """
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        max_active_runs = 1
+        with dag_maker(
+            dag_id="test_dag",
+            max_active_runs=max_active_runs,
+            session=session,
+            catchup=True,
+            schedule=timedelta(seconds=60),
+            start_date=DEFAULT_DATE,
+        ):
+            # Need to use something that doesn't immediately get marked as success by the scheduler
+            BashOperator(task_id="task", bash_command="true")
+
+        dag_run = dag_maker.create_dagrun(state=State.RUNNING, session=session, run_type=DagRunType.SCHEDULED)
+
+        for _ in range(5):
+            # create a bunch of dagruns in queued state, to make sure they are filtered by max_active_runs
+            dag_run = dag_maker.create_dagrun_after(
+                dag_run, run_type=DagRunType.SCHEDULED, state=State.RUNNING
+            )
+
+        running_dagruns_pre = session.scalar(
+            select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
+        )
+
+        for _ in range(5):
+            # create a bunch of dagruns in queued state, to make sure they are filtered by max_active_runs
+            dag_run = dag_maker.create_dagrun_after(
+                dag_run, run_type=DagRunType.SCHEDULED, state=State.QUEUED
+            )
+
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        running_dagruns_post = session.scalar(
+            select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
+        )
+
+        assert running_dagruns_pre == running_dagruns_post
 
     def test_dagrun_timeout_verify_max_active_runs(self, dag_maker, session):
         """
