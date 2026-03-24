@@ -165,7 +165,7 @@ def main() -> int:
             f"[yellow]CLI definition files (*/cli/definition.py) should only import from:[/]\n"
             "  - airflow.configuration\n"
             "  - airflow.cli.cli_config\n"
-            "  - airflow.providers.common.compat.sdk\n"
+            "  - airflow.providers.common.compat.sdk.conf\n"
             "  - Their own provider's version_compat module\n"
             f"  - Standard library modules ({', '.join(STDLIB_PREFIXES)})\n"
         )
