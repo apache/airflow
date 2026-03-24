@@ -690,10 +690,11 @@ class DagFileProcessorManager(LoggingMixin):
 
             known_files[bundle.name] = found_files
 
-            self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
+            observed_filelocs = self._get_observed_filelocs(found_files)
+            self.deactivate_deleted_dags(bundle_name=bundle.name, observed_filelocs=observed_filelocs)
             self.clear_orphaned_import_errors(
                 bundle_name=bundle.name,
-                observed_filelocs={str(x.rel_path) for x in found_files},  # todo: make relative
+                observed_filelocs=observed_filelocs,
             )
 
         if any_refreshed:
@@ -710,17 +711,17 @@ class DagFileProcessorManager(LoggingMixin):
 
         return rel_paths
 
-    def deactivate_deleted_dags(self, bundle_name: str, present: set[DagFileInfo]) -> None:
-        """Deactivate DAGs that come from files that are no longer present in bundle."""
+    def _get_observed_filelocs(self, present: set[DagFileInfo]) -> set[str]:
+        """
+        Return observed DAG source paths for bundle entries.
+
+        For regular files this includes the relative file path.
+        For ZIP archives this includes DAG-like inner paths such as
+        ``archive.zip/dag.py``.
+        """
 
         def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
-            """
-            Find dag files in zip file located at abs_path.
-
-            We return the abs "paths" formed by joining the relative path inside the zip
-            with the path to the zip.
-
-            """
+            """Yield absolute paths for DAG-like files inside a ZIP archive."""
             try:
                 with zipfile.ZipFile(abs_path) as z:
                     for info in z.infolist():
@@ -729,22 +730,26 @@ class DagFileProcessorManager(LoggingMixin):
             except zipfile.BadZipFile:
                 self.log.exception("There was an error accessing ZIP file %s", abs_path)
 
-        rel_filelocs: list[str] = []
+        observed_filelocs: set[str] = set()
         for info in present:
             abs_path = str(info.absolute_path)
             if abs_path.endswith(".py") or not zipfile.is_zipfile(abs_path):
-                rel_filelocs.append(str(info.rel_path))
+                observed_filelocs.add(str(info.rel_path))
             else:
                 if TYPE_CHECKING:
                     assert info.bundle_path
                 for abs_sub_path in find_zipped_dags(abs_path=info.absolute_path):
                     rel_sub_path = Path(abs_sub_path).relative_to(info.bundle_path)
-                    rel_filelocs.append(str(rel_sub_path))
+                    observed_filelocs.add(str(rel_sub_path))
 
+        return observed_filelocs
+
+    def deactivate_deleted_dags(self, bundle_name: str, observed_filelocs: set[str]) -> None:
+        """Deactivate DAGs that come from files that are no longer present in bundle."""
         with create_session() as session:
             any_deactivated = DagModel.deactivate_deleted_dags(
                 bundle_name=bundle_name,
-                rel_filelocs=rel_filelocs,
+                rel_filelocs=observed_filelocs,
                 session=session,
             )
             # Only run cleanup if we actually deactivated any DAGs
