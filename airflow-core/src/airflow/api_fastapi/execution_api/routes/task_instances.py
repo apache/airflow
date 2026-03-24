@@ -29,6 +29,9 @@ import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, Security, status
+from opentelemetry import trace
+from opentelemetry.trace import StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
@@ -37,6 +40,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.traces import override_ids
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -87,6 +91,7 @@ ti_id_router = VersionedAPIRouter(
 
 
 log = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 @ti_id_router.patch(
@@ -431,6 +436,46 @@ def ti_update_state(
         )
 
 
+def _emit_task_span(ti, state):
+    # just to be safe
+    if not ti.dag_run:
+        return
+    if not isinstance(ti.dag_run.context_carrier, dict):
+        return
+    if not isinstance(ti.context_carrier, dict):
+        return
+    dr_ctx = TraceContextTextMapPropagator().extract(ti.dag_run.context_carrier)
+
+    ti_ctx = TraceContextTextMapPropagator().extract(ti.context_carrier)
+    ti_span = trace.get_current_span(context=ti_ctx)
+    span_context = ti_span.get_span_context()
+    start_time_candidates = (x for x in (ti.queued_dttm, ti.start_date, timezone.utcnow()) if x)
+    name = f"task_run.{ti.task_id}"
+    if ti.map_index >= 0:
+        name += f"[{ti.map_index}]"
+    with override_ids(span_context.trace_id, span_context.span_id):
+        span = tracer.start_span(
+            name=name,
+            start_time=int(min(start_time_candidates).timestamp() * 1e9),
+            context=dr_ctx,
+        )
+
+        span.set_attributes(
+            {
+                "airflow.dag_id": ti.dag_id,
+                "airflow.task_id": ti.task_id,
+                "airflow.dag_run.run_id": ti.run_id,
+                "airflow.task_instance.try_number": ti.try_number,
+                "airflow.task_instance.map_index": ti.map_index if ti.map_index is not None else -1,
+                "airflow.task_instance.state": state,
+                "airflow.task_instance.id": ti.id,
+            }
+        )
+        status_code = StatusCode.OK if state == TaskInstanceState.SUCCESS else StatusCode.ERROR
+        span.set_status(status_code)
+        span.end()
+
+
 def _handle_fail_fast_for_dag(ti: TI, dag_id: str, session: SessionDep, dag_bag: DagBagDep) -> None:
     dr = ti.dag_run
 
@@ -479,6 +524,7 @@ def _create_ti_state_update_query_and_update_state(
                     ti_patch_payload.outlet_events,
                     session,
                 )
+        _emit_task_span(ti, state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
         timeout = None
