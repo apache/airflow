@@ -661,7 +661,7 @@ class DagRun(Base, LoggingMixin):
                 DagRun.dag_id,
                 DagRun.id,
                 func.row_number()
-                .over(partition_by=[DagRun.dag_id, DagRun.backfill_id], uorder_by=DagRun.logical_date)
+                .over(partition_by=[DagRun.dag_id, DagRun.backfill_id], order_by=DagRun.logical_date)
                 .label("rn"),
             )
             .where(DagRun.state == DagRunState.QUEUED)
@@ -712,7 +712,6 @@ class DagRun(Base, LoggingMixin):
                 <= coalesce(
                     Backfill.max_active_runs,
                     DagModel.max_active_runs,
-                    airflow_conf.getint("core", "max_active_runs_per_dag"),
                 )
                 - coalesce(running_drs.c.num_running, 0),
                 # don't set paused dag runs as running
