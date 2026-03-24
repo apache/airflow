@@ -100,11 +100,12 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``fix DataprocSubmitTrigger deferred tasks stuck forever (#62082)``
-* ``fix(google-ads): support flat extra format from connection form (#62791)``
-* ``fix sanitize Dataproc batch labels to use dashes instead of underscores (#62926)``
-* ``fix wrap sync get_job with sync_to_async in BigQueryAsyncHook (#63230)``
-* ``fix non-deferrable reconciliation and handle deletion during creation in DataprocCreateClusterOperator (#61951)``
+* ``Fix DataprocSubmitTrigger deferred tasks stuck forever (#62082)``
+* ``Fix support flat extra format from connection form (#62791)``
+* ``Fix sanitize Dataproc batch labels to use dashes instead of underscores (#62926)``
+* ``Fix wrap sync get_job with sync_to_async in BigQueryAsyncHook (#63230)``
+* ``Fix non-deferrable reconciliation and handle deletion during creation in DataprocCreateClusterOperator (#61951)``
+* ``Fix SSRF in Bid Manager report download via URL allowlist (#64180)``
 
 Misc
 ~~~~
@@ -114,6 +115,11 @@ Misc
 * ``Mypy fix errors in kubernetes, fab, google, and amazon providers (#63947)``
 * ``Mypy fix errors in TrinoToGCSOperator (#62998)``
 * ``Remove PyOpenSSL from dependencies (#63869)``
+
+Doc-only
+~~~~~~~~
+
+* ``fix typos and spelling (#64139)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -134,6 +140,7 @@ Misc
    * ``Prepare providers release 2026-03-09 (#63198)``
    * ``Add known issue notice for version 19.5.0 (#61927)``
    * ``Update google change log for release 21.0 (#64091)``
+   * ``clean google changelog.rst (#64112)``
 
 20.0.0
 ......
