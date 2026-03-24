@@ -208,7 +208,6 @@ def execute_workload(input: str) -> None:
     from pydantic import TypeAdapter
 
     from airflow.executors.workloads import ExecutorWorkload
-    from airflow.providers.common.compat.sdk import conf
 
     decoder = TypeAdapter[ExecutorWorkload](ExecutorWorkload)
     workload = decoder.validate_json(input)

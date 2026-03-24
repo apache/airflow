@@ -141,3 +141,15 @@ class BaseDagBundleWorkload(BaseWorkloadSchema, ABC):
         Must be implemented by subclasses.
         """
         raise NotImplementedError(f"{self.__class__.__name__} must implement failure_state")
+
+    @property
+    def running_state(self) -> WorkloadState | None:
+        """
+        Return the state value representing that this workload is actively running.
+
+        Called by the executor worker *before* execution begins. Subclasses may override
+        this to emit an intermediate state transition (e.g. callbacks need
+        QUEUED → RUNNING → SUCCESS/FAILED). Returns ``None`` by default, meaning
+        no intermediate state is emitted.
+        """
+        return None

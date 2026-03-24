@@ -110,6 +110,9 @@ def _run_worker(
         with unread_messages:
             unread_messages.value -= 1
 
+        if workload.running_state is not None:
+            output.put((workload.key, workload.running_state, None))
+
         try:
             _execute_workload(log, workload, team_conf)
             output.put((workload.key, workload.success_state, None))

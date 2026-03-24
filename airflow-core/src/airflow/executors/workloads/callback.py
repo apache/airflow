@@ -97,6 +97,10 @@ class ExecuteCallback(BaseDagBundleWorkload):
     def failure_state(self) -> CallbackState:
         return CallbackState.FAILED
 
+    @property
+    def running_state(self) -> CallbackState:
+        return CallbackState.RUNNING
+
     @classmethod
     def make(
         cls,
