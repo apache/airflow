@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import posixpath
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
@@ -113,6 +114,9 @@ MAP_BULK_ACTION_TO_AUTH_METHOD: dict[BulkAction, ResourceMethod] = {
 }
 
 
+log = logging.getLogger(__name__)
+
+
 async def resolve_user_from_token(token_str: str | None) -> BaseUser:
     if not token_str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
@@ -123,6 +127,9 @@ async def resolve_user_from_token(token_str: str | None) -> BaseUser:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Expired")
     except InvalidTokenError:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
+    except Exception:
+        log.exception("Unexpected error during token authentication")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
 
 async def get_user(
@@ -140,6 +147,13 @@ async def get_user(
         token_str = bearer_credentials.credentials
     elif oauth_token:
         token_str = oauth_token
+    elif request.headers.get("authorization"):
+        # An Authorization header is present but neither security scheme recognized it
+        # (e.g. the token was sent without the "Bearer" prefix).
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Authorization header format. Expected: 'Bearer <token>'",
+        )
     else:
         token_str = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
 
