@@ -311,6 +311,10 @@
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",
+  "validation": {
+    "mustBeAtLeast": "Must be at least {{min}}.",
+    "mustBeValidNumber": "Must be a valid number."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
