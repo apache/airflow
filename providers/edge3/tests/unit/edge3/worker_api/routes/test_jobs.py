@@ -199,10 +199,13 @@ class TestJobsApiRoutes:
             session.add_all([job_team_a, job_no_team])
             session.commit()
 
-            body = WorkerQueuesBody(free_concurrency=2, queues=[QUEUE], team_name=None)
-            result1 = fetch("worker1", body, session)
+            body1 = WorkerQueuesBody(free_concurrency=2, queues=[QUEUE], team_name="team_a")
+            result1 = fetch("worker1", body1, session)
             assert result1 is not None
-            result2 = fetch("worker1", body, session)
+            body2 = WorkerQueuesBody(free_concurrency=2, queues=[QUEUE], team_name=None)
+            result2 = fetch("worker1", body2, session)
             assert result2 is not None
+            result3 = fetch("worker1", body2, session)
+            assert result3 is None
             fetched_dag_ids = {result1.dag_id, result2.dag_id}
             assert fetched_dag_ids == {"dag_a", "dag_b"}
