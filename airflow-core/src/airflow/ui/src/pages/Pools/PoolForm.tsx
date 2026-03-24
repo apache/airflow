@@ -42,6 +42,8 @@ type PoolFormProps = {
   readonly setError: (error: unknown) => void;
 };
 
+const POOL_SLOTS_MIN = -1;
+
 const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: PoolFormProps) => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const {
@@ -91,7 +93,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           <Field.Root invalid={Boolean(fieldState.error)} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
             <Input
-              min={-1}
+              min={POOL_SLOTS_MIN}
               onBlur={field.onBlur}
               onChange={(event) => {
                 const { value: raw, valueAsNumber } = event.target;
@@ -111,7 +113,16 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           </Field.Root>
         )}
         rules={{
-          validate: (value) => Number.isFinite(value) || translate("common:validation.mustBeValidNumber"),
+          validate: (value: number) => {
+            if (!Number.isFinite(value)) {
+              return translate("common:validation.mustBeValidNumber");
+            }
+            if (value < POOL_SLOTS_MIN) {
+              return translate("common:validation.mustBeAtLeast", { min: POOL_SLOTS_MIN });
+            }
+
+            return true;
+          },
         }}
       />
 

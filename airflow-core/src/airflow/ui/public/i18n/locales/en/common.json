@@ -350,6 +350,7 @@
   "tryNumber": "Try Number",
   "user": "User",
   "validation": {
+    "mustBeAtLeast": "Must be at least {{min}}.",
     "mustBeValidNumber": "Must be a valid number."
   },
   "wrap": {
