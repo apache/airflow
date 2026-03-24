@@ -24,7 +24,7 @@
 {{- if hasKey .Values.workers "celery" }}
   {{- $kedaEnabled = or .Values.workers.celery.keda.enabled (and (not (has .Values.workers.celery.keda.enabled (list true false))) .Values.workers.keda.enabled) }}
 {{- end }}
-{{- $workersKedaEnabled := and $kedaEnabled (has .Values.executor (list "CeleryExecutor" "CeleryKubernetesExecutor")) }}
+{{- $workersKedaEnabled := and $kedaEnabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
 {{- $triggererEnabled := .Values.triggerer.enabled }}
 {{- $triggererKedaEnabled := and $triggererEnabled .Values.triggerer.keda.enabled }}
 {{- if and .Values.pgbouncer.enabled .Values.networkPolicies.enabled }}

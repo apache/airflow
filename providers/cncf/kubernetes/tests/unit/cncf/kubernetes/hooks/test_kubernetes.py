@@ -330,6 +330,49 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
+        "config_source",
+        [
+            pytest.param("kube_config_path", id="kube_config_path"),
+            pytest.param("kube_config", id="kube_config"),
+            pytest.param("config_dict", id="config_dict"),
+            pytest.param("default", id="default_client"),
+        ],
+    )
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigMerger", new=MagicMock())
+    def test_disable_verify_ssl_applies_to_client_configuration(self, config_source):
+        """
+        Verifies that when disable_verify_ssl=True, the returned ApiClient has verify_ssl=False.
+
+        Previously, _disable_verify_ssl() only mutated the global default configuration via
+        Configuration.set_default(), but config.load_kube_config() would subsequently overwrite
+        that default with verify_ssl=True from the kubeconfig file. This test ensures that
+        verify_ssl=False is correctly propagated to the returned ApiClient's configuration.
+        """
+        if config_source == "kube_config_path":
+            kubernetes_hook = KubernetesHook(
+                conn_id="kube_config_path",
+                disable_verify_ssl=True,
+            )
+        elif config_source == "kube_config":
+            kubernetes_hook = KubernetesHook(
+                conn_id="kube_config",
+                disable_verify_ssl=True,
+            )
+        elif config_source == "config_dict":
+            kubernetes_hook = KubernetesHook(
+                config_dict={"apiVersion": "v1", "kind": "Config"},
+                disable_verify_ssl=True,
+            )
+        else:
+            kubernetes_hook = KubernetesHook(disable_verify_ssl=True)
+
+        api_conn = kubernetes_hook.get_conn()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert api_conn.configuration.verify_ssl is False
+
+    @pytest.mark.parametrize(
         ("disable_tcp_keepalive", "conn_id", "expected"),
         (
             (True, None, False),
@@ -514,7 +557,7 @@ class TestKubernetesHook:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri):
             kubernetes_hook = KubernetesHook(conn_id="kubernetes_default")
             kubernetes_hook.get_conn()
-            mock_get_client.assert_called_with(cluster_context="test")
+            mock_get_client.assert_called_with(cluster_context="test", disable_verify_ssl=None)
             assert kubernetes_hook.get_namespace() == "test"
 
     def test_missing_default_connection_is_ok(self, remove_default_conn, sdk_connection_not_found):
@@ -1552,7 +1595,10 @@ class TestAsyncKubernetesHook:
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
     async def test_read_logs(self, lib_method, kube_config_loader):
-        lib_method.return_value = self.mock_await_result("2023-01-11 Some string logs...")
+        mock_raw_resp = mock.AsyncMock()
+        mock_raw_resp.read = mock.AsyncMock(return_value=b"2023-01-11 Some string logs...")
+        lib_method.return_value = self.mock_await_result(mock_raw_resp)
+
         hook = AsyncKubernetesHook(
             conn_id=None,
             in_cluster=False,
@@ -1575,9 +1621,40 @@ class TestAsyncKubernetesHook:
             follow=False,
             timestamps=True,
             since_seconds=10,
+            _preload_content=False,
         )
         assert len(logs) == 1
         assert "2023-01-11 Some string logs..." in logs
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
+    async def test_read_logs_handles_non_utf8_bytes(self, lib_method, kube_config_loader):
+        """Non-UTF-8 bytes in pod logs are replaced instead of raising UnicodeDecodeError."""
+        raw_bytes = b"2023-01-11 valid line\n2023-01-11 broken \x80\x81 bytes"
+
+        mock_raw_resp = mock.AsyncMock()
+        mock_raw_resp.read = mock.AsyncMock(return_value=raw_bytes)
+        lib_method.return_value = self.mock_await_result(mock_raw_resp)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        logs = await hook.read_logs(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+            container_name=CONTAINER_NAME,
+        )
+
+        assert len(logs) == 2
+        assert "valid line" in logs[0]
+        # Non-UTF-8 bytes replaced with U+FFFD
+        assert "\ufffd" in logs[1]
+        lib_method.assert_called_once()
+        assert lib_method.call_args.kwargs.get("_preload_content") is False
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))

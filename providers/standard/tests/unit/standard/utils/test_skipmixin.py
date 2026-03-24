@@ -26,7 +26,11 @@ from sqlalchemy import select
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.common.compat.sdk import AirflowException, SkipMixin
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
+
+try:
+    from airflow.providers.common.compat.sdk import timezone
+except ImportError:  # Fallback for Airflow < 3.1
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -104,7 +108,7 @@ class TestSkipMixin:
         else:
             session = Mock()
             assert SkipMixin().skip(dag_run=None, execution_date=None, tasks=[]) is None
-            assert not session.query.called
+            assert not session.scalars.called
             assert not session.commit.called
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")

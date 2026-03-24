@@ -149,7 +149,7 @@ class AzureDataFactoryHook(BaseHook):
     """
     A hook to interact with Azure Data Factory.
 
-    :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
+    :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:azure_data_factory>`.
     """
 
     conn_type: str = "azure_data_factory"
@@ -1111,7 +1111,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
     """
     An Async Hook that connects to Azure DataFactory to perform pipeline operations.
 
-    :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
+    :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:azure_data_factory>`.
     """
 
     default_conn_name: str = "azure_data_factory_default"

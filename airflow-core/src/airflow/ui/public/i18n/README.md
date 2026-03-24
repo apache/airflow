@@ -332,16 +332,16 @@ Adding missing translations (with `TODO: translate` prefix):
 breeze ui check-translation-completeness --language <language_code> --add-missing
 ```
 
-You can also remove extra translations from the language of your choice:
+You can also remove unused translations from the language of your choice:
 
 ```bash
-breeze ui check-translation-completeness --language <language_code> --remove-extra
+breeze ui check-translation-completeness --language <language_code> --remove-unused
 ```
 
 Or from all languages:
 
 ```bash
-breeze ui check-translation-completeness --remove-extra
+breeze ui check-translation-completeness --remove-unused
 ```
 
 

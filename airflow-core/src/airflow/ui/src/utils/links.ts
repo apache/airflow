@@ -89,7 +89,7 @@ export const buildTaskInstanceUrl = (params: {
 
   let basePath = `/dags/${dagId}/runs/${runId}/tasks/${groupPath}${taskId}`;
 
-  if (isMapped) {
+  if (isMapped && !isGroup) {
     basePath += `/mapped`;
     if (mapIndex !== undefined && mapIndex !== "-1") {
       basePath += `/${mapIndex}`;

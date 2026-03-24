@@ -46,5 +46,8 @@ def upgrade():
 
 def downgrade():
     """Remove allowed_run_types column from dag table."""
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.drop_column("allowed_run_types")
+    from airflow.migrations.utils import disable_sqlite_fkeys
+
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.drop_column("allowed_run_types")

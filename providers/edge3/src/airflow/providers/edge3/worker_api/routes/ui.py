@@ -38,8 +38,10 @@ from airflow.providers.edge3.models.edge_worker import (
     remove_worker_queues,
     request_maintenance,
     request_shutdown,
+    set_worker_concurrency,
 )
 from airflow.providers.edge3.worker_api.datamodels_ui import (
+    ConcurrencyRequest,
     Job,
     JobCollectionResponse,
     MaintenanceRequest,
@@ -323,5 +325,28 @@ def remove_worker_queue(
 
     try:
         remove_worker_queues(worker_name, [queue_name], session=session)
+    except Exception as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@ui_router.patch(
+    "/worker/{worker_name}/concurrency",
+    dependencies=[
+        Depends(requires_access_view(access_view=AccessView.JOBS)),
+    ],
+)
+def set_worker_concurrency_limit(
+    worker_name: str,
+    concurrency_request: ConcurrencyRequest,
+    session: SessionDep,
+) -> None:
+    """Set the concurrency limit for an edge worker."""
+    worker_query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker = session.scalar(worker_query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Worker {worker_name} not found")
+
+    try:
+        set_worker_concurrency(worker_name, concurrency_request.concurrency, session=session)
     except Exception as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))

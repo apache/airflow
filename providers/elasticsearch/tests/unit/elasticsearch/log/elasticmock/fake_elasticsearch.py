@@ -316,7 +316,9 @@ class FakeElasticsearch(Elasticsearch):
         "version",
         "version_type",
     )
-    def index(self, index, doc_type, body, id=None, params=None, headers=None):
+    def index(self, index, document=None, doc_type=None, body=None, id=None, params=None, headers=None):
+        if document is None:
+            document = body
         if index not in self.__documents_dict:
             self.__documents_dict[index] = []
 
@@ -329,7 +331,7 @@ class FakeElasticsearch(Elasticsearch):
             {
                 "_type": doc_type,
                 "_id": id,
-                "_source": body,
+                "_source": document,
                 "_index": index,
                 "_version": version,
                 "_headers": headers,

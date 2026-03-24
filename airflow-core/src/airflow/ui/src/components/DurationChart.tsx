@@ -35,8 +35,9 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
+import { useTimezone } from "src/context/timezone";
 import { getComputedCSSVariableValue } from "src/theme";
-import { DEFAULT_DATETIME_FORMAT, renderDuration } from "src/utils/datetimeUtils";
+import { DEFAULT_DATETIME_FORMAT, formatDate, renderDuration } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 ChartJS.register(
@@ -69,15 +70,35 @@ const getDuration = (start: string, end: string | null) => {
   return dayjs.duration(endDate.diff(startDate)).asSeconds();
 };
 
+const getTickLabelFormat = (entries: Array<RunResponse>): string => {
+  if (entries.length < 2) {
+    return "HH:mm:ss";
+  }
+
+  const first = dayjs(entries[0]?.run_after);
+  const last = dayjs(entries[entries.length - 1]?.run_after);
+
+  if (!first.isValid() || !last.isValid()) {
+    return "MMM DD";
+  }
+
+  const diffInDays = Math.abs(last.diff(first, "day"));
+
+  return diffInDays < 1 ? "HH:mm:ss" : "MMM DD HH:mm";
+};
+
 export const DurationChart = ({
   entries,
+  isAutoRefreshing = false,
   kind,
 }: {
   readonly entries: Array<RunResponse> | undefined;
+  readonly isAutoRefreshing?: boolean;
   readonly kind: "Dag Run" | "Task Instance";
 }) => {
   const { t: translate } = useTranslation(["components", "common"]);
   const navigate = useNavigate();
+  const { selectedTimezone } = useTimezone();
   const [queuedColorToken] = useToken("colors", ["queued.solid"]);
 
   // Get states and create color tokens for them
@@ -175,6 +196,7 @@ export const DurationChart = ({
         }}
         datasetIdKey="id"
         options={{
+          animation: isAutoRefreshing ? false : undefined,
           onClick: (_event, elements) => {
             const [element] = elements;
 
@@ -239,6 +261,8 @@ export const DurationChart = ({
             x: {
               stacked: true,
               ticks: {
+                callback: (_value, index) =>
+                  formatDate(entries[index]?.run_after, selectedTimezone, getTickLabelFormat(entries)),
                 maxTicksLimit: 3,
               },
               title: { align: "end", display: true, text: translate("common:dagRun.runAfter") },

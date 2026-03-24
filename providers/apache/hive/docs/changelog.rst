@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+9.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make hive cli 'zooKeeperNamespace' and 'ssl' parameters configurable (#63193)``
+
+Misc
+~~~~
+
+* ``Made sqlalchemy dependency optional for hive (#62329)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``change to owner airflow in example dag (#62957)``
+
 9.3.0
 .....
 

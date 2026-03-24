@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -60,7 +61,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.8.0",
-    "gremlinpython>=3.7.3",
+    "gremlinpython>=3.8.0",
 ]
 
 [dependency-groups]

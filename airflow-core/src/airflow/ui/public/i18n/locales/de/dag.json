@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "Auf Letzten zurücksetzen",
       "toggleGroup": "Gruppen umschalten"
-    }
+    },
+    "runTypeLegend": "Legende für Lauf-Typen"
   },
   "header": {
     "buttons": {

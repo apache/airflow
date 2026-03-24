@@ -38,6 +38,7 @@ export const supportedLanguages = [
   { code: "nl", name: "Nederlands" },
   { code: "pl", name: "Polski" },
   { code: "pt", name: "Português" },
+  { code: "ru", name: "Русский" },
   { code: "th", name: "ไทย" },
   { code: "tr", name: "Türkçe" },
   { code: "zh-CN", name: "简体中文" },

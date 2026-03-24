@@ -21,6 +21,7 @@ import contextlib
 import enum
 import getpass
 import json
+import logging
 import os
 import sys
 from collections.abc import Callable
@@ -32,6 +33,13 @@ import keyring
 import structlog
 from httpx import URL
 from keyring.errors import NoKeyringError
+from tenacity import (
+    before_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 from uuid6 import uuid7
 
 from airflowctl import __version__ as version
@@ -261,6 +269,20 @@ class BearerAuth(httpx.Auth):
         yield request
 
 
+def _should_retry_api_request(exception: BaseException) -> bool:
+    """Determine if an API request should be retried based on the exception type."""
+    if isinstance(exception, httpx.HTTPStatusError):
+        return exception.response.status_code >= 500
+
+    return isinstance(exception, httpx.RequestError)
+
+
+# API Client Retry Configuration
+API_RETRIES = int(os.getenv("AIRFLOW_CLI_API_RETRIES", "3"))
+API_RETRY_WAIT_MIN = int(os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MIN", "1"))
+API_RETRY_WAIT_MAX = int(os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MAX", "10"))
+
+
 class Client(httpx.Client):
     """Client for the Airflow REST API."""
 
@@ -297,6 +319,23 @@ class Client(httpx.Client):
         if kind == ClientKind.AUTH:
             return f"{base_url}/auth"
         return f"{base_url}/api/v2"
+
+    @retry(
+        retry=retry_if_exception(_should_retry_api_request),
+        stop=stop_after_attempt(API_RETRIES),
+        wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
+        before_sleep=before_log(log, logging.WARNING),
+        reraise=True,
+    )
+    def request(self, *args, **kwargs):
+        """Implement a convenience for httpx.Client.request with a retry layer."""
+        # Set content type as convenience if not already set
+        if kwargs.get("content", None) is not None and "content-type" not in (
+            kwargs.get("headers", {}) or {}
+        ):
+            kwargs["headers"] = {"content-type": "application/json"}
+
+        return super().request(*args, **kwargs)
 
     @lru_cache()  # type: ignore[prop-decorator]
     @property

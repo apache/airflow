@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add real-time concurrency control for edge workers via UI (#63142)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Centralized runtime control of Edge Worker concurrency in distributed deployments (#62896)``
+* ``Fix _execution_api_server_url() reading edge.api_url when execution_api_server_url is already set (#63192)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs(edge3): add set-worker-concurrency command to deployment guide (#63083)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``chore(deps): bump the edge-ui-package-updates group across 1 directory with 6 updates (#63070)``
+   * ``Upgrade 'tar' (#62939)``
+   * ``Update dependencies for TS code (#62678)``
+
 3.1.0
 .....
 
@@ -255,14 +280,14 @@ Misc
 
 .. warning::
   The React Plugin integration in this release is incompatible with Airflow 3.1.0
-  It is recommended to use apache-airflow>=3.1.1
+  It is recommended to use apache-airflow>=3.2.0
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix Link to Dag in Plugin (#55642)``
 * ``Bugfix/support Subpath w/o Execution API Url (#57372)``
-* ``Adjust authentication token after UI changes in Airflow 3.1.1 (#57370)``
+* ``Adjust authentication token after UI changes in Airflow 3.2.0 (#57370)``
 
 Misc
 ~~~~

@@ -904,7 +904,7 @@ You can run this command to do it for you (including checksum verification for y
 
 ```shell script
 # Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
-wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
 echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
 tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
 ```
@@ -991,12 +991,17 @@ release packages:
 
 ```shell script
 cd ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}
-```
-
-And running this:
-
-
-```shell script
+echo
+echo "Checking Airflow ${VERSION_RC} Signatures"
+echo
+for i in *.asc
+do
+   echo -e "Checking $i\n"; gpg --verify $i
+done
+cd ../task-sdk/${TASK_SDK_VERSION_RC}
+echo
+echo "Checking TaskSDK ${TASK_SDK_VERSION_RC} Signatures"
+echo
 for i in *.asc
 do
    echo -e "Checking $i\n"; gpg --verify $i
@@ -1012,32 +1017,74 @@ this is a valid key already.  To suppress the warning you may edit the key's tru
 by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
-Checking apache-airflow-3.0.5rc4.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-3.0.5rc4.tar.gz'
-gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Checking Airflow 3.1.8rc1 Signatures
 
-Checking apache_airflow-3.0.5rc4-py2.py3-none-any.whl.asc
-gpg: assuming signed data in 'apache_airflow-3.0.5rc4-py2.py3-none-any.whl'
-gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Checking apache_airflow-3.1.8-py3-none-any.whl.asc
 
-Checking apache-airflow-3.0.5rc4-source.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-3.0.5rc4-source.tar.gz'
-gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
+gpg: assuming signed data in 'apache_airflow-3.1.8-py3-none-any.whl'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow-3.1.8-source.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow-3.1.8-source.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:06 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow-3.1.8.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow-3.1.8.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:06 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow_core-3.1.8-py3-none-any.whl.asc
+
+gpg: assuming signed data in 'apache_airflow_core-3.1.8-py3-none-any.whl'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow_core-3.1.8.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow_core-3.1.8.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+
+Checking TaskSDK 1.1.8rc1 Signatures
+
+Checking apache_airflow_task_sdk-1.1.8-py3-none-any.whl.asc
+
+gpg: assuming signed data in 'apache_airflow_task_sdk-1.1.8-py3-none-any.whl'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow_task_sdk-1.1.8.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow_task_sdk-1.1.8.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
 ```
 
 ## SHA512 sum check
@@ -1045,6 +1092,18 @@ Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 Run this:
 
 ```shell script
+cd ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}
+echo
+echo "Checking Airflow ${VERSION_RC} Checksums"
+echo
+for i in *.sha512
+do
+    echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
+done
+cd ../task-sdk/${TASK_SDK_VERSION_RC}
+echo
+echo "Checking TaskSDK ${TASK_SDK_VERSION_RC} Checksums"
+echo
 for i in *.sha512
 do
     echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
@@ -1054,9 +1113,18 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-3.1.3rc4.tar.gz.sha512
-Checking apache_airflow-3.1.3rc4-py2.py3-none-any.whl.sha512
-Checking apache_airflow-3.1.3rc4-source.tar.gz.sha512
+Checking Airflow 3.1.8rc1 Checksums
+
+Checking apache_airflow-3.1.8-py3-none-any.whl.sha512
+Checking apache_airflow-3.1.8-source.tar.gz.sha512
+Checking apache_airflow-3.1.8.tar.gz.sha512
+Checking apache_airflow_core-3.1.8-py3-none-any.whl.sha512
+Checking apache_airflow_core-3.1.8.tar.gz.sha512
+
+Checking TaskSDK 1.1.8rc1 Checksums
+
+Checking apache_airflow_task_sdk-1.1.8-py3-none-any.whl.sha512
+Checking apache_airflow_task_sdk-1.1.8.tar.gz.sha512
 ```
 
 ## Optional: Automated verification using Breeze
@@ -1245,7 +1313,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.10 3.11 3.12 3.13
+for PYTHON in 3.10 3.11 3.12 3.13 3.14
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}

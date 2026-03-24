@@ -41,12 +41,13 @@ from enum import Enum
 from pathlib import Path
 
 import requests
+from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console, retrieve_gh_token
 from packaging.version import Version
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
-from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_ROOT_PATH, console, retrieve_gh_token
-
 DOCKER_IMAGES_EXAMPLE_DIR_PATH = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
+
+# Module-level GitHub token, set during main() via retrieve_gh_token()
+_github_token: str | None = None
 
 
 # List of files to update and whether to keep total length of the original value when replacing.
@@ -191,7 +192,7 @@ def get_latest_lts_node_version() -> str:
     response = requests.get("https://nodejs.org/dist/index.json")
     response.raise_for_status()  # Ensure we got a successful response
     versions = response.json()
-    lts_prefix = "v22"
+    lts_prefix = "v24"
     lts_versions = [version["version"] for version in versions if version["version"].startswith(lts_prefix)]
     # The json array is sorted from newest to oldest, so the first element is the latest LTS version
     # Skip leading v in version
@@ -286,6 +287,9 @@ def get_latest_github_release_version(repo: str) -> str:
 
     url = f"https://api.github.com/repos/{repo}/releases/latest"
     headers = {"User-Agent": "Python requests"}
+    if _github_token:
+        headers["Authorization"] = f"Bearer {_github_token}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
     response = requests.get(url, headers=headers)
     response.raise_for_status()
 
@@ -305,6 +309,20 @@ def get_latest_github_release_version(repo: str) -> str:
     return version
 
 
+def get_latest_sphinx_airflow_theme_version() -> str:
+    if not UPGRADE_SPHINX_AIRFLOW_THEME:
+        return ""
+    if VERBOSE:
+        console.print("[bright_blue]Fetching latest sphinx-airflow-theme version")
+    url = "https://airflow.apache.org/sphinx-airflow-theme/LATEST_VERSION.txt"
+    response = requests.get(url, headers={"User-Agent": "Python requests"})
+    response.raise_for_status()
+    latest_version = response.text.strip()
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for sphinx-airflow-theme: {latest_version}")
+    return latest_version
+
+
 def get_latest_openapi_generator_version() -> str:
     if not UPGRADE_OPENAPI_GENERATOR:
         return ""
@@ -312,6 +330,9 @@ def get_latest_openapi_generator_version() -> str:
         console.print("[bright_blue]Fetching latest OpenAPI generator version from GitHub")
     url = "https://api.github.com/repos/OpenAPITools/openapi-generator/releases/latest"
     headers = {"User-Agent": "Python requests"}
+    if _github_token:
+        headers["Authorization"] = f"Bearer {_github_token}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     data = response.json()
@@ -418,6 +439,7 @@ def get_env_bool(name: str, default: bool = True) -> bool:
 
 VERBOSE: bool = os.environ.get("VERBOSE", "false") == "true"
 UPGRADE_ALL_BY_DEFAULT: bool = os.environ.get("UPGRADE_ALL_BY_DEFAULT", "true") == "true"
+UPGRADE_COOLDOWN_DAYS: int = int(os.environ.get("UPGRADE_COOLDOWN_DAYS", "0"))
 
 if UPGRADE_ALL_BY_DEFAULT and VERBOSE:
     console.print("[bright_blue]Upgrading all important versions")
@@ -440,6 +462,7 @@ UPGRADE_UV: bool = get_env_bool("UPGRADE_UV")
 UPGRADE_MYPY: bool = get_env_bool("UPGRADE_MYPY")
 UPGRADE_PROTOC: bool = get_env_bool("UPGRADE_PROTOC")
 UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
+UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
 
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 DEFAULT_PROD_IMAGE_PYTHON_VERSION = "3.12"
@@ -549,6 +572,12 @@ SIMPLE_VERSION_PATTERNS: dict[str, list[tuple[str, str]]] = {
     "openapi_generator": [
         (r"(OPENAPI_GENERATOR_CLI_VER = )(\"[0-9.]+\")", 'OPENAPI_GENERATOR_CLI_VER = "{version}"'),
     ],
+    "sphinx_airflow_theme": [
+        (
+            r"(sphinx-airflow-theme@https://airflow\.apache\.org/sphinx-airflow-theme/sphinx_airflow_theme-)([0-9.]+)(-py3-none-any\.whl)",
+            "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-{version}-py3-none-any.whl",
+        ),
+    ],
 }
 
 
@@ -581,6 +610,9 @@ def fetch_all_package_versions() -> dict[str, str]:
         "protoc": get_latest_image_version("rvolosatovs/protoc") if UPGRADE_PROTOC else "",
         "mprocs": get_latest_github_release_version("pvolok/mprocs") if UPGRADE_MPROCS else "",
         "openapi_generator": get_latest_openapi_generator_version() if UPGRADE_OPENAPI_GENERATOR else "",
+        "sphinx_airflow_theme": get_latest_sphinx_airflow_theme_version()
+        if UPGRADE_SPHINX_AIRFLOW_THEME
+        else "",
     }
 
 
@@ -850,9 +882,44 @@ def update_pyproject_build_requires(
     return changed
 
 
+def is_within_cooldown(cooldown_days: int) -> bool:
+    """Check if there was a version upgrade commit within the cooldown period.
+
+    Looks for commits matching the 'Upgrade important' pattern in the git log
+    within the last ``cooldown_days`` days. If found, the upgrade check should
+    not fail because someone recently addressed the versions.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "log",
+                f"--since={cooldown_days} days ago",
+                "--all",
+                "--oneline",
+                "--grep=Upgrade important",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=AIRFLOW_ROOT_PATH,
+        )
+        if result.stdout.strip():
+            if VERBOSE:
+                console.print(
+                    f"[bright_blue]Found recent upgrade commits within {cooldown_days} days:\n"
+                    f"{result.stdout.strip()}"
+                )
+            return True
+        return False
+    except subprocess.CalledProcessError:
+        return False
+
+
 def main() -> None:
     """Main entry point for the version upgrade script."""
-    retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
+    global _github_token
+    _github_token = retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
 
     versions = fetch_all_package_versions()
     log_special_versions(versions)
@@ -877,6 +944,12 @@ def main() -> None:
         sync_breeze_lock_file()
         if not os.environ.get("CI"):
             console.print("[bright_blue]Please commit the changes")
+        if UPGRADE_COOLDOWN_DAYS > 0 and is_within_cooldown(UPGRADE_COOLDOWN_DAYS):
+            console.print(
+                f"[bright_yellow]Versions are outdated but within {UPGRADE_COOLDOWN_DAYS}-day "
+                f"cooldown period (recent upgrade commit found). Not failing."
+            )
+            sys.exit(0)
         sys.exit(1)
 
 

@@ -36,7 +36,10 @@ from airflow.api.common.mark_tasks import (
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.db.dag_runs import eager_load_dag_run_for_validation
+from airflow.api_fastapi.common.db.dag_runs import (
+    attach_dag_versions_to_runs,
+    eager_load_dag_run_for_list,
+)
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -346,6 +349,9 @@ def get_dag_runs(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     dag_version: QueryDagRunVersionFilter,
+    bundle_version: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(DagRun.bundle_version, str | None))
+    ],
     order_by: Annotated[
         SortParam,
         Depends(
@@ -384,7 +390,7 @@ def get_dag_runs(
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
-    query = select(DagRun).options(*eager_load_dag_run_for_validation())
+    query = select(DagRun).options(*eager_load_dag_run_for_list())
 
     if dag_id != "~":
         get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the DAG exists.
@@ -407,6 +413,7 @@ def get_dag_runs(
             state,
             run_type,
             dag_version,
+            bundle_version,
             readable_dag_runs_filter,
             run_id_pattern,
             triggering_user_name_pattern,
@@ -418,7 +425,8 @@ def get_dag_runs(
         limit=limit,
         session=session,
     )
-    dag_runs = session.scalars(dag_run_select)
+    dag_runs = list(session.scalars(dag_run_select).unique())
+    attach_dag_versions_to_runs(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
@@ -631,7 +639,7 @@ def get_list_dag_runs_batch(
         {"dag_run_id": "run_id"},
     ).set_value([body.order_by] if body.order_by else None)
 
-    base_query = select(DagRun).options(*eager_load_dag_run_for_validation())
+    base_query = select(DagRun).options(*eager_load_dag_run_for_list())
 
     dag_runs_select, total_entries = paginated_select(
         statement=base_query,
@@ -652,7 +660,8 @@ def get_list_dag_runs_batch(
         session=session,
     )
 
-    dag_runs = session.scalars(dag_runs_select)
+    dag_runs = list(session.scalars(dag_runs_select).unique())
+    attach_dag_versions_to_runs(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,

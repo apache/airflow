@@ -201,19 +201,25 @@ Partition Mapper
 
 .. autoapiclass:: airflow.sdk.PartitionMapper
 
+.. autoapiclass:: airflow.sdk.ChainMapper
+
 .. autoapiclass:: airflow.sdk.IdentityMapper
 
-.. autoapiclass:: airflow.sdk.HourlyMapper
+.. autoapiclass:: airflow.sdk.ToHourlyMapper
 
-.. autoapiclass:: airflow.sdk.DailyMapper
+.. autoapiclass:: airflow.sdk.ToDailyMapper
 
-.. autoapiclass:: airflow.sdk.WeeklyMapper
+.. autoapiclass:: airflow.sdk.ToWeeklyMapper
 
-.. autoapiclass:: airflow.sdk.MonthlyMapper
+.. autoapiclass:: airflow.sdk.ToMonthlyMapper
 
-.. autoapiclass:: airflow.sdk.QuarterlyMapper
+.. autoapiclass:: airflow.sdk.ToQuarterlyMapper
 
-.. autoapiclass:: airflow.sdk.YearlyMapper
+.. autoapiclass:: airflow.sdk.ToYearlyMapper
+
+.. autoapiclass:: airflow.sdk.ProductMapper
+
+.. autoapiclass:: airflow.sdk.AllowedKeyMapper
 
 I/O Helpers
 -----------

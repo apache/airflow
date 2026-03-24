@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.google.cloud.transfers.adls_to_gcs import ADLSToGCSOperator
 
 TASK_ID = "test-adls-gcs-operator"
@@ -49,6 +51,7 @@ class TestAdlsToGoogleCloudStorageOperator:
             replace=False,
             azure_data_lake_conn_id=AZURE_CONN_ID,
             gcp_conn_id=GCS_CONN_ID,
+            return_gcs_uris=True,
         )
 
         assert operator.task_id == TASK_ID
@@ -73,6 +76,7 @@ class TestAdlsToGoogleCloudStorageOperator:
             azure_data_lake_conn_id=AZURE_CONN_ID,
             gcp_conn_id=GCS_CONN_ID,
             google_impersonation_chain=IMPERSONATION_CHAIN,
+            return_gcs_uris=True,
         )
 
         adls_one_mock_hook.return_value.list_files_directory.return_value = MOCK_FILES
@@ -102,8 +106,11 @@ class TestAdlsToGoogleCloudStorageOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        # we expect MOCK_FILES to be uploaded
-        assert sorted(MOCK_FILES) == sorted(uploaded_files)
+        # Verify that the return value is a list of destination GCS URIs
+        assert isinstance(uploaded_files, list)
+        assert len(uploaded_files) == len(MOCK_FILES)
+        expected_uris = sorted([f"gs://test/{f}" for f in MOCK_FILES])
+        assert sorted(uploaded_files) == expected_uris
 
     @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.AzureDataLakeHook")
     @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeStorageV2Hook")
@@ -120,6 +127,7 @@ class TestAdlsToGoogleCloudStorageOperator:
             azure_data_lake_conn_id=AZURE_CONN_ID,
             gcp_conn_id=GCS_CONN_ID,
             gzip=True,
+            return_gcs_uris=True,
         )
 
         adls_one_mock_hook.return_value.list_files_directory.return_value = MOCK_FILES
@@ -142,5 +150,65 @@ class TestAdlsToGoogleCloudStorageOperator:
             any_order=True,
         )
 
-        # we expect MOCK_FILES to be uploaded
-        assert sorted(MOCK_FILES) == sorted(uploaded_files)
+        # Verify that the return value is a list of destination GCS URIs
+        assert isinstance(uploaded_files, list)
+        assert len(uploaded_files) == len(MOCK_FILES)
+        expected_uris = sorted([f"gs://test/{f}" for f in MOCK_FILES])
+        assert sorted(uploaded_files) == expected_uris
+
+    @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.AzureDataLakeHook")
+    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeStorageV2Hook")
+    @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.GCSHook")
+    def test_execute_return_gcs_uris_false(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
+        """Test that return_gcs_uris=False returns legacy ADLS file paths."""
+
+        operator = ADLSToGCSOperator(
+            task_id=TASK_ID,
+            src_adls=ADLS_PATH_1,
+            dest_gcs=GCS_PATH,
+            file_system_name=TEST_FILE_SYSTEM_NAME,
+            replace=False,
+            azure_data_lake_conn_id=AZURE_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
+            return_gcs_uris=False,
+        )
+
+        adls_one_mock_hook.return_value.list_files_directory.return_value = MOCK_FILES
+        adls_two_mock_hook.return_value.list.return_value = MOCK_FILES
+
+        result = operator.execute(None)
+
+        # Legacy behavior: returns the list of ADLS file paths
+        assert isinstance(result, list)
+        assert sorted(result) == sorted(MOCK_FILES)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.AzureDataLakeHook")
+    @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeStorageV2Hook")
+    @mock.patch("airflow.providers.google.cloud.transfers.adls_to_gcs.GCSHook")
+    def test_execute_return_gcs_uris_default_warns(
+        self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook
+    ):
+        """Test that omitting return_gcs_uris emits FutureWarning and returns legacy file paths."""
+
+        adls_one_mock_hook.return_value.list_files_directory.return_value = MOCK_FILES
+        adls_two_mock_hook.return_value.list.return_value = MOCK_FILES
+
+        with pytest.warns(
+            FutureWarning,
+            match=r"will change to list\[str\] of GCS URIs in a future release",
+        ):
+            operator = ADLSToGCSOperator(
+                task_id=TASK_ID,
+                src_adls=ADLS_PATH_1,
+                dest_gcs=GCS_PATH,
+                file_system_name=TEST_FILE_SYSTEM_NAME,
+                replace=False,
+                azure_data_lake_conn_id=AZURE_CONN_ID,
+                gcp_conn_id=GCS_CONN_ID,
+            )
+
+        result = operator.execute(None)
+
+        # Default (None → False): returns legacy file paths
+        assert isinstance(result, list)
+        assert sorted(result) == sorted(MOCK_FILES)

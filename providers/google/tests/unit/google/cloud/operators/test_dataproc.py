@@ -826,7 +826,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         # Test whether xcom push occurs before create cluster is called
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        to_dict_mock.assert_called_once_with(mock_hook().wait_for_operation())
+        to_dict_mock.assert_called_once_with(mock_hook.return_value.get_cluster.return_value)
         if AIRFLOW_V_3_0_PLUS:
             self.mock_ti.xcom_push.assert_called_once_with(
                 key="dataproc_cluster",
@@ -881,7 +881,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         # Test whether xcom push occurs before create cluster is called
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        to_dict_mock.assert_called_once_with(mock_hook().wait_for_operation())
+        to_dict_mock.assert_called_once_with(mock_hook.return_value.get_cluster.return_value)
         if AIRFLOW_V_3_0_PLUS:
             self.mock_ti.xcom_push.assert_called_once_with(
                 key="dataproc_cluster",
@@ -1015,7 +1015,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 
         mock_create_cluster.side_effect = [AlreadyExists("test"), cluster_running]
         mock_generator.return_value = [0]
-        mock_get_cluster.side_effect = [cluster_deleting, NotFound("test")]
+        mock_get_cluster.side_effect = [cluster_deleting, NotFound("test"), cluster_running]
 
         op = DataprocCreateClusterOperator(
             task_id=TASK_ID,
@@ -1034,6 +1034,180 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         mock_create_cluster.assert_has_calls(calls)
 
         to_dict_mock.assert_called_once_with(cluster_running)
+
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._wait_for_cluster_in_deleting_state"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_recreates_when_deleted_during_creation(
+        self,
+        mock_hook,
+        mock_get_cluster,
+        mock_wait_for_deleting,
+        to_dict_mock,
+    ):
+        mock_hook.return_value.wait_for_operation.return_value = None
+
+        # First invocation of get_cluster should return cluster in DELETING state.
+        cluster_deleting = mock.MagicMock()
+        cluster_deleting.status.state = cluster_deleting.status.State.DELETING
+
+        # Re-creation should return cluster in RUNNING state.
+        cluster_running = mock.MagicMock()
+        cluster_running.status.state = cluster_running.status.State.RUNNING
+
+        mock_get_cluster.side_effect = [
+            cluster_deleting,
+            cluster_running,
+        ]
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            cluster_config=CONFIG,
+            deferrable=False,
+        )
+
+        op.execute(context=mock.MagicMock())
+
+        # Ensure re-creation path is traversed.
+        assert mock_wait_for_deleting.called
+        assert mock_hook.return_value.create_cluster.call_count == 2
+
+        to_dict_mock.assert_called_once_with(cluster_running)
+
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._wait_for_cluster_in_deleting_state"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_deleting_timeout_raises(
+        self,
+        mock_hook,
+        mock_get_cluster,
+        mock_wait_for_deleting,
+    ):
+        mock_hook.return_value.wait_for_operation.return_value = None
+
+        cluster_deleting = mock.MagicMock()
+        cluster_deleting.status.state = cluster_deleting.status.State.DELETING
+
+        mock_get_cluster.return_value = cluster_deleting
+        mock_wait_for_deleting.side_effect = AirflowException("Timeout")
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            cluster_config=CONFIG,
+            deferrable=False,
+        )
+
+        with pytest.raises(AirflowException):
+            op.execute(context=mock.MagicMock())
+
+        # Ensure no re-creation is attempted.
+        assert mock_hook.return_value.create_cluster.call_count == 1
+
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._wait_for_cluster_in_creating_state"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_waits_when_still_creating(
+        self,
+        mock_hook,
+        mock_get_cluster,
+        mock_wait_for_creating,
+        to_dict_mock,
+    ):
+        mock_hook.return_value.wait_for_operation.return_value = None
+
+        cluster_creating = mock.MagicMock()
+        cluster_creating.status.state = cluster_creating.status.State.CREATING
+
+        cluster_running = mock.MagicMock()
+        cluster_running.status.state = cluster_running.status.State.RUNNING
+
+        mock_get_cluster.return_value = cluster_creating
+        mock_wait_for_creating.return_value = cluster_running
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            cluster_config=CONFIG,
+            deferrable=False,
+        )
+
+        op.execute(context=mock.MagicMock())
+
+        mock_wait_for_creating.assert_called_once()
+        to_dict_mock.assert_called_once_with(cluster_running)
+
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._start_cluster"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_stopped_cluster_restarts(
+        self,
+        mock_hook,
+        mock_get_cluster,
+        mock_start_cluster,
+        to_dict_mock,
+    ):
+        mock_hook.return_value.wait_for_operation.return_value = None
+
+        cluster_stopped = mock.MagicMock()
+        cluster_stopped.status.state = cluster_stopped.status.State.STOPPED
+
+        mock_get_cluster.return_value = cluster_stopped
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            cluster_config=CONFIG,
+            deferrable=False,
+        )
+
+        op.execute(context=mock.MagicMock())
+
+        mock_start_cluster.assert_called_once_with(mock_hook.return_value)
+        to_dict_mock.assert_called_once_with(cluster_stopped)
+
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._handle_error_state"))
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_error_state_after_wait_for_completion(
+        self,
+        mock_hook,
+        mock_get_cluster,
+        mock_handle_error,
+    ):
+        mock_hook.return_value.wait_for_operation.return_value = None
+
+        cluster_error = mock.MagicMock()
+        cluster_error.status.state = cluster_error.status.State.ERROR
+
+        mock_get_cluster.return_value = cluster_error
+        mock_handle_error.side_effect = AirflowException("Cluster error")
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            cluster_config=CONFIG,
+            deferrable=False,
+        )
+
+        with pytest.raises(AirflowException):
+            op.execute(context=mock.MagicMock())
+
+        mock_handle_error.assert_called_once()
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
@@ -2073,6 +2247,61 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
                 request_id=REQUEST_ID,
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
+
+    def test_start_from_trigger_default_false(self):
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={},
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        assert op.start_from_trigger is False
+
+    def test_start_from_trigger_sets_start_trigger_args(self):
+        job = {"placement": {"cluster_name": "test-cluster"}}
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+            start_from_trigger=True,
+            polling_interval_seconds=15,
+            cancel_on_kill=False,
+            request_id=REQUEST_ID,
+        )
+        assert op.start_from_trigger is True
+        assert (
+            op.start_trigger_args.trigger_cls
+            == "airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitJobDirectTrigger"
+        )
+        assert op.start_trigger_args.trigger_kwargs == {
+            "job": job,
+            "project_id": GCP_PROJECT,
+            "region": GCP_REGION,
+            "gcp_conn_id": GCP_CONN_ID,
+            "impersonation_chain": IMPERSONATION_CHAIN,
+            "polling_interval_seconds": 15,
+            "cancel_on_kill": False,
+            "request_id": REQUEST_ID,
+        }
+        assert op.start_trigger_args.next_method == "execute_complete"
+
+    def test_start_from_trigger_without_deferrable_does_not_set_args(self):
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={},
+            gcp_conn_id=GCP_CONN_ID,
+            deferrable=False,
+            start_from_trigger=True,
+        )
+        assert op.start_from_trigger is True
+        assert op.start_trigger_args.trigger_kwargs == {}
 
 
 @pytest.mark.db_test
@@ -4044,6 +4273,29 @@ class TestDataprocCreateBatchOperator:
         DataprocCreateBatchOperator(task_id=TASK_ID, batch=batch, region=GCP_REGION, dag=dag).execute(
             context=EXAMPLE_CONTEXT
         )
+        TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
+
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_create_batch_labels_sanitize_underscores_and_dots(self, mock_hook, to_dict_mock):
+        """Labels with dots and underscores should be replaced with dashes (GCP requirement)."""
+        dag_id_with_dots = "my.dag_id.with.dots"
+        task_id_with_underscores = "process_data.step_one"
+        expected_batch = {
+            **BATCH,
+            "labels": {
+                "airflow-dag-id": "my-dag-id-with-dots",
+                "airflow-dag-display-name": "my-dag-id-with-dots",
+                "airflow-task-id": "process-data-step-one",
+            },
+        }
+        DataprocCreateBatchOperator(
+            task_id=task_id_with_underscores,
+            dag=DAG(dag_id=dag_id_with_dots),
+            batch=BATCH,
+            region=GCP_REGION,
+        ).execute(context=EXAMPLE_CONTEXT)
+
         TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
 

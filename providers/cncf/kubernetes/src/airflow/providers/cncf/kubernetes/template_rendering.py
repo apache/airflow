@@ -32,9 +32,27 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
+def _get_executor_conf(dag_id: str):
+    """Build a team-aware ExecutorConf for the given dag_id, if multi-team is available."""
+    try:
+        from airflow.configuration import conf
+        from airflow.executors.base_executor import ExecutorConf
+        from airflow.models.dag import DagModel
+
+        if not conf.getboolean("core", "multi_team", fallback=False):
+            return None
+        team_name = DagModel.get_team_name(dag_id)
+        if team_name:
+            return ExecutorConf(team_name=team_name)
+    except (ImportError, AttributeError):
+        pass
+    return None
+
+
 def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
     """Render k8s pod yaml."""
-    kube_config = KubeConfig()
+    executor_conf = _get_executor_conf(task_instance.dag_id)
+    kube_config = KubeConfig(executor_conf=executor_conf)
     if task_instance.executor_config and task_instance.executor_config.get("pod_template_file"):
         # If a specific pod_template_file was passed to the executor, we make
         # sure to render the k8s pod spec using this one, and not the default one.

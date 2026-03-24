@@ -244,6 +244,35 @@ class TestAwsS3Hook:
             region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get("LocationConstraint")
             assert region == (region_name if region_name != "us-east-1" else None)
 
+    @mock_aws
+    def test_create_bucket_account_regional_namespace(self):
+        hook = S3Hook()
+        with mock.patch.object(hook, "get_conn") as mock_conn:
+            hook.create_bucket(
+                bucket_name="new_bucket",
+                region_name="us-east-2",
+                bucket_namespace="account-regional",
+            )
+            mock_conn().create_bucket.assert_called_once_with(
+                Bucket="new_bucket",
+                CreateBucketConfiguration={"LocationConstraint": "us-east-2"},
+                BucketNamespace="account-regional",
+            )
+
+    @mock_aws
+    def test_create_bucket_account_regional_namespace_us_east_1(self):
+        hook = S3Hook()
+        with mock.patch.object(hook, "get_conn") as mock_conn:
+            hook.create_bucket(
+                bucket_name="new_bucket",
+                region_name="us-east-1",
+                bucket_namespace="account-regional",
+            )
+            mock_conn().create_bucket.assert_called_once_with(
+                Bucket="new_bucket",
+                BucketNamespace="account-regional",
+            )
+
     def test_create_bucket_no_region_regional_endpoint(self, monkeypatch):
         conn = Connection(
             conn_id="no-region-regional-endpoint",
@@ -474,17 +503,25 @@ class TestAwsS3Hook:
         mock_get_client_type.return_value.select_object_content.return_value = {
             "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
         }
-        hook = S3Hook(requester_pays=True)
+        hook = S3Hook(requester_pays=False)
         assert hook.select_key("my_key", s3_bucket) == "Contént"
         mock_get_client_type.return_value.select_object_content.assert_called_with(
             Bucket="airflow-test-s3-bucket",
             Expression="SELECT * FROM S3Object",
             ExpressionType="SQL",
-            ExtraArgs={"RequestPayer": "requester"},
             InputSerialization={"CSV": {}},
             Key="my_key",
             OutputSerialization={"CSV": {}},
         )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type")
+    def test_select_key_with_requester_pay(self, mock_get_client_type, s3_bucket):
+        mock_get_client_type.return_value.select_object_content.return_value = {
+            "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
+        }
+        hook = S3Hook(requester_pays=True)
+        with pytest.raises(ValueError, match="select_key cannot be used with requester_pays"):
+            hook.select_key("my_key", s3_bucket)
 
     def test_check_for_wildcard_key(self, s3_bucket):
         hook = S3Hook()
@@ -1862,14 +1899,28 @@ class TestAwsS3Hook:
         local_file_that_should_be_deleted.write_text("test dag")
         local_folder_should_be_deleted = Path(sync_local_dir).joinpath("local_folder_should_be_deleted")
         local_folder_should_be_deleted.mkdir(exist_ok=True)
+        nested_stale_file = Path(sync_local_dir).joinpath("subproject1", "stale_nested.py")
+        nested_stale_file.write_text("stale nested file")
+        deep_nested_dir = Path(sync_local_dir).joinpath("subproject1", "deep")
+        deep_nested_dir.mkdir()
+        deep_stale_file = deep_nested_dir.joinpath("stale_deep.py")
+        deep_stale_file.write_text("stale deep file")
         hook.log.debug = MagicMock()
         hook.sync_to_local_dir(
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
         assert f"Deleted stale local file: {local_file_that_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleted stale local file: {nested_stale_file.as_posix()}" in logs_string
+        assert f"Deleted stale local file: {deep_stale_file.as_posix()}" in logs_string
 
         assert f"Deleted stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleted stale empty directory: {deep_nested_dir.as_posix()}" in logs_string
+        assert not nested_stale_file.exists()
+        assert not deep_stale_file.exists()
+        assert not deep_nested_dir.exists()
+        assert Path(sync_local_dir).joinpath("dag_01.py").exists()
+        assert Path(sync_local_dir).joinpath("subproject1", "dag_a.py").exists()
 
         s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data-changed")
         hook.log.debug = MagicMock()

@@ -28,6 +28,7 @@ fi
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
+COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
@@ -251,6 +252,26 @@ function install_debian_runtime_dependencies() {
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
+function install_cosign() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A cosign_sha256s=(
+        # https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign_checksums.txt
+        [amd64]="db15cc99e6e4837daabab023742aaddc3841ce57f193d11b7c3e06c8003642b2"
+        [arm64]="d098f3168ae4b3aa70b4ca78947329b953272b487727d1722cb3cb098a1a20ab"
+    )
+    local cosign_sha256="${cosign_sha256s[${arch}]}"
+    if [[ -z "${cosign_sha256}" ]]; then
+        echo "Unsupported architecture for cosign: ${arch}"
+        exit 1
+    fi
+    curl -fsSL \
+        "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${arch}" \
+        -o /tmp/cosign
+    echo "${cosign_sha256}  /tmp/cosign" | sha256sum --check
+    chmod +x /tmp/cosign
+}
+
 function install_python() {
     # If system python (3.11 in bookworm) is installed (via automatic installation of some dependencies for example), we need
     # to fail and make sure that it is not there, because there can be strange interactions if we install
@@ -274,33 +295,58 @@ function install_python() {
         echo
     fi
     wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
-    wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc";
-    declare -A keys=(
-        # gpg: key B26995E310250568: public key "\xc5\x81ukasz Langa (GPG langa.pl) <lukasz@langa.pl>" imported
-        # https://peps.python.org/pep-0596/#release-manager-and-crew
-        [3.9]="E3FF2839C048B25C084DEBE9B26995E310250568"
-        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
-        # https://peps.python.org/pep-0619/#release-manager-and-crew
-        [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
-        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
-        # https://peps.python.org/pep-0664/#release-manager-and-crew
-        [3.11]="A035C8C19219BA821ECEA86B64E628F8D684696D"
-        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
-        # https://peps.python.org/pep-0693/#release-manager-and-crew
-        [3.12]="7169605F62C751356D054A26A821E680E5FA6305"
-        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
-        # https://peps.python.org/pep-0719/#release-manager-and-crew
-        [3.13]="7169605F62C751356D054A26A821E680E5FA6305"
-    )
+    local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
+    local major minor
+    major="${major_minor_version%.*}"
+    minor="${major_minor_version#*.}"
     echo "Verifying Python ${AIRFLOW_PYTHON_VERSION} (${major_minor_version})"
-    GNUPGHOME="$(mktemp -d)"; export GNUPGHOME;
-    gpg_key="${keys[${major_minor_version}]}"
-    echo "Using GPG key ${gpg_key}"
-    gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
-    gpg --batch --verify python.tar.xz.asc python.tar.xz;
-    gpgconf --kill all
-    rm -rf "$GNUPGHOME" python.tar.xz.asc
+    if [[ "${major}" -gt 3 ]] || [[ "${major}" -eq 3 && "${minor}" -ge 11 ]]; then
+        # Sigstore verification for Python >= 3.11 (PEP 761)
+        declare -A sigstore_identities=(
+            # https://peps.python.org/pep-0664/#release-manager-and-crew
+            [3.11]="pablogsal@python.org"
+            # https://peps.python.org/pep-0693/#release-manager-and-crew
+            [3.12]="thomas@python.org"
+            # https://peps.python.org/pep-0719/#release-manager-and-crew
+            [3.13]="thomas@python.org"
+            # https://peps.python.org/pep-0745/#release-manager-and-crew
+            [3.14]="hugo@python.org"
+        )
+        declare -A sigstore_issuers=(
+            [3.11]="https://accounts.google.com"
+            [3.12]="https://accounts.google.com"
+            [3.13]="https://accounts.google.com"
+            [3.14]="https://github.com/login/oauth"
+        )
+        wget -O python.tar.xz.sigstore \
+            "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
+        install_cosign
+        local identity="${sigstore_identities[${major_minor_version}]}"
+        local issuer="${sigstore_issuers[${major_minor_version}]}"
+        /tmp/cosign verify-blob \
+            --bundle python.tar.xz.sigstore \
+            --certificate-identity "${identity}" \
+            --certificate-oidc-issuer "${issuer}" \
+            python.tar.xz
+        rm -f python.tar.xz.sigstore /tmp/cosign
+    else
+        # PGP verification for Python 3.10
+        declare -A keys=(
+            # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
+            # https://peps.python.org/pep-0619/#release-manager-and-crew
+            [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
+        )
+        wget -O python.tar.xz.asc \
+            "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc"
+        GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
+        local gpg_key="${keys[${major_minor_version}]}"
+        echo "Using GPG key ${gpg_key}"
+        gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
+        gpg --batch --verify python.tar.xz.asc python.tar.xz
+        gpgconf --kill all
+        rm -rf "${GNUPGHOME}" python.tar.xz.asc
+    fi
     mkdir -p /usr/src/python
     tar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz
     rm python.tar.xz
@@ -319,12 +365,25 @@ function install_python() {
     if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
         lto_option="--with-lto"
     fi
-    ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
-        --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
-            --enable-shared ${lto_option}
-    make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
-        "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
-    make -s -j "$(nproc)" install
+    local build_log
+    build_log=$(mktemp)
+    echo "Building Python ${AIRFLOW_PYTHON_VERSION} from source..."
+    if ! (
+        ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
+            --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
+                --enable-shared ${lto_option} && \
+        make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
+            "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python && \
+        make -s -j "$(nproc)" install
+    ) > "${build_log}" 2>&1; then
+        echo
+        echo "ERROR! Python build failed. Build output:"
+        echo
+        cat "${build_log}"
+        rm -f "${build_log}"
+        exit 1
+    fi
+    rm -f "${build_log}"
     cd /
     rm -rf /usr/src/python
     find /usr/python -depth \

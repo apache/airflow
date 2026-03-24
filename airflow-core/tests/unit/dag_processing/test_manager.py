@@ -643,6 +643,12 @@ class TestDagFileProcessorManager:
         manager._cleanup_stale_bundle_versions()
         mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_not_called()
 
+    @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
+    def test_cleanup_stale_bundle_versions(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.cleanup_stale_bundle_versions()
+        mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_called_once_with()
+
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
         # Set start_time to ensure timeout occurs: start_time = current_time - (timeout + 1) = always (timeout + 1) seconds
@@ -1091,6 +1097,61 @@ class TestDagFileProcessorManager:
                 remaining_req = remaining[0].get_callback_request()
                 assert remaining_req.bundle_name == "other-bundle"
 
+    @conf_vars(
+        {
+            ("dag_processor", "max_callbacks_per_loop"): "2",
+            ("core", "load_examples"): "False",
+        }
+    )
+    def test_fetch_callbacks_filters_by_bundle_before_limit(self, configure_testing_dag_bundle):
+        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
+
+        matching = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="testing",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            is_failure_callback=True,
+            run_id="match",
+        )
+        non_matching_1 = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="other-bundle-a",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            is_failure_callback=True,
+            run_id="no-match-1",
+        )
+        non_matching_2 = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="other-bundle-b",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            is_failure_callback=True,
+            run_id="no-match-2",
+        )
+
+        with create_session() as session:
+            session.add(DbCallbackRequest(callback=non_matching_1, priority_weight=300))
+            session.add(DbCallbackRequest(callback=non_matching_2, priority_weight=200))
+            session.add(DbCallbackRequest(callback=matching, priority_weight=100))
+
+        with configure_testing_dag_bundle(dag_filepath):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+
+            with create_session() as session:
+                callbacks = manager._fetch_callbacks(session=session)
+
+                assert [c.run_id for c in callbacks] == ["match"]
+
+                remaining = session.scalars(select(DbCallbackRequest)).all()
+                assert len(remaining) == 2
+                assert {callback.bundle_name for callback in remaining} == {
+                    "other-bundle-a",
+                    "other-bundle-b",
+                }
+
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
     def test_callback_queue(self, mock_get_logger, configure_testing_dag_bundle):
         mock_logger = MagicMock()
@@ -1356,6 +1417,47 @@ class TestDagFileProcessorManager:
             assert bundleone.refresh.call_count == 1
             manager._refresh_dag_bundles({})
             assert bundleone.refresh.call_count == 1  # didn't fresh the second time
+
+    @pytest.mark.parametrize(
+        (
+            "elapsed_time_since_refresh",
+            "current_version_matches_db",
+            "previously_seen",
+            "force_refresh",
+            "expected",
+        ),
+        [
+            (10, True, True, False, True),
+            (400, True, True, False, False),
+            (10, False, True, False, False),
+            (10, True, False, False, False),
+            (10, True, True, True, False),
+        ],
+    )
+    def test_should_skip_bundle_refresh(
+        self,
+        elapsed_time_since_refresh,
+        current_version_matches_db,
+        previously_seen,
+        force_refresh,
+        expected,
+    ):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock()
+        bundle.name = "bundleone"
+        bundle.refresh_interval = 300
+
+        if force_refresh:
+            manager._force_refresh_bundles = {"bundleone"}
+
+        should_skip_refresh = manager.should_skip_refresh(
+            bundle=bundle,
+            elapsed_time_since_refresh=elapsed_time_since_refresh,
+            current_version_matches_db=current_version_matches_db,
+            previously_seen=previously_seen,
+        )
+
+        assert should_skip_refresh is expected
 
     def test_bundle_force_refresh(self):
         """Ensure the dag processor honors force refreshing a bundle."""

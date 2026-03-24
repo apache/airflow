@@ -174,6 +174,50 @@ class TestSlackAPIPostOperator:
         }
         assert expected_api_params == slack_api_post_operator.api_params
 
+    @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
+    def test_api_call_params_with_thread_ts(self, mock_hook):
+        """Test that thread_ts is passed to hook.call when provided."""
+        op = SlackAPIPostOperator(
+            task_id="slack",
+            username=self.test_username,
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channel=self.test_channel,
+            text=self.test_text,
+            icon_url=self.test_icon_url,
+            thread_ts="1234567890.123456",
+        )
+        op.execute({})
+        mock_hook.return_value.call.assert_called_once_with(
+            "chat.postMessage",
+            json={
+                "channel": self.test_channel,
+                "username": self.test_username,
+                "text": self.test_text,
+                "icon_url": self.test_icon_url,
+                "attachments": "[]",
+                "blocks": "[]",
+                "thread_ts": "1234567890.123456",
+            },
+        )
+
+    @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
+    def test_execute_returns_api_response(self, mock_hook):
+        """Test that execute returns Slack API response data for XCom."""
+        mock_response = mock.MagicMock()
+        mock_response.data = {"ok": True, "ts": "1234567890.123456", "channel": "C1234567890"}
+        mock_hook.return_value.call.return_value = mock_response
+
+        op = SlackAPIPostOperator(
+            task_id="slack",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channel=self.test_channel,
+            text=self.test_text,
+        )
+        result = op.execute({})
+
+        assert result == {"ok": True, "ts": "1234567890.123456", "channel": "C1234567890"}
+        assert result["ts"] == "1234567890.123456"
+
 
 class TestSlackAPIFileOperator:
     def setup_method(self):
@@ -238,6 +282,7 @@ class TestSlackAPIFileOperator:
                 initial_comment=initial_comment,
                 title=title,
                 snippet_type=snippet_type,
+                thread_ts=None,
             )
 
     @pytest.mark.parametrize("initial_comment", [None, "foo-bar"])
@@ -265,6 +310,7 @@ class TestSlackAPIFileOperator:
                 initial_comment=initial_comment,
                 title=title,
                 snippet_type=snippet_type,
+                thread_ts=None,
             )
 
     def test_api_call_params_with_content_and_display_filename(self):
@@ -289,6 +335,7 @@ class TestSlackAPIFileOperator:
                 initial_comment="test",
                 title=None,
                 snippet_type=None,
+                thread_ts=None,
             )
 
     def test_api_call_params_with_file_and_display_filename(self):
@@ -313,4 +360,61 @@ class TestSlackAPIFileOperator:
                 initial_comment="test",
                 title=None,
                 snippet_type=None,
+                thread_ts=None,
             )
+
+    def test_api_call_params_with_thread_ts(self):
+        """Test that thread_ts is passed to send_file_v1_to_v2 when provided."""
+        op = SlackAPIFileOperator(
+            task_id="slack",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channels="#test-channel",
+            content="test-content",
+            thread_ts="1234567890.123456",
+        )
+        with mock.patch(
+            "airflow.providers.slack.operators.slack.SlackHook.send_file_v1_to_v2"
+        ) as mock_send_file:
+            op.execute({})
+            mock_send_file.assert_called_once_with(
+                channels="#test-channel",
+                content="test-content",
+                file=None,
+                filename=None,
+                initial_comment=None,
+                title=None,
+                snippet_type=None,
+                thread_ts="1234567890.123456",
+            )
+
+    def test_execute_returns_api_response(self):
+        """Test that execute returns Slack API response data for XCom."""
+        mock_response = [mock.MagicMock()]
+        mock_response[0].data = {
+            "ok": True,
+            "ts": "1234567890.123456",
+            "channel": "C1234567890",
+            "file": {"id": "F1234567890"},
+        }
+
+        op = SlackAPIFileOperator(
+            task_id="slack",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channels="#test-channel",
+            content="test-content",
+        )
+        with mock.patch(
+            "airflow.providers.slack.operators.slack.SlackHook.send_file_v1_to_v2",
+            return_value=mock_response,
+        ):
+            result = op.execute({})
+
+        expected = {
+            "ok": True,
+            "ts": "1234567890.123456",
+            "channel": "C1234567890",
+            "file": {"id": "F1234567890"},
+        }
+        assert result == [expected]
+        assert result[0]["ts"] == "1234567890.123456"
+        assert result[0]["file"]["id"] == "F1234567890"

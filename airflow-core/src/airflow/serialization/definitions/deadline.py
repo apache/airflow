@@ -20,6 +20,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from inspect import isclass
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -63,6 +64,15 @@ class SerializedReferenceModels:
     REFERENCE_TYPE_FIELD = "reference_type"
 
     @classmethod
+    def is_builtin_reference(cls, ref_name: str) -> bool:
+        """Check if a reference type is a built-in reference."""
+        return any(
+            r.__name__ == ref_name
+            for r in vars(cls).values()
+            if isclass(r) and issubclass(r, cls.SerializedBaseDeadlineReference)
+        )
+
+    @classmethod
     def get_reference_class(cls, reference_name: str) -> type[SerializedBaseDeadlineReference]:
         """
         Get a reference class by its name.
@@ -99,7 +109,11 @@ class SerializedReferenceModels:
                 )
 
             if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
-                self.log.debug("Ignoring unexpected parameters: %s", ", ".join(extra_kwargs))
+                self.log.debug(
+                    "%s ignoring unexpected parameters: %s",
+                    self.reference_name,
+                    ", ".join(extra_kwargs),
+                )
 
             base_time = self._evaluate_with(session=session, **filtered_kwargs)
             return base_time + interval if base_time is not None else None
@@ -225,8 +239,19 @@ class SerializedReferenceModels:
                 )
                 return None
 
-            avg_duration_seconds = sum(durations) / len(durations)
-            return timezone.utcnow() + timedelta(seconds=avg_duration_seconds)
+            # Convert to float to handle Decimal types from MySQL while preserving precision
+            # Use Decimal arithmetic for higher precision, then convert to float
+            from decimal import Decimal
+
+            decimal_durations = [Decimal(str(d)) for d in durations]
+            avg_seconds = float(sum(decimal_durations) / len(decimal_durations))
+            logger.info(
+                "Average runtime for dag_id %s (from %d runs): %.2f seconds",
+                dag_id,
+                len(durations),
+                avg_seconds,
+            )
+            return timezone.utcnow() + timedelta(seconds=avg_seconds)
 
         def serialize_reference(self) -> dict:
             return {
@@ -238,6 +263,62 @@ class SerializedReferenceModels:
         @classmethod
         def deserialize_reference(cls, reference_data: dict):
             return cls(max_runs=reference_data["max_runs"], min_runs=reference_data.get("min_runs"))
+
+    class SerializedCustomReference(SerializedBaseDeadlineReference):
+        """
+        Wrapper for custom deadline references.
+
+        This class dynamically delegates to the wrapped reference for required_kwargs and evaluation logic.
+        """
+
+        def __init__(self, inner_ref):
+            self.inner_ref = inner_ref
+
+        @property
+        def reference_name(self) -> str:
+            return self.inner_ref.reference_name
+
+        def evaluate_with(self, *, session: Session, interval: timedelta, **kwargs: Any) -> datetime | None:
+            """Validate the provided kwargs and evaluate this deadline with the given conditions."""
+            required_kwargs: set[str] = getattr(self.inner_ref, "required_kwargs", set())
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k in required_kwargs}
+
+            if missing_kwargs := required_kwargs - filtered_kwargs.keys():
+                raise ValueError(
+                    f"{self.inner_ref.__class__.__name__} is missing required parameters: {', '.join(missing_kwargs)}"
+                )
+
+            if extra_kwargs := kwargs.keys() - filtered_kwargs.keys():
+                self.log.debug(
+                    "%s ignoring unexpected parameters: %s",
+                    self.reference_name,
+                    ", ".join(extra_kwargs),
+                )
+
+            deadline = self.inner_ref._evaluate_with(session=session, **filtered_kwargs)
+            return deadline + interval if deadline is not None else None
+
+        def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
+            return self.inner_ref._evaluate_with(session=session, **kwargs)
+
+        def serialize_reference(self) -> dict:
+            return self.inner_ref.serialize_reference()
+
+        @classmethod
+        def deserialize_reference(cls, reference_data: dict):
+            from airflow._shared.module_loading import import_string
+
+            custom_class = import_string(reference_data["__class_path"])
+            inner_ref = custom_class.deserialize_reference(reference_data)
+            return cls(inner_ref)
+
+        def __eq__(self, other) -> bool:
+            if not isinstance(other, SerializedReferenceModels.SerializedCustomReference):
+                return False
+            return self.inner_ref == other.inner_ref
+
+        def __hash__(self) -> int:
+            return hash(self.inner_ref)
 
     class TYPES:
         """Collection of SerializedDeadlineReference types for type checking."""
@@ -259,7 +340,9 @@ SerializedReferenceModels.TYPES.DAGRUN_CREATED = (
 )
 SerializedReferenceModels.TYPES.DAGRUN_QUEUED = (SerializedReferenceModels.DagRunQueuedAtDeadline,)
 SerializedReferenceModels.TYPES.DAGRUN = (
-    SerializedReferenceModels.TYPES.DAGRUN_CREATED + SerializedReferenceModels.TYPES.DAGRUN_QUEUED
+    *SerializedReferenceModels.TYPES.DAGRUN_CREATED,
+    *SerializedReferenceModels.TYPES.DAGRUN_QUEUED,
+    SerializedReferenceModels.SerializedCustomReference,
 )
 
 

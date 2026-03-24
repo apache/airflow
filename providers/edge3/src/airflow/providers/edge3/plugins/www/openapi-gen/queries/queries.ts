@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { JobsService, LogsService, MonitorService, UiService, WorkerService } from "../requests/services.gen";
-import { EdgeWorkerState, MaintenanceRequest, PushLogsBody, TaskInstanceState, WorkerQueueUpdateBody, WorkerQueuesBody, WorkerStateBody } from "../requests/types.gen";
+import { ConcurrencyRequest, EdgeWorkerState, MaintenanceRequest, PushLogsBody, TaskInstanceState, WorkerQueueUpdateBody, WorkerQueuesBody, WorkerStateBody } from "../requests/types.gen";
 import * as Common from "./common";
 export const useLogsServiceLogfilePath = <TData = Common.LogsServiceLogfilePathDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ authorization, dagId, mapIndex, runId, taskId, tryNumber }: {
   authorization: string;
@@ -139,3 +139,10 @@ export const useUiServiceRemoveWorkerQueue = <TData = Common.UiServiceRemoveWork
   queueName: string;
   workerName: string;
 }, TContext>({ mutationFn: ({ queueName, workerName }) => UiService.removeWorkerQueue({ queueName, workerName }) as unknown as Promise<TData>, ...options });
+export const useUiServiceSetWorkerConcurrencyLimit = <TData = Common.UiServiceSetWorkerConcurrencyLimitMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: ConcurrencyRequest;
+  workerName: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: ConcurrencyRequest;
+  workerName: string;
+}, TContext>({ mutationFn: ({ requestBody, workerName }) => UiService.setWorkerConcurrencyLimit({ requestBody, workerName }) as unknown as Promise<TData>, ...options });

@@ -40,16 +40,22 @@ airflow_version = "3.2.0"
 
 def upgrade():
     """Apply add timetable_type to dag table for filtering."""
+    from airflow.migrations.utils import disable_sqlite_fkeys
+
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.add_column(sa.Column("timetable_type", sa.String(length=255)))
 
     op.execute("UPDATE dag SET timetable_type = '' WHERE timetable_type IS NULL")
 
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.alter_column("timetable_type", existing_type=sa.String(length=255), nullable=False)
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.alter_column("timetable_type", existing_type=sa.String(length=255), nullable=False)
 
 
 def downgrade():
     """Unapply add timetable_type to dag table for filtering."""
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.drop_column("timetable_type")
+    from airflow.migrations.utils import disable_sqlite_fkeys
+
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.drop_column("timetable_type")

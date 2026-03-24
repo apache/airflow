@@ -109,11 +109,17 @@ services:
         source: ../../../providers-summary-docs
         target: /opt/airflow/providers-summary-docs
       - type: bind
+        source: ../../../registry
+        target: /opt/airflow/registry
+      - type: bind
         source: ../../../pyproject.toml
         target: /opt/airflow/pyproject.toml
       - type: bind
         source: ../../../scripts
         target: /opt/airflow/scripts
+      - type: bind
+        source: ../../../uv.lock
+        target: /opt/airflow/uv.lock
       - type: bind
         source: ../../../scripts/docker/entrypoint_ci.sh
         target: /entrypoint

@@ -104,6 +104,23 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
     rich.print(success_message)
 
 
+@provide_api_client(kind=ClientKind.AUTH)
+def get_token(args, api_client=NEW_API_CLIENT) -> None:
+    """Generate and print a JWT token for the given credentials to stdout."""
+    username = args.username or input("Username: ")
+    password = args.password or getpass.getpass("Password: ")
+
+    try:
+        api_client.refresh_base_url(base_url=args.api_url, kind=ClientKind.AUTH)
+        login_response = api_client.login.login_with_username_and_password(
+            LoginBody(username=username, password=password)
+        )
+        print(login_response.access_token)
+    except Exception as e:
+        rich.print(f"[red]Token generation failed: {e}[/red]")
+        sys.exit(1)
+
+
 def list_envs(args) -> None:
     """List all CLI environments that the user has logged into."""
     # Get AIRFLOW_HOME

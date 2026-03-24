@@ -84,12 +84,17 @@ log = structlog.get_logger(__name__)
 
 def _create_orm_dags(
     bundle_name: str,
+    bundle_version: str | None,
     dags: Iterable[LazyDeserializedDAG],
     *,
     session: Session,
 ) -> Iterator[DagModel]:
     for dag in dags:
-        orm_dag = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
+        )
         if dag.is_paused_upon_creation is not None:
             orm_dag.is_paused = dag.is_paused_upon_creation
         log.info("Creating ORM DAG for %s", dag.dag_id)
@@ -173,15 +178,15 @@ class _RunInfo(NamedTuple):
 
         :param dags: dict of dags to query
         """
-        # Skip these queries entirely if no DAGs can be scheduled to save time.
+        # Skip these queries entirely if no Dags can be scheduled to save time.
         if not dag.timetable.can_be_scheduled:
             return cls(None, 0)
 
         if dag.timetable.partitioned:
-            log.info("getting latest run for partitioned dag", dag_id=dag.dag_id)
+            log.info("Getting latest run for partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
-            log.info("getting latest run for non-partitioned dag", dag_id=dag.dag_id)
+            log.info("Getting latest run for non-partitioned Dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         if latest_run:
             log.info(
@@ -402,6 +407,7 @@ def _update_import_errors(
             update(DagModel)
             .where(
                 DagModel.relative_fileloc == relative_fileloc,
+                DagModel.bundle_name == bundle_name_,
             )
             .values(
                 has_import_errors=True,
@@ -529,6 +535,7 @@ class DagModelOperation(NamedTuple):
             (model.dag_id, model)
             for model in _create_orm_dags(
                 bundle_name=self.bundle_name,
+                bundle_version=self.bundle_version,
                 dags=(dag for dag_id, dag in self.dags.items() if dag_id not in orm_dags),
                 session=session,
             )

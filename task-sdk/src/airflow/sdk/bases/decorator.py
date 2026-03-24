@@ -20,7 +20,6 @@ import inspect
 import itertools
 import re
 import textwrap
-import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from contextlib import suppress
 from functools import cached_property, partial, update_wrapper
@@ -314,6 +313,33 @@ class DecoratedOperator(BaseOperator):
             param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
             for param in signature.parameters.values()
         ]
+
+        # Python requires that positional parameters with defaults don't precede those without.
+        # This only applies to POSITIONAL_ONLY and POSITIONAL_OR_KEYWORD parameters — *args,
+        # **kwargs, and keyword-only parameters follow different rules.
+        positional_kinds = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        positional = [(i, p) for i, p in enumerate(parameters) if p.kind in positional_kinds]
+        first_default_idx = next((i for i, p in positional if p.default != inspect.Parameter.empty), None)
+
+        # Names of non-context-key params that receive an injected None default purely to satisfy
+        # Python's ordering constraint. These params are still semantically required and must be
+        # explicitly provided via op_args/op_kwargs — we verify this below after bind().
+        injected_for_ordering: set[str] = set()
+        if first_default_idx is not None:
+            new_parameters = []
+            for i, param in enumerate(parameters):
+                if (
+                    i > first_default_idx
+                    and param.kind in positional_kinds
+                    and param.default == inspect.Parameter.empty
+                ):
+                    new_parameters.append(param.replace(default=None))
+                    if param.name not in KNOWN_CONTEXT_KEYS:
+                        injected_for_ordering.add(param.name)
+                else:
+                    new_parameters.append(param)
+            parameters = new_parameters
+
         try:
             signature = signature.replace(parameters=parameters)
         except ValueError as err:
@@ -342,6 +368,17 @@ class DecoratedOperator(BaseOperator):
             signature.bind_partial(*op_args, **op_kwargs)
         else:
             signature.bind(*op_args, **op_kwargs)
+
+        # Params in injected_for_ordering are semantically required even though they received a
+        # None default to satisfy Python's ordering constraint. Verify they are actually provided.
+        if injected_for_ordering and not kwargs.get("_airflow_mapped_validation_only"):
+            positional_param_names = [p.name for p in parameters if p.kind in positional_kinds]
+            covered_by_pos = set(positional_param_names[: len(op_args)])
+            provided = covered_by_pos | set(op_kwargs.keys())
+            missing = injected_for_ordering - provided
+            if missing:
+                missing_str = ", ".join(sorted(missing))
+                raise TypeError(f"missing required argument(s): {missing_str}")
 
         self.op_args = op_args
         self.op_kwargs = op_kwargs
@@ -448,12 +485,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             fake.__annotations__ = {"return": self.function.__annotations__["return"]}
 
             return_type = typing_extensions.get_type_hints(fake, self.function.__globals__).get("return", Any)
-        except NameError as e:
-            warnings.warn(
-                f"Cannot infer multiple_outputs for TaskFlow function {self.function.__name__!r} with forward"
-                f" type references that are not imported. (Error was {e})",
-                stacklevel=4,
-            )
+        except NameError:
+            # Forward references using TYPE_CHECKING-only imports are valid Python patterns.
+            # We cannot infer multiple_outputs when the type is not available at runtime.
             return False
         except TypeError:  # Can't evaluate return type.
             return False
@@ -772,7 +806,9 @@ def task_decorator_factory(
     """
     if multiple_outputs is None:
         multiple_outputs = cast("bool", attr.NOTHING)
-    if python_callable:
+    if python_callable is not None:
+        if not callable(python_callable):
+            raise TypeError("No positional arguments allowed while using @task, use named arguments instead")
         decorator = _TaskDecorator(
             function=python_callable,
             multiple_outputs=multiple_outputs,
@@ -780,8 +816,6 @@ def task_decorator_factory(
             kwargs=kwargs,
         )
         return cast("TaskDecorator", decorator)
-    if python_callable is not None:
-        raise TypeError("No args allowed while using @task, use kwargs instead")
 
     def decorator_factory(python_callable):
         return _TaskDecorator(

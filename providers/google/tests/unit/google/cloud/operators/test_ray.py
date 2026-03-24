@@ -19,6 +19,9 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+
+# Remove the below workaround once https://github.com/ray-project/ray/issues/56434 is resolved
+pytest.importorskip("ray.dashboard.modules.job.common")
 from ray.dashboard.modules.job.common import JobStatus
 
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout

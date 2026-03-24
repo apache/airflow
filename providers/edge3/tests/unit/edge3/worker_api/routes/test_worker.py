@@ -26,7 +26,11 @@ from sqlalchemy import delete, select
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli.worker import EdgeWorker
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerModel,
+    EdgeWorkerState,
+    set_worker_concurrency,
+)
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
 from airflow.providers.edge3.worker_api.routes.worker import (
     _assert_version,
@@ -247,6 +251,90 @@ class TestWorkerApiRoutes:
         assert worker[0].state == EdgeWorkerState.RUNNING
         assert worker[0].queues == queues
         assert return_queues == ["default", "default2"]
+
+    def test_set_state_returns_concurrency(self, session: Session, cli_worker: EdgeWorker):
+        """set_state includes the DB-stored concurrency override in its response."""
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        rwm.concurrency = 16
+        session.add(rwm)
+        session.commit()
+
+        body = WorkerStateBody(
+            state=EdgeWorkerState.RUNNING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+        )
+        result = set_state("test2_worker", body, session)
+        assert result.concurrency == 16
+
+    def test_set_state_returns_none_concurrency_when_not_overridden(
+        self, session: Session, cli_worker: EdgeWorker
+    ):
+        """set_state returns None for concurrency when no override is set."""
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(rwm)
+        session.commit()
+
+        body = WorkerStateBody(
+            state=EdgeWorkerState.RUNNING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+        )
+        result = set_state("test2_worker", body, session)
+        assert result.concurrency is None
+
+    def test_set_worker_concurrency(self, session: Session):
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(rwm)
+        session.commit()
+
+        set_worker_concurrency("test2_worker", 16, session=session)
+        session.commit()
+
+        worker = session.scalars(select(EdgeWorkerModel)).one()
+        assert worker.concurrency == 16
+
+    @pytest.mark.parametrize(
+        "offline_state",
+        [
+            pytest.param(EdgeWorkerState.OFFLINE, id="offline"),
+            pytest.param(EdgeWorkerState.OFFLINE_MAINTENANCE, id="offline-maintenance"),
+            pytest.param(EdgeWorkerState.UNKNOWN, id="unknown"),
+        ],
+    )
+    def test_set_worker_concurrency_rejects_offline(self, session: Session, offline_state: EdgeWorkerState):
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=offline_state,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(rwm)
+        session.commit()
+
+        with pytest.raises(TypeError, match="Cannot set concurrency"):
+            set_worker_concurrency("test2_worker", 8, session=session)
+
+    def test_set_worker_concurrency_raises_for_unknown_worker(self, session: Session):
+        with pytest.raises(ValueError, match="not found"):
+            set_worker_concurrency("nonexistent", 8, session=session)
 
     @pytest.mark.parametrize(
         ("add_queues", "remove_queues", "expected_queues"),

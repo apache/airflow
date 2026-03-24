@@ -278,6 +278,19 @@ package names and can be used to select more than one package with single filter
 
      breeze build-docs --package-filter apache-airflow-providers-*
 
+Inventory cache handling
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+When building documentation, Sphinx downloads intersphinx inventories to enable cross-references
+between documentation sets. By default, missing third-party inventories (e.g., Pandas, SQLAlchemy)
+produce warnings but do **not** fail the build — third-party servers can be temporarily unavailable.
+If a cached version exists, it will be used with a warning.
+
+Use ``--clean-inventory-cache`` to force a fresh download of all inventories, or
+``--fail-on-missing-third-party-inventories`` to fail the build when any third-party inventory
+is missing (useful for publishing). Note that ``--clean-build`` cleans build artifacts but
+preserves the inventory cache.
+
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
 During the docs building auto-api generated files are stored in the ``generated`` folder. This helps you
 easily identify the location the problems with documentation originated from.

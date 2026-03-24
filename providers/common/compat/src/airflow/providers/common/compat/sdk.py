@@ -326,7 +326,7 @@ if AIRFLOW_V_3_0_PLUS:
 
 # Module map: module_name -> module_path(s)
 # For entire modules that have been moved (e.g., timezone)
-# Usage: from airflow.providers.common.compat.lazy_compat import timezone
+# Usage: from airflow.providers.common.compat.sdk import timezone
 _MODULE_MAP: dict[str, str | tuple[str, ...]] = {
     "timezone": ("airflow.sdk.timezone", "airflow.utils.timezone"),
     "io": ("airflow.sdk.io", "airflow.io"),

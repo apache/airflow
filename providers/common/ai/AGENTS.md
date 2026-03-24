@@ -19,6 +19,10 @@ The hook is a thin bridge between Airflow connections and pydantic-ai's model/pr
   code path. Wait until there are 3+ concrete use cases before introducing an abstraction.
 - **Operators stay focused.** Each operator does one thing: `LLMOperator` (prompt → output),
   `LLMBranchOperator` (prompt → branch decision), `LLMSQLOperator` (prompt → validated SQL).
+- **One backend per toolset.** A toolset wraps a single execution backend (e.g. `DbApiHook`,
+  `DataFusionEngine`). If a new backend needs the same tool interface, create a new toolset class —
+  don't add mutually exclusive constructor params and branch in every method. Users compose toolsets
+  via `AgentOperator(toolsets=[...])`.
 
 ## Adding Support for a New LLM Provider
 
@@ -33,6 +37,16 @@ If pydantic-ai already supports the provider (check [models docs](https://ai.pyd
 
 If pydantic-ai does *not* support the provider, contribute upstream to pydantic-ai rather than
 building a wrapper here.
+
+## Adding a New Toolset
+
+1. If the toolset provides SQL-like access (tables, schemas, queries), follow the four-tool pattern
+   from `SQLToolset`: `list_tables`, `get_schema`, `query`, `check_query`.
+2. Extract shared logic (result truncation, SQL validation, `allowed_tables` filtering) to helpers
+   in the toolsets package rather than inheritance.
+3. Keep constructors focused — only accept params that apply to the backend. Don't add params that
+   are silently ignored in certain modes.
+4. Mark tools `sequential=True` when the backend uses synchronous I/O.
 
 ## Security
 
@@ -56,5 +70,6 @@ building a wrapper here.
 - Hook: `src/airflow/providers/common/ai/hooks/pydantic_ai.py`
 - Operators: `src/airflow/providers/common/ai/operators/`
 - Decorators: `src/airflow/providers/common/ai/decorators/`
+- Toolsets: `src/airflow/providers/common/ai/toolsets/`
 - Tests: `tests/unit/common/ai/`
 - Docs: `docs/`

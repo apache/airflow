@@ -216,6 +216,10 @@ class OracleHook(DbApiHook):
 
         # Set up DSN
         service_name = conn.extra_dejson.get("service_name")
+        # Fall back to conn.schema as service_name when not explicitly set in extras.
+        # The UI Schema field maps to conn.schema which is the Oracle service name.
+        if not service_name and not sid and schema:
+            service_name = schema
         port = conn.port if conn.port else DEFAULT_DB_PORT
         if conn.host and sid and not service_name:
             conn_config["dsn"] = oracledb.makedsn(conn.host, port, sid)

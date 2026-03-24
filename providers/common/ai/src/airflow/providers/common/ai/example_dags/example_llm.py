@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
@@ -114,3 +116,23 @@ def example_llm_decorator_structured():
 # [END howto_decorator_llm_structured]
 
 example_llm_decorator_structured()
+
+
+# [START howto_operator_llm_approval]
+@dag
+def example_llm_operator_approval():
+
+    LLMOperator(
+        task_id="summarize_with_approval",
+        prompt="Summarize the quarterly financial report for stakeholders.",
+        llm_conn_id="pydanticai_default",
+        system_prompt="You are a financial analyst. Be concise and accurate.",
+        require_approval=True,
+        approval_timeout=timedelta(hours=24),
+        allow_modifications=True,
+    )
+
+
+# [END howto_operator_llm_approval]
+
+example_llm_operator_approval()

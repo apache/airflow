@@ -23,7 +23,7 @@ from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 
 from tests_common.test_utils.config import conf_vars
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from unit.fab.auth_manager.test_utils import create_user, delete_user
 from unit.fab.auth_manager.views import _assert_dataset_deprecation_warning
 from unit.fab.utils import client_with_login
 

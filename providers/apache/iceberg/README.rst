@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-iceberg``
 
-Release: ``1.4.1``
+Release: ``2.0.0``
 
 
 `Iceberg <https://iceberg.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.iceberg`` provider. All classes for this
 are in ``airflow.providers.apache.iceberg`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/1.4.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/2.0.0/>`_.
 
 Installation
 ------------
@@ -50,11 +50,13 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.11.0``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``pyiceberg``                               ``>=0.8.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -75,14 +77,5 @@ Dependent package                                                               
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
 ==================================================================================================================  =================
 
-Optional dependencies
-----------------------
-
-=================  ==========================================
-Extra              Dependencies
-=================  ==========================================
-``common.compat``  ``apache-airflow-providers-common-compat``
-=================  ==========================================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/1.4.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg/2.0.0/changelog.html>`_.

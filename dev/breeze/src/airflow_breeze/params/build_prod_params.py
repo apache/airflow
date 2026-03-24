@@ -29,7 +29,7 @@ from airflow_breeze.global_constants import (
     get_airflow_extras,
 )
 from airflow_breeze.params.common_build_params import CommonBuildParams
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 
 
 @dataclass
@@ -136,10 +136,10 @@ class BuildProdParams(CommonBuildParams):
             extra_build_flags.extend(self.args_for_remote_install)
         elif self.install_airflow_version:
             if not re.match(r"^[0-9.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version):
-                get_console().print(
+                console_print(
                     f"\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}"
                 )
-                get_console().print("[error]Only numerical versions allowed for PROD image here !")
+                console_print("[error]Only numerical versions allowed for PROD image here !")
                 sys.exit()
             extra_build_flags.extend(["--build-arg", "AIRFLOW_INSTALLATION_METHOD=apache-airflow"])
             extra_build_flags.extend(

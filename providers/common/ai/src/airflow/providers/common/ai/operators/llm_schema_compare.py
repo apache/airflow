@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 if TYPE_CHECKING:
@@ -139,7 +140,7 @@ class LLMSchemaCompareOperator(LLMOperator):
         if self.db_conn_ids and not self.table_names:
             raise ValueError("'table_names' is required when using 'db_conn_ids'.")
 
-        total_sources = len(self.db_conn_ids) + len(self.data_sources)
+        total_sources = len(self.db_conn_ids) * len(self.table_names) + len(self.data_sources)
         if total_sources < 2:
             raise ValueError(
                 "Provide at-least two combinations of 'db_conn_ids' and 'table_names' or 'data_sources' "
@@ -309,7 +310,7 @@ class LLMSchemaCompareOperator(LLMOperator):
         )
         self.log.info("Running LLM schema comparison...")
         result = agent.run_sync(self.prompt)
-        self.log.info("LLM schema comparison completed.")
+        log_run_summary(self.log, result)
 
         output_result = result.output.model_dump()
         self.log.info("Schema comparison result: \n %s", json.dumps(output_result, indent=2))

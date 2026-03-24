@@ -26,6 +26,33 @@
 Changelog
 ---------
 
+9.23.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'SesEmailOperator' (#58312)``
+* ``Adding sftp_remote_host to S3 transfer Operators (#63147)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CloudwatchTaskHandler not deleting local logs after streaming (#62985)``
+* ``Fix invalid RequestPayer usage in S3Hook.select_key() method (#63148)``
+* ``S3GetBucketTaggingOperator ignoring aws_conn_id parameter (#63137)``
+* ``Scope session token in cookie to base_url (#62771)``
+* ``S3DagBundle does not delete stale dag recursively (#63104)``
+
+Misc
+~~~~
+
+* ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+* ``Clarify to avoid bumping min version for sagemaker-studio (#62891)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.22.0
 ......
 
