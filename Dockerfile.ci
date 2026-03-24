@@ -1496,6 +1496,20 @@ function check_airflow_python_client_installation() {
     python "${IN_CONTAINER_DIR}/install_airflow_python_client.py"
 }
 
+function generate_test_dependency_report() {
+    if [[ ${RUN_TESTS=} != "true" || ${GITHUB_ACTIONS=} != "true" ]]; then
+        return
+    fi
+    echo
+    echo "${COLOR_BLUE}Generating dependency report for test job${COLOR_RESET}"
+    echo
+    if ! python "${IN_CONTAINER_DIR}/generate_test_dependency_report.py"; then
+        echo
+        echo "${COLOR_YELLOW}Dependency report generation failed, continuing without it${COLOR_RESET}"
+        echo
+    fi
+}
+
 function initialize_db() {
     # If we are going to start the api server OR we are a system test (which may or may not start the api server,
     # depending on the Airflow version being used to run the tests), then migrate the DB.
@@ -1563,6 +1577,7 @@ check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
 check_airflow_python_client_installation
+generate_test_dependency_report
 initialize_db
 start_api_server_with_examples
 check_run_tests "${@}"

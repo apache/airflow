@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Iterable
 
 
 def read_input():
@@ -26,21 +27,30 @@ def read_input():
     return input_data
 
 
-DEPS_DEPTH: dict[str, int] = {}
-
-
-def get_dep_level(line: str):
+def get_dep_level(line: str) -> tuple[str, int] | None:
     split_line = line.split()
+    if len(split_line) < 2:
+        return None
     level = len(split_line) - 2
     package = split_line[level]
-    if package not in DEPS_DEPTH:
-        DEPS_DEPTH[package] = level
+    if package in {"-", "├──", "└──", "│"}:
+        return None
+    return package, level
+
+
+def build_dependency_depth_map(lines: Iterable[str]) -> dict[str, int]:
+    deps_depth: dict[str, int] = {}
+    for line in lines:
+        parsed_line = get_dep_level(line)
+        if parsed_line is None:
+            continue
+        package, level = parsed_line
+        if package not in deps_depth:
+            deps_depth[package] = level
+    return deps_depth
 
 
 if __name__ == "__main__":
     input_data = read_input()
     lines = input_data.splitlines()
-    for line in lines:
-        get_dep_level(line)
-
-    print(json.dumps(DEPS_DEPTH, indent=4))
+    print(json.dumps(build_dependency_depth_map(lines), indent=4))
