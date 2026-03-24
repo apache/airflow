@@ -37,6 +37,7 @@ import (
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1client"
 	"github.com/apache/airflow/go-sdk/pkg/bundles/shared"
+	"github.com/apache/airflow/go-sdk/pkg/config"
 	"github.com/apache/airflow/go-sdk/pkg/edgeapi"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
 	logserver "github.com/apache/airflow/go-sdk/pkg/logging/server"
@@ -80,10 +81,23 @@ func Run(ctx context.Context) error {
 			return err
 		}
 	}
-
-	w, err := NewWorker(hostname, apiURL, viper.GetString("api_auth.secret_key"),
-		viper.GetStringSlice("queues"),
-	)
+	conf := config.WorkerConfig{
+		ApiURL:   apiURL,
+		Hostname: hostname,
+		Issuer:   "airflow",
+		Queues:   viper.GetStringSlice("queues"),
+		ClientConfig: config.ClientConfig{
+			RetryCount: configOrDefault("edge.api_retries", 10),
+			StartWaitTime: time.Duration(
+				configOrDefault("edge.api_retry_wait_min", 1),
+			) * time.Minute,
+			MaxWaitTime: time.Duration(
+				configOrDefault("edge.api_retry_wait_max", 90),
+			) * time.Minute,
+		},
+	}
+	w, err := NewWorker(conf)
+	w.logger.Info("Config", "config", conf)
 	if err != nil {
 		return err
 	}
@@ -106,13 +120,10 @@ func configOrDefault[T cast.Basic](key string, fallback T) T {
 	return cast.To[T](x)
 }
 
-func NewWorker(
-	hostname string,
-	apiURL string,
-	apiJWTSecretKey string,
-	queues []string,
-) (*worker, error) {
-	client, err := edgeapi.NewClient(apiURL, edgeapi.WithEdgeAPIJWTKey([]byte(apiJWTSecretKey)))
+func NewWorker(conf config.WorkerConfig) (*worker, error) {
+	client, err := edgeapi.NewClient(conf.ApiURL,
+		edgeapi.WithEdgeAPIJWTKey([]byte(conf.ApiJWTSecretKey), conf.Issuer),
+		edgeapi.WithRetry(conf.ClientConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +151,8 @@ func NewWorker(
 	w := &worker{
 		Discovery: shared.NewDiscovery(viper.GetString("bundles.folder"), nil),
 
-		hostname:        hostname,
-		queues:          queues,
+		hostname:        conf.Hostname,
+		queues:          conf.Queues,
 		client:          client,
 		sysInfo:         sysInfo,
 		logger:          slog.Default().With("logger", "edge.worker"),
@@ -149,7 +160,7 @@ func NewWorker(
 		activeWorkloads: map[uuid.UUID]bundlev1.ExecuteTaskWorkload{},
 	}
 
-	w.logger.Info("Starting Go Edge worker", "queues", queues)
+	w.logger.Info("Starting Go Edge worker", "queues", conf.Queues)
 
 	w.freeConcurrency.Store(maxConcurrency)
 

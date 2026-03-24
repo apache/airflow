@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/MatusOllah/slogcolor"
 	"github.com/fatih/color"
@@ -36,6 +37,21 @@ import (
 
 type BundleConfig struct {
 	BundlesFolder string `mapstructure:"bundles_folder"`
+}
+
+type WorkerConfig struct {
+	ClientConfig    ClientConfig
+	ApiJWTSecretKey string
+	Issuer          string
+	Queues          []string
+	Hostname        string
+	ApiURL          string
+}
+
+type ClientConfig struct {
+	RetryCount    int
+	StartWaitTime time.Duration
+	MaxWaitTime   time.Duration
 }
 
 var envKeyReplacer *strings.Replacer = strings.NewReplacer(".", "__", "-", "_")
