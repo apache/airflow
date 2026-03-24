@@ -24,6 +24,8 @@ from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.neptune_analytics import NeptuneAnalyticsHook
+from airflow.providers.amazon.aws.links.ec2 import VpcEndpointLink
+from airflow.providers.amazon.aws.links.neptune_analytics import NeptuneGraphLink, NeptuneImportTaskLink
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.neptune_analytics import (
     NeptuneGraphAvailableTrigger,
@@ -78,7 +80,15 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     """
 
     aws_hook_class = NeptuneAnalyticsHook
-    template_fields: Sequence[str] = aws_template_fields()
+    template_fields: Sequence[str] = aws_template_fields(
+        "graph_name", "vector_search_config", "provisioned_memory"
+    )
+
+    template_fields_renderers = {
+        "vector_search_config": "json",
+    }
+
+    operator_extra_links = (NeptuneGraphLink(),)
 
     def __init__(
         self,
@@ -113,7 +123,6 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     def execute(self, context: Context) -> dict:
         self.log.info("Creating graph %s", self.graph_name)
 
-        # TODO perform check
         create_params = {
             "graphName": self.graph_name,
             "vectorSearchConfiguration": self.vector_search_config,
@@ -132,11 +141,24 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         }
 
         response = self.hook.conn.create_graph(**create_params)
-        # TODO: need to return vpc id from response in case it wasn't supplied earlier.
+
         self.log.info("Graph %s in status %s", self.graph_name, response.get("status", "Unknown"))
         self.graph_id = response.get("id", None)
 
-        # TODO build extra link to console
+        graph_url = NeptuneGraphLink.format_str.format(
+            graph_id=self.graph_id,
+            aws_domain=NeptuneGraphLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
+        )
+
+        NeptuneGraphLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            graph_id=self.graph_id,
+        )
+        self.log.info("You can view this Neptune Graph at : %s", graph_url)
 
         if self.deferrable:
             self.log.info("Deferring until graph %s is available", self.graph_id)
@@ -276,6 +298,22 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
             )
 
         endpoint_id = self._get_graph_endpoint_id()
+
+        endpoint_url = VpcEndpointLink.format_str.format(
+            endpoint_id=endpoint_id,
+            aws_domain=VpcEndpointLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
+        )
+
+        VpcEndpointLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            endpoint_id=endpoint_id,
+        )
+        self.log.info("You can view this private endpoint at : %s", endpoint_url)
+
         return {"vpc_endpoint_id": endpoint_id, "graph_id": self.graph_identifier, "vpc_id": self.vpc_id}
 
     def _get_graph_endpoint_id(self):
@@ -447,8 +485,8 @@ class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
             # if not found, just exit because there is nothing to delete
             if e.response["Error"]["Code"] == "ResourceNotFoundException":
                 self.log.info("Graph %s not found. Nothing to delete", self.graph_id)
-            else:
-                raise AirflowException(e.response["Error"])
+                return
+            raise AirflowException(e.response["Error"])
 
         if self.deferrable:
             self.log.info("Deferring until graph %s is deleted", self.graph_id)
@@ -713,6 +751,7 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     template_fields_renderers = {
         "import_options": "json",
     }
+    operator_extra_links = (NeptuneImportTaskLink(),)
 
     def __init__(
         self,
@@ -765,15 +804,30 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         }
 
         response = self.hook.conn.start_import_task(**create_params)
+        import_task_id = response.get("taskId")
+        self.log.info("Import task %s started for graph %s", import_task_id, self.graph_identifier)
 
-        self.log.info("Import task %s started for graph %s", response.get("taskId"), self.graph_identifier)
-        task_id = response.get("taskId")
+        # Create the console link
+        import_task_url = NeptuneImportTaskLink.format_str.format(
+            import_task_id=import_task_id,
+            aws_domain=NeptuneImportTaskLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
+        )
+
+        NeptuneImportTaskLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            import_task_id=import_task_id,
+        )
+        self.log.info("You can view this import task at : %s", import_task_url)
 
         if self.deferrable:
-            self.log.info("Deferring until import task %s completes", task_id)
+            self.log.info("Deferring until import task %s completes", import_task_id)
             self.defer(
                 trigger=NeptuneImportTaskCompleteTrigger(
-                    task_id=task_id,
+                    task_id=import_task_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
@@ -782,13 +836,13 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
             )
 
         if self.wait_for_completion:
-            self.log.info("Waiting for import task %s to complete", task_id)
+            self.log.info("Waiting for import task %s to complete", import_task_id)
             self.hook.get_waiter("import_task_successful").wait(
-                taskIdentifier=task_id,
+                taskIdentifier=import_task_id,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
-        return {"task_id": task_id, "graph_id": self.graph_identifier}
+        return {"task_id": import_task_id, "graph_id": self.graph_identifier}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
         task_id = ""
