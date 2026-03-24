@@ -25,6 +25,8 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 class FileAnalysisSummary(BaseModel):
+    """Structured output schema for the file-analysis examples."""
+
     findings: list[str]
     highest_severity: str
     truncated_inputs: bool
