@@ -194,7 +194,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
             raise AirflowException(f"Error starting Neptune cluster: {validated_event}")
 
         cluster_id = validated_event.get("db_cluster_id", "")
-        self.log.info("Neptune cluster %s available.", cluster_id)
+        self.log.info("Neptune cluster %s available with status: %s", cluster_id, validated_event["status"])
 
         return {"db_cluster_id": cluster_id}
 
@@ -320,6 +320,6 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
             raise AirflowException(f"Error stopping Neptune cluster: {validated_event}")
 
         cluster_id = validated_event.get("db_cluster_id", "")
-        self.log.info("Neptune cluster %s stopped.", cluster_id)
+        self.log.info("Neptune cluster %s stopped with status: %s", cluster_id, validated_event["status"])
 
         return {"db_cluster_id": cluster_id}
