@@ -21,7 +21,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,

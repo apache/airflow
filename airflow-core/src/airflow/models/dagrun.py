@@ -395,6 +395,8 @@ class DagRun(Base, LoggingMixin):
     def validate_run_id(self, key: str, run_id: str) -> str | None:
         if not run_id:
             return None
+        if ".." in run_id and not airflow_conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
+            raise ValueError(f"The run_id '{run_id}' must not contain '..' to prevent path traversal")
         if re.match(RUN_ID_REGEX, run_id):
             return run_id
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
@@ -1027,21 +1029,33 @@ class DagRun(Base, LoggingMixin):
         return leaf_tis
 
     def _emit_dagrun_span(self, state: DagRunState):
-        ctx = TraceContextTextMapPropagator().extract(self.context_carrier or {})
+        # just to be safe
+        if not isinstance(self.context_carrier, dict):
+            return
+
+        ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
         with override_ids(span_context.trace_id, span_context.span_id):
-            attributes = {
+            attributes: dict[str, str] = {
                 "airflow.dag_id": str(self.dag_id),
                 "airflow.dag_run.run_id": self.run_id,
             }
+            if self.start_date:
+                attributes["airflow.dag_run.start_date"] = str(self.start_date)
+            if self.end_date:
+                attributes["airflow.dag_run.end_date"] = str(self.end_date)
+            if self.queued_at:
+                attributes["airflow.dag_run.queued_at"] = str(self.queued_at)
+            if self.created_at:
+                attributes["airflow.dag_run.created_at"] = str(self.created_at)
             if self.logical_date:
                 attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
                 attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
-                start_time=int((self.start_date or timezone.utcnow()).timestamp() * 1e9),
+                start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
                 attributes=attributes,
                 context=context.Context(),
             )
@@ -1771,7 +1785,11 @@ class DagRun(Base, LoggingMixin):
                 created_counts[task.task_type] += 1
                 for map_index in indexes:
                     yield TI.insert_mapping(
-                        self.run_id, task, map_index=map_index, dag_version_id=dag_version_id
+                        self.run_id,
+                        task,
+                        map_index=map_index,
+                        dag_version_id=dag_version_id,
+                        dag_run=self,
                     )
 
             creator = create_ti_mapping

@@ -26,6 +26,7 @@ import shutil
 import signal
 import textwrap
 import time
+import zipfile
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -110,6 +111,39 @@ def encode_mtime_in_filename(val):
     return out
 
 
+def _create_zip_bundle_with_valid_and_broken_dags(zip_path: Path) -> None:
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr(
+            "valid_dag.py",
+            textwrap.dedent(
+                """
+                from datetime import datetime
+
+                from airflow.providers.standard.operators.empty import EmptyOperator
+                from airflow.sdk import DAG
+
+                with DAG(
+                    dag_id="zip_valid_dag",
+                    start_date=datetime(2024, 1, 1),
+                    schedule=None,
+                    catchup=False,
+                ):
+                    EmptyOperator(task_id="task")
+                """
+            ),
+        )
+        zf.writestr(
+            "broken_dag.py",
+            textwrap.dedent(
+                """
+                from airflow.sdk import DAG
+
+                raise RuntimeError("broken zip dag")
+                """
+            ),
+        )
+
+
 class TestDagFileProcessorManager:
     @pytest.fixture(autouse=True)
     def _disable_examples(self):
@@ -190,6 +224,88 @@ class TestDagFileProcessorManager:
 
                 assert len(import_errors) == 0
                 session.rollback()
+
+    @pytest.mark.usefixtures("clear_parse_import_errors")
+    def test_clear_orphaned_import_errors_keeps_zip_inner_file_errors(self, session, tmp_path):
+        zip_path = tmp_path / "test_zip.zip"
+        _create_zip_bundle_with_valid_and_broken_dags(zip_path)
+
+        session.add(
+            ParseImportError(
+                filename="test_zip.zip/broken_dag.py",
+                bundle_name="testing",
+                timestamp=timezone.utcnow(),
+                stacktrace="zip import error",
+            )
+        )
+        session.flush()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.clear_orphaned_import_errors(
+            bundle_name="testing",
+            observed_filelocs=manager._get_observed_filelocs(
+                {
+                    DagFileInfo(
+                        bundle_name="testing",
+                        rel_path=Path("test_zip.zip"),
+                        bundle_path=tmp_path,
+                    )
+                }
+            ),
+            session=session,
+        )
+        session.flush()
+
+        import_errors = session.scalars(select(ParseImportError)).all()
+        assert len(import_errors) == 1
+        assert import_errors[0].filename == "test_zip.zip/broken_dag.py"
+
+    def test_get_observed_filelocs_expands_zip_inner_paths(self, tmp_path):
+        zip_path = tmp_path / "test_zip.zip"
+        _create_zip_bundle_with_valid_and_broken_dags(zip_path)
+
+        manager = DagFileProcessorManager(max_runs=1)
+        observed_filelocs = manager._get_observed_filelocs(
+            {
+                DagFileInfo(
+                    bundle_name="testing",
+                    rel_path=Path("test_zip.zip"),
+                    bundle_path=tmp_path,
+                )
+            }
+        )
+
+        assert observed_filelocs == {
+            "test_zip.zip/valid_dag.py",
+            "test_zip.zip/broken_dag.py",
+        }
+
+    @pytest.mark.usefixtures("clear_parse_import_errors")
+    def test_refresh_dag_bundles_keeps_zip_inner_file_errors(self, session, tmp_path, configure_dag_bundles):
+        bundle_path = tmp_path / "bundleone"
+        bundle_path.mkdir()
+        zip_path = bundle_path / "test_zip.zip"
+        _create_zip_bundle_with_valid_and_broken_dags(zip_path)
+
+        session.add(
+            ParseImportError(
+                filename="test_zip.zip/broken_dag.py",
+                bundle_name="bundleone",
+                timestamp=timezone.utcnow(),
+                stacktrace="zip import error",
+            )
+        )
+        session.flush()
+
+        with configure_dag_bundles({"bundleone": bundle_path}):
+            DagBundlesManager().sync_bundles_to_db()
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+            manager._refresh_dag_bundles({})
+
+        import_errors = session.scalars(select(ParseImportError)).all()
+        assert len(import_errors) == 1
+        assert import_errors[0].filename == "test_zip.zip/broken_dag.py"
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_max_runs_when_no_files(self, tmp_path):
@@ -881,7 +997,7 @@ class TestDagFileProcessorManager:
         ]
 
         manager = DagFileProcessorManager(max_runs=1)
-        manager.deactivate_deleted_dags("dag_maker", active_files)
+        manager.deactivate_deleted_dags("dag_maker", manager._get_observed_filelocs(set(active_files)))
 
         # The DAG from test_dag1.py is still active
         assert session.get(DagModel, "test_dag1").is_stale is False
@@ -892,14 +1008,14 @@ class TestDagFileProcessorManager:
         ("rel_filelocs", "expected_return", "expected_dag1_stale", "expected_dag2_stale"),
         [
             pytest.param(
-                ["test_dag1.py"],  # Only dag1 present, dag2 deleted
+                {"test_dag1.py"},  # Only dag1 present, dag2 deleted
                 True,  # Should return True
                 False,  # dag1 should not be stale
                 True,  # dag2 should be stale
                 id="dags_deactivated",
             ),
             pytest.param(
-                ["test_dag1.py", "test_dag2.py"],  # Both files present
+                {"test_dag1.py", "test_dag2.py"},  # Both files present
                 False,  # Should return False
                 False,  # dag1 should not be stale
                 False,  # dag2 should not be stale
@@ -972,7 +1088,7 @@ class TestDagFileProcessorManager:
         dag_maker.sync_dagbag_to_db()
 
         manager = DagFileProcessorManager(max_runs=1)
-        manager.deactivate_deleted_dags("dag_maker", active_files)
+        manager.deactivate_deleted_dags("dag_maker", manager._get_observed_filelocs(set(active_files)))
 
         if should_call_cleanup:
             mock_remove_references.assert_called_once()

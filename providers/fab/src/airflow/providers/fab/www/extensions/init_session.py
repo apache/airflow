@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from flask import session as builtin_flask_session
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.www.session import (
     AirflowDatabaseSessionInterface,
     AirflowSecureCookieSessionInterface,

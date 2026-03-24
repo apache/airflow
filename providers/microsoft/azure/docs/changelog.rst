@@ -724,7 +724,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
+   * ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environment…" (#40300)``
    * ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
 
 10.1.1
