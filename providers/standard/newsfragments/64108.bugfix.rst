@@ -1,0 +1,1 @@
+Fix HITLOperator ``ParamValidationError`` when params lack default values at DAG import time
