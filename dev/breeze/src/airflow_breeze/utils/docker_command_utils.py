@@ -169,6 +169,19 @@ def compare_version(current_version: str, min_version: str) -> bool:
     return version.parse(current_version) >= version.parse(min_version)
 
 
+def is_containerized_development_environment() -> bool:
+    """Return True when Breeze appears to be running inside a containerized dev shell."""
+    return any(
+        (
+            os.environ.get("CODESPACES", "").lower() == "true",
+            os.environ.get("REMOTE_CONTAINERS", "").lower() == "true",
+            os.environ.get("DEVCONTAINER", "").lower() == "true",
+            bool(os.environ.get("container")),
+            os.path.exists("/.dockerenv"),
+        )
+    )
+
+
 def check_docker_is_running():
     """
     Checks if docker is running. Suppressed Dockers stdout and stderr output.
@@ -185,6 +198,17 @@ def check_docker_is_running():
         console_print(
             "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
         )
+        if is_containerized_development_environment():
+            console_print(
+                "\n[warning]This command appears to be running inside a containerized development shell.[/]\n"
+                "[warning]`breeze start-airflow` should be run from the outer Docker-accessible shell for "
+                "your environment, not from inside an already-entered Breeze/devcontainer shell unless the "
+                "documentation explicitly says to do so.[/]\n"
+                "[info]In GitHub Codespaces, run it from the initial Codespaces terminal opened on the "
+                "repository workspace.[/]\n"
+                "[info]Running the command from a nested container shell can produce a misleading "
+                "`Docker is not running` error.[/]"
+            )
         if response.stderr:
             console_print(f"\n[warning]Command attempted:[/]\n{shlex.join(response.args)}")
             console_print(f"\n[warning]Docker error output:[/]\n{response.stderr.strip()}")

@@ -39,8 +39,10 @@ Setup and develop using GitHub Codespaces
        :target: https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=33884891
        :alt: Open in GitHub Codespaces
 
-3. Once the codespace starts your terminal should already be in the ``Breeze`` environment and you should
-   be able to edit and run the tests in VS Code interface.
+3. Once the codespace starts, your terminal is already inside the GitHub Codespaces devcontainer.
+   This is the correct shell for starting Breeze-managed services such as ``breeze start-airflow``.
+   Do not rerun ``breeze start-airflow`` from inside an already-entered ``breeze shell`` or other nested
+   container shell unless the command explicitly says to do so.
 
 4. You can use `Quick start guide for Visual Studio Code <contributors_quick_start_vscode.rst>`_ for details
    as Codespaces use Visual Studio Code as interface.
@@ -49,7 +51,13 @@ Setup and develop using GitHub Codespaces
 Troubleshooting Docker in Codespaces
 -------------------------------------
 
-If you see a "Docker is not running" error when running Breeze commands, try these steps:
+If you see a "Docker is not running" error when running Breeze commands, first make sure you are running
+the command from the initial Codespaces terminal opened on the repository workspace. In Codespaces,
+that terminal already runs inside the devcontainer; opening a nested ``breeze shell`` and then running
+``breeze start-airflow`` again can produce a misleading Docker error because the nested shell is not the
+expected context for that command.
+
+After confirming you are in the initial Codespaces terminal, try these steps:
 
 1. Verify that Docker is accessible by running:
 
@@ -57,7 +65,7 @@ If you see a "Docker is not running" error when running Breeze commands, try the
 
       docker info
 
-2. If the command fails, check that the Docker socket exists:
+2. If the command fails, check that the Docker socket exists in the Codespaces terminal:
 
    .. code-block:: bash
 

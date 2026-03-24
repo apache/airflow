@@ -166,7 +166,15 @@ Option B – One-Click GitHub Codespaces
 
       docker info
 
-   If ``docker info`` fails, try rebuilding the Codespace container
+   GitHub Codespaces already gives you a containerized development environment. Run
+   ``breeze start-airflow`` from this initial Codespaces terminal, before entering any
+   existing ``breeze shell`` or other nested container shell.
+
+   If you run ``breeze start-airflow`` from inside an already-entered Breeze/devcontainer shell,
+   Docker might not be reachable there and Breeze can fail with a misleading
+   ``Docker is not running`` message.
+
+   If ``docker info`` fails in the initial Codespaces terminal, try rebuilding the Codespace container
    (Command Palette → *Codespaces: Rebuild Container*) or restarting
    the Codespace from the GitHub Codespaces dashboard.
 
@@ -181,6 +189,9 @@ Option B – One-Click GitHub Codespaces
       uv tool install -e ./dev/breeze
       uv run dev/ide_setup/setup_vscode.py
       breeze start-airflow
+
+   If you later enter ``breeze shell``, return to the original Codespaces terminal before running
+   ``breeze start-airflow`` again.
 
 6. Edit a file in the editor, save, and commit via the Source Control sidebar.
    Push when prompted.

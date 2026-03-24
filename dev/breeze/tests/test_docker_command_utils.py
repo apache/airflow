@@ -24,6 +24,7 @@ import pytest
 
 from airflow_breeze.utils.docker_command_utils import (
     autodetect_docker_context,
+    check_docker_is_running,
     check_docker_compose_version,
     check_docker_version,
 )
@@ -215,6 +216,46 @@ def test_check_docker_compose_version_ok(mock_console_print, mock_run_command):
         dry_run_override=False,
     )
     mock_console_print.assert_called_with("[success]Good version of docker-compose: 2.20.2[/]")
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_docker_is_running_in_containerized_environment(mock_console_print, mock_run_command):
+    mock_run_command.return_value.returncode = 1
+    mock_run_command.return_value.args = ["docker", "info"]
+    mock_run_command.return_value.stderr = "cannot connect"
+    with (
+        mock.patch.dict("os.environ", {"CODESPACES": "true"}, clear=True),
+        pytest.raises(SystemExit) as e,
+    ):
+        check_docker_is_running()
+    assert e.value.code == 1
+    assert mock_console_print.call_args_list[0] == call(
+        "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
+    )
+    assert "containerized development shell" in mock_console_print.call_args_list[1].args[0]
+    assert "initial Codespaces terminal" in mock_console_print.call_args_list[1].args[0]
+    assert "Docker error output" in mock_console_print.call_args_list[3].args[0]
+    assert "GitHub Codespace" in mock_console_print.call_args_list[4].args[0]
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+def test_check_docker_is_running_without_containerized_environment(mock_console_print, mock_run_command):
+    mock_run_command.return_value.returncode = 1
+    mock_run_command.return_value.args = ["docker", "info"]
+    mock_run_command.return_value.stderr = ""
+    with (
+        mock.patch.dict("os.environ", {}, clear=True),
+        mock.patch("airflow_breeze.utils.docker_command_utils.os.path.exists", return_value=False),
+        pytest.raises(SystemExit) as e,
+    ):
+        check_docker_is_running()
+    assert e.value.code == 1
+    assert mock_console_print.call_count == 1
+    mock_console_print.assert_called_once_with(
+        "[error]Docker is not running.[/]\n[warning]Please make sure Docker is installed and running.[/]"
+    )
 
 
 def _fake_ctx_output(*names: str) -> str:
