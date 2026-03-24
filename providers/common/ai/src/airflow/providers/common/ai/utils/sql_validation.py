@@ -39,6 +39,18 @@ DEFAULT_ALLOWED_TYPES: tuple[type[exp.Expr], ...] = (
     exp.Except,
 )
 
+# Denylist: expression types that mutate data or schema when found anywhere in the AST.
+# This catches data-modifying CTEs (e.g. WITH del AS (DELETE …) SELECT …),
+# SELECT INTO, and other constructs that bypass top-level type checks.
+_DATA_MODIFYING_NODES: tuple[type[exp.Expr], ...] = (
+    exp.Insert,
+    exp.Update,
+    exp.Delete,
+    exp.Merge,
+    exp.Into,
+    exp.Command,
+)
+
 
 class SQLSafetyError(Exception):
     """Generated SQL failed safety validation."""
@@ -97,4 +109,31 @@ def validate_sql(
                 f"Statement type '{type(stmt).__name__}' is not allowed. Allowed types: {allowed_names}"
             )
 
+    # Deep scan: reject data-modifying nodes hidden inside otherwise-allowed statements
+    # (e.g. data-modifying CTEs, SELECT INTO). Only applies when using the default
+    # read-only allowlist — callers who provide custom allowed_types have explicitly
+    # opted into non-read-only operations.
+    if allowed_types is None:
+        _check_for_data_modifying_nodes(parsed)
+
     return parsed
+
+
+def _check_for_data_modifying_nodes(statements: list[exp.Expr]) -> None:
+    """
+    Walk the full AST of each statement and reject data-modifying expressions.
+
+    This catches bypass vectors like:
+    - Data-modifying CTEs: ``WITH d AS (DELETE FROM t RETURNING *) SELECT * FROM d``
+    - SELECT INTO: ``SELECT * INTO new_table FROM t``
+    - INSERT/UPDATE/DELETE hidden inside subqueries or CTEs
+
+    :raises SQLSafetyError: If any data-modifying node is found in the AST.
+    """
+    for stmt in statements:
+        for node in stmt.walk():
+            if isinstance(node, _DATA_MODIFYING_NODES):
+                raise SQLSafetyError(
+                    f"Data-modifying operation '{type(node).__name__}' found inside statement. "
+                    f"Only pure read operations are allowed in read-only mode."
+                )
