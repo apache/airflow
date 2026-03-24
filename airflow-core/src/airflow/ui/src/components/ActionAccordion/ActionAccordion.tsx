@@ -20,7 +20,11 @@ import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { DAGRunResponse, TaskInstanceCollectionResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type {
+  DAGRunResponse,
+  TaskInstanceCollectionResponse,
+  TaskInstanceResponse,
+} from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
 import { Accordion } from "src/components/ui";
 
@@ -38,8 +42,8 @@ const TasksTable = ({
   noRowsMessage,
   tasks,
 }: {
-  noRowsMessage: string;
-  tasks: Array<TaskInstanceResponse>;
+  readonly noRowsMessage: string;
+  readonly tasks: Array<TaskInstanceResponse>;
 }) => {
   const { t: translate } = useTranslation();
   const columns = getColumns(translate);
@@ -65,7 +69,7 @@ const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, setNote }:
   // Group task instances by dag_run_id when requested
   const runGroups = (() => {
     if (!groupByRunId || !affectedTasks) {
-      return null;
+      return undefined;
     }
 
     const map = new Map<string, Array<TaskInstanceResponse>>();
@@ -81,7 +85,7 @@ const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, setNote }:
   })();
 
   // Only group when there are actually multiple run IDs
-  const shouldGroup = groupByRunId && runGroups !== null && runGroups.size > 1;
+  const shouldGroup = groupByRunId && runGroups !== undefined && runGroups.size > 1;
 
   return (
     <Accordion.Root
@@ -101,7 +105,7 @@ const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, setNote }:
           </Accordion.ItemTrigger>
           <Accordion.ItemContent>
             <Box maxH="400px" overflowY="scroll">
-              {shouldGroup && runGroups !== null ? (
+              {shouldGroup ? (
                 <Accordion.Root collapsible multiple variant="plain">
                   {[...runGroups.entries()].map(([runId, tis]) => (
                     <Accordion.Item key={runId} value={runId}>

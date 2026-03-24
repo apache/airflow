@@ -25,7 +25,11 @@ import {
   useTaskInstanceServiceBulkTaskInstances,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import type { BulkActionResponse, BulkBody_BulkTaskInstanceBody_, BulkResponse } from "openapi/requests/types.gen";
+import type {
+  BulkActionResponse,
+  BulkBody_BulkTaskInstanceBody_,
+  BulkResponse,
+} from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 type Props = {

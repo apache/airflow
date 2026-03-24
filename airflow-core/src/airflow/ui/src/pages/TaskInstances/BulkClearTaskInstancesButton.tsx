@@ -26,9 +26,8 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
-import { useBulkClearTaskInstances } from "src/queries/useBulkClearTaskInstances";
-
 import { useBulkClearDryRun } from "src/queries/useBulkClearDryRun";
+import { useBulkClearTaskInstances } from "src/queries/useBulkClearTaskInstances";
 
 type Props = {
   readonly clearSelections: VoidFunction;

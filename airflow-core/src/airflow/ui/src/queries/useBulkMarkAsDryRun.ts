@@ -39,9 +39,15 @@ export const useBulkMarkAsDryRunKey = "bulkMarkAsDryRun";
 
 export const useBulkMarkAsDryRun = (
   enabled: boolean,
-  selectedTaskInstances: Array<TaskInstanceResponse>,
-  targetState: TaskInstanceState,
-  options: Options,
+  {
+    options,
+    selectedTaskInstances,
+    targetState,
+  }: {
+    options: Options;
+    selectedTaskInstances: Array<TaskInstanceResponse>;
+    targetState: TaskInstanceState;
+  },
 ) => {
   const affectedInstances = useMemo(
     () => selectedTaskInstances.filter((ti) => ti.state !== targetState),

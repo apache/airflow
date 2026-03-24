@@ -20,10 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  useDagRunServiceGetDagRunsKey,
-  useTaskInstanceServiceGetTaskInstancesKey,
-} from "openapi/queries";
+import { useDagRunServiceGetDagRunsKey, useTaskInstanceServiceGetTaskInstancesKey } from "openapi/queries";
 import { TaskInstanceService } from "openapi/requests/services.gen";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
@@ -86,9 +83,7 @@ export const useBulkClearTaskInstances = ({ clearSelections, onSuccessConfirm }:
               only_failed: options.includeOnlyFailed,
               ...(options.preventRunningTask ? { prevent_running_task: true } : {}),
               task_ids: tis.map((ti) =>
-                ti.map_index >= 0
-                  ? ([ti.task_id, ti.map_index] as [string, number])
-                  : ti.task_id,
+                ti.map_index >= 0 ? ([ti.task_id, ti.map_index] as [string, number]) : ti.task_id,
               ),
             },
           }),
@@ -113,9 +108,8 @@ export const useBulkClearTaskInstances = ({ clearSelections, onSuccessConfirm }:
       onSuccessConfirm();
     } catch (_error) {
       setError(_error);
-    } finally {
-      setIsPending(false);
     }
+    setIsPending(false);
   };
 
   return { bulkClear, error, isPending, setError };

@@ -21,12 +21,11 @@ import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { getColumns } from "src/components/ActionAccordion/columns";
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Accordion, Dialog } from "src/components/ui";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
-
-import { getColumns } from "src/components/ActionAccordion/columns";
 
 type Props = {
   readonly clearSelections: VoidFunction;

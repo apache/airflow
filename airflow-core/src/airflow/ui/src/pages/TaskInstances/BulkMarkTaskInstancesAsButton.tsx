@@ -29,9 +29,8 @@ import { allowedStates } from "src/components/MarkAs/utils";
 import { StateBadge } from "src/components/StateBadge";
 import { Dialog, Menu } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
-import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
-
 import { useBulkMarkAsDryRun } from "src/queries/useBulkMarkAsDryRun";
+import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
 
 type Props = {
   readonly clearSelections: VoidFunction;
@@ -59,11 +58,15 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
   const affectedCount = (targetState: TaskInstanceState) =>
     selectedTaskInstances.filter((ti) => ti.state !== targetState).length;
 
-  const { data: affectedTasks, isFetching } = useBulkMarkAsDryRun(open, selectedTaskInstances, state, {
-    includeDownstream: downstream,
-    includeFuture: future,
-    includePast: past,
-    includeUpstream: upstream,
+  const { data: affectedTasks, isFetching } = useBulkMarkAsDryRun(open, {
+    options: {
+      includeDownstream: downstream,
+      includeFuture: future,
+      includePast: past,
+      includeUpstream: upstream,
+    },
+    selectedTaskInstances,
+    targetState: state,
   });
 
   const handleOpen = (newState: TaskInstanceState) => {
@@ -107,9 +110,7 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
                 value={menuState}
               >
                 <HStack justify="space-between" width="full">
-                  <StateBadge state={menuState}>
-                    {translate(`common:states.${menuState}`)}
-                  </StateBadge>
+                  <StateBadge state={menuState}>{translate(`common:states.${menuState}`)}</StateBadge>
                   <Badge colorPalette="gray" variant="subtle">
                     {count}
                   </Badge>
