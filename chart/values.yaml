@@ -553,7 +553,6 @@ apiSecretKey: ~
 # Add custom annotations to the api secret
 apiSecretAnnotations: {}
 # Must contain an 'api-secret-key' key (suggested: random 32-char string).
-# Note: Values in K8s Secrets must be Base64 encoded.
 apiSecretKeySecretName: ~
 
 # Secret key used to encode and decode JWTs: `[api_auth] jwt_secret` in airflow.cfg
@@ -561,7 +560,6 @@ jwtSecret: ~
 # Add custom annotations to the JWT secret
 jwtSecretAnnotations: {}
 # Must contain a 'jwt-secret' key (suggested: random 32-char string).
-# Note: Values in K8s Secrets must be Base64 encoded.
 jwtSecretName: ~
 
 # Flask secret key for Airflow <3 Webserver: `[webserver] secret_key` in airflow.cfg
@@ -569,7 +567,6 @@ webserverSecretKey: ~
 # Add custom annotations to the webserver secret
 webserverSecretAnnotations: {}
 # Must contain a 'webserver-secret-key' key (suggested: random 32-char string).
-# Note: Values in K8s Secrets must be Base64 encoded.
 webserverSecretKeySecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
@@ -2782,8 +2779,7 @@ flower:
     annotations: {}
 
   # A secret containing the connection
-  # The Secret MUST contain a 'basicAuth' key (formatted as 'username:password').
-  # Note: Values in K8s Secrets must be Base64 encoded.
+  # The Secret MUST contain a 'basicAuth' key (formatted as 'username:password')
   secretName: ~
   # Add custom annotations to the flower secret
   secretAnnotations: {}
