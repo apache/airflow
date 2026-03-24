@@ -28,6 +28,7 @@ import pytest
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
 
+from airflow.configuration import conf
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
@@ -886,6 +887,54 @@ class TestKubernetesPodOperator:
         )
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[1].image == "alpine"
+
+    def test_xcom_sidecar_container_image_from_config(self):
+        def _default_value(section: str, key: str, fallback=None, raw=False, **kwargs):
+            if section == "kubernetes_executor":
+                if key == "default_xcom_sidecar_image_repository":
+                    return "foo"
+                elif key == "default_xcom_sidecar_image_tag":
+                    return "bar"
+            return conf.get_default_value(section, key, fallback, raw, **kwargs)
+        with mock.patch.object(conf, "get_default_value", _default_value):
+            k = KubernetesPodOperator(
+                name="test",
+                task_id="task",
+                do_xcom_push=True,
+            )
+            pod = k.build_pod_request_obj(create_context(k))
+            assert pod.spec.containers[1].image == "foo:bar"
+
+    @patch.dict("os.environ", AIRFLOW__KUBERNETES_EXECUTOR__DEFAULT_XCOM_SIDECAR_IMAGE_REPOSITORY="foo")
+    def test_xcom_sidecar_container_image_without_tag(self):
+        def _default_value(section: str, key: str, fallback=None, raw=False, **kwargs):
+            if section == "kubernetes_executor":
+                if key == "default_xcom_sidecar_image_repository":
+                    return "foo"
+            return conf.get_default_value(section, key, fallback, raw, **kwargs)
+        with mock.patch.object(conf, "get_default_value", _default_value):
+            k = KubernetesPodOperator(
+                name="test",
+                task_id="task",
+                do_xcom_push=True,
+            )
+            pod = k.build_pod_request_obj(create_context(k))
+            assert pod.spec.containers[1].image == "foo"
+
+    def test_xcom_sidecar_container_image_with_tag(self):
+        def _default_value(section: str, key: str, fallback=None, raw=False, **kwargs):
+            if section == "kubernetes_executor":
+                if key == "default_xcom_sidecar_image_tag":
+                    return "foo"
+            return conf.get_default_value(section, key, fallback, raw, **kwargs)
+        with mock.patch.object(conf, "get_default_value", _default_value):
+            k = KubernetesPodOperator(
+                name="test",
+                task_id="task",
+                do_xcom_push=True,
+            )
+            pod = k.build_pod_request_obj(create_context(k))
+            assert pod.spec.containers[1].image == "apline:foo"
 
     def test_xcom_sidecar_container_resources_default(self):
         k = KubernetesPodOperator(

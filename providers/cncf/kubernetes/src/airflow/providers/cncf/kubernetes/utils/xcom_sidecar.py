@@ -22,6 +22,22 @@ import copy
 
 from kubernetes.client import models as k8s
 
+from airflow.configuration import conf
+
+DEFAULT_SIDECAR_REPOSITORY: str = conf.get_default_value(
+    "kubernetes_executor", "default_xcom_sidecar_image_repository", "alpine"
+)
+
+DEFAULT_SIDECAR_TAG: str | None = conf.get_default_value(
+    "kubernetes_executor", "default_xcom_sidecar_image_tag"
+)
+
+
+def _default_image():
+    if DEFAULT_SIDECAR_TAG:
+        return DEFAULT_SIDECAR_REPOSITORY + ":" + DEFAULT_SIDECAR_TAG
+    return DEFAULT_SIDECAR_REPOSITORY
+
 
 class PodDefaults:
     """Static defaults for Pods."""
@@ -34,7 +50,7 @@ class PodDefaults:
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
         command=["sh", "-c", XCOM_CMD],
-        image="alpine",
+        image=_default_image(),
         volume_mounts=[VOLUME_MOUNT],
         resources=k8s.V1ResourceRequirements(
             requests={

@@ -460,6 +460,20 @@ config:
         type: integer
         example: ~
         default: "0"
+      default_xcom_sidecar_image_repository:
+        description: |
+          Default image repository path for the xcom sidecar.
+        version_added: ~
+        type: string
+        example: ~
+        default: "alpine"
+      default_xcom_sidecar_image_tag:
+        description: |
+          Default image tag for the xcom sidecar.
+        version_added: ~
+        type: string
+        example: "3.23.2"
+        default: ""
 
 executors:
   - airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor
