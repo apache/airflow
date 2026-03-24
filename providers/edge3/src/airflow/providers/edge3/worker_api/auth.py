@@ -31,7 +31,7 @@ from jwt import (
 )
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.edge3.worker_api.datamodels import JsonRpcRequestBase  # noqa: TCH001
 
 log = logging.getLogger(__name__)

@@ -24,11 +24,10 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import delete, select
 
-from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.common.compat.sdk import Stats, timezone
+from airflow.providers.common.compat.sdk import Stats, conf, timezone
 from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_config
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
