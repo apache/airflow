@@ -108,15 +108,15 @@ class DataFusionEngine(LoggingMixin):
             df = self.session_context.sql(query)
 
             if max_rows is not None:
-                row_count = df.count()
-                if row_count > max_rows:
+                result = df.limit(max_rows + 1).to_pydict()
+                if result and len(next(iter(result.values()))) > max_rows:
                     self.log.warning(
-                        "Query returned %s rows, exceeding max_rows (%s). Returning first %s rows.",
-                        row_count,
+                        "Query returned more than %s rows. Returning first %s rows.",
                         max_rows,
                         max_rows,
                     )
-                df = df.limit(max_rows)
+                    return {column: values[:max_rows] for column, values in result.items()}
+                return result
             return df.to_pydict()
         except Exception as e:
             raise QueryExecutionException(f"Error while executing query: {e}")

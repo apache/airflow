@@ -38,7 +38,8 @@ class AnalyticsOperator(BaseOperator):
 
     :param datasource_configs: List of datasource configurations to register.
     :param queries: List of SQL queries to execute.
-    :param max_rows_check: Maximum number of rows returned in query results.
+    :param max_rows_check: Maximum number of rows returned per query. Queries exceeding this return
+        only the first N rows with a warning.
     :param engine: Optional DataFusion engine instance.
     :param result_output_format: List of output formats for results. Supported: 'tabulate', 'json'. Default is 'tabulate'.
     """
