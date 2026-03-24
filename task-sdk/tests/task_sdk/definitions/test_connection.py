@@ -395,7 +395,7 @@ class TestConnectionFromUri:
         """Test Connection(uri=...) keeps extra as a JSON string."""
         conn = Connection(conn_id="test_conn", uri="mysql://user:pass@host:3306/db?charset=utf8&timeout=30")
 
-        assert conn.extra == '{"charset": "utf8", "timeout": "30"}'
+        assert json.loads(conn.extra) == {"charset": "utf8", "timeout": "30"}
         assert conn.extra_dejson == {"charset": "utf8", "timeout": "30"}
         assert conn.to_dict()["extra"] == {"charset": "utf8", "timeout": "30"}
         assert json.loads(conn.as_json())["extra"] == {"charset": "utf8", "timeout": "30"}
