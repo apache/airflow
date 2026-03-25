@@ -244,25 +244,28 @@ class TestOtelMetrics:
 
         self.stats.timing(name, dt=datetime.timedelta(seconds=123))
 
-        self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
-        expected_value = 123000.0
-        assert self.map[full_name(name)].value == expected_value
+        self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
+        self.meter.get_meter().create_histogram.return_value.record.assert_called_once_with(
+            123000.0, attributes=None
+        )
 
     def test_timing_new_metric_with_tags(self, name):
         tags = {"hello": "world"}
-        key = _generate_key_name(full_name(name), tags)
 
         self.stats.timing(name, dt=1, tags=tags)
 
-        self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
-        self.map[key].attributes == tags
+        self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
+        self.meter.get_meter().create_histogram.return_value.record.assert_called_once_with(
+            1.0, attributes=tags
+        )
 
     def test_timing_existing_metric(self, name):
         self.stats.timing(name, dt=1)
         self.stats.timing(name, dt=2)
 
-        self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
-        assert self.map[full_name(name)].value == 2
+        # histogram created only once, but both observations are recorded
+        self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
+        assert self.meter.get_meter().create_histogram.return_value.record.call_count == 2
 
     # For the four test_timer_foo tests below:
     #   time.perf_count() is called once to get the starting timestamp and again
@@ -277,7 +280,7 @@ class TestOtelMetrics:
         expected_duration = 3140.0
         assert timer.duration == expected_duration
         assert mock_time.call_count == 2
-        self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
+        self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
 
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
     def test_timer_no_name_returns_float_but_does_not_store_value(self, mock_time, name):
@@ -288,7 +291,7 @@ class TestOtelMetrics:
         expected_duration = 3140.0
         assert timer.duration == expected_duration
         assert mock_time.call_count == 2
-        self.meter.get_meter().create_gauge.assert_not_called()
+        self.meter.get_meter().create_histogram.assert_not_called()
 
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
     def test_timer_start_and_stop_manually_send_false(self, mock_time, name):
@@ -301,7 +304,7 @@ class TestOtelMetrics:
         expected_value = 3140.0
         assert timer.duration == expected_value
         assert mock_time.call_count == 2
-        self.meter.get_meter().create_gauge.assert_not_called()
+        self.meter.get_meter().create_histogram.assert_not_called()
 
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
     def test_timer_start_and_stop_manually_send_true(self, mock_time, name):
@@ -314,7 +317,7 @@ class TestOtelMetrics:
         expected_value = 3140.0
         assert timer.duration == expected_value
         assert mock_time.call_count == 2
-        self.meter.get_meter().create_gauge.assert_called_once_with(name=full_name(name))
+        self.meter.get_meter().create_histogram.assert_called_once_with(name=full_name(name), unit="ms")
 
     @pytest.mark.parametrize(
         (
