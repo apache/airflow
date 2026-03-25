@@ -543,9 +543,15 @@ class TestGetTasks(TestTaskEndpoint):
             f"{self.api_prefix}/{self.dag_id}/tasks?order_by=invalid_task_colume_name",
         )
         assert response.status_code == 400
-        assert (
-            response.json()["detail"] == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
+        assert "Invalid order_by: 'invalid_task_colume_name'" in response.json()["detail"]
+
+    def test_should_handle_order_by_with_none_values(self, test_client):
+        """Test that order_by works when task attribute values are None (e.g. unscheduled DAGs)."""
+        response = test_client.get(
+            f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks?order_by=start_date",
         )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 2
 
     def test_should_respond_404(self, test_client):
         dag_id = "xxxx_not_existing"

@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from operator import attrgetter
 from typing import cast
 
 from fastapi import Depends, HTTPException, status
@@ -52,10 +51,27 @@ def get_tasks(
 ) -> TaskCollectionResponse:
     """Get tasks for DAG."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    field_name = order_by.lstrip("-")
+    allowed_fields = set(TaskResponse.model_fields)
+    if field_name not in allowed_fields:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Invalid order_by: '{field_name}'. Allowed fields: {', '.join(sorted(allowed_fields))}",
+        )
+    reverse = order_by[0:1] == "-"
     try:
-        tasks = sorted(dag.tasks, key=attrgetter(order_by.lstrip("-")), reverse=(order_by[0:1] == "-"))
-    except AttributeError as err:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err))
+        tasks = sorted(
+            dag.tasks,
+            key=lambda task: (getattr(task, field_name) is None, getattr(task, field_name)),
+            reverse=reverse,
+        )
+    except TypeError:
+        # Fallback for fields with mixed types that can't be compared
+        tasks = sorted(
+            dag.tasks,
+            key=lambda task: (getattr(task, field_name) is None, str(getattr(task, field_name))),
+            reverse=reverse,
+        )
     return TaskCollectionResponse(
         tasks=cast("list[TaskResponse]", tasks),
         total_entries=len(tasks),
