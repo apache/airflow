@@ -34,24 +34,25 @@ from airflow.sdk import (
     AssetAll,
     AssetAny,
     AssetOrTimeSchedule,
+    ChainMapper,
     CronDataIntervalTimetable,
     CronTriggerTimetable,
-    DailyMapper,
     DeltaDataIntervalTimetable,
     DeltaTriggerTimetable,
     EventsTimetable,
     IdentityMapper,
-    MonthlyMapper,
     MultipleCronTriggerTimetable,
     PartitionMapper,
     ProductMapper,
-    QuarterlyMapper,
-    WeeklyMapper,
-    YearlyMapper,
+    ToDailyMapper,
+    ToMonthlyMapper,
+    ToQuarterlyMapper,
+    ToWeeklyMapper,
+    ToYearlyMapper,
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
-from airflow.sdk.definitions.partition_mappers.temporal import HourlyMapper
+from airflow.sdk.definitions.partition_mappers.temporal import ToHourlyMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
     PartitionedAssetTimetable,
@@ -392,13 +393,14 @@ class _Serializer:
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
+        ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
         IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
-        HourlyMapper: "airflow.partition_mappers.temporal.HourlyMapper",
-        DailyMapper: "airflow.partition_mappers.temporal.DailyMapper",
-        WeeklyMapper: "airflow.partition_mappers.temporal.WeeklyMapper",
-        MonthlyMapper: "airflow.partition_mappers.temporal.MonthlyMapper",
-        QuarterlyMapper: "airflow.partition_mappers.temporal.QuarterlyMapper",
-        YearlyMapper: "airflow.partition_mappers.temporal.YearlyMapper",
+        ToHourlyMapper: "airflow.partition_mappers.temporal.ToHourlyMapper",
+        ToDailyMapper: "airflow.partition_mappers.temporal.ToDailyMapper",
+        ToWeeklyMapper: "airflow.partition_mappers.temporal.ToWeeklyMapper",
+        ToMonthlyMapper: "airflow.partition_mappers.temporal.ToMonthlyMapper",
+        ToQuarterlyMapper: "airflow.partition_mappers.temporal.ToQuarterlyMapper",
+        ToYearlyMapper: "airflow.partition_mappers.temporal.ToYearlyMapper",
         ProductMapper: "airflow.partition_mappers.product.ProductMapper",
         AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
     }
@@ -412,23 +414,27 @@ class _Serializer:
         return partition_mapper.serialize()
 
     @serialize_partition_mapper.register
+    def _(self, partition_mapper: ChainMapper) -> dict[str, Any]:
+        return {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
+
+    @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
         return {}
 
-    @serialize_partition_mapper.register(HourlyMapper)
-    @serialize_partition_mapper.register(DailyMapper)
-    @serialize_partition_mapper.register(WeeklyMapper)
-    @serialize_partition_mapper.register(MonthlyMapper)
-    @serialize_partition_mapper.register(QuarterlyMapper)
-    @serialize_partition_mapper.register(YearlyMapper)
+    @serialize_partition_mapper.register(ToHourlyMapper)
+    @serialize_partition_mapper.register(ToDailyMapper)
+    @serialize_partition_mapper.register(ToWeeklyMapper)
+    @serialize_partition_mapper.register(ToMonthlyMapper)
+    @serialize_partition_mapper.register(ToQuarterlyMapper)
+    @serialize_partition_mapper.register(ToYearlyMapper)
     def _(
         self,
-        partition_mapper: HourlyMapper
-        | DailyMapper
-        | WeeklyMapper
-        | MonthlyMapper
-        | QuarterlyMapper
-        | YearlyMapper,
+        partition_mapper: ToHourlyMapper
+        | ToDailyMapper
+        | ToWeeklyMapper
+        | ToMonthlyMapper
+        | ToQuarterlyMapper
+        | ToYearlyMapper,
     ) -> dict[str, Any]:
         return {
             "input_format": partition_mapper.input_format,

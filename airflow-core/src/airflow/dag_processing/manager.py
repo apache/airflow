@@ -150,6 +150,29 @@ def utc_epoch() -> datetime:
     return result
 
 
+class _StubSelector(selectors.BaseSelector):
+    """
+    Stub to stand in until the real selector is created.
+
+    This is used in DagFileProcessorManager to keep Mypy happy, and emit a
+    slightly better error message than TypeError (if None is used) if a
+    contributor accidentally initializes a selector in a wrong place in the
+    future.
+
+    Some selectors do not work well in daemon mode after fork (exact reason
+    unknown; it's CPython internal). This stub allows us to delay creating a
+    selector until after forking and work around the issue.
+    """
+
+    def __getattribute__(self, name):
+        raise RuntimeError("Selector not initialized")
+
+    def register(self, fileobj, events, data=None): ...
+    def unregister(self, fileobj): ...
+    def select(self, timeout=None): ...
+    def get_map(self): ...
+
+
 @attrs.define(kw_only=True)
 class DagFileProcessorManager(LoggingMixin):
     """
@@ -171,7 +194,7 @@ class DagFileProcessorManager(LoggingMixin):
     processor_timeout: float = attrs.field(
         factory=_config_int_factory("dag_processor", "dag_file_processor_timeout")
     )
-    selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
+    selector: selectors.BaseSelector = attrs.field(factory=_StubSelector)
 
     _parallelism: int = attrs.field(factory=_config_int_factory("dag_processor", "parsing_processes"))
 
@@ -279,6 +302,10 @@ class DagFileProcessorManager(LoggingMixin):
         # in _parse_file_entrypoint() to prevent inheriting server privileges.
         # Related: https://github.com/apache/airflow/pull/57459
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
+        # Initialization is delayed until here to avoid fork issues in some
+        # selector implementations. Also see _StubSelector documentation.
+        self.selector = selectors.DefaultSelector()
 
         stats_factory = stats_utils.get_stats_factory(Stats)
         Stats.initialize(factory=stats_factory)
@@ -515,6 +542,7 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_names = [bundle.name for bundle in self._dag_bundles]
             query: Select[tuple[DbCallbackRequest]] = with_row_locks(
                 select(DbCallbackRequest)
+                .where(DbCallbackRequest.bundle_name.in_(bundle_names))
                 .order_by(DbCallbackRequest.priority_weight.desc())
                 .limit(self.max_callbacks_per_loop),
                 of=DbCallbackRequest,
@@ -526,8 +554,6 @@ class DagFileProcessorManager(LoggingMixin):
             ]
             for callback in callbacks:
                 req = callback.get_callback_request()
-                if req.bundle_name not in bundle_names:
-                    continue
                 try:
                     callback_queue.append(req)
                     session.delete(callback)
@@ -664,10 +690,11 @@ class DagFileProcessorManager(LoggingMixin):
 
             known_files[bundle.name] = found_files
 
-            self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
+            observed_filelocs = self._get_observed_filelocs(found_files)
+            self.deactivate_deleted_dags(bundle_name=bundle.name, observed_filelocs=observed_filelocs)
             self.clear_orphaned_import_errors(
                 bundle_name=bundle.name,
-                observed_filelocs={str(x.rel_path) for x in found_files},  # todo: make relative
+                observed_filelocs=observed_filelocs,
             )
 
         if any_refreshed:
@@ -684,17 +711,17 @@ class DagFileProcessorManager(LoggingMixin):
 
         return rel_paths
 
-    def deactivate_deleted_dags(self, bundle_name: str, present: set[DagFileInfo]) -> None:
-        """Deactivate DAGs that come from files that are no longer present in bundle."""
+    def _get_observed_filelocs(self, present: set[DagFileInfo]) -> set[str]:
+        """
+        Return observed DAG source paths for bundle entries.
+
+        For regular files this includes the relative file path.
+        For ZIP archives this includes DAG-like inner paths such as
+        ``archive.zip/dag.py``.
+        """
 
         def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
-            """
-            Find dag files in zip file located at abs_path.
-
-            We return the abs "paths" formed by joining the relative path inside the zip
-            with the path to the zip.
-
-            """
+            """Yield absolute paths for DAG-like files inside a ZIP archive."""
             try:
                 with zipfile.ZipFile(abs_path) as z:
                     for info in z.infolist():
@@ -703,22 +730,26 @@ class DagFileProcessorManager(LoggingMixin):
             except zipfile.BadZipFile:
                 self.log.exception("There was an error accessing ZIP file %s", abs_path)
 
-        rel_filelocs: list[str] = []
+        observed_filelocs: set[str] = set()
         for info in present:
             abs_path = str(info.absolute_path)
             if abs_path.endswith(".py") or not zipfile.is_zipfile(abs_path):
-                rel_filelocs.append(str(info.rel_path))
+                observed_filelocs.add(str(info.rel_path))
             else:
                 if TYPE_CHECKING:
                     assert info.bundle_path
                 for abs_sub_path in find_zipped_dags(abs_path=info.absolute_path):
                     rel_sub_path = Path(abs_sub_path).relative_to(info.bundle_path)
-                    rel_filelocs.append(str(rel_sub_path))
+                    observed_filelocs.add(str(rel_sub_path))
 
+        return observed_filelocs
+
+    def deactivate_deleted_dags(self, bundle_name: str, observed_filelocs: set[str]) -> None:
+        """Deactivate DAGs that come from files that are no longer present in bundle."""
         with create_session() as session:
             any_deactivated = DagModel.deactivate_deleted_dags(
                 bundle_name=bundle_name,
-                rel_filelocs=rel_filelocs,
+                rel_filelocs=observed_filelocs,
                 session=session,
             )
             # Only run cleanup if we actually deactivated any DAGs

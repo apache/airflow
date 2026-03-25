@@ -141,6 +141,19 @@ Airflow, when running dynamically adds three directories to the ``sys.path``:
 - The ``config`` folder: It is configured by setting ``AIRFLOW_HOME`` variable (``{AIRFLOW_HOME}/config``) by default.
 - The ``plugins`` Folder: It is configured with option ``plugins_folder`` in section ``[core]``.
 
+.. warning::
+
+   Unlike the ``dags`` and ``config`` folders, which are simply appended to ``sys.path``
+   (making them available for explicit imports only), the ``plugins`` folder's ``.py`` files
+   are **actively imported at Airflow startup** and registered in ``sys.modules`` under the
+   bare filename as a top-level module. The subdirectory structure is ignored when
+   determining the module name, so a file at ``plugins/my_project/operators/hdfs.py`` is
+   registered as ``sys.modules["hdfs"]``, not ``sys.modules["my_project.operators.hdfs"]``.
+   Because ``sys.modules`` is populated at process startup, any ``import hdfs`` anywhere in
+   the process — including inside installed providers or third-party libraries — will resolve
+   to the plugin file instead of the intended package. See :ref:`plugins:loading` for the
+   full plugin loading lifecycle.
+
 .. note::
    The Dags folder in Airflow 2 and 3 should not be shared with the webserver. While you can do it, unlike in Airflow 1.10,
    Airflow has no expectations that the Dags folder is present in the webserver. In fact it's a bit of
@@ -185,6 +198,19 @@ deployment (``my_company`` in the example below). It is far too easy to use gene
 folders that will clash with other packages already present in the system. For example if you
 create ``airflow/operators`` subfolder it will not be accessible because Airflow already has a package
 named ``airflow.operators`` and it will look there when importing ``from airflow.operators``.
+
+.. warning::
+
+   For the ``plugins`` folder, the name-collision risk extends to ``.py`` files at **any
+   depth**, not just the top level. Because plugin files are automatically imported at
+   startup and registered in ``sys.modules`` by bare filename alone, a file at
+   ``plugins/my_company/operators/hdfs.py`` registers as ``sys.modules["hdfs"]``, silently
+   shadowing the PyPI ``hdfs`` package. This can break providers that depend on it — for
+   example, ``apache-airflow-providers-apache-hdfs`` imports ``from hdfs import HdfsError``,
+   which fails with ``ImportError`` if a plugin file named ``hdfs.py`` exists anywhere in
+   the plugins folder. Note that if the conflicting file is added while Airflow is already
+   running, the collision will not occur until the next restart, making the root cause
+   difficult to diagnose.
 
 Don't use relative imports
 ..........................

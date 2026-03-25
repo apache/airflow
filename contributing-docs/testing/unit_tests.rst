@@ -1259,7 +1259,7 @@ or run the ``--force-lowest-dependencies`` switch directly from the breeze comma
     breeze shell --force-lowest-dependencies --test-type "Core"
 
 
-The way it works: after you enter the breeze container, you run ``uv-sync`` in the airflow-core
+The way it works: after you enter the breeze container, you run ``uv sync`` in the airflow-core
 folder to downgrade the dependencies to the lowest version that is compatible
 with the dependencies specified in airflow-core dependencies. You will see it in the output of the breeze
 command as a sequence of downgrades like this:

@@ -494,8 +494,15 @@ export const $BackfillResponse = {
             title: 'To Date'
         },
         dag_run_conf: {
-            additionalProperties: true,
-            type: 'object',
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Dag Run Conf'
         },
         is_paused: {
@@ -7519,31 +7526,6 @@ export const $DAGRunStates = {
     description: 'DAG Run States for responses.'
 } as const;
 
-export const $DAGRunTypes = {
-    properties: {
-        backfill: {
-            type: 'integer',
-            title: 'Backfill'
-        },
-        scheduled: {
-            type: 'integer',
-            title: 'Scheduled'
-        },
-        manual: {
-            type: 'integer',
-            title: 'Manual'
-        },
-        asset_triggered: {
-            type: 'integer',
-            title: 'Asset Triggered'
-        }
-    },
-    type: 'object',
-    required: ['backfill', 'scheduled', 'manual', 'asset_triggered'],
-    title: 'DAGRunTypes',
-    description: 'DAG Run Types for responses.'
-} as const;
-
 export const $DAGWithLatestDagRunsCollectionResponse = {
     properties: {
         total_entries: {
@@ -8287,18 +8269,19 @@ export const $GridTISummaries = {
 
 export const $HistoricalMetricDataResponse = {
     properties: {
-        dag_run_types: {
-            '$ref': '#/components/schemas/DAGRunTypes'
-        },
         dag_run_states: {
             '$ref': '#/components/schemas/DAGRunStates'
         },
         task_instance_states: {
             '$ref': '#/components/schemas/TaskInstanceStateCount'
+        },
+        state_count_limit: {
+            type: 'integer',
+            title: 'State Count Limit'
         }
     },
     type: 'object',
-    required: ['dag_run_types', 'dag_run_states', 'task_instance_states'],
+    required: ['dag_run_states', 'task_instance_states', 'state_count_limit'],
     title: 'HistoricalMetricDataResponse',
     description: 'Historical Metric Data serializer for responses.'
 } as const;

@@ -27,12 +27,22 @@ from unittest.mock import ANY, call
 
 import pendulum
 import pytest
+from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
-from sqlalchemy import func, select
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from sqlalchemy import (
+    func,
+    select,
+    update,
+)
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
 from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
@@ -55,6 +65,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
+from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -2046,6 +2057,209 @@ def test_schedule_tis_map_index(dag_maker, session):
     assert ti2.state == TaskInstanceState.SUCCESS
 
 
+def test_schedule_tis_does_not_increment_try_number_if_ti_already_queued_by_other_scheduler(
+    dag_maker, session
+):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    assert ti is not None
+    ti.refresh_from_task(dag.get_task("task"))
+    assert ti.state is None
+
+    # The stale scheduler picks try 1.
+    ti.try_number = 1
+    session.flush()
+    session.commit()
+
+    # Another scheduler already queued the TI in DB (same try).
+    with create_session() as other_session:
+        filter_for_tis = TI.filter_for_tis([ti])
+        assert filter_for_tis is not None
+        other_session.execute(
+            update(TI)
+            .where(filter_for_tis)
+            .values(
+                state=TaskInstanceState.QUEUED,
+                try_number=1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    # This stale scheduler still has a stale TI object; schedule_tis must be a no-op.
+    assert dr.schedule_tis((ti,), session=session) == 0
+
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.state == TaskInstanceState.QUEUED
+    assert refreshed_ti.try_number == 1
+
+
+def test_schedule_tis_empty_operator_does_not_short_circuit_if_ti_already_queued(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        EmptyOperator(task_id="empty_task")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("empty_task", session=session)
+    ti.refresh_from_task(dag.get_task("empty_task"))
+    assert ti.state is None
+
+    # Stale scheduler picks TI
+    ti.try_number = 1
+    session.flush()
+    session.commit()
+
+    # Another scheduler already queued it.
+    with create_session() as other_session:
+        filter_for_tis = TI.filter_for_tis([ti])
+        assert filter_for_tis is not None
+        other_session.execute(
+            update(TI)
+            .where(filter_for_tis)
+            .values(
+                state=TaskInstanceState.QUEUED,
+                try_number=1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    # no shortcircuit
+    assert dr.schedule_tis((ti,), session=session) == 0
+
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti is not None
+    assert refreshed_ti.state == TaskInstanceState.QUEUED
+    assert refreshed_ti.try_number == 1
+
+
+def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+
+    ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
+    ti.try_number = 3
+    session.commit()
+
+    assert dr.schedule_tis((ti,), session=session) == 1
+    session.commit()
+
+    # schedule_tis uses synchronize_session=False, so the session may still hold a stale instance.
+    # Expire the identity map so the SELECT reflects the DB row.
+    session.expire_all()
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.state == TaskInstanceState.SCHEDULED
+    assert refreshed_ti.try_number == 3
+
+
+def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        EmptyOperator(task_id="empty_task")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("empty_task", session=session)
+    ti.refresh_from_task(dag.get_task("empty_task"))
+
+    ti.try_number = 3
+    session.commit()
+
+    with create_session() as other_session:
+        filter_for_tis = TI.filter_for_tis([ti])
+        assert filter_for_tis is not None
+        other_session.execute(
+            update(TI)
+            .where(filter_for_tis)
+            .values(
+                state=TaskInstanceState.RUNNING,
+                try_number=3,
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    assert dr.schedule_tis((ti,), session=session) == 0
+
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.state == TaskInstanceState.RUNNING
+    assert refreshed_ti.try_number == 3
+
+
+def test_schedule_tis_only_one_scheduler_update_succeeds_when_competing(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        BashOperator(task_id="task", bash_command="echo 1")
+
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("task", session=session)
+    ti.refresh_from_task(dag.get_task("task"))
+    assert ti.state is None
+
+    ti.try_number = 0
+    session.commit()
+
+    # Scheduler B loads TI *before* Scheduler A commits — both see state=None.
+    with create_session() as scheduler_b_session:
+        ti_b = scheduler_b_session.scalar(
+            select(TI).where(
+                TI.dag_id == ti.dag_id,
+                TI.task_id == ti.task_id,
+                TI.run_id == ti.run_id,
+                TI.map_index == ti.map_index,
+            )
+        )
+        assert ti_b is not None
+        assert ti_b.state is None
+
+        # Scheduler A schedules first.
+        assert dr.schedule_tis((ti,), session=session) == 1
+        session.commit()
+
+        # Scheduler B tries with its stale TI object; should be a no-op.
+        assert dr.schedule_tis((ti_b,), session=scheduler_b_session) == 0
+
+    session.expire_all()
+    refreshed_ti = session.scalar(
+        select(TI).where(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.run_id == ti.run_id,
+            TI.map_index == ti.map_index,
+        )
+    )
+    assert refreshed_ti.state == TaskInstanceState.SCHEDULED
+    assert refreshed_ti.try_number == 1
+
+
 @pytest.mark.xfail(reason="We can't keep this behaviour with remote workers where scheduler can't reach xcom")
 @pytest.mark.need_serialized_dag
 def test_schedule_tis_start_trigger(dag_maker, session):
@@ -2961,6 +3175,24 @@ def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
                 dag_maker.create_dagrun(run_id=run_id, run_type=run_type)
 
 
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag(False)
+@pytest.mark.parametrize(
+    "run_id",
+    [
+        "manual__..%2F..%2Fetc%2Fpasswd",
+        "my..run",
+        "..",
+    ],
+)
+def test_dag_run_id_rejects_path_traversal(session, dag_maker, run_id):
+    """run_id containing '..' should be rejected to prevent path traversal."""
+    with dag_maker():
+        pass
+    with pytest.raises(ValueError, match=r"must not contain '\.\.'"):
+        dag_maker.create_dagrun(run_id=run_id, run_type=DagRunType.MANUAL)
+
+
 def _get_states(dr):
     """
     For a given dag run, get a dict of states.
@@ -3233,13 +3465,6 @@ class TestDagRunTracing:
 
     def test_emit_dagrun_span_uses_context_carrier_ids(self, dag_maker, session):
         """The emitted span should inherit trace_id/span_id from the context_carrier."""
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
-        from airflow.observability.traces import OverrideableRandomIdGenerator
-
         in_mem_exporter = InMemorySpanExporter()
         provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
         provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
@@ -3263,8 +3488,6 @@ class TestDagRunTracing:
 
         # Decode the expected trace_id/span_id from the stored context_carrier
         ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
-        from opentelemetry import trace as otel_trace
-
         stored_span = otel_trace.get_current_span(context=ctx)
         stored_ctx = stored_span.get_span_context()
 
@@ -3274,13 +3497,6 @@ class TestDagRunTracing:
     @pytest.mark.parametrize("final_state", [DagRunState.SUCCESS, DagRunState.FAILED])
     def test_emit_dagrun_span_attributes_and_status(self, dag_maker, session, final_state):
         """The emitted span should have the correct name, attributes, and status code."""
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-        from opentelemetry.trace import StatusCode
-
-        from airflow.observability.traces import OverrideableRandomIdGenerator
-
         in_mem_exporter = InMemorySpanExporter()
         provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
         provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
@@ -3310,3 +3526,39 @@ class TestDagRunTracing:
 
         expected_status = StatusCode.OK if final_state == DagRunState.SUCCESS else StatusCode.ERROR
         assert span.status.status_code == expected_status
+
+    @pytest.mark.parametrize("carrier_value", [None, {}])
+    def test_emit_dagrun_span_with_none_or_empty_carrier(self, dag_maker, session, carrier_value):
+        """_emit_dagrun_span should emit a root span when context_carrier is None or empty.
+
+        This happens for DagRuns created before OTel tracing was enabled, or whose
+        context_carrier was cleared/backfilled to NULL. Per OTel spec, missing context
+        results in a new root span rather than a crash.
+        """
+        in_mem_exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
+        test_tracer = provider.get_tracer("test")
+
+        with dag_maker("test_tracing_none_carrier", session=session) as dag:
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("t1", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+        dr.dag = dag
+
+        # Simulate a DagRun with missing context_carrier
+        dr.context_carrier = carrier_value
+
+        with mock.patch("airflow.models.dagrun.tracer", test_tracer):
+            dr.update_state(session=session)
+
+        # A root span should still be emitted
+        spans = in_mem_exporter.get_finished_spans()
+        if isinstance(carrier_value, dict):
+            assert len(spans) == 1
+            assert spans[0].name == f"dag_run.{dr.dag_id}"
+        else:
+            assert len(spans) == 0

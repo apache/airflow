@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     from flask import Flask

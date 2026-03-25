@@ -157,7 +157,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- if .Values.triggerer.waitForMigrations.env }}
               {{- tpl (toYaml .Values.triggerer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -205,7 +205,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.triggerer.env) | nindent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.triggerer.livenessProbe.initialDelaySeconds }}

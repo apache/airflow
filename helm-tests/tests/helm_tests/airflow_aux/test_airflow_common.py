@@ -439,7 +439,9 @@ class TestAirflowCommon:
                 "templates/dag-processor/dag-processor-deployment.yaml",
             ],
         )
-        expected_vars = [
+        # JWT secret is only injected into scheduler (and api-server); not into workers,
+        # webserver, triggerer, dag-processor (security: no JWT where not needed).
+        expected_vars_with_jwt = [
             "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_HOME",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
@@ -448,10 +450,19 @@ class TestAirflowCommon:
             "AIRFLOW__API_AUTH__JWT_SECRET",
             "AIRFLOW__CELERY__BROKER_URL",
         ]
-        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
+        expected_vars_no_jwt = [
+            "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW_HOME",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
+            "AIRFLOW__API__SECRET_KEY",
+            "AIRFLOW__CELERY__BROKER_URL",
+        ]
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
-            variables = expected_vars_in_worker if component == "worker" else expected_vars
+            expected = expected_vars_with_jwt if component == "scheduler" else expected_vars_no_jwt
+            expected_in_worker = ["DUMB_INIT_SETSID"] + expected
+            variables = expected_in_worker if component == "worker" else expected
             assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
                 f"Wrong vars in {component}"
             )

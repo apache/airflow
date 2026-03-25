@@ -128,3 +128,10 @@ You can also dive deeper into more specific areas that are important for contrib
 
 * `Debugging Airflow Components <20_debugging_airflow_components.rst>`__ describes how to debug
   Airflow components using Breeze with debugpy and VSCode integration.
+
+Maintainer Tools
+.................
+
+* `Maintainer PR Triage and Review <25_maintainer_pr_triage.md>`__ describes the auto-triage
+  workflow that helps maintainers triage and review incoming Pull Requests using deterministic
+  checks and LLM-assisted analysis.

@@ -17,9 +17,18 @@
 
 from __future__ import annotations
 
-from airflow.providers.fab.www.utils import get_session_lifetime_config
+from airflow.providers.fab.www.security.permissions import ACTION_CAN_EDIT
+from airflow.providers.fab.www.utils import get_fab_action_from_method_map, get_session_lifetime_config
 
 from tests_common.test_utils.config import conf_vars
+
+
+class TestMethodToFabActionMap:
+    def test_patch_maps_to_can_edit(self):
+        """PATCH should resolve to the same FAB action as PUT (can_edit)."""
+        method_map = get_fab_action_from_method_map()
+        assert method_map["PATCH"] == ACTION_CAN_EDIT
+        assert method_map["PUT"] == ACTION_CAN_EDIT
 
 
 class TestUpdatedConfigNames:

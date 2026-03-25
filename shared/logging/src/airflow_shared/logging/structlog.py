@@ -224,6 +224,20 @@ def respect_stdlib_disable(logger: Any, method_name: Any, event_dict: EventDict)
     return event_dict
 
 
+def _make_safe_enc_hook(default):
+    """Wrap an enc_hook so that serialization failures fall back to ``str()``."""
+
+    def safe_enc_hook(obj):
+        if default is not None:
+            try:
+                return default(obj)
+            except (TypeError, ValueError):
+                pass
+        return str(obj)
+
+    return safe_enc_hook
+
+
 @cache
 def structlog_processors(
     json_output: bool,
@@ -317,7 +331,17 @@ def structlog_processors(
                 "event": msg.pop("event"),
                 **msg,
             }
-            return msgspec.json.encode(msg, enc_hook=default)
+
+            try:
+                return msgspec.json.encode(msg, enc_hook=_make_safe_enc_hook(default))
+            except UnicodeEncodeError:
+                # Surrogate characters in strings can't be encoded to UTF-8 JSON.
+                # Replace them and retry.
+                def _sanitize(v):
+                    return v.encode("utf-8", errors="replace").decode("utf-8") if isinstance(v, str) else v
+
+                msg = {k: _sanitize(v) for k, v in msg.items()}
+                return msgspec.json.encode(msg, enc_hook=_make_safe_enc_hook(default))
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 

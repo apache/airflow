@@ -29,6 +29,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
@@ -76,9 +77,7 @@ ZIP_PYTHON_AND_KUBERNETES_VERSIONS_AS_LIST = (
 
 
 ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
-    [
-        {"description": "API...Serialization", "test_types": ALL_CI_SELECTIVE_TEST_TYPES},
-    ]
+    _get_test_list_as_json(_split_list(sorted(ALL_CI_SELECTIVE_TEST_TYPES.split()), NUMBER_OF_CORE_SLICES))
 )
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
@@ -116,40 +115,43 @@ ALL_MYPY_CHECKS_EXCEPT_PROVIDERS = str(
 
 ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
     "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
-ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity"
+ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity,update-uv-lock"
 
-ALL_SKIPPED_COMMITS_IF_NO_UI = "identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
-ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = "identity,lint-helm-chart"
+ALL_SKIPPED_COMMITS_IF_NO_UI = (
+    "identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
+)
+ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = "identity,lint-helm-chart,update-uv-lock"
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
-    "identity,lint-helm-chart,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "identity,lint-helm-chart,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
-    "check-provider-yaml-valid,identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "check-provider-yaml-valid,identity,"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
     "check-provider-yaml-valid,identity,lint-helm-chart,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
     "check-provider-yaml-valid,identity,lint-helm-chart,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,flynt,identity,lint-helm-chart"
+    "check-provider-yaml-valid,flynt,identity,lint-helm-chart,update-uv-lock"
 )
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
     "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
-    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui"
+    "ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 
 
@@ -157,7 +159,7 @@ All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH = (
     "check-airflow-provider-compatibility,check-airflow-providers-bug-report-template,"
     "check-extra-packages-references,check-provider-yaml-valid,"
     "compile-fab-assets,generate-openapi-spec-fab,identity,"
-    "lint-helm-chart,validate-operators-init"
+    "lint-helm-chart,update-uv-lock,validate-operators-init"
 )
 
 
@@ -350,7 +352,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "Always...Serialization", "test_types": "Always Core Serialization"}]
+                        _get_test_list_as_json(
+                            _split_list(sorted(["Always", "Core", "Serialization"]), NUMBER_OF_CORE_SLICES)
+                        )
                     ),
                     "providers-test-types-list-as-strings-in-json": None,
                     "individual-providers-test-types-list-as-strings-in-json": None,
@@ -1198,7 +1202,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-unit-tests": "false",
                 "run-amazon-tests": "false",
                 "docs-build": "true",
-                "skip-prek-hooks": "check-provider-yaml-valid,flynt,identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui",
+                "skip-prek-hooks": "check-provider-yaml-valid,flynt,identity,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": None,
                 "providers-test-types-list-as-strings-in-json": None,
@@ -1244,6 +1248,61 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-checks": ALL_MYPY_CHECKS,
                 },
                 id="All mypy checks should run when devel-common/pyproject.toml changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("providers/amazon/src/airflow/providers/amazon/aws/log/s3_task_handler.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "true",
+                    "run-remote-logging-elasticsearch-e2e-tests": "false",
+                    "prod-image-build": "true",
+                },
+                id="S3 remote logging changes enable only S3 e2e",
+            )
+        ),
+        (
+            pytest.param(
+                ("providers/elasticsearch/src/airflow/providers/elasticsearch/log/es_task_handler.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "false",
+                    "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "prod-image-build": "true",
+                },
+                id="Elasticsearch remote logging changes enable only Elasticsearch e2e",
+            )
+        ),
+        (
+            pytest.param(
+                ("providers/elasticsearch/src/airflow/providers/elasticsearch/log/es_json_formatter.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "false",
+                    "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "prod-image-build": "true",
+                },
+                id="Elasticsearch helper changes enable Elasticsearch e2e",
+            )
+        ),
+        (
+            pytest.param(
+                ("airflow-core/src/airflow/config_templates/airflow_local_settings.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "true",
+                    "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "prod-image-build": "true",
+                },
+                id="Shared remote logging changes enable both remote logging e2e jobs",
+            )
+        ),
+        (
+            pytest.param(
+                ("shared/logging/src/airflow_shared/logging/remote.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "true",
+                    "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "prod-image-build": "true",
+                },
+                id="Shared logging library changes enable both remote logging e2e jobs",
             )
         ),
     ],
@@ -1321,7 +1380,13 @@ def test_excluded_providers():
     )
     assert_outputs_are_printed(
         {
-            "excluded-providers-as-string": json.dumps({}),
+            "excluded-providers-as-string": json.dumps(
+                {
+                    "3.14": [
+                        "apache.cassandra",  # Enable when the next release after 3.29.3 is available
+                    ],
+                }
+            ),
         },
         str(stderr),
     )
@@ -1809,7 +1874,7 @@ def test_expected_output_pull_request_v2_7(
                 "docs-build": "true",
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
-                "upgrade-to-newer-dependencies": "true",
+                "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS,
@@ -1830,7 +1895,7 @@ def test_expected_output_pull_request_v2_7(
                 "docs-build": "true",
                 "skip-prek-hooks": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
                 "docs-list-as-string": "apache-airflow docker-stack",
-                "upgrade-to-newer-dependencies": "true",
+                "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS_EXCEPT_PROVIDERS,
@@ -1853,7 +1918,7 @@ def test_expected_output_pull_request_v2_7(
                 "docs-build": "true",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
-                "upgrade-to-newer-dependencies": "true",
+                "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS,
@@ -2122,9 +2187,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(mock_get, gith
             "run-unit-tests": "true",
             "docs-build": "true",
             "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
-            "upgrade-to-newer-dependencies": (
-                "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
-            ),
+            "upgrade-to-newer-dependencies": ("true" if github_event == GithubEvents.SCHEDULE else "false"),
             "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
             "run-mypy": "true",
             "mypy-checks": ALL_MYPY_CHECKS,
@@ -2174,9 +2237,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(mock_get, github_e
             "run-unit-tests": "true",
             "docs-build": "true",
             "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
-            "upgrade-to-newer-dependencies": (
-                "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
-            ),
+            "upgrade-to-newer-dependencies": ("true" if github_event == GithubEvents.SCHEDULE else "false"),
             "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
             "run-mypy": "true",
             "mypy-checks": ALL_MYPY_CHECKS,

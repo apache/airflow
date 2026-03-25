@@ -181,7 +181,7 @@ three times in order to make sure that references between the packages are resol
 Note that this will not work with ``--autobuild`` option because
 the ``--autobuild`` option will only build the documentation for single distribution at a time. You will
 see an error if you try to use ``--autobuild`` with multiple distributions. But once the "other" package
-is build, you will be able ot use ``--autobuild`` for the other package (until you use ``--clean-build``
+is build, you will be able to use ``--autobuild`` for the other package (until you use ``--clean-build``
 option).
 
 You can run this command in the folder of the package you want to build - if the package needs another
@@ -228,9 +228,9 @@ all the dependencies installed that should allow to build all documentation for 
 and it is independent on the host / local environment including the OS you are using. You can always
 fall-back to this method if - for some reason - your local documentation building is failing.
 
-Basic command is ``breeze build-docs`` which except ``--auto-build`` has very similar options
+Basic command is ``breeze build-docs`` which except ``--autobuild`` has very similar options
 as the ``uv run build-docs`` command.. You can also specify a number of options like selecting which
-distribution packages you want to build and which kind of build to run (``--doc-only`` od ``--spelling-only``)
+distribution packages you want to build and which kind of build to run (``--doc-only`` or ``--spelling-only``)
 or request to ``--clean`` the build directory before building the documentation.
 
 For example:

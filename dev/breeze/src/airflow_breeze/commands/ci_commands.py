@@ -37,6 +37,7 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_dry_run,
     option_github_repository,
+    option_github_token,
     option_verbose,
 )
 from airflow_breeze.global_constants import (
@@ -579,11 +580,18 @@ def _sync_k8s_schemas_to_airflow_site(airflow_site: Path, force: bool, command_e
     help="Run upgrade-important-versions to bump key dependency versions",
 )
 @click.option(
+    "--update-uv-lock/--no-update-uv-lock",
+    default=True,
+    show_default=True,
+    help="Run update-uv-lock to regenerate uv.lock with latest resolutions inside Breeze CI image",
+)
+@click.option(
     "--k8s-schema-sync/--no-k8s-schema-sync",
     default=True,
     show_default=True,
     help="Sync K8s JSON schemas to airflow-site",
 )
+@option_github_token
 @option_answer
 @option_verbose
 @option_dry_run
@@ -597,7 +605,9 @@ def upgrade(
     pin_versions: bool,
     update_chart_dependencies: bool,
     upgrade_important_versions: bool,
+    update_uv_lock: bool,
     k8s_schema_sync: bool,
+    github_token: str | None,
 ):
     # Validate target_branch pattern
     target_branch_pattern = re.compile(r"^(main|v\d+-\d+-test)$")
@@ -752,24 +762,26 @@ def upgrade(
 
     console_print("[info]Running upgrade of important CI environment.[/]")
 
-    # Get GitHub token from gh CLI and set it in environment copy
-    gh_token_result = run_command(
-        ["gh", "auth", "token"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    # Resolve GitHub token: prefer --github-token / GITHUB_TOKEN env var, fall back to gh CLI
+    if not github_token:
+        gh_token_result = run_command(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if gh_token_result.returncode == 0 and gh_token_result.stdout.strip():
+            github_token = gh_token_result.stdout.strip()
 
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
 
-    if gh_token_result.returncode == 0 and gh_token_result.stdout.strip():
-        github_token = gh_token_result.stdout.strip()
+    if github_token:
         command_env["GITHUB_TOKEN"] = github_token
-        console_print("[success]GitHub token retrieved from gh CLI and set in environment.[/]")
+        console_print("[success]GitHub token set in environment.[/]")
     else:
         console_print(
-            "[warning]Could not retrieve GitHub token from gh CLI. "
+            "[warning]Could not retrieve GitHub token from --github-token or gh CLI. "
             "Commands may fail if they require authentication.[/]"
         )
 
@@ -785,12 +797,17 @@ def upgrade(
             "upgrade-important-versions",
             "prek --all-files --show-diff-on-failure --color always --verbose --stage manual upgrade-important-versions",
         ),
+        (
+            "update-uv-lock",
+            "prek --all-files --show-diff-on-failure --color always --verbose update-uv-lock --stage manual",
+        ),
     ]
     step_enabled = {
         "autoupdate": autoupdate,
         "pin-versions": pin_versions,
         "update-chart-dependencies": update_chart_dependencies,
         "upgrade-important-versions": upgrade_important_versions,
+        "update-uv-lock": update_uv_lock,
     }
 
     # Execute enabled upgrade commands with the environment containing GitHub token

@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-oracle"
-version = "4.5.1"
+version = "4.5.2"
 description = "Provider package apache-airflow-providers-oracle for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -71,7 +72,8 @@ dependencies = [
     "numpy>=1.22.4; python_version<'3.11'",
     "numpy>=1.23.2; python_version=='3.11'",
     "numpy>=1.26.0; python_version=='3.12'",
-    "numpy>=2.1.0; python_version>='3.13'",
+    "numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'",
+    "numpy>=2.4.3; python_version>='3.14'",
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage"
@@ -89,7 +91,8 @@ dev = [
     "numpy>=1.22.4; python_version<'3.11'",
     "numpy>=1.23.2; python_version=='3.11'",
     "numpy>=1.26.0; python_version=='3.12'",
-    "numpy>=2.1.0; python_version>='3.13'",
+    "numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'",
+    "numpy>=2.4.3; python_version>='3.14'",
 ]
 
 # To build docs:
@@ -118,8 +121,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.5.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.5.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.5.2"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.5.2/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

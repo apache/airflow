@@ -759,7 +759,7 @@ def load(
     perform_environment_checks()
     escaped_platform = platform.replace("/", "_")
 
-    if from_run or from_pr and not github_token:
+    if (from_run or from_pr) and not github_token:
         console_print(
             "[error]The parameter `--github-token` must be provided if `--from-run` or `--from-pr` is "
             "provided. Exiting.[/]"

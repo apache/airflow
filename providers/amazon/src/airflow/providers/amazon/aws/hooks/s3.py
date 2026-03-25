@@ -338,7 +338,12 @@ class S3Hook(AwsBaseHook):
         return self.resource.Bucket(bucket_name)
 
     @provide_bucket_name
-    def create_bucket(self, bucket_name: str | None = None, region_name: str | None = None) -> None:
+    def create_bucket(
+        self,
+        bucket_name: str | None = None,
+        region_name: str | None = None,
+        bucket_namespace: str | None = None,
+    ) -> None:
         """
         Create an Amazon S3 bucket.
 
@@ -347,6 +352,10 @@ class S3Hook(AwsBaseHook):
 
         :param bucket_name: The name of the bucket
         :param region_name: The name of the aws region in which to create the bucket.
+        :param bucket_namespace: The namespace of the bucket. Set to ``account-regional`` to create
+            the bucket in the account-regional namespace. If not specified, the bucket is created
+            in the global namespace. See:
+            https://docs.aws.amazon.com/AmazonS3/latest/userguide/gpbucketnamespaces.html
         """
         if not region_name:
             if self.conn_region_name == "aws-global":
@@ -356,13 +365,13 @@ class S3Hook(AwsBaseHook):
                 )
             region_name = self.conn_region_name
 
-        if region_name == "us-east-1":
-            self.get_conn().create_bucket(Bucket=bucket_name)
-        else:
-            self.get_conn().create_bucket(
-                Bucket=bucket_name,
-                CreateBucketConfiguration={"LocationConstraint": region_name},
-            )
+        kwargs: dict[str, Any] = {"Bucket": bucket_name}
+        if region_name != "us-east-1":
+            kwargs["CreateBucketConfiguration"] = {"LocationConstraint": region_name}
+        if bucket_namespace:
+            kwargs["BucketNamespace"] = bucket_namespace
+
+        self.get_conn().create_bucket(**kwargs)
 
     @provide_bucket_name
     def check_for_prefix(self, prefix: str, delimiter: str, bucket_name: str | None = None) -> bool:

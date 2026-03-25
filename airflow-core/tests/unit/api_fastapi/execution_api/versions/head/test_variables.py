@@ -159,20 +159,22 @@ class TestPutVariable:
             assert var_from_db.description == payload["description"]
 
     @pytest.mark.parametrize(
-        ("key", "status_code", "payload"),
+        ("key", "payload", "error_type"),
         [
-            pytest.param("", 404, {"value": "{}", "description": "description"}, id="missing-key"),
-            pytest.param("var_create", 422, {"description": "description"}, id="missing-value"),
+            pytest.param(
+                "", {"value": "{}", "description": "description"}, "string_too_short", id="missing-key"
+            ),
+            pytest.param("var_create", {"description": "description"}, "missing", id="missing-value"),
         ],
     )
-    def test_variable_missing_mandatory_fields(self, client, key, status_code, payload, session):
+    def test_variable_missing_mandatory_fields(self, client, key, payload, error_type, session):
         response = client.put(
             f"/execution/variables/{key}",
             json=payload,
         )
-        assert response.status_code == status_code
-        if response.status_code == 422:
-            assert response.json()["detail"][0]["type"] == "missing"
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["type"] == error_type
+        if error_type == "missing":
             assert response.json()["detail"][0]["msg"] == "Field required"
 
     @pytest.mark.parametrize(

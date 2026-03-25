@@ -36,14 +36,14 @@ systems.
 The providers are released separately from the core Airflow and they are versioned independently. The
 ways how providers can extend the Airflow Core, including the types of providers, can be found at the
 `Providers page <https://airflow.apache.org/docs/apache-airflow-providers/index.html>`_. You can also find
-out there, how you can create your own provider.
+out there how you can create your own provider.
 
 Providers can be maintained and released by the Airflow community or by 3rd-party teams. In any case -
 whether community-managed, or 3rd-party managed - they are released independently of the Airflow Core package.
 
 When community releases the Airflow Core, it is released together with constraints, those constraints use
 the latest released version of providers, and our published convenience images contain a subset of most
-popular community providers. However our users are free to upgrade and downgrade providers independently of
+popular community providers. However, our users are free to upgrade and downgrade providers independently of
 the Airflow Core version as they see fit, as long as it does not cause conflicting dependencies.
 
 You can read more about it in the
@@ -59,7 +59,7 @@ Community managed providers
 When providers are accepted by the community, the process of managing and releasing them must follow the
 Apache Software Foundation rules and policies. This is especially, about accepting contributions and
 releasing new versions of the providers. This means that the code changes in the providers must be
-reviewed by Airflow committers and merged when they are accepted by them. Also we must have sufficient
+reviewed by Airflow committers and merged when they are accepted by them. Also, we must have sufficient
 test coverage and documentation that allow us to maintain the providers, and our users to use them.
 
 The providers - their latest version in "main" branch of Airflow repository - are installed and tested together
