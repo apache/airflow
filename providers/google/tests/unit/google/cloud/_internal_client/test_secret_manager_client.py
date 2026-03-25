@@ -18,10 +18,14 @@ from __future__ import annotations
 
 from unittest import mock
 
-from google.api_core.exceptions import NotFound, PermissionDenied
+import pytest
+from google.api_core.exceptions import DeadlineExceeded, NotFound, PermissionDenied
 from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
 
-from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
+from airflow.providers.google.cloud._internal_client.secret_manager_client import (
+    ACCESS_SECRET_VERSION_TIMEOUT,
+    _SecretManagerClient,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 
 INTERNAL_CLIENT_MODULE = "airflow.providers.google.cloud._internal_client.secret_manager_client"
@@ -47,7 +51,9 @@ class TestSecretManagerClient:
         secret = secrets_client.get_secret(secret_id="missing", project_id="project_id")
         mock_client.secret_version_path.assert_called_once_with("project_id", "missing", "latest")
         assert secret is None
-        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
+        mock_client.access_secret_version.assert_called_once_with(
+            request={"name": "full-path"}, timeout=ACCESS_SECRET_VERSION_TIMEOUT
+        )
 
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
     def test_get_no_permissions(self, mock_secrets_client):
@@ -60,7 +66,9 @@ class TestSecretManagerClient:
         secret = secrets_client.get_secret(secret_id="missing", project_id="project_id")
         mock_client.secret_version_path.assert_called_once_with("project_id", "missing", "latest")
         assert secret is None
-        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
+        mock_client.access_secret_version.assert_called_once_with(
+            request={"name": "full-path"}, timeout=ACCESS_SECRET_VERSION_TIMEOUT
+        )
 
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
     def test_get_invalid_id(self, mock_secrets_client):
@@ -73,7 +81,9 @@ class TestSecretManagerClient:
         secret = secrets_client.get_secret(secret_id="not.allow", project_id="project_id")
         mock_client.secret_version_path.assert_called_once_with("project_id", "not.allow", "latest")
         assert secret is None
-        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
+        mock_client.access_secret_version.assert_called_once_with(
+            request={"name": "full-path"}, timeout=ACCESS_SECRET_VERSION_TIMEOUT
+        )
 
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
     def test_get_existing_key(self, mock_secrets_client):
@@ -87,7 +97,9 @@ class TestSecretManagerClient:
         secret = secrets_client.get_secret(secret_id="existing", project_id="project_id")
         mock_client.secret_version_path.assert_called_once_with("project_id", "existing", "latest")
         assert secret == "result"
-        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
+        mock_client.access_secret_version.assert_called_once_with(
+            request={"name": "full-path"}, timeout=ACCESS_SECRET_VERSION_TIMEOUT
+        )
 
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
     def test_get_existing_key_with_version(self, mock_secrets_client):
@@ -103,4 +115,19 @@ class TestSecretManagerClient:
         )
         mock_client.secret_version_path.assert_called_once_with("project_id", "existing", "test-version")
         assert secret == "result"
-        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
+        mock_client.access_secret_version.assert_called_once_with(
+            request={"name": "full-path"}, timeout=ACCESS_SECRET_VERSION_TIMEOUT
+        )
+
+    @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
+    def test_get_secret_deadline_exceeded(self, mock_secrets_client):
+        mock_client = mock.MagicMock()
+        mock_secrets_client.return_value = mock_client
+        mock_client.secret_version_path.return_value = "full-path"
+        mock_client.access_secret_version.side_effect = DeadlineExceeded("test-msg")
+        secrets_client = _SecretManagerClient(credentials="credentials")
+        with pytest.raises(TimeoutError, match="timed out"):
+            secrets_client.get_secret(secret_id="timeout-secret", project_id="project_id")
+        mock_client.access_secret_version.assert_called_once_with(
+            request={"name": "full-path"}, timeout=ACCESS_SECRET_VERSION_TIMEOUT
+        )
