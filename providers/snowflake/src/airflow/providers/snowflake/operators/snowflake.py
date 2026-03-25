@@ -560,7 +560,7 @@ class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
     :param role: Snowflake role name (overrides connection default).
     :param authenticator: Snowflake authenticator type.
     :param session_parameters: Snowflake session-level parameters.
-    :param poll_interval: Seconds between status checks (default 5).
+    :param poll_interval: Seconds between status checks (default 5). Used only in deferrable mode.
     :param token_life_time: Lifetime of the JWT token.
     :param token_renewal_delta: When to renew the JWT token before expiry.
     :param deferrable: If True, run in deferrable mode (frees the worker
