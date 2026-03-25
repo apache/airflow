@@ -47,7 +47,7 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComResponse,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
@@ -335,8 +335,6 @@ class TestTaskInstanceOperations:
 
     def test_task_instance_start_already_running(self):
         """Test that start() raises TaskAlreadyRunningError when TI is already running."""
-        from airflow.sdk.exceptions import TaskAlreadyRunningError
-
         ti_id = uuid6.uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:

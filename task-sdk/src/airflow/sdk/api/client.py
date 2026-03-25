@@ -226,7 +226,7 @@ class TaskInstanceOperations:
                     and detail.get("reason") == "invalid_state"
                     and detail.get("previous_state") == "running"
                 ):
-                    raise TaskAlreadyRunningError(f"Task {id} is already running") from e
+                    raise TaskAlreadyRunningError(f"Task instance {id} is already running") from e
             raise
         return TIRunContext.model_validate_json(resp.read())
 

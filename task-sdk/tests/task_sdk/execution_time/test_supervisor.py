@@ -63,7 +63,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TaskInstanceState,
 )
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -830,6 +830,40 @@ class TestWatchedSubprocess:
                 "loc": mocker.ANY,
             },
         ]
+
+    def test_start_raises_task_already_running_and_kills_subprocess(self):
+        """Test that ActivitySubprocess.start() raises TaskAlreadyRunningError and kills the child
+        when the API returns 409 with previous_state='running'."""
+        ti_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(
+                    409,
+                    json={
+                        "detail": {
+                            "reason": "invalid_state",
+                            "message": "TI was not in a state where it could be marked as running",
+                            "previous_state": "running",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=204)
+
+        def subprocess_main():
+            # Ensure we follow the "protocol" and get the startup message before we do anything
+            CommsDecoder()._get_response()
+
+        with pytest.raises(TaskAlreadyRunningError, match="already running"):
+            ActivitySubprocess.start(
+                dag_rel_path=os.devnull,
+                bundle_info=FAKE_BUNDLE,
+                what=TaskInstance(
+                    id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+                ),
+                client=make_client(transport=httpx.MockTransport(handle_request)),
+                target=subprocess_main,
+            )
 
     @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
     def test_heartbeat_failures_handling(self, monkeypatch, mocker, captured_logs, time_machine):
