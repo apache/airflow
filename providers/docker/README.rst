@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-docker``
 
-Release: ``4.5.3``
+Release: ``4.5.4``
 
 
 `Docker <https://www.docker.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``docker`` provider. All classes for this provide
 are in ``airflow.providers.docker`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.5.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.5.4/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-docker``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -79,4 +79,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.5.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.5.4/changelog.html>`_.
