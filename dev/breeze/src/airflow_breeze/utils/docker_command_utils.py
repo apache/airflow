@@ -97,6 +97,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("docker-tests", "/opt/airflow/docker-tests"),
     ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),
+    ("go-sdk", "/opt/airflow/go-sdk"),
     ("helm-tests", "/opt/airflow/helm-tests"),
     ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
     ("logs", "/root/airflow/logs"),
