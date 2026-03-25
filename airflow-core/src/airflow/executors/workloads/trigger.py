@@ -35,8 +35,11 @@ class RunTrigger(BaseModel):
     """
 
     id: int
-    ti: TaskInstanceDTO | None  # Could be none for asset-based triggers.
     classpath: str  # Dot-separated name of the module+fn to import and run this workload.
     encrypted_kwargs: str
+    ti: TaskInstanceDTO | None = None  # Could be none for asset-based triggers.
     timeout_after: datetime | None = None
     type: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
+    dag_data: dict | None = (
+        None  # Serialized Dag model in dict format so it can be deserialized in trigger subprocess.
+    )
