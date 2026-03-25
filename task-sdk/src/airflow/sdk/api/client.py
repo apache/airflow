@@ -135,6 +135,7 @@ def _get_fqdn(name=""):
     return name
 
 
+@cache
 def get_hostname():
     """Fetch the hostname using the callable from config or use built-in FQDN as a fallback."""
     return conf.getimport("core", "hostname_callable", fallback=_get_fqdn)()
@@ -212,9 +213,10 @@ class TaskInstanceOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def start(self, id: uuid.UUID, pid: int, when: datetime) -> TIRunContext:
+    def start(self, id: uuid.UUID, pid: int, when: datetime, hostname: str | None = None) -> TIRunContext:
         """Tell the API server that this TI has started running."""
-        body = TIEnterRunningPayload(pid=pid, hostname=get_hostname(), unixname=getuser(), start_date=when)
+        hostname = hostname or get_hostname()
+        body = TIEnterRunningPayload(pid=pid, hostname=hostname, unixname=getuser(), start_date=when)
 
         resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
         return TIRunContext.model_validate_json(resp.read())
@@ -258,8 +260,9 @@ class TaskInstanceOperations:
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def heartbeat(self, id: uuid.UUID, pid: int):
-        body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
+    def heartbeat(self, id: uuid.UUID, pid: int, hostname: str | None = None):
+        hostname = hostname or get_hostname()
+        body = TIHeartbeatInfo(pid=pid, hostname=hostname)
         self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
 
     def skip_downstream_tasks(self, id: uuid.UUID, msg: SkipDownstreamTasks):

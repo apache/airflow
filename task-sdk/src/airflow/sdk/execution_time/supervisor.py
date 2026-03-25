@@ -48,7 +48,7 @@ import structlog
 from pydantic import BaseModel, TypeAdapter
 
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
-from airflow.sdk.api.client import Client, ServerResponseError
+from airflow.sdk.api.client import Client, ServerResponseError, get_hostname
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
@@ -987,7 +987,8 @@ class ActivitySubprocess(WatchedSubprocess):
 
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
-    ti: RuntimeTI | None = None
+    ti: RuntimeTI | None = attrs.field(default=None, init=False)
+    hostname: str = attrs.field(factory=get_hostname, init=False)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -1028,7 +1029,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
+            ti_context = self.client.task_instances.start(ti.id, self.pid, start_date, hostname=self.hostname)
             self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
@@ -1177,7 +1178,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
         self._last_heartbeat_attempt = time.monotonic()
         try:
-            self.client.task_instances.heartbeat(self.id, pid=self._process.pid)
+            self.client.task_instances.heartbeat(self.id, pid=self._process.pid, hostname=self.hostname)
             # Update the last heartbeat time on success
             self._last_successful_heartbeat = time.monotonic()
 
@@ -1185,6 +1186,18 @@ class ActivitySubprocess(WatchedSubprocess):
             self.failed_heartbeats = 0
         except ServerResponseError as e:
             if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.CONFLICT}:
+                # If the process has already exited on its own, the 409/404 is a benign race condition:
+                # the task finished and transitioned state just before this heartbeat was processed.
+                # In that case, we do NOT kill — we let the process clean up normally.
+                if self._exit_code is not None:
+                    log.warning(
+                        "Heartbeat conflict after process already exited; ignoring",
+                        detail=e.detail,
+                        status_code=e.response.status_code,
+                        ti_id=self.id,
+                        exit_code=self._exit_code,
+                    )
+                    return
                 log.error(
                     "Server indicated the task shouldn't be running anymore",
                     detail=e.detail,

@@ -689,8 +689,12 @@ class TestWatchedSubprocess:
         assert exit_code == 0, captured_logs
 
         # Validate calls to the client
-        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
-        mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
+        mock_client.task_instances.start.assert_called_once_with(
+            ti.id, mocker.ANY, mocker.ANY, hostname=mocker.ANY
+        )
+        mock_client.task_instances.heartbeat.assert_called_once_with(
+            ti.id, pid=mocker.ANY, hostname=mocker.ANY
+        )
         mock_client.task_instances.defer.assert_called_once_with(
             ti.id,
             # Since the message as serialized in the client upon sending, we expect it to be already encoded
@@ -915,7 +919,7 @@ class TestWatchedSubprocess:
             for i in range(1, max_failed_heartbeats):
                 proc._send_heartbeat_if_needed()
                 assert proc.failed_heartbeats == i  # Increment happens after failure
-                mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
+                mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid, hostname=mocker.ANY)
 
                 # Ensure the retry log is present
                 expected_log = {
@@ -941,7 +945,7 @@ class TestWatchedSubprocess:
 
         assert proc.failed_heartbeats == max_failed_heartbeats
         mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
-        mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
+        mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid, hostname=mocker.ANY)
         assert {
             "event": "Too many failed heartbeats; terminating process",
             "level": "error",
