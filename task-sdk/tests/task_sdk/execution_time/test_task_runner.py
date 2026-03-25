@@ -4360,6 +4360,53 @@ class TestTaskRunnerCallsCallbacks:
             expected_exception_logs.insert(index, calls)
         assert log.exception.mock_calls == expected_exception_logs
 
+    def test_airflow_fail_exception_in_on_retry_callback_marks_task_as_failed(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """AirflowFailException raised in on_retry_callback must prevent retries and mark task as FAILED."""
+        from airflow.sdk.exceptions import AirflowFailException
+
+        failure_callback_called = []
+        retry_callback_called = []
+
+        def retry_callback(context):
+            retry_callback_called.append(True)
+            raise AirflowFailException("No more retries!")
+
+        def failure_callback(context):
+            failure_callback_called.append(True)
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowException("Task failed")
+
+        task = FailingOperator(
+            task_id="task",
+            on_retry_callback=retry_callback,
+            on_failure_callback=failure_callback,
+        )
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task, should_retry=True)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, run_msg, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error, msg=run_msg)
+
+        assert runtime_ti.state == TaskInstanceState.FAILED
+        assert retry_callback_called == [True]
+        assert failure_callback_called == [True]
+
+        # The supervisor must receive TaskState(FAILED), not RetryTask
+        sent_msgs = [
+            call.args[0] if call.args else call.kwargs.get("msg")
+            for call in mock_supervisor_comms.send.call_args_list
+        ]
+        from airflow.sdk.execution_time.comms import RetryTask, TaskState
+
+        assert not any(isinstance(m, RetryTask) for m in sent_msgs), (
+            "RetryTask must not be sent when on_retry_callback raises AirflowFailException"
+        )
+        assert any(isinstance(m, TaskState) and m.state == TaskInstanceState.FAILED for m in sent_msgs)
+
 
 class TestTriggerDagRunOperator:
     """Tests to verify various aspects of TriggerDagRunOperator"""

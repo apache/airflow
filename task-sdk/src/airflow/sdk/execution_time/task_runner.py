@@ -1355,7 +1355,7 @@ def run(
         # Same metric with tagging
         Stats.incr("ti.finish", tags={**stats_tags, "state": state.value})
 
-        if msg:
+        if msg and state != TaskInstanceState.UP_FOR_RETRY:
             SUPERVISOR_COMMS.send(msg=msg)
 
     # Return the message to make unit tests easier too
@@ -1538,10 +1538,14 @@ def _run_task_state_change_callbacks(
     context: Context,
     log: Logger,
 ) -> None:
+    from airflow.sdk.exceptions import AirflowFailException
+
     callback: Callable[[Context], None]
     for i, callback in enumerate(getattr(task, kind)):
         try:
             create_executable_runner(callback, context_get_outlet_events(context), logger=log).run(context)
+        except AirflowFailException:
+            raise
         except Exception:
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
@@ -1747,6 +1751,7 @@ def finalize(
     context: Context,
     log: Logger,
     error: BaseException | None = None,
+    msg: ToSupervisor | None = None,
 ):
     # Record task duration metrics for all terminal states
     if ti.start_date and ti.end_date:
@@ -1801,15 +1806,38 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
     elif state == TaskInstanceState.UP_FOR_RETRY:
-        _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
+        from airflow.sdk.exceptions import AirflowFailException
+
+        try:
+            _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
+        except AirflowFailException as e:
+            # If on_retry_callback raises AirflowFailException, the task should not retry.
+            log.info("on_retry_callback raised AirflowFailException; marking task as failed without retry")
+            state = TaskInstanceState.FAILED
+            ti.state = state
+            error = e
+            SUPERVISOR_COMMS.send(
+                msg=TaskState(
+                    state=TaskInstanceState.FAILED,
+                    end_date=ti.end_date,
+                    rendered_map_index=ti.rendered_map_index,
+                )
+            )
+            _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
+            if error and task.email_on_failure and task.email:
+                _send_error_email_notification(task, ti, context, error, log)
+        else:
+            # No AirflowFailException: proceed with retry as originally planned.
+            if msg:
+                SUPERVISOR_COMMS.send(msg=msg)
+            if error and task.email_on_retry and task.email:
+                _send_error_email_notification(task, ti, context, error, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
             )
         except Exception:
             log.exception("error calling listener")
-        if error and task.email_on_retry and task.email:
-            _send_error_email_notification(task, ti, context, error, log)
     elif state == TaskInstanceState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
@@ -1871,9 +1899,9 @@ def main():
                 bundle_name=ti.bundle_instance.name,
                 bundle_version=ti.bundle_instance.version,
             ):
-                state, _, error = run(ti, context, log)
+                state, run_msg, error = run(ti, context, log)
                 context["exception"] = error
-                finalize(ti, state, context, log, error)
+                finalize(ti, state, context, log, error, msg=run_msg)
         except KeyboardInterrupt:
             log.exception("Ctrl-c hit")
             sys.exit(2)

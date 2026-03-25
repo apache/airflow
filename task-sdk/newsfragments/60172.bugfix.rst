@@ -1,0 +1,1 @@
+``AirflowFailException`` raised inside ``on_retry_callback`` now correctly prevents task retries and marks the task as failed.
