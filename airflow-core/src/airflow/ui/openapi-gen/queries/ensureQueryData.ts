@@ -116,15 +116,20 @@ export const ensureUseAssetServiceGetAssetData = (queryClient: QueryClient, { as
 }) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }), queryFn: () => AssetService.getAsset({ assetId }) });
 /**
 * Get Asset Lineage
-* Get the lineage graph for an asset.
+* Get the cross-DAG lineage graph for an asset.
+*
+* Performs a breadth-first traversal across asset-task-asset chains in both
+* upstream and downstream directions, up to *depth* hops from the root asset.
 * @param data The data for the request.
 * @param data.assetId
+* @param data.depth
 * @returns AssetLineageGraphResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetServiceGetAssetLineageData = (queryClient: QueryClient, { assetId }: {
+export const ensureUseAssetServiceGetAssetLineageData = (queryClient: QueryClient, { assetId, depth }: {
   assetId: number;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetLineageKeyFn({ assetId }), queryFn: () => AssetService.getAssetLineage({ assetId }) });
+  depth?: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetLineageKeyFn({ assetId, depth }), queryFn: () => AssetService.getAssetLineage({ assetId, depth }) });
 /**
 * Get Dag Asset Queued Events
 * Get queued asset events for a DAG.

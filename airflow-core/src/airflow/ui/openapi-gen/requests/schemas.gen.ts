@@ -298,11 +298,10 @@ export const $AssetLineageEdge = {
             title: 'Target Id'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['source_id', 'target_id'],
     title: 'AssetLineageEdge',
-    description: 'An edge in the asset lineage graph.'
+    description: 'A directed edge in the asset lineage graph.'
 } as const;
 
 export const $AssetLineageGraphResponse = {
@@ -322,11 +321,10 @@ export const $AssetLineageGraphResponse = {
             title: 'Edges'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['nodes', 'edges'],
     title: 'AssetLineageGraphResponse',
-    description: 'Asset lineage graph response.'
+    description: 'Full lineage graph containing nodes and edges.'
 } as const;
 
 export const $AssetLineageNode = {
@@ -366,11 +364,10 @@ export const $AssetLineageNode = {
             title: 'Group'
         }
     },
-    additionalProperties: false,
     type: 'object',
     required: ['id', 'node_type', 'name'],
     title: 'AssetLineageNode',
-    description: 'A node in the asset lineage graph.'
+    description: 'A node in the asset lineage graph (asset, task, or DAG).'
 } as const;
 
 export const $AssetResponse = {

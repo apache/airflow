@@ -76,7 +76,7 @@ export type AssetEventResponse = {
 };
 
 /**
- * An edge in the asset lineage graph.
+ * A directed edge in the asset lineage graph.
  */
 export type AssetLineageEdge = {
     source_id: string;
@@ -84,7 +84,7 @@ export type AssetLineageEdge = {
 };
 
 /**
- * Asset lineage graph response.
+ * Full lineage graph containing nodes and edges.
  */
 export type AssetLineageGraphResponse = {
     nodes: Array<AssetLineageNode>;
@@ -92,7 +92,7 @@ export type AssetLineageGraphResponse = {
 };
 
 /**
- * A node in the asset lineage graph.
+ * A node in the asset lineage graph (asset, task, or DAG).
  */
 export type AssetLineageNode = {
     id: string;
@@ -2359,6 +2359,7 @@ export type GetAssetResponse = AssetResponse;
 
 export type GetAssetLineageData = {
     assetId: number;
+    depth?: number;
 };
 
 export type GetAssetLineageResponse = AssetLineageGraphResponse;

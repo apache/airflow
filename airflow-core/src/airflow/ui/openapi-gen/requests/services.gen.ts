@@ -274,9 +274,13 @@ export class AssetService {
     
     /**
      * Get Asset Lineage
-     * Get the lineage graph for an asset.
+     * Get the cross-DAG lineage graph for an asset.
+     *
+     * Performs a breadth-first traversal across asset-task-asset chains in both
+     * upstream and downstream directions, up to *depth* hops from the root asset.
      * @param data The data for the request.
      * @param data.assetId
+     * @param data.depth
      * @returns AssetLineageGraphResponse Successful Response
      * @throws ApiError
      */
@@ -286,6 +290,9 @@ export class AssetService {
             url: '/api/v2/assets/{asset_id}/lineage',
             path: {
                 asset_id: data.assetId
+            },
+            query: {
+                depth: data.depth
             },
             errors: {
                 401: 'Unauthorized',

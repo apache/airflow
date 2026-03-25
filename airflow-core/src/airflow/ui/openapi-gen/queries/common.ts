@@ -64,9 +64,10 @@ export const UseAssetServiceGetAssetKeyFn = ({ assetId }: {
 export type AssetServiceGetAssetLineageDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetLineage>>;
 export type AssetServiceGetAssetLineageQueryResult<TData = AssetServiceGetAssetLineageDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetLineageKey = "AssetServiceGetAssetLineage";
-export const UseAssetServiceGetAssetLineageKeyFn = ({ assetId }: {
+export const UseAssetServiceGetAssetLineageKeyFn = ({ assetId, depth }: {
   assetId: number;
-}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetLineageKey, ...(queryKey ?? [{ assetId }])];
+  depth?: number;
+}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetLineageKey, ...(queryKey ?? [{ assetId, depth }])];
 export type AssetServiceGetDagAssetQueuedEventsDefaultResponse = Awaited<ReturnType<typeof AssetService.getDagAssetQueuedEvents>>;
 export type AssetServiceGetDagAssetQueuedEventsQueryResult<TData = AssetServiceGetDagAssetQueuedEventsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetDagAssetQueuedEventsKey = "AssetServiceGetDagAssetQueuedEvents";

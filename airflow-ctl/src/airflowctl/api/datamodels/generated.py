@@ -51,24 +51,18 @@ class AssetAliasResponse(BaseModel):
 
 class AssetLineageEdge(BaseModel):
     """
-    An edge in the asset lineage graph.
+    A directed edge in the asset lineage graph.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     source_id: Annotated[str, Field(title="Source Id")]
     target_id: Annotated[str, Field(title="Target Id")]
 
 
 class AssetLineageNode(BaseModel):
     """
-    A node in the asset lineage graph.
+    A node in the asset lineage graph (asset, task, or DAG).
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     id: Annotated[str, Field(title="Id")]
     node_type: Annotated[str, Field(title="Node Type")]
     name: Annotated[str, Field(title="Name")]
@@ -1109,12 +1103,9 @@ class AssetEventResponse(BaseModel):
 
 class AssetLineageGraphResponse(BaseModel):
     """
-    Asset lineage graph response.
+    Full lineage graph containing nodes and edges.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-    )
     nodes: Annotated[list[AssetLineageNode], Field(title="Nodes")]
     edges: Annotated[list[AssetLineageEdge], Field(title="Edges")]
 

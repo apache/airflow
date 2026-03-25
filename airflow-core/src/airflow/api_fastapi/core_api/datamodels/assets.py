@@ -187,25 +187,25 @@ class CreateAssetEventsBody(StrictBaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class AssetLineageNode(StrictBaseModel):
-    """A node in the asset lineage graph."""
+class AssetLineageNode(BaseModel):
+    """A node in the asset lineage graph (asset, task, or DAG)."""
 
     id: str
-    node_type: str  # e.g., "asset", "task"
+    node_type: str
     name: str
     uri: str | None = None
     group: str | None = None
 
 
-class AssetLineageEdge(StrictBaseModel):
-    """An edge in the asset lineage graph."""
+class AssetLineageEdge(BaseModel):
+    """A directed edge in the asset lineage graph."""
 
     source_id: str
     target_id: str
 
 
-class AssetLineageGraphResponse(StrictBaseModel):
-    """Asset lineage graph response."""
+class AssetLineageGraphResponse(BaseModel):
+    """Full lineage graph containing nodes and edges."""
 
     nodes: list[AssetLineageNode]
     edges: list[AssetLineageEdge]
