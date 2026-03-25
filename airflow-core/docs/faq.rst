@@ -243,9 +243,7 @@ Why does my Dag version keep increasing?
 -----------------------------------------
 
 Every time the Dag processor parses a Dag file, it serializes the Dag and compares the result with the
-version stored in the metadata database. If anything has changed, Airflow creates a new Dag version. This
-mechanism ensures that Dag runs use consistent code throughout their execution, even if the Dag file is
-updated mid-run.
+version stored in the metadata database. If anything has changed, Airflow creates a new Dag version.
 
 **Dag version inflation** occurs when the version number increases indefinitely without the Dag author
 making any intentional changes.
@@ -273,9 +271,9 @@ processor evaluates the Dag file — as arguments to Dag or Task constructors. T
 
     from airflow.sdk import DAG
 
-    # BAD: datetime.now() produces a different value on every parse
     with DAG(
         dag_id="bad_example",
+        # BAD: datetime.now() produces a different value on every parse
         start_date=datetime.now(),
         schedule="@daily",
     ):
@@ -294,8 +292,8 @@ stored version.
     from airflow.providers.standard.operators.python import PythonOperator
 
     with DAG(dag_id="bad_random", start_date="2024-01-01", schedule="@daily") as dag:
-        # BAD: random value changes every parse
         PythonOperator(
+            # BAD: random value changes every parse
             task_id=f"task_{random.randint(1, 1000)}",
             python_callable=lambda: None,
         )
@@ -328,9 +326,9 @@ Even though ``datetime.now()`` is not called directly inside the Dag constructor
     from airflow.providers.standard.operators.bash import BashOperator
 
     with DAG(dag_id="bad_env", start_date="2024-01-01", schedule="@daily") as dag:
-        # BAD if BUILD_NUMBER changes on every deployment or parse
         BashOperator(
             task_id="echo_build",
+            # BAD if BUILD_NUMBER changes on every deployment or parse
             bash_command=f"echo {os.environ.get('BUILD_NUMBER', 'unknown')}",
         )
 
@@ -395,6 +393,11 @@ configuration option:
 * ``off`` — Disables the check entirely. No errors or warnings are generated.
 * ``warning`` (default) — Dags load normally but warnings are displayed in the UI when issues are detected.
 * ``error`` — Treats detected issues as Dag import errors, preventing the Dag from loading.
+
+Additionally, you can catch these issues earlier in your development workflow by using the
+`AIR302 <https://docs.astral.sh/ruff/rules/airflow3-dag-dynamic-value/>`_ ruff rule, which detects
+dynamic values in Dag and Task constructors as part of static linting. See
+:ref:`best_practices/code_quality_and_linting` for how to set up ruff with Airflow-specific rules.
 
 
 Dag construction
