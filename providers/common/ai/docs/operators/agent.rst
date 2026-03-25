@@ -111,6 +111,73 @@ tasks can consume it.
     :end-before: [END howto_agent_chain]
 
 
+Durable Execution
+-----------------
+
+Agent tasks can involve multiple LLM calls and tool invocations. If a task
+fails mid-run (network error, timeout, transient API failure), a plain retry
+re-executes every step from scratch -- repeating work that already succeeded
+and incurring additional LLM cost.
+
+Setting ``durable=True`` enables step-level caching. Each model response and
+tool result is persisted to ObjectStorage as it completes. On retry, cached
+steps are replayed instantly and only the remaining steps execute against the
+live model and tools. The cache file is deleted automatically after successful
+completion.
+
+**Configuration**
+
+Add the cache path to ``airflow.cfg``:
+
+.. code-block:: ini
+
+    [common.ai]
+    durable_cache_path = file:///tmp/airflow_durable_cache
+
+The path is an ObjectStorage URI, so any backend works (local filesystem, S3,
+GCS, etc.):
+
+.. code-block:: ini
+
+    [common.ai]
+    durable_cache_path = s3://my-bucket/airflow/durable-cache
+
+**Operator example**
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
+    :language: python
+    :start-after: [START howto_operator_agent_durable]
+    :end-before: [END howto_operator_agent_durable]
+
+**Decorator example**
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
+    :language: python
+    :start-after: [START howto_decorator_agent_durable]
+    :end-before: [END howto_decorator_agent_durable]
+
+**How it works**
+
+1. On first execution, model calls and tool calls are intercepted by
+   ``CachingModel`` and ``CachingToolset`` wrappers. Each result is saved to
+   a JSON file keyed by a monotonic step counter.
+2. If the task fails and Airflow retries it, the wrappers check the cache
+   before calling the live model or tool. Cached results are returned
+   immediately; uncached steps proceed normally.
+3. After successful completion, the cache file is deleted.
+
+The cache file is named ``{dag_id}_{task_id}_{run_id}.json`` (with
+``_{map_index}`` appended for mapped tasks) and stored under the configured
+``durable_cache_path``.
+
+.. note::
+
+    Durable execution is deterministic only if the same message history
+    produces the same tool-call sequence. Non-deterministic tool ordering
+    (e.g. from ``asyncio.gather``) is handled by grabbing the step counter
+    before any ``await``, so concurrent tool calls still replay correctly.
+
+
 Parameters
 ----------
 
