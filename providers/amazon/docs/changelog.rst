@@ -26,6 +26,44 @@
 Changelog
 ---------
 
+9.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add bucket_namespace support to 'S3Hook.create_bucket' and 'S3CreateBucketOperator' (#63622)``
+* ``Adds match_glob to template_fields in GCS operators (#61819)``
+* ``Add skip_on_exit_code support to EcsRunTaskOperator (#63274)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SageMakerNotebookOperator domain_id/project_id/domain_region params (#62962)``
+* ``Handle multi-node job log streams in BatchClientHook (#63476)``
+* ``Fix 'resume_glue_job_on_retry' with 'xcom_push' in 'GlueJobOperator' (#62560)``
+* ``Add bounded retry cleanup for Redshift cluster deletion after post-creation failure. (#63074)``
+
+Misc
+~~~~
+
+* ``Fix mypy errors in kubernetes, fab, google, and amazon providers (#63947)``
+* ``Add Python 3.14 Support (#64096)``
+* ``Remove 'sqlean.py' dependency from Amazon provider (#63623)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update Amazon's provider.yaml with some missing modules (#64009)``
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Fix AIR004* in multiple example DAGs (#62529)``
+   * ``Avoid global tenacity sleep patch in tests to prevent cross-test timing issues (#63369)``
+   * ``Add Python 3.14 Support (#63520)``
+
 9.23.0
 ......
 

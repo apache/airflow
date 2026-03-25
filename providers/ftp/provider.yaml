@@ -23,8 +23,9 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1768334968
+source-date-epoch: 1774299217
 versions:
+  - 3.14.2
   - 3.14.1
   - 3.14.0
   - 3.13.3

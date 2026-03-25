@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+9.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add return value to Slack operators for XCom (#63397)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate 'thread_ts' requires single channel in 'SlackAPIFileOperator' (#63523)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
 9.8.0
 .....
 
