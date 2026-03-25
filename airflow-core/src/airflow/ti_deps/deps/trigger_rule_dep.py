@@ -625,8 +625,6 @@ class TriggerRuleDep(BaseTIDep):
                 return
 
             setup_task_ids = {t.task_id for t in task.upstream_list if t.is_setup}
-            if not setup_task_ids:
-                return
 
             all_upstream_ids = task.get_flat_relative_ids(upstream=True)
             indirect_upstream_ids = all_upstream_ids - task.upstream_task_ids
@@ -638,9 +636,6 @@ class TriggerRuleDep(BaseTIDep):
             for setup_id in setup_task_ids:
                 setup_obj = task.dag.get_task(setup_id)
                 in_scope_ids.update(indirect_upstream_ids & setup_obj.get_flat_relative_ids(upstream=False))
-
-            if not in_scope_ids:
-                return
 
             in_scope_tasks = {tid: task.dag.get_task(tid) for tid in in_scope_ids}
 
