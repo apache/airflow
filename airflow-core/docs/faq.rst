@@ -361,9 +361,9 @@ How to avoid version inflation
 
       from airflow.providers.standard.operators.bash import BashOperator
 
-      # GOOD: the template is resolved at execution time, not parse time
       BashOperator(
           task_id="echo_date",
+          # GOOD: the template is resolved at execution time, not parse time
           bash_command="echo {{ ds }}",
       )
 
@@ -373,9 +373,9 @@ How to avoid version inflation
 
       from airflow.providers.standard.operators.bash import BashOperator
 
-      # GOOD: Variable is resolved at execution time via template
       BashOperator(
           task_id="echo_var",
+          # GOOD: Variable is resolved at execution time via template
           bash_command="echo {{ var.value.my_variable }}",
       )
 
