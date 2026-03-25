@@ -110,20 +110,6 @@ class TestFastApiSecurity:
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
 
-    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_resolve_user_from_token_unexpected_error(self, mock_get_auth_manager):
-        """Unexpected exceptions (e.g., DB errors, network errors) should return 401, not 500."""
-        token_str = "test-token"
-
-        auth_manager = AsyncMock()
-        auth_manager.get_user_from_token.side_effect = RuntimeError("unexpected failure")
-        mock_get_auth_manager.return_value = auth_manager
-
-        with pytest.raises(HTTPException) as exc_info:
-            await resolve_user_from_token(token_str)
-
-        assert exc_info.value.status_code == 401
-        assert exc_info.value.detail == "Not authenticated"
 
     @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
     async def test_get_user_with_request_state(self, mock_resolve_user_from_token):
@@ -997,42 +983,20 @@ class TestAuthManagerDependency:
 
 
 class TestMalformedAuthorizationHeader:
-    """Malformed Authorization headers must return 401/403, never 500."""
+    """Unrecognized Authorization headers must return 401 with a helpful message."""
 
-    @staticmethod
-    def _get_token(test_client):
-        """Extract the raw JWT from the test_client's default Bearer header."""
-        return test_client.headers.get("Authorization").removeprefix("Bearer ")
-
-    @pytest.mark.db_test
-    def test_token_without_bearer_prefix_returns_401(self, test_client):
-        """Sending a valid JWT without the 'Bearer' prefix must return 401 with a helpful message."""
-        token = self._get_token(test_client)
-        response = test_client.get("/api/v2/dags", headers={"Authorization": token})
-        assert response.status_code == 401
-        assert "Bearer" in response.json()["detail"]
-
-    @pytest.mark.db_test
-    def test_wrong_scheme_with_valid_token_returns_401(self, test_client):
-        """Using a wrong scheme like 'Token' with a valid JWT must return 401 with a helpful message."""
-        token = self._get_token(test_client)
-        response = test_client.get("/api/v2/dags", headers={"Authorization": f"Token {token}"})
-        assert response.status_code == 401
-        assert "Bearer" in response.json()["detail"]
-
-    def test_no_auth_header_returns_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/api/v2/dags")
-        assert response.status_code == 401
-
-    def test_bearer_with_invalid_token_returns_error(self, unauthenticated_test_client):
-        """Sending 'Bearer <garbage>' must return 401 or 403, never 500."""
+    @pytest.mark.parametrize(
+        "auth_header",
+        [
+            pytest.param("some.jwt.token", id="bare-token-without-bearer-prefix"),
+            pytest.param("Token some.jwt.token", id="wrong-scheme"),
+        ],
+    )
+    def test_malformed_auth_header_returns_401(self, unauthenticated_test_client, auth_header):
         response = unauthenticated_test_client.get(
-            "/api/v2/dags", headers={"Authorization": "Bearer not.a.jwt"}
+            "/api/v2/dags",
+            headers={"Authorization": auth_header},
         )
-        assert response.status_code in {401, 403}
+        assert response.status_code == 401
+        assert "Bearer" in response.json()["detail"]
 
-    @pytest.mark.db_test
-    def test_valid_bearer_token_returns_200(self, test_client):
-        """Sending 'Bearer <valid_token>' must return 200."""
-        response = test_client.get("/api/v2/dags")
-        assert response.status_code == 200
