@@ -22,10 +22,10 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import structlog
-from pydantic_ai.messages import ModelMessage, ModelResponse
 from pydantic_ai.models.wrapper import WrapperModel
 
 if TYPE_CHECKING:
+    from pydantic_ai.messages import ModelMessage, ModelResponse
     from pydantic_ai.models import ModelRequestParameters
     from pydantic_ai.settings import ModelSettings
 

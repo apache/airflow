@@ -19,7 +19,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from pydantic_ai.messages import ModelResponse, TextPart
 
 from airflow.providers.common.ai.durable.caching_model import CachingModel

@@ -40,6 +40,8 @@ if TYPE_CHECKING:
     from pydantic_ai import Agent
     from pydantic_ai.toolsets.abstract import AbstractToolset
 
+    from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
+    from airflow.providers.common.ai.durable.storage import DurableStorage
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
@@ -192,8 +194,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             toolsets = self.toolsets
             if self.enable_tool_logging:
                 toolsets = wrap_toolsets_for_logging(toolsets, self.log)
-            if self.durable and self._durable_storage is not None:
-                toolsets = self._build_durable_toolsets(toolsets)
+            if self.durable and self._durable_storage is not None and self._durable_counter is not None:
+                toolsets = self._build_durable_toolsets(
+                    toolsets, self._durable_storage, self._durable_counter
+                )
             extra_kwargs["toolsets"] = toolsets
         return self.llm_hook.create_agent(
             output_type=self.output_type,
@@ -201,14 +205,13 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             **extra_kwargs,
         )
 
-    def _build_durable_toolsets(self, toolsets: list[AbstractToolset]) -> list[AbstractToolset]:
+    def _build_durable_toolsets(
+        self, toolsets: list[AbstractToolset], storage: DurableStorage, counter: DurableStepCounter
+    ) -> list[AbstractToolset]:
         """Wrap each toolset with CachingToolset for durable execution."""
         from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
 
-        return [
-            CachingToolset(wrapped=ts, storage=self._durable_storage, counter=self._durable_counter)
-            for ts in toolsets
-        ]
+        return [CachingToolset(wrapped=ts, storage=storage, counter=counter) for ts in toolsets]
 
     def execute(self, context: Context) -> Any:
         self._durable_storage = None
@@ -223,21 +226,23 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
                 run_id=ti.run_id,
-                map_index=ti.map_index,
+                map_index=ti.map_index if ti.map_index is not None else -1,
             )
             self._durable_counter = DurableStepCounter()
 
         agent = self._build_agent()
 
-        if self.durable:
+        storage = self._durable_storage
+        counter = self._durable_counter
+        if self.durable and storage is not None and counter is not None:
             from pydantic_ai.models import infer_model
 
             from airflow.providers.common.ai.durable.caching_model import CachingModel
 
+            if agent.model is None:
+                raise ValueError("Agent model must be set when durable=True")
             resolved_model = infer_model(agent.model)
-            caching_model = CachingModel(
-                resolved_model, storage=self._durable_storage, counter=self._durable_counter
-            )
+            caching_model = CachingModel(resolved_model, storage=storage, counter=counter)
             with agent.override(model=caching_model):
                 result = agent.run_sync(self.prompt)
         else:
