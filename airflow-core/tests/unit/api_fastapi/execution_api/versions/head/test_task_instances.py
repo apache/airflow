@@ -24,13 +24,21 @@ from uuid import UUID, uuid4
 
 import pytest
 import uuid6
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from airflow._shared.observability.traces import OverrideableRandomIdGenerator
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
 from airflow.exceptions import AirflowSkipException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
@@ -3242,3 +3250,111 @@ class TestTokenTypeValidation:
         payload = {"state": "success", "end_date": "2024-10-31T13:00:00Z"}
         resp = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
         assert resp.status_code in [200, 204]
+
+
+class TestEmitTaskSpan:
+    """Tests for the _emit_task_span function in the execution API task-instance route."""
+
+    @pytest.fixture(autouse=True)
+    def sdk_tracer_provider(self):
+        self.exporter = InMemorySpanExporter()
+        provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
+        provider.add_span_processor(SimpleSpanProcessor(self.exporter))
+        test_tracer = provider.get_tracer("test")
+        with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.tracer", test_tracer):
+            yield
+
+    def _make_carriers(self):
+        """Return a (dr_carrier, ti_carrier) pair built with a real SDK provider."""
+        p = TracerProvider()
+        t = p.get_tracer("setup")
+        dr_span = t.start_span("dr")
+        dr_ctx = otel_trace.set_span_in_context(dr_span)
+        dr_carrier: dict = {}
+        TraceContextTextMapPropagator().inject(dr_carrier, context=dr_ctx)
+        ti_span = t.start_span("ti", context=dr_ctx)
+        ti_ctx = otel_trace.set_span_in_context(ti_span)
+        ti_carrier: dict = {}
+        TraceContextTextMapPropagator().inject(ti_carrier, context=ti_ctx)
+        return dr_carrier, ti_carrier
+
+    def _make_ti(self, task_id="my_task", map_index=-1, queued_dttm=None, start_date=None):
+        dr_carrier, ti_carrier = self._make_carriers()
+        ti = mock.MagicMock()
+        ti.dag_id = "test_dag"
+        ti.task_id = task_id
+        ti.run_id = "test_run"
+        ti.try_number = 1
+        ti.map_index = map_index
+        ti.queued_dttm = queued_dttm
+        ti.start_date = start_date or DEFAULT_START_DATE
+        ti.dag_run.context_carrier = dr_carrier
+        ti.context_carrier = ti_carrier
+        return ti
+
+    def test_emit_task_span_success_sets_ok_status(self):
+        _emit_task_span(self._make_ti(), TaskInstanceState.SUCCESS)
+
+        spans = self.exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].status.status_code == StatusCode.OK
+
+    def test_emit_task_span_failed_sets_error_status(self):
+        _emit_task_span(self._make_ti(), TaskInstanceState.FAILED)
+
+        spans = self.exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].status.status_code == StatusCode.ERROR
+
+    def test_emit_task_span_sets_attributes(self):
+        ti = self._make_ti(task_id="my_task", map_index=2)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+
+        attrs = self.exporter.get_finished_spans()[0].attributes
+        assert attrs["airflow.dag_id"] == "test_dag"
+        assert attrs["airflow.task_id"] == "my_task"
+        assert attrs["airflow.dag_run.run_id"] == "test_run"
+        assert attrs["airflow.task_instance.try_number"] == 1
+        assert attrs["airflow.task_instance.map_index"] == 2
+        assert attrs["airflow.task_instance.state"] == TaskInstanceState.SUCCESS
+
+    def test_emit_task_span_name_unmapped(self):
+        _emit_task_span(self._make_ti(task_id="my_task", map_index=-1), TaskInstanceState.SUCCESS)
+        assert self.exporter.get_finished_spans()[0].name == "task_run.my_task"
+
+    def test_emit_task_span_name_mapped(self):
+        _emit_task_span(self._make_ti(task_id="my_task", map_index=3), TaskInstanceState.SUCCESS)
+        assert self.exporter.get_finished_spans()[0].name == "task_run.my_task[3]"
+
+    def test_emit_task_span_start_time_uses_queued_dttm(self):
+        queued_dttm = timezone.parse("2024-01-01T10:00:00Z")
+        start_date = timezone.parse("2024-01-01T10:05:00Z")
+        ti = self._make_ti(queued_dttm=queued_dttm, start_date=start_date)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+
+        assert self.exporter.get_finished_spans()[0].start_time == int(queued_dttm.timestamp() * 1e9)
+
+    def test_emit_task_span_start_time_falls_back_to_start_date(self):
+        start_date = timezone.parse("2024-01-01T10:05:00Z")
+        ti = self._make_ti(queued_dttm=None, start_date=start_date)
+        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+
+        assert self.exporter.get_finished_spans()[0].start_time == int(start_date.timestamp() * 1e9)
+
+    def test_emit_task_span_skips_if_no_ti_carrier(self):
+        ti = mock.MagicMock()
+        ti.dag_run.context_carrier = {
+            "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+        }
+        ti.context_carrier = None
+
+        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        assert len(self.exporter.get_finished_spans()) == 0
+
+    def test_emit_task_span_skips_if_no_dagrun_carrier(self):
+        ti = mock.MagicMock()
+        ti.dag_run.context_carrier = None
+        ti.context_carrier = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+
+        _emit_task_span(ti, TaskInstanceState.SUCCESS)
+        assert len(self.exporter.get_finished_spans()) == 0

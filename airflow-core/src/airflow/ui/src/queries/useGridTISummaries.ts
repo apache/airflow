@@ -115,6 +115,8 @@ export const useGridTiSummariesStream = ({
       return undefined;
     }
 
+    // Kick off an immediate refresh so the stream doesn't have to wait for the first interval to elapse.
+    setRefreshTick((tick) => tick + 1);
     const timer = setInterval(() => {
       setRefreshTick((tick) => tick + 1);
     }, baseRefetchInterval);

@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+2.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Deadline Alerts to OL events (#63352)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify HLL in extraction precedence (#63723)``
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 2.12.0
 ......
 
@@ -598,14 +621,14 @@ Misc
 
 * ``Adding uuid6 as a dependency for openlineage (#46653)``
 * ``Remove AirflowContextDeprecationWarning as all context should be clean for Airflow 3 (#46601)``
-* ``Remove Airflow 3 Deprecation Warning dependency in OTel Provoder (#46600)``
+* ``Remove Airflow 3 Deprecation Warning dependency in OTel Provider (#46600)``
 * ``AIP-72: Move Secrets Masker to task SDK (#46375)``
 * ``Add run_after column to DagRun model (#45732)``
 * ``Remove old lineage stuff (#45260)``
 * ``Start porting mapped task to SDK (#45627)``
 * ``chore: Update docstring for DatabaseInfo in OpenLineage provider (#45638)``
 * ``Remove classes from 'typing_compat' that can be imported directly (#45589)``
-* ``udpated 404 hyperlink to gcstogcsoperator (#45311)``
+* ``updated 404 hyperlink to gcstogcsoperator (#45311)``
 * ``pass error for on_task_instance_failed in task sdk (#46941)``
 
 .. Below changes are excluded from the changelog. Move them to

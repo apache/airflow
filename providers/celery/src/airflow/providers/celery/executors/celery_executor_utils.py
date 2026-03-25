@@ -41,10 +41,9 @@ from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, ses
 from celery.signals import import_modules as celery_import_modules, worker_ready
 from sqlalchemy import select
 
-from airflow.configuration import AirflowConfigParser, conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, conf, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -69,6 +68,7 @@ if TYPE_CHECKING:
 
     from celery.result import AsyncResult
 
+    from airflow.configuration import AirflowConfigParser
     from airflow.executors import workloads
     from airflow.executors.base_executor import EventBufferValueType, ExecutorConf
     from airflow.executors.workloads.types import WorkloadKey
@@ -191,8 +191,8 @@ def on_celery_worker_ready(*args, **kwargs):
 def execute_workload(input: str) -> None:
     from pydantic import TypeAdapter
 
-    from airflow.configuration import conf
     from airflow.executors import workloads
+    from airflow.providers.common.compat.sdk import conf
     from airflow.sdk.execution_time.supervisor import supervise
 
     decoder = TypeAdapter[workloads.All](workloads.All)
