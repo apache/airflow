@@ -414,6 +414,35 @@ class TestFormatReaders:
         assert '"id": 1' in result.text
         assert '"id": 2' not in result.text
 
+    def test_render_parquet_does_not_materialize_full_table(self, tmp_path):
+        pyarrow = pytest.importorskip("pyarrow")
+        pq = pytest.importorskip("pyarrow.parquet")
+
+        path = tmp_path / "sample.parquet"
+        table = pyarrow.Table.from_pylist([{"id": 1}, {"id": 2}, {"id": 3}])
+        pq.write_table(table, path, row_group_size=1)
+
+        with patch("pyarrow.parquet.ParquetFile.read", autospec=True, side_effect=AssertionError):
+            result = _render_parquet(ObjectStoragePath(str(path)), sample_rows=2, max_content_bytes=4_096)
+
+        assert result.estimated_rows == 3
+        assert '"id": 1' in result.text
+        assert '"id": 2' in result.text
+        assert '"id": 3' not in result.text
+
+    def test_render_parquet_enforces_processed_content_limit_before_read(self, tmp_path):
+        pyarrow = pytest.importorskip("pyarrow")
+        pq = pytest.importorskip("pyarrow.parquet")
+
+        path = tmp_path / "sample.parquet"
+        table = pyarrow.Table.from_pylist([{"id": 1}, {"id": 2}])
+        pq.write_table(table, path)
+
+        with pytest.raises(LLMFileAnalysisLimitExceededError, match="processed-content limit"):
+            _render_parquet(
+                ObjectStoragePath(str(path)), sample_rows=1, max_content_bytes=path.stat().st_size - 1
+            )
+
     def test_render_parquet_missing_dependency_raises(self, tmp_path):
         path = tmp_path / "sample.parquet"
         path.write_bytes(b"parquet")
@@ -442,10 +471,44 @@ class TestFormatReaders:
 
         result = _render_avro(ObjectStoragePath(str(path)), sample_rows=1, max_content_bytes=1_024)
 
-        assert result.estimated_rows == 2
+        assert result.estimated_rows is None
         assert '"name": "sample"' in result.text
         assert '"id": 1' in result.text
         assert '"id": 2' not in result.text
+
+    def test_render_avro_estimates_rows_when_fully_read(self, tmp_path):
+        fastavro = pytest.importorskip("fastavro")
+
+        path = tmp_path / "sample.avro"
+        schema = {
+            "type": "record",
+            "name": "sample",
+            "fields": [{"name": "id", "type": "long"}],
+        }
+        with path.open("wb") as handle:
+            fastavro.writer(handle, schema, [{"id": 1}, {"id": 2}])
+
+        result = _render_avro(ObjectStoragePath(str(path)), sample_rows=5, max_content_bytes=1_024)
+
+        assert result.estimated_rows == 2
+        assert '"id": 2' in result.text
+
+    def test_render_avro_enforces_processed_content_limit_before_scan(self, tmp_path):
+        fastavro = pytest.importorskip("fastavro")
+
+        path = tmp_path / "sample.avro"
+        schema = {
+            "type": "record",
+            "name": "sample",
+            "fields": [{"name": "id", "type": "long"}],
+        }
+        with path.open("wb") as handle:
+            fastavro.writer(handle, schema, [{"id": 1}, {"id": 2}])
+
+        with pytest.raises(LLMFileAnalysisLimitExceededError, match="processed-content limit"):
+            _render_avro(
+                ObjectStoragePath(str(path)), sample_rows=1, max_content_bytes=path.stat().st_size - 1
+            )
 
     def test_render_avro_missing_dependency_raises(self, tmp_path):
         path = tmp_path / "sample.avro"

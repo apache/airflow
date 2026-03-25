@@ -459,16 +459,31 @@ def _render_parquet(path: ObjectStoragePath, *, sample_rows: int, max_content_by
 
     with path.open("rb") as handle:
         parquet_file = pq.ParquetFile(handle)
-        table = parquet_file.read()
-        num_rows = parquet_file.metadata.num_rows
+        metadata = parquet_file.metadata
+        num_rows = metadata.num_rows if metadata is not None else 0
+
+        handle.seek(0, io.SEEK_END)
         content_size_bytes = handle.tell()
-    schema = ", ".join(f"{field.name}: {field.type}" for field in table.schema)
-    sampled_rows = table.to_pylist()[:sample_rows]
+        handle.seek(0)
+        if content_size_bytes > max_content_bytes:
+            raise LLMFileAnalysisLimitExceededError(
+                f"File {path} exceeds the configured processed-content limit: {content_size_bytes} bytes > {max_content_bytes} bytes."
+            )
+
+        schema = ", ".join(f"{field.name}: {field.type}" for field in parquet_file.schema_arrow)
+        sampled_rows: list[dict[str, Any]] = []
+        if sample_rows > 0 and num_rows > 0 and parquet_file.num_row_groups > 0:
+            remaining_rows = sample_rows
+            for row_group_index in range(parquet_file.num_row_groups):
+                if remaining_rows <= 0:
+                    break
+                row_group = parquet_file.read_row_group(row_group_index)
+                if row_group.num_rows == 0:
+                    continue
+                group_rows = row_group.slice(0, remaining_rows).to_pylist()
+                sampled_rows.extend(group_rows)
+                remaining_rows -= len(group_rows)
     payload = [f"Schema: {schema}", "Sample rows:", json.dumps(sampled_rows, indent=2, default=str)]
-    if content_size_bytes > max_content_bytes:
-        raise LLMFileAnalysisLimitExceededError(
-            f"File {path} exceeds the configured processed-content limit: {content_size_bytes} bytes > {max_content_bytes} bytes."
-        )
     return _RenderResult(
         text=_truncate_text("\n".join(payload)),
         estimated_rows=num_rows,
@@ -487,22 +502,33 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
     sampled_rows: list[dict[str, Any]] = []
     total_rows = 0
     with path.open("rb") as handle:
+        handle.seek(0, io.SEEK_END)
+        content_size_bytes = handle.tell()
+        handle.seek(0)
+        if content_size_bytes > max_content_bytes:
+            raise LLMFileAnalysisLimitExceededError(
+                f"File {path} exceeds the configured processed-content limit: {content_size_bytes} bytes > {max_content_bytes} bytes."
+            )
         reader = fastavro.reader(handle)
         writer_schema = getattr(reader, "writer_schema", None)
-        for record in reader:
-            total_rows += 1
-            if len(sampled_rows) < sample_rows and isinstance(record, dict):
-                sampled_rows.append({str(key): value for key, value in record.items()})
-        content_size_bytes = handle.tell()
-    payload = [f"Schema: {json.dumps(writer_schema, indent=2, default=str)}", "Sample rows:"]
-    payload.append(json.dumps(sampled_rows, indent=2, default=str))
-    if content_size_bytes > max_content_bytes:
-        raise LLMFileAnalysisLimitExceededError(
-            f"File {path} exceeds the configured processed-content limit: {content_size_bytes} bytes > {max_content_bytes} bytes."
-        )
+        fully_read = False
+        if sample_rows > 0:
+            for record in reader:
+                total_rows += 1
+                if isinstance(record, dict):
+                    sampled_rows.append({str(key): value for key, value in record.items()})
+                if len(sampled_rows) >= sample_rows:
+                    break
+            else:
+                fully_read = True
+    payload = [
+        f"Schema: {json.dumps(writer_schema, indent=2, default=str)}",
+        "Sample rows:",
+        json.dumps(sampled_rows, indent=2, default=str),
+    ]
     return _RenderResult(
         text=_truncate_text("\n".join(payload)),
-        estimated_rows=total_rows,
+        estimated_rows=total_rows if fully_read else None,
         content_size_bytes=content_size_bytes,
     )
 

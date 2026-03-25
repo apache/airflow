@@ -49,7 +49,7 @@ to pick the one that fits your use case:
 
 **LLMOperator / @task.llm** — stateless, single-turn calls. Use this for classification,
 summarization, extraction, or any prompt that produces one response. Supports structured output
-via a ``response_format`` Pydantic model.
+via an ``output_type`` Pydantic model.
 
 **LLMFileAnalysisOperator / @task.llm_file_analysis** — stateless, single-turn file analysis.
 Use this when the prompt should reason over file contents or multimodal attachments already chosen
