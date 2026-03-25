@@ -511,6 +511,7 @@ du
 duckdb
 dunder
 dup
+durable
 durations
 dylib
 Dynamodb
