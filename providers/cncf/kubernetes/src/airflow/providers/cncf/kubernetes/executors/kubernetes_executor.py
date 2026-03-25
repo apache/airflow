@@ -111,7 +111,9 @@ class KubernetesExecutor(BaseExecutor):
         self.last_handled: dict[TaskInstanceKey, float] = {}
         self.kubernetes_queue: str | None = None
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
-        self.task_publish_max_retries = self.conf.getint("kubernetes_executor", "task_publish_max_retries")
+        self.task_publish_max_retries = self.conf.getint(
+            "kubernetes_executor", "task_publish_max_retries", fallback=0
+        )
         self.completed: set[KubernetesResults] = set()
 
     def _list_pods(self, query_kwargs):
