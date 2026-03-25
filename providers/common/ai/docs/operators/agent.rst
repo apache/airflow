@@ -116,26 +116,31 @@ Durable Execution
 
 Agent tasks can involve multiple LLM calls and tool invocations. If a task
 fails mid-run (network error, timeout, transient API failure), a plain retry
-re-executes every step from scratch -- repeating work that already succeeded
-and incurring additional LLM cost.
+re-executes every LLM call and tool call from scratch -- repeating work that
+already succeeded and incurring additional cost.
 
-Setting ``durable=True`` enables step-level caching. Each model response and
-tool result is persisted to ObjectStorage as it completes. On retry, cached
-steps are replayed instantly and only the remaining steps execute against the
-live model and tools. The cache file is deleted automatically after successful
-completion.
+Setting ``durable=True`` caches each LLM response and tool result to
+ObjectStorage as it completes. On retry, completed steps are replayed from the
+cache and only the remaining steps run against the live model and tools. The
+cache is deleted after successful completion.
+
+Durable execution only helps when the task has retries configured. Without
+retries there is nothing to replay.
 
 **Configuration**
 
-Add the cache path to ``airflow.cfg``:
+Set the cache location in ``airflow.cfg``. The task raises ``ValueError`` at
+runtime if ``durable=True`` and the option is missing.
 
 .. code-block:: ini
 
     [common.ai]
+    # Local filesystem -- suitable for development
     durable_cache_path = file:///tmp/airflow_durable_cache
 
-The path is an ObjectStorage URI, so any backend works (local filesystem, S3,
-GCS, etc.):
+The value is an ObjectStorage URI, so any supported backend works. For
+production, use a shared store so retries on a different worker can read the
+cache:
 
 .. code-block:: ini
 
@@ -158,24 +163,48 @@ GCS, etc.):
 
 **How it works**
 
-1. On first execution, model calls and tool calls are intercepted by
-   ``CachingModel`` and ``CachingToolset`` wrappers. Each result is saved to
-   a JSON file keyed by a monotonic step counter.
-2. If the task fails and Airflow retries it, the wrappers check the cache
-   before calling the live model or tool. Cached results are returned
-   immediately; uncached steps proceed normally.
+1. On first execution, each LLM response and tool result is saved to a JSON
+   file as the agent progresses.
+2. If the task fails and Airflow retries it, completed steps are loaded from
+   the cache and returned without calling the model or tool. Steps not yet in
+   the cache proceed normally.
 3. After successful completion, the cache file is deleted.
+
+Steps that were replayed from cache are logged at INFO level
+(``Replaying cached model response``, ``Replaying cached tool result``), so
+you can tell which steps ran live and which were replayed.
 
 The cache file is named ``{dag_id}_{task_id}_{run_id}.json`` (with
 ``_{map_index}`` appended for mapped tasks) and stored under the configured
-``durable_cache_path``.
+``durable_cache_path``. To force a completely fresh run, delete the cache file
+for that task.
 
 .. note::
 
-    Durable execution is deterministic only if the same message history
-    produces the same tool-call sequence. Non-deterministic tool ordering
-    (e.g. from ``asyncio.gather``) is handled by grabbing the step counter
-    before any ``await``, so concurrent tool calls still replay correctly.
+    Runs that fail permanently (exhaust all retries) leave their cache file
+    behind. These orphaned files do not affect future DAG runs (each run gets
+    its own file) but will consume storage. Clean them up periodically or add
+    a lifecycle policy to the storage backend.
+
+**Side effects and idempotency**
+
+Durable execution caches **return values**, not side effects. When a step is
+replayed, the tool's code does not run -- only the stored return value is
+returned. Two things follow from this:
+
+- If a tool completed successfully and its result was cached, the tool will
+  **not** run again on retry. Any side effect it produced (writing a file,
+  sending a message) already happened during the original run and is not
+  repeated.
+- If a tool fails *before* its result is cached, it **will** run again on
+  retry. A tool that partially completed (e.g. sent an email then raised an
+  exception) may produce the side effect a second time.
+
+All built-in toolsets (``SQLToolset`` with ``allow_writes=False``,
+``HookToolset`` in read-only mode) are read-only and replay safely. For custom
+tools with non-idempotent side effects, design the tool to be idempotent. For
+example, check whether the operation already completed before acting, or
+use database constraints to prevent duplicate writes.
 
 
 Parameters

@@ -64,9 +64,12 @@ class CachingToolset(WrapperToolset[Any]):
 
         found, cached = self.storage.load_tool_result(key)
         if found:
-            log.info("Replaying cached tool result", step=step, tool=name)
+            self.counter.replayed_tool += 1
+            log.debug("Durable: replayed cached tool result", step=step, tool=name)
             return cached
 
         result = await self.wrapped.call_tool(name, tool_args, ctx, tool)
         self.storage.save_tool_result(key, result)
+        self.counter.cached_tool += 1
+        log.debug("Durable: cached tool result", step=step, tool=name)
         return result

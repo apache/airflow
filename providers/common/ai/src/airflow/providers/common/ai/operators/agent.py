@@ -192,12 +192,12 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         extra_kwargs = dict(self.agent_params)
         if self.toolsets:
             toolsets = self.toolsets
-            if self.enable_tool_logging:
-                toolsets = wrap_toolsets_for_logging(toolsets, self.log)
             if self.durable and self._durable_storage is not None and self._durable_counter is not None:
                 toolsets = self._build_durable_toolsets(
                     toolsets, self._durable_storage, self._durable_counter
                 )
+            if self.enable_tool_logging:
+                toolsets = wrap_toolsets_for_logging(toolsets, self.log)
             extra_kwargs["toolsets"] = toolsets
         return self.llm_hook.create_agent(
             output_type=self.output_type,
@@ -249,6 +249,22 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
             result = agent.run_sync(self.prompt)
 
         log_run_summary(self.log, result)
+
+        if self._durable_counter is not None:
+            c = self._durable_counter
+            replayed = c.replayed_model + c.replayed_tool
+            cached = c.cached_model + c.cached_tool
+            if replayed:
+                self.log.info(
+                    "Durable: replayed %d cached steps (%d model, %d tool), "
+                    "executed %d new steps (%d model, %d tool)",
+                    replayed,
+                    c.replayed_model,
+                    c.replayed_tool,
+                    cached,
+                    c.cached_model,
+                    c.cached_tool,
+                )
 
         if self._durable_storage is not None:
             self._durable_storage.cleanup()

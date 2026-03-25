@@ -29,6 +29,10 @@ class DurableStepCounter:
 
     def __init__(self) -> None:
         self._step: int = 0
+        self.replayed_model: int = 0
+        self.replayed_tool: int = 0
+        self.cached_model: int = 0
+        self.cached_tool: int = 0
 
     def next_step(self) -> int:
         """Return the current step and advance the counter."""

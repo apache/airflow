@@ -103,7 +103,6 @@ class DurableStorage:
         cache = self._load_cache()
         cache[key] = ModelMessagesTypeAdapter.dump_json([response]).decode()
         self._save_cache()
-        log.debug("Durable cache saved (model response)", key=key)
 
     def load_model_response(self, key: str) -> ModelResponse | None:
         """Load a cached ModelResponse, or return None if not cached."""
@@ -112,7 +111,6 @@ class DurableStorage:
         if raw is None:
             return None
         messages = ModelMessagesTypeAdapter.validate_json(raw)
-        log.debug("Durable cache hit (model response)", key=key)
         return messages[0]  # type: ignore[return-value]
 
     def save_tool_result(self, key: str, result: Any) -> None:
@@ -120,7 +118,6 @@ class DurableStorage:
         cache = self._load_cache()
         cache[key] = json.dumps({_SENTINEL: True, "value": result})
         self._save_cache()
-        log.debug("Durable cache saved (tool result)", key=key)
 
     def load_tool_result(self, key: str) -> tuple[bool, Any]:
         """
@@ -135,7 +132,6 @@ class DurableStorage:
         parsed = json.loads(raw)
         if not isinstance(parsed, dict) or _SENTINEL not in parsed:
             return False, None
-        log.debug("Durable cache hit (tool result)", key=key)
         return True, parsed["value"]
 
     def cleanup(self) -> None:

@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Any
 import structlog
 from pydantic_ai.models.wrapper import WrapperModel
 
+log = structlog.get_logger(logger_name="task")
+
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage, ModelResponse
     from pydantic_ai.models import ModelRequestParameters
@@ -31,8 +33,6 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
     from airflow.providers.common.ai.durable.storage import DurableStorage
-
-log = structlog.get_logger(logger_name="task")
 
 
 @dataclass(init=False)
@@ -70,9 +70,12 @@ class CachingModel(WrapperModel):
 
         cached = self.storage.load_model_response(key)
         if cached is not None:
-            log.info("Replaying cached model response", step=step)
+            self.counter.replayed_model += 1
+            log.debug("Durable: replayed cached model response", step=step)
             return cached
 
         response = await self.wrapped.request(messages, model_settings, model_request_parameters)
         self.storage.save_model_response(key, response)
+        self.counter.cached_model += 1
+        log.debug("Durable: cached model response", step=step)
         return response
