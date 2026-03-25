@@ -87,7 +87,7 @@ class DurableStorage:
         path = self._get_path()
         try:
             self._cache = json.loads(path.read_text())
-        except (FileNotFoundError, OSError):
+        except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
             self._cache = {}
 
         return self._cache
@@ -116,7 +116,13 @@ class DurableStorage:
     def save_tool_result(self, key: str, result: Any) -> None:
         """Store a tool call result in the cache."""
         cache = self._load_cache()
-        cache[key] = json.dumps({_SENTINEL: True, "value": result})
+        try:
+            cache[key] = json.dumps({_SENTINEL: True, "value": result})
+        except TypeError as e:
+            raise TypeError(
+                f"Durable execution requires JSON-serializable tool results. "
+                f"Tool returned non-serializable value: {e}"
+            ) from e
         self._save_cache()
 
     def load_tool_result(self, key: str) -> tuple[bool, Any]:

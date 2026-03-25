@@ -170,9 +170,8 @@ cache:
    the cache proceed normally.
 3. After successful completion, the cache file is deleted.
 
-Steps that were replayed from cache are logged at INFO level
-(``Replaying cached model response``, ``Replaying cached tool result``), so
-you can tell which steps ran live and which were replayed.
+After the run, a single INFO summary line reports how many steps were
+replayed vs executed fresh. Per-step detail is available at DEBUG level.
 
 The cache file is named ``{dag_id}_{task_id}_{run_id}.json`` (with
 ``_{map_index}`` appended for mapped tasks) and stored under the configured
