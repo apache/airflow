@@ -36,6 +36,7 @@ export type BulkClearOptions = {
   includeOnlyFailed: boolean;
   includePast: boolean;
   includeUpstream: boolean;
+  note: string | null;
   preventRunningTask: boolean;
 };
 
@@ -80,6 +81,7 @@ export const useBulkClearTaskInstances = ({ clearSelections, onSuccessConfirm }:
               include_future: options.includeFuture,
               include_past: options.includePast,
               include_upstream: options.includeUpstream,
+              note: options.note,
               only_failed: options.includeOnlyFailed,
               ...(options.preventRunningTask ? { prevent_running_task: true } : {}),
               task_ids: tis.map((ti) =>

@@ -37,7 +37,11 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
+    ClearTaskInstancesBody,
+    PatchTaskInstanceBody,
+)
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
@@ -139,7 +143,7 @@ def _patch_task_instance_state(
 
 
 def _patch_task_instance_note(
-    task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
+    task_instance_body: BulkTaskInstanceBody | ClearTaskInstancesBody | PatchTaskInstanceBody,
     tis: list[TI],
     user: GetUserDep,
     update_mask: list[str] | None = Query(None),

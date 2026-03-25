@@ -3644,6 +3644,88 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert logs == audit_log_count
 
+    @pytest.mark.db_test
+    def test_clear_sets_note_on_task_instances(self, test_client, session):
+        """Test that a note is set on cleared task instances when note is provided."""
+        dag_id = "example_python_operator"
+        note_value = "Cleared by automation"
+        payload = {
+            "dry_run": False,
+            "reset_dag_runs": False,
+            "only_failed": True,
+            "only_running": False,
+            "note": note_value,
+        }
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == 1
+        ti_id = response_data["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": note_value, "user_id": "test"})
+
+    @pytest.mark.db_test
+    def test_clear_without_note_does_not_set_note(self, test_client, session):
+        """Test that existing note is preserved on cleared task instances when note is not provided."""
+        dag_id = "example_python_operator"
+        payload = {
+            "dry_run": False,
+            "reset_dag_runs": False,
+            "only_failed": True,
+            "only_running": False,
+        }
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == 1
+        ti_id = response_data["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
+
+    @pytest.mark.db_test
+    def test_clear_dry_run_does_not_set_note(self, test_client, session):
+        """Test that a note is NOT updated when dry_run=True even if note is provided."""
+        dag_id = "example_python_operator"
+        note_value = "Should not be set"
+        payload = {
+            "dry_run": True,
+            "reset_dag_runs": False,
+            "only_failed": True,
+            "only_running": False,
+            "note": note_value,
+        }
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == 1
+        ti_id = response_data["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
+
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
     def test_should_respond_200(self, test_client, session):

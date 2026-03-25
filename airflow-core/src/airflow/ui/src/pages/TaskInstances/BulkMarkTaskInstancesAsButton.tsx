@@ -186,9 +186,10 @@ const BulkMarkTaskInstancesAsButton = ({ clearSelections, selectedTaskInstances 
                           include_upstream: upstream,
                           map_index: ti.map_index,
                           new_state: state,
+                          note,
                           task_id: ti.task_id,
                         })),
-                        update_mask: ["new_state"],
+                        update_mask: note === null ? ["new_state"] : ["new_state", "note"],
                       },
                     ],
                   });

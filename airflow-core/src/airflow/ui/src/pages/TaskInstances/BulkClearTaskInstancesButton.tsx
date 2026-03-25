@@ -138,6 +138,7 @@ const BulkClearTaskInstancesButton = ({ clearSelections, selectedTaskInstances }
                     includeOnlyFailed: onlyFailed,
                     includePast: past,
                     includeUpstream: upstream,
+                    note,
                     preventRunningTask,
                   });
                 }}
