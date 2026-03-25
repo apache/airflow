@@ -101,6 +101,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         arguments at DEBUG level. Set to ``False`` to disable.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+    :param durable: When ``True``, enables step-level caching of model
+        responses and tool results for durable execution.  On retry, cached
+        steps are replayed instead of re-executing.  Default ``False``.
+        Requires ``[common.ai] durable_cache_path`` to be set.
 
     **HITL Review parameters** (requires the ``hitl_review`` plugin):
 
@@ -142,6 +146,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         toolsets: list[AbstractToolset] | None = None,
         enable_tool_logging: bool = True,
         agent_params: dict[str, Any] | None = None,
+        durable: bool = False,
         # Agent feedback parameters
         enable_hitl_review: bool = False,
         max_hitl_iterations: int = 5,
@@ -159,6 +164,8 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         self.toolsets = toolsets
         self.enable_tool_logging = enable_tool_logging
         self.agent_params = agent_params or {}
+
+        self.durable = durable
 
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
@@ -182,20 +189,65 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         """Build and return a pydantic-ai Agent from the operator's config."""
         extra_kwargs = dict(self.agent_params)
         if self.toolsets:
+            toolsets = self.toolsets
             if self.enable_tool_logging:
-                extra_kwargs["toolsets"] = wrap_toolsets_for_logging(self.toolsets, self.log)
-            else:
-                extra_kwargs["toolsets"] = self.toolsets
+                toolsets = wrap_toolsets_for_logging(toolsets, self.log)
+            if self.durable and self._durable_storage is not None:
+                toolsets = self._build_durable_toolsets(toolsets)
+            extra_kwargs["toolsets"] = toolsets
         return self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self.system_prompt,
             **extra_kwargs,
         )
 
+    def _build_durable_toolsets(self, toolsets: list[AbstractToolset]) -> list[AbstractToolset]:
+        """Wrap each toolset with CachingToolset for durable execution."""
+        from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
+
+        return [
+            CachingToolset(wrapped=ts, storage=self._durable_storage, counter=self._durable_counter)
+            for ts in toolsets
+        ]
+
     def execute(self, context: Context) -> Any:
+        self._durable_storage = None
+        self._durable_counter = None
+
+        if self.durable:
+            from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
+            from airflow.providers.common.ai.durable.storage import DurableStorage
+
+            ti = context["task_instance"]
+            self._durable_storage = DurableStorage(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+            )
+            self._durable_counter = DurableStepCounter()
+
         agent = self._build_agent()
-        result = agent.run_sync(self.prompt)
+
+        if self.durable:
+            from pydantic_ai.models import infer_model
+
+            from airflow.providers.common.ai.durable.caching_model import CachingModel
+
+            resolved_model = infer_model(agent.model)
+            caching_model = CachingModel(
+                resolved_model, storage=self._durable_storage, counter=self._durable_counter
+            )
+            with agent.override(model=caching_model):
+                result = agent.run_sync(self.prompt)
+        else:
+            result = agent.run_sync(self.prompt)
+
         log_run_summary(self.log, result)
+
+        if self._durable_storage is not None:
+            self._durable_storage.cleanup()
+
         output = result.output
 
         if self.enable_hitl_review:

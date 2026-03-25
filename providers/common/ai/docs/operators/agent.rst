@@ -130,6 +130,10 @@ Parameters
   every tool call is logged in real time. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- ``durable``: When ``True``, enables step-level caching of model responses and
+  tool results via ObjectStorage. On retry, cached steps are replayed instead of
+  re-executing expensive LLM calls. Requires the ``[common.ai] durable_cache_path``
+  config option to be set. Default ``False``.
 
 
 Logging
