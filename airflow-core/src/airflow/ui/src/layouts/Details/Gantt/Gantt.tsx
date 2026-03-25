@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, useToken } from "@chakra-ui/react";
+import { Box, Input, Text, useToken } from "@chakra-ui/react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -33,11 +33,10 @@ import {
 import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
-import { useDeferredValue } from "react";
+import { useDeferredValue, useState } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
-
 import { useGanttServiceGetGanttData } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
@@ -81,6 +80,8 @@ const MIN_BAR_WIDTH = 10;
 
 export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) => {
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
   const [searchParams] = useSearchParams();
   const { openGroupIds } = useOpenGroups();
   const deferredOpenGroupIds = useDeferredValue(openGroupIds);
@@ -157,9 +158,36 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   const allTries = ganttData?.task_instances ?? [];
   const gridSummaries = gridTiSummaries?.task_instances ?? [];
 
-  const data = isLoading || runId === "" ? [] : transformGanttData({ allTries, flatNodes, gridSummaries });
+  const rawData =
+    isLoading || runId === ""
+      ? []
+      : transformGanttData({ allTries, flatNodes, gridSummaries });
 
-  const labels = flatNodes.map((node) => node.id);
+  // Filter data by date range if specified
+  const data = rawData.filter((task) => {
+    if (!filterStartDate && !filterEndDate) return true;
+
+    // task.x contains [start_date, end_date] as ISO strings
+    const taskStartDate = task.x[0];
+    const taskEndDate = task.x[1];
+
+    if (!taskStartDate) return true;
+
+    if (filterStartDate && taskEndDate && new Date(taskEndDate) < new Date(filterStartDate)) return false;
+    if (filterEndDate && new Date(taskStartDate) > new Date(filterEndDate + "T23:59:59")) return false;
+
+    return true;
+  });
+
+  // Get unique task IDs from filtered data for labels
+  const filteredTaskIds = new Set(data.map((item) => item.taskId));
+  const labels = flatNodes
+    .filter((node) => {
+      // Show all tasks if no filter, otherwise only show filtered tasks
+      if (!filterStartDate && !filterEndDate) return true;
+      return filteredTaskIds.has(node.id);
+    })
+    .map((node) => node.id);
 
   // Get all unique states and their colors
   const states = [...new Set(data.map((item) => item.state ?? "none"))];
@@ -224,21 +252,56 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   };
 
   return (
-    <Box
-      height={`${fixedHeight}px`}
-      minW="250px"
-      ml={-2}
-      mt={`${GRID_BODY_OFFSET_PX}px`}
-      onMouseLeave={handleChartMouseLeave}
-      w="100%"
-    >
-      <Bar
-        data={chartData}
-        options={chartOptions}
-        style={{
-          paddingTop: flatNodes.length === 1 ? 15 : 1.5,
-        }}
-      />
-    </Box>
+    <>
+      <Box mb="4" display="flex" gap="4" alignItems="flex-end">
+        <Box display="flex" flexDirection="column">
+          <Text color="fg.muted" fontSize="xs" mb={1}>
+            {translate("startDate")}
+          </Text>
+          <Input
+            fontSize="sm"
+            fontWeight="medium"
+            maxW="200px"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterStartDate(e.target.value)}
+            placeholder="YYYY-MM-DD"
+            size="sm"
+            type="date"
+            value={filterStartDate}
+          />
+        </Box>
+        <Box display="flex" flexDirection="column">
+          <Text color="fg.muted" fontSize="xs" mb={1}>
+            {translate("endDate")}
+          </Text>
+          <Input
+            fontSize="sm"
+            fontWeight="medium"
+            maxW="200px"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterEndDate(e.target.value)}
+            placeholder="YYYY-MM-DD"
+            size="sm"
+            type="date"
+            value={filterEndDate}
+          />
+        </Box>
+      </Box>
+
+      <Box
+        height={`${fixedHeight}px`}
+        minW="250px"
+        ml={-2}
+        mt={`${GRID_BODY_OFFSET_PX}px`}
+        onMouseLeave={handleChartMouseLeave}
+        w="100%"
+      >
+        <Bar
+          data={chartData}
+          options={chartOptions}
+          style={{
+            paddingTop: flatNodes.length === 1 ? 15 : 1.5,
+          }}
+        />
+      </Box>
+    </>
   );
 };
