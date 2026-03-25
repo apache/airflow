@@ -730,15 +730,12 @@ def ti_heartbeat(
         )
 
     if previous_state != TaskInstanceState.RUNNING:
-        log.warning("Task not in running state", current_state=previous_state)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "reason": "not_running",
-                "message": "TI is no longer in the running state and task should terminate",
-                "current_state": previous_state,
-            },
+        log.info(
+            "Task is no longer in the running state, but ownership matches (hostname/pid). "
+            "Acknowledging heartbeat to avoid race conditions.",
+            current_state=previous_state,
         )
+        return
 
     # Update the last heartbeat time!
     session.execute(update(TI).where(TI.id == task_instance_id).values(last_heartbeat_at=timezone.utcnow()))

@@ -1853,12 +1853,8 @@ class TestTIHealthEndpoint:
             json={"hostname": "random-hostname", "pid": 1547},
         )
 
-        assert response.status_code == 409
-        assert response.json()["detail"] == {
-            "reason": "not_running",
-            "message": "TI is no longer in the running state and task should terminate",
-            "current_state": ti_state,
-        }
+        assert response.status_code == 204
+        assert response.text == ""
 
     def test_ti_heartbeat_update(self, client, session, create_task_instance, time_machine):
         """Test that the Task Instance heartbeat is updated when the Task Instance is running."""
