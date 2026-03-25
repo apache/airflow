@@ -17,8 +17,13 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import joinedload, selectinload
+from collections import defaultdict
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+from uuid import UUID
+
+from sqlalchemy import func, select, tuple_, union_all
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.interfaces import LoaderOption
 
 from airflow.models.dag import DagModel
@@ -26,6 +31,9 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 dagruns_select_with_state_count = (
     select(
@@ -40,26 +48,89 @@ dagruns_select_with_state_count = (
 )
 
 
-def eager_load_dag_run_for_validation() -> tuple[LoaderOption, ...]:
+def eager_load_dag_run_for_list() -> tuple[LoaderOption, ...]:
     """
-    Construct the eager loading options necessary for a DagRunResponse object.
+    Lightweight eager loading for the DagRun list endpoint.
 
-    For the list endpoint (get_dag_runs), loading all task instance columns is
-    wasteful because we only need the dag_version_id FK to traverse to DagVersion.
-    Using load_only() on TaskInstance and TaskInstanceHistory restricts the SELECT
-    to just the identity columns and dag_version_id, avoiding large intermediate
-    result sets caused by loading heavyweight columns (executor_config, etc.) for
-    every task instance across every DAG run returned by the query.
+    Only loads the direct relationships needed for serialization (dag_model,
+    dag_run_note, created_dag_version).  The dag_versions property — which
+    requires iterating every TI and TIH — is populated separately by
+    :func:`attach_dag_versions_to_runs` using a single DISTINCT query.
     """
     return (
         joinedload(DagRun.dag_model),
-        selectinload(DagRun.task_instances)
-        .load_only(TaskInstance.dag_version_id)
-        .joinedload(TaskInstance.dag_version)
-        .joinedload(DagVersion.bundle),
-        selectinload(DagRun.task_instances_histories)
-        .load_only(TaskInstanceHistory.dag_version_id)
-        .joinedload(TaskInstanceHistory.dag_version)
-        .joinedload(DagVersion.bundle),
         joinedload(DagRun.dag_run_note),
+        joinedload(DagRun.created_dag_version).joinedload(DagVersion.bundle),
     )
+
+
+def attach_dag_versions_to_runs(dag_runs: Sequence[DagRun], *, session: Session) -> None:
+    """
+    Prefetch distinct dag_version_ids for each DagRun via a lightweight query.
+
+    Instead of loading all TI and TIH rows (potentially thousands per run)
+    through the ORM relationship just to extract distinct dag_version_ids,
+    this issues a single query that returns only the distinct
+    (dag_id, run_id, dag_version_id) tuples for the given runs.
+
+    The result is attached to each DagRun as ``_prefetched_dag_version_ids``
+    (a dict mapping version_id -> DagVersion), which the ``dag_versions``
+    property reads as an optimized substitute for traversing TI/TIH
+    relationships.  All business logic (bundle_version shortcut, sorting,
+    deduplication) remains solely in ``DagRun.dag_versions``.
+    """
+    if not dag_runs:
+        return
+
+    # Only runs without a bundle_version need TI/TIH traversal;
+    # runs with bundle_version use created_dag_version directly
+    # (handled by the dag_versions property).
+    runs_needing_versions = [dr for dr in dag_runs if not dr.bundle_version]
+    if not runs_needing_versions:
+        return
+
+    run_key_values = [(dr.dag_id, dr.run_id) for dr in runs_needing_versions]
+
+    ti_sub = (
+        select(
+            TaskInstance.dag_id,
+            TaskInstance.run_id,
+            TaskInstance.dag_version_id,
+        )
+        .where(TaskInstance.dag_version_id.isnot(None))
+        .where(tuple_(TaskInstance.dag_id, TaskInstance.run_id).in_(run_key_values))
+        .distinct()
+    )
+    tih_sub = (
+        select(
+            TaskInstanceHistory.dag_id,
+            TaskInstanceHistory.run_id,
+            TaskInstanceHistory.dag_version_id,
+        )
+        .where(TaskInstanceHistory.dag_version_id.isnot(None))
+        .where(tuple_(TaskInstanceHistory.dag_id, TaskInstanceHistory.run_id).in_(run_key_values))
+        .distinct()
+    )
+    combined = union_all(ti_sub, tih_sub).subquery()
+    rows = session.execute(
+        select(combined.c.dag_id, combined.c.run_id, combined.c.dag_version_id).distinct()
+    ).all()
+
+    all_version_ids = {r.dag_version_id for r in rows}
+    versions_by_id: dict[UUID, DagVersion] = {}
+    if all_version_ids:
+        dv_query = (
+            select(DagVersion)
+            .where(DagVersion.id.in_(all_version_ids))
+            .options(joinedload(DagVersion.bundle))
+        )
+        versions_by_id = {dv.id: dv for dv in session.scalars(dv_query).unique()}
+
+    versions_per_run: dict[tuple[str, str], dict[UUID, DagVersion]] = defaultdict(dict)
+    for row in rows:
+        dv = versions_by_id.get(row.dag_version_id)
+        if dv:
+            versions_per_run[(row.dag_id, row.run_id)][dv.id] = dv
+
+    for dr in runs_needing_versions:
+        dr._prefetched_dag_version_ids = versions_per_run.get((dr.dag_id, dr.run_id), {})

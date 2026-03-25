@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-qdrant``
 
-Release: ``1.5.3``
+Release: ``1.5.4``
 
 
 `Qdrant <https://qdrant.tech/documentation>`__
@@ -36,7 +36,7 @@ This is a provider package for ``qdrant`` provider. All classes for this provide
 are in ``airflow.providers.qdrant`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-qdrant/1.5.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-qdrant/1.5.4/>`_.
 
 Installation
 ------------
@@ -45,18 +45,18 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-qdrant``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-==========================================  =====================
+==========================================  ==================
 PIP package                                 Version required
-==========================================  =====================
+==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
-``qdrant_client``                           ``>=1.15.1,!=1.17.0``
-==========================================  =====================
+``qdrant_client``                           ``>=1.17.1``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -78,4 +78,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-qdrant/1.5.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-qdrant/1.5.4/changelog.html>`_.

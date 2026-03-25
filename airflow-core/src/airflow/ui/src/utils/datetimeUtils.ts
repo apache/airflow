@@ -52,11 +52,12 @@ export const getDuration = (
   endDate?: string | null,
   withMilliseconds: boolean = true,
 ) => {
-  if (startDate === undefined || startDate === null || endDate === undefined || endDate === null) {
+  if (startDate === undefined || startDate === null) {
     return undefined;
   }
 
-  const seconds = dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds();
+  const end = endDate ?? dayjs().toISOString();
+  const seconds = dayjs.duration(dayjs(end).diff(startDate)).asSeconds();
 
   return renderDuration(seconds, withMilliseconds);
 };

@@ -36,6 +36,13 @@ from airflow.cli.cli_config import (
     lazy_load_command,
 )
 
+try:
+    from airflow.cli.cli_config import ARG_DB_USE_MIGRATION_FILES
+
+    _USE_MIGRATION_FILES_ARG: tuple = (ARG_DB_USE_MIGRATION_FILES,)
+except ImportError:
+    _USE_MIGRATION_FILES_ARG = ()
+
 if TYPE_CHECKING:
     import argparse
 
@@ -309,6 +316,7 @@ DB_COMMANDS = (
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
             ARG_VERBOSE,
+            *_USE_MIGRATION_FILES_ARG,
         ),
     ),
     ActionCommand(
@@ -337,7 +345,7 @@ DB_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the FAB metadata database",
         func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.db_command.resetdb"),
-        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE, *_USE_MIGRATION_FILES_ARG),
     ),
 )
 

@@ -30,9 +30,9 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
-import pytest
 from sqlalchemy import select
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import TaskInstance, Trigger
 from airflow.models.hitl import HITLDetail
 from airflow.providers.common.compat.sdk import AirflowException, DownstreamTasksSkipped, ParamValidationError
@@ -1029,13 +1029,13 @@ class TestHITLSummaryForListeners:
             "serialized_params": None,
         }
 
-    def test_execute_enriches_summary_with_timeout(self) -> None:
-        """execute() adds timeout_datetime; all other init keys remain."""
+    def test_execute_enriches_summary_with_response_timeout(self) -> None:
+        """execute() adds timeout_datetime using response_timeout; all other init keys remain."""
         op = HITLOperator(
             task_id="test",
             subject="Review",
             options=["OK"],
-            execution_timeout=datetime.timedelta(minutes=10),
+            response_timeout=datetime.timedelta(minutes=10),
         )
 
         with (
@@ -1084,6 +1084,32 @@ class TestHITLSummaryForListeners:
             "serialized_params": None,
             "timeout_datetime": None,
         }
+
+    def test_execution_timeout_deprecated_and_migrated(self) -> None:
+        """execution_timeout is migrated to response_timeout with a deprecation warning."""
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Use `response_timeout` instead"):
+            op = HITLOperator(
+                task_id="test",
+                subject="Review",
+                options=["OK"],
+                execution_timeout=datetime.timedelta(minutes=10),
+            )
+
+        assert op.response_timeout == datetime.timedelta(minutes=10)
+        assert op.execution_timeout is None
+
+    def test_response_timeout_does_not_clear_execution_timeout(self) -> None:
+        """When response_timeout is set, execution_timeout is left untouched."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review",
+            options=["OK"],
+            response_timeout=datetime.timedelta(minutes=5),
+            execution_timeout=datetime.timedelta(minutes=30),
+        )
+
+        assert op.response_timeout == datetime.timedelta(minutes=5)
+        assert op.execution_timeout == datetime.timedelta(minutes=30)
 
     def test_hitl_operator_execute_complete_enriches_summary(self) -> None:
         """execute_complete() adds response fields directly into hitl_summary."""
@@ -1258,7 +1284,7 @@ class TestHITLSummaryForListeners:
             task_id="test",
             subject="Release v2.0?",
             body="Please approve the production deployment.",
-            execution_timeout=datetime.timedelta(minutes=30),
+            response_timeout=datetime.timedelta(minutes=30),
         )
 
         # -- After __init__: only base + approval keys --

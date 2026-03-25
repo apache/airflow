@@ -101,6 +101,16 @@ class SageMakerNotebookOperator(BaseOperator):
     """
 
     operator_extra_links = (SageMakerUnifiedStudioLink(),)
+    template_fields = (
+        "domain_id",
+        "project_id",
+        "domain_region",
+        "input_config",
+        "output_config",
+        "compute",
+        "termination_condition",
+        "tags",
+    )
 
     def __init__(
         self,

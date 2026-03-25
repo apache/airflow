@@ -25,10 +25,8 @@ import {
   useTaskInstanceServiceGetTaskInstancesKey,
   useTaskInstanceServicePatchTaskInstance,
   UseGridServiceGetGridRunsKeyFn,
-  UseGridServiceGetGridTiSummariesKeyFn,
-  useGridServiceGetGridTiSummariesKey,
 } from "openapi/queries";
-import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
@@ -49,29 +47,18 @@ export const usePatchTaskInstance = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("toaster.update.error", {
-        resourceName: translate("taskInstance_one"),
-      }),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    createErrorToaster(
+      error,
+      {
+        params: { resourceName: translate("taskInstance_one") },
+        titleKey: "toaster.update.error",
+      },
+      translate,
+    );
   };
 
-  const onSuccessFn = async (
-    _: unknown,
-    variables: {
-      dagId: string;
-      dagRunId: string;
-      requestBody: { include_future?: boolean; include_past?: boolean };
-      taskId: string;
-    },
-  ) => {
-    // Check if this patch operation affects multiple DAG runs
-    const { include_future: includeFuture, include_past: includePast } = variables.requestBody;
-    const affectsMultipleRuns = includeFuture === true || includePast === true;
-
+  const onSuccessFn = async () => {
     const queryKeys = [
       UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
       UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
@@ -79,9 +66,6 @@ export const usePatchTaskInstance = ({
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
       [useClearTaskInstancesDryRunKey, dagId],
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
-      affectsMultipleRuns
-        ? [useGridServiceGetGridTiSummariesKey, { dagId }]
-        : UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
