@@ -791,7 +791,7 @@ class _ConsumingAssetFilter(BaseParam[str | None]):
     """Filter DAG runs by consuming asset (name or URI)."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
+        if not self.value and self.skip_none:
             return select
 
         event_subquery = (
