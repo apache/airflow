@@ -644,12 +644,11 @@ class TriggerRuleDep(BaseTIDep):
 
             in_scope_tasks = {tid: task.dag.get_task(tid) for tid in in_scope_ids}
 
-            finished_upstream_tis = (
-                x
+            done = sum(
+                1
                 for x in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
                 if _is_relevant_upstream(upstream=x, relevant_ids=in_scope_ids)
             )
-            done = sum(1 for _ in finished_upstream_tis)
 
             if not any(t.get_needs_expansion() for t in in_scope_tasks.values()):
                 expected = len(in_scope_tasks)
