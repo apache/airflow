@@ -680,7 +680,7 @@ class TestCreateXComEntry(TestXComEndpoint):
             # Validate the created XCom response
             current_data = response.json()
             assert current_data["key"] == request_body.key
-            assert current_data["value"] == XComModel.serialize_value(request_body.value)
+            assert current_data["value"] == request_body.value
             assert current_data["dag_id"] == dag_id
             assert current_data["task_id"] == task_id
             assert current_data["run_id"] == dag_run_id
@@ -716,7 +716,7 @@ class TestCreateXComEntry(TestXComEndpoint):
         )
         assert get_resp.status_code == 200
         assert get_resp.json()["key"] == slash_key
-        assert get_resp.json()["value"] == json.dumps(TEST_XCOM_VALUE)
+        assert get_resp.json()["value"] == TEST_XCOM_VALUE
 
     @pytest.mark.parametrize(
         ("key", "value"),
@@ -833,7 +833,7 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert response.status_code == expected_status
 
         if expected_status == 200:
-            assert response.json()["value"] == json.dumps(patch_body["value"])
+            assert response.json()["value"] == patch_body["value"]
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
@@ -862,5 +862,5 @@ class TestPatchXComEntry(TestXComEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["key"] == slash_key
-        assert response.json()["value"] == json.dumps(new_value)
+        assert response.json()["value"] == new_value
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
