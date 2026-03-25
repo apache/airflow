@@ -16,26 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from .constants import (
-    CACHE,
-    CLASSNAME,
-    DATA,
-    OLD_DATA,
-    OLD_DICT,
-    OLD_SOURCE,
-    OLD_TYPE,
-    SCHEMA_ID,
-    VERSION,
-)
+# Current serialization format keys
+CLASSNAME = "__classname__"
+VERSION = "__version__"
+DATA = "__data__"
+SCHEMA_ID = "__id__"
+CACHE = "__cache__"
 
-__all__ = [
-    "CLASSNAME",
-    "VERSION",
-    "DATA",
-    "SCHEMA_ID",
-    "CACHE",
-    "OLD_TYPE",
-    "OLD_SOURCE",
-    "OLD_DATA",
-    "OLD_DICT",
-]
+# Legacy serialization format keys (processed by serde for backwards compatibility)
+OLD_TYPE = "__type"
+OLD_SOURCE = "__source"
+OLD_DATA = "__var"
+OLD_DICT = "dict"

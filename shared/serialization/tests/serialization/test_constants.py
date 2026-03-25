@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-def test_dummy():
-  """Dummy test because this module doesn't have any logic, just constants."""
-  pass
+
+def test_placeholder():
+    """Placeholder test because this module doesn't have any logic, just constants."""
+    pass
