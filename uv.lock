@@ -3925,7 +3925,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'common-sql'", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'sql'", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
-    { name = "pydantic-ai-slim", specifier = ">=1.14.0" },
+    { name = "pydantic-ai-slim", specifier = ">=1.34.0" },
     { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'" },
     { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'" },
     { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'" },
