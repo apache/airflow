@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.providers.common.compat.sdk import conf
 from airflow.settings import AIRFLOW_HOME
 
 if TYPE_CHECKING:
@@ -49,7 +49,7 @@ class KubeConfig:
         self.airflow_home = AIRFLOW_HOME
         self.dags_folder = self._conf.get(self.core_section, "dags_folder")
         self.parallelism = self._conf.getint(self.core_section, "parallelism")
-        self.pod_template_file = self._conf.get(self.kubernetes_section, "pod_template_file", fallback=None)
+        self.pod_template_file = self._conf.get(self.kubernetes_section, "pod_template_file")
 
         self.delete_worker_pods = self._conf.getboolean(self.kubernetes_section, "delete_worker_pods")
         self.delete_worker_pods_on_failure = self._conf.getboolean(
@@ -89,9 +89,7 @@ class KubeConfig:
         # create, watch, get, and delete pods in this namespace.
         self.kube_namespace = self._conf.get(self.kubernetes_section, "namespace")
         self.multi_namespace_mode = self._conf.getboolean(self.kubernetes_section, "multi_namespace_mode")
-        multi_ns_list = self._conf.get(
-            self.kubernetes_section, "multi_namespace_mode_namespace_list", fallback=""
-        )
+        multi_ns_list = self._conf.get(self.kubernetes_section, "multi_namespace_mode_namespace_list")
         if self.multi_namespace_mode and multi_ns_list:
             self.multi_namespace_mode_namespace_list: list[str] | None = multi_ns_list.split(",")
         else:
@@ -100,9 +98,7 @@ class KubeConfig:
         # that if your
         # cluster has RBAC enabled, your workers may need service account permissions to
         # interact with cluster components.
-        self.executor_namespace: str = (
-            self._conf.get(self.kubernetes_section, "namespace", fallback="default") or "default"
-        )
+        self.executor_namespace: str = self._conf.get(self.kubernetes_section, "namespace") or "default"
 
         self.kube_client_request_args = self._conf.getjson(
             self.kubernetes_section, "kube_client_request_args", fallback={}
