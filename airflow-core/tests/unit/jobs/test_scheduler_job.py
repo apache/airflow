@@ -2779,7 +2779,10 @@ class TestSchedulerJob:
             task2 = EmptyOperator(task_id=task_id_2, executor=task2_exec)
 
         scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        with conf_vars({("core", "parallelism"): "40"}):
+            # 40 dag runs * 2 tasks each = 80. Two executors have capacity for 61 concurrent jobs, but they
+            # together respect core.parallelism and will not run more in aggregate then that allows.
+            self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         def _create_dagruns():
             dagrun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.RUNNING)
@@ -2804,10 +2807,7 @@ class TestSchedulerJob:
             executor.slots_available = 31
 
         total_enqueued = 0
-        with conf_vars({("core", "parallelism"): "40"}):
-            # 40 dag runs * 2 tasks each = 80. Two executors have capacity for 61 concurrent jobs, but they
-            # together respect core.parallelism and will not run more in aggregate then that allows.
-            total_enqueued += self.job_runner._critical_section_enqueue_task_instances(session)
+        total_enqueued += self.job_runner._critical_section_enqueue_task_instances(session)
 
         if task1_exec != task2_exec:
             # Two executors will execute up to core parallelism
@@ -9043,6 +9043,54 @@ def test_partitioned_dag_run_with_invalid_mapping(dag_maker: DagMaker, session: 
         "does not support this partition key.\n"
         "ValueError: time data 'an invalid key for HourlyMapper' does not match format '%Y-%m-%dT%H:%M:%S'"
     )
+
+
+@pytest.mark.db_test
+def test_create_dag_runs_partitioned_timetable_skips_when_next_fields_none(session, caplog):
+    """
+    Partitioned timetables may leave next_dagrun / next_dagrun_create_after unset when no run is due.
+    Scheduler should skip and log if partition key is not set.
+    """
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    dag_model = MagicMock()
+    dag_model.dag_id = "partitioned-skip-no-next-fields"
+    dag_model.exceeds_max_non_backfill = False
+    dag_model.next_dagrun = None
+    dag_model.timetable_partitioned = True
+    dag_model.next_dagrun_create_after = None
+    dag_model.next_dagrun_partition_key = None
+    dag_model.max_active_runs = 16
+    dag_model.allowed_run_types = None
+
+    with caplog.at_level(logging.ERROR):
+        with mock.patch.object(runner, "_get_current_dag") as mock_get_dag:
+            runner._create_dag_runs([dag_model], session)
+
+    mock_get_dag.assert_not_called()
+    assert "dag_model.next_dagrun_partition_key is None" in caplog.text
+
+
+@pytest.mark.db_test
+def test_create_dag_runs_partitioned_timetable_proceeds_when_partition_key_set(session):
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    dag_model = MagicMock()
+    dag_model.dag_id = "partitioned-proceed-with-partition-key"
+    dag_model.exceeds_max_non_backfill = False
+    dag_model.next_dagrun = None
+    dag_model.timetable_partitioned = True
+    dag_model.next_dagrun_create_after = None
+    dag_model.next_dagrun_partition_key = "partition-a"
+    dag_model.max_active_runs = 16
+    dag_model.allowed_run_types = None
+
+    with mock.patch.object(runner, "_get_current_dag", return_value=None) as mock_get_dag:
+        runner._create_dag_runs([dag_model], session)
+
+    mock_get_dag.assert_called_once()
 
 
 @pytest.mark.need_serialized_dag

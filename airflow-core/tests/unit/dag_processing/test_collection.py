@@ -37,6 +37,7 @@ from airflow.dag_processing.collection import (
     AssetModelOperation,
     DagModelOperation,
     _get_latest_runs_stmt,
+    _get_latest_runs_stmt_partitioned,
     _update_dag_tags,
     update_dag_parsing_results_in_db,
 )
@@ -58,6 +59,7 @@ from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -94,6 +96,35 @@ def test_statement_latest_runs_one_dag():
             "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
         ]
         assert actual == expected, compiled_stmt
+
+
+@pytest.mark.db_test
+def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
+    with dag_maker("fake-dag", schedule=None):
+        pass
+    dag_maker.sync_dagbag_to_db()
+
+    for i, (run_id, partition_key, partition_date) in enumerate(
+        (
+            ("newest-partition-date", "2025-01-02", tz.datetime(2025, 1, 2)),
+            ("older-partition-date", "2025-01-01", tz.datetime(2025, 1, 1)),
+            ("null-partition-date", "not-a-time-based-partition", None),
+        )
+    ):
+        dag_maker.create_dagrun(
+            run_id=run_id,
+            logical_date=None,
+            data_interval=None,
+            run_type=DagRunType.SCHEDULED,
+            run_after=tz.datetime(2025, 1, 1 + i),
+            partition_key=partition_key,
+            partition_date=partition_date,
+            session=session,
+        )
+
+    latest = session.scalar(_get_latest_runs_stmt_partitioned("fake-dag"))
+    assert latest is not None
+    assert latest.partition_date == tz.datetime(2025, 1, 2)
 
 
 @pytest.mark.db_test

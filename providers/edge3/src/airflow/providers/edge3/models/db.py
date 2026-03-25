@@ -128,7 +128,7 @@ def check_db_manager_config() -> None:
     Should be called whenever the edge3 provider is active so operators are alerted
     early if the required database configuration is missing.
     """
-    from airflow.configuration import conf
+    from airflow.providers.common.compat.sdk import conf
     from airflow.providers_manager import ProvidersManager
 
     fqcn = f"{EdgeDBManager.__module__}.{EdgeDBManager.__name__}"

@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+1.13.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AwaitMessageSensor not honoring timeout (#62104)``
+* ``Fix docstring for AwaitMessageSensor and AwaitMessageTrigger in apache-kafka-provider (#63333)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Migrate apache/kafka connection UI metadata to YAML (#63171)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
 1.13.0
 ......
 

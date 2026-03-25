@@ -18,11 +18,10 @@
 from __future__ import annotations
 
 import logging
-import multiprocessing
 import os
 import signal
 import subprocess
-import time
+import sys
 from contextlib import suppress
 from subprocess import CalledProcessError
 from time import sleep
@@ -42,61 +41,51 @@ from airflow.utils.process_utils import (
 
 
 class TestReapProcessGroup:
-    @staticmethod
-    def _ignores_sigterm(child_pid, child_setup_done):
-        def signal_handler(unused_signum, unused_frame):
-            pass
-
-        signal.signal(signal.SIGTERM, signal_handler)
-        child_pid.value = os.getpid()
-        child_setup_done.release()
-        while True:
-            time.sleep(1)
-
-    @staticmethod
-    def _parent_of_ignores_sigterm(parent_pid, child_pid, setup_done):
-        def signal_handler(unused_signum, unused_frame):
-            pass
-
-        os.setsid()
-        signal.signal(signal.SIGTERM, signal_handler)
-        child_setup_done = multiprocessing.Semaphore(0)
-        child = multiprocessing.Process(
-            target=TestReapProcessGroup._ignores_sigterm, args=[child_pid, child_setup_done]
-        )
-        child.start()
-        child_setup_done.acquire(timeout=5.0)
-        parent_pid.value = os.getpid()
-        setup_done.release()
-        while True:
-            time.sleep(1)
+    # Inline script that creates a new session, spawns a SIGTERM-ignoring child,
+    # prints both PIDs to stdout, then loops forever.  Uses subprocess.Popen
+    # instead of multiprocessing.Process to avoid fork()-ing the (large) test
+    # worker process — which causes OOM under xdist on Python 3.14.
+    _PARENT_SCRIPT = """\
+import os, signal, subprocess, sys, time
+os.setsid()
+signal.signal(signal.SIGTERM, lambda s, f: None)
+child = subprocess.Popen(
+    [sys.executable, "-c",
+     "import signal, time; signal.signal(signal.SIGTERM, lambda s,f: None); time.sleep(300)"]
+)
+print(f"{os.getpid()} {child.pid}", flush=True)
+time.sleep(300)
+"""
 
     def test_reap_process_group(self):
         """
         Spin up a process that can't be killed by SIGTERM and make sure
         it gets killed anyway.
         """
-        parent_setup_done = multiprocessing.Semaphore(0)
-        parent_pid = multiprocessing.Value("i", 0)
-        child_pid = multiprocessing.Value("i", 0)
-        args = [parent_pid, child_pid, parent_setup_done]
-        parent = multiprocessing.Process(target=TestReapProcessGroup._parent_of_ignores_sigterm, args=args)
+        parent = subprocess.Popen(
+            [sys.executable, "-c", self._PARENT_SCRIPT],
+            stdout=subprocess.PIPE,
+            text=True,
+        )
         try:
-            parent.start()
-            assert parent_setup_done.acquire(timeout=5.0)
-            assert psutil.pid_exists(parent_pid.value)
-            assert psutil.pid_exists(child_pid.value)
+            line = parent.stdout.readline()
+            assert line, "Parent script did not print PIDs"
+            parent_pid, child_pid = map(int, line.strip().split())
 
-            process_utils.reap_process_group(parent_pid.value, logging.getLogger(), timeout=1)
+            assert psutil.pid_exists(parent_pid)
+            assert psutil.pid_exists(child_pid)
 
-            assert not psutil.pid_exists(parent_pid.value)
-            assert not psutil.pid_exists(child_pid.value)
+            process_utils.reap_process_group(parent_pid, logging.getLogger(), timeout=1)
+
+            assert not psutil.pid_exists(parent_pid)
+            assert not psutil.pid_exists(child_pid)
         finally:
             try:
-                os.kill(parent_pid.value, signal.SIGKILL)  # terminate doesn't work here
-                os.kill(child_pid.value, signal.SIGKILL)  # terminate doesn't work here
+                os.kill(parent.pid, signal.SIGKILL)
             except OSError:
                 pass
+            parent.stdout.close()
+            parent.wait()
 
 
 @pytest.mark.db_test
@@ -133,54 +122,42 @@ class TestExecuteInSubProcess:
         assert "My value is 1" in caplog.text
 
 
-def my_sleep_subprocess():
-    sleep(100)
-
-
-def my_sleep_subprocess_with_signals(ready_event):
-    signal.signal(signal.SIGINT, lambda signum, frame: None)
-    signal.signal(signal.SIGTERM, lambda signum, frame: None)
-    ready_event.set()
-    sleep(100)
-
-
 @pytest.mark.db_test
 class TestKillChildProcessesByPids:
     def test_should_kill_process(self):
-        before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
+        process = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
 
-        process = multiprocessing.Process(target=my_sleep_subprocess, args=())
-        process.start()
-        sleep(0)
-
-        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
-        assert before_num_process + 1 == num_process
+        assert psutil.pid_exists(process.pid)
 
         process_utils.kill_child_processes_by_pids([process.pid])
 
-        num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
-        assert before_num_process == num_process
+        assert not psutil.pid_exists(process.pid)
 
     def test_should_force_kill_process(self, caplog):
-        ready_event = multiprocessing.Event()
-        process = multiprocessing.Process(target=my_sleep_subprocess_with_signals, args=(ready_event,))
-        process.start()
-        # Wait until the child has installed its signal handlers, so that SIGTERM will be
-        # ignored and we actually exercise the SIGKILL path.  Without this, on non-fork
-        # start methods (forkserver/spawn) the child may still have the default SIGTERM
-        # handler when we send the signal.
-        ready_event.wait(timeout=10)
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import signal, time; "
+                "signal.signal(signal.SIGINT, lambda s,f: None); "
+                "signal.signal(signal.SIGTERM, lambda s,f: None); "
+                "print('ready', flush=True); "
+                "time.sleep(300)",
+            ],
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        # Wait until signal handlers are installed before sending signals
+        process.stdout.readline()
 
-        all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
-        assert str(process.pid) in (x.strip() for x in all_processes)
+        assert psutil.pid_exists(process.pid)
 
         with caplog.at_level(logging.INFO, logger=process_utils.log.name):
             caplog.clear()
             process_utils.kill_child_processes_by_pids([process.pid], timeout=0)
             assert f"Killing child PID: {process.pid}" in caplog.messages
         sleep(0)
-        all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
-        assert str(process.pid) not in (x.strip() for x in all_processes)
+        assert not psutil.pid_exists(process.pid)
 
 
 class TestPatchEnviron:

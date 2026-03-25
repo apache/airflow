@@ -50,6 +50,15 @@ export const useClearTaskInstances = ({
     let detail: string;
     let description: string;
 
+    // Get status from error
+    const status =
+      (error as { status?: number }).status ?? (error as { response?: { status?: number } }).response?.status;
+
+    // Skip 403 errors as they are handled by MutationCache
+    if (status === 403) {
+      return;
+    }
+
     // Narrow the type safely
     if (typeof error === "object" && error !== null) {
       const apiError = error as ApiError;

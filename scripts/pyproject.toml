@@ -45,7 +45,8 @@ version = "0.0.1"
 dependencies = [
     "astor>=0.8.1",
     "jsonschema>=4.19.1",
-    "libcst>=1.1.0",
+    "libcst>=1.1.0; python_version < '3.14'",
+    "libcst>=1.8.6; python_version >= '3.14'",
     "packaging>=25.0",
     "python-dateutil>=2.8.2",
     "pyyaml>=6.0.3",

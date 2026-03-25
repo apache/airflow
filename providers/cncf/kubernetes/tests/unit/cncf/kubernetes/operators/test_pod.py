@@ -940,6 +940,21 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].termination_message_policy == "File"
 
+    def test_runtime_class_name_correctly_set(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+            runtime_class_name="gvisor",
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.runtime_class_name == "gvisor"
+
+    def test_runtime_class_name_default_value_correctly_set(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.runtime_class_name is None
+
     def test_termination_grace_period_correctly_set(self):
         k = KubernetesPodOperator(
             task_id="task",

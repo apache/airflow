@@ -79,7 +79,7 @@ apache-airflow-providers-snowflake package
 `Snowflake <https://www.snowflake.com/>`__
 
 
-Release: 6.11.0
+Release: 6.12.0
 
 Provider package
 ----------------
@@ -106,9 +106,11 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
-``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
+``pyarrow``                                 ``>=18.0.0; python_version >= "3.13" and python_version < "3.14"``
+``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
 ``snowflake-connector-python``              ``>=3.16.0``
 ``snowflake-sqlalchemy``                    ``>=1.7.0``
 ``snowflake-snowpark-python``               ``>=1.17.0,<9999; python_version < "3.12"``
@@ -144,5 +146,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-snowflake 6.11.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.11.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.11.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.11.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-snowflake 6.11.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.11.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.11.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.11.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-snowflake 6.12.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.12.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.12.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.12.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-snowflake 6.12.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.12.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.12.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_snowflake-6.12.0-py3-none-any.whl.sha512>`__)
