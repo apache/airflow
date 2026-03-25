@@ -1,19 +1,19 @@
-.. Licensed to the Apache Software Foundation (ASF) under one
-   or more contributor license agreements.  See the NOTICE file
-   distributed with this work for additional information
-   regarding copyright ownership.  The ASF licenses this file
-   to you under the Apache License, Version 2.0 (the
-   "License"); you may not use this file except in compliance
-   with the License.  You may obtain a copy of the License at
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing,
-   software distributed under the License is distributed on an
-   "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-   KIND, either express or implied.  See the License for the
-   specific language governing permissions and limitations
-   under the License.
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 .. NOTE: This file is the RST-format equivalent of the YAML workflow files in this
    directory. It is a PoC for embedding agent skills directly in contributor
@@ -120,6 +120,26 @@ The ``project`` parameter is the path to the distribution folder containing
 ``pyproject.toml`` (e.g. ``airflow-core``, ``providers/amazon``).
 The ``fallback`` command is used on the host when system dependencies such as
 ``mysql`` or ``kubernetes`` libraries are not available locally.
+
+Running Database Tests
+----------------------
+
+Tests marked ``@pytest.mark.db_test`` require a live Airflow metadata database.
+**Do not try uv first** — uv on the host does not provision a database.
+Go directly to Breeze.
+
+.. agent-skill::
+   :id: run-db-test
+   :category: testing
+   :description: Run tests marked with @pytest.mark.db_test. Always uses Breeze — never try uv first.
+   :local: breeze run pytest {test_path} -xvs
+   :breeze: pytest {test_path} -xvs
+   :prereqs: setup-breeze-environment
+   :params: test_path:required
+   :expected-output: passed
+
+To detect db tests before running: ``grep -n "db_test" {test_path}``. If the marker is
+present, use this skill. If not, use ``run-single-test`` instead.
 
 Building Documentation
 ----------------------

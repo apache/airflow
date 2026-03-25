@@ -1,14 +1,19 @@
 {
   "nodes": [
     {
-      "id": "build-docs",
-      "category": "documentation",
-      "context": "host"
+      "id": "setup-breeze-environment",
+      "category": "environment",
+      "context": "either"
+    },
+    {
+      "id": "run-static-checks",
+      "category": "linting",
+      "context": "either"
     },
     {
       "id": "run-manual-checks",
       "category": "linting",
-      "context": "host"
+      "context": "either"
     },
     {
       "id": "run-single-test",
@@ -16,19 +21,19 @@
       "context": "either"
     },
     {
-      "id": "run-static-checks",
-      "category": "linting",
-      "context": "host"
+      "id": "run-db-test",
+      "category": "testing",
+      "context": "either"
     },
     {
-      "id": "setup-breeze-environment",
-      "category": "environment",
-      "context": "host"
+      "id": "build-docs",
+      "category": "documentation",
+      "context": "either"
     }
   ],
   "edges": [
     {
-      "from": "build-docs",
+      "from": "run-static-checks",
       "to": "setup-breeze-environment",
       "type": "requires"
     },
@@ -43,7 +48,12 @@
       "type": "requires"
     },
     {
-      "from": "run-static-checks",
+      "from": "run-db-test",
+      "to": "setup-breeze-environment",
+      "type": "requires"
+    },
+    {
+      "from": "build-docs",
       "to": "setup-breeze-environment",
       "type": "requires"
     }
