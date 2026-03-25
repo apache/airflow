@@ -100,11 +100,12 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``fix DataprocSubmitTrigger deferred tasks stuck forever (#62082)``
-* ``fix(google-ads): support flat extra format from connection form (#62791)``
-* ``fix sanitize Dataproc batch labels to use dashes instead of underscores (#62926)``
-* ``fix wrap sync get_job with sync_to_async in BigQueryAsyncHook (#63230)``
-* ``fix non-deferrable reconciliation and handle deletion during creation in DataprocCreateClusterOperator (#61951)``
+* ``Fix DataprocSubmitTrigger deferred tasks stuck forever (#62082)``
+* ``Fix support flat extra format from connection form (#62791)``
+* ``Fix sanitize Dataproc batch labels to use dashes instead of underscores (#62926)``
+* ``Fix wrap sync get_job with sync_to_async in BigQueryAsyncHook (#63230)``
+* ``Fix non-deferrable reconciliation and handle deletion during creation in DataprocCreateClusterOperator (#61951)``
+* ``Fix SSRF in Bid Manager report download via URL allowlist (#64180)``
 
 Misc
 ~~~~
@@ -114,6 +115,11 @@ Misc
 * ``Mypy fix errors in kubernetes, fab, google, and amazon providers (#63947)``
 * ``Mypy fix errors in TrinoToGCSOperator (#62998)``
 * ``Remove PyOpenSSL from dependencies (#63869)``
+
+Doc-only
+~~~~~~~~
+
+* ``fix typos and spelling (#64139)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -134,6 +140,7 @@ Misc
    * ``Prepare providers release 2026-03-09 (#63198)``
    * ``Add known issue notice for version 19.5.0 (#61927)``
    * ``Update google change log for release 21.0 (#64091)``
+   * ``clean google changelog.rst (#64112)``
 
 20.0.0
 ......
@@ -1229,7 +1236,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix MetastoreHivePartitionSensor failing due to duplicate aliases (#45001)``
-* ``Fix failing OpenLineage emition for InsertBigQueryOperator  (#44650)``
+* ``Fix failing OpenLineage emission for InsertBigQueryOperator  (#44650)``
 * ``BigQueryInsertJobOperator: log transient error and check job state before marking task as success (#44279)``
 * ``Make 'CloudBatchSubmitJobOperator' fail when job fails (#44425)``
 
@@ -2274,7 +2281,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``fix google CHANGELOG.rst (#34007)``
    * ``Fix Google 10.7.0 changelog (#33953)``
-   * ``Fix Cloud Worflows system test (#33386)``
+   * ``Fix Cloud Workflows system test (#33386)``
    * ``fix entry in Google provider CHANGELOG.rst (#33890)``
    * ``Generate Python API docs for Google ADS (#33814)``
 
@@ -2294,7 +2301,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix BigQueryCreateExternalTableOperator when using a foramt different to CSV (#33540)``
+* ``Fix BigQueryCreateExternalTableOperator when using a format different to CSV (#33540)``
 * ``Fix DataplexDataQualityJobStatusSensor and add unit tests (#33440)``
 * ``Avoid importing pandas and numpy in runtime and module level (#33483)``
 
@@ -2473,7 +2480,7 @@ Features
 * ``Add a new param to set parquet row group size in 'BaseSQLToGCSOperator' (#31831)``
 * ``Add 'cacheControl' field to google cloud storage (#31338)``
 * ``Add 'preserveAsciiControlCharacters' to 'src_fmt_configs' (#31643)``
-* ``Add support for credential configuation file auth to Google Secrets Manager secrets backend (#31597)``
+* ``Add support for credential configuration file auth to Google Secrets Manager secrets backend (#31597)``
 * ``Add credential configuration file support to Google Cloud Hook (#31548)``
 * ``Add deferrable mode to 'GCSUploadSessionCompleteSensor' (#31081)``
 * ``Add append_job_name parameter in DataflowStartFlexTemplateOperator (#31511)``

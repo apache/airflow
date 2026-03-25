@@ -32,6 +32,7 @@ from uuid import UUID
 import attrs
 import dill
 import uuid6
+from opentelemetry import trace
 from sqlalchemy import (
     JSON,
     Float,
@@ -67,6 +68,7 @@ from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from airflow import settings
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -102,7 +104,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 TR = TaskReschedule
 
 log = logging.getLogger(__name__)
-
+tracer = trace.get_tracer(__name__)
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -382,7 +384,7 @@ def clear_task_instances(
         for instance in tis:
             run_ids_by_dag_id[instance.dag_id].add(instance.run_id)
 
-        drs = session.scalars(
+        drs: Iterable[DagRun] = session.scalars(
             select(DagRun).where(
                 or_(
                     *(
@@ -397,6 +399,7 @@ def clear_task_instances(
             # Always update clear_number and queued_at when clearing tasks, regardless of state
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
+            dr.context_carrier = new_dagrun_trace_carrier()
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
 
@@ -425,6 +428,8 @@ def clear_task_instances(
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
+    for ti in tis:
+        ti.context_carrier = new_task_run_carrier(ti.dag_run.context_carrier)
     session.flush()
 
 
@@ -679,7 +684,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, dag_version_id: UUID | None
+        run_id: str, task: Operator, map_index: int, *, dag_version_id: UUID | None, dag_run: DagRun
     ) -> dict[str, Any]:
         """
         Insert mapping.
@@ -689,6 +694,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         priority_weight = task.weight_rule.get_weight(
             TaskInstance(task=task, run_id=run_id, map_index=map_index, dag_version_id=dag_version_id)
         )
+        context_carrier = new_task_run_carrier(dag_run.context_carrier)
 
         return {
             "dag_id": task.dag_id,
@@ -710,6 +716,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
             "dag_version_id": dag_version_id,
+            "context_carrier": context_carrier,
         }
 
     @reconstructor

@@ -19,6 +19,35 @@
 Changelog
 ---------
 
+0.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add SSH auth parameters to GitHook for bastion hosts, custom ports, and passphrases (#63942)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix shell injection in GitHook SSH passphrase askpass script (#64126)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``Docs: Fix Git connection docs to match actual GitHook parameters (#63265)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Prepare providers release 2026-03-09 (#63198)``
+   * ``Add Apache Airflow Provider Registry (#62261)``
+
 0.2.4
 .....
 

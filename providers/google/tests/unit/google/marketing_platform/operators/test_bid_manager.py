@@ -74,7 +74,17 @@ class TestGoogleBidManagerDownloadReportOperator:
             session.execute(delete(TI))
 
     @pytest.mark.parametrize(
-        ("file_path", "should_except"), [("https://host/path", False), ("file:/path/to/file", True)]
+        ("file_path", "should_except"),
+        [
+            ("https://storage.googleapis.com/bucket/report.csv", False),
+            ("https://storage.cloud.google.com/bucket/report.csv", False),
+            ("file:/path/to/file", True),
+            ("http://storage.googleapis.com/bucket/report.csv", True),
+            ("https://evil.com/report.csv", True),
+            ("https://internal-service.local/secret", True),
+            ("ftp://storage.googleapis.com/bucket/report.csv", True),
+            ("https://storage.googleapis.com@evil.com/report.csv", True),
+        ],
     )
     @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.shutil")
     @mock.patch("airflow.providers.google.marketing_platform.operators.bid_manager.urllib.request")
@@ -156,7 +166,10 @@ class TestGoogleBidManagerDownloadReportOperator:
     ):
         mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = FILENAME
         mock_hook.return_value.get_report.return_value = {
-            "metadata": {"status": {"state": "DONE"}, "googleCloudStoragePath": "TEST"}
+            "metadata": {
+                "status": {"state": "DONE"},
+                "googleCloudStoragePath": "https://storage.googleapis.com/bucket/report.csv",
+            }
         }
         with dag_maker(dag_id="test_set_bucket_name", start_date=DEFAULT_DATE) as dag:
             if BUCKET_NAME not in test_bucket_name:
