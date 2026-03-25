@@ -42,6 +42,10 @@ DEFAULT_ALLOWED_TYPES: tuple[type[exp.Expr], ...] = (
 # Denylist: expression types that mutate data or schema when found anywhere in the AST.
 # This catches data-modifying CTEs (e.g. WITH del AS (DELETE …) SELECT …),
 # SELECT INTO, and other constructs that bypass top-level type checks.
+# Note: exp.Command is sqlglot's fallback for any syntax it doesn't recognize.
+# Including it makes the denylist fail-closed (safer), but may block legitimate
+# vendor-specific SQL that sqlglot can't parse. Callers who need such syntax can
+# provide custom allowed_types to bypass the deep scan entirely.
 _DATA_MODIFYING_NODES: tuple[type[exp.Expr], ...] = (
     exp.Insert,
     exp.Update,
@@ -113,7 +117,7 @@ def validate_sql(
     # (e.g. data-modifying CTEs, SELECT INTO). Only applies when using the default
     # read-only allowlist — callers who provide custom allowed_types have explicitly
     # opted into non-read-only operations.
-    if allowed_types is None:
+    if types is DEFAULT_ALLOWED_TYPES:
         _check_for_data_modifying_nodes(parsed)
 
     return parsed

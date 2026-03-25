@@ -202,3 +202,14 @@ class TestDataModifyingNodeDetection:
         """Subqueries that are pure reads should not be affected."""
         result = validate_sql("SELECT * FROM users WHERE id IN (SELECT user_id FROM orders)")
         assert len(result) == 1
+
+    def test_deep_scan_runs_with_explicit_default_types(self):
+        """Deep scan should also block when DEFAULT_ALLOWED_TYPES is passed explicitly."""
+        from airflow.providers.common.ai.utils.sql_validation import DEFAULT_ALLOWED_TYPES
+
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Delete'"):
+            validate_sql(
+                "WITH del AS (DELETE FROM users RETURNING *) SELECT * FROM del",
+                allowed_types=DEFAULT_ALLOWED_TYPES,
+                dialect="postgres",
+            )
