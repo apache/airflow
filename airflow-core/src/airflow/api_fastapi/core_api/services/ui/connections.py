@@ -183,7 +183,7 @@ class HookMetaService:
                 mock.patch("wtforms.validators.Optional", HookMetaService.MockOptional),
                 mock.patch("wtforms.validators.any_of", mock_any_of),
                 # Prevent poisoning the global ProvidersManager singleton with mocks
-                mock.patch("airflow.providers_manager.ProvidersManager._instance", None),
+                mock.patch.dict("airflow.utils.singleton.Singleton._instances", clear=True),
                 mock.patch("airflow.providers_manager.ProvidersManager.initialized", return_value=False),
             ):
                 pm = ProvidersManager()
@@ -223,7 +223,11 @@ class HookMetaService:
         result: dict[str, MutableMapping] = {}
         for key, form_widget in form_widgets.items():
             hook_key = key.split("__")[1]
-            if isinstance(form_widget.field, HookMetaService.MockBaseField):
+            if isinstance(form_widget.field, dict):
+                hook_widgets = result.get(hook_key, {})
+                hook_widgets[form_widget.field_name] = form_widget.field
+                result[hook_key] = hook_widgets
+            elif isinstance(form_widget.field, HookMetaService.MockBaseField):
                 hook_widgets = result.get(hook_key, {})
                 hook_widgets[form_widget.field_name] = form_widget.field.param.dump()
                 result[hook_key] = hook_widgets
@@ -247,6 +251,11 @@ class HookMetaService:
                 validators = form_widget.field.kwargs.get("validators", [])
                 description = form_widget.field.kwargs.get("description", "")
                 default = form_widget.field.kwargs.get("default", None)
+                if callable(default):
+                    try:
+                        default = default()
+                    except Exception:
+                        default = None
 
                 enum = {}
                 for v in validators:
