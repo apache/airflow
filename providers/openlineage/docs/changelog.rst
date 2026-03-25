@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+2.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Deadline Alerts to OL events (#63352)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify HLL in extraction precedence (#63723)``
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 2.12.0
 ......
 
