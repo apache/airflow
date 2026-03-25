@@ -633,9 +633,7 @@ class DagFileProcessorManager(LoggingMixin):
         values: dict[str, Any] = {"last_refreshed": last_refreshed}
         if version is not None:
             values["version"] = version
-        session.execute(
-            update(DagBundleModel).where(DagBundleModel.name == bundle_name).values(**values)
-        )
+        session.execute(update(DagBundleModel).where(DagBundleModel.name == bundle_name).values(**values))
 
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""
@@ -725,6 +723,8 @@ class DagFileProcessorManager(LoggingMixin):
             else:
                 version_after_refresh = None
 
+            # Persistence failure must not skip file scanning (bundle is already refreshed locally).
+            # _bundle_versions is only advanced on success to stay consistent with the DB.
             try:
                 self.update_bundle_state(bundle.name, last_refreshed=now, version=version_after_refresh)
             except Exception:

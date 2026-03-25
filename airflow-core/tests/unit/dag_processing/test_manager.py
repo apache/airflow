@@ -1912,7 +1912,6 @@ class TestDagFileProcessorManager:
         assert model.last_refreshed == refreshed_at
         assert model.version == "keep_me"
 
-
     def _make_refresh_bundle(self, *, supports_versioning=False, current_version=None):
         bundle = MagicMock(spec=BaseDagBundle)
         bundle.name = "mock_bundle"
@@ -1932,6 +1931,7 @@ class TestDagFileProcessorManager:
         them normally after this method returns.
         """
         manager._dag_bundles = [bundle]
+        manager._force_refresh_bundles = set()
         mock_get = mock.patch.object(manager, "get_bundle_state", return_value=initial_state)
         mock_update = mock.patch.object(manager, "update_bundle_state")
         with (
@@ -1990,6 +1990,37 @@ class TestDagFileProcessorManager:
         # version=None because version did not change — last_refreshed still updated
         mock_update.assert_called_once_with("mock_bundle", last_refreshed=mock.ANY, version=None)
         # _bundle_versions NOT updated for unchanged-version early-continue path
+        assert manager._bundle_versions["mock_bundle"] == "v1"
+
+    def test_refresh_dag_bundles_versioned_version_unchanged_persist_failure(self):
+        """Short-circuit path: if update_bundle_state raises, the bundle is skipped without
+        populating known_files (version didn't change, so no file scanning needed)."""
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = self._make_refresh_bundle(supports_versioning=True, current_version="v1")
+        manager._bundle_versions["mock_bundle"] = "v1"
+        manager._dag_bundles = [bundle]
+        manager._force_refresh_bundles = set()
+
+        known_files: dict[str, set[DagFileInfo]] = {}
+        with (
+            mock.patch.object(
+                manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version="v1")
+            ),
+            mock.patch.object(manager, "update_bundle_state", side_effect=Exception("DB error")),
+            mock.patch.object(manager, "_find_files_in_bundle", return_value=[]) as mock_find,
+            mock.patch.object(manager, "deactivate_deleted_dags"),
+            mock.patch.object(manager, "clear_orphaned_import_errors"),
+            mock.patch.object(manager, "handle_removed_files"),
+            mock.patch.object(manager, "_resort_file_queue"),
+            mock.patch.object(manager, "_add_new_files_to_queue"),
+        ):
+            manager._refresh_dag_bundles(known_files)
+
+        bundle.refresh.assert_called_once()
+        # Short-circuit continues to next bundle — no file scanning
+        mock_find.assert_not_called()
+        assert "mock_bundle" not in known_files
+        # _bundle_versions unchanged
         assert manager._bundle_versions["mock_bundle"] == "v1"
 
     def test_refresh_dag_bundles_versioned_first_seen_skips_short_circuit(self):
