@@ -19,12 +19,12 @@ from __future__ import annotations
 import pytest
 
 from airflow.partition_mappers.temporal import (
-    TruncateToDailyMapper,
-    TruncateToHourlyMapper,
-    TruncateToMonthlyMapper,
-    TruncateToQuarterlyMapper,
-    TruncateToWeeklyMapper,
-    TruncateToYearlyMapper,
+    StartOfDayMapper,
+    StartOfMonthMapper,
+    StartOfQuarterMapper,
+    StartOfWeekMapper,
+    StartOfYearMapper,
+    StartOfHourMapper,
     _BaseTemporalMapper,
 )
 
@@ -33,12 +33,12 @@ class TestTemporalMappers:
     @pytest.mark.parametrize(
         ("mapper_cls", "expected_downstream_key"),
         [
-            (TruncateToHourlyMapper, "2026-02-10T14"),
-            (TruncateToDailyMapper, "2026-02-10"),
-            (TruncateToWeeklyMapper, "2026-02-09 (W07)"),
-            (TruncateToMonthlyMapper, "2026-02"),
-            (TruncateToQuarterlyMapper, "2026-Q1"),
-            (TruncateToYearlyMapper, "2026"),
+            (StartOfHourMapper, "2026-02-10T14"),
+            (StartOfDayMapper, "2026-02-10"),
+            (StartOfWeekMapper, "2026-02-09 (W07)"),
+            (StartOfMonthMapper, "2026-02"),
+            (StartOfQuarterMapper, "2026-Q1"),
+            (StartOfYearMapper, "2026"),
         ],
     )
     def test_to_downstream(
@@ -52,12 +52,12 @@ class TestTemporalMappers:
     @pytest.mark.parametrize(
         ("mapper_cls", "expected_outut_format"),
         [
-            (TruncateToHourlyMapper, "%Y-%m-%dT%H"),
-            (TruncateToDailyMapper, "%Y-%m-%d"),
-            (TruncateToWeeklyMapper, "%Y-%m-%d (W%V)"),
-            (TruncateToMonthlyMapper, "%Y-%m"),
-            (TruncateToQuarterlyMapper, "%Y-Q{quarter}"),
-            (TruncateToYearlyMapper, "%Y"),
+            (StartOfHourMapper, "%Y-%m-%dT%H"),
+            (StartOfDayMapper, "%Y-%m-%d"),
+            (StartOfWeekMapper, "%Y-%m-%d (W%V)"),
+            (StartOfMonthMapper, "%Y-%m"),
+            (StartOfQuarterMapper, "%Y-Q{quarter}"),
+            (StartOfYearMapper, "%Y"),
         ],
     )
     def test_serialize(self, mapper_cls: type[_BaseTemporalMapper], expected_outut_format: str):
@@ -70,12 +70,12 @@ class TestTemporalMappers:
     @pytest.mark.parametrize(
         "mapper_cls",
         [
-            TruncateToHourlyMapper,
-            TruncateToDailyMapper,
-            TruncateToWeeklyMapper,
-            TruncateToMonthlyMapper,
-            TruncateToQuarterlyMapper,
-            TruncateToYearlyMapper,
+            StartOfHourMapper,
+            StartOfDayMapper,
+            StartOfWeekMapper,
+            StartOfMonthMapper,
+            StartOfQuarterMapper,
+            StartOfYearMapper,
         ],
     )
     def test_deserialize(self, mapper_cls):
