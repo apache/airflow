@@ -21,7 +21,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from pydantic import AliasPath, ConfigDict, Field, JsonValue, NonNegativeInt, field_validator
+from pydantic import AliasPath, AwareDatetime, ConfigDict, Field, JsonValue, NonNegativeInt, field_validator
 
 from airflow._shared.secrets_masker import redact
 from airflow._shared.timezones import timezone
@@ -197,7 +197,7 @@ class CreateAssetEventsBody(StrictBaseModel):
 class MaterializeAssetBody(TriggerDAGRunPostBody):
     """Materialize asset request."""
 
-    logical_date: datetime | None = None
+    logical_date: AwareDatetime | None = None
 
     def validate_context(self, dag: SerializedDAG) -> dict:
         params = super().validate_context(dag)

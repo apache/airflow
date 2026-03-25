@@ -104,8 +104,6 @@ const TriggerDAGForm = ({
   // Pre-fill form when prefillConfig is provided (priority over conf)
   // Only restore 'conf' (parameters), not logicalDate, runId, or partitionKey to avoid 409 conflicts
   useEffect(() => {
-    // Also update the param store to keep it in sync.
-    // Wait until we have the initial params so section ordering stays consistent.
     if (prefillConfig && open) {
       const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
 
@@ -119,6 +117,8 @@ const TriggerDAGForm = ({
         note: "",
         partitionKey: undefined,
       });
+      // Also update the param store to keep it in sync.
+      // Wait until we have the initial params so section ordering stays consistent.
       if (confString && Object.keys(initialParamsDict.paramsDict).length > 0) {
         if (Object.keys(initialParamDict).length === 0) {
           setInitialParamDict(initialParamsDict.paramsDict);
@@ -137,13 +137,10 @@ const TriggerDAGForm = ({
     isPartitioned,
   ]);
 
+  // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
-    // Automatically reset form when conf is fetched (only if no prefillConfig)
     if (conf && !prefillConfig && open) {
-      reset((prevValues) => ({
-        ...prevValues,
-        conf,
-      }));
+      reset((prevValues) => ({ ...prevValues, conf }));
     }
   }, [conf, prefillConfig, open, reset]);
 
