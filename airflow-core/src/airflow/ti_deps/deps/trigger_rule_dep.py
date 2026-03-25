@@ -653,13 +653,14 @@ class TriggerRuleDep(BaseTIDep):
             if not any(t.get_needs_expansion() for t in in_scope_tasks.values()):
                 expected = len(in_scope_tasks)
             else:
-                task_id_counts = session.execute(
-                    select(TaskInstance.task_id, func.count(TaskInstance.task_id))
-                    .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
-                    .where(or_(*_iter_upstream_conditions(relevant_tasks=in_scope_tasks)))
-                    .group_by(TaskInstance.task_id)
-                ).all()
-                expected = sum(count for _, count in task_id_counts)
+                expected = (
+                    session.scalar(
+                        select(func.count(TaskInstance.task_id))
+                        .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                        .where(or_(*_iter_upstream_conditions(relevant_tasks=in_scope_tasks)))
+                    )
+                    or 0
+                )
 
             if done < expected:
                 trigger_rule_str = getattr(task.trigger_rule, "value", task.trigger_rule)
