@@ -265,6 +265,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             #
             # Pending pods are considered to handle recent driver restarts without
             # prematurely failing the task.
+            # Pending pods are preferred over Running pods, as if a new pod is created
+            # that means the old pod is terminating (which is running state with deletion timestamp)
+            # and we always prefer a new pod over an old pod.
             pod = max(
                 pod_list,
                 key=lambda p: (

@@ -30,7 +30,7 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_sleep_log, wait_random_exponential
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerDuplicateException,
     EdgeWorkerVersionException,

@@ -23,9 +23,10 @@ description: |
     systems (OLAP) and Gremlin is its graph traversal language.
 state: ready
 lifecycle: production
-source-date-epoch: 1768334398
+source-date-epoch: 1774298539
 # note that these versions are maintained by the release manager - do not update them manually
 versions:
+  - 1.1.2
   - 1.1.1
   - 1.1.0
   - 1.0.5

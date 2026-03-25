@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.14.0"
+version = "10.15.0"
 description = "Provider package apache-airflow-providers-cncf-kubernetes for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -83,7 +83,7 @@ dependencies = [
     # Tracked in https://github.com/kubernetes-client/python/issues/2477
     "urllib3>=2.1.0,!=2.6.0",
     # the version is limited to the next MAJOR version and should by synced with the kubernetes version
-    "kubernetes_asyncio>=32.0.0,<35.0.0",
+    "kubernetes_asyncio>=32.0.0,<36.0.0",
 ]
 
 [dependency-groups]
@@ -121,8 +121,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.14.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.14.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.15.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.15.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

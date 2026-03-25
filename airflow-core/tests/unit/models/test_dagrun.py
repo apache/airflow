@@ -3175,6 +3175,24 @@ def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
                 dag_maker.create_dagrun(run_id=run_id, run_type=run_type)
 
 
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag(False)
+@pytest.mark.parametrize(
+    "run_id",
+    [
+        "manual__..%2F..%2Fetc%2Fpasswd",
+        "my..run",
+        "..",
+    ],
+)
+def test_dag_run_id_rejects_path_traversal(session, dag_maker, run_id):
+    """run_id containing '..' should be rejected to prevent path traversal."""
+    with dag_maker():
+        pass
+    with pytest.raises(ValueError, match=r"must not contain '\.\.'"):
+        dag_maker.create_dagrun(run_id=run_id, run_type=DagRunType.MANUAL)
+
+
 def _get_states(dr):
     """
     For a given dag run, get a dict of states.
