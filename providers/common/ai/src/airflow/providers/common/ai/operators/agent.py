@@ -169,6 +169,9 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         self.durable = durable
 
+        if durable and enable_hitl_review:
+            raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
+
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
         self.hitl_timeout = hitl_timeout

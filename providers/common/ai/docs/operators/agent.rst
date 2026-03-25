@@ -205,6 +205,11 @@ tools with non-idempotent side effects, design the tool to be idempotent. For
 example, check whether the operation already completed before acting, or
 use database constraints to prevent duplicate writes.
 
+Tool results must be JSON-serializable to be cached. If a tool returns a
+non-serializable value (e.g. ``BinaryContent`` from MCP tools), that step is
+skipped with a warning and will re-execute on retry instead of replaying from
+cache. The task itself still succeeds.
+
 
 Parameters
 ----------

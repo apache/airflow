@@ -114,15 +114,23 @@ class DurableStorage:
         return messages[0]  # type: ignore[return-value]
 
     def save_tool_result(self, key: str, result: Any) -> None:
-        """Store a tool call result in the cache."""
+        """
+        Store a tool call result in the cache.
+
+        Non-serializable results (e.g. BinaryContent from MCP tools) are
+        skipped with a warning -- the tool call still succeeds, but won't
+        be replayed on retry.
+        """
         cache = self._load_cache()
         try:
             cache[key] = json.dumps({_SENTINEL: True, "value": result})
-        except TypeError as e:
-            raise TypeError(
-                f"Durable execution requires JSON-serializable tool results. "
-                f"Tool returned non-serializable value: {e}"
-            ) from e
+        except TypeError:
+            log.warning(
+                "Durable: skipping cache for non-serializable tool result",
+                key=key,
+                type=type(result).__name__,
+            )
+            return
         self._save_cache()
 
     def load_tool_result(self, key: str) -> tuple[bool, Any]:
