@@ -192,7 +192,7 @@ def get_latest_lts_node_version() -> str:
     response = requests.get("https://nodejs.org/dist/index.json")
     response.raise_for_status()  # Ensure we got a successful response
     versions = response.json()
-    lts_prefix = "v22"
+    lts_prefix = "v24"
     lts_versions = [version["version"] for version in versions if version["version"].startswith(lts_prefix)]
     # The json array is sorted from newest to oldest, so the first element is the latest LTS version
     # Skip leading v in version

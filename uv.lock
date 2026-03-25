@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -443,7 +443,7 @@ name = "aiohttp-cors"
 version = "0.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiohttp" },
+    { name = "aiohttp", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6f/6d/d89e846a5444b3d5eb8985a6ddb0daef3774928e1bfbce8e84ec97b0ffa7/aiohttp_cors-0.8.1.tar.gz", hash = "sha256:ccacf9cb84b64939ea15f859a146af1f662a6b1d68175754a07315e305fb1403", size = 38626, upload-time = "2025-03-31T14:16:20.048Z" }
 wheels = [
@@ -827,7 +827,7 @@ dependencies = [
 
 [package.optional-dependencies]
 aiobotocore = [
-    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore"], marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore"] },
 ]
 airbyte = [
     { name = "apache-airflow-providers-airbyte" },
@@ -840,7 +840,7 @@ all = [
     { name = "apache-airflow-core", extra = ["all", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd"] },
     { name = "apache-airflow-providers-airbyte" },
     { name = "apache-airflow-providers-alibaba" },
-    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "python3-saml", "s3fs"], marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "python3-saml", "s3fs"] },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
     { name = "apache-airflow-providers-apache-drill" },
     { name = "apache-airflow-providers-apache-druid" },
@@ -883,7 +883,7 @@ all = [
     { name = "apache-airflow-providers-ftp" },
     { name = "apache-airflow-providers-git" },
     { name = "apache-airflow-providers-github" },
-    { name = "apache-airflow-providers-google", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-google" },
     { name = "apache-airflow-providers-grpc" },
     { name = "apache-airflow-providers-hashicorp" },
     { name = "apache-airflow-providers-http" },
@@ -951,10 +951,10 @@ all-task-sdk = [
     { name = "apache-airflow-task-sdk", extra = ["all"] },
 ]
 amazon = [
-    { name = "apache-airflow-providers-amazon", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-amazon" },
 ]
 amazon-aws-auth = [
-    { name = "apache-airflow-providers-amazon", extra = ["python3-saml"], marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-amazon", extra = ["python3-saml"] },
 ]
 apache-atlas = [
     { name = "atlasclient" },
@@ -1100,7 +1100,7 @@ github-enterprise = [
     { name = "authlib" },
 ]
 google = [
-    { name = "apache-airflow-providers-google", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-google" },
 ]
 google-auth = [
     { name = "apache-airflow-providers-fab" },
@@ -1227,7 +1227,7 @@ redis = [
     { name = "apache-airflow-providers-redis" },
 ]
 s3fs = [
-    { name = "apache-airflow-providers-amazon", extra = ["s3fs"], marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-amazon", extra = ["s3fs"] },
 ]
 salesforce = [
     { name = "apache-airflow-providers-salesforce" },
@@ -1357,11 +1357,11 @@ requires-dist = [
     { name = "apache-airflow-providers-airbyte", marker = "extra == 'all'", editable = "providers/airbyte" },
     { name = "apache-airflow-providers-alibaba", marker = "extra == 'alibaba'", editable = "providers/alibaba" },
     { name = "apache-airflow-providers-alibaba", marker = "extra == 'all'", editable = "providers/alibaba" },
-    { name = "apache-airflow-providers-amazon", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-amazon", marker = "python_full_version != '3.14.*' and extra == 'amazon'", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], marker = "python_full_version != '3.14.*' and extra == 'aiobotocore'", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-amazon", extras = ["python3-saml"], marker = "python_full_version != '3.14.*' and extra == 'amazon-aws-auth'", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-amazon", extras = ["s3fs"], marker = "python_full_version != '3.14.*' and extra == 's3fs'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", marker = "extra == 'all'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", marker = "extra == 'amazon'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], marker = "extra == 'aiobotocore'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", extras = ["python3-saml"], marker = "extra == 'amazon-aws-auth'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", extras = ["s3fs"], marker = "extra == 's3fs'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'all'", editable = "providers/apache/drill" },
@@ -1451,8 +1451,8 @@ requires-dist = [
     { name = "apache-airflow-providers-git", marker = "extra == 'git'", editable = "providers/git" },
     { name = "apache-airflow-providers-github", marker = "extra == 'all'", editable = "providers/github" },
     { name = "apache-airflow-providers-github", marker = "extra == 'github'", editable = "providers/github" },
-    { name = "apache-airflow-providers-google", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/google" },
-    { name = "apache-airflow-providers-google", marker = "python_full_version != '3.14.*' and extra == 'google'", editable = "providers/google" },
+    { name = "apache-airflow-providers-google", marker = "extra == 'all'", editable = "providers/google" },
+    { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
     { name = "apache-airflow-providers-grpc", marker = "extra == 'all'", editable = "providers/grpc" },
     { name = "apache-airflow-providers-grpc", marker = "extra == 'grpc'", editable = "providers/grpc" },
     { name = "apache-airflow-providers-hashicorp", marker = "extra == 'all'", editable = "providers/hashicorp" },
@@ -1715,8 +1715,7 @@ dependencies = [
     { name = "packaging" },
     { name = "pathspec" },
     { name = "pendulum" },
-    { name = "pluggy", version = "1.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version != '3.14.*'" },
-    { name = "pluggy", version = "1.6.1.dev77+g97355a5a4", source = { git = "https://github.com/pytest-dev/pluggy?rev=97355a5a464af9c9eef51328ef43fb67145413dd#97355a5a464af9c9eef51328ef43fb67145413dd" }, marker = "python_full_version == '3.14.*'" },
+    { name = "pluggy" },
     { name = "psutil" },
     { name = "pydantic" },
     { name = "pygments" },
@@ -1828,7 +1827,7 @@ requires-dist = [
     { name = "greenback", marker = "extra == 'async'", specifier = ">=1.2.1" },
     { name = "greenlet", marker = "python_full_version >= '3.14' and extra == 'async'", specifier = ">=3.3.2" },
     { name = "greenlet", marker = "python_full_version < '3.14' and extra == 'async'", specifier = ">=3.1.0" },
-    { name = "gunicorn", marker = "extra == 'gunicorn'", specifier = ">=23.0.0,<25.1.0" },
+    { name = "gunicorn", marker = "extra == 'gunicorn'", specifier = ">=23.0.0,!=25.1.0" },
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "importlib-metadata", marker = "python_full_version < '3.12'", specifier = ">=6.5" },
     { name = "importlib-metadata", marker = "python_full_version >= '3.12'", specifier = ">=7.0" },
@@ -1851,8 +1850,7 @@ requires-dist = [
     { name = "packaging", specifier = ">=25.0" },
     { name = "pathspec", specifier = ">=0.9.0" },
     { name = "pendulum", specifier = ">=3.1.0" },
-    { name = "pluggy", marker = "python_full_version != '3.14.*'", specifier = ">=1.5.0" },
-    { name = "pluggy", marker = "python_full_version == '3.14.*'", git = "https://github.com/pytest-dev/pluggy?rev=97355a5a464af9c9eef51328ef43fb67145413dd" },
+    { name = "pluggy", specifier = ">=1.5.0" },
     { name = "psutil", specifier = ">=5.8.0" },
     { name = "pydantic", specifier = ">=2.11.0" },
     { name = "pygments", specifier = ">=2.0.1,!=2.19.0" },
@@ -1869,7 +1867,7 @@ requires-dist = [
     { name = "rich-argparse", specifier = ">=1.0.0" },
     { name = "setproctitle", specifier = ">=1.3.3" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.48" },
-    { name = "starlette", specifier = ">=0.45.0" },
+    { name = "starlette", specifier = ">=0.45.0,<1" },
     { name = "statsd", marker = "extra == 'statsd'", specifier = ">=3.3.0" },
     { name = "structlog", specifier = ">=25.4.0" },
     { name = "svcs", specifier = ">=25.1.0" },
@@ -2536,7 +2534,7 @@ packages = []
 
 [[package]]
 name = "apache-airflow-providers-airbyte"
-version = "5.3.3"
+version = "5.4.0"
 source = { editable = "providers/airbyte" }
 dependencies = [
     { name = "airbyte-api" },
@@ -2575,7 +2573,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-alibaba"
-version = "3.3.5"
+version = "3.3.6"
 source = { editable = "providers/alibaba" }
 dependencies = [
     { name = "alibabacloud-adb20211201", version = "3.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2620,7 +2618,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-amazon"
-version = "9.23.0"
+version = "9.24.0"
 source = { editable = "providers/amazon" }
 dependencies = [
     { name = "apache-airflow" },
@@ -2823,13 +2821,12 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-cassandra"
-version = "3.9.2"
+version = "3.9.3"
 source = { editable = "providers/apache/cassandra" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
-    { name = "cassandra-driver", version = "3.29.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
-    { name = "cassandra-driver", version = "3.30.0", source = { git = "https://github.com/apache/cassandra-python-driver?branch=trunk#141853dc3188c1030e06b1cf44ed8881cf835f17" }, marker = "python_full_version >= '3.14'" },
+    { name = "cassandra-driver", marker = "python_full_version < '3.14'" },
 ]
 
 [package.dev-dependencies]
@@ -2850,7 +2847,6 @@ requires-dist = [
     { name = "cassandra-driver", marker = "python_full_version < '3.12'", specifier = ">=3.29.1" },
     { name = "cassandra-driver", marker = "python_full_version == '3.12.*'", specifier = ">=3.29.2" },
     { name = "cassandra-driver", marker = "python_full_version == '3.13.*'", specifier = ">=3.29.3" },
-    { name = "cassandra-driver", marker = "python_full_version >= '3.14'", git = "https://github.com/apache/cassandra-python-driver?branch=trunk" },
 ]
 
 [package.metadata.requires-dev]
@@ -2864,7 +2860,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-drill"
-version = "3.3.0"
+version = "3.3.1"
 source = { editable = "providers/apache/drill" }
 dependencies = [
     { name = "apache-airflow" },
@@ -2904,7 +2900,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-druid"
-version = "4.5.0"
+version = "4.5.1"
 source = { editable = "providers/apache/druid" }
 dependencies = [
     { name = "apache-airflow" },
@@ -2955,7 +2951,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-flink"
-version = "1.8.3"
+version = "1.8.4"
 source = { editable = "providers/apache/flink" }
 dependencies = [
     { name = "apache-airflow" },
@@ -2997,7 +2993,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-hdfs"
-version = "4.11.3"
+version = "4.11.4"
 source = { editable = "providers/apache/hdfs" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3042,7 +3038,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-hive"
-version = "9.4.0"
+version = "9.4.1"
 source = { editable = "providers/apache/hive" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3143,7 +3139,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-iceberg"
-version = "2.0.0"
+version = "2.0.1"
 source = { editable = "providers/apache/iceberg" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3182,7 +3178,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-impala"
-version = "1.9.0"
+version = "1.9.1"
 source = { editable = "providers/apache/impala" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3238,7 +3234,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-kafka"
-version = "1.13.0"
+version = "1.13.1"
 source = { editable = "providers/apache/kafka" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3294,7 +3290,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-kylin"
-version = "3.10.2"
+version = "3.10.3"
 source = { editable = "providers/apache/kylin" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3331,7 +3327,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-livy"
-version = "4.5.3"
+version = "4.5.4"
 source = { editable = "providers/apache/livy" }
 dependencies = [
     { name = "aiohttp" },
@@ -3374,7 +3370,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-pig"
-version = "4.8.2"
+version = "4.8.3"
 source = { editable = "providers/apache/pig" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3409,7 +3405,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-pinot"
-version = "4.10.0"
+version = "4.10.1"
 source = { editable = "providers/apache/pinot" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3451,7 +3447,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-spark"
-version = "5.6.0"
+version = "6.0.0"
 source = { editable = "providers/apache/spark" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3511,7 +3507,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-tinkerpop"
-version = "1.1.1"
+version = "1.1.2"
 source = { editable = "providers/apache/tinkerpop" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3548,7 +3544,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apprise"
-version = "2.3.1"
+version = "2.3.2"
 source = { editable = "providers/apprise" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3585,7 +3581,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-arangodb"
-version = "2.9.2"
+version = "2.9.3"
 source = { editable = "providers/arangodb" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3622,7 +3618,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-asana"
-version = "2.11.1"
+version = "2.11.2"
 source = { editable = "providers/asana" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3659,7 +3655,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-atlassian-jira"
-version = "3.3.1"
+version = "3.3.2"
 source = { editable = "providers/atlassian/jira" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3700,7 +3696,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-celery"
-version = "3.17.1"
+version = "3.17.2"
 source = { editable = "providers/celery" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3748,7 +3744,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cloudant"
-version = "4.3.2"
+version = "4.3.3"
 source = { editable = "providers/cloudant" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3785,7 +3781,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.14.0"
+version = "10.15.0"
 source = { editable = "providers/cncf/kubernetes" }
 dependencies = [
     { name = "aiofiles" },
@@ -3819,7 +3815,7 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "cryptography", specifier = ">=44.0.3" },
     { name = "kubernetes", specifier = ">=35.0.0,<36.0.0" },
-    { name = "kubernetes-asyncio", specifier = ">=32.0.0,<35.0.0" },
+    { name = "kubernetes-asyncio", specifier = ">=32.0.0,<36.0.0" },
     { name = "urllib3", specifier = ">=2.1.0,!=2.6.0" },
 ]
 
@@ -3834,7 +3830,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cohere"
-version = "1.6.3"
+version = "1.6.4"
 source = { editable = "providers/cohere" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3955,7 +3951,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-compat"
-version = "1.14.1"
+version = "1.14.2"
 source = { editable = "providers/common/compat" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4002,7 +3998,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-io"
-version = "1.7.1"
+version = "1.7.2"
 source = { editable = "providers/common/io" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4046,7 +4042,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-messaging"
-version = "2.0.2"
+version = "2.0.3"
 source = { editable = "providers/common/messaging" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4092,7 +4088,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-sql"
-version = "1.33.0"
+version = "1.34.0"
 source = { editable = "providers/common/sql" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4193,7 +4189,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-databricks"
-version = "7.11.0"
+version = "7.12.0"
 source = { editable = "providers/databricks" }
 dependencies = [
     { name = "aiohttp" },
@@ -4298,7 +4294,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-datadog"
-version = "3.10.2"
+version = "3.10.3"
 source = { editable = "providers/datadog" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4335,7 +4331,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-dbt-cloud"
-version = "4.7.0"
+version = "4.8.0"
 source = { editable = "providers/dbt/cloud" }
 dependencies = [
     { name = "aiohttp" },
@@ -4390,7 +4386,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-dingding"
-version = "3.9.2"
+version = "3.9.3"
 source = { editable = "providers/dingding" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4429,7 +4425,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-discord"
-version = "3.12.0"
+version = "3.12.1"
 source = { editable = "providers/discord" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4468,7 +4464,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-docker"
-version = "4.5.3"
+version = "4.5.4"
 source = { editable = "providers/docker" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4507,7 +4503,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-edge3"
-version = "3.2.0"
+version = "3.3.0"
 source = { editable = "providers/edge3" }
 dependencies = [
     { name = "aiofiles" },
@@ -4550,7 +4546,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-elasticsearch"
-version = "6.5.0"
+version = "6.5.1"
 source = { editable = "providers/elasticsearch" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4576,7 +4572,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "elasticsearch", specifier = ">=8.10,<9" },
+    { name = "elasticsearch", specifier = ">=8.10,<10" },
 ]
 
 [package.metadata.requires-dev]
@@ -4592,7 +4588,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-exasol"
-version = "4.10.0"
+version = "4.10.1"
 source = { editable = "providers/exasol" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4646,7 +4642,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-fab"
-version = "3.5.0"
+version = "3.6.0"
 source = { editable = "providers/fab" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4723,7 +4719,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-facebook"
-version = "3.9.2"
+version = "3.9.3"
 source = { editable = "providers/facebook" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4760,7 +4756,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-ftp"
-version = "3.14.1"
+version = "3.14.2"
 source = { editable = "providers/ftp" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4804,7 +4800,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-git"
-version = "0.2.4"
+version = "0.3.0"
 source = { editable = "providers/git" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4841,7 +4837,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-github"
-version = "2.11.0"
+version = "2.11.1"
 source = { editable = "providers/github" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4945,8 +4941,7 @@ dependencies = [
     { name = "proto-plus" },
     { name = "pyarrow" },
     { name = "python-slugify" },
-    { name = "ray", version = "2.54.0", source = { registry = "https://pypi.org/simple" }, extra = ["default"], marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "ray", version = "3.0.0.dev0", source = { url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/671390966dc4081d68c4cd5cdb359b0b5773cb56/ray-3.0.0.dev0-cp314-cp314-manylinux2014_x86_64.whl" }, extra = ["default"], marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
+    { name = "ray", extra = ["default"], marker = "python_full_version < '3.14'" },
     { name = "sqlalchemy-bigquery" },
     { name = "sqlalchemy-spanner" },
     { name = "tenacity" },
@@ -5138,8 +5133,7 @@ requires-dist = [
     { name = "pyarrow", marker = "python_full_version >= '3.14'", specifier = ">=22.0.0" },
     { name = "python-slugify", specifier = ">=7.0.0" },
     { name = "ray", extras = ["default"], marker = "python_full_version < '3.13'", specifier = ">=2.42.0" },
-    { name = "ray", extras = ["default"], marker = "python_full_version == '3.14.*' and sys_platform == 'linux'", url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/671390966dc4081d68c4cd5cdb359b0b5773cb56/ray-3.0.0.dev0-cp314-cp314-manylinux2014_x86_64.whl" },
-    { name = "ray", extras = ["default"], marker = "(python_full_version >= '3.13' and sys_platform != 'linux') or (python_full_version == '3.13.*' and sys_platform == 'linux') or (python_full_version >= '3.15' and sys_platform == 'linux')", specifier = ">=2.49.0" },
+    { name = "ray", extras = ["default"], marker = "python_full_version == '3.13.*'", specifier = ">=2.49.0" },
     { name = "sqlalchemy-bigquery", specifier = ">=1.2.1" },
     { name = "sqlalchemy-spanner", specifier = ">=1.6.2" },
     { name = "tenacity", specifier = ">=8.3.0" },
@@ -5179,7 +5173,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-grpc"
-version = "3.9.2"
+version = "3.9.3"
 source = { editable = "providers/grpc" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5220,7 +5214,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-hashicorp"
-version = "4.5.0"
+version = "4.5.1"
 source = { editable = "providers/hashicorp" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5270,7 +5264,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-http"
-version = "6.0.0"
+version = "6.0.1"
 source = { editable = "providers/http" }
 dependencies = [
     { name = "aiohttp" },
@@ -5314,7 +5308,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-imap"
-version = "3.11.0"
+version = "3.11.1"
 source = { editable = "providers/imap" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5349,7 +5343,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-influxdb"
-version = "2.10.2"
+version = "2.10.3"
 source = { editable = "providers/influxdb" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5388,7 +5382,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-informatica"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "providers/informatica" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5436,7 +5430,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-jdbc"
-version = "5.4.1"
+version = "5.4.2"
 source = { editable = "providers/jdbc" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5477,7 +5471,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-jenkins"
-version = "4.2.3"
+version = "4.2.4"
 source = { editable = "providers/jenkins" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5514,7 +5508,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-keycloak"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "providers/keycloak" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5551,7 +5545,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-azure"
-version = "13.0.1"
+version = "13.1.0"
 source = { editable = "providers/microsoft/azure" }
 dependencies = [
     { name = "adlfs" },
@@ -5675,7 +5669,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-mssql"
-version = "4.5.0"
+version = "4.5.1"
 source = { editable = "providers/microsoft/mssql" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5724,7 +5718,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-psrp"
-version = "3.2.3"
+version = "3.2.4"
 source = { editable = "providers/microsoft/psrp" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5761,7 +5755,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-winrm"
-version = "3.14.0"
+version = "3.14.1"
 source = { editable = "providers/microsoft/winrm" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5798,7 +5792,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-mongo"
-version = "5.3.3"
+version = "5.3.4"
 source = { editable = "providers/mongo" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5839,7 +5833,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-mysql"
-version = "6.5.0"
+version = "6.5.1"
 source = { editable = "providers/mysql" }
 dependencies = [
     { name = "aiomysql" },
@@ -5917,7 +5911,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-neo4j"
-version = "3.11.3"
+version = "3.11.4"
 source = { editable = "providers/neo4j" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5954,7 +5948,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-odbc"
-version = "4.12.0"
+version = "4.12.1"
 source = { editable = "providers/odbc" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5996,7 +5990,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-openai"
-version = "1.7.2"
+version = "1.7.3"
 source = { editable = "providers/openai" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6033,7 +6027,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-openfaas"
-version = "3.9.2"
+version = "3.9.3"
 source = { editable = "providers/openfaas" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6068,7 +6062,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-openlineage"
-version = "2.12.0"
+version = "2.13.0"
 source = { editable = "providers/openlineage" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6129,7 +6123,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-opensearch"
-version = "1.8.4"
+version = "1.8.5"
 source = { editable = "providers/opensearch" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6166,7 +6160,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-opsgenie"
-version = "5.10.1"
+version = "5.10.2"
 source = { editable = "providers/opsgenie" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6203,7 +6197,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-oracle"
-version = "4.5.1"
+version = "4.5.2"
 source = { editable = "providers/oracle" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6269,7 +6263,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-pagerduty"
-version = "5.2.3"
+version = "5.2.4"
 source = { editable = "providers/pagerduty" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6310,7 +6304,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-papermill"
-version = "3.12.1"
+version = "3.12.2"
 source = { editable = "providers/papermill" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6357,7 +6351,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-pgvector"
-version = "1.7.0"
+version = "1.7.1"
 source = { editable = "providers/pgvector" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6405,7 +6399,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-pinecone"
-version = "2.4.2"
+version = "2.4.3"
 source = { editable = "providers/pinecone" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6442,7 +6436,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-postgres"
-version = "6.6.1"
+version = "6.6.2"
 source = { editable = "providers/postgres" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6530,7 +6524,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-presto"
-version = "5.11.0"
+version = "5.11.1"
 source = { editable = "providers/presto" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6594,7 +6588,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-qdrant"
-version = "1.5.3"
+version = "1.5.4"
 source = { editable = "providers/qdrant" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6631,7 +6625,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-redis"
-version = "4.4.2"
+version = "4.4.3"
 source = { editable = "providers/redis" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6677,7 +6671,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-salesforce"
-version = "5.12.3"
+version = "5.13.0"
 source = { editable = "providers/salesforce" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6718,7 +6712,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-samba"
-version = "4.12.3"
+version = "4.12.4"
 source = { editable = "providers/samba" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6764,7 +6758,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-segment"
-version = "3.9.2"
+version = "3.9.3"
 source = { editable = "providers/segment" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6801,7 +6795,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-sendgrid"
-version = "4.2.1"
+version = "4.2.2"
 source = { editable = "providers/sendgrid" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6843,7 +6837,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-sftp"
-version = "5.7.1"
+version = "5.7.2"
 source = { editable = "providers/sftp" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6900,7 +6894,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-singularity"
-version = "3.9.2"
+version = "3.9.3"
 source = { editable = "providers/singularity" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6937,7 +6931,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-slack"
-version = "9.8.0"
+version = "9.9.0"
 source = { editable = "providers/slack" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6986,7 +6980,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-smtp"
-version = "2.4.3"
+version = "2.4.4"
 source = { editable = "providers/smtp" }
 dependencies = [
     { name = "aiosmtplib" },
@@ -7023,7 +7017,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-snowflake"
-version = "6.11.0"
+version = "6.12.0"
 source = { editable = "providers/snowflake" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7096,7 +7090,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-sqlite"
-version = "4.3.0"
+version = "4.3.1"
 source = { editable = "providers/sqlite" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7132,7 +7126,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-ssh"
-version = "4.3.2"
+version = "4.3.3"
 source = { editable = "providers/ssh" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7173,7 +7167,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-standard"
-version = "1.12.1"
+version = "1.12.2"
 source = { editable = "providers/standard" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7219,7 +7213,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-tableau"
-version = "5.3.3"
+version = "5.3.4"
 source = { editable = "providers/tableau" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7256,7 +7250,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-telegram"
-version = "4.9.2"
+version = "4.9.3"
 source = { editable = "providers/telegram" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7293,7 +7287,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-teradata"
-version = "3.5.0"
+version = "3.5.1"
 source = { editable = "providers/teradata" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7363,7 +7357,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-trino"
-version = "6.5.0"
+version = "6.5.1"
 source = { editable = "providers/trino" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7424,7 +7418,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-vertica"
-version = "4.3.0"
+version = "4.3.1"
 source = { editable = "providers/vertica" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7475,7 +7469,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-weaviate"
-version = "3.3.1"
+version = "3.3.2"
 source = { editable = "providers/weaviate" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7518,7 +7512,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-yandex"
-version = "4.4.0"
+version = "4.4.1"
 source = { editable = "providers/yandex" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7562,7 +7556,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-ydb"
-version = "2.5.0"
+version = "2.5.1"
 source = { editable = "providers/ydb" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7605,7 +7599,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-zendesk"
-version = "4.11.1"
+version = "4.11.2"
 source = { editable = "providers/zendesk" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7760,8 +7754,7 @@ name = "apache-airflow-shared-listeners"
 version = "0.0"
 source = { editable = "shared/listeners" }
 dependencies = [
-    { name = "pluggy", version = "1.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version != '3.14.*'" },
-    { name = "pluggy", version = "1.6.1.dev77+g97355a5a4", source = { git = "https://github.com/pytest-dev/pluggy?rev=97355a5a464af9c9eef51328ef43fb67145413dd#97355a5a464af9c9eef51328ef43fb67145413dd" }, marker = "python_full_version == '3.14.*'" },
+    { name = "pluggy" },
     { name = "structlog" },
 ]
 
@@ -7772,8 +7765,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "pluggy", marker = "python_full_version != '3.14.*'", specifier = ">=1.5.0" },
-    { name = "pluggy", marker = "python_full_version == '3.14.*'", git = "https://github.com/pytest-dev/pluggy?rev=97355a5a464af9c9eef51328ef43fb67145413dd" },
+    { name = "pluggy", specifier = ">=1.5.0" },
     { name = "structlog", specifier = ">=25.4.0" },
 ]
 
@@ -8056,8 +8048,7 @@ dependencies = [
     { name = "packaging" },
     { name = "pathspec" },
     { name = "pendulum" },
-    { name = "pluggy", version = "1.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version != '3.14.*'" },
-    { name = "pluggy", version = "1.6.1.dev77+g97355a5a4", source = { git = "https://github.com/pytest-dev/pluggy?rev=97355a5a464af9c9eef51328ef43fb67145413dd#97355a5a464af9c9eef51328ef43fb67145413dd" }, marker = "python_full_version == '3.14.*'" },
+    { name = "pluggy" },
     { name = "psutil" },
     { name = "pydantic" },
     { name = "pygtrie" },
@@ -8135,8 +8126,7 @@ requires-dist = [
     { name = "packaging", specifier = ">=25.0" },
     { name = "pathspec", specifier = ">=0.9.0" },
     { name = "pendulum", specifier = ">=3.1.0" },
-    { name = "pluggy", marker = "python_full_version != '3.14.*'", specifier = ">=1.5.0" },
-    { name = "pluggy", marker = "python_full_version == '3.14.*'", git = "https://github.com/pytest-dev/pluggy?rev=97355a5a464af9c9eef51328ef43fb67145413dd" },
+    { name = "pluggy", specifier = ">=1.5.0" },
     { name = "psutil", specifier = ">=6.1.0" },
     { name = "pydantic", specifier = ">2.11.0" },
     { name = "pygtrie", specifier = ">=2.5.0" },
@@ -9384,12 +9374,6 @@ wheels = [
 name = "cassandra-driver"
 version = "3.29.3"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version == '3.13.*'",
-    "python_full_version == '3.12.*'",
-    "python_full_version == '3.11.*'",
-    "python_full_version < '3.11'",
-]
 dependencies = [
     { name = "geomet", marker = "python_full_version < '3.14'" },
 ]
@@ -9419,22 +9403,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ea/42/a4f10ef8274a2bd05e859b7d2141c2c0cc13a8ef4ea6e825a660960b17d7/cassandra_driver-3.29.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:51d6a5390e2454b599500049f0a5c72aa701db155c1e542f9a1157c1c45814b1", size = 374432, upload-time = "2025-10-22T15:14:49.44Z" },
     { url = "https://files.pythonhosted.org/packages/ea/55/611982779ddeb4b98658d87ab3b150506b2121d8d16a843459c7aacc7884/cassandra_driver-3.29.3-cp313-cp313-win32.whl", hash = "sha256:638047c1f70fb14c9d8f743931d4f4f42aff6793b47afded3097c002ef8c1165", size = 341529, upload-time = "2025-10-22T15:14:50.896Z" },
     { url = "https://files.pythonhosted.org/packages/b2/13/aaa6c7559bfb11c58a1978dfa46732f4d477230641259f13a14907cb4546/cassandra_driver-3.29.3-cp313-cp313-win_amd64.whl", hash = "sha256:27adf8869937461ad08c5fefb47857532e467b408db496db4dbf8b132a4bd623", size = 349242, upload-time = "2025-10-22T15:14:52.472Z" },
-]
-
-[[package]]
-name = "cassandra-driver"
-version = "3.30.0"
-source = { git = "https://github.com/apache/cassandra-python-driver?branch=trunk#141853dc3188c1030e06b1cf44ed8881cf835f17" }
-resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.14.*' and sys_platform == 'linux'",
-    "python_full_version == '3.14.*' and sys_platform != 'linux'",
-]
-dependencies = [
-    { name = "deprecated", marker = "python_full_version >= '3.14'" },
-    { name = "geomet", marker = "python_full_version >= '3.14'" },
 ]
 
 [[package]]
@@ -9875,7 +9843,7 @@ name = "colorful"
 version = "0.5.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "python_full_version < '3.14' and sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/82/31/109ef4bedeb32b4202e02ddb133162457adc4eb890a9ed9c05c9dd126ed0/colorful-0.5.8.tar.gz", hash = "sha256:bb16502b198be2f1c42ba3c52c703d5f651d826076817185f0294c1a549a7445", size = 209361, upload-time = "2025-10-29T11:53:21.663Z" }
 wheels = [
@@ -11377,7 +11345,7 @@ name = "geomet"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click" },
+    { name = "click", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/2a/8c/dde022aa6747b114f6b14a7392871275dea8867e2bd26cddb80cc6d66620/geomet-1.1.0.tar.gz", hash = "sha256:51e92231a0ef6aaa63ac20c443377ba78a303fd2ecd179dc3567de79f3c11605", size = 28732, upload-time = "2023-11-14T15:43:36.764Z" }
 wheels = [
@@ -12549,6 +12517,7 @@ dependencies = [
     { name = "griffecli" },
     { name = "griffelib" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/04/56/28a0accac339c164b52a92c6cfc45a903acc0c174caa5c1713803467b533/griffe-2.0.0.tar.gz", hash = "sha256:c68979cd8395422083a51ea7cf02f9c119d889646d99b7b656ee43725de1b80f", size = 293906, upload-time = "2026-03-23T21:06:53.402Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/94/ee21d41e7eb4f823b94603b9d40f86d3c7fde80eacc2c3c71845476dddaa/griffe-2.0.0-py3-none-any.whl", hash = "sha256:5418081135a391c3e6e757a7f3f156f1a1a746cc7b4023868ff7d5e2f9a980aa", size = 5214, upload-time = "2026-02-09T19:09:44.105Z" },
 ]
@@ -12561,6 +12530,7 @@ dependencies = [
     { name = "colorama" },
     { name = "griffelib" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/a4/f8/2e129fd4a86e52e58eefe664de05e7d502decf766e7316cc9e70fdec3e18/griffecli-2.0.0.tar.gz", hash = "sha256:312fa5ebb4ce6afc786356e2d0ce85b06c1c20d45abc42d74f0cda65e159f6ef", size = 56213, upload-time = "2026-03-23T21:06:54.8Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/ed/d93f7a447bbf7a935d8868e9617cbe1cadf9ee9ee6bd275d3040fbf93d60/griffecli-2.0.0-py3-none-any.whl", hash = "sha256:9f7cd9ee9b21d55e91689358978d2385ae65c22f307a63fb3269acf3f21e643d", size = 9345, upload-time = "2026-02-09T19:09:42.554Z" },
 ]
@@ -12569,6 +12539,7 @@ wheels = [
 name = "griffelib"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/06/eccbd311c9e2b3ca45dbc063b93134c57a1ccc7607c5e545264ad092c4a9/griffelib-2.0.0.tar.gz", hash = "sha256:e504d637a089f5cab9b5daf18f7645970509bf4f53eda8d79ed71cce8bd97934", size = 166312, upload-time = "2026-03-23T21:06:55.954Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4d/51/c936033e16d12b627ea334aaaaf42229c37620d0f15593456ab69ab48161/griffelib-2.0.0-py3-none-any.whl", hash = "sha256:01284878c966508b6d6f1dbff9b6fa607bc062d8261c5c7253cb285b06422a7f", size = 142004, upload-time = "2026-02-09T19:09:40.561Z" },
 ]
@@ -12826,8 +12797,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "pathspec" },
-    { name = "pluggy", version = "1.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version != '3.14.*'" },
-    { name = "pluggy", version = "1.6.1.dev77+g97355a5a4", source = { git = "https://github.com/pytest-dev/pluggy?rev=97355a5a464af9c9eef51328ef43fb67145413dd#97355a5a464af9c9eef51328ef43fb67145413dd" }, marker = "python_full_version == '3.14.*'" },
+    { name = "pluggy" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "trove-classifiers" },
 ]
@@ -15903,9 +15873,9 @@ name = "opencensus"
 version = "0.11.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "google-api-core" },
-    { name = "opencensus-context" },
-    { name = "six" },
+    { name = "google-api-core", marker = "python_full_version < '3.14'" },
+    { name = "opencensus-context", marker = "python_full_version < '3.14'" },
+    { name = "six", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/15/a7/a46dcffa1b63084f9f17fe3c8cb20724c4c8f91009fd0b2cfdb27d5d2b35/opencensus-0.11.4.tar.gz", hash = "sha256:cbef87d8b8773064ab60e5c2a1ced58bbaa38a6d052c41aec224958ce544eff2", size = 64966, upload-time = "2024-01-03T18:04:07.085Z" }
 wheels = [
@@ -16776,27 +16746,9 @@ wheels = [
 name = "pluggy"
 version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.13.*'",
-    "python_full_version == '3.12.*'",
-    "python_full_version == '3.11.*'",
-    "python_full_version < '3.11'",
-]
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
-]
-
-[[package]]
-name = "pluggy"
-version = "1.6.1.dev77+g97355a5a4"
-source = { git = "https://github.com/pytest-dev/pluggy?rev=97355a5a464af9c9eef51328ef43fb67145413dd#97355a5a464af9c9eef51328ef43fb67145413dd" }
-resolution-markers = [
-    "python_full_version == '3.14.*' and sys_platform == 'linux'",
-    "python_full_version == '3.14.*' and sys_platform != 'linux'",
 ]
 
 [[package]]
@@ -18317,8 +18269,7 @@ dependencies = [
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
     { name = "iniconfig" },
     { name = "packaging" },
-    { name = "pluggy", version = "1.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version != '3.14.*'" },
-    { name = "pluggy", version = "1.6.1.dev77+g97355a5a4", source = { git = "https://github.com/pytest-dev/pluggy?rev=97355a5a464af9c9eef51328ef43fb67145413dd#97355a5a464af9c9eef51328ef43fb67145413dd" }, marker = "python_full_version == '3.14.*'" },
+    { name = "pluggy" },
     { name = "pygments" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
@@ -18347,8 +18298,7 @@ version = "7.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "coverage", extra = ["toml"] },
-    { name = "pluggy", version = "1.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version != '3.14.*'" },
-    { name = "pluggy", version = "1.6.1.dev77+g97355a5a4", source = { git = "https://github.com/pytest-dev/pluggy?rev=97355a5a464af9c9eef51328ef43fb67145413dd#97355a5a464af9c9eef51328ef43fb67145413dd" }, marker = "python_full_version == '3.14.*'" },
+    { name = "pluggy" },
     { name = "pytest" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/5e/f7/c933acc76f5208b3b00089573cf6a2bc26dc80a8aece8f52bb7d6b1855ca/pytest_cov-7.0.0.tar.gz", hash = "sha256:33c97eda2e049a0c5298e91f519302a1334c26ac65c1a483d6206fd458361af1", size = 54328, upload-time = "2025-09-09T10:57:02.113Z" }
@@ -18903,25 +18853,15 @@ wheels = [
 name = "ray"
 version = "2.54.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.14.*' and sys_platform != 'linux'",
-    "python_full_version == '3.13.*'",
-    "python_full_version == '3.12.*'",
-    "python_full_version == '3.11.*'",
-    "python_full_version < '3.11'",
-]
 dependencies = [
-    { name = "click", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "filelock", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "jsonschema", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "msgpack", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "packaging", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "protobuf", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "pyyaml", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "requests", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
+    { name = "click", marker = "python_full_version < '3.14'" },
+    { name = "filelock", marker = "python_full_version < '3.14'" },
+    { name = "jsonschema", marker = "python_full_version < '3.14'" },
+    { name = "msgpack", marker = "python_full_version < '3.14'" },
+    { name = "packaging", marker = "python_full_version < '3.14'" },
+    { name = "protobuf", marker = "python_full_version < '3.14'" },
+    { name = "pyyaml", marker = "python_full_version < '3.14'" },
+    { name = "requests", marker = "python_full_version < '3.14'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/64/13/b86d791b41f33220335eba18fc4841f1ebddae41e562c6a216846404c88d/ray-2.54.0-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:a22937f09ee74a43171df338d84b45ef882c1c05748947ca9d5343a44d4b9379", size = 70097079, upload-time = "2026-02-18T04:04:35.409Z" },
@@ -18943,317 +18883,21 @@ wheels = [
 
 [package.optional-dependencies]
 default = [
-    { name = "aiohttp", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "aiohttp-cors", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "colorful", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "grpcio", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "opencensus", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "opentelemetry-proto", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "opentelemetry-sdk", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "prometheus-client", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "py-spy", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "pydantic", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "requests", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "smart-open", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
-    { name = "virtualenv", marker = "python_full_version != '3.14.*' or sys_platform != 'linux'" },
+    { name = "aiohttp", marker = "python_full_version < '3.14'" },
+    { name = "aiohttp-cors", marker = "python_full_version < '3.14'" },
+    { name = "colorful", marker = "python_full_version < '3.14'" },
+    { name = "grpcio", marker = "python_full_version < '3.14'" },
+    { name = "opencensus", marker = "python_full_version < '3.14'" },
+    { name = "opentelemetry-exporter-prometheus", marker = "python_full_version < '3.14'" },
+    { name = "opentelemetry-proto", marker = "python_full_version < '3.14'" },
+    { name = "opentelemetry-sdk", marker = "python_full_version < '3.14'" },
+    { name = "prometheus-client", marker = "python_full_version < '3.14'" },
+    { name = "py-spy", marker = "python_full_version < '3.14'" },
+    { name = "pydantic", marker = "python_full_version < '3.14'" },
+    { name = "requests", marker = "python_full_version < '3.14'" },
+    { name = "smart-open", marker = "python_full_version < '3.14'" },
+    { name = "virtualenv", marker = "python_full_version < '3.14'" },
 ]
-
-[[package]]
-name = "ray"
-version = "3.0.0.dev0"
-source = { url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/671390966dc4081d68c4cd5cdb359b0b5773cb56/ray-3.0.0.dev0-cp314-cp314-manylinux2014_x86_64.whl" }
-resolution-markers = [
-    "python_full_version == '3.14.*' and sys_platform == 'linux'",
-]
-dependencies = [
-    { name = "click", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "filelock", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "jsonschema", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "msgpack", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "packaging", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "protobuf", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "pyyaml", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "requests", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-]
-wheels = [
-    { url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/671390966dc4081d68c4cd5cdb359b0b5773cb56/ray-3.0.0.dev0-cp314-cp314-manylinux2014_x86_64.whl", hash = "sha256:50f710166fac8a3c6ac502795d568050f6a7ca14caa6df44628c145fd9e566fc" },
-]
-
-[package.optional-dependencies]
-default = [
-    { name = "aiohttp", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "aiohttp-cors", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "colorful", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "grpcio", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "opencensus", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "opentelemetry-proto", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "opentelemetry-sdk", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "prometheus-client", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "py-spy", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "pydantic", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "requests", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "smart-open", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-    { name = "virtualenv", marker = "python_full_version == '3.14.*' and sys_platform == 'linux'" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", marker = "extra == 'air'", specifier = ">=3.13.3" },
-    { name = "aiohttp", marker = "extra == 'all'", specifier = ">=3.13.3" },
-    { name = "aiohttp", marker = "extra == 'all-cpp'", specifier = ">=3.13.3" },
-    { name = "aiohttp", marker = "extra == 'default'", specifier = ">=3.13.3" },
-    { name = "aiohttp", marker = "extra == 'llm'", specifier = ">=3.13.3" },
-    { name = "aiohttp", marker = "extra == 'serve'", specifier = ">=3.13.3" },
-    { name = "aiohttp", marker = "extra == 'serve-async-inference'", specifier = ">=3.13.3" },
-    { name = "aiohttp", marker = "extra == 'serve-grpc'", specifier = ">=3.13.3" },
-    { name = "aiohttp-cors", marker = "extra == 'air'" },
-    { name = "aiohttp-cors", marker = "extra == 'all'" },
-    { name = "aiohttp-cors", marker = "extra == 'all-cpp'" },
-    { name = "aiohttp-cors", marker = "extra == 'default'" },
-    { name = "aiohttp-cors", marker = "extra == 'llm'" },
-    { name = "aiohttp-cors", marker = "extra == 'serve'" },
-    { name = "aiohttp-cors", marker = "extra == 'serve-async-inference'" },
-    { name = "aiohttp-cors", marker = "extra == 'serve-grpc'" },
-    { name = "async-timeout", marker = "python_full_version < '3.11' and extra == 'llm'" },
-    { name = "celery", marker = "extra == 'all'" },
-    { name = "celery", marker = "extra == 'all-cpp'" },
-    { name = "celery", marker = "extra == 'serve-async-inference'" },
-    { name = "click", specifier = ">=7.0" },
-    { name = "colorful", marker = "extra == 'air'" },
-    { name = "colorful", marker = "extra == 'all'" },
-    { name = "colorful", marker = "extra == 'all-cpp'" },
-    { name = "colorful", marker = "extra == 'default'" },
-    { name = "colorful", marker = "extra == 'llm'" },
-    { name = "colorful", marker = "extra == 'serve'" },
-    { name = "colorful", marker = "extra == 'serve-async-inference'" },
-    { name = "colorful", marker = "extra == 'serve-grpc'" },
-    { name = "cupy-cuda12x", marker = "sys_platform != 'darwin' and extra == 'adag'" },
-    { name = "cupy-cuda12x", marker = "sys_platform != 'darwin' and extra == 'all'" },
-    { name = "cupy-cuda12x", marker = "sys_platform != 'darwin' and extra == 'all-cpp'" },
-    { name = "cupy-cuda12x", marker = "sys_platform != 'darwin' and extra == 'cgraph'" },
-    { name = "dm-tree", marker = "extra == 'all'" },
-    { name = "dm-tree", marker = "extra == 'all-cpp'" },
-    { name = "dm-tree", marker = "extra == 'rllib'" },
-    { name = "fastapi", marker = "extra == 'air'" },
-    { name = "fastapi", marker = "extra == 'all'" },
-    { name = "fastapi", marker = "extra == 'all-cpp'" },
-    { name = "fastapi", marker = "extra == 'llm'" },
-    { name = "fastapi", marker = "extra == 'serve'" },
-    { name = "fastapi", marker = "extra == 'serve-async-inference'" },
-    { name = "fastapi", marker = "extra == 'serve-grpc'" },
-    { name = "filelock" },
-    { name = "fsspec", marker = "extra == 'air'" },
-    { name = "fsspec", marker = "extra == 'all'" },
-    { name = "fsspec", marker = "extra == 'all-cpp'" },
-    { name = "fsspec", marker = "extra == 'data'" },
-    { name = "fsspec", marker = "extra == 'llm'" },
-    { name = "fsspec", marker = "extra == 'rllib'" },
-    { name = "fsspec", marker = "extra == 'train'" },
-    { name = "fsspec", marker = "extra == 'tune'" },
-    { name = "grpcio", marker = "sys_platform == 'darwin' and extra == 'all'", specifier = "!=1.56.0" },
-    { name = "grpcio", marker = "sys_platform == 'darwin' and extra == 'all-cpp'", specifier = "!=1.56.0" },
-    { name = "grpcio", marker = "sys_platform == 'darwin' and extra == 'client'", specifier = "!=1.56.0" },
-    { name = "grpcio", marker = "extra == 'air'", specifier = ">=1.42.0" },
-    { name = "grpcio", marker = "extra == 'all'" },
-    { name = "grpcio", marker = "extra == 'all'", specifier = ">=1.42.0" },
-    { name = "grpcio", marker = "extra == 'all-cpp'" },
-    { name = "grpcio", marker = "extra == 'all-cpp'", specifier = ">=1.42.0" },
-    { name = "grpcio", marker = "extra == 'client'" },
-    { name = "grpcio", marker = "extra == 'default'", specifier = ">=1.42.0" },
-    { name = "grpcio", marker = "extra == 'llm'", specifier = ">=1.42.0" },
-    { name = "grpcio", marker = "extra == 'serve'", specifier = ">=1.42.0" },
-    { name = "grpcio", marker = "extra == 'serve-async-inference'", specifier = ">=1.42.0" },
-    { name = "grpcio", marker = "extra == 'serve-grpc'", specifier = ">=1.42.0" },
-    { name = "gymnasium", marker = "extra == 'all'", specifier = "==1.2.2" },
-    { name = "gymnasium", marker = "extra == 'all-cpp'", specifier = "==1.2.2" },
-    { name = "gymnasium", marker = "extra == 'rllib'", specifier = "==1.2.2" },
-    { name = "hf-transfer", marker = "extra == 'llm'" },
-    { name = "jsonref", marker = "extra == 'llm'", specifier = ">=1.1.0" },
-    { name = "jsonschema" },
-    { name = "jsonschema", marker = "extra == 'llm'" },
-    { name = "lz4", marker = "extra == 'all'" },
-    { name = "lz4", marker = "extra == 'all-cpp'" },
-    { name = "lz4", marker = "extra == 'rllib'" },
-    { name = "memray", marker = "sys_platform != 'win32' and extra == 'all'" },
-    { name = "memray", marker = "sys_platform != 'win32' and extra == 'all-cpp'" },
-    { name = "memray", marker = "sys_platform != 'win32' and extra == 'observability'" },
-    { name = "meson", marker = "extra == 'llm'" },
-    { name = "msgpack", specifier = ">=1.0.0,<2.0.0" },
-    { name = "ninja", marker = "extra == 'llm'" },
-    { name = "nixl", marker = "extra == 'llm'", specifier = ">=0.6.1" },
-    { name = "numpy", marker = "extra == 'air'", specifier = ">=1.20" },
-    { name = "numpy", marker = "extra == 'all'", specifier = ">=1.20" },
-    { name = "numpy", marker = "extra == 'all-cpp'", specifier = ">=1.20" },
-    { name = "numpy", marker = "extra == 'data'", specifier = ">=1.20" },
-    { name = "numpy", marker = "extra == 'llm'", specifier = ">=1.20" },
-    { name = "opencensus", marker = "extra == 'air'" },
-    { name = "opencensus", marker = "extra == 'all'" },
-    { name = "opencensus", marker = "extra == 'all-cpp'" },
-    { name = "opencensus", marker = "extra == 'default'" },
-    { name = "opencensus", marker = "extra == 'llm'" },
-    { name = "opencensus", marker = "extra == 'serve'" },
-    { name = "opencensus", marker = "extra == 'serve-async-inference'" },
-    { name = "opencensus", marker = "extra == 'serve-grpc'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "extra == 'air'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "extra == 'all'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "extra == 'all-cpp'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "extra == 'default'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "extra == 'llm'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "extra == 'serve'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "extra == 'serve-async-inference'" },
-    { name = "opentelemetry-exporter-prometheus", marker = "extra == 'serve-grpc'" },
-    { name = "opentelemetry-proto", marker = "extra == 'air'" },
-    { name = "opentelemetry-proto", marker = "extra == 'all'" },
-    { name = "opentelemetry-proto", marker = "extra == 'all-cpp'" },
-    { name = "opentelemetry-proto", marker = "extra == 'default'" },
-    { name = "opentelemetry-proto", marker = "extra == 'llm'" },
-    { name = "opentelemetry-proto", marker = "extra == 'serve'" },
-    { name = "opentelemetry-proto", marker = "extra == 'serve-async-inference'" },
-    { name = "opentelemetry-proto", marker = "extra == 'serve-grpc'" },
-    { name = "opentelemetry-sdk", marker = "extra == 'air'", specifier = ">=1.30.0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'all'", specifier = ">=1.30.0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'all-cpp'", specifier = ">=1.30.0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'default'", specifier = ">=1.30.0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'llm'", specifier = ">=1.30.0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'serve'", specifier = ">=1.30.0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'serve-async-inference'", specifier = ">=1.30.0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'serve-grpc'", specifier = ">=1.30.0" },
-    { name = "ormsgpack", marker = "extra == 'all'", specifier = ">=1.7.0" },
-    { name = "ormsgpack", marker = "extra == 'all-cpp'", specifier = ">=1.7.0" },
-    { name = "ormsgpack", marker = "extra == 'rllib'", specifier = ">=1.7.0" },
-    { name = "packaging", specifier = ">=24.2" },
-    { name = "pandas", marker = "extra == 'air'" },
-    { name = "pandas", marker = "extra == 'air'", specifier = ">=1.3" },
-    { name = "pandas", marker = "extra == 'all'" },
-    { name = "pandas", marker = "extra == 'all'", specifier = ">=1.3" },
-    { name = "pandas", marker = "extra == 'all-cpp'" },
-    { name = "pandas", marker = "extra == 'all-cpp'", specifier = ">=1.3" },
-    { name = "pandas", marker = "extra == 'data'", specifier = ">=1.3" },
-    { name = "pandas", marker = "extra == 'llm'", specifier = ">=1.3" },
-    { name = "pandas", marker = "extra == 'rllib'" },
-    { name = "pandas", marker = "extra == 'train'" },
-    { name = "pandas", marker = "extra == 'tune'" },
-    { name = "prometheus-client", marker = "extra == 'air'", specifier = ">=0.7.1" },
-    { name = "prometheus-client", marker = "extra == 'all'", specifier = ">=0.7.1" },
-    { name = "prometheus-client", marker = "extra == 'all-cpp'", specifier = ">=0.7.1" },
-    { name = "prometheus-client", marker = "extra == 'default'", specifier = ">=0.7.1" },
-    { name = "prometheus-client", marker = "extra == 'llm'", specifier = ">=0.7.1" },
-    { name = "prometheus-client", marker = "extra == 'serve'", specifier = ">=0.7.1" },
-    { name = "prometheus-client", marker = "extra == 'serve-async-inference'", specifier = ">=0.7.1" },
-    { name = "prometheus-client", marker = "extra == 'serve-grpc'", specifier = ">=0.7.1" },
-    { name = "protobuf", specifier = ">=3.20.3" },
-    { name = "py-spy", marker = "python_full_version >= '3.12' and extra == 'air'", specifier = ">=0.4.0" },
-    { name = "py-spy", marker = "python_full_version >= '3.12' and extra == 'all'", specifier = ">=0.4.0" },
-    { name = "py-spy", marker = "python_full_version >= '3.12' and extra == 'all-cpp'", specifier = ">=0.4.0" },
-    { name = "py-spy", marker = "python_full_version >= '3.12' and extra == 'default'", specifier = ">=0.4.0" },
-    { name = "py-spy", marker = "python_full_version >= '3.12' and extra == 'llm'", specifier = ">=0.4.0" },
-    { name = "py-spy", marker = "python_full_version >= '3.12' and extra == 'serve'", specifier = ">=0.4.0" },
-    { name = "py-spy", marker = "python_full_version >= '3.12' and extra == 'serve-async-inference'", specifier = ">=0.4.0" },
-    { name = "py-spy", marker = "python_full_version >= '3.12' and extra == 'serve-grpc'", specifier = ">=0.4.0" },
-    { name = "py-spy", marker = "python_full_version < '3.12' and extra == 'air'", specifier = ">=0.2.0" },
-    { name = "py-spy", marker = "python_full_version < '3.12' and extra == 'all'", specifier = ">=0.2.0" },
-    { name = "py-spy", marker = "python_full_version < '3.12' and extra == 'all-cpp'", specifier = ">=0.2.0" },
-    { name = "py-spy", marker = "python_full_version < '3.12' and extra == 'default'", specifier = ">=0.2.0" },
-    { name = "py-spy", marker = "python_full_version < '3.12' and extra == 'llm'", specifier = ">=0.2.0" },
-    { name = "py-spy", marker = "python_full_version < '3.12' and extra == 'serve'", specifier = ">=0.2.0" },
-    { name = "py-spy", marker = "python_full_version < '3.12' and extra == 'serve-async-inference'", specifier = ">=0.2.0" },
-    { name = "py-spy", marker = "python_full_version < '3.12' and extra == 'serve-grpc'", specifier = ">=0.2.0" },
-    { name = "pyarrow", marker = "extra == 'air'", specifier = ">=9.0.0" },
-    { name = "pyarrow", marker = "extra == 'all'", specifier = ">=9.0.0" },
-    { name = "pyarrow", marker = "extra == 'all-cpp'", specifier = ">=9.0.0" },
-    { name = "pyarrow", marker = "extra == 'data'", specifier = ">=9.0.0" },
-    { name = "pyarrow", marker = "extra == 'llm'", specifier = ">=9.0.0" },
-    { name = "pyarrow", marker = "extra == 'rllib'", specifier = ">=9.0.0" },
-    { name = "pyarrow", marker = "extra == 'train'", specifier = ">=9.0.0" },
-    { name = "pyarrow", marker = "extra == 'tune'", specifier = ">=9.0.0" },
-    { name = "pybind11", marker = "extra == 'llm'" },
-    { name = "pydantic", marker = "extra == 'air'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pydantic", marker = "extra == 'all'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pydantic", marker = "extra == 'all-cpp'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pydantic", marker = "extra == 'default'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pydantic", marker = "extra == 'llm'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pydantic", marker = "extra == 'rllib'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pydantic", marker = "extra == 'serve'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pydantic", marker = "extra == 'serve-async-inference'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pydantic", marker = "extra == 'serve-grpc'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pydantic", marker = "extra == 'train'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pydantic", marker = "extra == 'tune'", specifier = "!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,!=2.10.*,!=2.11.*,<3" },
-    { name = "pyopenssl", marker = "extra == 'all'" },
-    { name = "pyopenssl", marker = "extra == 'all-cpp'" },
-    { name = "pyopenssl", marker = "extra == 'serve-grpc'" },
-    { name = "pyyaml" },
-    { name = "pyyaml", marker = "extra == 'all'" },
-    { name = "pyyaml", marker = "extra == 'all-cpp'" },
-    { name = "pyyaml", marker = "extra == 'rllib'" },
-    { name = "ray-cpp", marker = "extra == 'all-cpp'", specifier = "==3.0.0.dev0" },
-    { name = "ray-cpp", marker = "extra == 'cpp'", specifier = "==3.0.0.dev0" },
-    { name = "requests" },
-    { name = "requests", marker = "extra == 'air'" },
-    { name = "requests", marker = "extra == 'all'" },
-    { name = "requests", marker = "extra == 'all-cpp'" },
-    { name = "requests", marker = "extra == 'default'" },
-    { name = "requests", marker = "extra == 'llm'" },
-    { name = "requests", marker = "extra == 'rllib'" },
-    { name = "requests", marker = "extra == 'serve'" },
-    { name = "requests", marker = "extra == 'serve-async-inference'" },
-    { name = "requests", marker = "extra == 'serve-grpc'" },
-    { name = "requests", marker = "extra == 'train'" },
-    { name = "requests", marker = "extra == 'tune'" },
-    { name = "scipy", marker = "extra == 'all'" },
-    { name = "scipy", marker = "extra == 'all-cpp'" },
-    { name = "scipy", marker = "extra == 'rllib'" },
-    { name = "smart-open", marker = "extra == 'air'" },
-    { name = "smart-open", marker = "extra == 'all'" },
-    { name = "smart-open", marker = "extra == 'all-cpp'" },
-    { name = "smart-open", marker = "extra == 'default'" },
-    { name = "smart-open", marker = "extra == 'llm'" },
-    { name = "smart-open", marker = "extra == 'serve'" },
-    { name = "smart-open", marker = "extra == 'serve-async-inference'" },
-    { name = "smart-open", marker = "extra == 'serve-grpc'" },
-    { name = "starlette", marker = "extra == 'air'" },
-    { name = "starlette", marker = "extra == 'all'" },
-    { name = "starlette", marker = "extra == 'all-cpp'" },
-    { name = "starlette", marker = "extra == 'llm'" },
-    { name = "starlette", marker = "extra == 'serve'" },
-    { name = "starlette", marker = "extra == 'serve-async-inference'" },
-    { name = "starlette", marker = "extra == 'serve-grpc'" },
-    { name = "taskiq", marker = "extra == 'all'" },
-    { name = "taskiq", marker = "extra == 'all-cpp'" },
-    { name = "taskiq", marker = "extra == 'serve-async-inference'" },
-    { name = "tensorboardx", marker = "extra == 'air'", specifier = ">=1.9" },
-    { name = "tensorboardx", marker = "extra == 'all'", specifier = ">=1.9" },
-    { name = "tensorboardx", marker = "extra == 'all-cpp'", specifier = ">=1.9" },
-    { name = "tensorboardx", marker = "extra == 'rllib'", specifier = ">=1.9" },
-    { name = "tensorboardx", marker = "extra == 'train'", specifier = ">=1.9" },
-    { name = "tensorboardx", marker = "extra == 'tune'", specifier = ">=1.9" },
-    { name = "typer", marker = "extra == 'llm'" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'air'" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'all'" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'all-cpp'" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'llm'" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'serve'" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'serve-async-inference'" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'serve-grpc'" },
-    { name = "virtualenv", marker = "extra == 'air'", specifier = ">=20.0.24,!=20.21.1" },
-    { name = "virtualenv", marker = "extra == 'all'", specifier = ">=20.0.24,!=20.21.1" },
-    { name = "virtualenv", marker = "extra == 'all-cpp'", specifier = ">=20.0.24,!=20.21.1" },
-    { name = "virtualenv", marker = "extra == 'default'", specifier = ">=20.0.24,!=20.21.1" },
-    { name = "virtualenv", marker = "extra == 'llm'", specifier = ">=20.0.24,!=20.21.1" },
-    { name = "virtualenv", marker = "extra == 'serve'", specifier = ">=20.0.24,!=20.21.1" },
-    { name = "virtualenv", marker = "extra == 'serve-async-inference'", specifier = ">=20.0.24,!=20.21.1" },
-    { name = "virtualenv", marker = "extra == 'serve-grpc'", specifier = ">=20.0.24,!=20.21.1" },
-    { name = "vllm", extras = ["audio"], marker = "extra == 'llm'", specifier = ">=0.16.0" },
-    { name = "watchfiles", marker = "extra == 'air'" },
-    { name = "watchfiles", marker = "extra == 'all'" },
-    { name = "watchfiles", marker = "extra == 'all-cpp'" },
-    { name = "watchfiles", marker = "extra == 'llm'" },
-    { name = "watchfiles", marker = "extra == 'serve'" },
-    { name = "watchfiles", marker = "extra == 'serve-async-inference'" },
-    { name = "watchfiles", marker = "extra == 'serve-grpc'" },
-]
-provides-extras = ["cgraph", "client", "data", "default", "observability", "serve", "tune", "adag", "serve-grpc", "serve-async-inference", "cpp", "rllib", "train", "air", "all", "all-cpp", "llm"]
 
 [[package]]
 name = "reactivex"
@@ -20385,7 +20029,7 @@ name = "smart-open"
 version = "7.5.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "wrapt" },
+    { name = "wrapt", marker = "python_full_version < '3.14'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e8/be/a66598b305763861a9ab15ff0f2fbc44e47b1ce7a776797337a4eef37c66/smart_open-7.5.1.tar.gz", hash = "sha256:3f08e16827c4733699e6b2cc40328a3568f900cb12ad9a3ad233ba6c872d9fe7", size = 54034, upload-time = "2026-02-23T11:01:28.979Z" }
 wheels = [

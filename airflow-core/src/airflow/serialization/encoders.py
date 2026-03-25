@@ -34,6 +34,7 @@ from airflow.sdk import (
     AssetAll,
     AssetAny,
     AssetOrTimeSchedule,
+    ChainMapper,
     CronDataIntervalTimetable,
     CronTriggerTimetable,
     DeltaDataIntervalTimetable,
@@ -392,6 +393,7 @@ class _Serializer:
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
+        ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
         IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
         ToHourlyMapper: "airflow.partition_mappers.temporal.ToHourlyMapper",
         ToDailyMapper: "airflow.partition_mappers.temporal.ToDailyMapper",
@@ -410,6 +412,10 @@ class _Serializer:
         if not isinstance(partition_mapper, CorePartitionMapper):
             raise NotImplementedError(f"can not serialize timetable {type(partition_mapper).__name__}")
         return partition_mapper.serialize()
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: ChainMapper) -> dict[str, Any]:
+        return {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:

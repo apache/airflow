@@ -1425,7 +1425,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self.log.info("Check the task run in Databricks: %s", run_page_url)
         run_state = RunState(**run["state"])
         self.log.info(
-            "Current state of the the databricks task %s is %s",
+            "Current state of the databricks task %s is %s",
             self.databricks_task_key,
             run_state.life_cycle_state,
         )

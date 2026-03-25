@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import logging
+import warnings
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_3_PLUS, AIRFLOW_V_3_1_PLUS
 
@@ -25,6 +27,7 @@ if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
 
 from collections.abc import Collection, Mapping, Sequence
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from urllib.parse import ParseResult, urlencode, urlparse, urlunparse
 
@@ -55,6 +58,9 @@ class HITLOperator(BaseOperator):
     :param params: dictionary of parameter definitions that are in the format of Dag params such that
         a Form Field can be rendered. Entered data is validated (schema, required fields) like for a Dag run
         and added to XCom of the task result.
+    :param response_timeout: Maximum time to wait for a human response after deferring to the trigger.
+        This is separate from ``execution_timeout`` which controls the pre-defer execution phase.
+        If not set, no timeout is applied to the human response wait.
     """
 
     template_fields: Collection[str] = ("subject", "body")
@@ -70,9 +76,26 @@ class HITLOperator(BaseOperator):
         params: ParamsDict | dict[str, Any] | None = None,
         notifiers: Sequence[BaseNotifier] | BaseNotifier | None = None,
         assigned_users: HITLUser | list[HITLUser] | None = None,
+        response_timeout: timedelta | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+
+        # Handle backward compatibility: if execution_timeout is set but response_timeout is not,
+        # migrate execution_timeout to response_timeout and clear it to prevent the BaseOperator
+        # timeout from racing the defer() call.
+        if self.execution_timeout and not response_timeout:
+            warnings.warn(
+                "Passing `execution_timeout` to HITLOperator to control the human response wait is "
+                "deprecated. Use `response_timeout` instead. `execution_timeout` will be cleared to "
+                "prevent it from killing the task before defer() is reached.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            response_timeout = self.execution_timeout
+            self.execution_timeout = None
+
+        self.response_timeout = response_timeout
         self.subject = subject
         self.body = body
 
@@ -160,8 +183,8 @@ class HITLOperator(BaseOperator):
             assigned_users=self.assigned_users,
         )
 
-        if self.execution_timeout:
-            timeout_datetime = utcnow() + self.execution_timeout
+        if self.response_timeout:
+            timeout_datetime = utcnow() + self.response_timeout
         else:
             timeout_datetime = None
 

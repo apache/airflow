@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-ydb``
 
-Release: ``2.5.0``
+Release: ``2.5.1``
 
 
 `YDB <https://ydb.tech/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``ydb`` provider. All classes for this provider p
 are in ``airflow.providers.ydb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.5.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.5.1/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-ydb``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -81,4 +81,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.5.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ydb/2.5.1/changelog.html>`_.
