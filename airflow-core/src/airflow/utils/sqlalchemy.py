@@ -392,9 +392,13 @@ class CommitProhibitorGuard:
     def __init__(self, session: Session):
         self.session = session
 
-    def _validate_commit(self, _):
+    def _validate_commit(self, session):
         if self.expected_commit:
             self.expected_commit = False
+            return
+        # Savepoint releases (session.begin_nested) fire before_commit but only
+        # release the savepoint, not the outer transaction lock.  Allow them.
+        if session.in_nested_transaction():
             return
         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
