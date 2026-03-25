@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { BasePage } from "./BasePage";
 
@@ -79,9 +79,6 @@ export class VariablePage extends BasePage {
     const noData = this.page.getByText("No variables found");
     const firstKeyCell = this.tableRows.first().locator("td:nth-child(2)");
 
-    await Promise.race([
-      noData.waitFor({ state: "visible", timeout: 60_000 }),
-      firstKeyCell.waitFor({ state: "visible", timeout: 60_000 }),
-    ]);
+    await expect(noData.or(firstKeyCell)).toBeVisible({ timeout: 60_000 });
   }
 }
