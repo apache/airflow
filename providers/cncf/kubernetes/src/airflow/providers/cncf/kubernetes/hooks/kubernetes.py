@@ -1081,7 +1081,6 @@ class AsyncKubernetesHook(KubernetesHook):
                 if resource_version is not None:
                     kwargs["resource_version"] = resource_version
                     kwargs["resource_version_match"] = "NotOlderThan"
-
                 events: CoreV1EventList = await v1_api.list_namespaced_event(**kwargs)
                 return events
             except HTTPError as e:
