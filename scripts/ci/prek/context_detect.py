@@ -301,7 +301,7 @@ def main() -> int:
     if not args.skill_id:
         parser.error("skill_id is required unless --list is used")
 
-    skill = next((s for s in skills if s["id"] == args.skill_id), None)
+    skill: dict | None = next((s for s in skills if s["id"] == args.skill_id), None)
     if skill is None:
         known = [s["id"] for s in skills]
         print(f"ERROR: unknown skill '{args.skill_id}'. Known: {', '.join(known)}", file=sys.stderr)
