@@ -194,14 +194,14 @@ class TestNeptuneImportTaskCompleteTrigger:
         Asserts that the NeptuneImportTaskCompleteTrigger correctly serializes its arguments
         and classpath.
         """
-        trigger = NeptuneImportTaskCompleteTrigger(task_id=TASK_ID)
+        trigger = NeptuneImportTaskCompleteTrigger(import_task_id=TASK_ID)
         classpath, kwargs = trigger.serialize()
         assert (
             classpath
             == "airflow.providers.amazon.aws.triggers.neptune_analytics.NeptuneImportTaskCompleteTrigger"
         )
-        assert "task_id" in kwargs
-        assert kwargs["task_id"] == TASK_ID
+        assert "import_task_id" in kwargs
+        assert kwargs["import_task_id"] == TASK_ID
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.neptune_analytics.NeptuneAnalyticsHook.get_waiter")
@@ -209,11 +209,11 @@ class TestNeptuneImportTaskCompleteTrigger:
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.return_value.__aenter__.return_value = "COMPLETED"
         mock_get_waiter().wait = AsyncMock()
-        trigger = NeptuneImportTaskCompleteTrigger(task_id=TASK_ID)
+        trigger = NeptuneImportTaskCompleteTrigger(import_task_id=TASK_ID)
         generator = trigger.run()
         resp = await generator.asend(None)
 
-        assert resp == TriggerEvent({"status": "success", "task_id": TASK_ID})
+        assert resp == TriggerEvent({"status": "success", "import_task_id": TASK_ID})
         assert mock_get_waiter().wait.call_count == 1
 
     @pytest.mark.asyncio
@@ -228,7 +228,7 @@ class TestNeptuneImportTaskCompleteTrigger:
         )
         mock_get_waiter.return_value.wait = wait_mock
 
-        trigger = NeptuneImportTaskCompleteTrigger(task_id=TASK_ID)
+        trigger = NeptuneImportTaskCompleteTrigger(import_task_id=TASK_ID)
 
         with pytest.raises(AirflowException):
             await trigger.run().asend(None)
