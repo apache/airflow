@@ -26,7 +26,7 @@ def _wrap(val):
     return val
 
 
-def resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:
+def resolve_nested(hit: dict[Any, Any], parent_class=None) -> type[Hit]:
     """
     Resolve nested hits from Elasticsearch by iteratively navigating the `_nested` field.
 
@@ -35,8 +35,6 @@ def resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:
     This method can be used with nested Elasticsearch fields which are structured
     as dictionaries with "field" and "_nested" keys.
     """
-    doc_class = Hit
-
     nested_path: list[str] = []
     nesting = hit["_nested"]
     while nesting and "field" in nesting:
@@ -46,11 +44,10 @@ def resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:
 
     if hasattr(parent_class, "_index"):
         nested_field = parent_class._index.resolve_field(nested_path_str)
+        if nested_field is not None:
+            return nested_field._doc_class
 
-    if nested_field is not None:
-        return nested_field._doc_class
-
-    return doc_class
+    return Hit
 
 
 class AttributeList:

@@ -24,7 +24,7 @@ requires = [
     "pathspec==1.0.4",
     "pluggy==1.6.0",
     "smmap==5.0.3",
-    "tomli==2.4.0; python_version < '3.11'",
+    "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
 ]
 build-backend = "hatchling.build"
@@ -195,12 +195,7 @@ dependencies = [
     "memray>=1.19.0",
 ]
 "gunicorn" = [
-    # Temporary upper bound due to Gunicorn 25.1.0 control-socket deadlock
-    # seen in the Airflow API server path (preload + fork).
-    # Upstream tracking:
-    # - https://github.com/benoitc/gunicorn/issues/3529
-    # - https://github.com/benoitc/gunicorn/pull/3520
-    "gunicorn>=23.0.0,<25.1.0",
+    "gunicorn>=23.0.0,!=25.1.0",
 ]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
