@@ -189,7 +189,8 @@ repos:
           ^scripts/ci/license-templates/|
           ^\.github/instructions/|
           ^\.github/skills/airflow-translations/SKILL\.md$|
-          ^\.github/skills/airflow-contributor/SKILL\.md$
+          ^\.github/skills/airflow-contributor/SKILL\.md$|
+          ^\.agents/skills/
       - id: insert-license
         name: Add license for all other files
         args:
