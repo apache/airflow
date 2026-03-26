@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-oracle``
 
-Release: ``4.5.1``
+Release: ``4.5.2``
 
 
 `Oracle <https://www.oracle.com/database/technologies/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``oracle`` provider. All classes for this provide
 are in ``airflow.providers.oracle`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.5.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.5.2/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-oracle``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -83,12 +83,12 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-===============  ========================================================================================================================================================================
+===============  ============================================================================================================================================================================================================================================
 Extra            Dependencies
-===============  ========================================================================================================================================================================
-``numpy``        ``numpy>=1.22.4; python_version<'3.11'``, ``numpy>=1.23.2; python_version=='3.11'``, ``numpy>=1.26.0; python_version=='3.12'``, ``numpy>=2.1.0; python_version>='3.13'``
+===============  ============================================================================================================================================================================================================================================
+``numpy``        ``numpy>=1.22.4; python_version<'3.11'``, ``numpy>=1.23.2; python_version=='3.11'``, ``numpy>=1.26.0; python_version=='3.12'``, ``numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'``, ``numpy>=2.4.3; python_version>='3.14'``
 ``openlineage``  ``apache-airflow-providers-openlineage``
-===============  ========================================================================================================================================================================
+===============  ============================================================================================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.5.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-oracle/4.5.2/changelog.html>`_.

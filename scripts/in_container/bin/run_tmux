@@ -34,6 +34,9 @@ echo "export PATH=$PATH" >> ~/.profile
 # Set Session Name
 export TMUX_SESSION="Airflow"
 
+# API_SECRET_KEY used for api server if remote workers are used
+API_SECRET_KEY=""
+
 # Start New Session with our name
 tmux new-session -d -s "${TMUX_SESSION}"
 
@@ -142,7 +145,6 @@ if [[ ${AIRFLOW__CORE__EXECUTOR} == "airflow.providers.edge3.executors.edge_exec
 
     # Ensure logs are smelling like Remote and are not visible to other components
     tmux send-keys 'export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs' C-m
-
     # Start Edge Worker and make a "breeze" hostname, let it pick only default queue
     tmux send-keys 'airflow edge worker --edge-hostname breeze --queues default' C-m
 fi
@@ -158,6 +160,18 @@ if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
     tmux set-option -p @airflow_component "DAG Processor"
     tmux send-keys 'airflow dag-processor' C-m
 fi
+fi
+
+if [[ ${GO_WORKER} == "true" ]]; then
+    tmux select-pane -t 2
+    tmux split-window -h
+    tmux set-option -p @airflow_component "Go worker"
+    tmux send-keys "cd go-sdk" C-m
+    tmux send-keys "export AIRFLOW__EDGE__API_URL=http://localhost:8080" C-m
+    tmux send-keys "export AIRFLOW__BUNDLES__FOLDER=./bin" C-m
+    tmux send-keys "export AIRFLOW__API_AUTH__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}" C-m
+    tmux send-keys "export AIRFLOW__LOGGING__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}" C-m
+    tmux send-keys "go run ./cmd/airflow-go-edge-worker/main.go run" C-m
 fi
 
 # Attach Session, on the Main window

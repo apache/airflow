@@ -34,6 +34,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 if TYPE_CHECKING:
     from configparser import ConfigParser
 log = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 OVERRIDE_SPAN_ID_KEY = context.create_key("override_span_id")
 OVERRIDE_TRACE_ID_KEY = context.create_key("override_trace_id")
@@ -67,6 +68,17 @@ def new_dagrun_trace_carrier() -> dict[str, str]:
     ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
     carrier: dict[str, str] = {}
     TraceContextTextMapPropagator().inject(carrier, context=ctx)
+    return carrier
+
+
+def new_task_run_carrier(dag_run_context_carrier):
+    parent_context = (
+        TraceContextTextMapPropagator().extract(dag_run_context_carrier) if dag_run_context_carrier else None
+    )
+    span = tracer.start_span("notused", context=parent_context)  # intentionally never closed
+    new_ctx = trace.set_span_in_context(span)
+    carrier: dict[str, str] = {}
+    TraceContextTextMapPropagator().inject(carrier, context=new_ctx)
     return carrier
 
 

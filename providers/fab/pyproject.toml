@@ -25,14 +25,14 @@ requires = [
     "packaging==26.0",
     "pathspec==1.0.4",
     "pluggy==1.6.0",
-    "tomli==2.4.0; python_version < '3.11'",
+    "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-fab"
-version = "3.5.0"
+version = "3.6.0"
 description = "Provider package apache-airflow-providers-fab for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -56,6 +56,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -77,13 +78,16 @@ dependencies = [
     # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==5.2.0",  # Whenever updating the version, run test_fab_alignment.py to verify.
-    "flask-login>=0.6.2",
+    "flask-login>=0.6.2; python_version < '3.14'",
+    "flask-login>=0.6.3; python_version >= '3.14'",
     "flask-session>=0.8.0",
     "msgpack>=1.0.0",
     "flask-sqlalchemy>=3.0.5",
-    "flask-wtf>=1.1.0",
+    "flask-wtf>=1.1.0; python_version < '3.14'",
+    "flask-wtf>=1.2.2; python_version >= '3.14'",
     "jmespath>=0.7.0",
-    "werkzeug>=2.2",
+    "werkzeug>=2.2; python_version <= '3.13'",
+    "werkzeug>=3.1.6; python_version >= '3.14'",
     "wtforms>=3.0",
     "cachetools>=6.0",
     "marshmallow>=3",
@@ -137,8 +141,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.5.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.5.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

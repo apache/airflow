@@ -168,7 +168,7 @@
   "reset": "אתחל",
   "runId": "מזהה ריצה",
   "runTypes": {
-    "asset_triggered": "הופעל על-ידי נכס",
+    "asset_triggered": "מופעל על-ידי נכס",
     "backfill": "השלמה למפרע",
     "manual": "הפעלה ידנית",
     "scheduled": "מתוזמן"

@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Bulk operations for edge workers page (#64033)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix edge executor UI navigation when behind reverse proxy with subpath (#63777)``
+
+Misc
+~~~~
+
+* ``Fix dependabot alarms for Flatted (#63955)``
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix make_partial_model (#63716)``
+* ``Re-introducing '--use-migration-files' and fix inconsistences between ORM/migration files (#62234)``
+* ``Fix dependabot warning regarding flatten lib - providers (#63586)``
+* ``Bump pydantic min version to 2.12.3 (#63570)``
+* ``Fix dependabot for edge3 on TS (#63375)``
+* ``Update edge executor's import conf path to use common compat SDK (#64137)``
+
+Doc-only
+~~~~~~~~
+
+* ``Generate ERD diagrams at doc build time instead of committing them (#63402)``
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 3.2.0
 .....
 
@@ -231,7 +266,7 @@ Features
 ~~~~~~~~
 
 * ``Send executor integration info in workload (#57800)``
-* ``Prevent duplicate edge workers unless existing worker is offline or unkown (#58586)``
+* ``Prevent duplicate edge workers unless existing worker is offline or unknown (#58586)``
 * ``Add multi-select state filter to worker page (#58505)``
 * ``Add queue name filtering to Edge Worker tab (#58416)``
 * ``Add search functionality to Edge Worker tab (#58331)``
@@ -499,7 +534,7 @@ Misc
 * ``Refactor Edge Worker CLI for smaller module (#50738)``
 * ``Bump some provider dependencies for faster resolution (#51727)``
 * ``Edge list worker cli command to list active job metrics (#51720)``
-* ``Extend command column in the edge_job table to accomodate more chars (#51716)``
+* ``Extend command column in the edge_job table to accommodate more chars (#51716)``
 
 Doc-only
 ~~~~~~~~
@@ -525,7 +560,7 @@ Bug Fixes
 * ``Edge worker maintenance state is remembered if worker crashes (#50338)``
 * ``Fix execution API server URL handling for relative paths (#49782)``
 * ``Make default execution server URL be relative to API Base URL (#49747)``
-* ``Make Edge3 Intergation Test DAG working in 2.10 (#49474)``
+* ``Make Edge3 Integration Test DAG working in 2.10 (#49474)``
 * ``Ensure fab provider is installed when running EdgeExecutor (#49473)``
 
 Misc

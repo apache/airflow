@@ -26,7 +26,7 @@ import {
   useTaskInstanceServiceGetTaskInstancesKey,
   UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
-import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
@@ -42,14 +42,15 @@ export const usePatchDagRun = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("toaster.update.error", {
-        resourceName: translate("dagRun_one"),
-      }),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    createErrorToaster(
+      error,
+      {
+        params: { resourceName: translate("dagRun_one") },
+        titleKey: "toaster.update.error",
+      },
+      translate,
+    );
   };
 
   const onSuccessFn = async () => {
