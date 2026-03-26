@@ -28,3 +28,16 @@ OLD_TYPE = "__type"
 OLD_SOURCE = "__source"
 OLD_DATA = "__var"
 OLD_DICT = "dict"
+
+FORBIDDEN_XCOM_KEYS = frozenset(
+    {
+        CLASSNAME,
+        VERSION,
+        DATA,
+        SCHEMA_ID,
+        CACHE,
+        OLD_TYPE,
+        OLD_SOURCE,
+        OLD_DATA,
+    }
+)

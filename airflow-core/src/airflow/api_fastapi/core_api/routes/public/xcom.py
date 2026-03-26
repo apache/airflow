@@ -18,22 +18,12 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, delete, select
 from sqlalchemy.orm import joinedload
 
-from airflow._shared.serialization import (
-    CACHE,
-    CLASSNAME,
-    DATA,
-    OLD_DATA,
-    OLD_SOURCE,
-    OLD_TYPE,
-    SCHEMA_ID,
-    VERSION,
-)
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -64,19 +54,6 @@ from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun as DR
 from airflow.models.dag import DagModel
 from airflow.models.xcom import XComModel
-
-FORBIDDEN_XCOM_KEYS = frozenset(
-    {
-        CLASSNAME,
-        VERSION,
-        DATA,
-        SCHEMA_ID,
-        CACHE,
-        OLD_TYPE,
-        OLD_SOURCE,
-        OLD_DATA,
-    }
-)
 
 xcom_router = AirflowRouter(
     tags=["XCom"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries"
@@ -291,24 +268,6 @@ def create_xcom_entry(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"The XCom with key: `{request_body.key}` with mentioned task instance already exists.",
         )
-
-    def _check_forbidden_keys(obj: Any, path: str = "value") -> None:
-        """Recursively check for forbidden deserialization keys in user-provided XCom data."""
-        if isinstance(obj, dict):
-            found = FORBIDDEN_XCOM_KEYS & obj.keys()
-            if found:
-                raise HTTPException(
-                    status.HTTP_400_BAD_REQUEST,
-                    f"XCom {path} contains reserved serialization keys: {', '.join(sorted(found))}. "
-                    f"These keys are reserved for internal use.",
-                )
-            for k, v in obj.items():
-                _check_forbidden_keys(v, f"{path}.{k}")
-        elif isinstance(obj, (list, tuple)):
-            for i, item in enumerate(obj):
-                _check_forbidden_keys(item, f"{path}[{i}]")
-
-    _check_forbidden_keys(request_body.value)
 
     try:
         value = json.dumps(request_body.value)
