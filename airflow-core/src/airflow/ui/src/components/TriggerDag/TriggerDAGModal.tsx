@@ -137,7 +137,6 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                   hasSchedule={hasSchedule}
                   isPartitioned={isPartitioned}
                   isPaused={isPaused}
-                  onClose={onClose}
                   open={open}
                   prefillConfig={prefillConfig}
                 />
