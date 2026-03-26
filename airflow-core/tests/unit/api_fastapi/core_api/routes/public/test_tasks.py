@@ -547,6 +547,13 @@ class TestGetTasks(TestTaskEndpoint):
             response.json()["detail"] == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
         )
 
+    def test_should_raise_400_for_order_by_with_none_values(self, test_client):
+        """Test that ordering by a field with None values returns 400."""
+        response = test_client.get(
+            f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks?order_by=start_date",
+        )
+        assert response.status_code == 400
+
     def test_should_respond_404(self, test_client):
         dag_id = "xxxx_not_existing"
         response = test_client.get(f"{self.api_prefix}/{dag_id}/tasks")
