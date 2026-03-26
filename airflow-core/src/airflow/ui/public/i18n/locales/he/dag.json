@@ -119,6 +119,14 @@
     "graphDirection": {
       "label": "כיוון התרשים"
     },
+    "graphFilters": {
+      "clearFilters": "נקה פילטרים",
+      "durationGte": "משך מינימלי (בשניות)",
+      "mapIndex": "מספר מיפוי אינדקס",
+      "selectStatus": "בחר סטטוס",
+      "selectTaskGroup": "בחר קבוצת משימות",
+      "title": "פילטרים משימות"
+    },
     "taskStreamFilter": {
       "activeFilter": "מסנן פעיל",
       "clearFilter": "נקה מסנן",
