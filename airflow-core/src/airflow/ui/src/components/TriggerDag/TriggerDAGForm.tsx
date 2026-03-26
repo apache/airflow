@@ -26,7 +26,6 @@ import { FiPlay } from "react-icons/fi";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
-import { useTrigger } from "src/queries/useTrigger";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 import ConfigForm from "../ConfigForm";
@@ -45,7 +44,6 @@ type TriggerDAGFormProps = {
   readonly isPartitioned: boolean;
   readonly isPaused: boolean;
   readonly isPending?: boolean;
-  readonly onClose: () => void;
   readonly onSubmitTrigger?: (params: DagRunTriggerParams) => void;
   readonly open: boolean;
   readonly prefillConfig?:
@@ -60,12 +58,11 @@ type TriggerDAGFormProps = {
 const TriggerDAGForm = ({
   dagDisplayName,
   dagId,
-  error: submitErrorOverride,
+  error,
   hasSchedule,
   isPartitioned,
   isPaused,
-  isPending: isPendingOverride,
-  onClose,
+  isPending = false,
   onSubmitTrigger,
   open,
   prefillConfig,
@@ -74,16 +71,8 @@ const TriggerDAGForm = ({
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
-  const {
-    error: triggerError,
-    isPending: isTriggerPending,
-    triggerDagRun,
-  } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, initialParamDict, setConf, setInitialParamDict } = useParamStore();
   const [unpause, setUnpause] = useState(true);
-  const onError = submitErrorOverride ?? triggerError;
-  const onPending = isPendingOverride ?? isTriggerPending;
-  const onTrigger = onSubmitTrigger ?? triggerDagRun;
   const { mutate: togglePause } = useTogglePause({ dagId });
 
   const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
@@ -157,12 +146,12 @@ const TriggerDAGForm = ({
     if (unpause && isPaused) {
       togglePause({ dagId, requestBody: { is_paused: false } });
     }
-    onTrigger(data);
+    onSubmitTrigger?.(data);
   };
 
   return (
     <>
-      <ErrorAlert error={errors.date ?? onError} />
+      <ErrorAlert error={errors.date ?? error} />
       <VStack alignItems="stretch" gap={2} pt={4}>
         {isPartitioned ? undefined : (
           <>
@@ -270,9 +259,9 @@ const TriggerDAGForm = ({
               Boolean(errors.conf) ||
               Boolean(errors.date) ||
               formError ||
-              onPending ||
+              isPending ||
               dataIntervalInvalid ||
-              (Boolean(onError) && (onError as ExpandedApiError).status === 403)
+              (Boolean(error) && (error as ExpandedApiError).status === 403)
             }
             onClick={() => void handleSubmit(onSubmit)()}
           >
