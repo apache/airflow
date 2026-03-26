@@ -1040,7 +1040,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 # (e.g. binary data, truncated multi-byte sequences).
                 # kubernetes_asyncio's default decoding uses strict UTF-8 which
                 # crashes the task in those cases.
-                kwargs = {
+                kwargs: dict[str, Any] = {
                     "name": name,
                     "namespace": namespace,
                     "follow": False,
@@ -1074,7 +1074,7 @@ class AsyncKubernetesHook(KubernetesHook):
         async with self.get_conn() as connection:
             try:
                 v1_api = async_client.CoreV1Api(connection)
-                kwargs = {
+                kwargs: dict[str, Any] = {
                     "field_selector": f"involvedObject.name={name}",
                     "namespace": namespace,
                 }
