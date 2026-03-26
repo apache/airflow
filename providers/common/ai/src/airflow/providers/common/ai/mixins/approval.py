@@ -133,9 +133,7 @@ class LLMApprovalMixin:
             timeout=self.approval_timeout,
         )
 
-    def execute_complete(
-        self: DeferForApprovalProtocol, context: Context, generated_output: str, event: dict[str, Any]
-    ) -> str:
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
         """
         Resume after human review.
 
@@ -173,7 +171,7 @@ class LLMApprovalMixin:
         # Only accept modified output when the operator explicitly allows modifications.
         # Without this guard a reviewer could craft a request with params_input even
         # when allow_modifications=False, bypassing the read-only approval flow.
-        if self.allow_modifications and params_input:
+        if getattr(self, "allow_modifications", False) and params_input:
             modified = params_input.get("output")
             if modified is not None and modified != generated_output:
                 log.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)
