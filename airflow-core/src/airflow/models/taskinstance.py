@@ -614,8 +614,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     trigger = relationship("Trigger", uselist=False, back_populates="task_instance")
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
-    rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
-    hitl_detail = relationship("HITLDetail", lazy="noload", uselist=False)
+    rendered_task_instance_fields = relationship(
+        "RenderedTaskInstanceFields", lazy="raise", uselist=False, passive_deletes=True
+    )
+    hitl_detail = relationship("HITLDetail", lazy="raise", uselist=False, passive_deletes=True)
 
     run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")
