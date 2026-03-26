@@ -25,6 +25,7 @@ import os
 import sys
 import textwrap
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -510,6 +511,18 @@ def test_excepthook_passes_keyboard_interrupt_to_original():
         assert calls == [KeyboardInterrupt]
     finally:
         sys.excepthook = original
+
+
+def test_init_log_folder_permission_error_logs_warning_and_continues(caplog):
+    from airflow_shared.logging.structlog import init_log_folder
+
+    with mock.patch.object(Path, "mkdir", side_effect=PermissionError("not allowed")):
+        with caplog.at_level(logging.WARNING):
+            init_log_folder("/tmp/blocked", 0o775)
+            continued_after_call = True
+
+    assert continued_after_call
+    assert "Could not create log folder" in caplog.text
 
 
 class TestWarningsInterceptor:
