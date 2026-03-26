@@ -72,23 +72,25 @@ expected_config_response = {
 }
 
 
+def _theme_conf_vars(theme: dict) -> dict:
+    return {
+        ("api", "instance_name"): "Airflow",
+        ("api", "enable_swagger_ui"): "true",
+        ("api", "hide_paused_dags_by_default"): "true",
+        ("api", "fallback_page_limit"): "100",
+        ("api", "default_wrap"): "false",
+        ("api", "auto_refresh_interval"): "3",
+        ("api", "require_confirmation_dag_change"): "false",
+        ("api", "theme"): json.dumps(theme),
+    }
+
+
 @pytest.fixture
 def mock_config_data():
     """
     Mock configuration settings used in the endpoint.
     """
-    with conf_vars(
-        {
-            ("api", "instance_name"): "Airflow",
-            ("api", "enable_swagger_ui"): "true",
-            ("api", "hide_paused_dags_by_default"): "true",
-            ("api", "fallback_page_limit"): "100",
-            ("api", "default_wrap"): "false",
-            ("api", "auto_refresh_interval"): "3",
-            ("api", "require_confirmation_dag_change"): "false",
-            ("api", "theme"): json.dumps(THEME),
-        }
-    ):
+    with conf_vars(_theme_conf_vars(THEME)):
         yield
 
 
@@ -130,18 +132,7 @@ THEME_WITH_ALL_COLORS = {
 
 @pytest.fixture
 def mock_config_data_all_colors():
-    with conf_vars(
-        {
-            ("api", "instance_name"): "Airflow",
-            ("api", "enable_swagger_ui"): "true",
-            ("api", "hide_paused_dags_by_default"): "true",
-            ("api", "fallback_page_limit"): "100",
-            ("api", "default_wrap"): "false",
-            ("api", "auto_refresh_interval"): "3",
-            ("api", "require_confirmation_dag_change"): "false",
-            ("api", "theme"): json.dumps(THEME_WITH_ALL_COLORS),
-        }
-    ):
+    with conf_vars(_theme_conf_vars(THEME_WITH_ALL_COLORS)):
         yield
 
 
