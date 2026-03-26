@@ -35,6 +35,30 @@
 Changelog
 ---------
 
+1.12.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Improve error message for non-serializable op_kwargs in PythonVirtualenvOperator (#63270)``
+* ``Fix ExternalTaskSensor to use timeout parameter in deferrable mode (#… (#62556)``
+* ``Add response_timeout to HITLOperator to prevent race with execution_timeout (#63475)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``delete duplicate import in test_hitl.py (#63886)``
+   * ``Fix @task decorator to use identity check instead of truthiness (#63788)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``fix: suppress warning for TYPE_CHECKING-only forward references in TaskFlow (#63053)``
+   * ``docs: add DAG documentation for example_bash_decorator (#62948)``
+   * ``Remove remaining session query usages (#62758)``
+
 1.12.1
 ......
 

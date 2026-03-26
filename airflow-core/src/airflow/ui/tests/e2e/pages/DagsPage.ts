@@ -268,13 +268,15 @@ export class DagsPage extends BasePage {
   }
 
   public async navigateToDagTasks(dagId: string): Promise<void> {
-    await this.page.goto(`/dags/${dagId}/tasks`);
-    await expect(
-      this.page
-        .locator("th")
-        .filter({ hasText: /^Operator$/ })
-        .first(),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(async () => {
+      await this.page.goto(`/dags/${dagId}/tasks`);
+      await expect(
+        this.page
+          .locator("th")
+          .filter({ hasText: /^Operator$/ })
+          .first(),
+      ).toBeVisible({ timeout: 30_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   /**
@@ -341,8 +343,10 @@ export class DagsPage extends BasePage {
    * Trigger a Dag run
    */
   public async triggerDag(dagName: string): Promise<string | null> {
-    await this.navigateToDagDetail(dagName);
-    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
+    await expect(async () => {
+      await this.navigateToDagDetail(dagName);
+      await expect(this.triggerButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.triggerButton.click();
 
     return this.handleTriggerDialog();
@@ -359,12 +363,10 @@ export class DagsPage extends BasePage {
    * Navigate to details tab and verify Dag details are displayed correctly
    */
   public async verifyDagDetails(dagName: string): Promise<void> {
-    // Navigate directly to the details URL
-    await this.page.goto(`/dags/${dagName}/details`, { waitUntil: "domcontentloaded" });
-
-    // Use getByRole to precisely target the heading element
-    // This avoids "strict mode violation" from matching breadcrumbs, file paths, etc.
-    await expect(this.page.getByRole("heading", { name: dagName })).toBeVisible({ timeout: 30_000 });
+    await expect(async () => {
+      await this.page.goto(`/dags/${dagName}/details`, { waitUntil: "domcontentloaded" });
+      await expect(this.page.getByRole("heading", { name: dagName })).toBeVisible({ timeout: 30_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   /**

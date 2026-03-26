@@ -18,7 +18,13 @@
  */
 import { createToaster } from "@chakra-ui/react";
 
-export const toaster = createToaster({
+const baseToaster = createToaster({
   pauseOnPageIdle: true,
   placement: "bottom-end",
 });
+
+// Extend toaster with isActive alias for consistency
+export const toaster = {
+  ...baseToaster,
+  isActive: (id: string) => baseToaster.isVisible(id),
+};

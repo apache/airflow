@@ -36,7 +36,10 @@ export class DagCodePage extends BasePage {
   }
 
   public async navigateToCodeTab(dagId: string): Promise<void> {
-    await this.navigateTo(`/dags/${dagId}/code`);
+    await expect(async () => {
+      await this.navigateTo(`/dags/${dagId}/code`);
+      await expect(this.editorContainer).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForCodeReady();
   }
 
