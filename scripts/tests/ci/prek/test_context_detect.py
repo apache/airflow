@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import ci.prek.context_detect as cd
@@ -27,62 +26,63 @@ from ci.prek.context_detect import get_command, get_context, list_skills_for_con
 # Helpers
 # ---------------------------------------------------------------------------
 
+# Canonical test skills expressed as RST directive dicts.
+# Keys map directly to RST options; absent keys produce no RST line.
 SKILLS: list[dict] = [
     {
         "id": "run-single-test",
         "category": "testing",
         "description": "Run a targeted test",
-        "prereqs": ["setup-breeze-environment"],
-        "steps": [
-            {
-                "context": "host",
-                "command": "uv run --project {project} pytest {test_path} -xvs",
-                "condition": "system_deps_available",
-            },
-            {
-                "context": "host",
-                "command": "breeze run pytest {test_path} -xvs",
-                "fallback_for": "system_deps_available",
-            },
-            {
-                "context": "breeze",
-                "command": "pytest {test_path} -xvs",
-            },
-        ],
-        "parameters": {
-            "project": {"description": "distribution folder", "required": True},
-            "test_path": {"description": "path to test", "required": True},
-        },
-        "expected_output": "passed",
+        "local": "uv run --project {project} pytest {test_path} -xvs",
+        "breeze": "pytest {test_path} -xvs",
+        "fallback": "breeze run pytest {test_path} -xvs",
+        "prereqs": "setup-breeze-environment",
+        "params": "project:required,test_path:required",
+        "expected-output": "passed",
     },
     {
         "id": "run-static-checks",
         "category": "linting",
         "description": "Run fast static checks",
-        "prereqs": [],
-        "steps": [{"context": "host", "command": "prek run --from-ref {target_branch} --stage pre-commit"}],
-        "parameters": {"target_branch": {"description": "target branch", "required": True}},
-        "expected_output": "All checks passed.",
+        "local": "prek run --from-ref {target_branch} --stage pre-commit",
+        "params": "target_branch:required",
+        "expected-output": "All checks passed.",
     },
     {
         "id": "build-docs",
         "category": "documentation",
         "description": "Build docs",
-        "prereqs": [],
-        "steps": [{"context": "either", "command": "breeze build-docs"}],
-        "parameters": {},
-        "expected_output": "Build finished.",
+        "local": "breeze build-docs",
+        "breeze": "breeze build-docs",
+        "expected-output": "Build finished.",
     },
 ]
 
+_RST_OPTION_KEYS = (
+    "id",
+    "category",
+    "description",
+    "local",
+    "breeze",
+    "fallback",
+    "prereqs",
+    "params",
+    "expected-output",
+)
 
-def _write_skills(tmp_path: Path, skills: list[dict] | None = None) -> Path:
-    skills_file = tmp_path / "skills.json"
-    skills_file.write_text(
-        json.dumps({"version": "1.0", "skills": skills or SKILLS}, indent=2),
-        encoding="utf-8",
-    )
-    return skills_file
+
+def _write_skills_rst(tmp_path: Path, skills: list[dict] | None = None) -> Path:
+    """Write a minimal agent_skills.rst with ``.. agent-skill::`` directives."""
+    rst = tmp_path / "agent_skills.rst"
+    lines: list[str] = []
+    for skill in skills or SKILLS:
+        lines.append(".. agent-skill::")
+        for key in _RST_OPTION_KEYS:
+            if key in skill:
+                lines.append(f"   :{key}: {skill[key]}")
+        lines.append("")
+    rst.write_text("\n".join(lines), encoding="utf-8")
+    return rst
 
 
 # ---------------------------------------------------------------------------
@@ -121,14 +121,13 @@ def test_get_context_env_var_takes_priority_over_markers(monkeypatch):
 
 
 def test_get_command_host_context_returns_uv_command(monkeypatch, tmp_path):
-    skills_file = _write_skills(tmp_path)
-    monkeypatch.setenv("AIRFLOW_BREEZE_CONTAINER", "")
+    rst_file = _write_skills_rst(tmp_path)
     monkeypatch.delenv("AIRFLOW_BREEZE_CONTAINER", raising=False)
     monkeypatch.setattr(cd, "get_context", lambda: "host")
 
     cmd = get_command(
         "run-single-test",
-        skills_json=skills_file,
+        rst_path=rst_file,
         project="providers/amazon",
         test_path="providers/amazon/tests/test_s3.py",
     )
@@ -138,12 +137,12 @@ def test_get_command_host_context_returns_uv_command(monkeypatch, tmp_path):
 
 
 def test_get_command_uses_fallback_when_condition_false(monkeypatch, tmp_path):
-    skills_file = _write_skills(tmp_path)
+    rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "host")
 
     cmd = get_command(
         "run-single-test",
-        skills_json=skills_file,
+        rst_path=rst_file,
         project="providers/amazon",
         test_path="providers/amazon/tests/test_s3.py",
         system_deps_available="false",
@@ -152,12 +151,12 @@ def test_get_command_uses_fallback_when_condition_false(monkeypatch, tmp_path):
 
 
 def test_get_command_breeze_context_returns_pytest_directly(monkeypatch, tmp_path):
-    skills_file = _write_skills(tmp_path)
+    rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "breeze")
 
     cmd = get_command(
         "run-single-test",
-        skills_json=skills_file,
+        rst_path=rst_file,
         test_path="providers/amazon/tests/test_s3.py",
     )
     assert cmd.startswith("pytest")
@@ -169,45 +168,42 @@ def test_get_command_returns_guidance_when_no_steps_for_context(monkeypatch, tmp
         "id": "host-only",
         "category": "linting",
         "description": "Host only",
-        "prereqs": [],
-        "steps": [{"context": "host", "command": "prek run"}],
-        "parameters": {},
-        "expected_output": "",
+        "local": "prek run",
     }
-    skills_file = _write_skills(tmp_path, [host_only_skill])
+    rst_file = _write_skills_rst(tmp_path, [host_only_skill])
     monkeypatch.setattr(cd, "get_context", lambda: "breeze")
 
-    result = get_command("host-only", skills_json=skills_file)
+    result = get_command("host-only", rst_path=rst_file)
     assert "no steps for context" in result
 
 
 def test_get_command_raises_on_missing_placeholder(monkeypatch, tmp_path):
-    skills_file = _write_skills(tmp_path)
+    rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "host")
 
     with pytest.raises(ValueError, match="Missing parameter"):
-        get_command("run-single-test", skills_json=skills_file)  # missing project + test_path
+        get_command("run-single-test", rst_path=rst_file)  # missing project + test_path
 
 
 def test_get_command_raises_key_error_on_unknown_skill(monkeypatch, tmp_path):
-    skills_file = _write_skills(tmp_path)
+    rst_file = _write_skills_rst(tmp_path)
     with pytest.raises(KeyError, match="nonexistent-skill"):
-        get_command("nonexistent-skill", skills_json=skills_file)
+        get_command("nonexistent-skill", rst_path=rst_file)
 
 
 def test_get_command_either_context_works_from_both(monkeypatch, tmp_path):
-    skills_file = _write_skills(tmp_path)
+    rst_file = _write_skills_rst(tmp_path)
     for ctx in ("host", "breeze"):
         monkeypatch.setattr(cd, "get_context", lambda c=ctx: c)
-        cmd = get_command("build-docs", skills_json=skills_file)
+        cmd = get_command("build-docs", rst_path=rst_file)
         assert "breeze build-docs" in cmd
 
 
 def test_get_command_substitutes_parameters(monkeypatch, tmp_path):
-    skills_file = _write_skills(tmp_path)
+    rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "host")
 
-    cmd = get_command("run-static-checks", skills_json=skills_file, target_branch="v3-1-test")
+    cmd = get_command("run-static-checks", rst_path=rst_file, target_branch="v3-1-test")
     assert "v3-1-test" in cmd
 
 
@@ -217,37 +213,37 @@ def test_get_command_substitutes_parameters(monkeypatch, tmp_path):
 
 
 def test_list_skills_for_host_context(monkeypatch, tmp_path):
-    skills_file = _write_skills(tmp_path)
+    rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "host")
 
-    result = list_skills_for_context(skills_json=skills_file)
+    result = list_skills_for_context(rst_path=rst_file)
     ids = [s["id"] for s in result]
     # host skills + either skills should be included
     assert "run-single-test" in ids
     assert "run-static-checks" in ids
-    assert "build-docs" in ids  # context: either
+    assert "build-docs" in ids  # has both local and breeze steps
 
 
 def test_list_skills_for_breeze_context(monkeypatch, tmp_path):
-    skills_file = _write_skills(tmp_path)
+    rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "breeze")
 
-    result = list_skills_for_context(skills_json=skills_file)
+    result = list_skills_for_context(rst_path=rst_file)
     ids = [s["id"] for s in result]
     assert "run-single-test" in ids  # has a breeze step
-    assert "build-docs" in ids  # context: either
+    assert "build-docs" in ids  # has both local and breeze steps
 
 
 def test_list_skills_filtered_by_category(monkeypatch, tmp_path):
-    skills_file = _write_skills(tmp_path)
+    rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "host")
 
-    result = list_skills_for_context(category="linting", skills_json=skills_file)
+    result = list_skills_for_context(category="linting", rst_path=rst_file)
     assert all(s["category"] == "linting" for s in result)
     assert any(s["id"] == "run-static-checks" for s in result)
 
 
-def test_list_skills_raises_if_json_missing(tmp_path):
-    missing = tmp_path / "skills.json"
+def test_list_skills_raises_if_rst_missing(tmp_path):
+    missing = tmp_path / "agent_skills.rst"
     with pytest.raises(FileNotFoundError):
-        list_skills_for_context(skills_json=missing)
+        list_skills_for_context(rst_path=missing)
