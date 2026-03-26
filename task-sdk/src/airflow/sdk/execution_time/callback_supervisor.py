@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import os
 import time
 from importlib import import_module
 from typing import TYPE_CHECKING, BinaryIO, ClassVar, Protocol
@@ -34,8 +33,6 @@ from airflow.sdk.execution_time.supervisor import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from structlog.typing import FilteringBoundLogger
     from typing_extensions import Self
 
@@ -89,18 +86,20 @@ def execute_callback(
 
         log.debug("Executing callback %s(%s)...", callback_path, callback_kwargs)
 
-        # If the callback is a callable, call it.  If it is a class, instantiate it.
-        result = callback_callable(**callback_kwargs)
+        kwargs_without_context = {k: v for k, v in callback_kwargs.items() if k != "context"}
 
-        # If the callback is a class then it is now instantiated and callable, call it.
+        # Call the callable with all kwargs if it accepts context, otherwise strip context.
+        if accepts_context(callback_callable):
+            result = callback_callable(**callback_kwargs)
+        else:
+            result = callback_callable(**kwargs_without_context)
+
+        # If the callback was a class then it is now instantiated and callable, call it.
         if callable(result):
             if accepts_context(result):
-                context = callback_kwargs.get("context", {})
-                log.debug("Calling result with context for %s", callback_path)
-                result = result(context)
+                result = result(**callback_kwargs)
             else:
-                log.debug("Calling result without context for %s", callback_path)
-                result = result()
+                result = result(**kwargs_without_context)
 
         log.info("Callback %s executed successfully.", callback_path)
         return True, None
@@ -109,37 +108,6 @@ def execute_callback(
         error_msg = f"Callback execution failed: {type(e).__name__}: {str(e)}"
         log.exception("Callback %s(%s) execution failed: %s", callback_path, callback_kwargs, error_msg)
         return False, error_msg
-
-
-def _callback_subprocess_main():
-    """
-    Entry point for the callback subprocess, runs after fork.
-
-    Reads the callback path and kwargs from environment variables,
-    executes the callback, and exits with an appropriate code.
-    """
-    import json
-    import sys
-
-    log = structlog.get_logger(logger_name="callback_runner")
-
-    callback_path = os.environ.get("_AIRFLOW_CALLBACK_PATH", "")
-    callback_kwargs_json = os.environ.get("_AIRFLOW_CALLBACK_KWARGS", "{}")
-
-    if not callback_path:
-        print("No callback path found in environment", file=sys.stderr)
-        sys.exit(1)
-
-    try:
-        callback_kwargs = json.loads(callback_kwargs_json)
-    except Exception:
-        log.exception("Failed to deserialize callback kwargs")
-        sys.exit(1)
-
-    success, error_msg = execute_callback(callback_path, callback_kwargs, log)
-    if not success:
-        log.error("Callback failed", error=error_msg)
-        sys.exit(1)
 
 
 # An empty message set; the callback subprocess doesn't currently communicate back to the
@@ -168,41 +136,30 @@ class CallbackSubprocess(WatchedSubprocess):
         id: str,
         callback_path: str,
         callback_kwargs: dict,
-        target: Callable[[], None] = _callback_subprocess_main,
         logger: FilteringBoundLogger | None = None,
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given callback."""
-        import json
-        from datetime import date, datetime
         from uuid import UUID
 
-        class _ExtendedEncoder(json.JSONEncoder):
-            """Handle types that stdlib json can't serialize (UUID, datetime, etc.)."""
+        # Use a closure to pass callback data to the child process.  Note that this
+        # ONLY works because WatchedSubprocess.start() uses os.fork(), so the child
+        # inherits the parent's memory space and the variables are available directly.
+        def _target():
+            import sys
 
-            def default(self, o):
-                if isinstance(o, UUID):
-                    return str(o)
-                if isinstance(o, (datetime, date)):
-                    return o.isoformat()
-                return super().default(o)
+            _log = structlog.get_logger(logger_name="callback_runner")
+            success, error_msg = execute_callback(callback_path, callback_kwargs, _log)
+            if not success:
+                _log.error("Callback failed", error=error_msg)
+                sys.exit(1)
 
-        # Pass the callback data to the child process via environment variables.
-        # These are set before fork so the child inherits them, and cleaned up in the parent after.
-        os.environ["_AIRFLOW_CALLBACK_PATH"] = callback_path
-        os.environ["_AIRFLOW_CALLBACK_KWARGS"] = json.dumps(callback_kwargs, cls=_ExtendedEncoder)
-        try:
-            proc: Self = super().start(
-                id=UUID(id) if not isinstance(id, UUID) else id,
-                target=target,
-                logger=logger,
-                **kwargs,
-            )
-        finally:
-            # Clean up the env vars in the parent process
-            os.environ.pop("_AIRFLOW_CALLBACK_PATH", None)
-            os.environ.pop("_AIRFLOW_CALLBACK_KWARGS", None)
-        return proc
+        return super().start(
+            id=UUID(id) if not isinstance(id, UUID) else id,
+            target=_target,
+            logger=logger,
+            **kwargs,
+        )
 
     def wait(self) -> int:
         """
@@ -325,6 +282,7 @@ def supervise_callback(
             callback_path=callback_path,
             callback_kwargs=callback_kwargs,
             logger=logger,
+            subprocess_logs_to_stdout=True,
         )
 
         exit_code = process.wait()
