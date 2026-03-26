@@ -25,8 +25,7 @@ body:
         [Security Reporting Guidelines](https://github.com/apache/airflow/blob/main/.github/SECURITY.md)
         instead.
         <br clear='left'/>"
-      # yamllint enable rule:line-length
-  - type: dropdown
+  - type: input
     attributes:
       label: Under which category would you file this issue?
       multiple: false

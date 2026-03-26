@@ -24,7 +24,7 @@ requires = [
     "pathspec==1.0.4",
     "pluggy==1.6.0",
     "smmap==5.0.3",
-    "tomli==2.4.0; python_version < '3.11'",
+    "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
 ]
 build-backend = "hatchling.build"
