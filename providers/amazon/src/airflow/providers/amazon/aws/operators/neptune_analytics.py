@@ -560,6 +560,11 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
         "vector_search_config": "json",
     }
 
+    operator_extra_links = (
+        NeptuneImportTaskLink(),
+        NeptuneGraphLink(),
+    )
+
     def __init__(
         self,
         graph_name: str,
