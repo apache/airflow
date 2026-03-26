@@ -849,7 +849,7 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:NeptuneCancelImportTaskOperator
+        :ref:`howto/operator:NeptuneCancelImportTaskOperator`
 
     :param import_task_id: Neptune Graph import task id to cancel.
     :param wait_for_completion: Whether to wait for the endpoint to be available. (default: True)
