@@ -6141,6 +6141,57 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                     f"Expected map_index={mi} to remain running, got {ti.state!r}"
                 )
 
+    def test_bulk_task_instances_rejects_unauthorized_dag_ids_from_request_body(
+        self, test_client, session, default_ti
+    ):
+        self.create_task_instances(
+            session, task_instances=default_ti, dag_id=self.BASH_DAG_ID, update_extras=True
+        )
+        self.create_task_instances(session, task_instances=default_ti, dag_id=self.DAG_ID, update_extras=True)
+
+        mock_auth_manager = mock.MagicMock()
+        mock_auth_manager.is_authorized_dag.side_effect = lambda method, access_entity, details, user: (
+            details.id != self.BASH_DAG_ID
+        )
+
+        with mock.patch(
+            "airflow.api_fastapi.core_api.services.public.task_instances.get_auth_manager",
+            return_value=mock_auth_manager,
+        ):
+            response = test_client.patch(
+                self.WILDCARD_ENDPOINT,
+                json={
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "dag_id": self.BASH_DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.BASH_TASK_ID,
+                                    "new_state": "success",
+                                },
+                                {
+                                    "dag_id": self.DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.TASK_ID,
+                                    "new_state": "success",
+                                },
+                            ],
+                        }
+                    ]
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json()["update"]["success"] == [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"]
+        assert response.json()["update"]["errors"] == [
+            {
+                "error": f"User is not authorized to update task instances for DAG '{self.BASH_DAG_ID}'",
+                "status_code": 403,
+            }
+        ]
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 401
