@@ -81,9 +81,9 @@ const TriggerDAGForm = ({
   } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, initialParamDict, setConf, setInitialParamDict } = useParamStore();
   const [unpause, setUnpause] = useState(true);
-  const submitError = submitErrorOverride ?? triggerError;
-  const submitPending = isPendingOverride ?? isTriggerPending;
-  const submitTrigger = onSubmitTrigger ?? triggerDagRun;
+  const onError = submitErrorOverride ?? triggerError;
+  const onPending = isPendingOverride ?? isTriggerPending;
+  const onTrigger = onSubmitTrigger ?? triggerDagRun;
   const { mutate: togglePause } = useTogglePause({ dagId });
 
   const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
@@ -157,12 +157,12 @@ const TriggerDAGForm = ({
     if (unpause && isPaused) {
       togglePause({ dagId, requestBody: { is_paused: false } });
     }
-    submitTrigger(data);
+    onTrigger(data);
   };
 
   return (
     <>
-      <ErrorAlert error={errors.date ?? submitError} />
+      <ErrorAlert error={errors.date ?? onError} />
       <VStack alignItems="stretch" gap={2} pt={4}>
         {isPartitioned ? undefined : (
           <>
@@ -270,9 +270,9 @@ const TriggerDAGForm = ({
               Boolean(errors.conf) ||
               Boolean(errors.date) ||
               formError ||
-              submitPending ||
+              onPending ||
               dataIntervalInvalid ||
-              (Boolean(submitError) && (submitError as ExpandedApiError).status === 403)
+              (Boolean(onError) && (onError as ExpandedApiError).status === 403)
             }
             onClick={() => void handleSubmit(onSubmit)()}
           >
