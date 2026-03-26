@@ -33,6 +33,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
     BaseOperatorLink,
+    conf,
 )
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -66,8 +67,6 @@ class HITLReviewLink(BaseOperatorLink):
         if not getattr(operator, "enable_hitl_review", False):
             return ""
         from urllib.parse import urlparse
-
-        from airflow.configuration import conf
 
         base_url = conf.get("api", "base_url", fallback="/")
         if base_url.startswith(("http://", "https://")):
