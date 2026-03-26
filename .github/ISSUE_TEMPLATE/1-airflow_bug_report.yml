@@ -25,7 +25,7 @@ body:
         [Security Reporting Guidelines](https://github.com/apache/airflow/blob/main/.github/SECURITY.md)
         instead.
         <br clear='left'/>"
-  - type: input
+  - type: dropdown
     attributes:
       label: Under which category would you file this issue?
       multiple: false
@@ -106,7 +106,7 @@ body:
     attributes:
       label: Apache Airflow Provider(s)
       description: >
-        Provider(s) that the issue report is about (you can choose more than one).Leave as is if
+        Provider(s) that the issue report is about (you can choose more than one).Select "None" if
         the issue category isn't "Providers".
       multiple: true
       options:
@@ -219,10 +219,10 @@ body:
       label: Official Helm Chart version
       description: >
         What Apache Airflow Helm Chart version are you using?if the issue category
-        isn't "Helm chart".
+        isn't "Helm chart" select "Not Applicable".
       multiple: false
       options:
-        - "--Select--"
+        - "Not Applicable"
         - "1.20.0 (latest released)"
         - "1.19.0"
         - "1.18.0"
