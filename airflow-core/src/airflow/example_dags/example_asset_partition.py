@@ -28,8 +28,8 @@ from airflow.sdk import (
     PartitionedAssetTimetable,
     ProductMapper,
     StartOfDayMapper,
-    StartOfYearMapper,
     StartOfHourMapper,
+    StartOfYearMapper,
     asset,
     task,
 )

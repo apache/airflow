@@ -20,11 +20,11 @@ import pytest
 
 from airflow.partition_mappers.temporal import (
     StartOfDayMapper,
+    StartOfHourMapper,
     StartOfMonthMapper,
     StartOfQuarterMapper,
     StartOfWeekMapper,
     StartOfYearMapper,
-    StartOfHourMapper,
     _BaseTemporalMapper,
 )
 

@@ -48,11 +48,11 @@ from airflow.models.xcom_arg import XComArg
 from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
 from airflow.partition_mappers.temporal import (
     StartOfDayMapper as CoreStartOfDayMapper,
+    StartOfHourMapper as CoreStartOfHourMapper,
     StartOfMonthMapper as CoreStartOfMonthMapper,
     StartOfQuarterMapper as CoreStartOfQuarterMapper,
     StartOfWeekMapper as CoreStartOfWeekMapper,
     StartOfYearMapper as CoreStartOfYearMapper,
-    StartOfHourMapper as CoreStartOfHourMapper,
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -62,11 +62,11 @@ from airflow.sdk import (
     BaseOperator,
     IdentityMapper,
     StartOfDayMapper,
+    StartOfHourMapper,
     StartOfMonthMapper,
     StartOfQuarterMapper,
     StartOfWeekMapper,
     StartOfYearMapper,
-    StartOfHourMapper,
 )
 from airflow.sdk.definitions.asset import (
     Asset,
