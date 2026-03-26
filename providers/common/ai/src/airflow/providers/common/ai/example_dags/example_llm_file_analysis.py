@@ -24,14 +24,6 @@ from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnaly
 from airflow.providers.common.compat.sdk import dag, task
 
 
-class FileAnalysisSummary(BaseModel):
-    """Structured output schema for the file-analysis examples."""
-
-    findings: list[str]
-    highest_severity: str
-    truncated_inputs: bool
-
-
 # [START howto_operator_llm_file_analysis_basic]
 @dag
 def example_llm_file_analysis_basic():
@@ -93,6 +85,14 @@ example_llm_file_analysis_multimodal()
 # [START howto_operator_llm_file_analysis_structured]
 @dag
 def example_llm_file_analysis_structured():
+
+    class FileAnalysisSummary(BaseModel):
+        """Structured output schema for the file-analysis examples."""
+
+        findings: list[str]
+        highest_severity: str
+        truncated_inputs: bool
+
     LLMFileAnalysisOperator(
         task_id="analyze_parquet_quality",
         prompt=(

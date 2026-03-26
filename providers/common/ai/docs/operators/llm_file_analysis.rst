@@ -54,6 +54,13 @@ included in the request, while the size and text limits keep the request safe:
     :start-after: [START howto_operator_llm_file_analysis_prefix]
     :end-before: [END howto_operator_llm_file_analysis_prefix]
 
+.. note::
+
+    Prefix resolution enumerates objects under the supplied path and checks each
+    candidate to find files before ``max_files`` is applied. For very large
+    object-store prefixes, prefer a more specific path or a narrower prefix to
+    avoid expensive listing and stat calls.
+
 Multimodal Analysis
 -------------------
 

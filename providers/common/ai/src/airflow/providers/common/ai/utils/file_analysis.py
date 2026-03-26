@@ -517,7 +517,7 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
                 total_rows += 1
                 if isinstance(record, dict):
                     sampled_rows.append({str(key): value for key, value in record.items()})
-                if len(sampled_rows) >= sample_rows:
+                if total_rows >= sample_rows:
                     break
             else:
                 fully_read = True
@@ -598,9 +598,6 @@ def _build_text_preamble(
     text_truncated: bool,
 ) -> str:
     lines = [
-        "You are analyzing read-only files supplied.",
-        "Use only the provided metadata, normalized text content, and attached files.",
-        "",
         "User request:",
         prompt,
         "",
