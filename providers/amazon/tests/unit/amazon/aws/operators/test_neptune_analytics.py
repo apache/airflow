@@ -1104,7 +1104,7 @@ class TestNeptuneStartImportTaskOperator:
         result = operator.execute(None)
 
         mock_get_waiter.assert_not_called()
-        assert result == {"task_id": TASK_ID, "graph_id": GRAPH_ID}
+        assert result == {"import_task_id": TASK_ID, "graph_id": GRAPH_ID}
 
     @mock.patch("airflow.providers.amazon.aws.operators.neptune_analytics.NeptuneImportTaskLink.persist")
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
@@ -1126,7 +1126,7 @@ class TestNeptuneStartImportTaskOperator:
         result = operator.execute(None)
 
         mock_get_waiter.assert_called_once_with("import_task_successful")
-        assert result == {"task_id": TASK_ID, "graph_id": GRAPH_ID}
+        assert result == {"import_task_id": TASK_ID, "graph_id": GRAPH_ID}
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     def test_persist_called_with_correct_args(self, mock_conn):
@@ -1194,10 +1194,10 @@ class TestNeptuneStartImportTaskOperator:
             source=SOURCE_S3_URI,
         )
 
-        event = {"status": "success", "task_id": TASK_ID}
+        event = {"status": "success", "import_task_id": TASK_ID}
         result = operator.execute_complete(None, event)
 
-        assert result == {"graph_id": GRAPH_ID, "task_id": TASK_ID}
+        assert result == {"graph_id": GRAPH_ID, "import_task_id": TASK_ID}
 
     def test_execute_complete_no_event(self):
         operator = NeptuneStartImportTaskOperator(
@@ -1209,7 +1209,7 @@ class TestNeptuneStartImportTaskOperator:
 
         result = operator.execute_complete(None, None)
 
-        assert result == {"graph_id": GRAPH_ID, "task_id": ""}
+        assert result == {"graph_id": GRAPH_ID, "import_task_id": ""}
 
 
 class TestNeptuneCancelImportTaskOperator:
@@ -1223,10 +1223,10 @@ class TestNeptuneCancelImportTaskOperator:
 
         operator = NeptuneCancelImportTaskOperator(
             task_id="test_task",
-            task_identifier=TASK_ID,
+            import_task_id=TASK_ID,
         )
 
-        assert operator.task_identifier == TASK_ID
+        assert operator.import_task_id == TASK_ID
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == 30
         assert operator.waiter_max_attempts == 60
@@ -1245,12 +1245,12 @@ class TestNeptuneCancelImportTaskOperator:
 
         operator = NeptuneCancelImportTaskOperator(
             task_id="test_task",
-            task_identifier=TASK_ID,
+            import_task_id=TASK_ID,
             waiter_delay=60,
             waiter_max_attempts=100,
         )
 
-        assert operator.task_identifier == TASK_ID
+        assert operator.import_task_id == TASK_ID
         assert operator.waiter_delay == 60
         assert operator.waiter_max_attempts == 100
 
@@ -1265,13 +1265,13 @@ class TestNeptuneCancelImportTaskOperator:
 
         operator = NeptuneCancelImportTaskOperator(
             task_id="test_task",
-            task_identifier=TASK_ID,
+            import_task_id=TASK_ID,
             wait_for_completion=False,
         )
         result = operator.execute(None)
 
         mock_get_waiter.assert_not_called()
-        assert result == {"task_identifier": TASK_ID}
+        assert result == {"import_task_id": TASK_ID}
 
     @mock.patch.object(NeptuneAnalyticsHook, "conn")
     @mock.patch.object(NeptuneAnalyticsHook, "get_waiter")
@@ -1284,31 +1284,31 @@ class TestNeptuneCancelImportTaskOperator:
 
         operator = NeptuneCancelImportTaskOperator(
             task_id="test_task",
-            task_identifier=TASK_ID,
+            import_task_id=TASK_ID,
             wait_for_completion=True,
         )
         result = operator.execute(None)
 
         mock_get_waiter.assert_called_once_with("import_task_cancelled")
-        assert result == {"task_identifier": TASK_ID}
+        assert result == {"import_task_id": TASK_ID}
 
     def test_execute_complete_success(self):
         operator = NeptuneCancelImportTaskOperator(
             task_id="test_task",
-            task_identifier=TASK_ID,
+            import_task_id=TASK_ID,
         )
 
-        event = {"status": "success", "task_identifier": TASK_ID}
+        event = {"status": "success", "import_task_id": TASK_ID}
         result = operator.execute_complete(None, event)
 
-        assert result == {"task_identifier": TASK_ID}
+        assert result == {"import_task_id": TASK_ID}
 
     def test_execute_complete_no_event(self):
         operator = NeptuneCancelImportTaskOperator(
             task_id="test_task",
-            task_identifier=TASK_ID,
+            import_task_id=TASK_ID,
         )
 
         result = operator.execute_complete(None, None)
 
-        assert result == {"task_identifier": ""}
+        assert result == {"import_task_id": ""}

@@ -60,7 +60,7 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     :param deletion_protection:  Indicates whether or not to enable deletion protection on the graph.
         The graph can't be deleted when deletion protection is enabled.
     :param kms_key_id:  Specifies a KMS key to use to encrypt data in the new graph.
-    :param tags Specifies metadata tags to add to the graph.
+    :param tags: Specifies metadata tags to add to the graph.
     :param wait_for_completion: Whether to wait for the graph to start. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the graph to start.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
@@ -73,7 +73,6 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id and vpc id
@@ -199,7 +198,6 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
     :param vpc_id: VPC to create endpoint in
     :param subnet_ids: Subnets in which private graph endpoint ENIs are created
     :param vpc_security_group_ids: Security groups to be attached to the private graph endpoint
-
     :param wait_for_completion: Whether to wait for the endpoint to be available. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the endpoint to become available.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
@@ -212,7 +210,6 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id
@@ -273,8 +270,6 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
 
         # if VPC not provided, use the one that is returned, which is the default VPC. Required for the waiter
         self.vpc_id = result.get("vpcId", self.vpc_id)
-
-        # TODO extra link to console
 
         if self.deferrable:
             self.log.info("Deferring until endpoint is available")
@@ -338,12 +333,9 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         :ref:`howto/operator:NeptuneDeletePrivateGraphEndpointOperator`
 
     :param graph_identifier: Neptune Graph id
-    :param vpc_id: VPC to create endpoint in
-    :param subnet_ids: Subnets in which private graph endpoint ENIs are created
-    :param vpc_security_group_ids: Security groups to be attached to the private graph endpoint
-
-    :param wait_for_completion: Whether to wait for the endpoint to be available. (default: True)
-    :param deferrable: If True, the operator will wait asynchronously for the endpoint to become available.
+    :param vpc_id: VPC where endpoint resides
+    :param wait_for_completion: Whether to wait for the endpoint to be deleted. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the endpoint to be deleted.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
@@ -433,9 +425,9 @@ class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:NeptuneCreateGraphOperator`
+        :ref:`howto/operator:NeptuneDeleteGraphOperator`
 
-    :param graph_id: Name of Neptune graph to create
+    :param graph_id: Name of Neptune graph to delete
     :param skip_snapshot: Determines whether a final graph snapshot is created before the graph is deleted. If true is specified, no graph snapshot is created. If false is specified, a graph snapshot is created before the graph is deleted.
     :param wait_for_completion: Whether to wait for the graph to delete. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the graph to be deleted.
@@ -697,7 +689,7 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
         self.log.info("Deferring for import task %s completion", import_task_id)
         self.defer(
             trigger=NeptuneImportTaskCompleteTrigger(
-                task_id=import_task_id,
+                import_task_id=import_task_id,
                 waiter_delay=self.waiter_delay,
                 waiter_max_attempts=self.waiter_max_attempts,
                 aws_conn_id=self.aws_conn_id,
@@ -723,7 +715,7 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     :param source: URL identifying the source data location.
     :param blank_node_handling: Method to handle blank nodes in dataset.
     :param fail_on_error: If set to true, the task halts when an import error is encountered. If set to false, the task skips the data that caused the error and continues if possible.
-    :param format: Specifies the format of the Amazon S3 data to be ipmorted.
+    :param format: Specifies the format of the Amazon S3 data to be imported.
     :param import_options: Options on how to perform an import
     :param parquet_type: Parquet type of import task
     :param wait_for_completion: Whether to wait for the endpoint to be available. (default: True)
@@ -738,7 +730,6 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id
@@ -827,7 +818,7 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
             self.log.info("Deferring until import task %s completes", import_task_id)
             self.defer(
                 trigger=NeptuneImportTaskCompleteTrigger(
-                    task_id=import_task_id,
+                    import_task_id=import_task_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
@@ -842,14 +833,14 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
-        return {"task_id": import_task_id, "graph_id": self.graph_identifier}
+        return {"import_task_id": import_task_id, "graph_id": self.graph_identifier}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
         task_id = ""
         if event:
-            task_id = event.get("task_id", "")
+            task_id = event.get("import_task_id", "")
 
-        return {"graph_id": self.graph_identifier, "task_id": task_id}
+        return {"graph_id": self.graph_identifier, "import_task_id": task_id}
 
 
 class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
@@ -860,7 +851,7 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:NeptuneCancelImportTaskOperator
 
-    :param task_identifier: Neptune Graph import task id to cancel.
+    :param import_task_id: Neptune Graph import task id to cancel.
     :param wait_for_completion: Whether to wait for the endpoint to be available. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the endpoint to become available.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
@@ -873,7 +864,6 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id
@@ -881,11 +871,11 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     """
 
     aws_hook_class = NeptuneAnalyticsHook
-    template_fields: Sequence[str] = aws_template_fields("task_identifier")
+    template_fields: Sequence[str] = aws_template_fields("import_task_id")
 
     def __init__(
         self,
-        task_identifier: str,
+        import_task_id: str,
         wait_for_completion: bool = True,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
@@ -893,24 +883,24 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.task_identifier = task_identifier
+        self.import_task_id = import_task_id
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> dict:
-        self.log.info("Cancelling import task %s", self.task_identifier)
+        self.log.info("Cancelling import task %s", self.import_task_id)
 
-        response = self.hook.conn.cancel_import_task(taskIdentifier=self.task_identifier)
+        response = self.hook.conn.cancel_import_task(taskIdentifier=self.import_task_id)
 
-        self.log.info("Import task %s status is %s", self.task_identifier, response.get("status", "Unknown"))
+        self.log.info("Import task %s status is %s", self.import_task_id, response.get("status", "Unknown"))
 
         if self.deferrable:
-            self.log.info("Deferring until import task %s is cancelled", self.task_identifier)
+            self.log.info("Deferring until import task %s is cancelled", self.import_task_id)
             self.defer(
                 trigger=NeptuneImportTaskCancelledTrigger(
-                    task_identifier=self.task_identifier,
+                    import_task_id=self.import_task_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
@@ -919,18 +909,18 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
             )
 
         if self.wait_for_completion:
-            self.log.info("Waiting for import task %s to be cancelled", self.task_identifier)
+            self.log.info("Waiting for import task %s to be cancelled", self.import_task_id)
             self.hook.get_waiter("import_task_cancelled").wait(
-                taskIdentifier=self.task_identifier,
+                taskIdentifier=self.import_task_id,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
-        return {"task_identifier": self.task_identifier}
+        return {"import_task_id": self.import_task_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
         task_id = ""
         if event:
-            task_id = event.get("task_identifier", "")
+            task_id = event.get("import_task_id", "")
             self.log.info("Import task %s cancelled", task_id)
 
-        return {"task_identifier": task_id}
+        return {"import_task_id": task_id}
