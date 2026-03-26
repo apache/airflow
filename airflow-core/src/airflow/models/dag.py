@@ -588,7 +588,7 @@ class DagModel(Base):
     def deactivate_deleted_dags(
         cls,
         bundle_name: str,
-        rel_filelocs: list[str],
+        rel_filelocs: set[str],
         session: Session = NEW_SESSION,
     ) -> bool:
         """

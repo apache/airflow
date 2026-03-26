@@ -225,6 +225,13 @@ I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath
 
+Lineage
+-------
+The ``lineage`` module is available as part of the Task SDK. It provides the public hook lineage
+collector interfaces used to capture and retrieve asset lineage metadata during task execution.
+
+.. autoapimodule:: airflow.sdk.lineage
+
 Execution Time Components
 -------------------------
 .. rubric:: Context

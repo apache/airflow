@@ -469,6 +469,7 @@ repos:
           ^clients/gen/go\.sh$|
           ^\.gitmodules$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/openapi-gen/|
           ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
           .*/dist/.*|
           \.go$|

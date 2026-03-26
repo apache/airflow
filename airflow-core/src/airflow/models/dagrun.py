@@ -395,6 +395,8 @@ class DagRun(Base, LoggingMixin):
     def validate_run_id(self, key: str, run_id: str) -> str | None:
         if not run_id:
             return None
+        if ".." in run_id and not airflow_conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
+            raise ValueError(f"The run_id '{run_id}' must not contain '..' to prevent path traversal")
         if re.match(RUN_ID_REGEX, run_id):
             return run_id
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
@@ -1027,21 +1029,33 @@ class DagRun(Base, LoggingMixin):
         return leaf_tis
 
     def _emit_dagrun_span(self, state: DagRunState):
-        ctx = TraceContextTextMapPropagator().extract(self.context_carrier or {})
+        # just to be safe
+        if not isinstance(self.context_carrier, dict):
+            return
+
+        ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
         span = trace.get_current_span(context=ctx)
         span_context = span.get_span_context()
         with override_ids(span_context.trace_id, span_context.span_id):
-            attributes = {
+            attributes: dict[str, str] = {
                 "airflow.dag_id": str(self.dag_id),
                 "airflow.dag_run.run_id": self.run_id,
             }
+            if self.start_date:
+                attributes["airflow.dag_run.start_date"] = str(self.start_date)
+            if self.end_date:
+                attributes["airflow.dag_run.end_date"] = str(self.end_date)
+            if self.queued_at:
+                attributes["airflow.dag_run.queued_at"] = str(self.queued_at)
+            if self.created_at:
+                attributes["airflow.dag_run.created_at"] = str(self.created_at)
             if self.logical_date:
                 attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
             if self.partition_key:
                 attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
             span = tracer.start_span(
                 name=f"dag_run.{self.dag_id}",
-                start_time=int((self.start_date or timezone.utcnow()).timestamp() * 1e9),
+                start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
                 attributes=attributes,
                 context=context.Context(),
             )
@@ -1771,7 +1785,11 @@ class DagRun(Base, LoggingMixin):
                 created_counts[task.task_type] += 1
                 for map_index in indexes:
                     yield TI.insert_mapping(
-                        self.run_id, task, map_index=map_index, dag_version_id=dag_version_id
+                        self.run_id,
+                        task,
+                        map_index=map_index,
+                        dag_version_id=dag_version_id,
+                        dag_run=self,
                     )
 
             creator = create_ti_mapping
@@ -1968,7 +1986,14 @@ class DagRun(Base, LoggingMixin):
         debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
         expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
         for ti in schedulable_tis:
-            if ti.is_schedulable:
+            if not ti.is_schedulable:
+                empty_ti_ids.append(ti.id)
+            # The defer_task method will check "start_trigger_args" to see whether the operator
+            # start execution from triggerer. If so, we'll also check "start_from_trigger"
+            # to see whether this feature is turned on and defer this task.
+            # If not, we'll add this "ti" into "schedulable_ti_ids" and later
+            # execute it to run in the worker.
+            elif not ti.defer_task(session=session):
                 schedulable_ti_ids.append(ti.id)
                 if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
                     reschedule_ti_ids.add(ti.id)
@@ -1980,25 +2005,6 @@ class DagRun(Base, LoggingMixin):
                         ti.try_number,
                         ti.state,
                     )
-            # Check "start_trigger_args" to see whether the operator supports
-            # start execution from triggerer. If so, we'll check "start_from_trigger"
-            # to see whether this feature is turned on and defer this task.
-            # If not, we'll add this "ti" into "schedulable_ti_ids" and later
-            # execute it to run in the worker.
-            # TODO TaskSDK: This is disabled since we haven't figured out how
-            # to render start_from_trigger in the scheduler. If we need to
-            # render the value in a worker, it kind of defeats the purpose of
-            # this feature (which is to save a worker process if possible).
-            # elif task.start_trigger_args is not None:
-            #     if task.expand_start_from_trigger(context=ti.get_template_context()):
-            #         ti.start_date = timezone.utcnow()
-            #         if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-            #             ti.try_number += 1
-            #         ti.defer_task(exception=None, session=session)
-            #     else:
-            #         schedulable_ti_ids.append(ti.id)
-            else:
-                empty_ti_ids.append(ti.id)
 
         count = 0
         # Don't only check if the TI.id is in id_chunk

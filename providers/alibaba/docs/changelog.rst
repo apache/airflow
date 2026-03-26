@@ -26,6 +26,25 @@
 Changelog
 ---------
 
+3.3.6
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pass relative path to oss_write in OSSRemoteLogIO.upload (#63246)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
 3.3.5
 .....
 
