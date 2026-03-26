@@ -292,7 +292,7 @@ export const PanelButtons = ({
         <ButtonGroupToggle isIcon onChange={handleDagViewChange} options={dagViewOptions} value={dagView} />
         <Flex alignItems="center" gap={1} justifyContent="space-between">
           <ToggleGroups />
-          <TaskStreamFilter />
+          <TaskStreamFilter dagView={dagView} />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useToken } from "@chakra-ui/react";
-import { ReactFlow, Controls, Background, MiniMap, Panel, type Node as ReactFlowNode } from "@xyflow/react";
+import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -38,7 +38,6 @@ import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { getReactFlowThemeStyle } from "src/theme";
 
-import { GraphTaskFilters } from "./GraphTaskFilters";
 import type { GraphFilterValues } from "./useGraphFilteredNodes";
 import { useGraphFilteredNodes } from "./useGraphFilteredNodes";
 
@@ -220,9 +219,6 @@ export const Graph = () => {
       onlyRenderVisibleElements
       style={getReactFlowThemeStyle(colorMode)}
     >
-      <Panel position="top-left" style={{ top: 40 }}>
-        <GraphTaskFilters graphNodes={graphData.nodes} />
-      </Panel>
       <Background />
       <Controls showInteractive={false} />
       <MiniMap

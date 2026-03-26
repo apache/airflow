@@ -123,10 +123,12 @@
       "label": "Graph Direction"
     },
     "graphFilters": {
+      "clearFilters": "Clear Filters",
       "durationGte": "Min duration (s)",
       "mapIndex": "Map index",
       "selectStatus": "Select status",
-      "selectTaskGroup": "Select task group"
+      "selectTaskGroup": "Select task group",
+      "title": "Task Filters"
     },
     "showVersionIndicator": {
       "label": "Show Version Indicator",
