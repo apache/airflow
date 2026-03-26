@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import { DiffEditor, type DiffEditorProps } from "@monaco-editor/react";
 
-import { useColorMode } from "src/context/colorMode";
+import { useMonacoTheme } from "src/context/colorMode";
 
 type CodeDiffViewerProps = {
   readonly height?: string;
@@ -36,7 +36,7 @@ export const CodeDiffViewer = ({
   originalCode,
   renderSideBySide = true,
 }: CodeDiffViewerProps) => {
-  const { colorMode } = useColorMode();
+  const { beforeMount, theme } = useMonacoTheme();
 
   const diffOptions: DiffEditorProps["options"] = {
     automaticLayout: true,
@@ -62,8 +62,6 @@ export const CodeDiffViewer = ({
     },
   };
 
-  const theme = colorMode === "dark" ? "vs-dark" : "vs-light";
-
   return (
     <Box
       css={{
@@ -76,6 +74,7 @@ export const CodeDiffViewer = ({
       zIndex={1}
     >
       <DiffEditor
+        beforeMount={beforeMount}
         language={language}
         modified={modifiedCode}
         options={diffOptions}
