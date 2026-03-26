@@ -82,13 +82,13 @@
           "context": "host",
           "command": "uv run --project {project} pytest {test_path} -xvs",
           "condition": "system_deps_available",
-          "description": "Preferred: run directly with uv (faster, debuggable in IDE)"
+          "description": "Preferred command"
         },
         {
           "context": "host",
           "command": "breeze run pytest {test_path} -xvs",
           "fallback_for": "system_deps_available",
-          "description": "Fallback: use Breeze when system deps are missing"
+          "description": "Fallback command"
         },
         {
           "context": "breeze",
@@ -141,13 +141,13 @@
           "context": "host",
           "command": "breeze build-docs",
           "condition": "system_deps_available",
-          "description": "Preferred: run directly with uv (faster, debuggable in IDE)"
+          "description": "Preferred command"
         },
         {
           "context": "host",
           "command": "breeze build-docs --package-filter {package}",
           "fallback_for": "system_deps_available",
-          "description": "Fallback: use Breeze when system deps are missing"
+          "description": "Fallback command"
         },
         {
           "context": "breeze",

@@ -15,11 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-.. NOTE: This file is the RST-format equivalent of the YAML workflow files in this
-   directory. It is a PoC for embedding agent skills directly in contributor
-   documentation, following the long-term direction of using ``contributing-docs/*.rst``
-   as the source of truth (as suggested by Jarek in issue #62500).
-   The YAML files remain the current source of truth; this file is a comparison artifact.
+.. NOTE: This file is the source of truth for agent skills. Skills defined here are parsed
+   by ``scripts/ci/prek/generate_agent_skills.py`` into ``contributing-docs/agent_skills/skills.json``
+   and ``contributing-docs/agent_skills/skill_graph.json``. A prek hook enforces that the JSON
+   files stay in sync with this RST on every commit.
 
 Agent Skills for Airflow Contributors
 ======================================

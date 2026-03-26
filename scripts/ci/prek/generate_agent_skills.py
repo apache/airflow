@@ -99,13 +99,13 @@ def _directive_to_skill(opts: dict[str, str], source: Path) -> tuple[dict | None
     breeze_cmd = opts.get("breeze", "").strip()
 
     if local_cmd and fallback_cmd:
-        # Two-step host pattern: conditional uv + fallback Breeze
+        # Two-step host pattern: preferred command + fallback
         steps.append(
             {
                 "context": "host",
                 "command": local_cmd,
                 "condition": "system_deps_available",
-                "description": "Preferred: run directly with uv (faster, debuggable in IDE)",
+                "description": "Preferred command",
             }
         )
         steps.append(
@@ -113,7 +113,7 @@ def _directive_to_skill(opts: dict[str, str], source: Path) -> tuple[dict | None
                 "context": "host",
                 "command": fallback_cmd,
                 "fallback_for": "system_deps_available",
-                "description": "Fallback: use Breeze when system deps are missing",
+                "description": "Fallback command",
             }
         )
     elif local_cmd:
