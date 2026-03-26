@@ -24,6 +24,7 @@ import boto3
 
 from airflow.providers.amazon.aws.hooks.neptune_analytics import NeptuneAnalyticsHook
 from airflow.providers.amazon.aws.operators.neptune_analytics import (
+    NeptuneCancelImportTaskOperator,
     NeptuneCreateGraphOperator,
     NeptuneCreateGraphWithImportOperator,
     NeptuneCreatePrivateGraphEndpointOperator,
@@ -227,6 +228,15 @@ with DAG(
         waiter_max_attempts=60,
     )
     # [END howto_operator_neptune_analytics_start_import_task]
+
+    # [START howto_operator_neptune_analytics_cancel_import_task]
+    cancel_import = NeptuneCancelImportTaskOperator(
+        task_id="cancel_import",
+        import_task_id="{{ ti.xcom_pull(task_ids='start_import')['import_task_id']}}",
+        wait_for_completion=True,
+        aws_conn_id="aws_default",
+    )
+    # [END howto_operator_neptune_analytics_cancel_import_task]
 
     # [START howto_operator_neptune_analytics_delete_graph]
     delete_graph = NeptuneDeletePrivateGraphEndpointOperator(
