@@ -38,8 +38,7 @@ body:
         Remember, you are encouraged to test with the latest release or on the `main` branch to verify your issue still exists, especially if
         your version is at least a minor version older than the [current stable release](https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html#version-life-cycle).
     # yamllint enable rule:line-length
-      placeholder:
-        "Run `airflow version` and paste the output here"
+      placeholder: Run `airflow version` and paste the output here
     validations:
       required: true
   - type: textarea
