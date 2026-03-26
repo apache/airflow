@@ -18,9 +18,11 @@
 
 from __future__ import annotations
 
+import sys
 import time
 from importlib import import_module
 from typing import TYPE_CHECKING, BinaryIO, ClassVar, Protocol
+from uuid import UUID
 
 import attrs
 import structlog
@@ -30,6 +32,7 @@ from airflow.sdk.execution_time.supervisor import (
     MIN_HEARTBEAT_INTERVAL,
     SOCKET_CLEANUP_TIMEOUT,
     WatchedSubprocess,
+    _make_process_nondumpable,
 )
 
 if TYPE_CHECKING:
@@ -95,11 +98,16 @@ def execute_callback(
             result = callback_callable(**kwargs_without_context)
 
         # If the callback was a class then it is now instantiated and callable, call it.
+        # Try keyword args first. If the callable only accepts positional args (like
+        # BaseNotifier.__call__(self, *args)), fall back to passing context positionally.
         if callable(result):
-            if accepts_context(result):
-                result = result(**callback_kwargs)
-            else:
-                result = result(**kwargs_without_context)
+            try:
+                if accepts_context(result):
+                    result = result(**callback_kwargs)
+                else:
+                    result = result(**kwargs_without_context)
+            except TypeError:
+                result = result(callback_kwargs.get("context", {}))
 
         log.info("Callback %s executed successfully.", callback_path)
         return True, None
@@ -136,19 +144,42 @@ class CallbackSubprocess(WatchedSubprocess):
         id: str,
         callback_path: str,
         callback_kwargs: dict,
+        bundle_info: _BundleInfoLike | None = None,
         logger: FilteringBoundLogger | None = None,
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given callback."""
-        from uuid import UUID
 
         # Use a closure to pass callback data to the child process.  Note that this
         # ONLY works because WatchedSubprocess.start() uses os.fork(), so the child
         # inherits the parent's memory space and the variables are available directly.
         def _target():
-            import sys
-
             _log = structlog.get_logger(logger_name="callback_runner")
+
+            # If bundle info is provided, initialize the bundle and ensure its path is importable.
+            # This is needed for user-defined callbacks that live inside a DAG bundle rather than
+            # in an installed package or the plugins directory.
+            if bundle_info and bundle_info.name:
+                try:
+                    from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+                    bundle = DagBundlesManager().get_bundle(
+                        name=bundle_info.name,
+                        version=bundle_info.version,
+                    )
+                    bundle.initialize()
+                    if (bundle_path := str(bundle.path)) not in sys.path:
+                        sys.path.append(bundle_path)
+                        log.debug(
+                            "Added bundle path to sys.path", bundle_name=bundle_info.name, path=bundle_path
+                        )
+                except Exception:
+                    log.warning(
+                        "Failed to initialize DAG bundle for callback",
+                        bundle_name=bundle_info.name,
+                        exc_info=True,
+                    )
+
             success, error_msg = execute_callback(callback_path, callback_kwargs, _log)
             if not success:
                 _log.error("Callback failed", error=error_msg)
@@ -241,31 +272,9 @@ def supervise_callback(
     :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
     :return: Exit code of the subprocess (0 = success).
     """
-    import sys
+    _make_process_nondumpable()
 
     start = time.monotonic()
-
-    # If bundle info is provided, initialize the bundle and ensure its path is importable.
-    # This is needed for user-defined callbacks that live inside a DAG bundle rather than
-    # in an installed package or the plugins directory.
-    if bundle_info and bundle_info.name:
-        try:
-            from airflow.dag_processing.bundles.manager import DagBundlesManager
-
-            bundle = DagBundlesManager().get_bundle(
-                name=bundle_info.name,
-                version=bundle_info.version,
-            )
-            bundle.initialize()
-            if (bundle_path := str(bundle.path)) not in sys.path:
-                sys.path.append(bundle_path)
-                log.debug("Added bundle path to sys.path", bundle_name=bundle_info.name, path=bundle_path)
-        except Exception:
-            log.warning(
-                "Failed to initialize DAG bundle for callback",
-                bundle_name=bundle_info.name,
-                exc_info=True,
-            )
 
     logger: FilteringBoundLogger
     log_file_descriptor: BinaryIO | None = None
@@ -281,6 +290,7 @@ def supervise_callback(
             id=id,
             callback_path=callback_path,
             callback_kwargs=callback_kwargs,
+            bundle_info=bundle_info,
             logger=logger,
             subprocess_logs_to_stdout=True,
         )

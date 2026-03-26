@@ -49,53 +49,67 @@ class CallableClass:
         return "notified"
 
 
-@pytest.fixture
-def log():
-    return structlog.get_logger()
-
-
 class TestExecuteCallback:
-    def test_successful_callback_no_args(self, log):
-        success, error = execute_callback(f"{__name__}.callback_no_args", {}, log)
+    @pytest.mark.parametrize(
+        ("path", "kwargs", "expect_success", "error_contains"),
+        [
+            pytest.param(
+                f"{__name__}.callback_no_args",
+                {},
+                True,
+                None,
+                id="successful_no_args",
+            ),
+            pytest.param(
+                f"{__name__}.callback_with_kwargs",
+                {"arg1": "hello", "arg2": "world"},
+                True,
+                None,
+                id="successful_with_kwargs",
+            ),
+            pytest.param(
+                f"{__name__}.CallableClass",
+                {"msg": "alert"},
+                True,
+                None,
+                id="callable_class_pattern",
+            ),
+            pytest.param(
+                "",
+                {},
+                False,
+                "Callback path not found",
+                id="empty_path",
+            ),
+            pytest.param(
+                "nonexistent.module.function",
+                {},
+                False,
+                "ModuleNotFoundError",
+                id="import_error",
+            ),
+            pytest.param(
+                f"{__name__}.callback_that_raises",
+                {},
+                False,
+                "ValueError",
+                id="execution_error",
+            ),
+            pytest.param(
+                f"{__name__}.nonexistent_function_xyz",
+                {},
+                False,
+                "AttributeError",
+                id="attribute_error",
+            ),
+        ],
+    )
+    def test_execute_callback(self, path, kwargs, expect_success, error_contains):
+        log = structlog.get_logger()
+        success, error = execute_callback(path, kwargs, log)
 
-        assert success is True
-        assert error is None
-
-    def test_successful_callback_with_kwargs(self, log):
-        success, error = execute_callback(
-            f"{__name__}.callback_with_kwargs", {"arg1": "hello", "arg2": "world"}, log
-        )
-
-        assert success is True
-        assert error is None
-
-    def test_empty_path_returns_failure(self, log):
-        success, error = execute_callback("", {}, log)
-
-        assert success is False
-        assert "Callback path not found" in error
-
-    def test_import_error_returns_failure(self, log):
-        success, error = execute_callback("nonexistent.module.function", {}, log)
-
-        assert success is False
-        assert "ModuleNotFoundError" in error
-
-    def test_execution_error_returns_failure(self, log):
-        success, error = execute_callback(f"{__name__}.callback_that_raises", {}, log)
-
-        assert success is False
-        assert "ValueError" in error
-
-    def test_callable_class_pattern(self, log):
-        """Test the class-that-returns-callable pattern (like BaseNotifier)."""
-        success, error = execute_callback(f"{__name__}.CallableClass", {"msg": "alert"}, log)
-
-        assert success is True
-        assert error is None
-
-    def test_attribute_error_for_nonexistent_function(self, log):
-        success, error = execute_callback(f"{__name__}.nonexistent_function_xyz", {}, log)
-
-        assert success is False
-        assert "AttributeError" in error
+        assert success is expect_success
+        if error_contains:
+            assert error_contains in error
+        else:
+            assert error is None

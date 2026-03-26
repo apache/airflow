@@ -662,35 +662,21 @@ class TestCallbackSupport:
 
 
 class TestExecuteCallbackWorkload:
-    def test_execute_function_callback_success(self):
+    @pytest.mark.parametrize(
+        ("path", "kwargs", "expect_success", "error_contains"),
+        [
+            pytest.param("builtins.dict", {"a": 1, "b": 2, "c": 3}, True, None, id="function_success"),
+            pytest.param("", {}, False, "Callback path not found", id="missing_path"),
+            pytest.param("nonexistent.module.function", {}, False, "ModuleNotFoundError", id="import_error"),
+            pytest.param("builtins.len", {}, False, "TypeError", id="execution_error"),
+        ],
+    )
+    def test_execute_callback(self, path, kwargs, expect_success, error_contains):
         log = structlog.get_logger()
+        success, error = execute_callback(path, kwargs, log)
 
-        success, error = execute_callback("builtins.dict", {"a": 1, "b": 2, "c": 3}, log)
-
-        assert success is True
-        assert error is None
-
-    def test_execute_callback_missing_path(self):
-        log = structlog.get_logger()
-
-        success, error = execute_callback("", {}, log)
-
-        assert success is False
-        assert "Callback path not found" in error
-
-    def test_execute_callback_import_error(self):
-        log = structlog.get_logger()
-
-        success, error = execute_callback("nonexistent.module.function", {}, log)
-
-        assert success is False
-        assert "ModuleNotFoundError" in error
-
-    def test_execute_callback_execution_error(self):
-        # Use a function that will raise an error; len() requires an argument
-        log = structlog.get_logger()
-
-        success, error = execute_callback("builtins.len", {}, log)
-
-        assert success is False
-        assert "TypeError" in error
+        assert success is expect_success
+        if error_contains:
+            assert error_contains in error
+        else:
+            assert error is None
