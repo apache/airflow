@@ -300,9 +300,15 @@ def ti_run(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
 
-    generator: JWTGenerator = services.get(JWTGenerator)
-    execution_token = generator.generate(extras={"sub": str(task_instance_id)})
-    response.headers["X-Execution-Token"] = execution_token
+    try:
+        generator: JWTGenerator = services.get(JWTGenerator)
+        execution_token = generator.generate(extras={"sub": str(task_instance_id), "scope": "execution"})
+    except Exception:
+        log.exception("Failed to generate execution token for task instance %s", task_instance_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Token generation failed"
+        )
+    response.headers["Refreshed-API-Token"] = execution_token
 
     return context
 
