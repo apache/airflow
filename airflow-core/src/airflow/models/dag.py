@@ -588,7 +588,7 @@ class DagModel(Base):
     def deactivate_deleted_dags(
         cls,
         bundle_name: str,
-        rel_filelocs: set[str],
+        rel_filelocs: Collection[str],
         session: Session = NEW_SESSION,
     ) -> bool:
         """
@@ -600,6 +600,7 @@ class DagModel(Base):
         :return: True if any DAGs were marked as stale, False otherwise
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
+        rel_filelocs = set(rel_filelocs)
         dag_models = session.scalars(
             select(cls)
             .where(
