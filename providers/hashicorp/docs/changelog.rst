@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+4.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix string handling for use_tls in VaultHook (#62641)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Refactor VaultBackend to centralize secret path resolution and fetching logic (#62643)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Add test coverage for untested VaultBackend path branches (#62694)``
+   * ``Prepare providers release 2026-03-09 (#63198)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Add missing conn-fields for providers migrated to yaml (#62116)``
+   * ``Migrate connection UI metadata to YAML for some providers (#62011)``
+
 4.5.0
 .....
 

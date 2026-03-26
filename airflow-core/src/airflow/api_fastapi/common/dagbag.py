@@ -84,7 +84,7 @@ def get_dag_for_run_or_latest_version(
     dag: SerializedDAG | None = None
     if dag_run:
         if dag_run.created_dag_version_id:
-            dag = dag_bag._get_dag(dag_run.created_dag_version_id, session=session)
+            dag = dag_bag.get_dag(dag_run.created_dag_version_id, session=session)
         if not dag:
             dag = dag_bag.get_dag_for_run(dag_run, session=session)
     elif dag_id:

@@ -21,7 +21,7 @@ Common AI Operators
 Choosing the right operator
 ---------------------------
 
-The common-ai provider ships four operators (and matching ``@task`` decorators). Use this table
+The common-ai provider ships five operators (and matching ``@task`` decorators). Use this table
 to pick the one that fits your use case:
 
 .. list-table::
@@ -34,6 +34,9 @@ to pick the one that fits your use case:
    * - Single prompt → text or structured output
      - :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
      - ``@task.llm``
+   * - Analyze files, prefixes, images, or PDFs with one prompt
+     - :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
+     - ``@task.llm_file_analysis``
    * - LLM picks which downstream task runs
      - :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
      - ``@task.llm_branch``
@@ -46,7 +49,12 @@ to pick the one that fits your use case:
 
 **LLMOperator / @task.llm** — stateless, single-turn calls. Use this for classification,
 summarization, extraction, or any prompt that produces one response. Supports structured output
-via a ``response_format`` Pydantic model.
+via an ``output_type`` Pydantic model.
+
+**LLMFileAnalysisOperator / @task.llm_file_analysis** — stateless, single-turn file analysis.
+Use this when the prompt should reason over file contents or multimodal attachments already chosen
+by the DAG author. The operator resolves files via ``ObjectStoragePath`` and keeps the interaction
+read-only.
 
 **AgentOperator / @task.agent** — multi-turn tool-calling loop. The model decides which tools to
 invoke and when to stop. Use this when the LLM needs to take actions (query databases, call APIs,

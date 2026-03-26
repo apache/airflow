@@ -26,6 +26,7 @@ import re
 import textwrap
 from configparser import ConfigParser
 from enum import Enum
+from io import StringIO
 from unittest.mock import patch
 
 import pytest
@@ -37,10 +38,39 @@ from airflow_shared.configuration.parser import (
 )
 
 
+class _NoOpProvidersManager:
+    """Stub providers manager for tests — no providers, no side effects."""
+
+    @property
+    def provider_configs(self):
+        return []
+
+    @property
+    def already_initialized_provider_configs(self):
+        return []
+
+
+def _create_empty_config_parser(desc: dict) -> ConfigParser:
+    return ConfigParser()
+
+
+def _create_default_config_parser(desc: dict) -> ConfigParser:
+    parser = ConfigParser()
+    configure_parser_from_configuration_description(parser, desc, {})
+    return parser
+
+
 class AirflowConfigParser(_SharedAirflowConfigParser):
     """Test parser that extends shared parser for testing."""
 
-    def __init__(self, default_config: str | None = None, *args, **kwargs):
+    def __init__(
+        self,
+        default_config: str | None = None,
+        provider_manager_type=_NoOpProvidersManager,
+        create_default_config_parser_callable=_create_empty_config_parser,
+        *args,
+        **kwargs,
+    ):
         configuration_description = {
             "test": {
                 "options": {
@@ -53,7 +83,15 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         _default_values.add_section("test")
         _default_values.set("test", "key1", "default_value")
         _default_values.set("test", "key2", "123")
-        super().__init__(configuration_description, _default_values, *args, **kwargs)
+        super().__init__(
+            configuration_description,
+            _default_values,
+            provider_manager_type,
+            create_default_config_parser_callable,
+            "",
+            *args,
+            **kwargs,
+        )
         self.configuration_description = configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
@@ -70,6 +108,22 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
                 self._default_values.add_section(section)
             for key, value in parser.items(section):
                 self._default_values.set(section, key, value)
+
+    def _ensure_providers_config_loaded(self) -> None:
+        """Load provider configuration for tests when requested."""
+        if not self._providers_configuration_loaded:
+            self.load_providers_configuration()
+
+    def _ensure_providers_config_unloaded(self) -> bool:
+        """Unload provider configuration for tests when requested."""
+        if self._providers_configuration_loaded:
+            self.restore_core_default_configuration()
+            return True
+        return False
+
+    def _reload_provider_configs(self) -> None:
+        """Reload provider configuration for tests after temporary unloads."""
+        self.load_providers_configuration()
 
 
 class TestAirflowConfigParser:
@@ -782,6 +836,61 @@ existing_list = one,two,three
         with pytest.raises(ValueError, match=r"The value test/missing_key should be set!"):
             test_conf.get_mandatory_list_value("test", "missing_key", fallback=None)
 
+    def test_as_dict_only_materializes_provider_sources_after_loading_providers(self):
+        test_conf = AirflowConfigParser()
+
+        test_conf.as_dict(display_source=True)
+        assert "_provider_metadata_config_fallback_default_values" not in test_conf.__dict__
+
+        test_conf.load_providers_configuration()
+        test_conf.as_dict(display_source=True)
+        assert "_provider_metadata_config_fallback_default_values" in test_conf.__dict__
+
+    def test_write_materializes_provider_sources_in_requested_context(self):
+        test_conf = AirflowConfigParser()
+
+        test_conf.write(StringIO(), include_sources=True, include_providers=False)
+        assert "_provider_metadata_config_fallback_default_values" not in test_conf.__dict__
+
+        test_conf.write(StringIO(), include_sources=True, include_providers=True)
+        assert "_provider_metadata_config_fallback_default_values" in test_conf.__dict__
+
+    def test_get_uses_provider_metadata_fallback_before_loading_providers(self):
+        provider_configs = [
+            (
+                "apache-airflow-providers-test",
+                {
+                    "test_provider": {
+                        "options": {
+                            "test_option": {
+                                "default": "provider-default",
+                            }
+                        }
+                    }
+                },
+            )
+        ]
+
+        class ProvidersManagerWithConfig:
+            @property
+            def provider_configs(self):
+                return provider_configs
+
+            @property
+            def already_initialized_provider_configs(self):
+                return []
+
+        test_conf = AirflowConfigParser(
+            provider_manager_type=ProvidersManagerWithConfig,
+            create_default_config_parser_callable=_create_default_config_parser,
+        )
+
+        assert test_conf._providers_configuration_loaded is False
+        assert test_conf.configuration_description.get("test_provider") is None
+        assert test_conf.get("test_provider", "test_option") == "provider-default"
+        assert test_conf._providers_configuration_loaded is False
+        assert test_conf.configuration_description.get("test_provider") is None
+
     def test_set_case_insensitive(self):
         # both get and set should be case insensitive
         test_conf = AirflowConfigParser()
@@ -861,7 +970,14 @@ existing_list = one,two,three
                 configure_parser_from_configuration_description(
                     _default_values, configuration_description, {}
                 )
-                _SharedAirflowConfigParser.__init__(self, configuration_description, _default_values)
+                _SharedAirflowConfigParser.__init__(
+                    self,
+                    configuration_description,
+                    _default_values,
+                    _NoOpProvidersManager,
+                    _create_empty_config_parser,
+                    "",
+                )
 
         test_conf = TestConfigParser()
         deprecated_conf_list = [
