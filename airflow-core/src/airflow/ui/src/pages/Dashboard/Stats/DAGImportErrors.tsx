@@ -37,38 +37,46 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
   const importErrorsCount = data?.total_entries ?? 0;
 
   if (isLoading) {
-    return <Skeleton height="9" width="225px" />;
+    // Skeleton dimensions match the rendered component sizes to prevent layout shift.
+    // iconOnly: 28px × 60px matches StateBadge (height={7} = 28px in Chakra spacing scale).
+    // full: 42px × 175px matches the rendered StatsCard dimensions.
+    return iconOnly ? (
+      <Skeleton height="28px" width="60px" />
+    ) : (
+      <Skeleton height="42px" width="175px" />
+    );
   }
 
-  if (importErrorsCount === 0) {
+  if (importErrorsCount === 0 && !error) {
     return undefined;
   }
 
   return (
     <Box alignItems="center" display="flex">
       <ErrorAlert error={error} />
-      {iconOnly ? (
-        <StateBadge
-          as={Button}
-          colorPalette="failed"
-          height={7}
-          onClick={onOpen}
-          title={translate("importErrors.dagImportError", { count: importErrorsCount })}
-        >
-          <LuFileWarning size={8} />
-          {importErrorsCount}
-        </StateBadge>
-      ) : (
-        <StatsCard
-          colorScheme="failed"
-          count={importErrorsCount}
-          icon={<LuFileWarning />}
-          isLoading={isLoading}
-          isRTL={isRTL}
-          label={translate("importErrors.dagImportError", { count: importErrorsCount })}
-          onClick={onOpen}
-        />
-      )}
+      {importErrorsCount > 0 &&
+        (iconOnly ? (
+          <StateBadge
+            as={Button}
+            colorPalette="failed"
+            height={7}
+            onClick={onOpen}
+            title={translate("importErrors.dagImportError", { count: importErrorsCount })}
+          >
+            <LuFileWarning size={16} />
+            {importErrorsCount}
+          </StateBadge>
+        ) : (
+          <StatsCard
+            colorScheme="failed"
+            count={importErrorsCount}
+            icon={<LuFileWarning />}
+            isLoading={isLoading}
+            isRTL={isRTL}
+            label={translate("importErrors.dagImportError", { count: importErrorsCount })}
+            onClick={onOpen}
+          />
+        ))}
       <DAGImportErrorsModal onClose={onClose} open={open} />
     </Box>
   );

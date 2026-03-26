@@ -38,42 +38,50 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
   const importErrors = data?.import_errors ?? [];
 
   if (isLoading) {
-    return <Skeleton height="9" width="225px" />;
+    // Skeleton dimensions match the rendered component sizes to prevent layout shift.
+    // iconOnly: 28px × 60px matches StateBadge (height={7} = 28px in Chakra spacing scale).
+    // full: 42px × 175px matches the rendered StatsCard dimensions.
+    return iconOnly ? (
+      <Skeleton height="28px" width="60px" />
+    ) : (
+      <Skeleton height="42px" width="175px" />
+    );
   }
 
   if (Boolean(error) && (error as ExpandedApiError).status === 403) {
     return undefined;
   }
 
-  if (importErrorsCount === 0) {
+  if (importErrorsCount === 0 && !error) {
     return undefined;
   }
 
   return (
     <Box alignItems="center" display="flex">
       <ErrorAlert error={error} />
-      {iconOnly ? (
-        <StateBadge
-          as={Button}
-          colorPalette="failed"
-          height={7}
-          onClick={onOpen}
-          title={translate("plugins.importError", { count: importErrorsCount })}
-        >
-          <LuPlug size={8} />
-          {importErrorsCount}
-        </StateBadge>
-      ) : (
-        <StatsCard
-          colorScheme="failed"
-          count={importErrorsCount}
-          icon={<LuPlug />}
-          isLoading={isLoading}
-          isRTL={isRTL}
-          label={translate("plugins.importError", { count: importErrorsCount })}
-          onClick={onOpen}
-        />
-      )}
+      {importErrorsCount > 0 &&
+        (iconOnly ? (
+          <StateBadge
+            as={Button}
+            colorPalette="failed"
+            height={7}
+            onClick={onOpen}
+            title={translate("plugins.importError", { count: importErrorsCount })}
+          >
+            <LuPlug size={16} />
+            {importErrorsCount}
+          </StateBadge>
+        ) : (
+          <StatsCard
+            colorScheme="failed"
+            count={importErrorsCount}
+            icon={<LuPlug />}
+            isLoading={isLoading}
+            isRTL={isRTL}
+            label={translate("plugins.importError", { count: importErrorsCount })}
+            onClick={onOpen}
+          />
+        ))}
       <PluginImportErrorsModal importErrors={importErrors} onClose={onClose} open={open} />
     </Box>
   );
