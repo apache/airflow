@@ -211,8 +211,19 @@ with DAG(
         graph_identifier="{{ ti.xcom_pull(task_ids='create_graph)['graph_id']}}",
         wait_for_completion=True,
     )
-
     # [END howto_operator_neptune_analytics_create_private_endpoint]
+
+    # [START howto_operator_neptune_analytics_delete_private_endpoint]
+    delete_endpoint = NeptuneDeletePrivateGraphEndpointOperator(
+        task_id="delete_endpoint",
+        graph_identifier="{{ ti.xcom_pull(task_ids='create_graph')['graph_id'] }}",
+        vpc_id="{{ ti.xcom_pull(task_ids='create_endpoint')['vpc_id'] }}",
+        wait_for_completion=True,
+        deferrable=False,
+        waiter_delay=30,
+        waiter_max_attempts=60,
+    )
+    # [END howto_operator_neptune_analytics_delete_private_endpoint]
 
     # [START howto_operator_neptune_analytics_start_import_task]
     start_import = NeptuneStartImportTaskOperator(
