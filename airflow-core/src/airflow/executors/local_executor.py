@@ -307,9 +307,13 @@ class LocalExecutor(BaseExecutor):
     def _process_workloads(self, workload_list):
         for workload in workload_list:
             self.activity_queue.put(workload)
-            # Remove from the appropriate queue using the workload's key.
-            self.queued_tasks.pop(workload.key, None)
-            self.queued_callbacks.pop(workload.key, None)
+            # A valid workload will exist in exactly one of these dicts.
+            # One pop will succeed, the other will return None gracefully.
+            removed = self.queued_tasks.pop(workload.key, None) or self.queued_callbacks.pop(
+                workload.key, None
+            )
+            if not removed:
+                raise KeyError(f"Workload {workload.key} was not found in any queue")
         with self._unread_messages:
             self._unread_messages.value += len(workload_list)
         self._check_workers()
