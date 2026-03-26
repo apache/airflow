@@ -159,3 +159,57 @@ class TestValidateSQLEdgeCases:
         """Trailing semicolon should not cause multi-statement error."""
         result = validate_sql("SELECT 1;")
         assert len(result) == 1
+
+
+class TestDataModifyingNodeDetection:
+    """Data-modifying operations hidden inside allowed statement types should be blocked."""
+
+    def test_cte_with_delete_blocked(self):
+        """DELETE inside a CTE bypasses top-level type check."""
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Delete'"):
+            validate_sql(
+                "WITH del AS (DELETE FROM users RETURNING *) SELECT * FROM del",
+                dialect="postgres",
+            )
+
+    def test_cte_with_insert_blocked(self):
+        """INSERT inside a CTE bypasses top-level type check."""
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Insert'"):
+            validate_sql(
+                "WITH ins AS (INSERT INTO users(name) VALUES ('x') RETURNING *) SELECT * FROM ins",
+                dialect="postgres",
+            )
+
+    def test_cte_with_update_blocked(self):
+        """UPDATE inside a CTE bypasses top-level type check."""
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Update'"):
+            validate_sql(
+                "WITH upd AS (UPDATE users SET name = 'x' RETURNING *) SELECT * FROM upd",
+                dialect="postgres",
+            )
+
+    def test_select_into_blocked(self):
+        """SELECT INTO creates a new table — should be blocked."""
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Into'"):
+            validate_sql("SELECT * INTO new_table FROM users")
+
+    def test_plain_cte_select_still_allowed(self):
+        """Normal read-only CTEs should not be affected."""
+        result = validate_sql("WITH t AS (SELECT id FROM users) SELECT * FROM t")
+        assert len(result) == 1
+
+    def test_nested_subquery_select_still_allowed(self):
+        """Subqueries that are pure reads should not be affected."""
+        result = validate_sql("SELECT * FROM users WHERE id IN (SELECT user_id FROM orders)")
+        assert len(result) == 1
+
+    def test_deep_scan_runs_with_explicit_default_types(self):
+        """Deep scan should also block when DEFAULT_ALLOWED_TYPES is passed explicitly."""
+        from airflow.providers.common.ai.utils.sql_validation import DEFAULT_ALLOWED_TYPES
+
+        with pytest.raises(SQLSafetyError, match="Data-modifying operation 'Delete'"):
+            validate_sql(
+                "WITH del AS (DELETE FROM users RETURNING *) SELECT * FROM del",
+                allowed_types=DEFAULT_ALLOWED_TYPES,
+                dialect="postgres",
+            )

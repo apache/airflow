@@ -139,27 +139,9 @@ class TestHITLOperator:
                 params=ParamsDict({"input_1": 1}),
             )
 
-    @pytest.mark.parametrize(
-        ("params", "exc", "error_msg"),
-        (
-            (ParamsDict({"_options": 1}), ValueError, '"_options" is not allowed in params'),
-            (
-                ParamsDict({"param": Param("", type="integer")}),
-                ParamValidationError,
-                (
-                    "Invalid input for param param: '' is not of type 'integer'\n\n"
-                    "Failed validating 'type' in schema:\n"
-                    "    {'type': 'integer'}\n\n"
-                    "On instance:\n    ''"
-                ),
-            ),
-        ),
-    )
-    def test_validate_params(
-        self, params: ParamsDict, exc: type[ValueError | ParamValidationError], error_msg: str
-    ) -> None:
-        # validate_params is called during initialization
-        with pytest.raises(exc, match=error_msg):
+    def test_validate_params_rejects_options_key(self) -> None:
+        """_options is a reserved key and must not be allowed in params."""
+        with pytest.raises(ValueError, match='"_options" is not allowed in params'):
             HITLOperator(
                 task_id="hitl_test",
                 subject="This is subject",
@@ -167,8 +149,46 @@ class TestHITLOperator:
                 body="This is body",
                 defaults=["1"],
                 multiple=False,
-                params=params,
+                params=ParamsDict({"_options": 1}),
             )
+
+    @pytest.mark.parametrize(
+        ("params", "expected_key"),
+        [
+            pytest.param(
+                {"my_param": Param(type="string")},
+                "my_param",
+                id="no_default",
+            ),
+            pytest.param(
+                {"my_param": Param("hello", type="string")},
+                "my_param",
+                id="with_default",
+            ),
+            pytest.param(
+                {"param": Param("", type="integer")},
+                "param",
+                id="wrong_value_type",
+            ),
+        ],
+    )
+    def test_param_value_validation_deferred_to_runtime(self, params: dict, expected_key: str) -> None:
+        """Regression test for #59551.
+
+        HITLOperator params are form fields filled by a human at runtime.
+        Value validation (required, schema) must NOT happen in __init__ — it is
+        deferred to ``validate_params_input`` after the human submits the form.
+        """
+        op = HITLOperator(
+            task_id="hitl_test",
+            subject="This is subject",
+            options=["1", "2"],
+            body="This is body",
+            defaults=["1"],
+            multiple=False,
+            params=params,
+        )
+        assert expected_key in op.params
 
     def test_validate_defaults(self) -> None:
         hitl_op = HITLOperator(

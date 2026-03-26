@@ -200,6 +200,26 @@ HTTP provider integration). At the discretion of the Airflow PMC, certain provid
 as **"mature providers"**, which will not automatically be deprecated and moved into the attic due
 to lack of activity alone.
 
+Suspending providers
+^^^^^^^^^^^^^^^^^^^^
+
+When a provider's dependencies prevent the broader Airflow project from upgrading shared
+dependencies or otherwise block CI builds and releases, the provider may be **suspended**. Suspension
+removes the provider from CI builds and releases until the underlying dependency issues are resolved.
+
+Suspension may also be applied selectively for **individual Python versions** when a dependency
+problem only affects a specific Python version rather than all supported versions.
+
+It is the responsibility of the provider's **stewards** to:
+
+* Work with upstream maintainers to resolve the dependency issues
+* Ensure that unsuspending the provider results in a green CI across all affected Python versions
+* Communicate progress and resolution on the dev list
+
+Suspension is not a lifecycle stage---it is a temporary operational measure that can apply to providers
+at any lifecycle stage (incubation, production, or mature). Once the dependency issues are resolved and
+CI is green, the provider is unsuspended and returns to normal operations.
+
 Periodic reviews
 ^^^^^^^^^^^^^^^^
 
