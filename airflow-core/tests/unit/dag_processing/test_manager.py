@@ -309,6 +309,37 @@ class TestDagFileProcessorManager:
         assert len(import_errors) == 1
         assert import_errors[0].filename == "test_zip.zip/broken_dag.py"
 
+    def test_refresh_dag_bundles_calls_legacy_deactivate_deleted_dags_override(
+        self, tmp_path, configure_dag_bundles
+    ):
+        bundle_path = tmp_path / "bundleone"
+        bundle_path.mkdir()
+        dag_path = bundle_path / "test_dag.py"
+        dag_path.write_text("from airflow.sdk import DAG\n")
+
+        class BackwardCompatibleManager(DagFileProcessorManager):
+            seen_bundle_name: str | None = None
+            seen_present: set[DagFileInfo] | None = None
+
+            def deactivate_deleted_dags(self, bundle_name: str, present: set[DagFileInfo]) -> None:
+                self.seen_bundle_name = bundle_name
+                self.seen_present = present
+
+        with configure_dag_bundles({"bundleone": bundle_path}):
+            DagBundlesManager().sync_bundles_to_db()
+            manager = BackwardCompatibleManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+            manager._refresh_dag_bundles({})
+
+        assert manager.seen_bundle_name == "bundleone"
+        assert manager.seen_present == {
+            DagFileInfo(
+                bundle_name="bundleone",
+                rel_path=Path("test_dag.py"),
+                bundle_path=bundle_path,
+            )
+        }
+
     @conf_vars({("core", "load_examples"): "False"})
     def test_max_runs_when_no_files(self, tmp_path):
         with conf_vars({("core", "dags_folder"): str(tmp_path)}):
@@ -999,7 +1030,7 @@ class TestDagFileProcessorManager:
         ]
 
         manager = DagFileProcessorManager(max_runs=1)
-        manager.deactivate_deleted_dags("dag_maker", manager._get_observed_filelocs(set(active_files)))
+        manager.deactivate_deleted_dags("dag_maker", set(active_files))
 
         # The DAG from test_dag1.py is still active
         assert session.get(DagModel, "test_dag1").is_stale is False
@@ -1090,7 +1121,7 @@ class TestDagFileProcessorManager:
         dag_maker.sync_dagbag_to_db()
 
         manager = DagFileProcessorManager(max_runs=1)
-        manager.deactivate_deleted_dags("dag_maker", manager._get_observed_filelocs(set(active_files)))
+        manager.deactivate_deleted_dags("dag_maker", set(active_files))
 
         if should_call_cleanup:
             mock_remove_references.assert_called_once()
