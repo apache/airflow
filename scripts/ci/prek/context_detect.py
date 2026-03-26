@@ -294,8 +294,8 @@ def main() -> int:
         return 1
 
     if args.list:
-        for skill in skills:
-            print(f"{skill['id']:30s}  {skill['description']}")
+        for entry in skills:
+            print(f"{entry['id']:30s}  {entry['description']}")
         return 0
 
     if not args.skill_id:
