@@ -346,10 +346,7 @@ class GKEJobTrigger(BaseTrigger):
                     "No succeeded pods found for job %s, falling back to original pod list",
                     self.job_name,
                 )
-                succeeded_pods = [
-                    await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
-                    for pod_name in self.pod_names
-                ]
+                succeeded_pods = [p for p in current_pods if p.metadata.name in self.pod_names]
 
             xcom_results = []
             for pod in succeeded_pods:
