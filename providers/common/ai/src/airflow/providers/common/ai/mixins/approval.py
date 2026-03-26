@@ -133,7 +133,9 @@ class LLMApprovalMixin:
             timeout=self.approval_timeout,
         )
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
+    def execute_complete(
+        self: DeferForApprovalProtocol, context: Context, generated_output: str, event: dict[str, Any]
+    ) -> str:
         """
         Resume after human review.
 
