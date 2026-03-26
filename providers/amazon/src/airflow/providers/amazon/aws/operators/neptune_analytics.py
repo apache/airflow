@@ -651,8 +651,38 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
         self.graph_id = response.get("graphId", None)
         import_task_id = response.get("taskId")
 
-        # TODO build extra link to console
-        # TODO - second defer for task completion.
+        graph_url = NeptuneGraphLink.format_str.format(
+            graph_id=self.graph_id,
+            aws_domain=NeptuneGraphLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
+        )
+
+        NeptuneGraphLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            graph_id=self.graph_id,
+        )
+
+        import_task_url = NeptuneImportTaskLink.format_str.format(
+            import_task_id=import_task_id,
+            aws_domain=NeptuneImportTaskLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
+        )
+
+        NeptuneImportTaskLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            import_task_id=import_task_id,
+        )
+
+        self.log.info("You can view this import task at : %s", import_task_url)
+
+        self.log.info("You can view this Neptune Graph at : %s", graph_url)
+
         if self.deferrable:
             self.log.info("Deferring until graph %s is available", self.graph_id)
             self.defer(
