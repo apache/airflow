@@ -330,35 +330,9 @@ The legal checks include:
 * verifying if all the checksums are valid for the release
 * verifying if all the sources have correct licences
 
-### SVN check
+### Setup Verification
 
-The files should be present in the sub-folder of
-[Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/clients/python)
-
-The following files should be present (6 files):
-
-* .tar.gz + .asc + .sha512
-* -py3-none-any.whl + .asc + .sha512
-
-As a PMC member, you should be able to clone the SVN repository
-
-```shell script
-svn co https://dist.apache.org/repos/dist/dev/airflow/clients/python
-```
-
-Or update it if you already checked it out:
-
-```shell script
-svn update .
-```
-
-### Reproducible package check
-
-Airflow Python client supports reproducible builds, which means that the packages prepared from the same
-sources should produce binary identical packages in reproducible way. You should check if the packages can be
-binary-reproduced when built from the sources.
-
-1) Set versions of the packages to be checked:
+Set versions of the packages to be checked:
 
 Go to directory where your airflow sources are checked out and set the following environment variables:
 
@@ -369,20 +343,78 @@ VERSION_SUFFIX=rc1
 VERSION_RC=${VERSION}${VERSION_SUFFIX}
 ```
 
-2) Change directory where your airflow sources are checked out
+First clone the repo if you do not have it.
+As a PMC member, you should be able to clone the SVN repository.
+
+```shell script
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
+
+export PATH_TO_AIRFLOW_SVN="${PWD}/asf-dist/dev/airflow/"
+```
+
+Or update it if you already checked it out:
+
+```shell script
+svn update .
+```
+
+### SVN check
+
+The files should be present in the sub-folder of
+[Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/clients/python)
+
+The following files should be present (9 files):
+
+* .tar.gz + .asc + .sha512
+* -py3-none-any.whl + .asc + .sha512
+
+Enter into the release directory
+
+```shell script
+cd ${PATH_TO_AIRFLOW_SVN}
+ls -la clients/python/${VERSION_RC}
+```
+
+Example Output:
 
 ```shell
+(airflow) bugra@dev:~/PycharmProjects/asf-dist/dev/airflow/clients/python/3.1.8rc1$ ls -la
+total 57448
+drwxrwxr-x 2 bugra bugra     4096 Mar 25 21:29 .
+drwxrwxr-x 3 bugra bugra     4096 Mar 25 21:28 ..
+-rw-rw-r-- 1 bugra bugra   386033 Mar 25 21:29 apache_airflow_client-3.1.8-py3-none-any.whl
+-rw-rw-r-- 1 bugra bugra      228 Mar 25 21:29 apache_airflow_client-3.1.8-py3-none-any.whl.asc
+-rw-rw-r-- 1 bugra bugra      175 Mar 25 21:29 apache_airflow_client-3.1.8-py3-none-any.whl.sha512
+-rw-rw-r-- 1 bugra bugra   223960 Mar 25 21:29 apache_airflow_client-3.1.8.tar.gz
+-rw-rw-r-- 1 bugra bugra      228 Mar 25 21:29 apache_airflow_client-3.1.8.tar.gz.asc
+-rw-rw-r-- 1 bugra bugra      165 Mar 25 21:29 apache_airflow_client-3.1.8.tar.gz.sha512
+-rw-rw-r-- 1 bugra bugra 58173692 Mar 25 21:29 apache_airflow_python_client-3.1.8-source.tar.gz
+-rw-rw-r-- 1 bugra bugra      228 Mar 25 21:29 apache_airflow_python_client-3.1.8-source.tar.gz.asc
+-rw-rw-r-- 1 bugra bugra      179 Mar 25 21:29 apache_airflow_python_client-3.1.8-source.tar.gz.sha512
+```
+
+### Reproducible package check
+
+Airflow Python client supports reproducible builds, which means that the packages prepared from the same
+sources should produce binary identical packages in reproducible way. You should check if the packages can be
+binary-reproduced when built from the sources.
+
+1) Change directory where your airflow sources are checked out
+
+```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 ```
 
-3) Check out the ``python-client`` tag (assume apache is the remote name of the repository):
+2) Check out the ``python-client`` tag (assume apache is the remote name of the repository):
 
 ```shell
 git fetch apache --tags
 git checkout python-client/${VERSION_RC}
 ```
 
-4) Build the distribution and source tarball:
+3) Build the distribution and source tarball:
 
 ```shell script
 rm -rf dist/*
@@ -408,13 +440,6 @@ file containing airflow sources in dist folder.
 you just built:
 
 ```shell script
-# First clone the repo if you do not have it
-cd ..
-[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
-svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
-
-export PATH_TO_AIRFLOW_SVN="${PWD}/asf-dist/dev/airflow/"
-
 # Then compare the packages
 cd ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
