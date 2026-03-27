@@ -96,7 +96,7 @@ class XComCreateBody(StrictBaseModel):
         """Recursively check for forbidden deserialization keys in user-provided XCom data."""
         from airflow._shared.serialization import FORBIDDEN_XCOM_KEYS
 
-        def _check_forbidden_keys(obj: Any, path: str = "value") -> None:
+        def _walk_forbidden_keys(obj: Any, path: str = "value") -> None:
             if isinstance(obj, dict):
                 found = FORBIDDEN_XCOM_KEYS & obj.keys()
                 if found:
@@ -105,12 +105,12 @@ class XComCreateBody(StrictBaseModel):
                         f"These keys are reserved for internal use."
                     )
                 for k, v in obj.items():
-                    _check_forbidden_keys(v, f"{path}.{k}")
+                    _walk_forbidden_keys(v, f"{path}.{k}")
             elif isinstance(obj, (list, tuple)):
                 for i, item in enumerate(obj):
-                    _check_forbidden_keys(item, f"{path}[{i}]")
+                    _walk_forbidden_keys(item, f"{path}[{i}]")
 
-        _check_forbidden_keys(value)
+        _walk_forbidden_keys(value)
         return value
 
 
