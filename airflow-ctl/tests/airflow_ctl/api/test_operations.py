@@ -1082,6 +1082,32 @@ class TestDagRunOperations:
         )
         assert response == self.dag_run_collection_response
 
+    def test_list_respects_limit_without_paginating(self):
+        """Dag run listing should honor ``limit`` as the total output cap."""
+        limited_response = DAGRunCollectionResponse(
+            dag_runs=[self.dag_run_response],
+            total_entries=2,
+        )
+        call_count = 0
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            call_count += 1
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
+            assert dict(request.url.params)["limit"] == "1"
+            return httpx.Response(200, json=json.loads(limited_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(
+            dag_id=self.dag_id,
+            start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            state=DagRunState.RUNNING,
+            limit=1,
+        )
+        assert response == limited_response
+        assert call_count == 1
+
     def test_list_with_optional_parameters(self):
         """Test listing dag runs with only some optional parameters."""
 

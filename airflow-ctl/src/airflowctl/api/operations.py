@@ -631,9 +631,11 @@ class DagRunOperations(BaseOperations):
         if end_date is not None:
             params["end_date"] = end_date
 
-        return super().execute_list(
-            path=f"/dags/{dag_id}/dagRuns", data_model=DAGRunCollectionResponse, params=params
-        )
+        try:
+            self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
+            return DAGRunCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
 
 
 class JobsOperations(BaseOperations):
