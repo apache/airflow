@@ -173,6 +173,7 @@ class ClearTaskInstancesBody(BaseModel):
         ),
     ] = False
     prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
+    note: Annotated[Note | None, Field(title="Note")] = None
 
 
 class Value(RootModel[list]):

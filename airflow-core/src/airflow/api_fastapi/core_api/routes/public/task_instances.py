@@ -721,6 +721,7 @@ def post_clear_task_instances(
     dag_bag: DagBagDep,
     body: ClearTaskInstancesBody,
     session: SessionDep,
+    user: GetUserDep,
 ) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
@@ -836,6 +837,13 @@ def post_clear_task_instances(
             )
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
+
+        if body.note is not None:
+            _patch_task_instance_note(
+                task_instance_body=body,
+                tis=task_instances,
+                user=user,
+            )
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],

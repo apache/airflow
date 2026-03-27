@@ -718,6 +718,25 @@ class TestCreateXComEntry(TestXComEndpoint):
         assert get_resp.json()["key"] == slash_key
         assert get_resp.json()["value"] == json.dumps(TEST_XCOM_VALUE)
 
+    @pytest.mark.parametrize(
+        ("key", "value"),
+        [
+            ("__classname__", {"__classname__": "airflow.sdk.definitions.connection.Connection"}),
+            ("__type", {"__type": "airflow.sdk.definitions.connection.Connection", "__var": {}}),
+            ("__data__", {"nested": {"__data__": "malicious"}}),
+        ],
+    )
+    def test_create_xcom_entry_blocks_forbidden_keys(self, test_client, key, value):
+        """Test that XCom creation blocks deserialization metadata keys."""
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json={"key": "test_key", "value": value, "map_index": -1},
+        )
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
+
 
 class TestDeleteXComEntry(TestXComEndpoint):
     def test_delete_xcom_entry(self, test_client, session):

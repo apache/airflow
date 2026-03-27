@@ -196,16 +196,17 @@ class RunDBManager(LoggingMixin):
     """
 
     def __init__(self):
-        from airflow.api_fastapi.app import create_auth_manager
         from airflow.providers_manager import ProvidersManager
 
         super().__init__()
         self._managers: list[BaseDBManager] = []
 
-        # Start with auto-discovered DB managers from installed providers
+        # Start with auto-discovered DB managers from installed providers.
+        # ProvidersManager reads the ``db-managers`` key from each provider's
+        # get_provider_info() and is the primary source of truth.
         managers: list[str] = list(ProvidersManager().db_managers)
 
-        # Add any explicitly configured managers not already discovered
+        # Add any explicitly configured managers not already discovered.
         managers_config = conf.get("database", "external_db_managers", fallback=None)
         if managers_config:
             for m in managers_config.split(","):
@@ -213,10 +214,28 @@ class RunDBManager(LoggingMixin):
                     if stripped not in managers:
                         managers.append(stripped)
 
-        # Add DB manager declared by the configured auth manager (existing behavior, deduplicated)
-        auth_manager_db_manager = create_auth_manager().get_db_manager()
-        if auth_manager_db_manager and auth_manager_db_manager not in managers:
-            managers.append(auth_manager_db_manager)
+        # Add the DB manager declared by the configured auth manager as a
+        # final fallback for backward compatibility.
+        # This is wrapped in a try/except because in migration-only contexts
+        # (e.g. the Helm migrateDatabaseJob) the auth manager may not be fully
+        # initializable — a Flask app context or other runtime state may be
+        # absent.  A failure here must not silently drop the auth manager's DB
+        # manager from the migration list; ProvidersManager discovery above is
+        # the reliable path in those contexts.
+        try:
+            from airflow.api_fastapi.app import create_auth_manager
+
+            auth_manager_db_manager = create_auth_manager().get_db_manager()
+            if auth_manager_db_manager and auth_manager_db_manager not in managers:
+                managers.append(auth_manager_db_manager)
+        except Exception:
+            self.log.debug(
+                "Could not retrieve DB manager from auth manager during RunDBManager "
+                "initialisation. This is expected in migration-only contexts where the "
+                "auth manager cannot be fully initialised. DB managers discovered via "
+                "ProvidersManager will still be used.",
+                exc_info=True,
+            )
 
         for module in managers:
             manager = import_string(module.strip())

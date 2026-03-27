@@ -36,8 +36,9 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
   const contentFormatted = JSON.stringify(content, undefined, 2);
   const { colorMode } = useColorMode();
   const lineCount = contentFormatted.split("\n").length;
-  const initialHeight = Math.min(Math.max(lineCount * 19 + 10, MIN_HEIGHT), MAX_HEIGHT);
-  const [editorHeight, setEditorHeight] = useState(initialHeight);
+  const expandedHeight = Math.min(Math.max(lineCount * 19 + 10, MIN_HEIGHT), MAX_HEIGHT);
+  const [editorHeight, setEditorHeight] = useState(collapsed ? MIN_HEIGHT : expandedHeight);
+  const [isReady, setIsReady] = useState(!collapsed);
   const theme = colorMode === "dark" ? "vs-dark" : "vs-light";
 
   const handleMount: OnMount = useCallback(
@@ -49,14 +50,30 @@ const RenderedJsonField = ({ collapsed = false, content, enableClipboard = true,
       });
 
       if (collapsed) {
-        void editorInstance.getAction("editor.foldAll")?.run();
+        const action = editorInstance.getAction("editor.foldAll");
+
+        if (action) {
+          void action.run().then(() => {
+            setIsReady(true);
+          });
+        } else {
+          setIsReady(true);
+        }
       }
     },
     [collapsed],
   );
 
   return (
-    <Flex flex={1} gap={2} minW={200} {...rest}>
+    <Flex
+      flex={1}
+      gap={2}
+      minW={200}
+      // Hide the editor until it's ready to prevent a flickering effect when collapsing.
+      // The editor will be hidden until the fold action is completed (if collapsed) or immediately if not collapsed.
+      style={isReady ? undefined : { height: "0px", overflow: "hidden" }}
+      {...rest}
+    >
       <Editor
         height={`${editorHeight}px`}
         language="json"

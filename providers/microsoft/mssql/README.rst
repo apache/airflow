@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-mssql``
 
-Release: ``4.5.0``
+Release: ``4.5.1``
 
 
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.mssql`` provider. All classes for thi
 are in ``airflow.providers.microsoft.mssql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.5.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.5.1/>`_.
 
 Installation
 ------------
@@ -45,19 +45,20 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-microsoft-mssql``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-=======================================  ==================
+=======================================  ======================================
 PIP package                              Version required
-=======================================  ==================
+=======================================  ======================================
 ``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.32.0``
-``pymssql``                              ``>=2.3.5``
+``pymssql``                              ``>=2.3.5; python_version < "3.14"``
+``pymssql``                              ``>=2.3.13; python_version >= "3.14"``
 ``methodtools``                          ``>=0.4.7``
-=======================================  ==================
+=======================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -89,4 +90,4 @@ Extra            Dependencies
 ===============  ========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.5.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.5.1/changelog.html>`_.

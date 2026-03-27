@@ -508,9 +508,10 @@ class TestOtelIntegration:
 
         nested = get_span_hierarchy()
         assert nested == {
-            "sub_span1": "task_run.task1",
-            "task_run.task1": "dag_run.otel_test_dag",
             "dag_run.otel_test_dag": None,
+            "sub_span1": "worker.task1",
+            "task_run.task1": "dag_run.otel_test_dag",
+            "worker.task1": "task_run.task1",
         }
 
     def start_scheduler(self, capture_output: bool = False):

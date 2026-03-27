@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
-TERMINAL_STATUSES = {JobStatus.SUCCEEDED.value, JobStatus.FAILED.value}
+TERMINAL_STATUSES = {JobStatus.SUCCEEDED.value, JobStatus.FAILED.value, JobStatus.STOPPED.value}
 
 
 class OperationFailedException(Exception):
