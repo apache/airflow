@@ -20,7 +20,9 @@ from __future__ import annotations
 import json
 import random
 import string
+import sys
 import textwrap
+from importlib import import_module, reload
 from io import StringIO
 from unittest import mock
 
@@ -28,7 +30,7 @@ import paramiko
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 pytestmark = pytest.mark.db_test
@@ -476,6 +478,41 @@ class TestSSHHook:
                 host_pkey_directories=None,
                 logger=hook.log,
             )
+
+    def test_can_import_ssh_hook_when_sshtunnel_is_broken(self, monkeypatch):
+        ssh_module_name = "airflow.providers.ssh.hooks.ssh"
+        original_import = __import__
+
+        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "sshtunnel":
+                raise SyntaxError("return in finally")
+            return original_import(name, globals, locals, fromlist, level)
+
+        monkeypatch.delitem(sys.modules, ssh_module_name, raising=False)
+        monkeypatch.setattr("builtins.__import__", fake_import)
+
+        try:
+            module = import_module(ssh_module_name)
+            assert module.SSHHook is not None
+        finally:
+            monkeypatch.setattr("builtins.__import__", original_import)
+            monkeypatch.delitem(sys.modules, ssh_module_name, raising=False)
+            reload(import_module("airflow.providers.ssh.hooks.ssh"))
+
+    def test_tunnel_requires_working_sshtunnel(self, monkeypatch):
+        hook = SSHHook(remote_host="remote_host", port="port", username="username", key_file="fake.file")
+
+        original_import = __import__
+
+        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "sshtunnel":
+                raise SyntaxError("return in finally")
+            return original_import(name, globals, locals, fromlist, level)
+
+        monkeypatch.setattr("builtins.__import__", fake_import)
+
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="working `sshtunnel` installation"):
+            hook.get_tunnel(1234)
 
     def test_ssh_connection(self):
         hook = SSHHook(ssh_conn_id="ssh_default")

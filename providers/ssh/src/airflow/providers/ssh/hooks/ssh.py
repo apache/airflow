@@ -26,16 +26,22 @@ from collections.abc import Sequence
 from functools import cached_property
 from io import StringIO
 from select import select
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import paramiko
 from paramiko.config import SSH_PORT
-from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 from airflow.providers.common.compat.connection import get_async_connection
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseHook,
+)
 from airflow.utils.platform import getuser
+
+if TYPE_CHECKING:
+    from sshtunnel import SSHTunnelForwarder
 
 try:
     from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -50,6 +56,18 @@ except ImportError:
 
 
 CMD_TIMEOUT = 10
+
+
+def SSHTunnelForwarder(*args, **kwargs):
+    """Import ``sshtunnel`` only when tunnel support is actually used."""
+    try:
+        from sshtunnel import SSHTunnelForwarder as forwarder_cls
+    except (ImportError, SyntaxError) as e:
+        raise AirflowOptionalProviderFeatureException(
+            "The SSH tunnel feature requires a working `sshtunnel` installation. "
+            "Upgrade `sshtunnel` or use a Python version supported by that dependency."
+        ) from e
+    return forwarder_cls(*args, **kwargs)
 
 
 class SSHHook(BaseHook):
