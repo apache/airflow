@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Body, Depends, status
 from sqlalchemy import select, update
@@ -40,10 +40,19 @@ from airflow.providers.edge3.worker_api.datamodels import (
 )
 from airflow.utils.state import TaskInstanceState
 
+if TYPE_CHECKING:
+    from airflow.executors.workloads import ExecuteCallback
+
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 
 
-def parse_command(command: str) -> ExecuteTask:
+def parse_command(command: str, dag_id: str, run_id: str) -> ExecuteTask | ExecuteCallback:
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.executors.workloads import ExecuteCallback
+
+        if dag_id == ExecuteCallback.TYPE and run_id.startswith(ExecuteCallback.TYPE):
+            return ExecuteCallback.model_validate_json(command)
+
     return ExecuteTask.model_validate_json(command)
 
 
@@ -104,7 +113,7 @@ def fetch(
         run_id=job.run_id,
         map_index=job.map_index,
         try_number=job.try_number,
-        command=parse_command(job.command),
+        command=parse_command(job.command, job.dag_id, job.run_id),
         concurrency_slots=job.concurrency_slots,
     )
 

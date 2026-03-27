@@ -53,6 +53,7 @@ from airflow.providers.edge3.cli.signalling import (
     status_file_path,
     write_pid_to_pidfile,
 )
+from airflow.providers.edge3.executors.utils import is_callback_execute
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerDuplicateException,
     EdgeWorkerState,
@@ -64,7 +65,7 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.configuration import AirflowConfigParser
-    from airflow.executors.workloads import ExecuteTask
+    from airflow.executors.workloads import ExecuteCallback, ExecuteTask
 
 logger = logging.getLogger(__name__)
 
@@ -293,15 +294,23 @@ class EdgeWorker:
             results_queue.put(e)
             return 1
 
-    def _launch_job(self, workload: ExecuteTask) -> tuple[Process, Queue[Exception]]:
+    def _launch_job(self, workload: ExecuteTask | ExecuteCallback) -> tuple[Process, Queue[Exception]]:
         # Improvement: Use frozen GC to prevent child process from copying unnecessary memory
         # See _spawn_workers_with_gc_freeze() in airflow-core/src/airflow/executors/local_executor.py
         results_queue: Queue[Exception] = Queue()
-        process = Process(
-            target=self._run_job_via_supervisor,
-            kwargs={"workload": workload, "results_queue": results_queue},
-        )
-        process.start()
+        if is_callback_execute(workload):
+            process = Process(
+                # TODO : change the supervisor by using in https://github.com/apache/airflow/pull/62645
+                target=self._run_job_via_supervisor,
+                kwargs={"workload": workload, "results_queue": results_queue},
+            )
+            process.start()
+        else:
+            process = Process(
+                target=self._run_job_via_supervisor,
+                kwargs={"workload": workload, "results_queue": results_queue},
+            )
+            process.start()
         return process, results_queue
 
     async def _push_logs_in_chunks(self, job: Job):
@@ -421,7 +430,7 @@ class EdgeWorker:
 
         logger.info("Received job: %s", edge_job.identifier)
 
-        workload: ExecuteTask = edge_job.command
+        workload: ExecuteTask | ExecuteCallback = edge_job.command
         process, results_queue = self._launch_job(workload)
         if TYPE_CHECKING:
             assert workload.log_path  # We need to assume this is defined in here

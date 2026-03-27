@@ -29,6 +29,7 @@ from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import Stats, timezone
+from airflow.providers.edge3.executors.utils import is_callback_execute
 from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_config
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
@@ -102,44 +103,71 @@ class EdgeExecutor(BaseExecutor):
         session: Session = NEW_SESSION,
     ) -> None:
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
-
-        task_instance = workload.ti
-        key = task_instance.key
-
-        # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
-        existing_job = session.scalars(
-            select(EdgeJobModel).where(
-                EdgeJobModel.dag_id == key.dag_id,
-                EdgeJobModel.task_id == key.task_id,
-                EdgeJobModel.run_id == key.run_id,
-                EdgeJobModel.map_index == key.map_index,
-                EdgeJobModel.try_number == key.try_number,
-            )
-        ).first()
-
-        if existing_job:
-            existing_job.state = TaskInstanceState.QUEUED
-            existing_job.queue = task_instance.queue
-            existing_job.concurrency_slots = task_instance.pool_slots
-            existing_job.command = workload.model_dump_json()
-            existing_job.team_name = self.team_name
-        else:
-            session.add(
-                EdgeJobModel(
-                    dag_id=key.dag_id,
-                    task_id=key.task_id,
-                    run_id=key.run_id,
-                    map_index=key.map_index,
-                    try_number=key.try_number,
-                    state=TaskInstanceState.QUEUED,
-                    queue=task_instance.queue,
-                    concurrency_slots=task_instance.pool_slots,
-                    command=workload.model_dump_json(),
-                    team_name=self.team_name,
+        if is_callback_execute(workload):
+            existing_job = session.scalars(
+                select(EdgeJobModel).where(
+                    EdgeJobModel.dag_id == workload.type,
+                    EdgeJobModel.task_id == workload.callback.key,
+                    EdgeJobModel.run_id == f"{workload.type}-{workload.callback.key}",
                 )
-            )
+            ).first()
+
+            if existing_job:
+                existing_job.state = TaskInstanceState.QUEUED
+                existing_job.command = workload.model_dump_json()
+            else:
+                session.add(
+                    EdgeJobModel(
+                        dag_id=workload.type,
+                        task_id=workload.callback.key,
+                        run_id=f"{workload.type}-{workload.callback.key}",
+                        map_index=-1,
+                        try_number=0,
+                        queue=self.conf.get_mandatory_value("operators", "default_queue"),
+                        concurrency_slots=1,
+                        state=TaskInstanceState.QUEUED,
+                        command=workload.model_dump_json(),
+                    )
+                )
+
+        elif isinstance(workload, workloads.ExecuteTask):
+            # TODO: to be updated
+            task_instance = workload.ti
+            key = task_instance.key
+
+            # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
+            existing_job = session.scalars(
+                select(EdgeJobModel).where(
+                    EdgeJobModel.dag_id == key.dag_id,
+                    EdgeJobModel.task_id == key.task_id,
+                    EdgeJobModel.run_id == key.run_id,
+                    EdgeJobModel.map_index == key.map_index,
+                    EdgeJobModel.try_number == key.try_number,
+                )
+            ).first()
+
+            if existing_job:
+                existing_job.state = TaskInstanceState.QUEUED
+                existing_job.queue = task_instance.queue
+                existing_job.concurrency_slots = task_instance.pool_slots
+                existing_job.command = workload.model_dump_json()
+            else:
+                session.add(
+                    EdgeJobModel(
+                        dag_id=key.dag_id,
+                        task_id=key.task_id,
+                        run_id=key.run_id,
+                        map_index=key.map_index,
+                        try_number=key.try_number,
+                        state=TaskInstanceState.QUEUED,
+                        queue=task_instance.queue,
+                        concurrency_slots=task_instance.pool_slots,
+                        command=workload.model_dump_json(),
+                    )
+                )
+
+        else:
+            raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         """
