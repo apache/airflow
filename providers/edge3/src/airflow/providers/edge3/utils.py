@@ -16,26 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated, TypeGuard
+from typing import Annotated, TypeAlias, TypeGuard
 
 from pydantic import Discriminator, Tag
 
+from airflow.executors import workloads
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
 
 if not AIRFLOW_V_3_2_PLUS:
     from airflow.executors.workloads import ExecuteTask
 
-    ExecuteTypeBody = ExecuteTask
+    ExecuteTypeBody: TypeAlias = ExecuteTask
 else:
     from airflow.executors.workloads import ExecuteCallback, ExecuteTask
 
-    ExecuteTypeBody = Annotated[
+    ExecuteTypeBody: TypeAlias = Annotated[
         Annotated[ExecuteTask, Tag("ExecuteTask")] | Annotated[ExecuteCallback, Tag("ExecuteCallback")],
         Discriminator("type"),
     ]
 
 
-def is_callback_execute(workload: ExecuteCallback | ExecuteTask) -> TypeGuard[ExecuteCallback]:
+def is_callback_execute(workload: workloads.All) -> TypeGuard[ExecuteCallback]:
     if AIRFLOW_V_3_2_PLUS:
         from airflow.executors.workloads import ExecuteCallback
 

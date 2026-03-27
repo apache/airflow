@@ -53,12 +53,12 @@ from airflow.providers.edge3.cli.signalling import (
     status_file_path,
     write_pid_to_pidfile,
 )
-from airflow.providers.edge3.executors.utils import is_callback_execute
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerDuplicateException,
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
+from airflow.providers.edge3.utils import is_callback_execute
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState

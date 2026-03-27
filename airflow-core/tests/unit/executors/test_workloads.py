@@ -23,13 +23,15 @@ from uuid import uuid4
 import jwt
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator
-from airflow.executors import workloads
-from airflow.executors.workloads import TaskInstance, TaskInstanceDTO, base as workloads_base
-from airflow.executors.workloads.base import BaseWorkloadSchema, BundleInfo
+from airflow.executors.workloads import base as workloads_base
+from airflow.executors.workloads.base import BaseWorkloadSchema
+from airflow.executors.workloads import TaskInstance, TaskInstanceDTO
+from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.task import ExecuteTask
 
 
 def test_task_instance_alias_keeps_backwards_compat():
+    from airflow.executors import workloads
     assert TaskInstance is TaskInstanceDTO
     assert workloads.TaskInstance is TaskInstanceDTO
     assert workloads.TaskInstanceDTO is TaskInstanceDTO

@@ -23,24 +23,11 @@ from typing import (
 )
 
 from fastapi import Path
-from pydantic import BaseModel, Discriminator, Field, Tag
+from pydantic import BaseModel, Field
 
 from airflow.providers.common.compat.sdk import TaskInstanceKey
-from airflow.providers.edge3.executors.utils import ExecuteTypeBody
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState  # noqa: TCH001
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
-
-if not AIRFLOW_V_3_2_PLUS:
-    from airflow.executors.workloads import ExecuteTask
-
-    ExecuteTypeBody = ExecuteTask
-else:
-    from airflow.executors.workloads import ExecuteCallback, ExecuteTask
-
-    ExecuteTypeBody = Annotated[
-        Annotated[ExecuteTask, Tag("ExecuteTask")] | Annotated[ExecuteCallback, Tag("ExecuteCallback")],
-        Discriminator("type"),
-    ]
+from airflow.providers.edge3.utils import ExecuteTypeBody  # noqa: TCH001
 
 
 class WorkerApiDocs:
