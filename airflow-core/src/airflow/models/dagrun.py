@@ -49,7 +49,6 @@ from sqlalchemy import (
     not_,
     or_,
     text,
-    union_all,
     update,
 )
 from sqlalchemy.dialects import postgresql
@@ -624,15 +623,18 @@ class DagRun(Base, LoggingMixin):
 
         def _get_dagrun_query(filters: list[any], order_by: list[any], limit: int):
             return select(
-                select(DagRun)
-                .with_hint(DagRun, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
-                .where(DagRun.state == DagRunState.RUNNING)
-                .join(DagModel, DagModel.dag_id == cls.dag_id)
-                .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
-                .where(*filters)
-                .order_by(*order_by)
-                .limit(limit)
-                .subquery()
+                aliased(
+                    DagRun,
+                    select(DagRun)
+                    .with_hint(DagRun, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
+                    .where(DagRun.state == DagRunState.RUNNING)
+                    .join(DagModel, DagModel.dag_id == cls.dag_id)
+                    .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
+                    .where(*filters)
+                    .order_by(*order_by)
+                    .limit(limit)
+                    .subquery(),
+                ),
             )
 
         filters = [
@@ -662,21 +664,22 @@ class DagRun(Base, LoggingMixin):
             limit=dagruns_to_examine,
         )
 
-        query = aliased(
-            DagRun,
-            union_all(
-                query,
-                _get_dagrun_query(
-                    filters=[*filters, DagRun.last_scheduling_decision.is_(None)],
-                    order_by=order,
-                    limit=new_dagruns_to_examine,
-                ),
-            ).alias("combined"),
+        result = (
+            session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique().all()
         )
 
-        result = session.scalars(
-            with_row_locks(select(query), of=cls, session=session, skip_locked=True)
-        ).unique()
+        if new_dagruns_to_examine > 0:
+            new_dagruns_query = _get_dagrun_query(
+                filters=[*filters, DagRun.last_scheduling_decision.is_(None)],
+                order_by=order,
+                limit=new_dagruns_to_examine,
+            )
+
+            result = result + (
+                session.scalars(with_row_locks(new_dagruns_query, of=cls, session=session, skip_locked=True))
+                .unique()
+                .all()
+            )
 
         return result
 

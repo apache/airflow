@@ -1146,9 +1146,10 @@ class TestDagRun:
 
         if state == DagRunState.RUNNING:
             func = DagRun.get_running_dag_runs_to_examine
+            runs = func(session)
         else:
             func = DagRun.get_queued_dag_runs_to_set_running
-        runs = func(session).all()
+            runs = func(session).all()
 
         assert runs == [dr]
 
@@ -1156,7 +1157,11 @@ class TestDagRun:
         session.merge(orm_dag)
         session.commit()
 
-        runs = func(session).all()
+        if state == DagRunState.RUNNING:
+            runs = func(session)
+        else:
+            runs = func(session).all()
+
         assert runs == []
 
     @mock.patch.object(Stats, "timing")
