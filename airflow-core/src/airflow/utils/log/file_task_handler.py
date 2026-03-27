@@ -721,6 +721,11 @@ class FileTaskHandler(logging.Handler):
             hostname = ti.hostname
             config_key = "worker_log_server_port"
             config_default = 8793
+
+        if not hostname:
+            msg = f"Cannot construct log URL for {log_type.value if log_type else LogType.WORKER.value}: missing hostname."
+            raise ValueError(msg)
+
         return (
             urljoin(
                 f"http://{hostname}:{conf.get('logging', config_key, fallback=config_default)}/log/",
