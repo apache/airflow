@@ -130,7 +130,6 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
               <Link asChild data-testid={node.id} display="block" width="100%">
                 <RouterLink
                   onClick={() => {
-                    // 這裡呼叫新的邏輯
                     handleToggleGroupOnLinkClick(node.id);
                     if (onRowClick) {
                       onRowClick();
