@@ -99,7 +99,9 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/hashicorp/ @hussein-awala
 /providers/informatica/ @RNHTTR # + @cetingokhan @sertaykabuk @umutozel
 /providers/keycloak/ @vincbeck @bugraoz93
-/providers/microsoft/azure/ @dabla
+/providers/microsoft/azure/docs/**/msgraph.rst @dabla
+/providers/microsoft/azure/src/**/msgraph.py @dabla
+/providers/microsoft/azure/tests/**/*msgraph.py @dabla
 /providers/openlineage/ @mobuchowski
 /providers/smtp/ @hussein-awala
 /providers/snowflake/ @potiuk
