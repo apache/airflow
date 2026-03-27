@@ -517,6 +517,17 @@ core:
       type: boolean
       example: ~
       default: "False"
+    max_dag_version_cache_size:
+      description: |
+        Maximum number of DAG versions to keep in the in-memory cache used by DBDagBag.
+        When the limit is reached the least-recently-used version is evicted. Increase this
+        value if you have many concurrently active DAG versions and can afford the memory;
+        decrease it to reduce the memory footprint of long-running API server or scheduler
+        processes.
+      version_added: 3.1.0
+      type: integer
+      example: ~
+      default: "512"
 database:
   description: ~
   options:

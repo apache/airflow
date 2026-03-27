@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from collections import OrderedDict
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 
 from airflow.api_fastapi.app import purge_cached_app
+from airflow.models.dagbag import DBDagBag
 from airflow.sdk import BaseOperator
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -82,3 +85,61 @@ class TestDagBagSingleton:
         assert resp2.status_code == 200
 
         assert self.dagbag_call_counter["count"] == 1
+
+
+class TestDBDagBagLRUCache:
+    """Tests for the bounded LRU eviction behaviour of DBDagBag._dags."""
+
+    def _make_bag(self, max_size: int) -> DBDagBag:
+        bag = DBDagBag.__new__(DBDagBag)
+        bag.load_op_links = True
+        bag._max_dag_version_cache_size = max_size
+        bag._dags = OrderedDict()
+        return bag
+
+    def _make_model(self, version_id):
+        m = mock.MagicMock()
+        m.dag_version_id = version_id
+        m.dag = mock.MagicMock()  # truthy — deserialization succeeds
+        return m
+
+    def test_cache_bounded_by_max_size(self):
+        """Inserting beyond max_size evicts the least-recently-used entry."""
+        bag = self._make_bag(max_size=3)
+        ids = [uuid4() for _ in range(4)]
+        for uid in ids:
+            bag._read_dag(self._make_model(uid))
+
+        assert len(bag._dags) == 3
+        assert ids[0] not in bag._dags  # first inserted → LRU → evicted
+        assert ids[3] in bag._dags
+
+    def test_cache_hit_promotes_to_mru(self):
+        """A cache hit via get_serialized_dag_model promotes the entry to MRU."""
+        bag = self._make_bag(max_size=3)
+        ids = [uuid4() for _ in range(3)]
+        models = {uid: self._make_model(uid) for uid in ids}
+        for uid in ids:
+            bag._read_dag(models[uid])
+
+        # Re-access ids[0] through get_serialized_dag_model to promote it
+        session = mock.MagicMock()
+        bag.get_serialized_dag_model(ids[0], session=session)
+        session.get.assert_not_called()  # should be a pure cache hit
+
+        # Insert a 4th entry — ids[1] (now LRU) should be evicted, not ids[0]
+        bag._read_dag(self._make_model(uuid4()))
+
+        assert ids[0] in bag._dags  # promoted to MRU, survives
+        assert ids[1] not in bag._dags  # was LRU after ids[0] promoted, evicted
+
+    def test_failed_deserialization_not_cached(self):
+        """Entries whose .dag property is falsy are not inserted into the cache."""
+        bag = self._make_bag(max_size=10)
+        m = mock.MagicMock()
+        m.dag_version_id = uuid4()
+        m.dag = None  # deserialization failure
+
+        bag._read_dag(m)
+
+        assert len(bag._dags) == 0

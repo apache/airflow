@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import hashlib
+from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import String, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column
 
+from airflow.configuration import conf
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 
@@ -45,13 +47,20 @@ class DBDagBag:
     """
 
     def __init__(self, load_op_links: bool = True) -> None:
-        self._dags: dict[UUID, SerializedDagModel] = {}  # dag_version_id to dag
+        self._max_dag_version_cache_size: int = conf.getint(
+            "core", "max_dag_version_cache_size", fallback=512
+        )
+        self._dags: OrderedDict[UUID, SerializedDagModel] = OrderedDict()
         self.load_op_links = load_op_links
 
     def _read_dag(self, serialized_dag_model: SerializedDagModel) -> SerializedDAG | None:
         serialized_dag_model.load_op_links = self.load_op_links
         if dag := serialized_dag_model.dag:
-            self._dags[serialized_dag_model.dag_version_id] = serialized_dag_model
+            version_id = serialized_dag_model.dag_version_id
+            self._dags[version_id] = serialized_dag_model
+            self._dags.move_to_end(version_id)
+            if len(self._dags) > self._max_dag_version_cache_size:
+                self._dags.popitem(last=False)  # evict LRU entry
         return dag
 
     def get_serialized_dag_model(self, version_id: UUID, session: Session) -> SerializedDagModel | None:
@@ -77,6 +86,8 @@ class DBDagBag:
             if not dag_version or not (serialized_dag_model := dag_version.serialized_dag):
                 return None
             self._read_dag(serialized_dag_model)
+        else:
+            self._dags.move_to_end(version_id)  # promote to MRU on cache hit
         return serialized_dag_model
 
     def get_dag(self, version_id: UUID, session: Session) -> SerializedDAG | None:
