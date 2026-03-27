@@ -1,1 +1,0 @@
-Fix `xcom_pull()` ignoring `default` parameter when `map_indexes` is not set
