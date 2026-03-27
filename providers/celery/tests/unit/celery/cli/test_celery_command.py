@@ -626,6 +626,51 @@ class TestRemoteCeleryControlCommands:
             assert mock_cancel_consumer.call_count == 2
 
 
+class TestCeleryWorkerHealthCheck:
+    @classmethod
+    def setup_class(cls):
+        with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            importlib.reload(executor_loader)
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
+
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_passes_when_worker_pings_and_has_queues(self, mock_inspect):
+        args = self.parser.parse_args(["celery", "health-check", "--celery-hostname", "celery@host_1"])
+        mock_instance = MagicMock()
+        mock_instance.ping.return_value = {"celery@host_1": {"ok": "pong"}}
+        mock_instance.active_queues.return_value = {"celery@host_1": [{"name": "queue1"}]}
+        mock_inspect.return_value = mock_instance
+
+        celery_command.health_check(args)
+
+        mock_inspect.assert_called_once_with(destination=["celery@host_1"])
+        mock_instance.ping.assert_called_once_with()
+        mock_instance.active_queues.assert_called_once_with()
+
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_fails_when_worker_lost_queues(self, mock_inspect):
+        args = self.parser.parse_args(["celery", "health-check", "--celery-hostname", "celery@host_1"])
+        mock_instance = MagicMock()
+        mock_instance.ping.return_value = {"celery@host_1": {"ok": "pong"}}
+        mock_instance.active_queues.return_value = None
+        mock_inspect.return_value = mock_instance
+
+        with pytest.raises(SystemExit, match="is not consuming any queues"):
+            celery_command.health_check(args)
+
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_health_check_fails_when_worker_no_longer_pings(self, mock_inspect):
+        args = self.parser.parse_args(["celery", "health-check", "--celery-hostname", "celery@host_1"])
+        mock_instance = MagicMock()
+        mock_instance.ping.return_value = None
+        mock_instance.active_queues.return_value = {"celery@host_1": [{"name": "queue1"}]}
+        mock_inspect.return_value = mock_instance
+
+        with pytest.raises(SystemExit, match="is not responding to ping"):
+            celery_command.health_check(args)
+
+
 @patch("airflow.providers.celery.cli.celery_command.Process")
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Doesn't apply to pre-3.0")
 def test_stale_bundle_cleanup(mock_process):

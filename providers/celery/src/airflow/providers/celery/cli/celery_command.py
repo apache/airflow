@@ -46,6 +46,13 @@ WORKER_PROCESS_NAME = "worker"
 log = logging.getLogger(__name__)
 
 
+def _get_celery_app():
+    """Import the Celery app lazily to avoid provider initialization during CLI startup."""
+    from airflow.providers.celery.executors.celery_executor import app as celery_app
+
+    return celery_app
+
+
 def _run_command_with_daemon_option(*args, **kwargs):
     try:
         from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
@@ -214,7 +221,7 @@ def worker(args):
         celery_app = create_celery_app(team_config)
     else:
         # Backward compatible: use module-level app with global config
-        from airflow.providers.celery.executors.celery_executor import app as celery_app
+        celery_app = _get_celery_app()
 
     # Use team_config for config reads in multi-team mode, otherwise use global conf
     config = team_config if team_config else conf
@@ -350,15 +357,29 @@ def stop_worker(args):
 @_providers_configuration_loaded
 def _check_if_active_celery_worker(hostname: str):
     """Check if celery worker is active before executing dependent cli commands."""
-    # This needs to be imported locally to not trigger Providers Manager initialization
-    from airflow.providers.celery.executors.celery_executor import app as celery_app
-
+    celery_app = _get_celery_app()
     inspect = celery_app.control.inspect()
     active_workers = inspect.active_queues()
     if not active_workers:
         raise SystemExit("Error: No active Celery workers found!")
     if hostname not in active_workers:
         raise SystemExit(f"Error: {hostname} is unknown!")
+
+
+@cli_utils.action_cli(check_db=False)
+@_providers_configuration_loaded
+def health_check(args):
+    """Check that a celery worker is alive and still consuming queues."""
+    celery_app = _get_celery_app()
+    inspect = celery_app.control.inspect(destination=[args.celery_hostname])
+
+    ping_result = inspect.ping()
+    if not ping_result or args.celery_hostname not in ping_result:
+        raise SystemExit(f"Error: Celery worker '{args.celery_hostname}' is not responding to ping.")
+
+    active_workers = inspect.active_queues()
+    if not active_workers or not active_workers.get(args.celery_hostname):
+        raise SystemExit(f"Error: Celery worker '{args.celery_hostname}' is not consuming any queues.")
 
 
 @cli_utils.action_cli(check_db=False)

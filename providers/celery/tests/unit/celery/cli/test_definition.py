@@ -52,13 +52,14 @@ class TestCeleryCliDefinition:
         assert len(CELERY_CLI_COMMANDS) == 1
 
     def test_celery_commands_count(self):
-        """Test that CELERY_COMMANDS contains all 9 subcommands."""
-        assert len(CELERY_COMMANDS) == 9
+        """Test that CELERY_COMMANDS contains all 10 subcommands."""
+        assert len(CELERY_COMMANDS) == 10
 
     @pytest.mark.parametrize(
         "command",
         [
             "worker",
+            "health-check",
             "flower",
             "stop",
             "list-workers",
@@ -93,6 +94,12 @@ class TestCeleryCliDefinition:
         assert args.queues == "queue1,queue2"
         assert args.concurrency == 4
         assert args.celery_hostname == "worker1"
+
+    def test_health_check_command_args(self):
+        """Test health-check command with celery hostname."""
+        params = ["celery", "health-check", "--celery-hostname", "celery@worker1"]
+        args = self.arg_parser.parse_args(params)
+        assert args.celery_hostname == "celery@worker1"
 
     def test_flower_command_args(self):
         """Test flower command with various arguments."""

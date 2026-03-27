@@ -158,6 +158,12 @@ CELERY_COMMANDS = (
         ),
     ),
     ActionCommand(
+        name="health-check",
+        help="Check whether a Celery worker is alive and still consuming queues",
+        func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.health_check"),
+        args=(ARG_FULL_CELERY_HOSTNAME,),
+    ),
+    ActionCommand(
         name="flower",
         help="Start a Celery Flower",
         func=lazy_load_command(f"{CELERY_CLI_COMMAND_PATH}.flower"),
