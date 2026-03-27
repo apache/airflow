@@ -28,7 +28,12 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useHover } from "src/context/hover";
-import { GANTT_AXIS_HEIGHT_PX, GANTT_TOP_PADDING_PX, ROW_HEIGHT } from "src/layouts/Details/Grid/constants";
+import {
+  GANTT_AXIS_HEIGHT_PX,
+  GANTT_TOP_PADDING_PX,
+  ROW_HEIGHT,
+  TASK_BAR_HEIGHT_PX,
+} from "src/layouts/Details/Grid/constants";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
 
 import {
@@ -269,8 +274,7 @@ export const GanttTimeline = ({
                 w="100%"
                 zIndex={1}
               >
-                <Flex
-                  align="center"
+                <Box
                   bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
                   h="100%"
                   maxW="100%"
@@ -282,77 +286,69 @@ export const GanttTimeline = ({
                   transition="background-color 0.2s"
                   w="100%"
                 >
-                  <Flex direction="column" gap="1px" h="14px" justify="center" position="relative" w="100%">
-                    {segments.map((segment) => {
-                      const { leftPct, widthPct } = segmentLayout(segment);
-                      const to = getGanttSegmentTo({
-                        dagId,
-                        data: ganttDataItems,
-                        item: segment,
-                        location,
-                        runId,
-                      });
-                      const tooltipInstance = toTooltipSummary(segment, node, gridSummary);
+                  {segments.map((segment, segIndex) => {
+                    const { leftPct, widthPct } = segmentLayout(segment);
+                    const to = getGanttSegmentTo({
+                      dagId,
+                      data: ganttDataItems,
+                      item: segment,
+                      location,
+                      runId,
+                    });
+                    const tooltipInstance = toTooltipSummary(segment, node, gridSummary);
 
-                      if (to === undefined) {
-                        return undefined;
-                      }
+                    if (to === undefined) {
+                      return undefined;
+                    }
 
-                      return (
+                    return (
+                      <TaskInstanceTooltip
+                        key={`${segment.taskId}-${segment.tryNumber ?? 0}-${segment.x[0]}`}
+                        openDelay={500}
+                        positioning={{
+                          offset: { crossAxis: 0, mainAxis: 5 },
+                          placement: "bottom",
+                        }}
+                        taskInstance={tooltipInstance}
+                      >
                         <Box
-                          flex={1}
-                          key={`${segment.taskId}-${segment.tryNumber ?? 0}-${segment.x[0]}`}
-                          minH={0}
-                          position="relative"
-                          w="100%"
+                          as="span"
+                          display="block"
+                          h={`${TASK_BAR_HEIGHT_PX}px`}
+                          left={`${leftPct}%`}
+                          maxW={`${100 - leftPct}%`}
+                          minW={`${MIN_BAR_WIDTH_PX}px`}
+                          position="absolute"
+                          top={`${(ROW_HEIGHT - TASK_BAR_HEIGHT_PX) / 2}px`}
+                          w={`${widthPct}%`}
+                          zIndex={segIndex + 1}
                         >
-                          <TaskInstanceTooltip
-                            openDelay={500}
-                            positioning={{
-                              offset: { crossAxis: 0, mainAxis: 5 },
-                              placement: "bottom",
-                            }}
-                            taskInstance={tooltipInstance}
+                          <Link
+                            onClick={() => onSegmentClick?.()}
+                            replace
+                            style={{ display: "block", height: "100%", width: "100%" }}
+                            to={to}
                           >
-                            <Box
-                              as="span"
-                              display="block"
+                            <Badge
+                              alignItems="center"
+                              borderRadius={4}
+                              colorPalette={segment.state ?? "none"}
+                              display="flex"
                               h="100%"
-                              left={`${leftPct}%`}
-                              maxW={`${100 - leftPct}%`}
-                              minW={`${MIN_BAR_WIDTH_PX}px`}
-                              position="absolute"
-                              top={0}
-                              w={`${widthPct}%`}
+                              justifyContent="center"
+                              minH={0}
+                              p={0}
+                              variant="solid"
+                              w="100%"
                             >
-                              <Link
-                                onClick={() => onSegmentClick?.()}
-                                replace
-                                style={{ display: "block", height: "100%", width: "100%" }}
-                                to={to}
-                              >
-                                <Badge
-                                  alignItems="center"
-                                  borderRadius={4}
-                                  colorPalette={segment.state ?? "none"}
-                                  display="flex"
-                                  h="100%"
-                                  justifyContent="center"
-                                  minH={0}
-                                  p={0}
-                                  variant="solid"
-                                  w="100%"
-                                >
-                                  <StateIcon size={10} state={segment.state} />
-                                </Badge>
-                              </Link>
-                            </Box>
-                          </TaskInstanceTooltip>
+                              <StateIcon size={10} state={segment.state} />
+                            </Badge>
+                          </Link>
                         </Box>
-                      );
-                    })}
-                  </Flex>
-                </Flex>
+                      </TaskInstanceTooltip>
+                    );
+                  })}
+                </Box>
               </Box>
             );
           })}
