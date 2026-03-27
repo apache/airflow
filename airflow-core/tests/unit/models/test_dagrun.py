@@ -1367,9 +1367,14 @@ class TestDagRun:
         pytest.param(DagRunType.BACKFILL_JOB, 3, id="backfill"),
     ],
 )
-@mock.patch("airflow.models.dagrun.stats.incr")
-def test_verify_integrity_task_start_and_end_date(Stats_incr, dag_maker, session, run_type, expected_tis):
+@mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+def test_verify_integrity_task_start_and_end_date(
+    mock_get_backend, dag_maker, session, run_type, expected_tis
+):
     """Test that tasks with specific dates are only created for backfill runs"""
+    mock_stats = mock.MagicMock()
+    mock_get_backend.return_value = mock_stats
+
     with dag_maker("test", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE) as dag:
         EmptyOperator(task_id="without")
         EmptyOperator(task_id="with_start_date", start_date=DEFAULT_DATE + datetime.timedelta(1))
@@ -1391,12 +1396,12 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, dag_maker, session
     tis = dag_run.task_instances
     assert len(tis) == expected_tis
 
-    Stats_incr.assert_any_call(
+    mock_stats.incr.assert_any_call(
         "task_instance_created_EmptyOperator",
         count=expected_tis,
         tags={"dag_id": "test", "run_type": run_type},
     )
-    Stats_incr.assert_any_call(
+    mock_stats.incr.assert_any_call(
         "task_instance_created",
         count=expected_tis,
         tags={"dag_id": "test", "run_type": run_type, "task_type": "EmptyOperator"},

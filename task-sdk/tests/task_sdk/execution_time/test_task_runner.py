@@ -4763,16 +4763,16 @@ class TestTaskInstanceMetrics:
         task = PythonOperator(task_id="test", python_callable=lambda: "success")
         ti = create_runtime_ti(task=task)
 
-        with mock.patch("airflow.sdk.execution_time.task_runner.Stats") as mock_stats:
+        with mock.patch("airflow.sdk._shared.observability.metrics.stats.incr") as mock_incr:
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
             # verify ti.start was called in legacy format
-            mock_stats.incr.assert_any_call(
+            mock_incr.assert_any_call(
                 f"ti.start.{ti.dag_id}.{ti.task_id}",
                 tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
             )
             # verify ti.start was called in tagged format
-            mock_stats.incr.assert_any_call(
+            mock_incr.assert_any_call(
                 "ti.start",
                 tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
             )
@@ -4793,16 +4793,16 @@ class TestTaskInstanceMetrics:
         task = PythonOperator(task_id="test", python_callable=task_callable)
         ti = create_runtime_ti(task=task)
 
-        with mock.patch("airflow.sdk.execution_time.task_runner.Stats") as mock_stats:
+        with mock.patch("airflow.sdk._shared.observability.metrics.stats.incr") as mock_incr:
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
             # verify ti.finish was called in legacy format
-            mock_stats.incr.assert_any_call(
+            mock_incr.assert_any_call(
                 f"ti.finish.{ti.dag_id}.{ti.task_id}.{expected_state}",
                 tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
             )
             # verify ti.finish was called in tagged format
-            mock_stats.incr.assert_any_call(
+            mock_incr.assert_any_call(
                 "ti.finish",
                 tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "state": expected_state},
             )
@@ -4812,38 +4812,38 @@ class TestTaskInstanceMetrics:
         task = PythonOperator(task_id="test", python_callable=lambda: "success")
         ti = create_runtime_ti(task=task)
 
-        with mock.patch("airflow.sdk.execution_time.task_runner.Stats") as mock_stats:
+        with mock.patch("airflow.sdk._shared.observability.metrics.stats.incr") as mock_incr:
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
             stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
             # verify operator_successes in legacy format
-            mock_stats.incr.assert_any_call("operator_successes_PythonOperator", tags=stats_tags)
+            mock_incr.assert_any_call("operator_successes_PythonOperator", tags=stats_tags)
             # verify operator_successes in tagged format
-            mock_stats.incr.assert_any_call(
+            mock_incr.assert_any_call(
                 "operator_successes",
                 tags={**stats_tags, "operator": "PythonOperator"},
             )
-            mock_stats.incr.assert_any_call("ti_successes", tags=stats_tags)
+            mock_incr.assert_any_call("ti_successes", tags=stats_tags)
 
     def test_operator_failures_metrics_emitted(self, create_runtime_ti, mock_supervisor_comms):
         """Test that operator_failures and ti_failures metrics are emitted on task failure."""
         task = PythonOperator(task_id="test", python_callable=lambda: 1 / 0)
         ti = create_runtime_ti(task=task)
 
-        with mock.patch("airflow.sdk.execution_time.task_runner.Stats") as mock_stats:
+        with mock.patch("airflow.sdk._shared.observability.metrics.stats.incr") as mock_incr:
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
             stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
 
             # verify operator_failures in legacy format
-            mock_stats.incr.assert_any_call("operator_failures_PythonOperator", tags=stats_tags)
+            mock_incr.assert_any_call("operator_failures_PythonOperator", tags=stats_tags)
             # verify operator_failures in tagged format
-            mock_stats.incr.assert_any_call(
+            mock_incr.assert_any_call(
                 "operator_failures",
                 tags={**stats_tags, "operator": "PythonOperator"},
             )
-            mock_stats.incr.assert_any_call("ti_failures", tags=stats_tags)
+            mock_incr.assert_any_call("ti_failures", tags=stats_tags)
 
 
 def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):

@@ -22,7 +22,6 @@ import re
 import pytest
 
 import airflow
-import airflow._shared.observability.metrics.stats
 import airflow.observability.stats
 from airflow.observability.metrics import stats_utils
 

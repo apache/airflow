@@ -293,13 +293,11 @@ class Stats:
     """
     Class-based shim providing access to module-level stats functions.
 
-    All attributes delegate to the corresponding module-level function so
-    call-sites can use the familiar ``Stats.incr(…)`` syntax, and tests can
-    mock individual methods via the class attribute path:
-
-        @patch("airflow.sdk._shared.observability.metrics.stats.Stats.incr")
+    All attributes delegate to the corresponding module-level function so call-sites
+    can use the familiar ``Stats.incr(…)`` syntax for backwards compatibility.
     """
 
+    initialize = staticmethod(initialize)
     incr = staticmethod(incr)
     decr = staticmethod(decr)
     gauge = staticmethod(gauge)
