@@ -524,7 +524,7 @@ core:
         value if you have many concurrently active DAG versions and can afford the memory;
         decrease it to reduce the memory footprint of long-running API server or scheduler
         processes.
-      version_added: 3.1.0
+      version_added: 3.2.0
       type: integer
       example: ~
       default: "512"
