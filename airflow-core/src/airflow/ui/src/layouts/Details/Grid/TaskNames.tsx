@@ -43,7 +43,7 @@ const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
   const { t: translate } = useTranslation("dag");
   const { hoveredTaskId, setHoveredTaskId } = useHover();
-  const { toggleGroupId } = useOpenGroups();
+  const { openGroupIds, setOpenGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -64,6 +64,26 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
 
     if (groupNodeId !== undefined) {
       toggleGroupId(groupNodeId);
+    }
+  };
+
+  const handleToggleGroupOnLinkClick = (groupNodeId?: string) => {
+    if (groupNodeId === undefined || groupNodeId === "") {
+      return;
+    }
+
+    const id = groupNodeId;
+    const isViewingSameGroup = typeof groupId === "string" && groupId === id;
+    const isOpen = openGroupIds.includes(id);
+
+    if (isViewingSameGroup) {
+      toggleGroupId(id);
+
+      return;
+    }
+
+    if (!isOpen) {
+      setOpenGroupIds([...new Set([...openGroupIds, id])]);
     }
   };
 
@@ -109,7 +129,13 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
             {node.isGroup ? (
               <Link asChild data-testid={node.id} display="block" width="100%">
                 <RouterLink
-                  onClick={onRowClick}
+                  onClick={() => {
+                    // 這裡呼叫新的邏輯
+                    handleToggleGroupOnLinkClick(node.id);
+                    if (onRowClick) {
+                      onRowClick();
+                    }
+                  }}
                   replace
                   style={{ outline: "none" }}
                   to={{
