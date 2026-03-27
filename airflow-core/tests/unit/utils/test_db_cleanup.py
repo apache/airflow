@@ -422,6 +422,68 @@ class TestDBCleanup:
                 f"Expected {expected_remaining_dag_ids} to remain, but got {remaining_dag_ids}"
             )
 
+    def test_run_cleanup_keeps_referenced_dag_versions(self):
+        """
+        Verify that db cleanup skips old DagVersion rows that are still referenced by surviving task instances.
+        """
+        base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
+        dag_id = f"test-dag_{uuid4()}"
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag = DAG(dag_id=dag_id)
+            session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+
+            dag_version_1 = DagVersion.write_dag(dag_id=dag_id, bundle_name=bundle_name, session=session)
+            dag_version_1.created_at = base_date
+            dag_version_1.last_updated = base_date
+            session.flush()
+
+            dag_version_2 = DagVersion.write_dag(dag_id=dag_id, bundle_name=bundle_name, session=session)
+            dag_version_2.created_at = base_date.add(days=1)
+            dag_version_2.last_updated = dag_version_2.created_at
+            session.flush()
+
+            dag_version_3 = DagVersion.write_dag(dag_id=dag_id, bundle_name=bundle_name, session=session)
+            dag_version_3.created_at = base_date.add(days=2)
+            dag_version_3.last_updated = dag_version_3.created_at
+            session.flush()
+
+            dag_run = DagRun(
+                dag_id,
+                run_id="run_1",
+                run_type=DagRunType.MANUAL,
+                start_date=base_date.add(days=10),
+            )
+            task = PythonOperator(task_id="dummy-task", python_callable=print, dag=dag)
+            ti = create_task_instance(
+                task,
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version_1.id,
+            )
+            ti.dag_id = dag_id
+            ti.start_date = base_date.add(days=10)
+            session.add_all([dag_run, ti])
+            session.commit()
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=5),
+                table_names=["dag_version"],
+                dry_run=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+            remaining_version_ids = set(
+                session.scalars(select(DagVersion.id).where(DagVersion.dag_id == dag_id)).all()
+            )
+            assert remaining_version_ids == {dag_version_1.id, dag_version_3.id}
+            assert session.scalar(select(func.count()).select_from(TaskInstance)) == 1
+
     @pytest.mark.parametrize(
         ("skip_archive", "expected_archives"),
         [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],

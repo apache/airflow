@@ -165,6 +165,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="dag_version",
         recency_column_name="created_at",
+        extra_columns=["id"],
         dependent_tables=["task_instance", "dag_run"],
         dag_id_column_name="dag_id",
         keep_last=True,
@@ -372,6 +373,17 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
+
+    if orm_model.name == "dag_version":
+        # Keep any DAG version that is still referenced by surviving task instances.
+        # The task_instance cleanup runs first, so this only protects active references.
+        task_instance = table("task_instance", column("dag_version_id"))
+        conditions.append(
+            ~select(1)
+            .select_from(task_instance)
+            .where(task_instance.c.dag_version_id == base_table.c.id)
+            .exists()
+        )
     query = query.where(and_(*conditions))
     return query
 
