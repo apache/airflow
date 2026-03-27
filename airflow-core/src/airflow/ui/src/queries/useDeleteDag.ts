@@ -23,6 +23,7 @@ import { useDagServiceDeleteDag, useDagServiceGetDagsUiKey } from "openapi/queri
 import { useDagServiceGetDagKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
 import { createErrorToaster } from "src/utils";
+import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
 
 export const useDeleteDag = ({
   dagId,
@@ -46,7 +47,11 @@ export const useDeleteDag = ({
   };
 
   const onSuccess = async () => {
-    const queryKeys = [[useDagServiceGetDagKey, { dagId }], [useDagServiceGetDagsUiKey]];
+    const queryKeys = [
+      [useDagServiceGetDagKey, { dagId }],
+      [useDagServiceGetDagsUiKey],
+      ...gridQueryKeys(dagId),
+    ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
