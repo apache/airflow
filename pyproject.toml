@@ -1339,7 +1339,7 @@ leveldb = [
 ]
 
 [tool.uv]
-required-version = ">=0.6.3"
+required-version = ">=0.9.17"
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 no-build-isolation-package = ["sphinx-redoc"]
