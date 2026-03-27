@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     AfterValidator,
@@ -188,19 +188,35 @@ class OklchColor(BaseModel):
         return f"oklch({self.lightness} {self.chroma} {self.hue})"
 
 
+# Private type aliases for theme token shapes
+_ColorShade = dict[Literal["value"], OklchColor]
+_SHADE_LITERAL = Literal["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"]
+_ColorScale = dict[_SHADE_LITERAL, _ColorShade]
+
+
+class ThemeColors(BaseModel):
+    """Color tokens for the UI theme. All fields are optional; at least one must be provided."""
+
+    brand: _ColorScale | None = None
+    gray: _ColorScale | None = None
+    black: _ColorShade | None = None
+    white: _ColorShade | None = None
+
+    @model_validator(mode="after")
+    def check_at_least_one_color(self) -> ThemeColors:
+        if not any([self.brand, self.gray, self.black, self.white]):
+            raise ValueError("At least one color token must be provided: brand, gray, black, or white")
+        return self
+
+    @model_serializer(mode="wrap")
+    def serialize_model(self, handler: Any) -> dict:
+        return {k: v for k, v in handler(self).items() if v is not None}
+
+
 class Theme(BaseModel):
     """JSON to modify Chakra's theme."""
 
-    tokens: dict[
-        Literal["colors"],
-        dict[
-            Literal["brand"],
-            dict[
-                Literal["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"],
-                dict[Literal["value"], OklchColor],
-            ],
-        ],
-    ]
+    tokens: dict[Literal["colors"], ThemeColors]
     globalCss: dict[str, dict] | None = None
     icon: ThemeIconType = None
     icon_dark_mode: ThemeIconType = None
