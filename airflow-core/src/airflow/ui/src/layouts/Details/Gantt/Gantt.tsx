@@ -29,9 +29,8 @@ import { useTimezone } from "src/context/timezone";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import {
   GANTT_AXIS_HEIGHT_PX,
-  GANTT_TOP_PADDING_PX,
   GANTT_ROW_OFFSET_PX,
-  GRID_OUTER_PADDING_PX,
+  GANTT_TOP_PADDING_PX,
 } from "src/layouts/Details/Grid/constants";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
 import { useGridRuns } from "src/queries/useGridRuns";
@@ -181,18 +180,9 @@ export const Gantt = ({
   }
 
   return (
-    <Flex
-      flex={1}
-      flexDirection="column"
-      maxW="100%"
-      minH={0}
-      minW={0}
-      overflow="hidden"
-      pt={`${GRID_OUTER_PADDING_PX}px`}
-    >
+    <Flex flex={1} flexDirection="column" maxW="100%" minH={0} minW={0} overflow="hidden">
       <Box
-        flexShrink={0}
-        height="calc(100vh - 140px)"
+        flex={1}
         minH={0}
         minW={0}
         onMouseLeave={handleStandaloneMouseLeave}

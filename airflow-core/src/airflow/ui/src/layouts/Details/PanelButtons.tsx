@@ -290,7 +290,7 @@ export const PanelButtons = ({
   );
 
   return (
-    <Box bg="bg" position="absolute" pr={4} ref={containerRef} top={1} width="100%" zIndex={4}>
+    <Box bg="bg" pr={4} ref={containerRef} width="100%" zIndex={1}>
       <Flex justifyContent="space-between">
         <ButtonGroupToggle isIcon onChange={handleDagViewChange} options={dagViewOptions} value={dagView} />
         <Flex alignItems="center" gap={1} justifyContent="space-between">

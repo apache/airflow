@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Flex, useDisclosure, IconButton } from "@chakra-ui/react";
+import { Box, Flex, HStack, IconButton, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useRef, useState } from "react";
 import type { PropsWithChildren, ReactNode, RefObject } from "react";
@@ -56,7 +56,6 @@ import {
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { HoverProvider, useHover } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
-import { GRID_OUTER_PADDING_PX } from "src/layouts/Details/Grid/constants";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -77,7 +76,7 @@ const SharedScrollBox = ({
 
   return (
     <Box
-      height="calc(100vh - 140px)"
+      height="100%"
       minH={0}
       minW={0}
       onMouseLeave={() => setHoveredTaskId(undefined)}
@@ -193,7 +192,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               minSize={dagView === "gantt" && Boolean(runId) ? 35 : 6}
               order={1}
             >
-              <Box height="100%" position="relative">
+              <Flex flexDirection="column" height="100%">
                 <PanelButtons
                   dagRunStateFilter={dagRunStateFilter}
                   dagView={dagView}
@@ -213,17 +212,42 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   showVersionIndicatorMode={showVersionIndicatorMode}
                   triggeringUserFilter={triggeringUserFilter}
                 />
-                {dagView === "graph" ? (
-                  <Graph />
-                ) : dagView === "gantt" && Boolean(runId) ? (
-                  <SharedScrollBox scrollRef={sharedGridGanttScrollRef}>
-                    <Flex
+                <Box flex={1} minH={0} overflow="hidden">
+                  {dagView === "graph" ? (
+                    <Graph />
+                  ) : dagView === "gantt" && Boolean(runId) ? (
+                    <SharedScrollBox scrollRef={sharedGridGanttScrollRef}>
+                      <Flex alignItems="flex-start" gap={0} maxW="100%" minW={0} overflow="clip" w="100%">
+                        <Grid
+                          dagRunState={dagRunStateFilter}
+                          limit={limit}
+                          runAfterGte={runAfterGte}
+                          runAfterLte={runAfterLte}
+                          runType={runTypeFilter}
+                          sharedScrollContainerRef={sharedGridGanttScrollRef}
+                          showGantt
+                          showVersionIndicatorMode={showVersionIndicatorMode}
+                          triggeringUser={triggeringUserFilter}
+                        />
+                        <Gantt
+                          dagRunState={dagRunStateFilter}
+                          limit={limit}
+                          runAfterGte={runAfterGte}
+                          runAfterLte={runAfterLte}
+                          runType={runTypeFilter}
+                          sharedScrollContainerRef={sharedGridGanttScrollRef}
+                          triggeringUser={triggeringUserFilter}
+                        />
+                      </Flex>
+                    </SharedScrollBox>
+                  ) : (
+                    <HStack
                       alignItems="flex-start"
                       gap={0}
+                      height="100%"
                       maxW="100%"
                       minW={0}
-                      overflow="clip"
-                      pt={`${GRID_OUTER_PADDING_PX}px`}
+                      overflow="hidden"
                       w="100%"
                     >
                       <Grid
@@ -232,36 +256,13 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                         runAfterGte={runAfterGte}
                         runAfterLte={runAfterLte}
                         runType={runTypeFilter}
-                        sharedScrollContainerRef={sharedGridGanttScrollRef}
-                        showGantt
                         showVersionIndicatorMode={showVersionIndicatorMode}
                         triggeringUser={triggeringUserFilter}
                       />
-                      <Gantt
-                        dagRunState={dagRunStateFilter}
-                        limit={limit}
-                        runAfterGte={runAfterGte}
-                        runAfterLte={runAfterLte}
-                        runType={runTypeFilter}
-                        sharedScrollContainerRef={sharedGridGanttScrollRef}
-                        triggeringUser={triggeringUserFilter}
-                      />
-                    </Flex>
-                  </SharedScrollBox>
-                ) : (
-                  <HStack alignItems="flex-start" gap={0} maxW="100%" minW={0} overflow="hidden" w="100%">
-                    <Grid
-                      dagRunState={dagRunStateFilter}
-                      limit={limit}
-                      runAfterGte={runAfterGte}
-                      runAfterLte={runAfterLte}
-                      runType={runTypeFilter}
-                      showVersionIndicatorMode={showVersionIndicatorMode}
-                      triggeringUser={triggeringUserFilter}
-                    />
-                  </HStack>
-                )}
-              </Box>
+                    </HStack>
+                  )}
+                </Box>
+              </Flex>
             </Panel>
             {!isRightPanelCollapsed && (
               <>

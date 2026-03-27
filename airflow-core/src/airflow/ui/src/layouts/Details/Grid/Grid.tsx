@@ -40,13 +40,7 @@ import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
-import {
-  GANTT_ROW_OFFSET_PX,
-  GRID_HEADER_HEIGHT_PX,
-  GRID_HEADER_PADDING_PX,
-  GRID_OUTER_PADDING_PX,
-  ROW_HEIGHT,
-} from "./constants";
+import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
@@ -266,11 +260,11 @@ export const Grid = ({
   return (
     <Flex
       flexDirection="column"
-      flexGrow={showGantt ? 0 : undefined}
+      flexGrow={showGantt ? 0 : 1}
       flexShrink={showGantt ? 0 : undefined}
+      height={showGantt ? undefined : "100%"}
       justifyContent="flex-start"
       position="relative"
-      pt={usesSharedScroll ? 0 : `${GRID_OUTER_PADDING_PX}px`}
       ref={gridRef}
       tabIndex={0}
       w={showGantt ? "fit-content" : "full"}
@@ -279,8 +273,9 @@ export const Grid = ({
         gridHeaderAndBody
       ) : (
         <Box
-          height="calc(100vh - 140px)"
+          flex={1}
           marginRight={showGantt ? 0 : 1}
+          minH={0}
           overflow="auto"
           paddingRight={showGantt ? 0 : 4}
           position="relative"
