@@ -31,11 +31,11 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
-import { LuKeyboard } from "react-icons/lu";
+import { LuChartGantt, LuKeyboard } from "react-icons/lu";
 import { MdOutlineAccountTree, MdSettings } from "react-icons/md";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
@@ -52,7 +52,6 @@ import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import { Tooltip } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
-import { Checkbox } from "src/components/ui/Checkbox";
 import { dependenciesKey, directionKey } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
@@ -65,24 +64,24 @@ import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
 
+type DagView = "gantt" | "graph" | "grid";
+
 type Props = {
   readonly dagRunStateFilter: DagRunState | undefined;
-  readonly dagView: "graph" | "grid";
+  readonly dagView: DagView;
   readonly limit: number;
   readonly panelGroupRef: React.RefObject<ImperativePanelGroupHandle | null>;
   readonly runAfterGte: string | undefined;
   readonly runAfterLte: string | undefined;
   readonly runTypeFilter: DagRunType | undefined;
   readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
-  readonly setDagView: (x: "graph" | "grid") => void;
+  readonly setDagView: (view: DagView) => void;
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setRunAfterGte: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly setRunAfterLte: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
-  readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
   readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<VersionIndicatorOptions>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
-  readonly showGantt: boolean;
   readonly showVersionIndicatorMode: VersionIndicatorOptions;
   readonly triggeringUserFilter: string | undefined;
 };
@@ -134,10 +133,8 @@ export const PanelButtons = ({
   setRunAfterGte,
   setRunAfterLte,
   setRunTypeFilter,
-  setShowGantt,
   setShowVersionIndicatorMode,
   setTriggeringUserFilter,
-  showGantt,
   showVersionIndicatorMode,
   triggeringUserFilter,
 }: Props) => {
@@ -158,7 +155,7 @@ export const PanelButtons = ({
     setLimit(runLimit);
   };
 
-  const enableResponsiveOptions = showGantt && Boolean(runId);
+  const enableResponsiveOptions = dagView === "gantt";
 
   const { displayRunOptions, limit: defaultLimit } = getWidthBasedConfig(
     containerWidth,
@@ -249,24 +246,30 @@ export const PanelButtons = ({
     }
   };
 
-  const dagViewOptions: Array<ButtonGroupOption<"graph" | "grid">> = useMemo(
-    () => [
-      {
-        dataTestId: "grid-view-button",
-        label: <FiGrid />,
-        title: translate("dag:panel.buttons.showGridShortcut"),
-        value: "grid",
-      },
-      {
-        label: <MdOutlineAccountTree />,
-        title: translate("dag:panel.buttons.showGraphShortcut"),
-        value: "graph",
-      },
-    ],
-    [translate],
-  );
+  const dagViewOptions: Array<ButtonGroupOption<DagView>> = [
+    {
+      dataTestId: "grid-view-button",
+      label: <FiGrid />,
+      title: translate("dag:panel.buttons.showGridShortcut"),
+      value: "grid",
+    },
+    ...(shouldShowToggleButtons
+      ? [
+          {
+            label: <LuChartGantt />,
+            title: translate("dag:panel.buttons.showGantt"),
+            value: "gantt" as const,
+          },
+        ]
+      : []),
+    {
+      label: <MdOutlineAccountTree />,
+      title: translate("dag:panel.buttons.showGraphShortcut"),
+      value: "graph",
+    },
+  ];
 
-  const handleDagViewChange = (view: "graph" | "grid") => {
+  const handleDagViewChange = (view: DagView) => {
     if (view === dagView) {
       handleFocus(view);
     } else {
@@ -287,7 +290,7 @@ export const PanelButtons = ({
   );
 
   return (
-    <Box position="absolute" pr={4} ref={containerRef} top={1} width="100%" zIndex={1}>
+    <Box bg="bg" position="absolute" pr={4} ref={containerRef} top={1} width="100%" zIndex={4}>
       <Flex justifyContent="space-between">
         <ButtonGroupToggle isIcon onChange={handleDagViewChange} options={dagViewOptions} value={dagView} />
         <Flex alignItems="center" gap={1} justifyContent="space-between">
@@ -537,13 +540,6 @@ export const PanelButtons = ({
                             value={runAfterRange}
                           />
                         </VStack>
-                        {shouldShowToggleButtons ? (
-                          <VStack alignItems="flex-start" px={1}>
-                            <Checkbox checked={showGantt} onChange={() => setShowGantt(!showGantt)} size="sm">
-                              {translate("dag:panel.buttons.showGantt")}
-                            </Checkbox>
-                          </VStack>
-                        ) : undefined}
                         <VStack alignItems="flex-start" px={1}>
                           <VersionIndicatorSelect
                             onChange={setShowVersionIndicatorMode}
@@ -560,7 +556,7 @@ export const PanelButtons = ({
         </Flex>
       </Flex>
 
-      {dagView === "grid" && (
+      {dagView !== "graph" && (
         <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
           <RunTypeLegend />
           <Tooltip

@@ -1,0 +1,363 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/* eslint-disable max-lines -- virtualized Gantt body markup is kept in one file for readability */
+import { Badge, Box, Flex, Text } from "@chakra-ui/react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import type { RefObject } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
+
+import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { StateIcon } from "src/components/StateIcon";
+import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+import { useHover } from "src/context/hover";
+import { GANTT_AXIS_HEIGHT_PX, GANTT_TOP_PADDING_PX, ROW_HEIGHT } from "src/layouts/Details/Grid/constants";
+import type { GridTask } from "src/layouts/Details/Grid/utils";
+
+import {
+  type GanttDataItem,
+  GANTT_TIME_AXIS_TICK_COUNT,
+  buildGanttTimeAxisTicks,
+  getGanttSegmentTo,
+  gridSummariesToTaskIdMap,
+} from "./utils";
+
+const MIN_BAR_WIDTH_PX = 10;
+
+/** Short mark above the axis bottom border, aligned with each timestamp. */
+const GANTT_AXIS_TICK_HEIGHT_PX = 6;
+
+type Props = {
+  readonly dagId: string;
+  readonly flatNodes: Array<GridTask>;
+  readonly ganttDataItems: Array<GanttDataItem>;
+  readonly gridSummaries: Array<LightGridTaskInstanceSummary>;
+  readonly maxMs: number;
+  readonly minMs: number;
+  readonly onSegmentClick?: () => void;
+  readonly rowSegments: Array<Array<GanttDataItem>>;
+  readonly runId: string;
+  readonly scrollContainerRef: RefObject<HTMLDivElement | null>;
+  /** scrollPaddingStart for @tanstack/react-virtual (116 standalone, 180 with shared outer padding). */
+  readonly virtualizerScrollPaddingStart: number;
+};
+
+const toTooltipSummary = (
+  segment: GanttDataItem,
+  node: GridTask,
+  gridSummary: LightGridTaskInstanceSummary | undefined,
+): LightGridTaskInstanceSummary => {
+  if (gridSummary !== undefined && (node.isGroup ?? node.is_mapped)) {
+    return gridSummary;
+  }
+
+  return {
+    child_states: null,
+    max_end_date: new Date(segment.x[1]).toISOString(),
+    min_start_date: new Date(segment.x[0]).toISOString(),
+    state: segment.state ?? null,
+    task_display_name: segment.y,
+    task_id: segment.taskId,
+  };
+};
+
+export const GanttTimeline = ({
+  dagId,
+  flatNodes,
+  ganttDataItems,
+  gridSummaries,
+  maxMs,
+  minMs,
+  onSegmentClick,
+  rowSegments,
+  runId,
+  scrollContainerRef,
+  virtualizerScrollPaddingStart,
+}: Props) => {
+  const location = useLocation();
+  const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
+  const { hoveredTaskId, setHoveredTaskId } = useHover();
+  const [bodyWidthPx, setBodyWidthPx] = useState(0);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+
+    if (el === null) {
+      return undefined;
+    }
+
+    const ro = new ResizeObserver((entries) => {
+      const nextWidth = entries[0]?.contentRect.width;
+
+      if (nextWidth !== undefined) {
+        setBodyWidthPx(nextWidth);
+      }
+    });
+
+    ro.observe(el);
+
+    return () => {
+      ro.disconnect();
+    };
+  }, []);
+
+  const summaryByTaskId = gridSummariesToTaskIdMap(gridSummaries);
+  const spanMs = Math.max(1, maxMs - minMs);
+
+  // Derive tick count from available width so labels never overlap.
+  // Each "HH:MM:SS" label is ~8 chars at font-size xs; allow ~80px per tick.
+  const MIN_TICK_SPACING_PX = 80;
+  const tickCount =
+    bodyWidthPx > 0 ? Math.max(2, Math.floor(bodyWidthPx / MIN_TICK_SPACING_PX)) : GANTT_TIME_AXIS_TICK_COUNT;
+  const timeTicks = buildGanttTimeAxisTicks(minMs, maxMs, tickCount);
+
+  const rowVirtualizer = useVirtualizer({
+    count: flatNodes.length,
+    estimateSize: () => ROW_HEIGHT,
+    // @tanstack/react-virtual: scroll container ref; the hook subscribes to this element's scroll/resize.
+    getScrollElement: () => scrollContainerRef.current,
+    overscan: 5,
+    scrollPaddingStart: virtualizerScrollPaddingStart,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
+  const segmentLayout = (segment: GanttDataItem) => {
+    const leftPct = ((segment.x[0] - minMs) / spanMs) * 100;
+    const widthPct = ((segment.x[1] - segment.x[0]) / spanMs) * 100;
+    const widthPx = (widthPct / 100) * bodyWidthPx;
+    const minBoost = widthPx < MIN_BAR_WIDTH_PX && bodyWidthPx > 0 ? MIN_BAR_WIDTH_PX - widthPx : 0;
+    const widthPctAdjusted = bodyWidthPx > 0 ? ((widthPx + minBoost) / bodyWidthPx) * 100 : widthPct;
+
+    return {
+      leftPct,
+      widthPct: Math.min(widthPctAdjusted, 100 - leftPct),
+    };
+  };
+
+  return (
+    <Box
+      maxW="100%"
+      minW={0}
+      overflow="clip"
+      position="relative"
+      style={{ isolation: "isolate" }}
+      w="100%"
+      zIndex={0}
+    >
+      <Flex
+        bg="bg"
+        flexDirection="column"
+        flexShrink={0}
+        h={`${GANTT_TOP_PADDING_PX + GANTT_AXIS_HEIGHT_PX}px`}
+        position="sticky"
+        px={0}
+        top={0}
+        zIndex={3}
+      >
+        <Box aria-hidden flexShrink={0} h={`${GANTT_TOP_PADDING_PX}px`} />
+        <Box
+          borderBottomWidth={1}
+          borderColor="border"
+          flexShrink={0}
+          h={`${GANTT_AXIS_HEIGHT_PX}px`}
+          position="relative"
+          w="100%"
+        >
+          {timeTicks.map(({ label, labelAlign, leftPct }) => (
+            <Fragment key={`gantt-time-tick-${leftPct}`}>
+              <Box
+                aria-hidden
+                borderColor="border"
+                borderLeftWidth={1}
+                bottom={0}
+                h={`${GANTT_AXIS_TICK_HEIGHT_PX}px`}
+                left={`calc(${leftPct}% - 0.25px)`}
+                position="absolute"
+              />
+              <Text
+                bottom={`${GANTT_AXIS_TICK_HEIGHT_PX + 2}px`}
+                color="border.emphasized"
+                fontSize="xs"
+                left={`${leftPct}%`}
+                lineHeight={1}
+                position="absolute"
+                textAlign={labelAlign}
+                transform={
+                  labelAlign === "left"
+                    ? "translateX(0)"
+                    : labelAlign === "right"
+                      ? "translateX(-100%)"
+                      : "translateX(-50%)"
+                }
+                whiteSpace="nowrap"
+              >
+                {label}
+              </Text>
+            </Fragment>
+          ))}
+        </Box>
+      </Flex>
+
+      <Box maxW="100%" minW={0} overflow="hidden" position="relative" ref={bodyRef} w="100%" zIndex={0}>
+        <Box h={`${rowVirtualizer.getTotalSize()}px`} maxW="100%" position="relative" w="100%">
+          <Box
+            aria-hidden
+            h="100%"
+            left={0}
+            pointerEvents="none"
+            position="absolute"
+            top={0}
+            w="100%"
+            zIndex={0}
+          >
+            {timeTicks.map(({ leftPct }) => (
+              <Box
+                borderColor="border"
+                borderLeftWidth={1}
+                h="100%"
+                key={`gantt-body-grid-${leftPct}`}
+                left={`calc(${leftPct}% - 0.25px)`}
+                position="absolute"
+                top={0}
+                w={0}
+              />
+            ))}
+          </Box>
+          {virtualItems.map((vItem) => {
+            const node = flatNodes[vItem.index];
+
+            if (node === undefined) {
+              return undefined;
+            }
+
+            const segments = rowSegments[vItem.index] ?? [];
+            const taskId = node.id;
+            const isSelected = selectedTaskId === taskId || selectedGroupId === taskId;
+            const isHovered = hoveredTaskId === taskId;
+            const gridSummary = summaryByTaskId.get(taskId);
+
+            return (
+              <Box
+                borderBottomWidth={1}
+                borderColor={node.isGroup ? "border.emphasized" : "border"}
+                h={`${ROW_HEIGHT}px`}
+                key={taskId}
+                left={0}
+                maxW="100%"
+                position="absolute"
+                top={0}
+                transform={`translateY(${vItem.start}px)`}
+                w="100%"
+                zIndex={1}
+              >
+                <Flex
+                  align="center"
+                  bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
+                  h="100%"
+                  maxW="100%"
+                  onMouseEnter={() => setHoveredTaskId(taskId)}
+                  onMouseLeave={() => setHoveredTaskId(undefined)}
+                  overflow="hidden"
+                  position="relative"
+                  px="3px"
+                  transition="background-color 0.2s"
+                  w="100%"
+                >
+                  <Flex direction="column" gap="1px" h="14px" justify="center" position="relative" w="100%">
+                    {segments.map((segment) => {
+                      const { leftPct, widthPct } = segmentLayout(segment);
+                      const to = getGanttSegmentTo({
+                        dagId,
+                        data: ganttDataItems,
+                        item: segment,
+                        location,
+                        runId,
+                      });
+                      const tooltipInstance = toTooltipSummary(segment, node, gridSummary);
+
+                      if (to === undefined) {
+                        return undefined;
+                      }
+
+                      return (
+                        <Box
+                          flex={1}
+                          key={`${segment.taskId}-${segment.tryNumber ?? 0}-${segment.x[0]}`}
+                          minH={0}
+                          position="relative"
+                          w="100%"
+                        >
+                          <TaskInstanceTooltip
+                            openDelay={500}
+                            positioning={{
+                              offset: { crossAxis: 0, mainAxis: 5 },
+                              placement: "bottom",
+                            }}
+                            taskInstance={tooltipInstance}
+                          >
+                            <Box
+                              as="span"
+                              display="block"
+                              h="100%"
+                              left={`${leftPct}%`}
+                              maxW={`${100 - leftPct}%`}
+                              minW={`${MIN_BAR_WIDTH_PX}px`}
+                              position="absolute"
+                              top={0}
+                              w={`${widthPct}%`}
+                            >
+                              <Link
+                                onClick={() => onSegmentClick?.()}
+                                replace
+                                style={{ display: "block", height: "100%", width: "100%" }}
+                                to={to}
+                              >
+                                <Badge
+                                  alignItems="center"
+                                  borderRadius={4}
+                                  colorPalette={segment.state ?? "none"}
+                                  display="flex"
+                                  h="100%"
+                                  justifyContent="center"
+                                  minH={0}
+                                  p={0}
+                                  variant="solid"
+                                  w="100%"
+                                >
+                                  <StateIcon size={10} state={segment.state} />
+                                </Badge>
+                              </Link>
+                            </Box>
+                          </TaskInstanceTooltip>
+                        </Box>
+                      );
+                    })}
+                  </Flex>
+                </Flex>
+              </Box>
+            );
+          })}
+        </Box>
+      </Box>
+    </Box>
+  );
+};

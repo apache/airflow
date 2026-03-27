@@ -26,6 +26,13 @@ export const GRID_HEADER_HEIGHT_PX = 100; // height="100px" for duration bars
 // Gantt chart's x-axis height (time labels at top of chart)
 export const GANTT_AXIS_HEIGHT_PX = 36;
 
+// Padding at top of Gantt scroll content so task rows share scrollTop with Grid
+// (grid scroll begins with sticky header; Gantt begins with the time axis).
+export const GANTT_TOP_PADDING_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX - GANTT_AXIS_HEIGHT_PX;
+
+/** Offset from scroll top to the first task row — used to align Grid and Gantt virtualizers. */
+export const GANTT_ROW_OFFSET_PX = GRID_OUTER_PADDING_PX + GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX;
+
 // Total offset from top of Grid component to where task rows begin,
 // minus the Gantt axis height since the chart includes its own top axis
 export const GRID_BODY_OFFSET_PX =

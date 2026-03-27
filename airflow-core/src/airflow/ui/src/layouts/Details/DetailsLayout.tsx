@@ -21,7 +21,7 @@
 import { Box, HStack, Flex, useDisclosure, IconButton } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useRef, useState } from "react";
-import type { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { LuFileWarning } from "react-icons/lu";
@@ -51,12 +51,12 @@ import {
   runAfterGteKey,
   runAfterLteKey,
   runTypeFilterKey,
-  showGanttKey,
   triggeringUserFilterKey,
 } from "src/constants/localStorage";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
-import { HoverProvider } from "src/context/hover";
+import { HoverProvider, useHover } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
+import { GRID_OUTER_PADDING_PX } from "src/layouts/Details/Grid/constants";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Gantt } from "./Gantt/Gantt";
@@ -64,6 +64,33 @@ import { Graph } from "./Graph";
 import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
+
+// Separate component so useHover can be called inside HoverProvider.
+const SharedScrollBox = ({
+  children,
+  scrollRef,
+}: {
+  readonly children: ReactNode;
+  readonly scrollRef: RefObject<HTMLDivElement | null>;
+}) => {
+  const { setHoveredTaskId } = useHover();
+
+  return (
+    <Box
+      height="calc(100vh - 140px)"
+      minH={0}
+      minW={0}
+      onMouseLeave={() => setHoveredTaskId(undefined)}
+      overflowX="hidden"
+      overflowY="auto"
+      ref={scrollRef}
+      style={{ scrollbarGutter: "stable" }}
+      w="100%"
+    >
+      {children}
+    </Box>
+  );
+};
 
 type Props = {
   readonly error?: unknown;
@@ -77,7 +104,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">(DEFAULT_DAG_VIEW_KEY, "grid");
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
-  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(dagViewKey(dagId), defaultDagView);
+  const [dagView, setDagView] = useLocalStorage<"gantt" | "graph" | "grid">(
+    dagViewKey(dagId),
+    defaultDagView,
+  );
   const [limit, setLimit] = useLocalStorage(dagRunsLimitKey(dagId), 10);
   const [runAfterGte, setRunAfterGte] = useLocalStorage<string | undefined>(runAfterGteKey(dagId), undefined);
   const [runAfterLte, setRunAfterLte] = useLocalStorage<string | undefined>(runAfterLteKey(dagId), undefined);
@@ -94,7 +124,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     undefined,
   );
 
-  const [showGantt, setShowGantt] = useLocalStorage(showGanttKey(dagId), false);
   // Global setting: applies to all Dags (intentionally not scoped to dagId)
   const [showVersionIndicatorMode, setShowVersionIndicatorMode] = useLocalStorage(
     `version_indicator_display_mode`,
@@ -106,6 +135,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
   const { i18n } = useTranslation();
   const direction = i18n.dir();
+  const sharedGridGanttScrollRef = useRef<HTMLDivElement | null>(null);
+  // Treat "gantt" as "grid" for panel layout persistence so switching between them doesn't reset sizes.
+  const panelViewKey = dagView === "gantt" ? "grid" : dagView;
 
   return (
     <HoverProvider>
@@ -149,16 +181,16 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             </Tooltip>
           ) : undefined}
           <PanelGroup
-            autoSaveId={`${dagView}-${direction}`}
+            autoSaveId={`${panelViewKey}-${direction}`}
             dir={direction}
             direction="horizontal"
-            key={`${dagView}-${direction}`}
+            key={`${panelViewKey}-${direction}`}
             ref={panelGroupRef}
           >
             <Panel
               defaultSize={dagView === "graph" ? 70 : 20}
               id="main-panel"
-              minSize={showGantt && dagView === "grid" && Boolean(runId) ? 35 : 6}
+              minSize={dagView === "gantt" && Boolean(runId) ? 35 : 6}
               order={1}
             >
               <Box height="100%" position="relative">
@@ -176,37 +208,57 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   setRunAfterGte={setRunAfterGte}
                   setRunAfterLte={setRunAfterLte}
                   setRunTypeFilter={setRunTypeFilter}
-                  setShowGantt={setShowGantt}
                   setShowVersionIndicatorMode={setShowVersionIndicatorMode}
                   setTriggeringUserFilter={setTriggeringUserFilter}
-                  showGantt={showGantt}
                   showVersionIndicatorMode={showVersionIndicatorMode}
                   triggeringUserFilter={triggeringUserFilter}
                 />
                 {dagView === "graph" ? (
                   <Graph />
-                ) : (
-                  <HStack alignItems="flex-start" gap={0}>
-                    <Grid
-                      dagRunState={dagRunStateFilter}
-                      limit={limit}
-                      runAfterGte={runAfterGte}
-                      runAfterLte={runAfterLte}
-                      runType={runTypeFilter}
-                      showGantt={Boolean(runId) && showGantt}
-                      showVersionIndicatorMode={showVersionIndicatorMode}
-                      triggeringUser={triggeringUserFilter}
-                    />
-                    {showGantt ? (
+                ) : dagView === "gantt" && Boolean(runId) ? (
+                  <SharedScrollBox scrollRef={sharedGridGanttScrollRef}>
+                    <Flex
+                      alignItems="flex-start"
+                      gap={0}
+                      maxW="100%"
+                      minW={0}
+                      overflow="clip"
+                      pt={`${GRID_OUTER_PADDING_PX}px`}
+                      w="100%"
+                    >
+                      <Grid
+                        dagRunState={dagRunStateFilter}
+                        limit={limit}
+                        runAfterGte={runAfterGte}
+                        runAfterLte={runAfterLte}
+                        runType={runTypeFilter}
+                        sharedScrollContainerRef={sharedGridGanttScrollRef}
+                        showGantt
+                        showVersionIndicatorMode={showVersionIndicatorMode}
+                        triggeringUser={triggeringUserFilter}
+                      />
                       <Gantt
                         dagRunState={dagRunStateFilter}
                         limit={limit}
                         runAfterGte={runAfterGte}
                         runAfterLte={runAfterLte}
                         runType={runTypeFilter}
+                        sharedScrollContainerRef={sharedGridGanttScrollRef}
                         triggeringUser={triggeringUserFilter}
                       />
-                    ) : undefined}
+                    </Flex>
+                  </SharedScrollBox>
+                ) : (
+                  <HStack alignItems="flex-start" gap={0} maxW="100%" minW={0} overflow="hidden" w="100%">
+                    <Grid
+                      dagRunState={dagRunStateFilter}
+                      limit={limit}
+                      runAfterGte={runAfterGte}
+                      runAfterLte={runAfterLte}
+                      runType={runTypeFilter}
+                      showVersionIndicatorMode={showVersionIndicatorMode}
+                      triggeringUser={triggeringUserFilter}
+                    />
                   </HStack>
                 )}
               </Box>
@@ -232,7 +284,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                     justifyContent="center"
                     position="relative"
                     w={0.5}
-                    // onClick={(e) => console.log(e)}
                   />
                 </PanelResizeHandle>
 
