@@ -882,16 +882,19 @@ class AsyncKubernetesHook(KubernetesHook):
             )
 
             try:
-                import yaml
-
                 async with aiofiles.open(kubeconfig_path) as f:
                     content = await f.read()
                     data = yaml.safe_load(content)
 
                 if not self._uses_exec_auth(data):
                     self._config_loaded = True
-            except Exception:
-                pass
+            except Exception as exc:
+                self.log.warning(
+                    "Error while parsing kube_config from %s to detect exec auth; "
+                    "continuing without caching the config: %s",
+                    kubeconfig_path,
+                    exc,
+                )
 
             return
         if kubeconfig is not None:
