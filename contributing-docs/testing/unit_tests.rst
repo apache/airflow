@@ -218,6 +218,17 @@ rerun in Breeze as needed (``-n auto`` will parallelize tests using the ``pytest
     breeze shell --backend none --python 3.10
     > pytest airflow-core/tests --skip-db-tests -n auto
 
+.. agent-skill::
+   :id: run-single-test
+   :category: testing
+   :description: Run a targeted non-DB test. Prefer uv (fast, IDE-debuggable). Fall back to breeze only when system dependencies are missing (e.g. MySQL native libs).
+   :local: uv run --project {project} pytest {test_path} -xvs
+   :breeze: pytest {test_path} -xvs
+   :fallback: breeze run pytest {test_path} -xvs
+   :prereqs: setup-breeze-environment
+   :params: project:required,test_path:required
+   :expected-output: passed
+
 Airflow DB tests
 ................
 
@@ -271,6 +282,16 @@ If you want to iterate on tests, you can enter the interactive shell and run tes
 
     breeze shell --backend postgres --python 3.10
     > pytest airflow-core/tests --run-db-tests-only
+
+.. agent-skill::
+   :id: run-db-test
+   :category: testing
+   :description: Run tests marked with @pytest.mark.db_test. Always uses Breeze — never try uv first, as uv cannot provision a live database.
+   :local: breeze run pytest {test_path} -xvs
+   :breeze: pytest {test_path} -xvs
+   :prereqs: setup-breeze-environment
+   :params: test_path:required
+   :expected-output: passed
 
 As explained before, you cannot run DB tests in parallel using the ``pytest-xdist`` plugin. However, ``breeze`` supports splitting all tests into test-types to run in separate containers with separate databases using the ``--run-in-parallel`` flag.
 

@@ -17,8 +17,15 @@
 # under the License.
 """Runtime host vs Breeze container detection for AI agent skills.
 
-Reads skill definitions directly from agent_skills.rst — no generated
-artifacts required.
+Reads ``.. agent-skill::`` directives embedded directly in the contributing-docs
+source files — no generated artifacts required. Skills live next to the human
+prose that describes them, so documentation and agent commands stay in sync.
+
+Source files scanned (see AGENT_SKILLS_RST_FILES):
+  contributing-docs/03a_contributors_quick_start_beginners.rst
+  contributing-docs/08_static_code_checks.rst
+  contributing-docs/11_documentation_building.rst
+  contributing-docs/testing/unit_tests.rst
 
 Provides an importable API that AI agents (and tests) use to determine the
 current execution environment and retrieve the correct command for a skill.
@@ -52,7 +59,15 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-AGENT_SKILLS_RST = REPO_ROOT / "contributing-docs" / "workflows" / "agent_skills.rst"
+
+# Contributing-docs files that contain embedded ``.. agent-skill::`` directives.
+# Skills live next to the human-readable workflow they describe so updates are atomic.
+AGENT_SKILLS_RST_FILES: list[Path] = [
+    REPO_ROOT / "contributing-docs" / "03a_contributors_quick_start_beginners.rst",
+    REPO_ROOT / "contributing-docs" / "08_static_code_checks.rst",
+    REPO_ROOT / "contributing-docs" / "11_documentation_building.rst",
+    REPO_ROOT / "contributing-docs" / "testing" / "unit_tests.rst",
+]
 
 _DIRECTIVE_RE = re.compile(r"^\.\.\s+agent-skill::\s*$")
 _OPTION_RE = re.compile(r"^\s+:([^:]+):\s+(.+)$")
@@ -164,6 +179,30 @@ def _parse_skills(rst_path: Path) -> list[dict]:
     return skills
 
 
+def _parse_skills_from_files(rst_paths: list[Path] = AGENT_SKILLS_RST_FILES) -> list[dict]:
+    """Parse ``.. agent-skill::`` directives from all contributing-docs source files.
+
+    Merges results across files. Raises ValueError if the same skill id appears
+    in more than one file (duplicate IDs are a configuration error).
+
+    Raises:
+        FileNotFoundError: if any path in rst_paths does not exist.
+        ValueError: if a duplicate skill id is found across files.
+    """
+    all_skills: list[dict] = []
+    seen: dict[str, Path] = {}
+    for path in rst_paths:
+        for skill in _parse_skills(path):
+            sid = skill["id"]
+            if sid in seen:
+                raise ValueError(
+                    f"Duplicate skill id '{sid}' found in {path} (already defined in {seen[sid]})"
+                )
+            seen[sid] = path
+            all_skills.append(skill)
+    return all_skills
+
+
 def _find_skill(skill_id: str, skills: list[dict]) -> dict:
     """Return skill dict by id. Raises KeyError if not found."""
     for skill in skills:
@@ -180,7 +219,7 @@ def _find_skill(skill_id: str, skills: list[dict]) -> dict:
 
 def get_command(
     skill_id: str,
-    rst_path: Path = AGENT_SKILLS_RST,
+    rst_paths: list[Path] = AGENT_SKILLS_RST_FILES,
     **kwargs: str,
 ) -> str:
     """Return the correct command for skill_id in the current context.
@@ -190,11 +229,11 @@ def get_command(
     step for the current context, the fallback step is used instead.
 
     Raises:
-        FileNotFoundError: if agent_skills.rst does not exist.
+        FileNotFoundError: if any source RST file does not exist.
         KeyError: if skill_id is not found.
         ValueError: if a required parameter placeholder is missing from kwargs.
     """
-    skills = _parse_skills(rst_path)
+    skills = _parse_skills_from_files(rst_paths)
     skill = _find_skill(skill_id, skills)
     ctx = get_context()
 
@@ -237,17 +276,17 @@ def get_command(
 
 def list_skills_for_context(
     category: str | None = None,
-    rst_path: Path = AGENT_SKILLS_RST,
+    rst_paths: list[Path] = AGENT_SKILLS_RST_FILES,
 ) -> list[dict]:
     """Return all skills that have at least one step valid for the current context.
 
     Optionally filter by category.
 
     Raises:
-        FileNotFoundError: if agent_skills.rst does not exist.
+        FileNotFoundError: if any source RST file does not exist.
     """
     ctx = get_context()
-    skills = _parse_skills(rst_path)
+    skills = _parse_skills_from_files(rst_paths)
 
     def _has_step_for_context(skill: dict) -> bool:
         return any(s["context"] in (ctx, "either") for s in skill.get("steps", []))
@@ -268,7 +307,7 @@ def main() -> int:
         description="Resolve the exact command for a skill in the current execution context.",
         epilog="Parameters are passed as key=value pairs after the skill ID.",
     )
-    parser.add_argument("skill_id", nargs="?", help="Skill ID from agent_skills.rst")
+    parser.add_argument("skill_id", nargs="?", help="Skill ID (defined in contributing-docs source files)")
     parser.add_argument(
         "params",
         nargs="*",
@@ -288,8 +327,8 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        skills = _parse_skills(AGENT_SKILLS_RST)
-    except FileNotFoundError as exc:
+        skills = _parse_skills_from_files()
+    except (FileNotFoundError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 

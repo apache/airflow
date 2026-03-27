@@ -1,8 +1,10 @@
 ---
 name: airflow-contributor
 description: >
-  Guide for Apache Airflow contributors: decide which skill to use and why.
-  Exact commands are resolved at runtime from the command registry.
+  Use when contributing to Apache Airflow — running tests, static checks, formatting, or building docs.
+  Provides Breeze-aware command resolution: detects host vs container context and returns the exact
+  command to run for each contributor workflow. Activate whenever the task involves testing, linting,
+  or any Airflow development workflow.
 license: Apache-2.0
 ---
 <!-- SPDX-License-Identifier: Apache-2.0
@@ -18,7 +20,7 @@ Do not hardcode commands from memory. Always resolve them at runtime:
 python scripts/ci/prek/context_detect.py <skill_id> [key=value ...]
 ```
 
-The script reads `contributing-docs/workflows/agent_skills.rst` directly,
+The script reads skill definitions embedded in the contributing docs directly,
 detects whether you are on the host or inside Breeze, and prints the exact
 command with parameters substituted. Fallback and success signal are printed
 to stderr.
@@ -109,5 +111,10 @@ docs — significantly faster than a full build.
 
 ## Skill registry
 
-Full command definitions (steps, parameters, prereqs, fallbacks) are in:
-`contributing-docs/workflows/agent_skills.rst`
+Skill definitions are embedded directly in the contributing docs they describe
+(executable document pattern — skills stay in sync with the prose automatically):
+
+- `setup-breeze-environment` → `contributing-docs/03a_contributors_quick_start_beginners.rst`
+- `run-static-checks`, `run-manual-checks`, `format-and-lint` → `contributing-docs/08_static_code_checks.rst`
+- `build-docs` → `contributing-docs/11_documentation_building.rst`
+- `run-single-test`, `run-db-test` → `contributing-docs/testing/unit_tests.rst`

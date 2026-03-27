@@ -241,6 +241,17 @@ For example:
 
 Will build ``fab`` provider documentation and clean build artifacts before.
 
+.. agent-skill::
+   :id: build-docs
+   :category: documentation
+   :description: Build Airflow documentation. Pass package to build only that provider's docs (much faster). Runs via breeze on host or inside breeze.
+   :local: breeze build-docs
+   :breeze: breeze build-docs
+   :fallback: breeze build-docs --package-filter {package}
+   :prereqs: setup-breeze-environment
+   :params: package:optional
+   :expected-output: Build finished.
+
 Inventory cache handling
 ........................
 

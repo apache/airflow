@@ -90,6 +90,14 @@ and launches all Airflow necessary components in those terminals. To know more a
 check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at `http://localhost:28080 <http://localhost:28080>`_ with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
 of the tmux panes and hit Enter
 
+.. agent-skill::
+   :id: setup-breeze-environment
+   :category: environment
+   :description: Start the Airflow Breeze development environment. Only run on the host — never nest breeze inside breeze.
+   :local: breeze start-airflow
+   :breeze: echo "Already inside Breeze — no setup needed"
+   :expected-output: Airflow webserver is ready
+
 **Working with DAGs in Breeze:**
 
 - **Adding your own DAGs**: Place your DAG files in the ``/files/dags/`` directory in your local Airflow repository. This directory is automatically mounted into the Breeze container and your DAGs will be visible in the Airflow UI.

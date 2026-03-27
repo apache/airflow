@@ -127,7 +127,7 @@ def test_get_command_host_context_returns_uv_command(monkeypatch, tmp_path):
 
     cmd = get_command(
         "run-single-test",
-        rst_path=rst_file,
+        rst_paths=[rst_file],
         project="providers/amazon",
         test_path="providers/amazon/tests/test_s3.py",
     )
@@ -142,7 +142,7 @@ def test_get_command_uses_fallback_when_condition_false(monkeypatch, tmp_path):
 
     cmd = get_command(
         "run-single-test",
-        rst_path=rst_file,
+        rst_paths=[rst_file],
         project="providers/amazon",
         test_path="providers/amazon/tests/test_s3.py",
         system_deps_available="false",
@@ -156,7 +156,7 @@ def test_get_command_breeze_context_returns_pytest_directly(monkeypatch, tmp_pat
 
     cmd = get_command(
         "run-single-test",
-        rst_path=rst_file,
+        rst_paths=[rst_file],
         test_path="providers/amazon/tests/test_s3.py",
     )
     assert cmd.startswith("pytest")
@@ -173,7 +173,7 @@ def test_get_command_returns_guidance_when_no_steps_for_context(monkeypatch, tmp
     rst_file = _write_skills_rst(tmp_path, [host_only_skill])
     monkeypatch.setattr(cd, "get_context", lambda: "breeze")
 
-    result = get_command("host-only", rst_path=rst_file)
+    result = get_command("host-only", rst_paths=[rst_file])
     assert "no steps for context" in result
 
 
@@ -182,20 +182,20 @@ def test_get_command_raises_on_missing_placeholder(monkeypatch, tmp_path):
     monkeypatch.setattr(cd, "get_context", lambda: "host")
 
     with pytest.raises(ValueError, match="Missing parameter"):
-        get_command("run-single-test", rst_path=rst_file)  # missing project + test_path
+        get_command("run-single-test", rst_paths=[rst_file])  # missing project + test_path
 
 
 def test_get_command_raises_key_error_on_unknown_skill(monkeypatch, tmp_path):
     rst_file = _write_skills_rst(tmp_path)
     with pytest.raises(KeyError, match="nonexistent-skill"):
-        get_command("nonexistent-skill", rst_path=rst_file)
+        get_command("nonexistent-skill", rst_paths=[rst_file])
 
 
 def test_get_command_either_context_works_from_both(monkeypatch, tmp_path):
     rst_file = _write_skills_rst(tmp_path)
     for ctx in ("host", "breeze"):
         monkeypatch.setattr(cd, "get_context", lambda c=ctx: c)
-        cmd = get_command("build-docs", rst_path=rst_file)
+        cmd = get_command("build-docs", rst_paths=[rst_file])
         assert "breeze build-docs" in cmd
 
 
@@ -203,7 +203,7 @@ def test_get_command_substitutes_parameters(monkeypatch, tmp_path):
     rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "host")
 
-    cmd = get_command("run-static-checks", rst_path=rst_file, target_branch="v3-1-test")
+    cmd = get_command("run-static-checks", rst_paths=[rst_file], target_branch="v3-1-test")
     assert "v3-1-test" in cmd
 
 
@@ -216,7 +216,7 @@ def test_list_skills_for_host_context(monkeypatch, tmp_path):
     rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "host")
 
-    result = list_skills_for_context(rst_path=rst_file)
+    result = list_skills_for_context(rst_paths=[rst_file])
     ids = [s["id"] for s in result]
     # host skills + either skills should be included
     assert "run-single-test" in ids
@@ -228,7 +228,7 @@ def test_list_skills_for_breeze_context(monkeypatch, tmp_path):
     rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "breeze")
 
-    result = list_skills_for_context(rst_path=rst_file)
+    result = list_skills_for_context(rst_paths=[rst_file])
     ids = [s["id"] for s in result]
     assert "run-single-test" in ids  # has a breeze step
     assert "build-docs" in ids  # has both local and breeze steps
@@ -238,7 +238,7 @@ def test_list_skills_filtered_by_category(monkeypatch, tmp_path):
     rst_file = _write_skills_rst(tmp_path)
     monkeypatch.setattr(cd, "get_context", lambda: "host")
 
-    result = list_skills_for_context(category="linting", rst_path=rst_file)
+    result = list_skills_for_context(category="linting", rst_paths=[rst_file])
     assert all(s["category"] == "linting" for s in result)
     assert any(s["id"] == "run-static-checks" for s in result)
 
@@ -246,4 +246,4 @@ def test_list_skills_filtered_by_category(monkeypatch, tmp_path):
 def test_list_skills_raises_if_rst_missing(tmp_path):
     missing = tmp_path / "agent_skills.rst"
     with pytest.raises(FileNotFoundError):
-        list_skills_for_context(rst_path=missing)
+        list_skills_for_context(rst_paths=[missing])

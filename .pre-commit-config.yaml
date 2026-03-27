@@ -962,6 +962,20 @@ repos:
           ^generated/provider_dependencies\.json$
         require_serial: true
         pass_filenames: false
+      - id: check-agent-skills-valid
+        name: Validate agent skills in contributing docs
+        description: Check embedded agent-skill directives for duplicate IDs, missing required fields, and malformed params
+        entry: ./scripts/ci/prek/check_agent_skills_valid.py
+        language: python
+        files: >
+          (?x)
+          ^contributing-docs/03a_contributors_quick_start_beginners\.rst$|
+          ^contributing-docs/08_static_code_checks\.rst$|
+          ^contributing-docs/11_documentation_building\.rst$|
+          ^contributing-docs/testing/unit_tests\.rst$|
+          ^scripts/ci/prek/check_agent_skills_valid\.py$|
+          ^scripts/ci/prek/context_detect\.py$
+        pass_filenames: false
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/prek/update_example_dags_paths.py

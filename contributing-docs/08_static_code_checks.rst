@@ -225,6 +225,23 @@ You can always skip running the tests by providing ``--no-verify`` flag to the
 
 To check other usage types of the pre-commit framework, see `Pre-commit website <https://pre-commit.com/>`__.
 
+.. agent-skill::
+   :id: run-static-checks
+   :category: linting
+   :description: Run fast pre-commit stage checks (ruff, mypy, license headers) before committing. Runs on host and inside Breeze.
+   :local: prek run --from-ref {target_branch} --stage pre-commit
+   :breeze: prek run --from-ref {target_branch} --stage pre-commit
+   :params: target_branch:required
+   :expected-output: All checks passed.
+
+.. agent-skill::
+   :id: format-and-lint
+   :category: linting
+   :description: Format and lint a single Python file with ruff immediately after writing or editing it. Always scope to the provider with --project.
+   :local: uv run --project {project} ruff format {file_path} && uv run --project {project} ruff check --fix {file_path}
+   :params: project:required,file_path:required
+   :expected-output: All checks passed
+
 Disabling particular checks
 ---------------------------
 
@@ -291,6 +308,15 @@ However, you can run it manually by running:
     export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
     prek --all-files --stage manual --verbose pin-versions
 
+.. agent-skill::
+   :id: run-manual-checks
+   :category: linting
+   :description: Run slower manual-stage checks before opening a PR. Requires run-static-checks to pass first.
+   :local: prek run --from-ref {target_branch} --stage manual
+   :breeze: prek run --from-ref {target_branch} --stage manual
+   :prereqs: run-static-checks
+   :params: target_branch:required
+   :expected-output: All checks passed.
 
 Mypy checks
 -----------
