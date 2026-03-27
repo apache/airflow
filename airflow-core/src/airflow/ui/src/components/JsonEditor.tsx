@@ -48,14 +48,17 @@ export const JsonEditor = ({
     automaticLayout: true,
     folding: true,
     fontSize: 14,
+    fontFamily: "var(--font-mono)",
     lineNumbers: "on",
     minimap: { enabled: false },
     readOnly: !editable,
     renderLineHighlight: "none",
     scrollBeyondLastLine: false,
+    padding: { top: 8, bottom: 8 },
+    cursorSmoothCaretAnimation: "on",
   };
 
-  const theme = colorMode === "dark" ? "vs-dark" : "vs-light";
+  const theme = colorMode === "dark" ? "vs-dark" : "vs";
 
   const handleChange = (val: string | undefined) => {
     onChange?.(val ?? "");
@@ -68,6 +71,7 @@ export const JsonEditor = ({
         borderRadius: "8px",
         overflow: "hidden",
         width: "100%",
+        background: "var(--chakra-colors-bg-surface)",
       }}
       {...rest}
     >
