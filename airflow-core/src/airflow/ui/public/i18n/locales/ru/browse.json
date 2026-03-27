@@ -1,0 +1,46 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "Событие",
+      "extra": "Дополнительно",
+      "user": "Пользователь",
+      "when": "Когда"
+    },
+    "filters": {
+      "eventType": "Тип события"
+    },
+    "title": "Журнал аудита"
+  },
+  "xcom": {
+    "add": {
+      "error": "Не удалось добавить XCom",
+      "errorTitle": "Ошибка",
+      "success": "XCom успешно добавлен",
+      "successTitle": "XCom добавлен",
+      "title": "Добавить XCom"
+    },
+    "columns": {
+      "dag": "Dag",
+      "key": "Ключ",
+      "value": "Значение"
+    },
+    "delete": {
+      "error": "Не удалось удалить XCom",
+      "errorTitle": "Ошибка",
+      "success": "XCom успешно удалён",
+      "successTitle": "XCom удалён",
+      "title": "Удалить XCom",
+      "warning": "Вы уверены, что хотите удалить этот XCom? Это действие нельзя отменить."
+    },
+    "edit": {
+      "error": "Не удалось обновить XCom",
+      "errorTitle": "Ошибка",
+      "success": "XCom успешно обновлён",
+      "successTitle": "XCom обновлён",
+      "title": "Редактировать XCom"
+    },
+    "key": "Ключ",
+    "title": "XCom",
+    "value": "Значение"
+  }
+}

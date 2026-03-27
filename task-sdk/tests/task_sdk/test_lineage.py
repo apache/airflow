@@ -28,9 +28,9 @@ from airflow.sdk.lineage import (
     HookLineageCollector,
     HookLineageReader,
     NoOpCollector,
-    get_hook_lineage_collector,
 )
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 
@@ -38,6 +38,18 @@ class TestHookLineageCollector:
     @pytest.fixture  # default scope is function
     def collector(self):
         return HookLineageCollector()
+
+    def test_default_max_collected_assets(self):
+        """Default MAX_COLLECTED_ASSETS is 100 (configurable via [lineage] conf)."""
+        from airflow.sdk.lineage import MAX_COLLECTED_ASSETS
+
+        assert MAX_COLLECTED_ASSETS == 100
+
+    def test_default_max_collected_extra(self):
+        """Default MAX_COLLECTED_EXTRA is 200 (configurable via [lineage] conf)."""
+        from airflow.sdk.lineage import MAX_COLLECTED_EXTRA
+
+        assert MAX_COLLECTED_EXTRA == 200
 
     def test_generate_hash_handles_non_serializable(self, collector):
         class Obj:
@@ -377,6 +389,27 @@ class TestHookLineageCollector:
         assert len(collector._inputs) == 100
         assert len(collector._outputs) == 100
 
+    def test_configurable_max_collected_assets(self):
+        """MAX_COLLECTED_ASSETS is read from [lineage] conf and limits both inputs and outputs."""
+        import importlib
+
+        import airflow.sdk.lineage as lineage_mod
+
+        new_max = 4
+
+        with conf_vars({("lineage", "max_assets_per_collector"): str(new_max)}):
+            importlib.reload(lineage_mod)
+            assert new_max == lineage_mod.MAX_COLLECTED_ASSETS
+
+            collector = lineage_mod.HookLineageCollector()
+            for i in range(new_max * 2):
+                collector.add_input_asset(MagicMock(spec=BaseHook), uri=f"test://input/{i}")
+                collector.add_output_asset(MagicMock(spec=BaseHook), uri=f"test://output/{i}")
+            assert len(collector._inputs) == new_max
+            assert len(collector._outputs) == new_max
+
+        importlib.reload(lineage_mod)
+
     @pytest.mark.parametrize("uri", ["", None])
     def test_invalid_uri_none(self, collector, uri):
         """Test handling of None or empty URI - should not raise."""
@@ -564,6 +597,26 @@ class TestHookLineageCollector:
             collector.add_extra(ctx, f"k{i}", f"v{i}")
 
         assert len(collector.collected_assets.extra) == 200
+
+    def test_configurable_max_collected_extra(self):
+        """MAX_COLLECTED_EXTRA is read from [lineage] conf and limits extra collection."""
+        import importlib
+
+        import airflow.sdk.lineage as lineage_mod
+
+        new_max = 4
+
+        with conf_vars({("lineage", "max_extras_per_collector"): str(new_max)}):
+            importlib.reload(lineage_mod)
+            assert new_max == lineage_mod.MAX_COLLECTED_EXTRA
+
+            collector = lineage_mod.HookLineageCollector()
+            ctx = MagicMock(spec=BaseHook)
+            for i in range(new_max * 2):
+                collector.add_extra(ctx, f"key_{i}", f"value_{i}")
+            assert len(collector.collected_assets.extra) == new_max
+
+        importlib.reload(lineage_mod)
 
     def test_add_extra_different_values(self, collector):
         """Test that different values are tracked separately."""
@@ -862,16 +915,23 @@ class FakePlugin(plugins_manager.AirflowPlugin):
 
 
 @pytest.mark.parametrize(
-    ("has_readers", "expected_class"),
+    ("has_readers", "expected_class_name"),
     [
-        (True, HookLineageCollector),
-        (False, NoOpCollector),
+        (True, "HookLineageCollector"),
+        (False, "NoOpCollector"),
     ],
 )
-def test_get_hook_lineage_collector(has_readers, expected_class):
-    # reset cached instance
-    get_hook_lineage_collector.cache_clear()
+def test_get_hook_lineage_collector(has_readers, expected_class_name):
+    # After importlib.reload in other tests, the top-level imported references
+    # (get_hook_lineage_collector, HookLineageCollector, NoOpCollector) may point
+    # to stale class/function objects. Always fetch from the live module so that
+    # the function, the returned instance, and the class used in isinstance() all
+    # belong to the same reload generation.
+    import airflow.sdk.lineage as lineage_mod
+
+    lineage_mod.get_hook_lineage_collector.cache_clear()
+    expected_class = getattr(lineage_mod, expected_class_name)
     plugins = [FakePlugin()] if has_readers else []
     with mock_plugin_manager(plugins=plugins):
-        assert isinstance(get_hook_lineage_collector(), expected_class)
-        assert get_hook_lineage_collector() is get_hook_lineage_collector()
+        assert isinstance(lineage_mod.get_hook_lineage_collector(), expected_class)
+        assert lineage_mod.get_hook_lineage_collector() is lineage_mod.get_hook_lineage_collector()

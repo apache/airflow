@@ -77,6 +77,12 @@ export const useFilterConfigs = () => {
       label: translate("hitl:filters.body"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.BUNDLE_VERSION]: {
+      hotkeyDisabled: true,
+      icon: <MdCode />,
+      label: translate("common:bundleVersion"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.CONF_CONTAINS]: {
       hotkeyDisabled: true,
       icon: <MdCode />,
@@ -203,6 +209,12 @@ export const useFilterConfigs = () => {
       hotkeyDisabled: true,
       icon: <MdBuild />,
       label: translate("common:task.operator"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.PARTITION_KEY_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <MdSearch />,
+      label: translate("common:dagRun.partitionKey"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.POOL_NAME_PATTERN]: {

@@ -173,3 +173,22 @@ class TestSchedulerCommand:
         mock_reloader.assert_called_once()
         # The callback function should be callable
         assert callable(mock_reloader.call_args[0][0])
+
+    def test_only_idle_requires_positive_num_runs(self):
+        """--only-idle with -n 0 or negative must raise SystemExit."""
+        for n in ("0", "-1"):
+            args = self.parser.parse_args(["scheduler", "--only-idle", "-n", n])
+            with pytest.raises(SystemExit):
+                scheduler_command.scheduler(args)
+
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    def test_only_idle_passes_to_job_runner(self, mock_process, mock_scheduler_job):
+        """SchedulerJobRunner must be called with only_idle=True when --only-idle is used."""
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler", "--only-idle", "-n", "5"])
+        scheduler_command.scheduler(args)
+        mock_scheduler_job.assert_called_once()
+        call_kwargs = mock_scheduler_job.call_args[1]
+        assert call_kwargs["only_idle"] is True
+        assert call_kwargs["num_runs"] == 5

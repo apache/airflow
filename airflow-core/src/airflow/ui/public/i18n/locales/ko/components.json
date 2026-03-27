@@ -130,6 +130,7 @@
     "intervalStart": "시작",
     "loading": "Dag 정보 로드 중...",
     "loadingFailed": "Dag 정보를 로드하지 못했습니다. 다시 시도해주세요.",
+    "manualRunDenied": "이 Dag는 수동으로 실행할 수 없습니다.",
     "runIdHelp": "선택 사항 - 제공되지 않으면 생성됩니다.",
     "selectDescription": "이 Dag을(를) 단일 실행 트리거",
     "selectLabel": "단일 실행",

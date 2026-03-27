@@ -26,13 +26,15 @@ import attrs
 import pendulum
 
 from airflow._shared.module_loading import qualname
-from airflow.partition_mapper.base import PartitionMapper as CorePartitionMapper
+from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
 from airflow.sdk import (
+    AllowedKeyMapper,
     Asset,
     AssetAlias,
     AssetAll,
     AssetAny,
     AssetOrTimeSchedule,
+    ChainMapper,
     CronDataIntervalTimetable,
     CronTriggerTimetable,
     DeltaDataIntervalTimetable,
@@ -41,9 +43,16 @@ from airflow.sdk import (
     IdentityMapper,
     MultipleCronTriggerTimetable,
     PartitionMapper,
+    ProductMapper,
+    StartOfDayMapper,
+    StartOfMonthMapper,
+    StartOfQuarterMapper,
+    StartOfWeekMapper,
+    StartOfYearMapper,
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
+from airflow.sdk.definitions.partition_mappers.temporal import StartOfHourMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
     PartitionedAssetTimetable,
@@ -64,6 +73,7 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
     find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
+    is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
 )
 from airflow.timetables.base import Timetable as CoreTimetable
@@ -193,19 +203,43 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
     from airflow.sdk.serde import serialize
 
     return {
-        "reference": d.reference.serialize_reference(),
+        "reference": encode_deadline_reference(d.reference),
         "interval": d.interval.total_seconds(),
         "callback": serialize(d.callback),
     }
+
+
+_BUILTIN_DEADLINE_MODULES = (
+    "airflow.sdk.definitions.deadline",
+    "airflow.serialization.definitions.deadline",
+    # Include airflow.models.deadline to treat core's deadline references as builtins.
+    # This is to maintain backcompat with 3.1.x custom refs that inherit from
+    # airflow.models.deadline.ReferenceModels.BaseDeadlineReference.
+    "airflow.models.deadline",
+)
 
 
 def encode_deadline_reference(ref) -> dict[str, Any]:
     """
     Encode a deadline reference.
 
+    For custom (non-builtin) deadline references, includes the class path
+    so the decoder can import the user's class at runtime.
+
     :meta private:
     """
-    return ref.serialize_reference()
+    from airflow._shared.module_loading import qualname
+
+    serialized = ref.serialize_reference()
+
+    # Custom types (not built-in) need __class_path so the decoder can import them.
+    # Unlike built-in types which are looked up in SerializedReferenceModels,
+    # custom types are discovered via import_string(__class_path) at deserialization time.
+    module = type(ref).__module__
+    if module not in _BUILTIN_DEADLINE_MODULES:
+        serialized["__class_path"] = qualname(ref)
+
+    return serialized
 
 
 def _get_serialized_timetable_import_path(var: BaseTimetable | CoreTimetable) -> str:
@@ -351,11 +385,24 @@ class _Serializer:
     def _(self, timetable: PartitionedAssetTimetable) -> dict[str, Any]:
         return {
             "asset_condition": encode_asset_like(timetable.asset_condition),
-            "partition_mapper": encode_partition_mapper(timetable.partition_mapper),
+            "default_partition_mapper": encode_partition_mapper(timetable.default_partition_mapper),
+            "partition_mapper_config": [
+                (encode_asset_like(asset), encode_partition_mapper(partition_mapper))
+                for asset, partition_mapper in timetable.partition_mapper_config.items()
+            ],
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
-        IdentityMapper: "airflow.partition_mapper.identity.IdentityMapper",
+        AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
+        ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
+        IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
+        ProductMapper: "airflow.partition_mappers.product.ProductMapper",
+        StartOfDayMapper: "airflow.partition_mappers.temporal.StartOfDayMapper",
+        StartOfHourMapper: "airflow.partition_mappers.temporal.StartOfHourMapper",
+        StartOfMonthMapper: "airflow.partition_mappers.temporal.StartOfMonthMapper",
+        StartOfQuarterMapper: "airflow.partition_mappers.temporal.StartOfQuarterMapper",
+        StartOfWeekMapper: "airflow.partition_mappers.temporal.StartOfWeekMapper",
+        StartOfYearMapper: "airflow.partition_mappers.temporal.StartOfYearMapper",
     }
 
     @functools.singledispatchmethod
@@ -367,8 +414,43 @@ class _Serializer:
         return partition_mapper.serialize()
 
     @serialize_partition_mapper.register
+    def _(self, partition_mapper: ChainMapper) -> dict[str, Any]:
+        return {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
+
+    @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
         return {}
+
+    @serialize_partition_mapper.register(StartOfHourMapper)
+    @serialize_partition_mapper.register(StartOfDayMapper)
+    @serialize_partition_mapper.register(StartOfWeekMapper)
+    @serialize_partition_mapper.register(StartOfMonthMapper)
+    @serialize_partition_mapper.register(StartOfQuarterMapper)
+    @serialize_partition_mapper.register(StartOfYearMapper)
+    def _(
+        self,
+        partition_mapper: StartOfHourMapper
+        | StartOfDayMapper
+        | StartOfWeekMapper
+        | StartOfMonthMapper
+        | StartOfQuarterMapper
+        | StartOfYearMapper,
+    ) -> dict[str, Any]:
+        return {
+            "input_format": partition_mapper.input_format,
+            "output_format": partition_mapper.output_format,
+        }
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: ProductMapper) -> dict[str, Any]:
+        return {
+            "delimiter": partition_mapper.delimiter,
+            "mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers],
+        }
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: AllowedKeyMapper) -> dict[str, Any]:
+        return {"allowed_keys": partition_mapper.allowed_keys}
 
 
 _serializer = _Serializer()
@@ -433,7 +515,7 @@ def ensure_serialized_deadline_alert(obj: DeadlineAlert | SerializedDeadlineAler
     return decode_deadline_alert(encode_deadline_alert(obj))
 
 
-def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
+def encode_partition_mapper(var: PartitionMapper | CorePartitionMapper) -> dict[str, Any]:
     """
     Encode a PartitionMapper instance.
 
@@ -442,11 +524,20 @@ def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
 
     :meta private:
     """
-    if (importable_string := _serializer.BUILTIN_PARTITION_MAPPERS.get(var_type := type(var), None)) is None:
-        find_registered_custom_partition_mapper(
-            importable_string := qualname(var_type)
-        )  # This raises if not found.
+    var_type = type(var)
+    importable_string = _serializer.BUILTIN_PARTITION_MAPPERS.get(var_type)
+    if importable_string is not None:
+        return {
+            Encoding.TYPE: importable_string,
+            Encoding.VAR: _serializer.serialize_partition_mapper(var),
+        }
+
+    qn = qualname(var)
+    if is_core_partition_mapper_import_path(qn) is False:
+        # This raises if not found.
+        find_registered_custom_partition_mapper(qn)
+
     return {
-        Encoding.TYPE: importable_string,
+        Encoding.TYPE: qn,
         Encoding.VAR: _serializer.serialize_partition_mapper(var),
     }

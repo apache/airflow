@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+4.3.3
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+4.3.2
+.....
+
+Misc
+~~~~
+
+* ``Bump minimum cryptography to 44.0.3 and paramiko to 3.4.0 (#62723)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+
 4.3.1
 .....
 

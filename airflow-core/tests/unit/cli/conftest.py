@@ -66,7 +66,7 @@ def parser():
     return cli_parser.get_parser()
 
 
-# The "*_capture" fixtures all ensure that the `caplog` fixture is loaded so that they dont get polluted with
+# The "*_capture" fixtures all ensure that the `caplog` fixture is loaded so that they don't get polluted with
 # log messages
 
 

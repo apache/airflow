@@ -84,15 +84,31 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
     :param existing_clusters: A list of existing clusters to use for the workflow.
     :param extra_job_params: A dictionary of extra properties which will override the default Databricks
         Workflow Job definitions.
+    :param jar_params: A list of jar parameters to pass to the workflow. These parameters will be passed to
+        all jar tasks in the workflow.
     :param job_clusters: A list of job clusters to use for the workflow.
     :param max_concurrent_runs: The maximum number of concurrent runs for the workflow.
     :param notebook_params: A dictionary of notebook parameters to pass to the workflow. These parameters
         will be passed to all notebooks in the workflow.
+    :param python_params: A list of python parameters to pass to the workflow. These parameters will be
+        passed to all python tasks in the workflow.
+    :param spark_submit_params: A list of spark submit parameters to pass to the workflow. These parameters
+        will be passed to all spark submit tasks.
     :param tasks_to_convert: A dict of tasks to convert to a Databricks workflow. This list can also be
         populated after instantiation using the `add_task` method.
     """
 
-    template_fields = ("notebook_params", "job_clusters")
+    template_fields = (
+        "databricks_conn_id",
+        "existing_clusters",
+        "extra_job_params",
+        "jar_params",
+        "job_clusters",
+        "max_concurrent_runs",
+        "notebook_params",
+        "python_params",
+        "spark_submit_params",
+    )
     caller = "_CreateDatabricksWorkflowOperator"
     # Conditionally set operator_extra_links based on Airflow version
     if AIRFLOW_V_3_0_PLUS:
@@ -111,18 +127,24 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         databricks_conn_id: str,
         existing_clusters: list[str] | None = None,
         extra_job_params: dict[str, Any] | None = None,
+        jar_params: list[str] | None = None,
         job_clusters: list[dict[str, object]] | None = None,
         max_concurrent_runs: int = 1,
         notebook_params: dict | None = None,
+        python_params: list | None = None,
+        spark_submit_params: list | None = None,
         tasks_to_convert: dict[str, BaseOperator] | None = None,
         **kwargs,
     ):
         self.databricks_conn_id = databricks_conn_id
         self.existing_clusters = existing_clusters or []
         self.extra_job_params = extra_job_params or {}
+        self.jar_params = jar_params or []
         self.job_clusters = job_clusters or []
         self.max_concurrent_runs = max_concurrent_runs
         self.notebook_params = notebook_params or {}
+        self.python_params = python_params or []
+        self.spark_submit_params = spark_submit_params or []
         self.tasks_to_convert = tasks_to_convert or {}
         self.relevant_upstreams = [task_id]
         self.workflow_run_metadata: WorkflowRunMetadata | None = None
@@ -213,10 +235,10 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         run_id = self._hook.run_now(
             {
                 "job_id": job_id,
-                "jar_params": self.task_group.jar_params,
+                "jar_params": self.jar_params,
                 "notebook_params": self.notebook_params,
-                "python_params": self.task_group.python_params,
-                "spark_submit_params": self.task_group.spark_submit_params,
+                "python_params": self.python_params,
+                "spark_submit_params": self.spark_submit_params,
             }
         )
 
@@ -336,9 +358,12 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
             databricks_conn_id=self.databricks_conn_id,
             existing_clusters=self.existing_clusters,
             extra_job_params=self.extra_job_params,
+            jar_params=self.jar_params,
             job_clusters=self.job_clusters,
             max_concurrent_runs=self.max_concurrent_runs,
             notebook_params=self.notebook_params,
+            python_params=self.python_params,
+            spark_submit_params=self.spark_submit_params,
         )
 
         for task in tasks:

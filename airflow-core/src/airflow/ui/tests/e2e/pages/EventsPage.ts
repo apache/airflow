@@ -17,56 +17,50 @@
  * under the License.
  */
 import type { Locator, Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class EventsPage extends BasePage {
   public readonly eventColumn: Locator;
+  public readonly eventsPageTitle: Locator;
   public readonly eventsTable: Locator;
   public readonly extraColumn: Locator;
+  public readonly filterBar: Locator;
   public readonly ownerColumn: Locator;
-  public readonly paginationNextButton: Locator;
-  public readonly paginationPrevButton: Locator;
   public readonly tableRows: Locator;
   public readonly whenColumn: Locator;
 
-  private currentDagId?: string;
-  private currentLimit?: number;
-
   public constructor(page: Page) {
     super(page);
-    this.eventsTable = page.locator('[data-testid="table-list"]');
-    this.eventColumn = this.eventsTable.locator('th:has-text("Event")');
-    this.extraColumn = this.eventsTable.locator('th:has-text("Extra")');
-    this.ownerColumn = this.eventsTable.locator('th:has-text("User")');
-    this.paginationNextButton = page.locator('[data-testid="next"]');
-    this.paginationPrevButton = page.locator('[data-testid="prev"]');
-    this.tableRows = this.eventsTable.locator("tbody tr");
-    this.whenColumn = this.eventsTable.locator('th:has-text("When")');
+    this.eventsPageTitle = page.getByRole("heading", { level: 2, name: "Audit Log" });
+    this.eventsTable = page.getByTestId("table-list");
+    this.eventColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "Event" });
+    this.extraColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "Extra" });
+    this.filterBar = page
+      .locator("div")
+      .filter({ has: page.getByTestId("add-filter-button") })
+      .first();
+    this.ownerColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "User" });
+    this.tableRows = this.eventsTable.locator("tbody").getByRole("row");
+    this.whenColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "When" });
   }
 
   public static getEventsUrl(dagId: string): string {
     return `/dags/${dagId}/events`;
   }
 
-  public async clickColumnToSort(columnName: "Event" | "User" | "When"): Promise<void> {
-    const columnHeader = this.eventsTable.locator(`th:has-text("${columnName}")`);
-    const sortButton = columnHeader.locator('button[aria-label="sort"]');
+  public async addFilter(filterName: string): Promise<void> {
+    const filterButton = this.page.getByTestId("add-filter-button");
 
-    await sortButton.click();
-    await this.waitForTableLoad();
-    await this.ensureUrlParams();
-  }
+    await filterButton.click();
 
-  public async clickNextPage(): Promise<void> {
-    await this.paginationNextButton.click();
-    await this.waitForTableLoad();
-    await this.ensureUrlParams();
-  }
+    const filterMenu = this.page.getByRole("menu");
 
-  public async clickPrevPage(): Promise<void> {
-    await this.paginationPrevButton.click();
-    await this.waitForTableLoad();
-    await this.ensureUrlParams();
+    await expect(filterMenu).toBeVisible({ timeout: 10_000 });
+
+    const menuItem = filterMenu.getByRole("menuitem", { name: filterName });
+
+    await menuItem.click();
   }
 
   public async getCellByColumnName(row: Locator, columnName: string): Promise<Locator> {
@@ -90,7 +84,7 @@ export class EventsPage extends BasePage {
     return this.tableRows.all();
   }
 
-  public async getEventTypes(allPages: boolean = false): Promise<Array<string>> {
+  public async getEventTypes(): Promise<Array<string>> {
     const rows = await this.getEventLogRows();
 
     if (rows.length === 0) {
@@ -108,47 +102,73 @@ export class EventsPage extends BasePage {
       }
     }
 
-    if (!allPages) {
-      return eventTypes;
-    }
-
-    const allEventTypes = [...eventTypes];
-
-    while (await this.hasNextPage()) {
-      await this.clickNextPage();
-      const pageEvents = await this.getEventTypes(false);
-
-      allEventTypes.push(...pageEvents);
-    }
-
-    while ((await this.paginationPrevButton.count()) > 0 && (await this.paginationPrevButton.isEnabled())) {
-      await this.clickPrevPage();
-    }
-
-    return allEventTypes;
+    return eventTypes;
   }
 
-  public async hasNextPage(): Promise<boolean> {
-    const count = await this.paginationNextButton.count();
-
-    if (count === 0) {
-      return false;
-    }
-
-    return await this.paginationNextButton.isEnabled();
+  public getFilterPill(filterLabel: string): Locator {
+    return this.page.getByRole("button", { name: `${filterLabel}:` });
   }
 
-  public async navigateToAuditLog(dagId: string, limit?: number): Promise<void> {
-    this.currentDagId = dagId;
-    this.currentLimit = limit;
+  public async getTableRowCount(): Promise<number> {
+    return this.tableRows.count();
+  }
 
-    const baseUrl = EventsPage.getEventsUrl(dagId);
-    const url = limit === undefined ? baseUrl : `${baseUrl}?offset=0&limit=${limit}`;
+  public async navigate(): Promise<void> {
+    await this.navigateTo("/events");
+    await this.waitForTableLoad();
+  }
 
-    await this.page.goto(url, {
-      timeout: 30_000,
-      waitUntil: "domcontentloaded",
-    });
+  public async navigateToAuditLog(dagId: string): Promise<void> {
+    await expect(async () => {
+      await this.page.goto(EventsPage.getEventsUrl(dagId), {
+        timeout: 10_000,
+        waitUntil: "domcontentloaded",
+      });
+      await this.eventsTable.waitFor({ state: "visible", timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
+    await this.waitForTableLoad();
+  }
+
+  public async setFilterValue(filterLabel: string, value: string): Promise<void> {
+    const filterPill = this.getFilterPill(filterLabel);
+
+    if (await filterPill.isVisible()) {
+      await filterPill.click();
+    }
+
+    const filterInput = this.page
+      .locator("div")
+      .filter({ has: this.page.getByText(`${filterLabel}:`) })
+      .locator("input")
+      .first();
+
+    await expect(filterInput).toBeVisible({ timeout: 10_000 });
+    await filterInput.fill(value);
+    await filterInput.press("Enter");
+    await this.waitForTableLoad();
+  }
+
+  public async verifyLogEntriesWithData(): Promise<void> {
+    await expect(this.tableRows).not.toHaveCount(0);
+
+    const firstRow = this.tableRows.first();
+    const whenCell = await this.getCellByColumnName(firstRow, "When");
+    const eventCell = await this.getCellByColumnName(firstRow, "Event");
+    const userCell = await this.getCellByColumnName(firstRow, "User");
+
+    await expect(whenCell).toHaveText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/);
+    await expect(eventCell).toHaveText(/[a-z][_a-z]*/);
+    await expect(userCell).toHaveText(/\w+/);
+  }
+
+  public async verifyTableColumns(): Promise<void> {
+    await expect(this.whenColumn).toBeVisible();
+    await expect(this.eventColumn).toBeVisible();
+    await expect(this.ownerColumn).toBeVisible();
+    await expect(this.extraColumn).toBeVisible();
+  }
+
+  public async waitForEventsTable(): Promise<void> {
     await this.waitForTableLoad();
   }
 
@@ -156,75 +176,20 @@ export class EventsPage extends BasePage {
    * Wait for table to finish loading
    */
   public async waitForTableLoad(): Promise<void> {
-    await this.eventsTable.waitFor({ state: "visible", timeout: 60_000 });
+    await expect(this.eventsTable).toBeVisible({ timeout: 60_000 });
 
-    await this.page.waitForFunction(
-      () => {
-        const table = document.querySelector('[data-testid="table-list"]');
+    const skeleton = this.eventsTable.locator('[data-testid="skeleton"]');
 
-        if (!table) {
-          return false;
-        }
+    await expect(skeleton).toHaveCount(0, { timeout: 60_000 });
 
-        const skeletons = table.querySelectorAll('[data-scope="skeleton"]');
+    const noDataMessage = this.page.getByText(/no.*events.*found/iu);
 
-        if (skeletons.length > 0) {
-          return false;
-        }
+    await expect(async () => {
+      const rowCount = await this.tableRows.count();
 
-        const rows = table.querySelectorAll("tbody tr");
-
-        for (const row of rows) {
-          const cells = row.querySelectorAll("td");
-          let hasContent = false;
-
-          for (const cell of cells) {
-            if (cell.textContent && cell.textContent.trim().length > 0) {
-              hasContent = true;
-              break;
-            }
-          }
-
-          if (!hasContent) {
-            return false;
-          }
-        }
-
-        return true;
-      },
-      undefined,
-      { timeout: 60_000 },
-    );
-  }
-
-  /**
-   * Ensure offset=0 is present when limit is set to prevent limit from being ignored
-   */
-  private async ensureUrlParams(): Promise<void> {
-    if (this.currentLimit === undefined || this.currentDagId === undefined) {
-      return;
-    }
-
-    const currentUrl = this.page.url();
-    const url = new URL(currentUrl);
-    const hasLimit = url.searchParams.has("limit");
-    const hasOffset = url.searchParams.has("offset");
-
-    if (hasLimit && !hasOffset) {
-      url.searchParams.set("offset", "0");
-      await this.page.goto(url.toString(), {
-        timeout: 30_000,
-        waitUntil: "domcontentloaded",
-      });
-      await this.waitForTableLoad();
-    } else if (!hasLimit && !hasOffset) {
-      url.searchParams.set("offset", "0");
-      url.searchParams.set("limit", String(this.currentLimit));
-      await this.page.goto(url.toString(), {
-        timeout: 30_000,
-        waitUntil: "domcontentloaded",
-      });
-      await this.waitForTableLoad();
-    }
+      await (rowCount > 0
+        ? expect(this.tableRows.first().locator("td").first()).toHaveText(/.+/)
+        : expect(noDataMessage).toBeVisible());
+    }).toPass({ timeout: 60_000 });
   }
 }

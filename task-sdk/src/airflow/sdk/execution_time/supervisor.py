@@ -66,6 +66,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagResult,
     DagRunResult,
     DagRunStateResult,
     DeferTask,
@@ -77,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDag,
     GetDagRun,
     GetDagRunState,
     GetDRCount,
@@ -322,6 +324,28 @@ def block_orm_access():
 
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
+
+
+# From <linux/prctl.h>
+_PR_SET_DUMPABLE = 4
+_PR_GET_DUMPABLE = 3
+
+
+def _make_process_nondumpable() -> None:
+    """Mark the current process as non-dumpable to prevent same-UID memory access."""
+    if sys.platform != "linux":
+        return
+    try:
+        import ctypes
+
+        # CDLL(None) is dlopen(NULL) — a handle to the current process, which always
+        # includes libc symbols since CPython is linked against it.
+        libc = ctypes.CDLL(None, use_errno=True)
+        rc = libc.prctl(_PR_SET_DUMPABLE, 0, 0, 0, 0)
+        if rc != 0:
+            log.warning("Failed to set PR_SET_DUMPABLE=0", errno=ctypes.get_errno())
+    except Exception:
+        log.warning("Unable to set PR_SET_DUMPABLE=0", exc_info=True)
 
 
 def _fork_main(
@@ -1371,11 +1395,7 @@ class ActivitySubprocess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, TriggerDagRun):
             resp = self.client.dag_runs.trigger(
-                msg.dag_id,
-                msg.run_id,
-                msg.conf,
-                msg.logical_date,
-                msg.reset_dag_run,
+                msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.reset_dag_run, msg.note
             )
         elif isinstance(msg, GetDagRun):
             dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
@@ -1459,6 +1479,11 @@ class ActivitySubprocess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
             mask_secret(msg.value, msg.name)
+        elif isinstance(msg, GetDag):
+            dag = self.client.dags.get(
+                dag_id=msg.dag_id,
+            )
+            resp = DagResult.from_api_response(dag)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -2005,7 +2030,8 @@ def supervise(
     :return: Exit code of the process.
     :raises ValueError: If server URL is empty or invalid.
     """
-    # One or the other
+    _make_process_nondumpable()
+
     from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 
     if not client:

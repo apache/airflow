@@ -24,6 +24,17 @@ This is where *Deferrable Operators* can be used. When it has nothing to do but 
 
 *Triggers* are small, asynchronous pieces of Python code designed to run in a single Python process. Because they are asynchronous, they can all co-exist efficiently in the *triggerer* Airflow component.
 
+.. note::
+
+   Airflow 3.2 also supports Python-native async tasks that can perform
+   concurrent I/O operations within a single worker slot. While deferred
+   operators release the worker slot while waiting for an external event,
+   async tasks keep the task process running and use a shared event loop
+   to multiplex operations.
+
+   For guidance on when to use deferred operators versus async tasks,
+   see `Deferred vs Async Operators <https://airflow.apache.org/docs/task-sdk/stable/deferred-vs-async-operators.html>`__.
+
 An overview of how this process works:
 
 * A task instance (running operator) reaches a point where it has to wait for other operations or conditions, and defers itself with a trigger tied to an event to resume it. This frees up the worker to run something else.
@@ -506,7 +517,7 @@ Additionally, queue assignment is currently only compatible with the subset of t
 +------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
 |          Trigger Type                                                                                |   Supports queues?   |  Triggerer assignment when :ref:`config:triggerer__queues_enabled` is ``True``   |
 +======================================================================================================+======================+==================================================================================+
-| Task-created Trigger instances                                                                       |   Yes                |  Any triggerer with the the task queue present in its ``--queues`` option        |
+| Task-created Trigger instances                                                                       |   Yes                |  Any triggerer with the task queue present in its ``--queues`` option            |
 +------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
 | :doc:`Event-Driven Triggers<../authoring-and-scheduling/event-scheduling>`                           |   No                 |  Any triggerer running without the ``--queues`` option                           |
 +------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+

@@ -409,20 +409,33 @@ paths:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
       parameters:
-      - name: limit
+      - name: order_by
         in: query
         required: false
         schema:
-          type: integer
-          default: 100
-          title: Limit
+          type: string
+          description: Field to order by. Prefix with '-' for descending.
+          default: id
+          title: Order By
+        description: Field to order by. Prefix with '-' for descending.
       - name: offset
         in: query
         required: false
         schema:
           type: integer
+          minimum: 0
+          description: Number of items to skip before starting to collect results.
           default: 0
           title: Offset
+        description: Number of items to skip before starting to collect results.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
       responses:
         '200':
           description: Successful Response
@@ -430,6 +443,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PermissionCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '401':
           content:
             application/json:

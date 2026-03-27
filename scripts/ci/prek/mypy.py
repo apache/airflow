@@ -28,19 +28,17 @@ import shlex
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
-
 from common_prek_utils import (
     AIRFLOW_ROOT_PATH,
     console,
     initialize_breeze_prek,
-    pre_process_files,
+    pre_process_mypy_files,
     run_command_via_breeze_shell,
 )
 
 initialize_breeze_prek(__name__, __file__)
 
-files_to_test = pre_process_files(sys.argv[1:])
+files_to_test = pre_process_mypy_files(sys.argv[1:])
 if not files_to_test:
     print("No files to tests. Quitting")
     sys.exit(0)

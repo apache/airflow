@@ -65,7 +65,7 @@ apache-airflow-providers-apache-hdfs package
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 4.11.3
+Release: 4.11.4
 
 Provider package
 ----------------
@@ -85,17 +85,19 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ======================================
+==========================================  ==================================================================
 PIP package                                 Version required
-==========================================  ======================================
+==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``hdfs[avro,dataframe,kerberos]``           ``>=2.5.4; python_version < "3.12"``
 ``hdfs[avro,dataframe,kerberos]``           ``>=2.7.3; python_version >= "3.12"``
-``fastavro``                                ``>=1.10.0; python_version >= "3.13"``
+``fastavro``                                ``>=1.10.0; python_version >= "3.13" and python_version < "3.14"``
+``fastavro``                                ``>=1.12.1; python_version >= "3.14"``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
-==========================================  ======================================
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
+==========================================  ==================================================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -122,5 +124,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-hdfs 4.11.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-hdfs 4.11.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-hdfs 4.11.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.4.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-hdfs 4.11.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hdfs-4.11.4-py3-none-any.whl.sha512>`__)

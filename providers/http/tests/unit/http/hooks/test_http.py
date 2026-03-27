@@ -633,7 +633,7 @@ class TestHttpHook:
         url = hook.url_from_endpoint("baz/bop")
         assert url == "https://foo.bar.com/baz/bop"
 
-        # Verify get_connection was called and and verify that base_url is now initialized
+        # Verify get_connection was called and verify that base_url is now initialized
         mock_get_connection.assert_called_once_with("test_conn")
         assert hook._base_url_initialized
 
@@ -737,6 +737,22 @@ class TestHttpAsyncHook:
         with pytest.raises(AirflowException, match="Unexpected HTTP Method: NOPE"):
             async with aiohttp.ClientSession() as session:
                 await hook.run(session=session, endpoint="non_existent_endpoint", data=json)
+
+    @pytest.mark.asyncio
+    async def test_async_get_request(self):
+        """Test api call asynchronously for POST request."""
+        hook = HttpAsyncHook()
+
+        with aioresponses() as m:
+            m.get(
+                "http://test:8080/v1/test",
+                status=200,
+                payload='{"status":{"status": 200}}',
+                reason="OK",
+            )
+            async with hook.session(method="GET") as session:
+                resp = await session.run(endpoint="v1/test")
+                assert resp.status == 200
 
     @pytest.mark.asyncio
     async def test_async_post_request(self):

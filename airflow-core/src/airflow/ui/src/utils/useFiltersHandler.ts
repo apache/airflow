@@ -58,6 +58,7 @@ const handleDateRangeChange = (
 export type FilterableSearchParamsKeys =
   | SearchParamsKeys.ASSET_EVENT_DATE_RANGE
   | SearchParamsKeys.BODY_SEARCH
+  | SearchParamsKeys.BUNDLE_VERSION
   | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.CREATED_AT_RANGE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
@@ -78,6 +79,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.NAME_PATTERN
   | SearchParamsKeys.OPERATOR_NAME_PATTERN
+  | SearchParamsKeys.PARTITION_KEY_PATTERN
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
   | SearchParamsKeys.RESPONDED_BY_USER_NAME

@@ -72,6 +72,7 @@ Currently, **officially** using Airflow:
 1. [Axesor designeted activity company](https://www.axesor.es/)
 1. [Azri Solutions](http://www.azrisolutions.com/) [[@userimack](https://github.com/userimack)]
 1. [Bagelcode](https://www.bagelcode.com/)
+1. [Bajaj Finserv Health Ltd](https://www.bajajfinservhealth.in/)
 1. [BalanceHero](http://truebalance.io/) [[@swalloow](https://github.com/swalloow)]
 1. [Banco de Formaturas](https://www.bancodeformaturas.com.br) [[@guiligan](https://github.com/guiligan)]
 1. [Banco Inter](https://www.bancointer.com.br) [[@ignitz](https://github.com/ignitz)]
@@ -548,6 +549,7 @@ Currently, **officially** using Airflow:
 1. [VeeR VR](https://veer.tv) [[@pishilong](https://github.com/pishilong)]
 1. [Veikkaus](https://www.veikkaus.fi) [[@hixus](https://github.com/hixus)]
 1. [Vente-Exclusive.com](http://www.vente-exclusive.com/) [[@alexvanboxel](https://github.com/alexvanboxel)]
+1. [Vespa.ai](https://vespa.ai/) [[@radu-gheorghe](https://github.com/radu-gheorghe)]
 1. [Vestiaire Collective](https://www.vestiairecollective.com/) [[@AdriMarteau](https://github.com/AdriMarteau), [@benbenbang](https://github.com/benbenbang)]
 1. [Vevo](https://www.vevo.com/) [[@csetiawan](https://github.com/csetiawan) & [@jerrygillespie](https://github.com/jerrygillespie)]
 1. [Vidio](https://www.vidio.com/)

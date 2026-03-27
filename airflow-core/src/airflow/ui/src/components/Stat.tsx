@@ -24,7 +24,7 @@ type Props = {
 } & StackProps;
 
 export const Stat = ({ children, label, ...rest }: Props) => (
-  <VStack align="flex-start" gap={1} {...rest}>
+  <VStack align="flex-start" data-testid="stat" gap={1} {...rest}>
     <Heading color="fg.muted" fontSize="xs" lineHeight="1.25rem">
       {label}
     </Heading>

@@ -31,10 +31,12 @@ from airflow.models import DagModel
 from airflow.sdk import CronPartitionTimetable
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.trigger import (
+    CronPartitionTimetable as CoreCronPartitionTimetable,
     CronTriggerTimetable,
     DeltaTriggerTimetable,
     MultipleCronTriggerTimetable,
 )
+from airflow.utils.types import DagRunType
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)
 
@@ -621,7 +623,9 @@ def test_latest_run_no_history(dag_maker, session):
     dag_maker.sync_dagbag_to_db()
     session.commit()
     dm = session.scalar(select(DagModel))
-    assert dm.next_dagrun == start_date
+    assert dm.next_dagrun is None
+    assert dm.next_dagrun_partition_date == start_date
+    assert dm.next_dagrun_partition_key == "2026-01-01T00:00:00"
 
 
 @pytest.mark.db_test
@@ -655,29 +659,30 @@ def test_latest_run_with_run(dag_maker, session):
     dag_maker.sync_dag_to_db()
     session.commit()
     dm = session.scalar(select(DagModel))
-    assert dm.next_dagrun == start_date + datetime.timedelta(days=4)
+    assert dm.next_dagrun is None
+    assert dm.next_dagrun_partition_date == start_date + datetime.timedelta(days=4)
+    assert dm.next_dagrun_partition_key == "2026-01-05T00:00:00"
 
 
 @pytest.mark.db_test
 @pytest.mark.parametrize(
-    ("schedule", "partition_key", "expected"),
+    ("schedule", "expected"),
     [
-        (
+        pytest.param(
             CronPartitionTimetable(
                 "0 0 * * *",
                 timezone=pendulum.UTC,
             ),
-            "key-1",
             DagRunInfo(
                 run_after=START_DATE + datetime.timedelta(days=3),
                 data_interval=None,
                 partition_date=START_DATE + datetime.timedelta(days=3),
                 partition_key="key-1",
             ),
+            id="cron-partition",
         ),
-        (
+        pytest.param(
             "0 0 * * *",
-            None,
             DagRunInfo(
                 run_after=START_DATE + datetime.timedelta(days=3),
                 data_interval=DataInterval(
@@ -687,10 +692,11 @@ def test_latest_run_with_run(dag_maker, session):
                 partition_date=None,
                 partition_key=None,
             ),
+            id="cron-trigger",
         ),
     ],
 )
-def test_run_info_from_dag_run(schedule, partition_key, expected, dag_maker, session):
+def test_run_info_from_dag_run(schedule, expected, dag_maker, session):
     with dag_maker(
         "test",
         start_date=START_DATE,
@@ -705,7 +711,8 @@ def test_run_info_from_dag_run(schedule, partition_key, expected, dag_maker, ses
         data_interval=None,
         run_type="scheduled",
         run_after=START_DATE + datetime.timedelta(days=3),
-        partition_key=partition_key,
+        partition_key=expected.partition_key,
+        partition_date=expected.partition_date,
         session=session,
     )
     info = dag_maker.serialized_dag.timetable.run_info_from_dag_run(dag_run=dr)
@@ -809,3 +816,21 @@ def test_next_run_info_from_dag_model(schedule, partition_key, expected, dag_mak
     dm = dag_maker.dag_model
     info = dag_maker.serialized_dag.timetable.next_run_info_from_dag_model(dag_model=dm)
     assert info == expected
+
+
+def test_generate_run_id_without_partition_key() -> None:
+    """
+    Tests the generate_run_id method of CronPartitionTimetable.
+
+    generate_run_id shouldn't break even if when the run is manually trigger (partition_key might be missing).
+    """
+    cron_partitioned_timetabe = CoreCronPartitionTimetable(
+        "0 * * * *",
+        timezone=pendulum.UTC,
+    )
+    run_id = cron_partitioned_timetabe.generate_run_id(
+        run_type=DagRunType.MANUAL,
+        run_after=pendulum.DateTime(2025, 6, 7, 8, 9, tzinfo=pendulum.UTC),
+        data_interval=None,
+    )
+    assert run_id.startswith("manual__2025-06-07T08:09:00+00:00__")

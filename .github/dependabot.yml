@@ -17,6 +17,44 @@
 ---
 version: 2
 updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+    target-branch: v3-1-test
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+    target-branch: v2-11-test
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
+
   - package-ecosystem: pip
     cooldown:
       default-days: 4
@@ -43,11 +81,40 @@ updates:
     directories:
       - /airflow-core/src/airflow/ui
     schedule:
-      interval: daily
+      interval: "weekly"
     groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      chakra-ui:
+        patterns:
+          - "@chakra-ui/*"
+          - "@emotion/*"
+          - "framer-motion"
+      eslint:
+        patterns:
+          - "eslint*"
+          - "@eslint/*"
+      typescript:
+        patterns:
+          - "typescript*"
+          - "@typescript-eslint/*"
+          - "@types/typescript"
       core-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      core-ui-major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -55,11 +122,20 @@ updates:
     directories:
       - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
     schedule:
-      interval: daily
+      interval: "weekly"
     groups:
-      core-ui-package-updates:
+      auth-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      auth-ui-major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   - package-ecosystem: npm
     cooldown:
@@ -67,11 +143,17 @@ updates:
     directories:
       - /dev/react-plugin-tools/react_plugin_template
     schedule:
-      interval: daily
+      interval: "weekly"
     groups:
       ui-plugin-template-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     cooldown:
@@ -79,7 +161,7 @@ updates:
     directories:
       - /providers/edge3/src/airflow/providers/edge3/plugins/www
     schedule:
-      interval: daily
+      interval: "weekly"
     groups:
       edge-ui-package-updates:
         patterns:
@@ -96,6 +178,27 @@ updates:
       fab-ui-package-updates:
         patterns:
           - "*"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /registry
+    schedule:
+      interval: "weekly"
+    groups:
+      registry-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      registry-major-version-updates:
+        patterns:
+          - "*"
+        applies-to: security-updates
+        update-types:
+          - "major"
 
   # Repeat dependency updates on v3-1-test branch as well
   - package-ecosystem: pip
@@ -125,12 +228,37 @@ updates:
     directories:
       - /airflow-core/src/airflow/ui
     schedule:
-      interval: daily
+      interval: "weekly"
     target-branch: v3-1-test
     groups:
-      core-ui-package-updates:
+      3-1-core-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
+    schedule:
+      interval: "weekly"
+    target-branch: v3-1-test
+    groups:
+      3-1-auth-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # Repeat dependency updates on 2.11 branch as well
   - package-ecosystem: pip
@@ -142,7 +270,7 @@ updates:
       - /docker_tests
       - /
     schedule:
-      interval: daily
+      interval: "weekly"
     target-branch: v2-11-test
     groups:
       pip-dependency-updates:
@@ -155,12 +283,15 @@ updates:
     directories:
       - /airflow/www/
     schedule:
-      interval: daily
+      interval: "weekly"
     target-branch: v2-11-test
     groups:
-      core-ui-package-updates:
+      legacy-ui-package-updates:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "uv"
     cooldown:

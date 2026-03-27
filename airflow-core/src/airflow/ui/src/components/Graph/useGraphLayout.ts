@@ -164,7 +164,7 @@ const generateElkGraph = ({
         label: node.label,
         layoutOptions: {
           "elk.padding": "[top=80,left=15,bottom=15,right=15]",
-          "elk.portConstraints": "FIXED_SIDE",
+          ...(direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : {}),
         },
       };
     }
@@ -197,7 +197,8 @@ const generateElkGraph = ({
 
     const label = `${node.label}${node.is_mapped ? "[1000]" : ""}${node.children ? ` + ${node.children.length} tasks` : ""}`;
     let width = getTextWidth(label, font);
-    let height = 80;
+    const hasStateBar = Boolean(node.is_mapped) || Boolean(node.children);
+    let height = hasStateBar ? 90 : 80;
 
     if (node.type === "join") {
       width = 10;
@@ -215,9 +216,10 @@ const generateElkGraph = ({
       isGroup: Boolean(node.children),
       isMapped: node.is_mapped === null ? undefined : node.is_mapped,
       label: node.label,
-      layoutOptions: { "elk.portConstraints": "FIXED_SIDE" },
+      layoutOptions: direction === "RIGHT" ? { "elk.portConstraints": "FIXED_SIDE" } : undefined,
       operator: node.operator,
       setupTeardownType: node.setup_teardown_type,
+      tooltip: node.tooltip,
       type: node.type,
       width,
     };

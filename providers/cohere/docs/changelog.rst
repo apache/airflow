@@ -20,6 +20,36 @@
 Changelog
 ---------
 
+1.6.4
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+1.6.3
+.....
+
+Misc
+~~~~
+
+* ``Migrate trino/cohere connection UI metadata to YAML (#62390)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
 1.6.2
 .....
 
@@ -118,7 +148,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Clarify why 'EmbedByTypeResponseEmbeddings' return type is ommitted (#51517)``
+* ``Clarify why 'EmbedByTypeResponseEmbeddings' return type is omitted (#51517)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

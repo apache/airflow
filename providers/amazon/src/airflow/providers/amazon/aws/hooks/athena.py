@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 
 if TYPE_CHECKING:
     from botocore.paginate import PageIterator
@@ -126,6 +127,11 @@ class AthenaHook(AwsBaseHook):
         response = self.get_conn().start_query_execution(**params)
         query_execution_id = response["QueryExecutionId"]
         self.log.info("Query execution id: %s", query_execution_id)
+        send_sql_hook_lineage(
+            context=self,
+            sql=query,
+            job_id=query_execution_id,
+        )
         return query_execution_id
 
     def get_query_info(self, query_execution_id: str, use_cache: bool = False) -> dict:

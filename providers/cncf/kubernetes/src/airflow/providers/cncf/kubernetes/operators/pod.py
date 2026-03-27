@@ -73,6 +73,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     EMPTY_XCOM_RESULT,
     OnFinishAction,
+    OnKillAction,
     PodLaunchFailedException,
     PodManager,
     PodNotFoundException,
@@ -184,6 +185,7 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param runtime_class_name: The name of the RuntimeClass to use for all containers in the pod.
     :param node_selector: A dict containing a group of scheduling rules. (templated)
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -234,6 +236,10 @@ class KubernetesPodOperator(BaseOperator):
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod. "delete_active_pod" deletes
         pods that are still active (Pending or Running).
+    :param on_kill_action: What to do when the task is killed by the user (e.g. manually marked as
+        success/failed from the Airflow UI). If "delete_pod" (default), the pod will be deleted.
+        If "keep_pod", the pod will not be deleted. In deferrable mode this is forwarded to the
+        trigger which controls cleanup when a deferred task is cancelled.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
@@ -319,6 +325,7 @@ class KubernetesPodOperator(BaseOperator):
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
+        runtime_class_name: str | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
@@ -348,6 +355,7 @@ class KubernetesPodOperator(BaseOperator):
         poll_interval: float = 2,
         log_pod_spec_on_failure: bool = True,
         on_finish_action: str = "delete_pod",
+        on_kill_action: str = "delete_pod",
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
@@ -399,6 +407,7 @@ class KubernetesPodOperator(BaseOperator):
         self.init_container_logs = init_container_logs
         self.container_logs = container_logs or self.base_container_name
         self.image_pull_policy = image_pull_policy
+        self.runtime_class_name = runtime_class_name
         self.node_selector = node_selector or {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else {}
@@ -442,6 +451,7 @@ class KubernetesPodOperator(BaseOperator):
         self.remote_pod: k8s.V1Pod | None = None
         self.log_pod_spec_on_failure = log_pod_spec_on_failure
         self.on_finish_action = OnFinishAction(on_finish_action)
+        self.on_kill_action = OnKillAction(on_kill_action)
         # The `is_delete_operator_pod` parameter should have been removed in provider version 10.0.0.
         # TODO: remove it from here and from the operator's parameters list when the next major version bumped
         self._is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
@@ -909,6 +919,8 @@ class KubernetesPodOperator(BaseOperator):
             schedule_timeout=self.schedule_timeout_seconds,
             base_container_name=self.base_container_name,
             on_finish_action=self.on_finish_action.value,
+            on_kill_action=self.on_kill_action.value,
+            termination_grace_period=self.termination_grace_period,
             last_log_time=last_log_time,
             logging_interval=self.logging_interval,
             trigger_kwargs=self.trigger_kwargs,
@@ -1282,6 +1294,11 @@ class KubernetesPodOperator(BaseOperator):
 
     def on_kill(self) -> None:
         self._killed = True
+        if self.on_kill_action == OnKillAction.KEEP_POD:
+            self.log.info(
+                "Skipping pod deletion since on_kill_action is set to %r.", self.on_kill_action.value
+            )
+            return
         if self.pod:
             pod = self.pod
             kwargs = {
@@ -1338,6 +1355,7 @@ class KubernetesPodOperator(BaseOperator):
                 annotations=self.annotations,
             ),
             spec=k8s.V1PodSpec(
+                runtime_class_name=self.runtime_class_name,
                 node_selector=self.node_selector,
                 affinity=self.affinity,
                 tolerations=self.tolerations,

@@ -45,6 +45,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    DagResponse,
     DagRun,
     DagRunStateResponse,
     DagRunType,
@@ -75,7 +76,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DRCount,
@@ -215,7 +216,18 @@ class TaskInstanceOperations:
         """Tell the API server that this TI has started running."""
         body = TIEnterRunningPayload(pid=pid, hostname=get_hostname(), unixname=getuser(), start_date=when)
 
-        resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
+        try:
+            resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.CONFLICT:
+                detail = e.detail
+                if (
+                    isinstance(detail, dict)
+                    and detail.get("reason") == "invalid_state"
+                    and detail.get("previous_state") == "running"
+                ):
+                    raise TaskAlreadyRunningError(f"Task instance {id} is already running") from e
+            raise
         return TIRunContext.model_validate_json(resp.read())
 
     def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime, rendered_map_index):
@@ -695,9 +707,12 @@ class DagRunOperations:
         conf: dict | None = None,
         logical_date: datetime | None = None,
         reset_dag_run: bool = False,
+        note: str | None = None,
     ) -> OKResponse | ErrorResponse:
         """Trigger a Dag run via the API server."""
-        body = TriggerDAGRunPayload(logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run)
+        body = TriggerDAGRunPayload(
+            logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run, note=note
+        )
 
         try:
             self.client.post(
@@ -767,6 +782,18 @@ class DagRunOperations:
             params["state"] = state
         resp = self.client.get("dag-runs/previous", params=params)
         return PreviousDagRunResult(dag_run=resp.json())
+
+
+class DagsOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, dag_id: str) -> DagResponse:
+        """Get a DAG via the API server."""
+        resp = self.client.get(f"dags/{dag_id}")
+        return DagResponse.model_validate_json(resp.read())
 
 
 class HITLOperations:
@@ -878,6 +905,8 @@ API_RETRY_WAIT_MIN = conf.getfloat("workers", "execution_api_retry_wait_min")
 API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
+API_CLIENT_SSL_CERT = conf.get("api", "client_ssl_cert", fallback=None)
+API_CLIENT_SSL_KEY = conf.get("api", "client_ssl_key", fallback=None)
 
 
 def _should_retry_api_request(exception: BaseException) -> bool:
@@ -912,6 +941,12 @@ class Client(httpx.Client):
             kwargs["base_url"] = base_url
             # Call via the class to avoid binding lru_cache wires to this instance.
             kwargs["verify"] = type(self)._get_ssl_context_cached(certifi.where(), API_SSL_CERT_PATH)
+
+            if API_CLIENT_SSL_CERT or API_CLIENT_SSL_KEY:
+                if not (API_CLIENT_SSL_CERT and API_CLIENT_SSL_KEY):
+                    raise ValueError("Both client_ssl_cert and client_ssl_key must be set.")
+
+                kwargs["cert"] = (API_CLIENT_SSL_CERT, API_CLIENT_SSL_KEY)
 
         # Set timeout if not explicitly provided
         kwargs.setdefault("timeout", API_TIMEOUT)
@@ -1001,10 +1036,16 @@ class Client(httpx.Client):
         """Operations related to HITL Responses."""
         return HITLOperations(self)
 
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def dags(self) -> DagsOperations:
+        """Operations related to DAGs."""
+        return DagsOperations(self)
+
 
 # This is only used for parsing. ServerResponseError is raised instead
 class _ErrorBody(BaseModel):
-    detail: list[RemoteValidationError] | str
+    detail: list[RemoteValidationError] | dict[str, Any] | str
 
     def __repr__(self):
         return repr(self.detail)
@@ -1038,6 +1079,9 @@ class ServerResponseError(httpx.HTTPStatusError):
             if isinstance(body.detail, list):
                 detail = body.detail
                 msg = "Remote server returned validation error"
+            elif isinstance(body.detail, dict):
+                detail = body.detail
+                msg = "Server returned error"
             else:
                 msg = body.detail or "Un-parseable error"
         except Exception:

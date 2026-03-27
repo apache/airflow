@@ -53,6 +53,7 @@ airflowctl needs to be able to connect to the Airflow API. You should pass API U
 You can also set the environment variable ``AIRFLOW_CLI_TOKEN`` to the token to use for authentication.
 
 There are two ways to authenticate with the Airflow API:
+
 1. Using a token acquired from the Airflow API
 
 .. code-block:: bash
@@ -61,17 +62,18 @@ There are two ways to authenticate with the Airflow API:
 
 2. Using a username and password
 
-
 .. code-block:: bash
 
   airflowctl auth login --api-url <api_url> --username <username> --password <password> --env <env_name:production>
 
-3. (optional) Using a token acquired from the Airflow API and username and password
+If there's no keyring available, common in headless systems like docker images, you can still use the tool by setting
+the environment variable ``AIRFLOW_CLI_TOKEN``.
 
 .. code-block:: bash
 
   export AIRFLOW_CLI_TOKEN=<token>
-  airflowctl auth login --api-url <api_url> --env <env_name>
+  airflowctl auth login --api-url <api_url> --env <env_name:production> --skip-keyring
+
 
 In both cases token is securely stored in the keyring backend. Only configuration persisted in ``~/.config/airflow`` file
 is the API URL and the environment name. The token is stored in the keyring backend and is not persisted in the
@@ -107,6 +109,10 @@ If you provide a username via ``--username`` this is the required password to au
 **--env**: This parameter is optional.
 The name of the environment to create or update. The default value is ``production``.
 This parameter is useful when you want to manage multiple Airflow environments.
+
+**--skip-keyring**: This parameter is optional.
+Useful when there's no keyring available in the system where airflowctl is running.
+Set ``AIRFLOW_CLI_TOKEN`` or use the ``--api-token`` flag for next commands.
 
 More Usage and Help Pictures
 ''''''''''''''''''''''''''''

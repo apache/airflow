@@ -81,6 +81,23 @@
   "formActions": {
     "save": "Speichern"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Executor Klasse",
+      "hostname": "Hostname",
+      "id": "ID",
+      "jobType": "Job-Typ",
+      "latestHeartbeat": "Letztes Lebenszeichen",
+      "unixname": "Unix-Name"
+    },
+    "filters": {
+      "allStates": "Alle Zustände",
+      "allTypes": "Alle Job-Typen",
+      "dagProcessorJob": "Dag-Prozessor-Job",
+      "schedulerJob": "Scheduler-Job",
+      "triggererJob": "Triggerer-Job"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "Quelle"

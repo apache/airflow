@@ -67,11 +67,19 @@ def test_connection_form__add_widgets_prefix_backcompat(scenario, cleanup_provid
     else:
         raise ValueError("unexpected")
 
-    provider_manager._add_widgets(
-        package_name="abc",
-        hook_class=MyHook,
-        widgets=widgets,
-    )
+    if hasattr(provider_manager, "_add_widgets_from_hook"):
+        provider_manager._add_widgets_from_hook(
+            package_name="abc",
+            hook_class=MyHook,
+            widgets=widgets,
+        )
+    else:
+        # backcompat for airflow < 3.2
+        provider_manager._add_widgets(
+            package_name="abc",
+            hook_class=MyHook,
+            widgets=widgets,
+        )
     assert provider_manager.connection_form_widgets["extra__test__my_param"].field == widget_field
 
 
@@ -88,11 +96,19 @@ def test_connection_field_behaviors_placeholders_prefix(cleanup_providers_manage
             }
 
     provider_manager = ProvidersManager()
-    provider_manager._add_customized_fields(
-        package_name="abc",
-        hook_class=MyHook,
-        customized_fields=MyHook.get_ui_field_behaviour(),
-    )
+    if hasattr(provider_manager, "_add_customized_fields_from_hook"):
+        provider_manager._add_customized_fields_from_hook(
+            package_name="abc",
+            hook_class=MyHook,
+            customized_fields=MyHook.get_ui_field_behaviour(),
+        )
+    else:
+        # backcompat for airflow < 3.2
+        provider_manager._add_customized_fields(
+            package_name="abc",
+            hook_class=MyHook,
+            customized_fields=MyHook.get_ui_field_behaviour(),
+        )
     expected = {
         "extra__test__abc": "hi",  # prefix should be added, since `abc` is not reserved
         "extra__anything": "n/a",  # no change since starts with extra
@@ -114,11 +130,20 @@ def test_connection_form_widgets_fields_order(cleanup_providers_manager):
 
     provider_manager = ProvidersManager()
     provider_manager._connection_form_widgets = {}
-    provider_manager._add_widgets(
-        package_name="mock",
-        hook_class=TestHook,
-        widgets={f: BooleanField(lazy_gettext("Dummy param")) for f in expected_field_names_order},
-    )
+    widgets = {f: BooleanField(lazy_gettext("Dummy param")) for f in expected_field_names_order}
+    if hasattr(provider_manager, "_add_widgets_from_hook"):
+        provider_manager._add_widgets_from_hook(
+            package_name="mock",
+            hook_class=TestHook,
+            widgets=widgets,
+        )
+    else:
+        # backcompat for airflow < 3.2
+        provider_manager._add_widgets(
+            package_name="mock",
+            hook_class=TestHook,
+            widgets=widgets,
+        )
     actual_field_names_order = tuple(
         key for key in provider_manager.connection_form_widgets.keys() if key.startswith(field_prefix)
     )
@@ -147,16 +172,31 @@ def test_connection_form_widgets_fields_order_multiple_hooks(cleanup_providers_m
 
     provider_manager = ProvidersManager()
     provider_manager._connection_form_widgets = {}
-    provider_manager._add_widgets(
-        package_name="mock",
-        hook_class=TestHook1,
-        widgets={f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param")) for f in field_names_hook_1},
-    )
-    provider_manager._add_widgets(
-        package_name="another_mock",
-        hook_class=TestHook2,
-        widgets={f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param")) for f in field_names_hook_2},
-    )
+    widgets_1 = {f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param")) for f in field_names_hook_1}
+    widgets_2 = {f"{field_prefix}{f}": BooleanField(lazy_gettext("Dummy param")) for f in field_names_hook_2}
+    if hasattr(provider_manager, "_add_widgets_from_hook"):
+        provider_manager._add_widgets_from_hook(
+            package_name="mock",
+            hook_class=TestHook1,
+            widgets=widgets_1,
+        )
+        provider_manager._add_widgets_from_hook(
+            package_name="another_mock",
+            hook_class=TestHook2,
+            widgets=widgets_2,
+        )
+    else:
+        # backcompat for airflow < 3.2
+        provider_manager._add_widgets(
+            package_name="mock",
+            hook_class=TestHook1,
+            widgets=widgets_1,
+        )
+        provider_manager._add_widgets(
+            package_name="another_mock",
+            hook_class=TestHook2,
+            widgets=widgets_2,
+        )
     actual_field_names_order = tuple(
         key for key in provider_manager.connection_form_widgets.keys() if key.startswith(field_prefix)
     )

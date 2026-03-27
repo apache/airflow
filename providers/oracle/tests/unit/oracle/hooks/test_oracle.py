@@ -142,6 +142,36 @@ class TestOracleHookConn:
         assert kwargs["expire_time"] == 10
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_schema_as_service_name(self, mock_connect):
+        """When service_name and sid are not in extras, conn.schema should be used as service_name."""
+        self.connection.schema = "MY_SERVICE"
+        self.connection.extra = json.dumps({})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, service_name="MY_SERVICE")
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_schema_not_used_when_service_name_set(self, mock_connect):
+        """Explicit service_name in extras takes precedence over conn.schema."""
+        self.connection.schema = "MY_SCHEMA"
+        self.connection.extra = json.dumps({"service_name": "EXPLICIT_SVC"})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, service_name="EXPLICIT_SVC")
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_schema_not_used_when_sid_set(self, mock_connect):
+        """Explicit sid in extras takes precedence over conn.schema."""
+        self.connection.schema = "MY_SCHEMA"
+        self.connection.extra = json.dumps({"sid": "MY_SID"})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, "MY_SID")
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_set_current_schema(self, mock_connect):
         self.connection.schema = "schema_name"
         self.connection.extra = json.dumps({"service_name": "service_name"})
@@ -361,6 +391,46 @@ class TestOracleHook:
         self.cur.execute.assert_called_once_with(sql, param)
         assert self.conn.commit.called
 
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        statement = "SELECT 1"
+        self.cur.fetchall.return_value = []
+
+        self.db_hook.run(statement)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == statement
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df(sql, parameters=parameters)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook.get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters
+
     def test_insert_rows_with_fields(self):
         rows = [
             (
@@ -412,6 +482,18 @@ class TestOracleHook:
             "to_date('2019-01-24 00:00:00','YYYY-MM-DD HH24:MI:SS'),1,10.24,'str')"
         )
 
+    @mock.patch("airflow.providers.oracle.hooks.oracle.send_sql_hook_lineage")
+    def test_insert_rows_hook_lineage(self, mock_send_lineage):
+        rows = [("a", "b", "c")]
+        target_fields = ["col1", "col2", "col3"]
+        self.db_hook.insert_rows("table", rows, target_fields)
+
+        mock_send_lineage.assert_called()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "INSERT /*+ APPEND */ INTO table (col1, col2, col3) VALUES ('a','b','c')"
+        assert call_kw["row_count"] == 1
+
     def test_bulk_insert_rows_with_fields(self):
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
         target_fields = ["col1", "col2", "col3"]
@@ -439,6 +521,18 @@ class TestOracleHook:
         self.db_hook.bulk_insert_rows("table", rows)
         self.cur.prepare.assert_called_once_with("insert into table  values (:1, :2, :3)")
         self.cur.executemany.assert_called_once_with(None, rows)
+
+    @mock.patch("airflow.providers.oracle.hooks.oracle.send_sql_hook_lineage")
+    def test_bulk_insert_rows_hook_lineage(self, mock_send_lineage):
+        rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+        target_fields = ["col1", "col2", "col3"]
+        self.db_hook.bulk_insert_rows("table", rows, target_fields)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is self.db_hook
+        assert call_kw["sql"] == "insert into table (col1, col2, col3) values (:1, :2, :3)"
+        assert call_kw["row_count"] == 3
 
     def test_bulk_insert_rows_no_rows(self):
         rows = []

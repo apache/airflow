@@ -26,12 +26,9 @@
 from __future__ import annotations
 
 import ast
-import pathlib
 import re
 import sys
 import typing
-
-sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 
 from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_TASK_SDK_SOURCES_PATH
 
@@ -154,7 +151,7 @@ def _compare_keys(retn_keys: set[str], hint_keys: set[str], docs_keys: set[str])
     docs_keys.update(("exception", "reason", "try_number"))
 
     # Airflow 3 added:
-    retn_keys.update(("start_date", "task_reschedule_count"))
+    retn_keys.add("task_reschedule_count")
 
     check_candidates = [
         ("get_template_context()", retn_keys),

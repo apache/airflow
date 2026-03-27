@@ -84,14 +84,17 @@ def extract_single_connected_component(
     return {"nodes": nodes, "edges": edges}
 
 
-def get_scheduling_dependencies() -> dict[str, list[dict]]:
+def get_scheduling_dependencies(readable_dag_ids: set[str] | None = None) -> dict[str, list[dict]]:
     """Get scheduling dependencies between DAGs."""
     from airflow.models.serialized_dag import SerializedDagModel
 
     nodes_dict: dict[str, dict] = {}
     edge_tuples: set[tuple[str, str]] = set()
 
-    for dag, dependencies in sorted(SerializedDagModel.get_dag_dependencies().items()):
+    dag_dependencies = SerializedDagModel.get_dag_dependencies()
+    for dag, dependencies in sorted(dag_dependencies.items()):
+        if readable_dag_ids is not None and dag not in readable_dag_ids:
+            continue
         dag_node_id = f"dag:{dag}"
         if dag_node_id not in nodes_dict:
             for dep in dependencies:
@@ -123,7 +126,9 @@ def get_scheduling_dependencies() -> dict[str, list[dict]]:
     }
 
 
-def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dict]]:
+def get_data_dependencies(
+    asset_id: int, session: Session, readable_dag_ids: set[str] | None = None
+) -> dict[str, list[dict]]:
     """Get full task dependencies for an asset."""
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
@@ -166,6 +171,9 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
 
         # Process producing tasks (tasks that output this asset)
         for ref in asset.producing_tasks:
+            # Filter out tasks from Dags the user doesn't have access to
+            if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
+                continue
             task_key = (ref.dag_id, ref.task_id)
             task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
 
@@ -195,6 +203,9 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
 
         # Process consuming tasks (tasks that input this asset)
         for ref in asset.consuming_tasks:
+            # Filter out tasks from Dags the user doesn't have access to
+            if readable_dag_ids is not None and ref.dag_id not in readable_dag_ids:
+                continue
             task_key = (ref.dag_id, ref.task_id)
             task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
 

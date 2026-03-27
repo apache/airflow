@@ -20,39 +20,6 @@ import { expect, test } from "@playwright/test";
 import { testConfig } from "playwright.config";
 import { DagsPage } from "tests/e2e/pages/DagsPage";
 
-test.describe("Dags Pagination", () => {
-  let dagsPage: DagsPage;
-
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test("should verify pagination works on the Dags list page", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
-    await dagsPage.navigate();
-
-    await expect(dagsPage.paginationNextButton).toBeVisible();
-    await expect(dagsPage.paginationPrevButton).toBeVisible();
-
-    const initialDagNames = await dagsPage.getDagNames();
-
-    expect(initialDagNames.length).toBeGreaterThan(0);
-
-    await dagsPage.clickNextPage();
-
-    const dagNamesAfterNext = await dagsPage.getDagNames();
-
-    expect(dagNamesAfterNext.length).toBeGreaterThan(0);
-    expect(dagNamesAfterNext).not.toEqual(initialDagNames);
-
-    await dagsPage.clickPrevPage();
-
-    const dagNamesAfterPrev = await dagsPage.getDagNames();
-
-    expect(dagNamesAfterPrev).toEqual(initialDagNames);
-  });
-});
-
 test.describe("Dag Trigger Workflow", () => {
   let dagsPage: DagsPage;
   const testDagId = testConfig.testDag.id;
@@ -82,7 +49,7 @@ test.describe("Dag Details Tab", () => {
   });
 
   test("should successfully verify details tab", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers
+    test.setTimeout(120_000);
     await dagsPage.verifyDagDetails(testDagId);
   });
 });
@@ -95,7 +62,7 @@ test.describe("Dags List Display", () => {
   });
 
   test("should display Dags list after successful login", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers
+    test.setTimeout(120_000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -105,7 +72,7 @@ test.describe("Dags List Display", () => {
   });
 
   test("should display Dag links correctly", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers
+    test.setTimeout(120_000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -119,15 +86,12 @@ test.describe("Dags List Display", () => {
   });
 
   test("should display test Dag in the list", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers
+    test.setTimeout(120_000);
     const testDagId = testConfig.testDag.id;
 
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
-
-    const dagExists = await dagsPage.verifyDagExists(testDagId);
-
-    expect(dagExists).toBe(true);
+    await dagsPage.verifyDagExists(testDagId);
   });
 });
 
@@ -139,25 +103,19 @@ test.describe("Dags View Toggle", () => {
   });
 
   test("should toggle between card view and table view", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
+    test.setTimeout(120_000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
     await dagsPage.switchToCardView();
-
-    const cardViewVisible = await dagsPage.verifyCardViewVisible();
-
-    expect(cardViewVisible).toBe(true);
+    await dagsPage.verifyCardViewVisible();
 
     const cardViewDagsCount = await dagsPage.getDagsCount();
 
     expect(cardViewDagsCount).toBeGreaterThan(0);
 
     await dagsPage.switchToTableView();
-
-    const tableViewVisible = await dagsPage.verifyTableViewVisible();
-
-    expect(tableViewVisible).toBe(true);
+    await dagsPage.verifyTableViewVisible();
 
     const tableViewDagsCount = await dagsPage.getDagsCount();
 
@@ -175,7 +133,7 @@ test.describe("Dags Search", () => {
   });
 
   test("should search for a Dag by name", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
+    test.setTimeout(120_000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -184,17 +142,11 @@ test.describe("Dags Search", () => {
     expect(initialCount).toBeGreaterThan(0);
 
     await dagsPage.searchDag(testDagId);
-
-    const dagExists = await dagsPage.verifyDagExists(testDagId);
-
-    expect(dagExists).toBe(true);
-
+    await dagsPage.verifyDagExists(testDagId);
     await dagsPage.clearSearch();
 
     await dagsPage.verifyDagsListVisible();
 
-    // Use poll to wait for the count to restore after clearing search
-    // This handles timing differences between local and CI environments
     await expect
       .poll(async () => dagsPage.getDagsCount(), {
         message: "Waiting for DAGs count to restore after clearing search",
@@ -226,57 +178,5 @@ test.describe("Dags Status Filtering", () => {
 
     await dagsPage.filterByStatus("failed");
     await dagsPage.verifyDagsListVisible();
-  });
-});
-
-test.describe("Dags Sorting", () => {
-  let dagsPage: DagsPage;
-
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test("should sort Dags by name in card view", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
-    await dagsPage.navigate();
-    await dagsPage.verifyDagsListVisible();
-
-    await dagsPage.switchToCardView();
-
-    await expect(dagsPage.sortSelect).toBeVisible();
-
-    const ascNames = await dagsPage.getDagNames();
-
-    expect(ascNames.length).toBeGreaterThan(1);
-
-    await dagsPage.clickSortSelect();
-
-    await expect(dagsPage.page.getByRole("option").first()).toBeVisible();
-
-    await dagsPage.page.getByRole("option", { name: "Sort by Display Name (Z-A)" }).click();
-
-    // Poll until the list order actually changes instead of a fixed delay
-    await expect
-      .poll(async () => dagsPage.getDagNames(), {
-        message: "List did not re-sort within timeout",
-        timeout: 10_000,
-      })
-      .not.toEqual(ascNames);
-
-    const descNames = await dagsPage.getDagNames();
-
-    expect(descNames.length).toBeGreaterThan(1);
-
-    const [firstName] = descNames;
-    const lastName = descNames[descNames.length - 1];
-
-    expect(firstName).toBeDefined();
-    expect(lastName).toBeDefined();
-
-    expect(firstName).not.toEqual(ascNames[0]);
-
-    if (firstName !== undefined && firstName !== "" && lastName !== undefined && lastName !== "") {
-      expect(firstName.localeCompare(lastName)).toBeGreaterThan(0);
-    }
   });
 });

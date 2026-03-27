@@ -49,11 +49,33 @@ describe("getDuration", () => {
     expect(getDuration(start, end)).toBe("02:30:00");
   });
 
+  it("omits milliseconds when withMilliseconds is false", () => {
+    const start = "2024-03-14T10:00:00.000Z";
+    const end = "2024-03-14T10:00:05.511Z";
+
+    expect(getDuration(start, end, false)).toBe("00:00:05");
+  });
+
   it("handles small, null or undefined values", () => {
     // eslint-disable-next-line unicorn/no-null
     expect(getDuration(null, null)).toBe(undefined);
     expect(getDuration(undefined, undefined)).toBe(undefined);
+    // eslint-disable-next-line unicorn/no-null
+    expect(getDuration(null, "2024-03-14T10:00:10.000Z")).toBe(undefined);
     expect(renderDuration(0.000_01)).toBe(undefined);
+  });
+
+  it("falls back to current time when endDate is null (running task)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-03-14T10:00:10.000Z"));
+
+    const start = "2024-03-14T10:00:00.000Z";
+
+    // eslint-disable-next-line unicorn/no-null
+    expect(getDuration(start, null)).toBe("00:00:10.000");
+    expect(getDuration(start, undefined)).toBe("00:00:10.000");
+
+    vi.useRealTimers();
   });
 });
 

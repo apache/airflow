@@ -22,7 +22,7 @@
 #################################
 {{- $globals := deepCopy . -}}
 {{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
-{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer")) | fromYaml) -}}
+{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer" "kerberosSidecar")) | fromYaml) -}}
 {{- $_ := unset $mergedWorkers "celery" -}}
 {{- $workerSets := .Values.workers.celery.sets | default list -}}
 {{- if .Values.workers.celery.enableDefault -}}
@@ -48,6 +48,8 @@
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.workers.waitForMigrations .Values) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.workers.logGroomerSidecar .Values) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list .Values.workers.kerberosSidecar .Values) }}
+{{- $containerSecurityContextKerberosInitContainer := include "containerSecurityContext" (list .Values.workers.kerberosInitContainer .Values) }}
+{{- $containerLifecycleHooksKerberosInitContainer := or .Values.workers.kerberosInitContainer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
@@ -122,7 +124,7 @@ spec:
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
         {{- if $podAnnotations }}
-          {{- toYaml $podAnnotations | nindent 8 }}
+          {{- tpl (toYaml $podAnnotations) . | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.workers.runtimeClassName }}
@@ -177,9 +179,13 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
         {{- end }}
-        {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosInitContainer.enabled }}
+        {{- if .Values.workers.kerberosInitContainer.enabled }}
         - name: kerberos-init
           image: {{ template "airflow_image" . }}
+          securityContext: {{ $containerSecurityContextKerberosInitContainer | nindent 12 }}
+          {{- if $containerLifecycleHooksKerberosInitContainer }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosInitContainer) . | nindent 12 }}
+          {{- end }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args: ["kerberos", "-o"]
           resources: {{- toYaml .Values.workers.kerberosInitContainer.resources | nindent 12 }}
@@ -217,7 +223,7 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
         {{- end }}
         {{- if .Values.workers.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
@@ -245,7 +251,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- if .Values.workers.waitForMigrations.env }}
               {{- tpl (toYaml .Values.workers.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -331,7 +337,7 @@ spec:
             - name: DUMB_INIT_SETSID
               value: "0"
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.workers.env) | indent 10 }}
             {{- if .Values.workers.kerberosSidecar.enabled }}
             - name: KRB5_CONFIG
@@ -361,9 +367,21 @@ spec:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
           {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.retentionMinutes }}
+            - name: AIRFLOW__LOG_RETENTION_MINUTES
+              value: "{{ .Values.workers.logGroomerSidecar.retentionMinutes }}"
+          {{- end }}
           {{- if .Values.workers.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
               value: "{{ .Values.workers.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.maxSizeBytes }}
+            - name: AIRFLOW__LOG_MAX_SIZE_BYTES
+              value: "{{ .Values.workers.logGroomerSidecar.maxSizeBytes | int64 }}"
+          {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.maxSizePercent }}
+            - name: AIRFLOW__LOG_MAX_SIZE_PERCENT
+              value: "{{ .Values.workers.logGroomerSidecar.maxSizePercent }}"
           {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
@@ -431,7 +449,7 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
         {{- end }}
         {{- if .Values.workers.extraContainers }}
           {{- tpl (toYaml .Values.workers.extraContainers) . | nindent 8 }}

@@ -211,7 +211,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
                 <Text color="fg.error">{extraError}</Text>
               </Field.Root>
               <Field.Root mt={6}>
-                <Field.Label fontSize="md">{translate("dagRun.partitionKey")}</Field.Label>
+                <Field.Label fontSize="md">{translate("common:dagRun.partitionKey")}</Field.Label>
                 <JsonEditor onChange={setPartitionKey} value={partitionKey} />
                 <Text color="fg.error">{extraError}</Text>
               </Field.Root>

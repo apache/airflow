@@ -103,14 +103,16 @@ def _executor_exists(executor_name: str, team_name: str | None) -> bool:
     """Check if executor exists, with global fallback for teams."""
     try:
         # First pass check for team-specific executor or a global executor (i.e. team_name=None)
-        ExecutorLoader.lookup_executor_name_by_str(executor_name, team_name=team_name)
+        ExecutorLoader.lookup_executor_name_by_str(executor_name, team_name=team_name, validate_teams=False)
         return True
     except UnknownExecutorException:
         if team_name:
             # If we had a team_name but didn't find an executor, check if there is a global executor that
             # satisfies the request.
             try:
-                ExecutorLoader.lookup_executor_name_by_str(executor_name, team_name=None)
+                ExecutorLoader.lookup_executor_name_by_str(
+                    executor_name, team_name=None, validate_teams=False
+                )
                 return True
             except UnknownExecutorException:
                 pass

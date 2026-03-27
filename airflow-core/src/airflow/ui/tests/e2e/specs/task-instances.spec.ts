@@ -32,6 +32,18 @@ test.describe("Task Instances Page", () => {
     const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";
     const timestamp = Date.now();
 
+    // Wait for Dag to be parsed before making API calls
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(`${baseUrl}/api/v2/dags/${testDagId}`);
+
+          return response.ok();
+        },
+        { intervals: [2000], timeout: 60_000 },
+      )
+      .toBe(true);
+
     // Create first DAG run for success state
     const runId1 = `test_ti_success_${timestamp}`;
     const logicalDate1 = new Date(timestamp).toISOString();
@@ -135,29 +147,5 @@ test.describe("Task Instances Page", () => {
   test("verify filtering by success state", async () => {
     await taskInstancesPage.navigate();
     await taskInstancesPage.verifyStateFiltering("Success");
-  });
-
-  test("verify pagination with offset and limit", async () => {
-    await taskInstancesPage.navigate();
-
-    await expect(taskInstancesPage.paginationNextButton).toBeVisible();
-    await expect(taskInstancesPage.paginationPrevButton).toBeVisible();
-
-    const initialTaskInstanceIds = await taskInstancesPage.getTaskInstanceIds();
-
-    expect(initialTaskInstanceIds.length).toBeGreaterThan(0);
-
-    await taskInstancesPage.clickNextPage();
-
-    const taskInstanceIdsAfterNext = await taskInstancesPage.getTaskInstanceIds();
-
-    expect(taskInstanceIdsAfterNext.length).toBeGreaterThan(0);
-    expect(taskInstanceIdsAfterNext).not.toEqual(initialTaskInstanceIds);
-
-    await taskInstancesPage.clickPrevPage();
-
-    const taskInstanceIdsAfterPrev = await taskInstancesPage.getTaskInstanceIds();
-
-    expect(taskInstanceIdsAfterPrev).toEqual(initialTaskInstanceIds);
   });
 });

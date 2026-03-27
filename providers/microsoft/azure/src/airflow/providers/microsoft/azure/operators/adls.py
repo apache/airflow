@@ -44,7 +44,7 @@ class ADLSCreateObjectOperator(BaseOperator):
             If False and remote path is a directory, will quit regardless if any files
             would be overwritten or not. If True, only matching filenames are actually
             overwritten.
-    :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
+    :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:azure_data_lake>`.
     """
 
     template_fields: Sequence[str] = ("file_system_name", "file_name", "data")
@@ -89,7 +89,7 @@ class ADLSDeleteOperator(BaseOperator):
     :param path: A directory or file to remove
     :param recursive: Whether to loop into directories in the location and remove the files
     :param ignore_not_found: Whether to raise error if file to delete is not found
-    :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
+    :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:azure_data_lake>`.
     """
 
     template_fields: Sequence[str] = ("path",)
@@ -128,7 +128,7 @@ class ADLSListOperator(BaseOperator):
 
     :param file_system_name: Name of the file system (container) in ADLS Gen2.
     :param path: The directory path within the file system to list files from (templated).
-    :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
+    :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:azure_data_lake>`.
     """
 
     template_fields: Sequence[str] = ("path",)

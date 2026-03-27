@@ -89,10 +89,10 @@ class TestMySql:
                 self.init_client = self.connection.extra_dejson.get("client", "mysqlclient")
 
             def __enter__(self):
-                self.connection.set_extra(f'{{"client": "{self.client}"}}')
+                self.connection.extra = f'{{"client": "{self.client}"}}'
 
             def __exit__(self, exc_type, exc_val, exc_tb):
-                self.connection.set_extra(f'{{"client": "{self.init_client}"}}')
+                self.connection.extra = f'{{"client": "{self.init_client}"}}'
 
         with MySqlContext(client):
             sql = "SELECT * FROM connection;"

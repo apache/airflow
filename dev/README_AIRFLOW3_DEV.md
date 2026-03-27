@@ -22,7 +22,8 @@
 
 - [Main branch is Airflow 3.x](#main-branch-is-airflow-3x)
 - [Contributors](#contributors)
-  - [Developing for Providers and the Helm Chart](#developing-for-providers-and-the-helm-chart)
+  - [Developing for the Helm Chart](#developing-for-the-helm-chart)
+  - [Developing for Providers](#developing-for-providers)
   - [Developing for Airflow 3.x, 3.1.x](#developing-for-airflow-3x-31x)
   - [Developing for Airflow 3](#developing-for-airflow-3)
   - [Developing for Airflow 2.11.x](#developing-for-airflow-211x)
@@ -49,7 +50,11 @@ Airflow 2.11.x releases will be cut from `v2-11-stable` branch.
 
 The following section explains which branches you should target with your PR.
 
-## Developing for Providers and the Helm Chart
+## Developing for the Helm Chart
+
+Please check the [README_HELM_CHART2_DEV.md](README_HELM_CHART2_DEV.md)
+
+## Developing for Providers
 
 PRs should target the `main` branch.
 Make sure your changes are only related to Providers or the Helm chart.
@@ -95,7 +100,7 @@ Do not treat PR approval (Green V) as exclusion approval.
 
 ## Merging PRs targeted for Airflow 3.X
 
-The committer who merges the PR is responsible for backporting the PRs that are 3.1 bug fixes (generally speaking)
+The committer who merges the PR **is responsible for backporting the PRs that are 3.1 bug fixes (generally speaking)**
 to `v3-1-test` (latest active branch we release bugfixes from). See next chapter to see what kind of changes we cherry-pick.
 
 It means that they should create a new PR where the original commit from main is cherry-picked and take care for resolving conflicts.
@@ -105,7 +110,7 @@ Note: tracking that the PRs merged as expected is the responsibility of committe
 Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v3-1-test` prior to accepting the code change.
 
 Mistakes happen, and such backport PR work might fall through cracks. Therefore, if the committer thinks
-that certain PRs should be backported, they should set 3.1.x milestone for them.
+that certain PRs should be backported, they **should set 3.1.x milestone for them.**
 
 This way release manager can verify (as usual) if all the "expected" PRs have
 been backported and cherry-pick remaining PRS.

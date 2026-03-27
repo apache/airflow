@@ -152,47 +152,82 @@ class TestCliDags:
     @pytest.mark.parametrize(
         ("dag_id", "delta", "schedule", "catchup", "first", "second"),
         [
-            (
+            pytest.param(
                 "future_schedule_daily",
                 "timedelta(days=5)",
                 "'0 0 * * *'",
                 "True",
                 jan_6.isoformat(),
                 jan_6.isoformat() + os.linesep + (jan_6 + timedelta(days=1)).isoformat(),
+                id="future_schedule_daily",
             ),
-            (
+            pytest.param(
                 "future_schedule_every_4_hours",
                 "timedelta(days=5)",
                 "timedelta(hours=4)",
                 "True",
                 jan_6.isoformat(),
                 jan_6.isoformat() + os.linesep + (jan_6 + timedelta(hours=4)).isoformat(),
+                id="future_schedule_every_4_hours",
             ),
-            (
+            pytest.param(
                 "future_schedule_once",
                 "timedelta(days=5)",
                 "'@once'",
                 "True",
                 jan_6.isoformat(),
                 jan_6.isoformat() + os.linesep + "None",
+                id="future_schedule_once",
             ),
-            ("future_schedule_none", "timedelta(days=5)", "None", "True", "None", "None"),
-            ("past_schedule_once", "timedelta(days=-5)", "'@once'", "True", dec_27.isoformat(), "None"),
-            (
+            pytest.param(
+                "future_schedule_none",
+                "timedelta(days=5)",
+                "None",
+                "True",
+                "None",
+                "None",
+                id="future_schedule_none",
+            ),
+            pytest.param(
+                "past_schedule_once",
+                "timedelta(days=-5)",
+                "'@once'",
+                "True",
+                dec_27.isoformat(),
+                "None",
+                id="past_schedule_once",
+            ),
+            pytest.param(
                 "past_schedule_daily",
                 "timedelta(days=-5)",
                 "'0 0 * * *'",
                 "True",
                 dec_27.isoformat(),
                 dec_27.isoformat() + os.linesep + (dec_27 + timedelta(days=1)).isoformat(),
+                id="past_schedule_daily",
             ),
-            (
+            pytest.param(
                 "past_schedule_daily_catchup_false",
                 "timedelta(days=-5)",
                 "'0 0 * * *'",
                 "False",
                 (jan_1 - timedelta(days=1)).isoformat(),
                 (jan_1 - timedelta(days=1)).isoformat() + os.linesep + jan_1.isoformat(),
+                id="past_schedule_daily_catchup_false",
+            ),
+            pytest.param(
+                "partition_key",
+                "timedelta(days=-5)",
+                "CronPartitionTimetable('0 0 * * *', timezone='UTC')",
+                "False",
+                jan_1.strftime(r"%Y-%m-%dT%H:%M:%S"),
+                os.linesep.join(
+                    [
+                        jan_1.strftime(r"%Y-%m-%dT%H:%M:%S"),
+                        (jan_1 + timedelta(days=1)).strftime(r"%Y-%m-%dT%H:%M:%S"),
+                    ],
+                ),
+                id="partitioned",
             ),
         ],
     )
@@ -201,6 +236,7 @@ class TestCliDags:
             [
                 "from airflow import DAG",
                 "from airflow.providers.standard.operators.empty import EmptyOperator",
+                "from airflow.timetables.trigger import CronPartitionTimetable",
                 "from datetime import timedelta; from pendulum import today",
                 f"dag = DAG('{dag_id}', start_date=today(tz='UTC') + {delta}, schedule={schedule}, catchup={catchup})",
                 "task = EmptyOperator(task_id='empty_task',dag=dag)",

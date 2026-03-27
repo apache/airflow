@@ -98,20 +98,16 @@ class LocalKubernetesExecutor(BaseExecutor):
     @property
     def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
         """Return queued tasks from local and kubernetes executor."""
-        queued_tasks = self.local_executor.queued_tasks.copy()
-        # TODO: fix this, there is misalignment between the types of queued_tasks so it is likely wrong
-        queued_tasks.update(self.kubernetes_executor.queued_tasks)  # type: ignore[arg-type]
-
-        return queued_tasks
+        return self.local_executor.queued_tasks | self.kubernetes_executor.queued_tasks
 
     @queued_tasks.setter
     def queued_tasks(self, value) -> None:
         """Not implemented for hybrid executors."""
 
-    @property
+    @property  # type: ignore[override]
     def running(self) -> set[TaskInstanceKey]:
         """Return running tasks from local and kubernetes executor."""
-        return self.local_executor.running.union(self.kubernetes_executor.running)
+        return self.local_executor.running.union(self.kubernetes_executor.running)  # type: ignore[return-value, arg-type]
 
     @running.setter
     def running(self, value) -> None:
@@ -219,7 +215,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         self.local_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
-    def get_event_buffer(
+    def get_event_buffer(  # type: ignore[override]
         self, dag_ids: list[str] | None = None
     ) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
@@ -231,7 +227,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         cleared_events_from_local = self.local_executor.get_event_buffer(dag_ids)
         cleared_events_from_kubernetes = self.kubernetes_executor.get_event_buffer(dag_ids)
 
-        return {**cleared_events_from_local, **cleared_events_from_kubernetes}
+        return {**cleared_events_from_local, **cleared_events_from_kubernetes}  # type: ignore[dict-item]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """

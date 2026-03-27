@@ -74,7 +74,9 @@ def test_client(request):
             token = auth_manager._get_token_signer(
                 expiration_time_in_seconds=(time_after - time_very_before).total_seconds()
             ).generate(
-                auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin")),
+                auth_manager.serialize_user(
+                    SimpleAuthManagerUser(username="test", role="admin", teams=["team1"])
+                ),
             )
         with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
             yield TestClient(

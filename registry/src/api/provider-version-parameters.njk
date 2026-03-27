@@ -1,0 +1,13 @@
+---
+pagination:
+  data: providerVersions
+  size: 1
+  alias: pv
+permalink: "/api/providers/{{ pv.provider.id }}/{{ pv.version }}/parameters.json"
+eleventyExcludeFromCollections: true
+---
+{%- if pv.parameters -%}
+{{ pv.parameters | dump | safe }}
+{%- else -%}
+{"provider_id":"{{ pv.provider.id }}","provider_name":"{{ pv.provider.name }}","version":"{{ pv.version }}","generated_at":null,"classes":{}}
+{%- endif -%}

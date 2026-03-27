@@ -107,3 +107,48 @@ def test_test_is_skipped_if_all_are_ignored(mock_run_command):
     )
 
     mock_run_command.assert_called_once()  # called only to compose down
+
+
+def test_test_is_skipped_when_all_providers_excluded_for_python_version(
+    mock_run_command, mock_get_excluded_provider_folders
+):
+    """When all providers in the test type are excluded for the Python version, skip without Docker calls."""
+    mock_get_excluded_provider_folders.return_value = ["http"]
+    return_code, message = _run_test(
+        shell_params=ShellParams(test_group=GroupOfTests.PROVIDERS, test_type="Providers[http]"),
+        extra_pytest_args=(),
+        python_version="3.14",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
+    assert return_code == 0
+    assert "Skipped" in message
+    mock_run_command.assert_not_called()
+
+
+def test_test_is_not_skipped_when_some_providers_remain(mock_run_command, mock_get_excluded_provider_folders):
+    """When only some providers are excluded, the test should still run."""
+    mock_get_excluded_provider_folders.return_value = ["http"]
+    _run_test(
+        shell_params=ShellParams(test_group=GroupOfTests.PROVIDERS, test_type="Providers[http,standard]"),
+        extra_pytest_args=(),
+        python_version="3.14",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
+    assert mock_run_command.call_count >= 2  # compose down + compose run
+
+
+def test_none_test_type_with_extra_args_does_not_skip(mock_run_command):
+    """test_type=None with user-provided test paths via extra_pytest_args must not skip."""
+    _run_test(
+        shell_params=ShellParams(test_group=GroupOfTests.CORE, test_type="None"),
+        extra_pytest_args=("airflow-core/tests/unit/serialization/test_helpers.py",),
+        python_version="3.14",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
+    assert mock_run_command.call_count >= 2  # compose down + compose run

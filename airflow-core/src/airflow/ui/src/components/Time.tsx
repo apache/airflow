@@ -49,6 +49,7 @@ const Time = ({ datetime, format = DEFAULT_DATETIME_FORMAT, showTooltip = true, 
   return (
     <chakra.span dir="ltr" {...rest}>
       <time
+        data-testid="time-display"
         dateTime={datetime}
         // show title if date is not UTC
         title={selectedTimezone.toUpperCase() !== "UTC" && showTooltip ? utcTime : undefined}

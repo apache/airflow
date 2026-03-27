@@ -28,8 +28,6 @@ from typing import TextIO
 
 import requests
 from click import Choice
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, click, console, run_command
 
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")

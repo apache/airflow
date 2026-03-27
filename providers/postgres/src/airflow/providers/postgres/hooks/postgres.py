@@ -33,6 +33,7 @@ from airflow.providers.common.compat.sdk import (
     Connection,
     conf,
 )
+from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
@@ -338,13 +339,16 @@ class PostgresHook(DbApiHook):
             with engine.connect() as conn:
                 if isinstance(sql, list):
                     sql = "; ".join(sql)  # Or handle multiple queries differently
-                return cast("PandasDataFrame", psql.read_sql(sql, con=conn, params=parameters, **kwargs))
-
+                result: PandasDataFrame | PolarsDataFrame = cast(
+                    "PandasDataFrame", psql.read_sql(sql, con=conn, params=parameters, **kwargs)
+                )
         elif df_type == "polars":
-            return self._get_polars_df(sql, parameters, **kwargs)
-
+            result = self._get_polars_df(sql, parameters, **kwargs)
         else:
             raise ValueError(f"Unsupported df_type: {df_type}")
+
+        send_sql_hook_lineage(context=self, sql=sql, sql_parameters=parameters)
+        return result
 
     def copy_expert(self, sql: str, filename: str) -> None:
         """
@@ -371,6 +375,7 @@ class PostgresHook(DbApiHook):
                         while data := file.read(8192):
                             copy.write(data)
                     conn.commit()
+                    send_sql_hook_lineage(context=self, sql=sql, sql_parameters=(filename,), cur=cur)
             else:
                 # Handle COPY TO STDOUT: read from the database and write to the file.
                 with open(filename, "wb") as file, self.get_conn() as conn, conn.cursor() as cur:
@@ -378,6 +383,7 @@ class PostgresHook(DbApiHook):
                         for data in copy:
                             file.write(data)
                     conn.commit()
+                    send_sql_hook_lineage(context=self, sql=sql, sql_parameters=(filename,), cur=cur)
         else:
             if not os.path.isfile(filename):
                 with open(filename, "w"):
@@ -391,6 +397,7 @@ class PostgresHook(DbApiHook):
                 cur.copy_expert(sql, file)
                 file.truncate(file.tell())
                 conn.commit()
+                send_sql_hook_lineage(context=self, sql=sql, sql_parameters=(filename,), cur=cur)
 
     def get_uri(self) -> str:
         """
@@ -476,9 +483,13 @@ class PostgresHook(DbApiHook):
             port = conn.port or 5439
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
-            cluster_identifier = conn.extra_dejson.get(
-                "cluster-identifier", cast("str", conn.host).split(".")[0]
-            )
+            cluster_identifier = conn.extra_dejson.get("cluster-identifier")
+            if cluster_identifier is None:
+                if not conn.host:
+                    raise ValueError(
+                        "connection host is required for AWS IAM token when cluster-identifier is not set in extras."
+                    )
+                cluster_identifier = conn.host.split(".")[0]
             redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
@@ -494,7 +505,13 @@ class PostgresHook(DbApiHook):
             # Pull the workgroup-name from the query params/extras, if not there then pull it from the
             # beginning of the Redshift URL
             # ex. workgroup-name.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns workgroup-name
-            workgroup_name = conn.extra_dejson.get("workgroup-name", cast("str", conn.host).split(".")[0])
+            workgroup_name = conn.extra_dejson.get("workgroup-name")
+            if workgroup_name is None:
+                if not conn.host:
+                    raise ValueError(
+                        "connection host is required for AWS IAM token when workgroup-name is not set in extras."
+                    )
+                workgroup_name = conn.host.split(".")[0]
             redshift_serverless_client = AwsBaseHook(
                 aws_conn_id=aws_conn_id, client_type="redshift-serverless"
             ).conn
@@ -580,7 +597,12 @@ class PostgresHook(DbApiHook):
         aws_conn_id = connection.extra_dejson.get("aws_conn_id", "aws_default")
 
         port = connection.port or 5439
-        cluster_identifier = connection.extra_dejson.get("cluster-identifier", connection.host.split(".")[0])
+        cluster_identifier = connection.extra_dejson.get("cluster-identifier")
+        if cluster_identifier is None and not connection.host:
+            raise ValueError(
+                "connection host is required for Redshift OpenLineage when cluster-identifier is not set in extras."
+            )
+        cluster_identifier = cluster_identifier or connection.host.split(".")[0]
         region_name = AwsBaseHook(aws_conn_id=aws_conn_id).region_name
 
         return f"{cluster_identifier}.{region_name}:{port}"
@@ -667,6 +689,7 @@ class PostgresHook(DbApiHook):
 
         # if fast_executemany is enabled, use optimized execute_batch from psycopg
         nb_rows = 0
+        sql = None  # not generated unless we actually process at least one chunk
         with self._create_autocommit_connection(autocommit) as conn:
             conn.commit()
             with closing(conn.cursor()) as cur:
@@ -690,4 +713,10 @@ class PostgresHook(DbApiHook):
                     conn.commit()
                     nb_rows += len(chunked_rows)
                     self.log.info("Loaded %s rows into %s so far", nb_rows, table)
+
+        if sql:
+            # We only send lineage once, not for each value collection, to save memory.
+            send_sql_hook_lineage(context=self, sql=sql, row_count=nb_rows)
+
         self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
+        return None

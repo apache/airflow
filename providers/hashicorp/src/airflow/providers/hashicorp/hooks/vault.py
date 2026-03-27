@@ -30,6 +30,7 @@ from airflow.providers.hashicorp._internal_client.vault_client import (
     _VaultClient,
 )
 from airflow.utils.helpers import merge_dicts
+from airflow.utils.strings import to_boolean
 
 if TYPE_CHECKING:
     import hvac
@@ -187,11 +188,14 @@ class VaultHook(BaseHook):
             else (None, None)
         )
 
-        if self.connection.extra_dejson.get("use_tls") is not None:
-            if bool(self.connection.extra_dejson.get("use_tls")):
-                conn_protocol = "https"
+        use_tls = self.connection.extra_dejson.get("use_tls")
+
+        if use_tls is not None:
+            if isinstance(use_tls, bool):
+                is_tls = use_tls
             else:
-                conn_protocol = "http"
+                is_tls = to_boolean(use_tls)
+            conn_protocol = "https" if is_tls else "http"
         else:
             if self.connection.conn_type == "vault":
                 conn_protocol = "http"

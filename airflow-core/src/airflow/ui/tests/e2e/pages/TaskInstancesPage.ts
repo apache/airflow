@@ -24,57 +24,11 @@ export class TaskInstancesPage extends BasePage {
     return "/task_instances";
   }
 
-  public readonly paginationNextButton: Locator;
-
-  public readonly paginationPrevButton: Locator;
-
   public readonly taskInstancesTable: Locator;
 
   public constructor(page: Page) {
     super(page);
-    this.paginationNextButton = page.locator('[data-testid="next"]');
-    this.paginationPrevButton = page.locator('[data-testid="prev"]');
     this.taskInstancesTable = page.locator('table, div[role="table"]');
-  }
-
-  /**
-   * Click next page button
-   */
-  public async clickNextPage(): Promise<void> {
-    const initialTaskInstanceIds = await this.getTaskInstanceIds();
-
-    await this.paginationNextButton.click();
-
-    await expect
-      .poll(() => this.getTaskInstanceIds(), { timeout: 10_000 })
-      .not.toEqual(initialTaskInstanceIds);
-
-    await this.waitForTaskInstanceList();
-  }
-
-  /**
-   * Click previous page button
-   */
-  public async clickPrevPage(): Promise<void> {
-    const initialTaskInstanceIds = await this.getTaskInstanceIds();
-
-    await this.paginationPrevButton.click();
-
-    await expect
-      .poll(() => this.getTaskInstanceIds(), { timeout: 10_000 })
-      .not.toEqual(initialTaskInstanceIds);
-    await this.waitForTaskInstanceList();
-  }
-
-  /**
-   * Get all task instance identifiers from the current page
-   */
-  public async getTaskInstanceIds(): Promise<Array<string>> {
-    await this.waitForTaskInstanceList();
-    const taskLinks = this.taskInstancesTable.locator("a[href*='/dags/']");
-    const texts = await taskLinks.allTextContents();
-
-    return texts.map((text) => text.trim()).filter((text) => text !== "");
   }
 
   /**
@@ -187,14 +141,5 @@ export class TaskInstancesPage extends BasePage {
     const rows = this.taskInstancesTable.locator('tbody tr:not(.no-data), div[role="row"]:not(:first-child)');
 
     expect(await rows.count()).toBeGreaterThan(0);
-  }
-
-  /**
-   * Wait for task instance list to be rendered
-   */
-  private async waitForTaskInstanceList(): Promise<void> {
-    const dataLink = this.taskInstancesTable.locator("a[href*='/dags/']").first();
-
-    await expect(dataLink).toBeVisible({ timeout: 10_000 });
   }
 }

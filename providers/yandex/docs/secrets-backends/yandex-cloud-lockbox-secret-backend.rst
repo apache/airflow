@@ -143,7 +143,7 @@ Alternatively, you can specify the path to the JSON file in ``backend_kwargs``:
 Using Yandex Cloud connection for authorization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-First, you need to create :ref:`Yandex Cloud connection <yandex_cloud_connection>`.
+First, you need to create :ref:`Yandex Cloud connection <howto/connection:yandexcloud>`.
 
 Then, you need to specify the ``connection_id`` in ``backend_kwargs``:
 

@@ -37,6 +37,7 @@ from airflow.dag_processing.collection import (
     AssetModelOperation,
     DagModelOperation,
     _get_latest_runs_stmt,
+    _get_latest_runs_stmt_partitioned,
     _update_dag_tags,
     update_dag_parsing_results_in_db,
 )
@@ -49,6 +50,7 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
 )
 from airflow.models.dag import DagTag
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -57,6 +59,7 @@ from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -93,6 +96,35 @@ def test_statement_latest_runs_one_dag():
             "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
         ]
         assert actual == expected, compiled_stmt
+
+
+@pytest.mark.db_test
+def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
+    with dag_maker("fake-dag", schedule=None):
+        pass
+    dag_maker.sync_dagbag_to_db()
+
+    for i, (run_id, partition_key, partition_date) in enumerate(
+        (
+            ("newest-partition-date", "2025-01-02", tz.datetime(2025, 1, 2)),
+            ("older-partition-date", "2025-01-01", tz.datetime(2025, 1, 1)),
+            ("null-partition-date", "not-a-time-based-partition", None),
+        )
+    ):
+        dag_maker.create_dagrun(
+            run_id=run_id,
+            logical_date=None,
+            data_interval=None,
+            run_type=DagRunType.SCHEDULED,
+            run_after=tz.datetime(2025, 1, 1 + i),
+            partition_key=partition_key,
+            partition_date=partition_date,
+            session=session,
+        )
+
+    latest = session.scalar(_get_latest_runs_stmt_partitioned("fake-dag"))
+    assert latest is not None
+    assert latest.partition_date == tz.datetime(2025, 1, 2)
 
 
 @pytest.mark.db_test
@@ -802,6 +834,41 @@ class TestUpdateDagParsingResults:
 
         import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
         assert import_errors == {("other.py", bundle_name)}, "Import error for parsed file should be cleared"
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_import_error_update_does_not_touch_other_bundle_with_same_relative_fileloc(self, session):
+        relative_fileloc = "example_dag.py"
+        session.add_all([DagBundleModel(name="bundle_a"), DagBundleModel(name="bundle_b")])
+        session.flush()
+        session.add_all(
+            [
+                DagModel(dag_id="dag_in_bundle_a", relative_fileloc=relative_fileloc, bundle_name="bundle_a"),
+                DagModel(dag_id="dag_in_bundle_b", relative_fileloc=relative_fileloc, bundle_name="bundle_b"),
+            ]
+        )
+        session.flush()
+
+        update_dag_parsing_results_in_db(
+            bundle_name="bundle_a",
+            bundle_version=None,
+            dags=[],
+            import_errors={("bundle_a", relative_fileloc): "Import failed in bundle_a"},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+            files_parsed={("bundle_a", relative_fileloc)},
+        )
+        session.flush()
+
+        dag_in_bundle_a = session.get(DagModel, "dag_in_bundle_a")
+        dag_in_bundle_b = session.get(DagModel, "dag_in_bundle_b")
+
+        assert dag_in_bundle_a is not None
+        assert dag_in_bundle_b is not None
+        assert dag_in_bundle_a.bundle_name == "bundle_a"
+        assert dag_in_bundle_b.bundle_name == "bundle_b"
+        assert dag_in_bundle_a.has_import_errors is True
+        assert dag_in_bundle_b.has_import_errors is False
 
     @pytest.mark.need_serialized_dag(False)
     @pytest.mark.parametrize(

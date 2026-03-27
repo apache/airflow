@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 import attr
 import structlog
 
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
@@ -44,10 +45,10 @@ log = structlog.getLogger(__name__)
 
 # Maximum number of assets input or output that can be collected in a single hook execution.
 # Input assets and output assets are collected separately.
-MAX_COLLECTED_ASSETS = 100
+MAX_COLLECTED_ASSETS: int = conf.getint("lineage", "max_assets_per_collector", fallback=100)
 
 # Maximum number of extra metadata that can be collected in a single hook execution.
-MAX_COLLECTED_EXTRA = 200
+MAX_COLLECTED_EXTRA: int = conf.getint("lineage", "max_extras_per_collector", fallback=200)
 
 
 @attr.define

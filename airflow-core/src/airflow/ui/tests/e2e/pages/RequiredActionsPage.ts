@@ -25,72 +25,35 @@ export class RequiredActionsPage extends BasePage {
   public readonly actionsTable: Locator;
   public readonly emptyStateMessage: Locator;
   public readonly pageHeading: Locator;
-  public readonly paginationNextButton: Locator;
-  public readonly paginationPrevButton: Locator;
 
   public constructor(page: Page) {
     super(page);
     this.pageHeading = page.getByRole("heading").filter({ hasText: /required action/i });
     this.actionsTable = page.getByTestId("table-list");
     this.emptyStateMessage = page.getByText(/no required actions found/i);
-    this.paginationNextButton = page.locator('[data-testid="next"]');
-    this.paginationPrevButton = page.locator('[data-testid="prev"]');
   }
 
   public static getRequiredActionsUrl(): string {
     return "/required_actions";
   }
 
-  public async clickNextPage(): Promise<void> {
-    await this.paginationNextButton.click();
-    await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
-  }
-
-  public async clickPrevPage(): Promise<void> {
-    await this.paginationPrevButton.click();
-    await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
-  }
-
   public async getActionsTableRowCount(): Promise<number> {
-    const rows = this.page.locator("table tbody tr");
+    const rows = this.actionsTable.locator("tbody").getByRole("row");
     const isTableVisible = await this.actionsTable.isVisible();
 
-    if (!isTableVisible) {
-      return 0;
-    }
-
-    return rows.count();
-  }
-
-  public async getActionSubjects(): Promise<Array<string>> {
-    const rows = this.page.locator("table tbody tr td:nth-child(2)");
-    const texts = await rows.allTextContents();
-
-    return texts.map((text) => text.trim()).filter((text) => text !== "");
-  }
-
-  public async hasNextPage(): Promise<boolean> {
-    const isDisabled = await this.paginationNextButton.isDisabled();
-
-    return !isDisabled;
+    return isTableVisible ? rows.count() : 0;
   }
 
   public async isEmptyStateDisplayed(): Promise<boolean> {
     return this.emptyStateMessage.isVisible();
   }
 
-  public async isPaginationVisible(): Promise<boolean> {
-    return this.paginationNextButton.isVisible();
-  }
-
   public async isTableDisplayed(): Promise<boolean> {
     return this.actionsTable.isVisible();
   }
 
-  public async navigateToRequiredActionsPage(limit?: number): Promise<void> {
-    await (limit === undefined
-      ? this.navigateTo(RequiredActionsPage.getRequiredActionsUrl())
-      : this.navigateTo(`${RequiredActionsPage.getRequiredActionsUrl()}?limit=${limit}&offset=0`));
+  public async navigateToRequiredActionsPage(): Promise<void> {
+    await this.navigateTo(RequiredActionsPage.getRequiredActionsUrl());
     await expect(this.pageHeading).toBeVisible({ timeout: 10_000 });
   }
 
@@ -102,36 +65,6 @@ export class RequiredActionsPage extends BasePage {
     await this.runHITLFlow(dagId, false);
   }
 
-  public async verifyPagination(limit: number): Promise<void> {
-    await this.navigateToRequiredActionsPage(limit);
-
-    await expect(this.paginationNextButton).toBeVisible();
-    await expect(this.paginationPrevButton).toBeVisible();
-
-    const page1Actions = await this.getActionSubjects();
-
-    expect(page1Actions.length).toBeGreaterThan(0);
-
-    await this.clickNextPage();
-
-    await expect
-      .poll(
-        async () => {
-          const subjects = await this.getActionSubjects();
-
-          return subjects.length > 0 && subjects.join(",") !== page1Actions.join(",");
-        },
-        { timeout: 30_000 },
-      )
-      .toBe(true);
-
-    const page2Actions = await this.getActionSubjects();
-
-    await this.clickPrevPage();
-
-    await expect.poll(() => this.getActionSubjects(), { timeout: 30_000 }).not.toEqual(page2Actions);
-  }
-
   private async clickButtonAndWaitForHITLResponse(button: Locator): Promise<void> {
     const responsePromise = this.page.waitForResponse(
       (res) => res.url().includes("hitlDetails") && res.request().method() === "PATCH",
@@ -140,13 +73,12 @@ export class RequiredActionsPage extends BasePage {
 
     await button.click();
     await responsePromise;
-    await this.page.waitForTimeout(10_000);
   }
 
   private async clickOnTaskInGrid(dagRunId: string, taskId: string): Promise<void> {
-    const taskLocator = this.page.locator(`[id="grid-${dagRunId}-${taskId}"]`);
+    const taskLocator = this.page.getByTestId(`grid-${dagRunId}-${taskId}`);
 
-    await expect(taskLocator).toBeVisible({ timeout: 30_000 });
+    await expect(taskLocator).toBeVisible({ timeout: 5000 });
     await taskLocator.click();
   }
 
@@ -159,11 +91,11 @@ export class RequiredActionsPage extends BasePage {
     await requiredActionLink.click();
 
     const buttonName = approve ? "Approve" : "Reject";
-    const actionButton = this.page.locator(`[data-testid="hitl-option-${buttonName}"]`);
+    const actionButton = this.page.getByTestId(`hitl-option-${buttonName}`);
 
     await expect(actionButton).toBeVisible({ timeout: 10_000 });
 
-    const informationInput = this.page.locator("#element_information");
+    const informationInput = this.page.getByRole("textbox");
 
     if (await informationInput.isVisible()) {
       await informationInput.fill("Approved by test");
@@ -184,7 +116,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const branchButton = this.page.locator('[data-testid="hitl-option-task_1"]');
+    const branchButton = this.page.getByTestId("hitl-option-task_1");
 
     await expect(branchButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(branchButton);
@@ -201,7 +133,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const informationInput = this.page.locator("#element_information");
+    const informationInput = this.page.getByRole("textbox");
 
     await expect(informationInput).toBeVisible({ timeout: 10_000 });
     await informationInput.fill("test");
@@ -223,7 +155,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const multiSelectContainer = this.page.locator("#element_chosen_options").locator("..");
+    const multiSelectContainer = this.page.getByRole("combobox", { name: /select one or multiple values/i });
 
     await expect(multiSelectContainer).toBeVisible({ timeout: 30_000 });
     await multiSelectContainer.click();
@@ -249,7 +181,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    const optionButton = this.page.locator('[data-testid="hitl-option-option 1"]');
+    const optionButton = this.page.getByTestId("hitl-option-option 1");
 
     await expect(optionButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(optionButton);
@@ -319,7 +251,7 @@ export class RequiredActionsPage extends BasePage {
       const detailsPanel = this.page.locator("#details-panel");
       const stateBadge = detailsPanel.getByTestId("state-badge").first();
 
-      await expect(stateBadge).toContainText(expectedState, { timeout: 60_000 });
+      await expect(stateBadge).toContainText(expectedState, { timeout: 5000 });
     }).toPass({ timeout: 180_000 });
   }
 
@@ -335,7 +267,7 @@ export class RequiredActionsPage extends BasePage {
       const detailsPanel = this.page.locator("#details-panel");
       const stateBadge = detailsPanel.getByTestId("state-badge").first();
 
-      await expect(stateBadge).toContainText(options.expectedState, { timeout: 60_000 });
+      await expect(stateBadge).toContainText(options.expectedState, { timeout: 5000 });
     }).toPass({ timeout: options.timeout ?? 120_000 });
   }
 }
