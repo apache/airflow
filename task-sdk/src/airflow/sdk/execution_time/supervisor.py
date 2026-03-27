@@ -2096,12 +2096,9 @@ def supervise(
     # Re-mask configuration secrets that were cleared by the reset.
     # reset_secrets_masker() wipes all patterns from the SDK masker, including
     # config-level secrets (webserver.secret_key, api.secret_key, etc.) that
-    # were registered at startup by conf.mask_secrets(). Re-register them so
+    # were registered at startup by the SDK config parser. Re-register them so
     # they remain masked in task subprocess logs. See #63921.
-    if "airflow.configuration" in sys.modules:
-        from airflow.configuration import conf
-
-        conf.mask_secrets()
+    conf.mask_secrets()
 
     try:
         process = ActivitySubprocess.start(

@@ -27,8 +27,11 @@ from io import StringIO
 from typing import Any
 
 from airflow.sdk import yaml
+from airflow.sdk._shared.configuration.exceptions import AirflowConfigException
 from airflow.sdk._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
+    _build_kwarg_env_prefix,
+    _collect_kwarg_env_vars,
     configure_parser_from_configuration_description,
 )
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
@@ -199,6 +202,31 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         self.expand_all_configuration_values()
 
         log.info("Unit test configuration loaded from 'unit_tests.cfg'")
+
+    def mask_secrets(self) -> None:
+        """Register sensitive configuration values with the SDK secrets masker."""
+        from airflow.sdk.log import mask_secret
+
+        for section, key in self.sensitive_config_values:
+            try:
+                with self.suppress_future_warnings():
+                    value = self.get(section, key, suppress_warnings=True)
+            except AirflowConfigException:
+                log.debug(
+                    "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
+                    section,
+                    key,
+                )
+                continue
+            mask_secret(value)
+
+        for _section, _kwargs_key in [
+            ("secrets", "backend_kwargs"),
+            ("workers", "secrets_backend_kwargs"),
+        ]:
+            _prefix = _build_kwarg_env_prefix(_section, _kwargs_key)
+            for _value in _collect_kwarg_env_vars(_prefix).values():
+                mask_secret(_value)
 
     def remove_all_read_configurations(self):
         """Remove all read configurations, leaving only default values in the config."""
