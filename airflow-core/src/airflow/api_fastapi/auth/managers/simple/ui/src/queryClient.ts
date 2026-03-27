@@ -29,7 +29,7 @@ if (OpenAPI.BASE.endsWith("/")) {
 
 // Configure the generated API client so requests include the subpath prefix
 // when Airflow runs behind a reverse proxy (e.g. /team-a/auth/token instead of /auth/token).
-client.setConfig({ baseURL: OpenAPI.BASE });
+client.setConfig({ baseURL: OpenAPI.BASE, throwOnError: true });
 
 export const queryClient = new QueryClient({
   defaultOptions: {
