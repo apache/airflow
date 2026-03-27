@@ -487,7 +487,7 @@ class Variable(Base, LoggingMixin):
                         "Checking subsequent secrets backend.",
                         type(secrets_backend).__name__,
                     )
-            return None
+        return None
 
     @staticmethod
     def get_variable_from_secrets(key: str, team_name: str | None = None) -> str | None:

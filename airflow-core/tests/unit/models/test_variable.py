@@ -187,6 +187,30 @@ class TestVariable:
         )
         Variable.delete(key="key", session=session)
 
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_check_for_write_conflict_checks_later_backends(self, mock_ensure_secrets, caplog):
+        caplog.set_level(logging.WARNING, logger=variable.log.name)
+
+        first_backend = mock.Mock()
+        first_backend.get_variable.return_value = None
+        first_backend.__class__.__name__ = "FirstBackend"
+
+        second_backend = mock.Mock()
+        second_backend.get_variable.return_value = "secret_val"
+        second_backend.__class__.__name__ = "SecondBackend"
+
+        mock_ensure_secrets.return_value = [first_backend, second_backend, MetastoreBackend]
+
+        Variable.check_for_write_conflict("key")
+
+        first_backend.get_variable.assert_called_once_with(key="key")
+        second_backend.get_variable.assert_called_once_with(key="key")
+        assert caplog.messages[0] == (
+            "The variable key is defined in the SecondBackend secrets backend, which takes precedence "
+            "over reading from the database. The value in the database will be updated, but to read it "
+            "you have to delete the conflicting variable from SecondBackend"
+        )
+
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}
         Variable.set(key="tested_var_set_id", value=value, serialize_json=True)
