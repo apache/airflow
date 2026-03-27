@@ -92,7 +92,7 @@ from airflow.sdk import (
     AssetWatcher,
     CronPartitionTimetable,
     IdentityMapper,
-    ToHourlyMapper,
+    StartOfHourMapper,
     task,
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
@@ -8982,7 +8982,7 @@ def test_partitioned_dag_run_with_invalid_mapping(dag_maker: DagMaker, session: 
         dag_id="asset-event-consumer",
         schedule=PartitionedAssetTimetable(
             assets=asset_1,
-            default_partition_mapper=ToHourlyMapper(),
+            default_partition_mapper=StartOfHourMapper(),
         ),
         session=session,
     ):
