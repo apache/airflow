@@ -24,10 +24,10 @@ import {
   useDagRunServiceGetDagRunsKey,
   useDagRunServicePatchDagRun,
   useTaskInstanceServiceGetTaskInstancesKey,
-  UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
 import { createErrorToaster } from "src/utils";
 
+import { gridQueryKeys } from "./gridViewQueryKeys";
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
 export const usePatchDagRun = ({
@@ -59,10 +59,12 @@ export const usePatchDagRun = ({
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
       [useClearDagRunDryRunKey, dagId],
-      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all([
+      ...gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    ]);
 
     if (onSuccess) {
       onSuccess();

@@ -14,25 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.3.1
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - elasticsearch-db-volume:/usr/share/elasticsearch/data
-    ports:
-      - "9200:9200"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 10s
-      timeout: 30s
-      start_period: 60s
-      retries: 50
-    restart: "on-failure"
+from __future__ import annotations
 
-volumes:
-  elasticsearch-db-volume:
+import os
+
+os.environ["_AIRFLOW__AS_LIBRARY"] = "true"
