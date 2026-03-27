@@ -47,8 +47,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, timezone
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
@@ -604,15 +603,7 @@ class AwsEcsExecutor(BaseExecutor):
 
         Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
         """
-        if AIRFLOW_V_3_2_PLUS:
-            from airflow.sdk.observability import stats
-
-            ctx = stats.timer("ecs_executor.adopt_task_instances.duration")
-        else:
-            from airflow.providers.common.compat.sdk import Stats
-
-            ctx = Stats.timer("ecs_executor.adopt_task_instances.duration")
-        with ctx:
+        with Stats.timer("ecs_executor.adopt_task_instances.duration"):
             adopted_tis: list[TaskInstance] = []
 
             if task_arns := [ti.external_executor_id for ti in tis if ti.external_executor_id]:

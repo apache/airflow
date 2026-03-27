@@ -69,6 +69,7 @@ if TYPE_CHECKING:
         teardown as teardown,
     )
     from airflow.sdk._shared.listeners import hookimpl as hookimpl
+    from airflow.sdk._shared.observability.metrics.stats import Stats as Stats
     from airflow.sdk.bases.branch import BaseBranchOperator as BaseBranchOperator, BranchMixIn as BranchMixIn
     from airflow.sdk.bases.decorator import (
         DecoratedMappedOperator as DecoratedMappedOperator,
@@ -287,8 +288,6 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # Observability
     # ============================================================================
-    # Stats class was removed in Airflow 3.2.
-    # Kept here for providers running against older Airflow versions (< 3.2).
     "Stats": ("airflow.sdk.observability.stats", "airflow.observability.stats", "airflow.stats"),
     # ============================================================================
     # Secrets Masking
@@ -324,15 +323,6 @@ if AIRFLOW_V_3_0_PLUS:
     # 3.0-3.1: airflow.lineage.hook.AssetLineageInfo
     # 3.2+: airflow.sdk.lineage.AssetLineageInfo
     _IMPORT_MAP["AssetLineageInfo"] = ("airflow.sdk.lineage", "airflow.lineage.hook")
-
-# Names in _IMPORT_MAP that exist only for backward compat with older Airflow
-# versions and intentionally have no TYPE_CHECKING import (the symbol no longer
-# exists in the current Airflow version). The sync check skips these names.
-#
-# Format: name -> (major, minor, micro) of the Airflow version that removed it.
-_LEGACY_COMPAT_ONLY: dict[str, tuple[int, int, int]] = {
-    "Stats": (3, 2, 0),
-}
 
 # Module map: module_name -> module_path(s)
 # For entire modules that have been moved (e.g., timezone)

@@ -28,7 +28,7 @@ from sqlalchemy import delete, select
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_config
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
@@ -227,12 +227,8 @@ class EdgeExecutor(BaseExecutor):
                     "state": str(TaskInstanceState.FAILED),
                 }
                 if AIRFLOW_V_3_2_PLUS:
-                    from airflow.sdk.observability import stats
-
-                    stats.incr("edge_worker.ti.finish", legacy_name_tags=tags)
+                    Stats.incr("edge_worker.ti.finish", legacy_name_tags=tags)
                 else:
-                    from airflow.providers.common.compat.sdk import Stats
-
                     Stats.incr(
                         f"edge_worker.ti.finish.{job.queue}.{TaskInstanceState.FAILED}.{job.dag_id}.{job.task_id}",
                         tags=tags,
@@ -323,15 +319,7 @@ class EdgeExecutor(BaseExecutor):
     @provide_session
     def sync(self, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
-        if AIRFLOW_V_3_2_PLUS:
-            from airflow.sdk.observability import stats
-
-            ctx = stats.timer("edge_executor.sync.duration")
-        else:
-            from airflow.providers.common.compat.sdk import Stats
-
-            ctx = Stats.timer("edge_executor.sync.duration")
-        with ctx:
+        with Stats.timer("edge_executor.sync.duration"):
             orphaned = self._update_orphaned_jobs(session)
             purged = self._purge_jobs(session)
             liveness = self._check_worker_liveness(session)

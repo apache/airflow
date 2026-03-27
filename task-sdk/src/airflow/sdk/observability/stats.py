@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from airflow.sdk._shared.observability.metrics.stats import (
+    Stats,
     decr,
     gauge,
     incr,
@@ -30,6 +31,7 @@ from airflow.sdk._shared.observability.metrics.stats import (
 )
 
 __all__ = [
+    "Stats",
     "decr",
     "gauge",
     "incr",

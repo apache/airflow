@@ -552,15 +552,7 @@ class KubernetesExecutor(BaseExecutor):
         return messages, ["\n".join(log)]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
-        if AIRFLOW_V_3_2_PLUS:
-            from airflow.sdk.observability import stats
-
-            ctx = stats.timer("kubernetes_executor.adopt_task_instances.duration")
-        else:
-            from airflow.providers.common.compat.sdk import Stats
-
-            ctx = Stats.timer("kubernetes_executor.adopt_task_instances.duration")
-        with ctx:
+        with Stats.timer("kubernetes_executor.adopt_task_instances.duration"):
             # Always flush TIs without queued_by_job_id
             tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
             scheduler_job_ids = {ti.queued_by_job_id for ti in tis}

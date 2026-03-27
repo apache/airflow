@@ -41,6 +41,7 @@ from openlineage.client.facet_v2 import (
 from airflow import DAG
 from airflow.models.dagrun import DagRun, DagRunState
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+from airflow.providers.common.compat.sdk import Stats
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
@@ -60,12 +61,7 @@ from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_ma
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-if AIRFLOW_V_3_2_PLUS:
-    stats_reference = "airflow.sdk.observability.stats"
-else:
-    from airflow.providers.common.compat.sdk import Stats
-
-    stats_reference = f"{Stats.__module__}.Stats"
+stats_reference = f"{Stats.__module__}.Stats"
 
 
 @pytest.mark.parametrize(

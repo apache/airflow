@@ -32,16 +32,12 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+from airflow.providers.common.compat.sdk import Stats
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
-if AIRFLOW_V_3_2_PLUS:
-    stats_reference = "airflow.sdk.observability.stats"
-    expected_call_count = 1
-else:
-    from airflow.providers.common.compat.sdk import Stats
-
-    stats_reference = f"{Stats.__module__}.Stats"
-    expected_call_count = 2
+stats_reference = f"{Stats.__module__}.Stats"
+expected_call_count = 1 if AIRFLOW_V_3_2_PLUS else 2
 
 
 DAG_ID = "my_dag"

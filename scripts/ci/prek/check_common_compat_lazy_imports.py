@@ -35,11 +35,11 @@ import sys
 from pathlib import Path
 
 
-def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str], set[str]]:
+def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str]]:
     """
-    Extract all names from _IMPORT_MAP, _RENAME_MAP, _MODULE_MAP, and _LEGACY_COMPAT_ONLY.
+    Extract all names from _IMPORT_MAP, _RENAME_MAP, and _MODULE_MAP.
 
-    Returns tuple of (import_names, rename_names, module_names, legacy_compat_only)
+    Returns tuple of (import_names, rename_names, module_names)
     """
     content = py_file.read_text()
     tree = ast.parse(content)
@@ -47,7 +47,6 @@ def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str], s
     import_map = set()
     rename_map = set()
     module_map = set()
-    legacy_compat_only = set()
 
     for node in tree.body:
         # Handle both annotated assignments and regular assignments
@@ -74,11 +73,8 @@ def extract_runtime_maps(py_file: Path) -> tuple[set[str], set[str], set[str], s
             elif target.id == "_MODULE_MAP" and value:
                 data = ast.literal_eval(value)
                 module_map = set(data.keys())
-            elif target.id == "_LEGACY_COMPAT_ONLY" and value:
-                data = ast.literal_eval(value)
-                legacy_compat_only = set(data.keys())
 
-    return import_map, rename_map, module_map, legacy_compat_only
+    return import_map, rename_map, module_map
 
 
 def extract_type_checking_names(py_file: Path) -> set[str]:
@@ -134,8 +130,8 @@ def main():
         sys.exit(1)
 
     # Extract runtime maps
-    import_names, rename_names, module_names, legacy_compat_only = extract_runtime_maps(sdk_py)
-    runtime_names = (import_names | rename_names | module_names) - legacy_compat_only
+    import_names, rename_names, module_names = extract_runtime_maps(sdk_py)
+    runtime_names = import_names | rename_names | module_names
 
     # Extract TYPE_CHECKING imports
     type_checking_names = extract_type_checking_names(sdk_py)

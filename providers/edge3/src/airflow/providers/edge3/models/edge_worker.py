@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import JSON, Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
-from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.edge3.models.edge_base import Base
@@ -180,29 +180,26 @@ def set_metrics(
     }
 
     if AIRFLOW_V_3_2_PLUS:
-        from airflow.sdk.observability import stats
-
-        stats.gauge(
+        Stats.gauge(
             "edge_worker.status",
             sysinfo.get("status", logging.NOTSET),  # type: ignore
             legacy_name_tags={"worker_name": worker_name},
         )
-        stats.gauge("edge_worker.connected", int(connected), legacy_name_tags={"worker_name": worker_name})
-        stats.gauge(
+        Stats.gauge("edge_worker.connected", int(connected), legacy_name_tags={"worker_name": worker_name})
+        Stats.gauge(
             "edge_worker.maintenance", int(maintenance), legacy_name_tags={"worker_name": worker_name}
         )
-        stats.gauge("edge_worker.jobs_active", jobs_active, legacy_name_tags={"worker_name": worker_name})
-        stats.gauge("edge_worker.concurrency", concurrency, legacy_name_tags={"worker_name": worker_name})
-        stats.gauge(
+        Stats.gauge("edge_worker.jobs_active", jobs_active, legacy_name_tags={"worker_name": worker_name})
+        Stats.gauge("edge_worker.concurrency", concurrency, legacy_name_tags={"worker_name": worker_name})
+        Stats.gauge(
             "edge_worker.free_concurrency", free_concurrency, legacy_name_tags={"worker_name": worker_name}
         )
-        stats.gauge(
+        Stats.gauge(
             "edge_worker.num_queues",
             len(queues),
             legacy_name_tags={"worker_name": worker_name, "queues": ",".join(queues)},
         )
     else:
-        from airflow.providers.common.compat.sdk import Stats
         Stats.gauge(
             "edge_worker.status",
             sysinfo.get("status", logging.NOTSET),  # type: ignore
