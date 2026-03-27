@@ -60,6 +60,7 @@ from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, rel
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, override_ids
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
@@ -74,7 +75,6 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.observability import stats
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext

@@ -29,12 +29,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Re-exporting as _accepts_context for backward compatibility
 from airflow._shared.module_loading import accepts_context as _accepts_context  # noqa: F401
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.executors.workloads import BaseWorkload
 from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.models import Base
 from airflow.models.base import StringID
-from airflow.observability import stats
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import CallbackState
 

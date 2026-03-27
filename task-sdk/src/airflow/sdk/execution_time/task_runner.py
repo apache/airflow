@@ -42,6 +42,7 @@ from structlog.contextvars import bind_contextvars
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -124,7 +125,6 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
-from airflow.sdk.observability import stats
 from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.timezone import coerce_datetime
 

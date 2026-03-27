@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import pendulum
 
+from airflow._shared.observability.metrics import stats
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
@@ -37,7 +38,6 @@ from airflow.executors.workloads.task import ExecuteTask
 from airflow.executors.workloads.types import state_class_for_key
 from airflow.models import Log
 from airflow.models.callback import CallbackKey
-from airflow.observability import stats
 from airflow.observability.metrics import stats_utils
 from airflow.utils.log.logging_mixin import LoggingMixin
 

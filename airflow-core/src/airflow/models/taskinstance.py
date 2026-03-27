@@ -66,6 +66,7 @@ from sqlalchemy.orm import Mapped, lazyload, mapped_column, reconstructor, relat
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 
 from airflow import settings
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
@@ -85,7 +86,6 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
-from airflow.observability import stats
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.ti_deps.dep_context import DepContext

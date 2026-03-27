@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 import attr
 
 from airflow.sdk._shared.module_loading import import_string, iter_namespace, qualname
+from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.serialization import (
     CLASSNAME,
     DATA,
@@ -40,7 +41,7 @@ from airflow.sdk._shared.serialization import (
     SCHEMA_ID,
     VERSION,
 )
-from airflow.sdk.configuration import conf, stats
+from airflow.sdk.configuration import conf
 from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.serde.typing import is_pydantic_model
 

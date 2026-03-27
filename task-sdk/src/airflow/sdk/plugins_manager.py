@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 from airflow import settings
 from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.plugins_manager import (
     AirflowPlugin as AirflowPlugin,
     _load_entrypoint_plugins,
@@ -34,7 +35,6 @@ from airflow.sdk._shared.plugins_manager import (
     is_valid_plugin,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.observability import stats
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:

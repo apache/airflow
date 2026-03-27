@@ -29,6 +29,7 @@ from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, in
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.models.callback import (
@@ -36,7 +37,6 @@ from airflow.models.callback import (
     ExecutorCallback,
     TriggererCallback,
 )
-from airflow.observability import stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
