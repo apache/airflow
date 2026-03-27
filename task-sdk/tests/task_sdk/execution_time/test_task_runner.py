@@ -2028,6 +2028,42 @@ class TestRuntimeTaskInstance:
                 assert not mock_get_all.called
 
     @pytest.mark.parametrize(
+        ("task_ids", "default", "expected_value"),
+        [
+            pytest.param("task_a", "fallback", "fallback", id="single_task_str_default"),
+            pytest.param("task_a", NOTSET, NOTSET, id="single_task_NOTSET_default"),
+            pytest.param(["task_a"], "fallback", ["fallback"], id="list_task_str_default"),
+            pytest.param(
+                ["task_a", "task_b"],
+                "fallback",
+                ["fallback", "fallback"],
+                id="multiple_tasks_str_default",
+            ),
+        ],
+    )
+    def test_xcom_pull_default_with_notset_map_indexes(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        task_ids,
+        default,
+        expected_value,
+    ):
+        """Test that xcom_pull returns `default` when no XCom is found and map_indexes is NOTSET."""
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                print("This is a custom operator")
+
+        task = CustomOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with patch.object(XCom, "get_all", return_value=None) as mock_get_all:
+            result = runtime_ti.xcom_pull(key="key", task_ids=task_ids, default=default)
+            assert result == expected_value
+            assert mock_get_all.called
+
+    @pytest.mark.parametrize(
         "api_return_value",
         [
             pytest.param(("data", "test_value"), id="api returns tuple"),

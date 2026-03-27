@@ -368,6 +368,8 @@ class RuntimeTaskInstance(TaskInstance):
         :param include_prior_dates: If False, only XComs from the current
             logical_date are returned. If *True*, XComs from previous dates
             are returned as well.
+        :param default: Default value to return if no matching XComs are found.
+            *None* if not specified.
         :param run_id: If provided, only pulls XComs from a DagRun w/a matching run_id.
             If *None* (default), the run_id of the calling task is used.
 
@@ -415,7 +417,7 @@ class RuntimeTaskInstance(TaskInstance):
                 )
 
                 if values is None:
-                    xcoms.append(None)
+                    xcoms.append(default)
                 else:
                     xcoms.extend(values)
             # For single task pulling from unmapped task, return single value
