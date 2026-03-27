@@ -361,7 +361,7 @@ def update_xcom_entry(
             status.HTTP_400_BAD_REQUEST, f"Couldn't serialise the XCom with key: `{xcom_key}`"
         ) from e
 
-    # Re-fetch after set (delete + insert) to get fresh object for response
+    # Fetch after setting, to get fresh object for response
     xcom_entry = session.scalar(xcom_query)
     return XComResponseNative.model_validate(xcom_entry)
 
