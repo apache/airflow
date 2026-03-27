@@ -58,7 +58,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import (
     Mapped,
-    aliased,
     declared_attr,
     joinedload,
     mapped_column,
@@ -622,19 +621,15 @@ class DagRun(Base, LoggingMixin):
         from airflow.models.dag import DagModel
 
         def _get_dagrun_query(filters: list[any], order_by: list[any], limit: int):
-            return select(
-                aliased(
-                    DagRun,
-                    select(DagRun)
-                    .with_hint(DagRun, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
-                    .where(DagRun.state == DagRunState.RUNNING)
-                    .join(DagModel, DagModel.dag_id == cls.dag_id)
-                    .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
-                    .where(*filters)
-                    .order_by(*order_by)
-                    .limit(limit)
-                    .subquery(),
-                ),
+            return (
+                select(DagRun)
+                .with_hint(DagRun, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
+                .where(DagRun.state == DagRunState.RUNNING)
+                .join(DagModel, DagModel.dag_id == cls.dag_id)
+                .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
+                .where(*filters)
+                .order_by(*order_by)
+                .limit(limit)
             )
 
         filters = [
