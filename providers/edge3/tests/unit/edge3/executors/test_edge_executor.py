@@ -40,8 +40,8 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_2_PLUS:
-    from airflow.executors.workloads import TaskInstanceDTO
-    from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod, ExecuteCallback
+    from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
+    from airflow.executors.workloads.callback import CallbackDTO
 
 pytestmark = pytest.mark.db_test
 

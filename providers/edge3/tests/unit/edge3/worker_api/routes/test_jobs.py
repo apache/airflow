@@ -25,8 +25,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import delete, select
 
-from airflow.executors.workloads import ExecuteTask
-from airflow.executors.workloads.base import BundleInfo
+from airflow.executors.workloads import BundleInfo, ExecuteTask
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueuesBody
 from airflow.providers.edge3.worker_api.routes.jobs import fetch, parse_command, state
@@ -37,6 +36,8 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.executors.workloads import ExecuteCallback
 
 pytestmark = pytest.mark.db_test
 
