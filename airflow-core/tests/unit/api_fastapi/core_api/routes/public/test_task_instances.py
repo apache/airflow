@@ -26,18 +26,22 @@ from unittest import mock
 
 import pendulum
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, select, update
 
 from airflow._shared.timezones.timezone import datetime
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import DagRun, Log, TaskInstance
+from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
+from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import BaseOperator, TaskGroup
@@ -50,6 +54,7 @@ from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_runs,
+    clear_db_serialized_dags,
     clear_rendered_ti_fields,
 )
 from tests_common.test_utils.logs import check_last_log
@@ -5501,6 +5506,27 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     BASH_DAG_ID = "example_bash_operator"
     BASH_TASK_ID = "also_run_this"
     WILDCARD_ENDPOINT = "/dags/~/dagRuns/~/taskInstances"
+    RESTRICTED_BUNDLE_NAME = "restricted-bundle"
+    RESTRICTED_TEAM_NAME = "restricted-team"
+
+    @pytest.fixture(autouse=True)
+    def clean_db(self, session):
+        original_bundle_name = session.scalar(
+            select(DagModel.bundle_name).where(DagModel.dag_id == self.BASH_DAG_ID)
+        )
+        clear_db_runs()
+        yield
+        session.rollback()
+        clear_db_runs()
+        clear_db_serialized_dags()
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == self.BASH_DAG_ID)
+            .values(bundle_name=original_bundle_name)
+        )
+        session.execute(delete(DagBundleModel).where(DagBundleModel.name == self.RESTRICTED_BUNDLE_NAME))
+        session.execute(delete(Team).where(Team.name == self.RESTRICTED_TEAM_NAME))
+        session.commit()
 
     @pytest.mark.parametrize(
         ("default_ti", "actions", "expected_results", "endpoint_url", "setup_dags"),
@@ -6141,24 +6167,48 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                     f"Expected map_index={mi} to remain running, got {ti.state!r}"
                 )
 
-    def test_bulk_task_instances_rejects_unauthorized_dag_ids_from_request_body(
-        self, test_client, session, default_ti
-    ):
+    def test_bulk_task_instances_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
         self.create_task_instances(
-            session, task_instances=default_ti, dag_id=self.BASH_DAG_ID, update_extras=True
+            session,
+            task_instances=[{"task_id": self.BASH_TASK_ID, "state": State.RUNNING}],
+            dag_id=self.BASH_DAG_ID,
+            update_extras=True,
         )
-        self.create_task_instances(session, task_instances=default_ti, dag_id=self.DAG_ID, update_extras=True)
-
-        mock_auth_manager = mock.MagicMock()
-        mock_auth_manager.is_authorized_dag.side_effect = lambda method, access_entity, details, user: (
-            details.id != self.BASH_DAG_ID
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.TASK_ID, "state": State.RUNNING}],
+            dag_id=self.DAG_ID,
+            update_extras=True,
         )
 
-        with mock.patch(
-            "airflow.api_fastapi.core_api.services.public.task_instances.get_auth_manager",
-            return_value=mock_auth_manager,
+        restricted_bundle = DagBundleModel(name=self.RESTRICTED_BUNDLE_NAME)
+        restricted_team = Team(name=self.RESTRICTED_TEAM_NAME)
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+
+        session.flush()
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == self.BASH_DAG_ID)
+            .values(bundle_name=self.RESTRICTED_BUNDLE_NAME)
+        )
+        session.commit()
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
         ):
-            response = test_client.patch(
+            response = limited_test_client.patch(
                 self.WILDCARD_ENDPOINT,
                 json={
                     "actions": [
