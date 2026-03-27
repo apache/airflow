@@ -727,7 +727,7 @@ class TestCreateXComEntry(TestXComEndpoint):
         ],
     )
     def test_create_xcom_entry_blocks_forbidden_keys(self, test_client, key, value):
-        """Test that XCom creation blocks deserialization metadata keys to prevent CWE-502."""
+        """Test that XCom creation blocks deserialization metadata keys."""
         response = test_client.post(
             f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
             json={"key": "test_key", "value": value, "map_index": -1},
