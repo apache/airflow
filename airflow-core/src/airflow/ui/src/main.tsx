@@ -81,8 +81,13 @@ axios.interceptors.response.use(
       globalThis.location.replace(`${loginPath}?${params.toString()}`);
     }
 
-    // Track 403 URLs so future polling requests are blocked at the request interceptor.
-    if (error.response?.status === 403 && error.config?.url !== undefined) {
+    // Track permission-based 403 URLs so future polling requests are blocked at the request interceptor.
+    // Only block "Forbidden" (missing permissions), not other auth-related 403s.
+    if (
+      error.response?.status === 403 &&
+      error.response.data.detail === "Forbidden" &&
+      error.config?.url !== undefined
+    ) {
       forbidden403Urls.add(error.config.url);
     }
 
