@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow._shared.timezones.timezone import parse_timezone
+from airflow._shared.timezones.timezone import make_aware, parse_timezone
 from airflow.partition_mappers.base import PartitionMapper
 
 if TYPE_CHECKING:
@@ -35,8 +35,8 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
     def __init__(
         self,
         *,
-        timezone: str | Timezone | FixedTimezone,
-        input_format: str = "%Y-%m-%dT%H:%M:%S%z",
+        timezone: str | Timezone | FixedTimezone = "UTC",
+        input_format: str = "%Y-%m-%dT%H:%M:%S",
         output_format: str | None = None,
     ):
         self.input_format = input_format
@@ -47,6 +47,8 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
 
     def to_downstream(self, key: str) -> str:
         dt = datetime.strptime(key, self.input_format)
+        if dt.tzinfo is None:
+            dt = make_aware(dt, self._timezone)
         normalized = self.normalize(dt)
         return self.format(normalized)
 
@@ -70,7 +72,7 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
         return cls(
-            timezone=parse_timezone(data["timezone"]),
+            timezone=parse_timezone(data.get("timezone", "UTC")),
             input_format=data["input_format"],
             output_format=data["output_format"],
         )
@@ -79,7 +81,7 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
 class StartOfHourMapper(_BaseTemporalMapper):
     """Map a time-based partition key to hour."""
 
-    default_output_format = "%Y-%m-%dT%H%z"
+    default_output_format = "%Y-%m-%dT%H"
 
     def normalize(self, dt: datetime) -> datetime:
         return dt.replace(minute=0, second=0, microsecond=0)
@@ -88,7 +90,7 @@ class StartOfHourMapper(_BaseTemporalMapper):
 class StartOfDayMapper(_BaseTemporalMapper):
     """Map a time-based partition key to day."""
 
-    default_output_format = "%Y-%m-%d%z"
+    default_output_format = "%Y-%m-%d"
 
     def normalize(self, dt: datetime) -> datetime:
         return dt.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -97,7 +99,7 @@ class StartOfDayMapper(_BaseTemporalMapper):
 class StartOfWeekMapper(_BaseTemporalMapper):
     """Map a time-based partition key to week."""
 
-    default_output_format = "%Y-%m-%d (W%V)%z"
+    default_output_format = "%Y-%m-%d (W%V)"
 
     def normalize(self, dt: datetime) -> datetime:
         start = dt - timedelta(days=dt.weekday())
@@ -107,7 +109,7 @@ class StartOfWeekMapper(_BaseTemporalMapper):
 class StartOfMonthMapper(_BaseTemporalMapper):
     """Map a time-based partition key to month."""
 
-    default_output_format = "%Y-%m%z"
+    default_output_format = "%Y-%m"
 
     def normalize(self, dt: datetime) -> datetime:
         return dt.replace(
@@ -122,7 +124,7 @@ class StartOfMonthMapper(_BaseTemporalMapper):
 class StartOfQuarterMapper(_BaseTemporalMapper):
     """Map a time-based partition key to quarter."""
 
-    default_output_format = "%Y-Q{quarter}%z"
+    default_output_format = "%Y-Q{quarter}"
 
     def normalize(self, dt: datetime) -> datetime:
         quarter = (dt.month - 1) // 3
@@ -144,7 +146,7 @@ class StartOfQuarterMapper(_BaseTemporalMapper):
 class StartOfYearMapper(_BaseTemporalMapper):
     """Map a time-based partition key to year."""
 
-    default_output_format = "%Y%z"
+    default_output_format = "%Y"
 
     def normalize(self, dt: datetime) -> datetime:
         return dt.replace(

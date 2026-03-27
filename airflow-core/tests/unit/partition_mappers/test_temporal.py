@@ -46,7 +46,7 @@ class TestTemporalMappers:
         mapper_cls: type[_BaseTemporalMapper],
         expected_downstream_key: str,
     ):
-        pm = mapper_cls()
+        pm = mapper_cls(timezone="UTC")
         assert pm.to_downstream("2026-02-10T14:30:45") == expected_downstream_key
 
     @pytest.mark.parametrize(
@@ -61,8 +61,9 @@ class TestTemporalMappers:
         ],
     )
     def test_serialize(self, mapper_cls: type[_BaseTemporalMapper], expected_outut_format: str):
-        pm = mapper_cls()
+        pm = mapper_cls(timezone="UTC")
         assert pm.serialize() == {
+            "timezone": "UTC",
             "input_format": "%Y-%m-%dT%H:%M:%S",
             "output_format": expected_outut_format,
         }
@@ -81,6 +82,7 @@ class TestTemporalMappers:
     def test_deserialize(self, mapper_cls):
         pm = mapper_cls.deserialize(
             {
+                "timezone": "UTC",
                 "input_format": "%Y-%m-%dT%H:%M:%S",
                 "output_format": "customized-format",
             }
@@ -88,3 +90,32 @@ class TestTemporalMappers:
         assert isinstance(pm, mapper_cls)
         assert pm.input_format == "%Y-%m-%dT%H:%M:%S"
         assert pm.output_format == "customized-format"
+
+    @pytest.mark.parametrize(
+        "mapper_cls",
+        [
+            StartOfHourMapper,
+            StartOfDayMapper,
+            StartOfWeekMapper,
+            StartOfMonthMapper,
+            StartOfQuarterMapper,
+            StartOfYearMapper,
+        ],
+    )
+    def test_deserialize_legacy_no_timezone(self, mapper_cls):
+        """Deserializing data without a timezone key defaults to UTC."""
+        pm = mapper_cls.deserialize(
+            {
+                "input_format": "%Y-%m-%dT%H:%M:%S",
+                "output_format": "customized-format",
+            }
+        )
+        assert isinstance(pm, mapper_cls)
+
+    def test_to_downstream_timezone_aware(self):
+        """Input is interpreted as local time in the given timezone."""
+        pm = StartOfDayMapper(timezone="America/New_York")
+        # 2026-02-10T23:00:00 in New York local time → start-of-day is 2026-02-10
+        assert pm.to_downstream("2026-02-10T23:00:00") == "2026-02-10"
+        # 2026-02-11T01:00:00 in New York local time → start-of-day is 2026-02-11
+        assert pm.to_downstream("2026-02-11T01:00:00") == "2026-02-11"
