@@ -28,7 +28,7 @@
             "description": "Provide a name to substitute for the full names of resources",
             "type": "string",
             "default": "",
-            "x-docsSection": null
+            "x-docsSection": "Common"
         },
         "revisionHistoryLimit": {
             "description": "Global number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit",
@@ -37,19 +37,19 @@
                 "null"
             ],
             "default": null,
-            "x-docsSection": null
+            "x-docsSection": "Kubernetes"
         },
         "nameOverride": {
             "description": "Override the name of the chart",
             "type": "string",
             "default": "",
-            "x-docsSection": null
+            "x-docsSection": "Common"
         },
         "useStandardNaming": {
             "description": "Use standard naming for all resources using airflow.fullname template",
             "type": "boolean",
             "default": false,
-            "x-docsSection": null
+            "x-docsSection": "Common"
         },
         "uid": {
             "description": "User of airflow user.",
@@ -1743,7 +1743,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated) (deprecated, use ``workers.celery.command`` and/or ``workers.kubernetes.command`` instead).",
@@ -1807,6 +1807,7 @@
                                 "array",
                                 "null"
                             ],
+                            "default": null,
                             "items": {
                                 "type": "string"
                             }
@@ -2686,7 +2687,7 @@
                                 "null"
                             ],
                             "default": null,
-                            "x-docsSection": null
+                            "x-docsSection": "Kubernetes"
                         },
                         "command": {
                             "description": "Command to use when running Airflow Celery workers (templated).",
@@ -2761,6 +2762,7 @@
                                         "array",
                                         "null"
                                     ],
+                                    "default": null,
                                     "items": {
                                         "type": "string"
                                     }
@@ -3649,6 +3651,7 @@
                                 "array",
                                 "null"
                             ],
+                            "default": null,
                             "items": {
                                 "type": [
                                     "string",
@@ -3689,6 +3692,7 @@
                                 "array",
                                 "null"
                             ],
+                            "default": null,
                             "items": {
                                 "type": [
                                     "string",
@@ -3710,7 +3714,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running the Airflow scheduler (templated).",
@@ -4246,6 +4250,7 @@
                                 "array",
                                 "null"
                             ],
+                            "default": null,
                             "items": {
                                 "type": [
                                     "string",
@@ -4267,7 +4272,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running the Airflow triggerer (templated).",
@@ -4908,6 +4913,7 @@
                                 "array",
                                 "null"
                             ],
+                            "default": null,
                             "items": {
                                 "type": [
                                     "string",
@@ -4929,7 +4935,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running the Airflow dag processor (templated).",
@@ -5477,7 +5483,8 @@
                     "enum": [
                         "OnFailure",
                         "Never"
-                    ]
+                    ],
+                    "default": "OnFailure"
                 },
                 "labels": {
                     "description": "Labels to add to the create user job objects and pods.",
@@ -5826,7 +5833,8 @@
                     "enum": [
                         "OnFailure",
                         "Never"
-                    ]
+                    ],
+                    "default": "OnFailure"
                 },
                 "labels": {
                     "description": "Labels to add to the migrate database job objects and pods.",
@@ -6225,7 +6233,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running the Airflow API server (templated).",
@@ -6996,7 +7004,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running the Airflow webserver (templated).",
@@ -7760,7 +7768,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running flower (templated).",
@@ -8273,7 +8281,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
@@ -8618,7 +8626,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use for PgBouncer (templated).",
@@ -10119,7 +10127,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "successfulJobsHistoryLimit": {
                     "description": "The successful jobs history limit specifies the number of finished jobs to retain.",
@@ -10128,7 +10136,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 }
             }
         },
@@ -10459,7 +10467,7 @@
                         "null"
                     ],
                     "default": 1,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "successfulJobsHistoryLimit": {
                     "description": "The successful jobs history limit specifies the number of finished jobs to retain.",
@@ -10468,7 +10476,7 @@
                         "null"
                     ],
                     "default": 1,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 }
             }
         },
