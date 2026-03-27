@@ -22,7 +22,8 @@
 
 - [Main branch is Airflow 3.x](#main-branch-is-airflow-3x)
 - [Contributors](#contributors)
-  - [Developing for Providers and the Helm Chart](#developing-for-providers-and-the-helm-chart)
+  - [Developing for the Helm Chart](#developing-for-the-helm-chart)
+  - [Developing for Providers](#developing-for-providers)
   - [Developing for Airflow 3.x, 3.1.x](#developing-for-airflow-3x-31x)
   - [Developing for Airflow 3](#developing-for-airflow-3)
   - [Developing for Airflow 2.11.x](#developing-for-airflow-211x)
@@ -49,7 +50,11 @@ Airflow 2.11.x releases will be cut from `v2-11-stable` branch.
 
 The following section explains which branches you should target with your PR.
 
-## Developing for Providers and the Helm Chart
+## Developing for the Helm Chart
+
+Please check the [README_HELM_CHART2_DEV.md](README_HELM_CHART2_DEV.md)
+
+## Developing for Providers
 
 PRs should target the `main` branch.
 Make sure your changes are only related to Providers or the Helm chart.

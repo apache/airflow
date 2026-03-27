@@ -427,6 +427,7 @@ export type ClearTaskInstancesBody = {
      */
     run_on_latest_version?: boolean;
     prevent_running_task?: boolean;
+    note?: string | null;
 };
 
 /**

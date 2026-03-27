@@ -405,3 +405,61 @@ class TestAgentOperatorRegenerateWithFeedback:
         )
 
         assert output == '{"text":"Revised"}'
+
+
+class TestAgentOperatorDurable:
+    def test_durable_param_stored(self):
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm", durable=True)
+        assert op.durable is True
+
+    def test_durable_default_false(self):
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm")
+        assert op.durable is False
+
+    @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
+    @patch("pydantic_ai.models.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.durable.storage._get_base_path")
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_durable_wraps_model_and_cleans_up(
+        self, mock_hook_cls, mock_base_path, mock_infer, _, tmp_path
+    ):
+        """durable=True wraps model with CachingModel and cleans up on success."""
+        from airflow.sdk import ObjectStoragePath
+
+        mock_base_path.return_value = ObjectStoragePath(f"file://{tmp_path.as_posix()}")
+
+        mock_agent = MagicMock()
+        mock_agent.run_sync.return_value = _make_mock_run_result("ok")
+        mock_agent.model = "test-model"
+        mock_agent.override = MagicMock()
+        mock_agent.override.return_value.__enter__ = MagicMock(return_value=None)
+        mock_agent.override.return_value.__exit__ = MagicMock(return_value=False)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        mock_resolved = MagicMock()
+        mock_infer.return_value = mock_resolved
+
+        context = MagicMock()
+        context.__getitem__ = MagicMock(
+            return_value=MagicMock(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        )
+
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm", durable=True)
+        result = op.execute(context=context)
+
+        assert result == "ok"
+        mock_agent.override.assert_called_once()
+        override_kwargs = mock_agent.override.call_args[1]
+        assert "model" in override_kwargs
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_non_durable_does_not_wrap(self, mock_hook_cls):
+        """Default (durable=False) does not use override."""
+        mock_agent = _make_mock_agent("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm")
+        op.execute(context=MagicMock())
+
+        # run_sync called directly, no override
+        mock_agent.run_sync.assert_called_once_with("test")

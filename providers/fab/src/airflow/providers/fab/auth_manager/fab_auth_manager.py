@@ -52,10 +52,9 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
@@ -88,10 +87,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
-from airflow.providers.fab.www.utils import (
-    get_fab_action_from_method_map,
-    get_method_from_fab_action_map,
-)
+from airflow.providers.fab.www.utils import get_fab_action_from_method_map
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -524,15 +520,11 @@ class FabAuthManager(BaseAuthManager[User]):
         )
         roles = user_query.roles
 
-        map_fab_action_name_to_method_name = get_method_from_fab_action_map()
+        fab_action = get_fab_action_from_method_map().get(method)
         resources = set()
         for role in roles:
             for permission in role.permissions:
-                action = permission.action.name
-                if (
-                    action in map_fab_action_name_to_method_name
-                    and map_fab_action_name_to_method_name[action] == method
-                ):
+                if permission.action.name == fab_action:
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
                         return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
