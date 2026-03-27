@@ -110,7 +110,7 @@ if TYPE_CHECKING:
     from pydantic import NonNegativeInt
     from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.elements import Case, ColumnElement
+    from sqlalchemy.sql.elements import BinaryExpression, Case, ColumnElement
 
     from airflow.models.dag_version import DagVersion
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -607,7 +607,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @retry_db_transaction
-    def get_running_dag_runs_to_examine(cls, session: Session) -> ScalarResult[DagRun]:
+    def get_running_dag_runs_to_examine(cls, session: Session) -> Sequence[DagRun]:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -620,7 +620,7 @@ class DagRun(Base, LoggingMixin):
         from airflow.models.backfill import BackfillDagRun
         from airflow.models.dag import DagModel
 
-        def _get_dagrun_query(filters: list[any], order_by: list[any], limit: int):
+        def _get_dagrun_query(filters: list[BinaryExpression], order_by: list[BinaryExpression], limit: int):
             return (
                 select(DagRun)
                 .with_hint(DagRun, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
@@ -659,7 +659,7 @@ class DagRun(Base, LoggingMixin):
             limit=dagruns_to_examine,
         )
 
-        result = (
+        result: Sequence[DagRun] = (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique().all()
         )
 
