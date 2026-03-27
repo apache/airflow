@@ -987,6 +987,121 @@ class TestDagRun:
         schedulable_tis = [ti.task_id for ti in decision.schedulable_tis]
         assert (upstream.task_id in schedulable_tis) == is_ti_schedulable
 
+    def test_get_running_dag_runs_ignores_new_dagruns_to_examine_when_smaller_than_0(
+        self, session, dag_maker
+    ):
+
+        DagRun.DEFAULT_NEW_DAGRUNS_TO_EXAMINE = 0
+
+        def create_dagruns(
+            last_scheduling_decision: datetime.datetime | None = None,
+            count: int = 20,
+        ):
+            dagrun = dag_maker.create_dagrun(
+                run_type=DagRunType.SCHEDULED,
+                state=State.RUNNING,
+                run_after=datetime.datetime(2024, 1, 1),
+            )
+            dagrun.last_scheduling_decision = last_scheduling_decision
+            session.merge(dagrun)
+            for _ in range(count - 1):
+                dagrun = dag_maker.create_dagrun_after(
+                    dagrun,
+                    run_type=DagRunType.SCHEDULED,
+                    state=State.RUNNING,
+                    run_after=datetime.datetime(2024, 1, 1),
+                )
+
+                dagrun.last_scheduling_decision = last_scheduling_decision
+                session.merge(dagrun)
+
+        with dag_maker(
+            dag_id="dummy_dag",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2024, 1, 1),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy_task")
+
+        create_dagruns(None, 10)
+
+        with dag_maker(
+            dag_id="dummy_dag2",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2024, 1, 1),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy_task2")
+
+        create_dagruns(func.now(), 20)
+
+        session.flush()
+
+        dagruns = list(DagRun.get_running_dag_runs_to_examine(session=session))
+
+        assert len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is None]) == 10
+
+        assert len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is not None]) == 10
+
+    def test_get_running_dag_runs_with_max_new_dagruns_to_examine(self, session, dag_maker):
+
+        DagRun.DEFAULT_NEW_DAGRUNS_TO_EXAMINE = 10
+
+        def create_dagruns(
+            last_scheduling_decision: datetime.datetime | None = None,
+            count: int = 20,
+        ):
+            dagrun = dag_maker.create_dagrun(
+                run_type=DagRunType.SCHEDULED,
+                state=State.RUNNING,
+                run_after=datetime.datetime(2024, 1, 1),
+            )
+            dagrun.last_scheduling_decision = last_scheduling_decision
+            session.merge(dagrun)
+            for _ in range(count - 1):
+                dagrun = dag_maker.create_dagrun_after(
+                    dagrun,
+                    run_type=DagRunType.SCHEDULED,
+                    state=State.RUNNING,
+                    run_after=datetime.datetime(2024, 1, 1),
+                )
+
+                dagrun.last_scheduling_decision = last_scheduling_decision
+                session.merge(dagrun)
+
+        with dag_maker(
+            dag_id="dummy_dag",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2024, 1, 1),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy_task")
+
+        create_dagruns(None)
+
+        with dag_maker(
+            dag_id="dummy_dag2",
+            schedule=datetime.timedelta(days=1),
+            start_date=datetime.datetime(2024, 1, 1),
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy_task2")
+
+        create_dagruns(func.now())
+
+        session.flush()
+
+        dagruns = list(DagRun.get_running_dag_runs_to_examine(session=session))
+
+        assert (
+            len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is None])
+            == DagRun.DEFAULT_NEW_DAGRUNS_TO_EXAMINE
+        )
+        assert (
+            len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is not None])
+            == DagRun.DEFAULT_DAGRUNS_TO_EXAMINE
+        )
+
     @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_next_dagruns_to_examine_only_unpaused(self, session, state, testing_dag_bundle):
         """

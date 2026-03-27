@@ -2523,7 +2523,9 @@ scheduler:
       description: |
         How many NEW dagruns should be scheduled and examined (and locked) when scheduling
         and queuing tasks.
-        Total max_dagruns_per_loop_to_schedule does not change.
+        If set, select `max_dagruns_per_loop_to_schedule` old dagruns (that have been
+        examined before)
+        And `max_new_dagruns_per_loop_to_schedule` new dagruns (that have not yet been examined).
       example: ~
       version_added: 3.2.1
       type: integer
