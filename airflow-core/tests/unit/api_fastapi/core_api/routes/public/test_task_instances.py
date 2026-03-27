@@ -54,7 +54,7 @@ from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_runs,
-    clear_db_serialized_dags,
+    clear_db_teams,
     clear_rendered_ti_fields,
 )
 from tests_common.test_utils.logs import check_last_log
@@ -5511,22 +5511,11 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
 
     @pytest.fixture(autouse=True)
     def clean_db(self, session):
-        original_bundle_name = session.scalar(
-            select(DagModel.bundle_name).where(DagModel.dag_id == self.BASH_DAG_ID)
-        )
         clear_db_runs()
+        clear_db_teams()
         yield
-        session.rollback()
+        clear_db_teams()
         clear_db_runs()
-        clear_db_serialized_dags()
-        session.execute(
-            update(DagModel)
-            .where(DagModel.dag_id == self.BASH_DAG_ID)
-            .values(bundle_name=original_bundle_name)
-        )
-        session.execute(delete(DagBundleModel).where(DagBundleModel.name == self.RESTRICTED_BUNDLE_NAME))
-        session.execute(delete(Team).where(Team.name == self.RESTRICTED_TEAM_NAME))
-        session.commit()
 
     @pytest.mark.parametrize(
         ("default_ti", "actions", "expected_results", "endpoint_url", "setup_dags"),
@@ -6095,10 +6084,24 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     ):
         # Setup task instances
         if setup_dags:
-            for dag_id in setup_dags:
+            if setup_dags == [self.BASH_DAG_ID, self.DAG_ID]:
                 self.create_task_instances(
-                    session, task_instances=default_ti, dag_id=dag_id, update_extras=True
+                    session,
+                    task_instances=[{"task_id": self.BASH_TASK_ID, "state": default_ti[0]["state"]}],
+                    dag_id=self.BASH_DAG_ID,
+                    update_extras=True,
                 )
+                self.create_task_instances(
+                    session,
+                    task_instances=[{"task_id": self.TASK_ID, "state": default_ti[1]["state"]}],
+                    dag_id=self.DAG_ID,
+                    update_extras=True,
+                )
+            else:
+                for dag_id in setup_dags:
+                    self.create_task_instances(
+                        session, task_instances=default_ti, dag_id=dag_id, update_extras=True
+                    )
         else:
             self.create_task_instances(session, task_instances=default_ti)
 
