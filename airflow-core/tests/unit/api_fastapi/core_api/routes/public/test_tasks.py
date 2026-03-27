@@ -42,14 +42,20 @@ class TestTaskEndpoint:
     dag_id = "test_dag"
     mapped_dag_id = "test_mapped_task"
     unscheduled_dag_id = "test_unscheduled_dag"
+    mixed_dag_id = "test_mixed_start_date_dag"
     task_id = "op1"
     task_id2 = "op2"
     task_id3 = "op3"
     mapped_task_id = "mapped_task"
     unscheduled_task_id1 = "unscheduled_task_1"
     unscheduled_task_id2 = "unscheduled_task_2"
+    mixed_task_early = "task_early"
+    mixed_task_late = "task_late"
+    mixed_task_none = "task_none"
     task1_start_date = datetime(2020, 6, 15)
     task2_start_date = datetime(2020, 6, 16)
+    early_start_date = datetime(2020, 1, 1)
+    late_start_date = datetime(2020, 12, 31)
     api_prefix = "/dags"
 
     def create_dags(self, test_client):
@@ -69,7 +75,12 @@ class TestTaskEndpoint:
             task5 = EmptyOperator(task_id=self.unscheduled_task_id2, params={"is_unscheduled": True})
             task4 >> task5
 
-        sync_dags_to_db([dag, mapped_dag, unscheduled_dag])
+        with DAG(self.mixed_dag_id, start_date=None, schedule=None) as mixed_dag:
+            EmptyOperator(task_id=self.mixed_task_early, start_date=self.early_start_date)
+            EmptyOperator(task_id=self.mixed_task_late, start_date=self.late_start_date)
+            EmptyOperator(task_id=self.mixed_task_none)
+
+        sync_dags_to_db([dag, mapped_dag, unscheduled_dag, mixed_dag])
         test_client.app.dependency_overrides[dag_bag_from_app] = DBDagBag
 
     @staticmethod
@@ -546,6 +557,58 @@ class TestGetTasks(TestTaskEndpoint):
         assert (
             response.json()["detail"] == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
         )
+
+    def test_order_by_start_date_with_all_none_values(self, test_client):
+        """Sorting by start_date should not crash when all values are None (unscheduled DAG)."""
+        response = test_client.get(
+            f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks?order_by=start_date",
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 2
+
+    def test_order_by_start_date_desc_with_all_none_values(self, test_client):
+        """Descending sort by start_date should not crash when all values are None."""
+        response = test_client.get(
+            f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks?order_by=-start_date",
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 2
+
+    def test_order_by_start_date_asc_with_mixed_none_values(self, test_client):
+        """Ascending sort should place None values last, matching PostgreSQL default."""
+        response = test_client.get(
+            f"{self.api_prefix}/{self.mixed_dag_id}/tasks?order_by=start_date",
+        )
+        assert response.status_code == 200
+        task_ids = [t["task_id"] for t in response.json()["tasks"]]
+        assert task_ids == [self.mixed_task_early, self.mixed_task_late, self.mixed_task_none]
+
+    def test_order_by_start_date_desc_with_mixed_none_values(self, test_client):
+        """Descending sort should place None values first, matching PostgreSQL default."""
+        response = test_client.get(
+            f"{self.api_prefix}/{self.mixed_dag_id}/tasks?order_by=-start_date",
+        )
+        assert response.status_code == 200
+        task_ids = [t["task_id"] for t in response.json()["tasks"]]
+        assert task_ids == [self.mixed_task_none, self.mixed_task_late, self.mixed_task_early]
+
+    def test_order_by_task_id_asc(self, test_client):
+        """Default order_by=task_id should sort alphabetically."""
+        response = test_client.get(
+            f"{self.api_prefix}/{self.mixed_dag_id}/tasks?order_by=task_id",
+        )
+        assert response.status_code == 200
+        task_ids = [t["task_id"] for t in response.json()["tasks"]]
+        assert task_ids == sorted(task_ids)
+
+    def test_order_by_task_id_desc(self, test_client):
+        """Descending order_by=-task_id should sort reverse alphabetically."""
+        response = test_client.get(
+            f"{self.api_prefix}/{self.mixed_dag_id}/tasks?order_by=-task_id",
+        )
+        assert response.status_code == 200
+        task_ids = [t["task_id"] for t in response.json()["tasks"]]
+        assert task_ids == sorted(task_ids, reverse=True)
 
     def test_should_respond_404(self, test_client):
         dag_id = "xxxx_not_existing"

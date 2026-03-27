@@ -52,8 +52,20 @@ def get_tasks(
 ) -> TaskCollectionResponse:
     """Get tasks for DAG."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
+    attr = order_by.lstrip("-")
+    reverse = order_by[0:1] == "-"
+
+    def sort_key(task):
+        """Sort key that places None values last, matching PostgreSQL default behaviour."""
+        value = attrgetter(attr)(task)
+        return (1,) if value is None else (0, value)
+
     try:
-        tasks = sorted(dag.tasks, key=attrgetter(order_by.lstrip("-")), reverse=(order_by[0:1] == "-"))
+        tasks = sorted(
+            dag.tasks,
+            key=sort_key,
+            reverse=reverse,
+        )
     except AttributeError as err:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err))
     return TaskCollectionResponse(
