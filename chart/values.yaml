@@ -498,18 +498,25 @@ extraEnvFrom: ~
 
 # Airflow database & redis config
 data:
-  # If secret names are provided, use those secrets
-  # These secrets must be created manually, eg:
+  # If secret names are provided, use those secrets.
+  # The metadata and result backend secrets must define a `connection` key containing
+  # the SQLAlchemy connection URL. When KEDA needs a direct metadata DB connection,
+  # the metadata secret can also define `kedaConnection`.
+  # These secrets must be created manually, for example:
   #
   # kind: Secret
   # apiVersion: v1
   # metadata:
   #   name: custom-airflow-metadata-secret
   # type: Opaque
-  # data:
-  #   connection: base64_encoded_connection_string
+  # stringData:
+  #   connection: postgresql://user:pass@host:5432/db?sslmode=disable
+  #   kedaConnection: postgresql://user:pass@host:5432/db?sslmode=disable
 
+  # Secret with `connection` and optionally `kedaConnection` keys
   metadataSecretName: ~
+  # Secret with a `connection` key. If unset, the chart creates a result backend
+  # secret and reuses `data.metadataConnection` when `resultBackendConnection` is not set.
   resultBackendSecretName: ~
   brokerUrlSecretName: ~
 
@@ -545,6 +552,8 @@ data:
 # Fernet key settings
 # Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
+# Secret with a `fernet-key` key. To rotate it, follow Airflow's fernet key
+# rotation steps before removing the old key from the secret value.
 fernetKeySecretName: ~
 # Add custom annotations to the fernet key secret
 fernetKeySecretAnnotations: {}
@@ -553,18 +562,22 @@ fernetKeySecretAnnotations: {}
 apiSecretKey: ~
 # Add custom annotations to the api secret
 apiSecretAnnotations: {}
+# Secret with an `api-secret-key` key
 apiSecretKeySecretName: ~
 
 # Secret key used to encode and decode JWTs: `[api_auth] jwt_secret` in airflow.cfg
 jwtSecret: ~
 # Add custom annotations to the JWT secret
 jwtSecretAnnotations: {}
+# Secret with a `jwt-secret` key
 jwtSecretName: ~
 
 # Flask secret key for Airflow <3 Webserver: `[webserver] secret_key` in airflow.cfg
 webserverSecretKey: ~
 # Add custom annotations to the webserver secret
 webserverSecretAnnotations: {}
+# Secret with a `webserver-secret-key` key. Deprecated for Airflow 3+, use
+# `apiSecretKeySecretName` instead.
 webserverSecretKeySecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
@@ -2776,7 +2789,7 @@ flower:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
-  # A secret containing the connection
+  # A secret containing a `basicAuth` key with the value `username:password`
   secretName: ~
   # Add custom annotations to the flower secret
   secretAnnotations: {}
