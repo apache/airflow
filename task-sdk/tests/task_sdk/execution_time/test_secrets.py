@@ -121,12 +121,22 @@ class TestExecutionAPISecretsBackend:
         with pytest.raises(NotImplementedError, match="Use get_connection instead"):
             backend.get_conn_value("test_conn")
 
-    def test_runtime_error_triggers_greenback_fallback(self, mocker, mock_supervisor_comms):
+    @pytest.mark.parametrize(
+        "runtime_error_message",
+        [
+            "You cannot use AsyncToSync in the same thread as an async event loop",
+            "Task <Task pending name='Task-3'> got Future <Future pending> attached to a different loop",
+        ],
+    )
+    def test_runtime_error_triggers_greenback_fallback(
+        self, mocker, mock_supervisor_comms, runtime_error_message
+    ):
         """
         Test that RuntimeError from async_to_sync triggers greenback fallback.
 
-        This test verifies the fix for issue #57145: when SUPERVISOR_COMMS.send()
-        raises the specific RuntimeError about async_to_sync in an event loop,
+        This test verifies the fix for issue #57145 and regression coverage for #64213:
+        when SUPERVISOR_COMMS.send() raises the specific RuntimeError about async_to_sync
+        in an event loop, or the cross-loop Future error seen in triggerer worker threads,
         the backend catches it and uses greenback to call aget_connection().
         """
 
@@ -138,9 +148,7 @@ class TestExecutionAPISecretsBackend:
         )
 
         # Simulate the RuntimeError that triggers greenback fallback
-        mock_supervisor_comms.send.side_effect = RuntimeError(
-            "You cannot use AsyncToSync in the same thread as an async event loop"
-        )
+        mock_supervisor_comms.send.side_effect = RuntimeError(runtime_error_message)
 
         # Mock the greenback and asyncio modules that are imported inside the exception handler
         mocker.patch("greenback.has_portal", return_value=True)

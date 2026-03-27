@@ -26,6 +26,12 @@ if TYPE_CHECKING:
     from airflow.sdk import Connection
 
 
+_GREENBACK_RUNTIME_ERROR_MESSAGES = (
+    "You cannot use AsyncToSync in the same thread as an async event loop",
+    "got Future <Future pending> attached to a different loop",
+)
+
+
 class ExecutionAPISecretsBackend(BaseSecretsBackend):
     """
     Secrets backend for client contexts (workers, DAG processors, triggerers).
@@ -69,7 +75,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
             # TriggerCommsDecoder.send() uses async_to_sync internally, which raises RuntimeError
             # when called within an async event loop. In greenback portal contexts (triggerer),
             # we catch this and use greenback to call the async version instead.
-            if str(e).startswith("You cannot use AsyncToSync in the same thread as an async event loop"):
+            if any(message in str(e) for message in _GREENBACK_RUNTIME_ERROR_MESSAGES):
                 import asyncio
 
                 import greenback
