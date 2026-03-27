@@ -39,6 +39,7 @@ from sqlalchemy import (
     Index,
     Integer,
     PrimaryKeyConstraint,
+    SQLColumnExpression,
     String,
     Text,
     UniqueConstraint,
@@ -110,7 +111,7 @@ if TYPE_CHECKING:
     from pydantic import NonNegativeInt
     from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.elements import BinaryExpression, Case, ColumnElement
+    from sqlalchemy.sql.elements import Case, ColumnElement
 
     from airflow.models.dag_version import DagVersion
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -620,7 +621,9 @@ class DagRun(Base, LoggingMixin):
         from airflow.models.backfill import BackfillDagRun
         from airflow.models.dag import DagModel
 
-        def _get_dagrun_query(filters: list[BinaryExpression], order_by: list[BinaryExpression], limit: int):
+        def _get_dagrun_query(
+            filters: list[ColumnElement[bool]], order_by: list[SQLColumnExpression[Any]], limit: int
+        ):
             return (
                 select(DagRun)
                 .with_hint(DagRun, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
@@ -669,12 +672,13 @@ class DagRun(Base, LoggingMixin):
                 order_by=order,
                 limit=new_dagruns_to_examine,
             )
-
-            result = result + (
+            new_dagruns: Sequence[DagRun] = (
                 session.scalars(with_row_locks(new_dagruns_query, of=cls, session=session, skip_locked=True))
                 .unique()
                 .all()
             )
+
+            result = [*result, *new_dagruns]
 
         return result
 
