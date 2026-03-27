@@ -1,7 +1,7 @@
 ---
 name: Airflow CTL issue report
 description: Report issues/bugs for Airflow CTL
-labels: ["kind:bug", "area:airflowctl", "needs-triage"]
+labels: ["kind:bug", "area:airflow-ctl", "needs-triage"]
 body:
   - type: markdown
     attributes:
