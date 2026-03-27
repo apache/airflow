@@ -58,7 +58,7 @@ except ImportError:
 CMD_TIMEOUT = 10
 
 
-def SSHTunnelForwarder(*args, **kwargs):
+def _create_tunnel_forwarder(*args: Any, **kwargs: Any) -> SSHTunnelForwarder:
     """Import ``sshtunnel`` only when tunnel support is actually used."""
     try:
         from sshtunnel import SSHTunnelForwarder as forwarder_cls
@@ -426,7 +426,7 @@ class SSHHook(BaseHook):
             paramkio_log = logging.getLogger("paramiko.transport")
             paramkio_log.addHandler(logging.NullHandler())
             paramkio_log.propagate = True
-        client = SSHTunnelForwarder(self.remote_host, **tunnel_kwargs)
+        client = _create_tunnel_forwarder(self.remote_host, **tunnel_kwargs)
 
         return client
 

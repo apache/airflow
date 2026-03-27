@@ -356,7 +356,7 @@ class TestSSHHook:
                 auth_timeout=None,
             )
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
+    @mock.patch("airflow.providers.ssh.hooks.ssh._create_tunnel_forwarder")
     def test_tunnel_with_password(self, ssh_mock):
         hook = SSHHook(
             remote_host="remote_host",
@@ -380,7 +380,7 @@ class TestSSHHook:
                 logger=hook.log,
             )
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
+    @mock.patch("airflow.providers.ssh.hooks.ssh._create_tunnel_forwarder")
     def test_tunnel_without_password(self, ssh_mock):
         hook = SSHHook(
             remote_host="remote_host", port="port", username="username", conn_timeout=10, key_file="fake.file"
@@ -410,7 +410,7 @@ class TestSSHHook:
         ssh_hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS)
         assert ssh_hook.look_for_keys is False
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
+    @mock.patch("airflow.providers.ssh.hooks.ssh._create_tunnel_forwarder")
     def test_tunnel_with_private_key(self, ssh_mock):
         hook = SSHHook(
             ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
@@ -433,7 +433,7 @@ class TestSSHHook:
                 logger=hook.log,
             )
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
+    @mock.patch("airflow.providers.ssh.hooks.ssh._create_tunnel_forwarder")
     def test_tunnel_with_private_key_passphrase(self, ssh_mock):
         hook = SSHHook(
             ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA,
@@ -456,7 +456,7 @@ class TestSSHHook:
                 logger=hook.log,
             )
 
-    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder")
+    @mock.patch("airflow.providers.ssh.hooks.ssh._create_tunnel_forwarder")
     def test_tunnel_with_private_key_ecdsa(self, ssh_mock):
         hook = SSHHook(
             ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_ECDSA_EXTRA,
