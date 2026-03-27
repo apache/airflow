@@ -101,7 +101,6 @@ const DagNode = ({
       hasArrow
       placement="top"
       openDelay={hoverDelay}
-      cursor="pointer"
     >
       <Flex
         borderRadius={isZoomedOut ? 10 : 5}
@@ -116,7 +115,7 @@ const DagNode = ({
         }
         height={`${height}px`}
         width={`${width}px`}
-        cursor="pointer"
+        cursor={latestDagRunId ? "pointer" : "default"}
         opacity={isActive ? 1 : 0.3}
         transition="opacity 0.2s"
         data-testid="node"
