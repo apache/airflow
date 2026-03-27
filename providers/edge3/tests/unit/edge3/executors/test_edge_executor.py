@@ -28,8 +28,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, select
 
-from airflow.executors.workloads import ExecuteTask, TaskInstanceDTO
-from airflow.executors.workloads.base import BundleInfo
+from airflow.executors.workloads import BundleInfo, ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, TaskInstanceKey, conf, timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
@@ -41,6 +40,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_2_PLUS:
+    from airflow.executors.workloads import TaskInstanceDTO
     from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod, ExecuteCallback
 
 pytestmark = pytest.mark.db_test

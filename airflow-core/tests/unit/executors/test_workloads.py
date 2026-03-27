@@ -32,6 +32,7 @@ from airflow.executors.workloads.task import ExecuteTask
 
 def test_task_instance_alias_keeps_backwards_compat():
     from airflow.executors import workloads
+
     assert TaskInstance is TaskInstanceDTO
     assert workloads.TaskInstance is TaskInstanceDTO
     assert workloads.TaskInstanceDTO is TaskInstanceDTO

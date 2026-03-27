@@ -58,7 +58,7 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
-from airflow.providers.edge3.utils import is_callback_execute
+from airflow.providers.edge3.utils.types import is_callback_execute
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState

@@ -33,7 +33,7 @@ from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_co
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
-from airflow.providers.edge3.utils import is_callback_execute
+from airflow.providers.edge3.utils.types import is_callback_execute
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState

@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated, TypeAlias, TypeGuard
+from typing import TYPE_CHECKING, Annotated, TypeAlias, TypeGuard
 
 from pydantic import Discriminator, Tag
 
-from airflow.executors import workloads
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_2_PLUS
+
+if TYPE_CHECKING:
+    from airflow.executors import workloads
 
 if not AIRFLOW_V_3_2_PLUS:
     from airflow.executors.workloads import ExecuteTask
@@ -30,7 +32,7 @@ if not AIRFLOW_V_3_2_PLUS:
 else:
     from airflow.executors.workloads import ExecuteCallback, ExecuteTask
 
-    ExecuteTypeBody: TypeAlias = Annotated[
+    ExecuteTypeBody: TypeAlias = Annotated[  # type: ignore[no-redef,misc]
         Annotated[ExecuteTask, Tag("ExecuteTask")] | Annotated[ExecuteCallback, Tag("ExecuteCallback")],
         Discriminator("type"),
     ]
