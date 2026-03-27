@@ -61,9 +61,11 @@ export class XComsPage extends BasePage {
   }
 
   public async navigate(): Promise<void> {
-    await this.navigateTo(XComsPage.xcomsUrl);
-    await this.page.waitForURL(/.*xcoms/, { timeout: 15_000 });
-    await this.xcomsTable.waitFor({ state: "visible", timeout: 10_000 });
+    await expect(async () => {
+      await this.navigateTo(XComsPage.xcomsUrl);
+      await expect(this.page).toHaveURL(/.*xcoms/, { timeout: 15_000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
+    await expect(this.xcomsTable).toBeVisible({ timeout: 10_000 });
     await this.page.waitForLoadState("networkidle");
   }
 

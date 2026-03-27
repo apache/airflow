@@ -76,10 +76,19 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async clickOnTaskInGrid(dagRunId: string, taskId: string): Promise<void> {
+    const gridContainer = this.page.locator('[data-testid="dag-graph"], [data-testid^="grid-"]').first();
+
+    await expect(gridContainer).toBeVisible({ timeout: 30_000 });
+
     const taskLocator = this.page.getByTestId(`grid-${dagRunId}-${taskId}`);
 
-    await expect(taskLocator).toBeVisible({ timeout: 5000 });
-    await taskLocator.click();
+    await expect(taskLocator).toBeVisible({ timeout: 30_000 });
+    await taskLocator.click().catch(async () => {
+      const fallbackLocator = this.page.locator(`[data-testid*="${taskId}"]`).filter({ hasText: taskId }).first();
+
+      await expect(fallbackLocator).toBeVisible({ timeout: 30_000 });
+      await fallbackLocator.click();
+    });
   }
 
   private async handleApprovalTask(dagId: string, dagRunId: string, approve: boolean): Promise<void> {

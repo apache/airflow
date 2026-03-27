@@ -85,7 +85,7 @@ export class DagCalendarTab extends BasePage {
   public async navigateToCalendar(dagId: string) {
     await expect(async () => {
       await this.page.goto(`/dags/${dagId}/calendar`);
-      await this.page.getByTestId("dag-calendar-root").waitFor({ state: "visible", timeout: 5000 });
+      await expect(this.page.getByTestId("dag-calendar-root")).toBeVisible({ timeout: 5000 });
     }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForCalendarReady();
   }
@@ -97,7 +97,7 @@ export class DagCalendarTab extends BasePage {
   public async switchToHourly() {
     await this.hourlyToggle.click();
 
-    await this.page.getByTestId("calendar-hourly-view").waitFor({ state: "visible", timeout: 30_000 });
+    await expect(this.page.getByTestId("calendar-hourly-view")).toBeVisible({ timeout: 30_000 });
   }
 
   public async switchToTotalView() {
@@ -109,17 +109,17 @@ export class DagCalendarTab extends BasePage {
   }
 
   private async waitForCalendarReady(): Promise<void> {
-    await this.page.getByTestId("dag-calendar-root").waitFor({ state: "visible", timeout: 120_000 });
+    await expect(this.page.getByTestId("dag-calendar-root")).toBeVisible({ timeout: 120_000 });
 
-    await this.page.getByTestId("calendar-current-period").waitFor({ state: "visible", timeout: 120_000 });
+    await expect(this.page.getByTestId("calendar-current-period")).toBeVisible({ timeout: 120_000 });
 
     const overlay = this.page.getByTestId("calendar-loading-overlay");
 
     if (await overlay.isVisible().catch(() => false)) {
-      await overlay.waitFor({ state: "hidden", timeout: 120_000 });
+      await expect(overlay).toBeHidden({ timeout: 120_000 });
     }
 
-    await this.page.getByTestId("calendar-grid").waitFor({ state: "visible", timeout: 120_000 });
+    await expect(this.page.getByTestId("calendar-grid")).toBeVisible({ timeout: 120_000 });
 
     await expect(this.calendarCells.first()).toBeVisible({ timeout: 120_000 });
   }
