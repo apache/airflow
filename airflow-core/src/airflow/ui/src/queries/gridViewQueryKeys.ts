@@ -16,26 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { QueryClient } from "@tanstack/react-query";
+import {
+  UseDagRunServiceGetDagRunsKeyFn,
+  UseDagServiceGetDagDetailsKeyFn,
+  UseDagServiceGetLatestRunInfoKeyFn,
+  UseGridServiceGetGridRunsKeyFn,
+  UseTaskInstanceServiceGetTaskInstancesKeyFn,
+} from "openapi/queries";
 
-import { client } from "openapi/requests/services.gen";
-
-// Dynamically set the base URL for XHR requests based on the meta tag.
-let base = document.querySelector("head>base")?.getAttribute("href") ?? "";
-
-if (base.endsWith("/")) {
-  base = base.slice(0, -1);
-}
-
-// Configure the generated API client so requests include the subpath prefix
-// when Airflow runs behind a reverse proxy (e.g. /team-a/auth/token instead of /auth/token).
-client.setConfig({ baseURL: base, throwOnError: true });
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    mutations: {
-      retry: 1,
-      retryDelay: 500,
-    },
-  },
-});
+export const gridQueryKeys = (dagId: string) =>
+  [
+    UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+    UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
+    UseDagServiceGetLatestRunInfoKeyFn({ dagId }, [{ dagId }]),
+    UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+    UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
+  ] as const;
