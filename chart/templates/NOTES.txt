@@ -621,10 +621,10 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (empty .Values.workers.safeToEvict) }}
+{{- if .Values.workers.safeToEvict }}
 
  DEPRECATION WARNING:
-    `workers.safeToEvict` has been renamed to `workers.celery.nodeSelector`/`workers.kubernetes.safeToEvict`.
+    `workers.safeToEvict` has been renamed to `workers.celery.safeToEvict`/`workers.kubernetes.safeToEvict`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
