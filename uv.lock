@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-24T13:21:12.53179256Z"
+exclude-newer = "2026-03-24T13:26:26.345846231Z"
 exclude-newer-span = "P4D"
 
 [manifest]
@@ -1625,7 +1625,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "jsonschema", specifier = ">=4.19.1" },
     { name = "packaging", specifier = ">=25.0" },
-    { name = "prek", specifier = ">=0.3.6" },
+    { name = "prek", specifier = ">=0.3.8" },
     { name = "psutil", specifier = ">=5.9.6" },
     { name = "pygithub", specifier = ">=2.1.1" },
     { name = "pytest", specifier = ">=9.0.0" },
