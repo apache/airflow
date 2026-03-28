@@ -246,22 +246,24 @@ export const Code = () => {
       />
 
       {isDiffMode ? (
-        <Box dir="ltr" height="full">
+        <Box dir="ltr" display="flex" flexDirection="column" height="full">
           {dag?.fileloc !== undefined && (
             <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
           )}
-          <CodeDiffViewer
-            modifiedCode={
-              codeError?.status === 404 && !Boolean(code?.content)
-                ? translate("code.noCode")
-                : (code?.content ?? "")
-            }
-            originalCode={
-              compareCodeError?.status === 404 && !Boolean(compareCode?.content)
-                ? translate("code.noCode")
-                : (compareCode?.content ?? "")
-            }
-          />
+          <Box flex={1} minH={0} position="relative">
+            <CodeDiffViewer
+              modifiedCode={
+                codeError?.status === 404 && !Boolean(code?.content)
+                  ? translate("code.noCode")
+                  : (code?.content ?? "")
+              }
+              originalCode={
+                compareCodeError?.status === 404 && !Boolean(compareCode?.content)
+                  ? translate("code.noCode")
+                  : (compareCode?.content ?? "")
+              }
+            />
+          </Box>
         </Box>
       ) : (
         <Box
@@ -271,22 +273,26 @@ export const Code = () => {
             },
           }}
           dir="ltr"
+          display="flex"
+          flexDirection="column"
           fontSize="14px"
           height="full"
         >
           {dag?.fileloc !== undefined && (
             <FileLocation fileloc={dag.fileloc} relativeFileloc={dag.relative_fileloc} />
           )}
-          <Editor
-            language="python"
-            options={editorOptions}
-            theme={theme}
-            value={
-              codeError?.status === 404 && !Boolean(code?.content)
-                ? translate("code.noCode")
-                : (code?.content ?? "")
-            }
-          />
+          <Box flex={1} minH={0} position="relative">
+            <Editor
+              language="python"
+              options={editorOptions}
+              theme={theme}
+              value={
+                codeError?.status === 404 && !Boolean(code?.content)
+                  ? translate("code.noCode")
+                  : (code?.content ?? "")
+              }
+            />
+          </Box>
         </Box>
       )}
     </Box>

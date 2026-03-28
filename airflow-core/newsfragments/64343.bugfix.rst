@@ -1,0 +1,1 @@
+Fix DAG Code view overflow on Firefox by using Flexbox layout
