@@ -415,8 +415,8 @@ class TestAirflowCommon:
             ],
         )
         expected_vars = [
-            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_HOME",
+            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__CELERY__BROKER_URL",
         ]
@@ -442,8 +442,8 @@ class TestAirflowCommon:
         # JWT secret is only injected into scheduler (and api-server); not into workers,
         # webserver, triggerer, dag-processor (security: no JWT where not needed).
         expected_vars_with_jwt = [
-            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_HOME",
+            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
@@ -451,8 +451,8 @@ class TestAirflowCommon:
             "AIRFLOW__CELERY__BROKER_URL",
         ]
         expected_vars_no_jwt = [
-            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW_HOME",
+            "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
