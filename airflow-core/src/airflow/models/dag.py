@@ -588,7 +588,7 @@ class DagModel(Base):
     def deactivate_deleted_dags(
         cls,
         bundle_name: str,
-        rel_filelocs: list[str],
+        rel_filelocs: Collection[str],
         session: Session = NEW_SESSION,
     ) -> bool:
         """
@@ -600,6 +600,7 @@ class DagModel(Base):
         :return: True if any DAGs were marked as stale, False otherwise
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
+        rel_filelocs = set(rel_filelocs)
         dag_models = session.scalars(
             select(cls)
             .where(
@@ -665,6 +666,12 @@ class DagModel(Base):
             else:
                 adrq_by_dag[adrq.target_dag_id].append(adrq)
 
+        if adrq_by_dag:
+            log.info(
+                "Asset-triggered Dags with queued events: %s",
+                {dag_id: len(adrqs) for dag_id, adrqs in adrq_by_dag.items()},
+            )
+
         dag_statuses: dict[str, dict[UKey, bool]] = {
             dag_id: {SerializedAssetUniqueKey.from_asset(adrq.asset): True for adrq in adrqs}
             for dag_id, adrqs in adrq_by_dag.items()
@@ -673,7 +680,9 @@ class DagModel(Base):
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
-            if not dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses):
+            ready = dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses)
+            if not ready:
+                log.debug("Asset condition not met for dag '%s'", dag_id)
                 del adrq_by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
@@ -698,6 +707,10 @@ class DagModel(Base):
                 )
             )
             if exclusion_list:
+                log.info(
+                    "Asset-triggered Dags at max_active_runs, deferring: %s",
+                    exclusion_list,
+                )
                 asset_triggered_dag_ids -= exclusion_list
                 triggered_date_by_dag = {
                     k: v for k, v in triggered_date_by_dag.items() if k not in exclusion_list

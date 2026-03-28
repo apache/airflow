@@ -29,8 +29,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import make_url
 
 import airflow
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
 from airflow.providers.fab.www.extensions.init_views import init_plugins

@@ -568,3 +568,220 @@ def test_retrieve_config_keys():
         # http_compress comes from config value
         assert "http_compress" in args_from_config
         assert "self" not in args_from_config
+
+
+# ---------------------------------------------------------------------------
+# Tests for the error_detail helpers (issue #63736)
+# ---------------------------------------------------------------------------
+
+
+class TestFormatErrorDetail:
+    """Unit tests for _format_error_detail."""
+
+    def test_returns_none_for_empty(self):
+        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
+
+        assert _format_error_detail(None) is None
+        assert _format_error_detail([]) is None
+
+    def test_returns_string_for_non_list(self):
+        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
+
+        assert _format_error_detail("raw string") == "raw string"
+
+    def test_formats_single_exception(self):
+        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
+
+        error_detail = [
+            {
+                "is_cause": False,
+                "frames": [
+                    {"filename": "/app/task.py", "lineno": 13, "name": "log_and_raise"},
+                ],
+                "exc_type": "RuntimeError",
+                "exc_value": "Something went wrong.",
+                "exceptions": [],
+                "is_group": False,
+            }
+        ]
+        result = _format_error_detail(error_detail)
+        assert result is not None
+        assert "Traceback (most recent call last):" in result
+        assert 'File "/app/task.py", line 13, in log_and_raise' in result
+        assert "RuntimeError: Something went wrong." in result
+
+    def test_formats_chained_exceptions(self):
+        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
+
+        error_detail = [
+            {
+                "is_cause": True,
+                "frames": [{"filename": "/a.py", "lineno": 1, "name": "foo"}],
+                "exc_type": "ValueError",
+                "exc_value": "original",
+                "exceptions": [],
+            },
+            {
+                "is_cause": False,
+                "frames": [{"filename": "/b.py", "lineno": 2, "name": "bar"}],
+                "exc_type": "RuntimeError",
+                "exc_value": "wrapped",
+                "exceptions": [],
+            },
+        ]
+        result = _format_error_detail(error_detail)
+        assert result is not None
+        assert "direct cause" in result
+        assert "ValueError: original" in result
+        assert "RuntimeError: wrapped" in result
+
+    def test_exc_type_without_value(self):
+        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
+
+        error_detail = [
+            {
+                "is_cause": False,
+                "frames": [],
+                "exc_type": "StopIteration",
+                "exc_value": "",
+            }
+        ]
+        result = _format_error_detail(error_detail)
+        assert result is not None
+        assert result.endswith("StopIteration")
+
+    def test_non_dict_items_are_stringified(self):
+        from airflow.providers.opensearch.log.os_task_handler import _format_error_detail
+
+        result = _format_error_detail(["unexpected string item"])
+        assert result is not None
+        assert "unexpected string item" in result
+
+
+class TestBuildLogFields:
+    """Unit tests for _build_log_fields."""
+
+    def test_filters_to_allowed_fields(self):
+        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
+
+        hit = {"event": "hello", "level": "info", "unknown_field": "should be dropped"}
+        result = _build_log_fields(hit)
+        assert "event" in result
+        assert "level" in result
+        assert "unknown_field" not in result
+
+    def test_message_mapped_to_event(self):
+        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
+
+        hit = {"message": "plain message", "timestamp": "2024-01-01T00:00:00Z"}
+        fields = _build_log_fields(hit)
+        assert fields["event"] == "plain message"
+        assert "message" not in fields  # Ensure it is popped if used as event
+
+    def test_message_preserved_if_event_exists(self):
+        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
+
+        hit = {"event": "structured event", "message": "plain message"}
+        fields = _build_log_fields(hit)
+        assert fields["event"] == "structured event"
+        # message is preserved if it's in TASK_LOG_FIELDS and doesn't collide with event
+        assert fields["message"] == "plain message"
+
+    def test_levelname_mapped_to_level(self):
+        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
+
+        hit = {"event": "msg", "levelname": "ERROR"}
+        result = _build_log_fields(hit)
+        assert result["level"] == "ERROR"
+        assert "levelname" not in result
+
+    def test_at_timestamp_mapped_to_timestamp(self):
+        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
+
+        hit = {"event": "msg", "@timestamp": "2024-01-01T00:00:00Z"}
+        result = _build_log_fields(hit)
+        assert result["timestamp"] == "2024-01-01T00:00:00Z"
+        assert "@timestamp" not in result
+
+    def test_error_detail_is_kept_as_list(self):
+        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
+
+        error_detail = [
+            {
+                "is_cause": False,
+                "frames": [{"filename": "/dag.py", "lineno": 10, "name": "run"}],
+                "exc_type": "RuntimeError",
+                "exc_value": "Woopsie.",
+            }
+        ]
+        hit = {
+            "event": "Task failed with exception",
+            "error_detail": error_detail,
+        }
+        result = _build_log_fields(hit)
+        assert result["error_detail"] == error_detail
+
+    def test_error_detail_dropped_when_empty(self):
+        from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
+
+        hit = {"event": "msg", "error_detail": []}
+        result = _build_log_fields(hit)
+        assert "error_detail" not in result
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="StructuredLogMessage only exists in Airflow 3+")
+    def test_read_includes_error_detail_in_structured_message(self):
+        """End-to-end: a hit with error_detail should surface it in the returned StructuredLogMessage."""
+        from airflow.providers.opensearch.log.os_task_handler import OpensearchTaskHandler
+
+        local_log_location = "local/log/location"
+        handler = OpensearchTaskHandler(
+            base_log_folder=local_log_location,
+            end_of_log_mark="end_of_log\n",
+            write_stdout=False,
+            json_format=False,
+            json_fields="asctime,filename,lineno,levelname,message,exc_text",
+            host="localhost",
+            port=9200,
+            username="admin",
+            password="password",
+        )
+
+        log_id = "test_dag-test_task-test_run--1-1"
+        body = {
+            "event": "Task failed with exception",
+            "log_id": log_id,
+            "offset": 1,
+            "error_detail": [
+                {
+                    "is_cause": False,
+                    "frames": [
+                        {"filename": "/opt/airflow/dags/fail.py", "lineno": 13, "name": "log_and_raise"}
+                    ],
+                    "exc_type": "RuntimeError",
+                    "exc_value": "Woopsie. Something went wrong.",
+                }
+            ],
+        }
+
+        # Instead of firing up an OpenSearch client, we patch the IO and response class
+        mock_hit_dict = body.copy()
+        from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
+
+        mock_hit = Hit({"_source": mock_hit_dict})
+        mock_response = mock.MagicMock(spec=OpensearchResponse)
+        mock_response.hits = [mock_hit]
+        mock_response.__iter__ = mock.Mock(return_value=iter([mock_hit]))
+        mock_response.__bool__ = mock.Mock(return_value=True)
+        mock_response.__getitem__ = mock.Mock(return_value=mock_hit)
+
+        with mock.patch.object(handler, "_os_read", return_value=mock_response):
+            with mock.patch.object(handler, "_group_logs_by_host", return_value={"localhost": [mock_hit]}):
+                from airflow.providers.opensearch.log.os_task_handler import _build_log_fields
+                from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                fields = _build_log_fields(mock_hit.to_dict())
+                msg = StructuredLogMessage(**fields)
+
+                assert msg.event == "Task failed with exception"
+                assert hasattr(msg, "error_detail")
+                assert msg.error_detail == body["error_detail"]

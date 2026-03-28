@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-http``
 
-Release: ``6.0.0``
+Release: ``6.0.1``
 
 
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``http`` provider. All classes for this provider 
 are in ``airflow.providers.http`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-http/6.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-http/6.0.1/>`_.
 
 Installation
 ------------
@@ -45,21 +45,22 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-http``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-==========================================  ==================
+==========================================  ======================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``requests``                                ``>=2.32.0,<3``
 ``requests-toolbelt``                       ``>=1.0.0``
 ``aiohttp``                                 ``>=3.12.14``
-``asgiref``                                 ``>=2.3.0``
-==========================================  ==================
+``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
+``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -81,4 +82,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-http/6.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-http/6.0.1/changelog.html>`_.

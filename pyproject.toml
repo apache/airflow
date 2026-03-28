@@ -101,7 +101,7 @@ packages = []
     "apache-airflow-providers-alibaba>=3.0.0"
 ]
 "amazon" = [
-    "apache-airflow-providers-amazon>=9.0.0; python_version !=\"3.14\""
+    "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
@@ -230,7 +230,7 @@ packages = []
     "apache-airflow-providers-github>=2.8.0"
 ]
 "google" = [
-    "apache-airflow-providers-google>=10.24.0; python_version !=\"3.14\""
+    "apache-airflow-providers-google>=10.24.0"
 ]
 "grpc" = [
     "apache-airflow-providers-grpc>=3.7.0"
@@ -393,7 +393,7 @@ packages = []
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
-    "apache-airflow-providers-amazon>=9.0.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-amazon>=9.0.0",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -436,7 +436,7 @@ packages = []
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-github>=2.8.0",
-    "apache-airflow-providers-google>=10.24.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-google>=10.24.0",
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
@@ -496,7 +496,7 @@ packages = []
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native aync support and we move away from aio aiobotocore
 "aiobotocore" =  [
-    "apache-airflow-providers-amazon[aiobotocore]>=9.6.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-amazon[aiobotocore]>=9.6.0",
 ]
 "apache-atlas" = [
     "atlasclient>=0.1.2",
@@ -505,7 +505,7 @@ packages = []
     "apache-airflow-providers-apache-hdfs",
 ]
 "amazon-aws-auth" = [
-   "apache-airflow-providers-amazon[python3-saml]; python_version !=\"3.14\"",
+   "apache-airflow-providers-amazon[python3-saml]",
 ]
 "cloudpickle" = [
     "cloudpickle>=2.2.1",
@@ -536,10 +536,10 @@ packages = []
 "s3fs" = [
     # This is required for support of S3 file system which uses aiobotocore
     # which can have a conflict with boto3 as mentioned in aiobotocore extra
-    "apache-airflow-providers-amazon[s3fs]; python_version !=\"3.14\"",
+    "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.10.10",
+    "uv>=0.10.12",
 ]
 
 [project.urls]
@@ -1309,6 +1309,7 @@ dev = [
     "apache-airflow-shared-providers-discovery",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-serialization",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
 ]
@@ -1338,9 +1339,11 @@ leveldb = [
 ]
 
 [tool.uv]
-required-version = ">=0.6.3"
+required-version = ">=0.9.17"
+# Synchroonize with scripts/ci/prek/upgrade_important_versions.py
+exclude-newer = "4 days"
 no-build-isolation-package = ["sphinx-redoc"]
-constraint-dependencies = ["lxml==6.0.2"]
+constraint-dependencies = ["lxml==6.0.2"]  # Remove after https://github.com/aws/amazon-redshift-python-driver/pull/272
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1371,6 +1374,7 @@ apache-airflow-shared-plugins-manager = { workspace = true }
 apache-airflow-shared-providers-discovery = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
+apache-airflow-shared-serialization = { workspace = true }
 apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
@@ -1474,20 +1478,6 @@ apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
 # End of automatically generated provider workspace items
 
-# Ray v3 nightly wheels – direct S3 URLs so uv doesn't need a parseable find-links index.
-ray = [
-    { url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/671390966dc4081d68c4cd5cdb359b0b5773cb56/ray-3.0.0.dev0-cp314-cp314-manylinux2014_x86_64.whl", marker = "python_version == '3.14' and sys_platform == 'linux'" },
-]
-# cassandra-python-driver from GitHub trunk for Python 3.14 (no PyPI release yet)
-cassandra-driver = [
-    { git = "https://github.com/apache/cassandra-python-driver", branch = "trunk", marker = "python_version >= '3.14'" },
-]
-# Python 3.14 support in pluggy (and by extension, pytest) is expected in the next release after 1.6.0
-pluggy = [
-    { git = "https://github.com/pytest-dev/pluggy", rev = "97355a5a464af9c9eef51328ef43fb67145413dd", marker = "python_version == '3.14'" },
-]
-
-
 [tool.uv.workspace]
 members = [
     ".",
@@ -1517,6 +1507,7 @@ members = [
     "shared/providers_discovery",
     "shared/secrets_backend",
     "shared/secrets_masker",
+    "shared/serialization",
     "shared/template_rendering",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)

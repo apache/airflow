@@ -33,10 +33,11 @@ import warnings
 from collections.abc import Callable, Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
+from copy import deepcopy
 from enum import Enum
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, Any, TypeVar, overload
+from typing import IO, TYPE_CHECKING, Any, TypeVar, overload
 
 from .exceptions import AirflowConfigException
 
@@ -76,6 +77,11 @@ ConfigOptionsDictType = dict[str, ConfigType]
 ConfigSectionSourcesType = dict[str, str | tuple[str, str]]
 ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 ENV_VAR_PREFIX = "AIRFLOW__"
+
+
+if TYPE_CHECKING:
+    from airflow.providers_manager import ProvidersManager
+    from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 
 class ValueNotFound:
@@ -166,6 +172,34 @@ def configure_parser_from_configuration_description(
                         parser.set(section, key, default_value)
 
 
+def create_provider_cfg_config_fallback_defaults(
+    provider_config_fallback_defaults_cfg_path: str,
+) -> ConfigParser:
+    """
+    Create fallback defaults for configuration.
+
+    This parser contains provider defaults for Airflow configuration, containing fallback default values
+    that might be needed when provider classes are being imported - before provider's configuration
+    is loaded.
+
+    Unfortunately airflow currently performs a lot of stuff during importing and some of that might lead
+    to retrieving provider configuration before the defaults for the provider are loaded.
+
+    Those are only defaults, so if you have "real" values configured in your configuration (.cfg file or
+    environment variables) those will be used as usual.
+
+    NOTE!! Do NOT attempt to remove those default fallbacks thinking that they are unnecessary duplication,
+    at least not until we fix the way how airflow imports "do stuff". This is unlikely to succeed.
+
+    You've been warned!
+
+    :param provider_config_fallback_defaults_cfg_path: path to the provider config fallback defaults .cfg file
+    """
+    config_parser = ConfigParser()
+    config_parser.read(provider_config_fallback_defaults_cfg_path)
+    return config_parser
+
+
 class AirflowConfigParser(ConfigParser):
     """
     Base configuration parser with pure parsing logic.
@@ -241,7 +275,85 @@ class AirflowConfigParser(ConfigParser):
             self._get_option_from_commands,
             self._get_option_from_secrets,
             self._get_option_from_defaults,
+            self._get_option_from_provider_cfg_config_fallbacks,
+            self._get_option_from_provider_metadata_config_fallbacks,
         ]
+
+    def _get_config_sources_for_as_dict(self) -> list[tuple[str, ConfigParser]]:
+        """Override the base method to add provider fallbacks when providers are loaded."""
+        sources: list[tuple[str, ConfigParser]] = [
+            ("default", self._default_values),
+            ("airflow.cfg", self),
+        ]
+        if self._providers_configuration_loaded:
+            sources.insert(
+                0,
+                (
+                    "provider-metadata-fallback-defaults",
+                    self._provider_metadata_config_fallback_default_values,
+                ),
+            )
+            sources.insert(
+                0,
+                ("provider-cfg-fallback-defaults", self._provider_cfg_config_fallback_default_values),
+            )
+        return sources
+
+    def _get_option_from_provider_cfg_config_fallbacks(
+        self,
+        deprecated_key: str | None,
+        deprecated_section: str | None,
+        key: str,
+        section: str,
+        issue_warning: bool = True,
+        extra_stacklevel: int = 0,
+        **kwargs,
+    ) -> str | ValueNotFound:
+        """Get config option from provider fallback defaults."""
+        value = self.get_from_provider_cfg_config_fallback_defaults(section, key, **kwargs)
+        if value is not None:
+            return value
+        return VALUE_NOT_FOUND_SENTINEL
+
+    def _get_option_from_provider_metadata_config_fallbacks(
+        self,
+        deprecated_key: str | None,
+        deprecated_section: str | None,
+        key: str,
+        section: str,
+        issue_warning: bool = True,
+        extra_stacklevel: int = 0,
+        **kwargs,
+    ) -> str | ValueNotFound:
+        """Get config option from provider metadata fallback defaults."""
+        value = self.get_from_provider_metadata_config_fallback_defaults(section, key, **kwargs)
+        if value is not None:
+            return value
+        return VALUE_NOT_FOUND_SENTINEL
+
+    def get_from_provider_cfg_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
+        """Get provider config fallback default values."""
+        raw = kwargs.get("raw", False)
+        vars_ = kwargs.get("vars")
+        return self._provider_cfg_config_fallback_default_values.get(
+            section, key, fallback=None, raw=raw, vars=vars_
+        )
+
+    @functools.cached_property
+    def _provider_metadata_config_fallback_default_values(self) -> ConfigParser:
+        """Return Provider metadata config fallback default values."""
+        base_configuration_description: dict[str, dict[str, Any]] = {}
+        for _, config in self._provider_manager_type().provider_configs:
+            base_configuration_description.update(config)
+        return self._create_default_config_parser_callable(base_configuration_description)
+
+    def get_from_provider_metadata_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
+        """Get provider metadata config fallback default values."""
+        raw = kwargs.get("raw", False)
+        vars_ = kwargs.get("vars")
+        return self._provider_metadata_config_fallback_default_values.get(
+            section, key, fallback=None, raw=raw, vars=vars_
+        )
 
     @property
     def _validators(self) -> list[Callable[[], None]]:
@@ -300,6 +412,9 @@ class AirflowConfigParser(ConfigParser):
         self,
         configuration_description: dict[str, dict[str, Any]],
         _default_values: ConfigParser,
+        provider_manager_type: type[ProvidersManager] | type[ProvidersManagerTaskRuntime],
+        create_default_config_parser_callable: Callable[[dict[str, dict[str, Any]]], ConfigParser],
+        provider_config_fallback_defaults_cfg_path: str,
         *args,
         **kwargs,
     ):
@@ -308,12 +423,36 @@ class AirflowConfigParser(ConfigParser):
 
         :param configuration_description: Description of configuration options
         :param _default_values: ConfigParser with default values
+        :param provider_manager_type: Either ProvidersManager or ProvidersManagerTaskRuntime, depending on the context of the caller.
+        :param create_default_config_parser_callable: The `create_default_config_parser` function from core or SDK, depending on the context of the caller.
+        :param provider_config_fallback_defaults_cfg_path: Path to the `provider_config_fallback_defaults.cfg` file.
         """
         super().__init__(*args, **kwargs)
         self.configuration_description = configuration_description
+        self._base_configuration_description = deepcopy(configuration_description)
         self._default_values = _default_values
+        self._provider_manager_type = provider_manager_type
+        self._create_default_config_parser_callable = create_default_config_parser_callable
+        self._provider_cfg_config_fallback_default_values = create_provider_cfg_config_fallback_defaults(
+            provider_config_fallback_defaults_cfg_path
+        )
         self._suppress_future_warnings = False
         self.upgraded_values: dict[tuple[str, str], str] = {}
+        self._providers_configuration_loaded = False
+
+    def invalidate_cache(self) -> None:
+        """
+        Clear all ``functools.cached_property`` entries on this instance.
+
+        Call this after mutating class-level attributes (e.g. ``deprecated_options``)
+        so that derived cached properties are recomputed on next access.
+        """
+        for attr_name in (
+            name
+            for name in dir(type(self))
+            if isinstance(getattr(type(self), name, None), functools.cached_property)
+        ):
+            self.__dict__.pop(attr_name, None)
 
     @functools.cached_property
     def inversed_deprecated_options(self):
@@ -1046,6 +1185,56 @@ class AirflowConfigParser(ConfigParser):
 
         return section, key, deprecated_section, deprecated_key, warning_emitted
 
+    def load_providers_configuration(self) -> None:
+        """
+        Load configuration for providers.
+
+        This should be done after initial configuration have been performed. Initializing and discovering
+        providers is an expensive operation and cannot be performed when we load configuration for the first
+        time when airflow starts, because we initialize configuration very early, during importing of the
+        `airflow` package and the module is not yet ready to be used when it happens and until configuration
+        and settings are loaded. Therefore, in order to reload provider configuration we need to additionally
+        load provider - specific configuration.
+        """
+        log.debug("Loading providers configuration")
+
+        self.restore_core_default_configuration()
+        for provider, config in self._provider_manager_type().already_initialized_provider_configs:
+            for provider_section, provider_section_content in config.items():
+                provider_options = provider_section_content["options"]
+                section_in_current_config = self.configuration_description.get(provider_section)
+                if not section_in_current_config:
+                    self.configuration_description[provider_section] = deepcopy(provider_section_content)
+                    section_in_current_config = self.configuration_description.get(provider_section)
+                    section_in_current_config["source"] = f"default-{provider}"
+                    for option in provider_options:
+                        section_in_current_config["options"][option]["source"] = f"default-{provider}"
+                else:
+                    section_source = section_in_current_config.get("source", "Airflow's core package").split(
+                        "default-"
+                    )[-1]
+                    raise AirflowConfigException(
+                        f"The provider {provider} is attempting to contribute "
+                        f"configuration section {provider_section} that "
+                        f"has already been added before. The source of it: {section_source}. "
+                        "This is forbidden. A provider can only add new sections. It "
+                        "cannot contribute options to existing sections or override other "
+                        "provider's configuration.",
+                        UserWarning,
+                    )
+        self._default_values = self._create_default_config_parser_callable(self.configuration_description)
+        # Cached properties derived from configuration_description (e.g. sensitive_config_values) need
+        # to be recomputed now that provider config has been merged in.
+        self.invalidate_cache()
+        self._providers_configuration_loaded = True
+
+    def restore_core_default_configuration(self) -> None:
+        """Restore the parser state before provider-contributed sections were loaded."""
+        self.configuration_description = deepcopy(self._base_configuration_description)
+        self._default_values = self._create_default_config_parser_callable(self.configuration_description)
+        self.invalidate_cache()
+        self._providers_configuration_loaded = False
+
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
 
@@ -1428,17 +1617,6 @@ class AirflowConfigParser(ConfigParser):
         """
         return optionstr
 
-    def _get_config_sources_for_as_dict(self) -> list[tuple[str, ConfigParser]]:
-        """
-        Get list of config sources to use in as_dict().
-
-        Subclasses can override to add additional sources (e.g., provider configs).
-        """
-        return [
-            ("default", self._default_values),
-            ("airflow.cfg", self),
-        ]
-
     def as_dict(
         self,
         display_source: bool = False,
@@ -1741,10 +1919,10 @@ class AirflowConfigParser(ConfigParser):
         :param extra_spacing: Add extra spacing before examples and after variables
         :param only_defaults: Only include default values when writing the config, not the actual values
         """
-        sources_dict = {}
-        if include_sources:
-            sources_dict = self.as_dict(display_source=True)
         with self.make_sure_configuration_loaded(with_providers=include_providers):
+            sources_dict = {}
+            if include_sources:
+                sources_dict = self.as_dict(display_source=True)
             for section_to_write in self.get_sections_including_defaults():
                 section_config_description = self.configuration_description.get(section_to_write, {})
                 if section_to_write != section and section is not None:

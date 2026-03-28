@@ -16,25 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { TFunction } from "i18next";
+import {
+  UseDagRunServiceGetDagRunsKeyFn,
+  UseDagServiceGetDagDetailsKeyFn,
+  UseDagServiceGetLatestRunInfoKeyFn,
+  UseGridServiceGetGridRunsKeyFn,
+  UseTaskInstanceServiceGetTaskInstancesKeyFn,
+} from "openapi/queries";
 
-import type { ExpandedApiError } from "src/components/ErrorAlert";
-import { toaster } from "src/components/ui";
-
-type ErrorToastMessage = {
-  readonly description: string;
-  readonly title: string;
-};
-
-export const createErrorToaster =
-  (translate: TFunction, fallbackMessage: ErrorToastMessage) => (error: unknown) => {
-    const isForbidden = (error as ExpandedApiError).status === 403;
-
-    toaster.create({
-      description: isForbidden
-        ? translate("toaster.forbidden.description", { ns: "common" })
-        : fallbackMessage.description,
-      title: isForbidden ? translate("toaster.forbidden.title", { ns: "common" }) : fallbackMessage.title,
-      type: "error",
-    });
-  };
+export const gridQueryKeys = (dagId: string) =>
+  [
+    UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+    UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
+    UseDagServiceGetLatestRunInfoKeyFn({ dagId }, [{ dagId }]),
+    UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+    UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
+  ] as const;

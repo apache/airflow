@@ -41,8 +41,8 @@ from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 import airflow.logging_config as alc
-from airflow.configuration import conf
 from airflow.models.dagrun import DagRun
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
@@ -79,7 +79,56 @@ LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # not exist, the task handler should use the log_id_template attribute instead.
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
-TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger"]
+TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger", "error_detail", "message", "levelname"]
+
+
+def _format_error_detail(error_detail: Any) -> str | None:
+    """Render the structured ``error_detail`` written by the Airflow 3 supervisor as a traceback string."""
+    if not error_detail:
+        return None
+    if not isinstance(error_detail, list):
+        return str(error_detail)
+
+    lines: list[str] = ["Traceback (most recent call last):"]
+    for exc_info in error_detail:
+        if not isinstance(exc_info, dict):
+            lines.append(str(exc_info))
+            continue
+        if exc_info.get("is_cause"):
+            lines.append("\nThe above exception was the direct cause of the following exception:\n")
+            lines.append("Traceback (most recent call last):")
+        for frame in exc_info.get("frames", []):
+            lines.append(
+                f'  File "{frame.get("filename", "<unknown>")}", line {frame.get("lineno", "?")}, in {frame.get("name", "<unknown>")}'
+            )
+        exc_type = exc_info.get("exc_type", "")
+        exc_value = exc_info.get("exc_value", "")
+        if exc_type:
+            lines.append(f"{exc_type}: {exc_value}" if exc_value else exc_type)
+    return "\n".join(lines)
+
+
+def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
+    """Filter an ES hit to ``TASK_LOG_FIELDS`` and ensure compatibility with StructuredLogMessage."""
+    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS or k == "@timestamp"}
+
+    # Map @timestamp to timestamp
+    if "@timestamp" in fields and "timestamp" not in fields:
+        fields["timestamp"] = fields.pop("@timestamp")
+
+    # Map levelname to level
+    if "levelname" in fields and "level" not in fields:
+        fields["level"] = fields.pop("levelname")
+
+    # Airflow 3 StructuredLogMessage requires 'event'
+    if "event" not in fields:
+        fields["event"] = fields.pop("message", "")
+
+    # Clean up error_detail if it's empty
+    if "error_detail" in fields and not fields["error_detail"]:
+        fields.pop("error_detail")
+    return fields
+
 
 VALID_ES_CONFIG_KEYS = set(inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys())
 # Remove `self` from the valid set of kwargs
@@ -356,9 +405,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
                 # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(
-                        **{k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
-                    )
+                    StructuredLogMessage(**_build_log_fields(hit.to_dict()))
                     for hits in logs_by_host.values()
                     for hit in hits
                 ]
@@ -668,7 +715,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         # Structured log messages
         for hits in logs_by_host.values():
             for hit in hits:
-                filtered = {k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
+                filtered = _build_log_fields(hit.to_dict())
                 message.append(json.dumps(filtered))
 
         return header, message

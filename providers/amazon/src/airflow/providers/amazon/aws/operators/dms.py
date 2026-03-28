@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationStoppedTrigger,
     DmsReplicationTerminalStatusTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, Context, conf
 
@@ -510,11 +511,21 @@ class DmsDeleteReplicationConfigOperator(AwsBaseOperator[DmsHook]):
                 self.log.info("DMS replication config(%s) deleted.", self.replication_config_arn)
 
     def execute_complete(self, context, event=None):
-        self.replication_config_arn = event.get("replication_config_arn")
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error deleting DMS replication config: {validated_event}")
+
+        self.replication_config_arn = validated_event.get("replication_config_arn")
         self.log.info("DMS replication config(%s) deleted.", self.replication_config_arn)
 
     def retry_execution(self, context, event=None):
-        self.replication_config_arn = event.get("replication_config_arn")
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error waiting for DMS replication config: {validated_event}")
+
+        self.replication_config_arn = validated_event.get("replication_config_arn")
         self.log.info("Retrying replication config(%s) deletion.", self.replication_config_arn)
         self.execute(context)
 
@@ -703,11 +714,21 @@ class DmsStartReplicationOperator(AwsBaseOperator[DmsHook]):
             self.log.info("Status: %s Provision status: %s", current_status, provision_status)
 
     def execute_complete(self, context, event=None):
-        self.replication_config_arn = event.get("replication_config_arn")
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error in DMS replication: {validated_event}")
+
+        self.replication_config_arn = validated_event.get("replication_config_arn")
         self.log.info("Replication(%s) has completed.", self.replication_config_arn)
 
     def retry_execution(self, context, event=None):
-        self.replication_config_arn = event.get("replication_config_arn")
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error waiting for DMS replication: {validated_event}")
+
+        self.replication_config_arn = validated_event.get("replication_config_arn")
         self.log.info("Retrying replication %s.", self.replication_config_arn)
         self.execute(context)
 
@@ -794,5 +815,10 @@ class DmsStopReplicationOperator(AwsBaseOperator[DmsHook]):
                 )
 
     def execute_complete(self, context, event=None):
-        self.replication_config_arn = event.get("replication_config_arn")
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error stopping DMS replication: {validated_event}")
+
+        self.replication_config_arn = validated_event.get("replication_config_arn")
         self.log.info("Replication(%s) has stopped.", self.replication_config_arn)

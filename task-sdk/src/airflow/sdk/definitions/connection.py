@@ -151,7 +151,7 @@ class Connection:
         if uri is None:
             self.__attrs_init__(conn_id=conn_id, **kwargs)  # type: ignore[attr-defined]
         else:
-            self.__dict__.update(self.from_uri(uri, conn_id=conn_id).to_dict(validate=False))
+            self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""

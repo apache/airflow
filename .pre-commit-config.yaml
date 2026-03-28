@@ -448,7 +448,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.6']
+        additional_dependencies: ['ruff==0.15.7']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -469,6 +469,7 @@ repos:
           ^clients/gen/go\.sh$|
           ^\.gitmodules$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/openapi-gen/|
           ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
           .*/dist/.*|
           \.go$|
@@ -1056,7 +1057,7 @@ repos:
         name: Check execution API datamodel changes have corresponding version updates
         entry: ./scripts/ci/prek/check_execution_api_versions.py
         language: python
-        pass_filenames: false
+        pass_filenames: true
         files: ^airflow-core/src/airflow/api_fastapi/execution_api/(datamodels|versions)/.*\.py$
         require_serial: true
       - id: generate-tasksdk-datamodels

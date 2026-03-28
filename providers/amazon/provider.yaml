@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1773070067
+source-date-epoch: 1774298274
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.24.0
   - 9.23.0
   - 9.22.0
   - 9.21.0
@@ -118,9 +119,6 @@ versions:
   - 1.2.0
   - 1.1.0
   - 1.0.0
-
-excluded-python-versions:
-  - "3.14"
 
 integrations:
   - integration-name: Amazon Athena
@@ -1037,6 +1035,7 @@ connection-types:
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
+  - airflow.providers.amazon.aws.notifications.ses.SesNotifier
   - airflow.providers.amazon.aws.notifications.sns.SnsNotifier
   - airflow.providers.amazon.aws.notifications.sqs.SqsNotifier
 
@@ -1403,6 +1402,8 @@ config:
         default: ~
 
 executors:
+  - airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor
+  - airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor
   - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor
 
 auth-managers:

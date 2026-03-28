@@ -1250,6 +1250,61 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 id="All mypy checks should run when devel-common/pyproject.toml changes",
             )
         ),
+        (
+            pytest.param(
+                ("providers/amazon/src/airflow/providers/amazon/aws/log/s3_task_handler.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "true",
+                    "run-remote-logging-elasticsearch-e2e-tests": "false",
+                    "prod-image-build": "true",
+                },
+                id="S3 remote logging changes enable only S3 e2e",
+            )
+        ),
+        (
+            pytest.param(
+                ("providers/elasticsearch/src/airflow/providers/elasticsearch/log/es_task_handler.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "false",
+                    "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "prod-image-build": "true",
+                },
+                id="Elasticsearch remote logging changes enable only Elasticsearch e2e",
+            )
+        ),
+        (
+            pytest.param(
+                ("providers/elasticsearch/src/airflow/providers/elasticsearch/log/es_json_formatter.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "false",
+                    "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "prod-image-build": "true",
+                },
+                id="Elasticsearch helper changes enable Elasticsearch e2e",
+            )
+        ),
+        (
+            pytest.param(
+                ("airflow-core/src/airflow/config_templates/airflow_local_settings.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "true",
+                    "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "prod-image-build": "true",
+                },
+                id="Shared remote logging changes enable both remote logging e2e jobs",
+            )
+        ),
+        (
+            pytest.param(
+                ("shared/logging/src/airflow_shared/logging/remote.py",),
+                {
+                    "run-remote-logging-s3-e2e-tests": "true",
+                    "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "prod-image-build": "true",
+                },
+                id="Shared logging library changes enable both remote logging e2e jobs",
+            )
+        ),
     ],
 )
 def test_expected_output_pull_request_main(
@@ -1328,9 +1383,7 @@ def test_excluded_providers():
             "excluded-providers-as-string": json.dumps(
                 {
                     "3.14": [
-                        "amazon",  # Depends on lxml<6
                         "apache.cassandra",  # Enable when the next release after 3.29.3 is available
-                        "google",  # Depends on ray, which does not yet support python 3.14 (due to pydantic v1)
                     ],
                 }
             ),
