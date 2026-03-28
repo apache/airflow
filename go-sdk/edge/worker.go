@@ -70,8 +70,6 @@ var (
 )
 
 func Run(ctx context.Context) error {
-	apiURL := viper.GetString("edge.api_url")
-
 	hostname := viper.GetString("edge.hostname")
 
 	if hostname == "" {
@@ -81,21 +79,12 @@ func Run(ctx context.Context) error {
 			return err
 		}
 	}
-	conf := config.WorkerConfig{
-		ApiURL:   apiURL,
-		Hostname: hostname,
-		Issuer:   "airflow",
-		Queues:   viper.GetStringSlice("queues"),
-		ClientConfig: config.ClientConfig{
-			RetryCount: configOrDefault("edge.api_retries", 10),
-			StartWaitTime: time.Duration(
-				configOrDefault("edge.api_retry_wait_min", 1),
-			) * time.Minute,
-			MaxWaitTime: time.Duration(
-				configOrDefault("edge.api_retry_wait_max", 90),
-			) * time.Minute,
-		},
+	var conf config.WorkerConfig
+	err := viper.Unmarshal(&conf)
+	if err != nil {
+		fmt.Println(err)
 	}
+
 	w, err := NewWorker(conf)
 	w.logger.Info("Config", "config", conf)
 	if err != nil {

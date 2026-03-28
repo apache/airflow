@@ -40,18 +40,18 @@ type BundleConfig struct {
 }
 
 type WorkerConfig struct {
-	ClientConfig    ClientConfig
-	ApiJWTSecretKey string
-	Issuer          string
-	Queues          []string
-	Hostname        string
-	ApiURL          string
+	ClientConfig    ClientConfig `mapstructure:",squash"`
+	ApiJWTSecretKey string       `mapstructure:"API_AUTH.SECRET_KEY"`
+	Issuer          string       `mapstructure:"API_AUTH.ISSUER"`
+	Queues          []string     `mapstructure:"QUEUES"`
+	Hostname        string       `mapstructure:"EDGE.HOSTNAME"`
+	ApiURL          string       `mapstructure:"EDGE.API_URL"`
 }
 
 type ClientConfig struct {
-	RetryCount    int
-	StartWaitTime time.Duration
-	MaxWaitTime   time.Duration
+	RetryCount    int           `mapstructure:"EDGE.API_RETRIES"`
+	StartWaitTime time.Duration `mapstructure:"EDGE.API_RETRY_WAIT_MIN"`
+	MaxWaitTime   time.Duration `mapstructure:"EDGE.API_RETRY_WAIT_MAX"`
 }
 
 var envKeyReplacer *strings.Replacer = strings.NewReplacer(".", "__", "-", "_")
@@ -81,6 +81,7 @@ func Configure(cmd *cobra.Command) error {
 	}
 	// Bind the current command's flags to viper
 	BindFlagsToViper(cmd, v)
+	setDefaults(v)
 
 	logger := makeLogger(v)
 	slog.SetDefault(logger)
@@ -138,7 +139,10 @@ func SetupViper(cfgFile string) (*viper.Viper, error) {
 		viper.SetConfigName("go-sdk.yaml")
 	}
 
-	viper.SetOptions(viper.ExperimentalBindStruct())
+	// We use __ as the delimiter, by default viper uses . which leads to
+	// unmarshalling failing, since viper tries to search for nested structs
+	// when the key has a .
+	viper.SetOptions(viper.ExperimentalBindStruct(), viper.KeyDelimiter("__"))
 
 	// Attempt to read the config file, gracefully ignoring errors
 	// caused by a config file not being found. Return an error
@@ -202,4 +206,11 @@ func BindFlagsToViper(cmd *cobra.Command, viper *viper.Viper) {
 			}
 		}
 	})
+}
+
+func setDefaults(viper *viper.Viper) {
+	viper.SetDefault("edge.api_retries", 10)
+	viper.SetDefault("edge.api_retry_wait_min", "1m")
+	viper.SetDefault("edge.api_retry_wait_max", "90m")
+	viper.SetDefault("api_auth.issuer", "airflow")
 }
