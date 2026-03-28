@@ -405,10 +405,10 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if hasKey .Values.workers.podDisruptionBudget.config "minUnavailable" }}
+{{- if hasKey .Values.workers.podDisruptionBudget.config "minAvailable" }}
 
  DEPRECATION WARNING:
-    `workers.podDisruptionBudget.config.minUnavailable` has been renamed to `workers.celery.podDisruptionBudget.config.minUnavailable`.
+    `workers.podDisruptionBudget.config.minAvailable` has been renamed to `workers.celery.podDisruptionBudget.config.minAvailable`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
