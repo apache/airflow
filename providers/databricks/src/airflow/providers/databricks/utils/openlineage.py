@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import RunEvent

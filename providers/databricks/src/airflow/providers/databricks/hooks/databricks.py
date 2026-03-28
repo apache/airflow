@@ -662,6 +662,15 @@ class DatabricksHook(BaseDatabricksHook):
         json = {"job_id": job_id}
         self._do_api_call(CANCEL_ALL_RUNS_ENDPOINT, json)
 
+    async def a_cancel_run(self, run_id: int) -> None:
+        """
+        Async version of `cancel_run()`.
+
+        :param run_id: id of the run
+        """
+        json = {"run_id": run_id}
+        await self._a_do_api_call(CANCEL_RUN_ENDPOINT, json)
+
     def delete_run(self, run_id: int) -> None:
         """
         Delete a non-active run.
@@ -875,6 +884,16 @@ class DatabricksHook(BaseDatabricksHook):
         self.log.info("Canceling SQL statement with ID: %s", statement_id)
         cancel_sql_statement_endpoint = ("POST", f"{SQL_STATEMENTS_ENDPOINT}/{statement_id}/cancel")
         self._do_api_call(cancel_sql_statement_endpoint)
+
+    async def a_cancel_sql_statement(self, statement_id: str) -> None:
+        """
+        Async version of `cancel_sql_statement()`.
+
+        :param statement_id: ID of the SQL statement
+        """
+        self.log.info("Canceling SQL statement with ID: %s", statement_id)
+        cancel_sql_statement_endpoint = ("POST", f"{SQL_STATEMENTS_ENDPOINT}/{statement_id}/cancel")
+        await self._a_do_api_call(cancel_sql_statement_endpoint)
 
     def test_connection(self) -> tuple[bool, str]:
         """Test the Databricks connectivity from UI."""

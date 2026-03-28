@@ -58,8 +58,20 @@ try:
 except ImportError:
     from airflow.hooks.base import BaseHook as BaseHook  # type: ignore
 
+from airflow.providers.common.compat.connection import get_async_connection
+
 if TYPE_CHECKING:
+    from airflow.models import Connection as Airflow2Connection
+
+    try:
+        from airflow.sdk.definitions.connection import Connection as Airflow3Connection
+    except ImportError:
+        Airflow3Connection = Any  # type: ignore
+
+    AnyConnection = Airflow2Connection | Airflow3Connection
     from airflow.models import Connection
+else:
+    AnyConnection = Any  # type: ignore
 
 # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
 AZURE_METADATA_SERVICE_TOKEN_URL = "http://169.254.169.254/metadata/identity/oauth2/token"
@@ -163,6 +175,23 @@ class BaseDatabricksHook(BaseHook):
     def databricks_conn(self) -> Connection:
         return self.get_connection(self.databricks_conn_id)  # type: ignore[return-value]
 
+    async def a_databricks_conn(self) -> AnyConnection:
+        """
+        Get the connection object asynchronously.
+
+        :return: Connection object (either airflow.models.Connection or airflow.sdk.definitions.connection.Connection)
+        """
+        if "databricks_conn" in self.__dict__:
+            return self.__dict__["databricks_conn"]
+
+        conn = await get_async_connection(self.databricks_conn_id)
+
+        # Populate the @cached_property cache so subsequent sync access (e.g. self.host)
+        # does not fall through to the blocking get_connection() path.
+        # triggers are single-task so concurrency is not an issue here.
+        self.__dict__["databricks_conn"] = conn
+        return conn
+
     def get_conn(self) -> Connection:
         return self.databricks_conn
 
@@ -186,14 +215,29 @@ class BaseDatabricksHook(BaseHook):
 
     @cached_property
     def host(self) -> str | None:
+        return self._resolve_host_from_conn(self.databricks_conn)
+
+    async def a_host(self) -> str | None:
+        """Async version of `host` property."""
+        conn = await self.a_databricks_conn()
+        return self._resolve_host_from_conn(conn)
+
+    def _resolve_host_from_conn(self, conn: AnyConnection) -> str | None:
+        """
+        Resolve host from connection object.
+
+        :param conn: Connection object
+        :return: host
+        """
         host = None
-        if "host" in self.databricks_conn.extra_dejson:
-            host = self._parse_host(self.databricks_conn.extra_dejson["host"])
-        elif self.databricks_conn.host:
-            host = self._parse_host(self.databricks_conn.host)
+        if "host" in conn.extra_dejson:
+            host = self._parse_host(conn.extra_dejson["host"])
+        elif conn.host:
+            host = self._parse_host(conn.host)
         return host
 
     async def __aenter__(self):
+        await self.a_databricks_conn()
         self._session = aiohttp.ClientSession()
         return self
 
@@ -227,8 +271,10 @@ class BaseDatabricksHook(BaseHook):
         # In this case, host = xx.cloud.databricks.com
         return host
 
-    def _get_connection_attr(self, attr_name: str) -> str:
-        if not (attr := getattr(self.databricks_conn, attr_name)):
+    def _get_connection_attr(self, attr_name: str, conn: AnyConnection | None = None) -> str:
+        if conn is None:
+            conn = self.databricks_conn
+        if not (attr := getattr(conn, attr_name)):
             raise ValueError(f"`{attr_name}` must be present in Connection")
         return attr
 
@@ -281,24 +327,24 @@ class BaseDatabricksHook(BaseHook):
         except requests_exceptions.HTTPError as e:
             msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
             raise AirflowException(msg)
-
         return jsn["access_token"]
 
     async def _a_get_sp_token(self, resource: str) -> str:
         """Async version of `_get_sp_token()`."""
+        conn = await self.a_databricks_conn()
         sp_token = self.oauth_tokens.get(resource)
         if sp_token and self._is_oauth_token_valid(sp_token):
             return sp_token["access_token"]
 
         self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
+        if conn.password is None:
+            raise ValueError("`password` must be present in Connection for Service Principal auth")
         try:
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     async with self._session.post(
                         resource,
-                        auth=aiohttp.BasicAuth(
-                            self._get_connection_attr("login"), self.databricks_conn.password
-                        ),
+                        auth=aiohttp.BasicAuth(self._get_connection_attr("login", conn), conn.password),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
                             **self.user_agent_header,
@@ -373,6 +419,7 @@ class BaseDatabricksHook(BaseHook):
         :param resource: resource to issue token to
         :return: AAD token, or raise an exception
         """
+        conn = await self.a_databricks_conn()
         aad_token = self.oauth_tokens.get(resource)
         if aad_token and self._is_oauth_token_valid(aad_token):
             return aad_token["access_token"]
@@ -386,14 +433,18 @@ class BaseDatabricksHook(BaseHook):
 
             async for attempt in self._a_get_retry_object():
                 with attempt:
-                    if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
+                    if conn.extra_dejson.get("use_azure_managed_identity", False):
                         async with AsyncManagedIdentityCredential() as credential:
                             token = await credential.get_token(f"{resource}/.default")
                     else:
+                        if conn.password is None:
+                            raise ValueError(
+                                "`password` (client_secret) must be present in Connection for AAD auth"
+                            )
                         async with AsyncClientSecretCredential(
-                            client_id=self._get_connection_attr("login"),
-                            client_secret=self.databricks_conn.password,
-                            tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
+                            client_id=self._get_connection_attr("login", conn),
+                            client_secret=conn.password,
+                            tenant_id=conn.extra_dejson["azure_tenant_id"],
                         ) as credential:
                             token = await credential.get_token(f"{resource}/.default")
                     jsn = {
@@ -474,7 +525,7 @@ class BaseDatabricksHook(BaseHook):
                 DefaultAzureCredential as AsyncDefaultAzureCredential,
             )
 
-            for attempt in self._get_retry_object():
+            async for attempt in self._a_get_retry_object():
                 with attempt:
                     # This only works in an Azure Kubernetes Service Cluster given the following environment variables:
                     # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
@@ -495,9 +546,8 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowOptionalProviderFeatureException(e)
         except RetryError:
             raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
-        except requests_exceptions.HTTPError as e:
-            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
-            raise AirflowException(msg)
+        except aiohttp.ClientResponseError as err:
+            raise AirflowException(f"Response: {err.message}, Status Code: {err.status}")
 
         return token.token
 
@@ -522,12 +572,11 @@ class BaseDatabricksHook(BaseHook):
 
         :return: dictionary with filled AAD headers
         """
+        conn = await self.a_databricks_conn()
         headers = {}
-        if "azure_resource_id" in self.databricks_conn.extra_dejson:
+        if "azure_resource_id" in conn.extra_dejson:
             mgmt_token = await self._a_get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
-            headers["X-Databricks-Azure-Workspace-Resource-Id"] = self.databricks_conn.extra_dejson[
-                "azure_resource_id"
-            ]
+            headers["X-Databricks-Azure-Workspace-Resource-Id"] = conn.extra_dejson["azure_resource_id"]
             headers["X-Databricks-Azure-SP-Management-Token"] = mgmt_token
         return headers
 
@@ -564,7 +613,8 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_k8s_jwt_token(self) -> str:
         """Async version of _get_k8s_jwt_token()."""
-        if "k8s_projected_volume_token_path" in self.databricks_conn.extra_dejson:
+        conn = await self.a_databricks_conn()
+        if "k8s_projected_volume_token_path" in conn.extra_dejson:
             self.log.info("Using Kubernetes projected volume token")
             return await self._a_get_k8s_projected_volume_token()
 
@@ -622,7 +672,8 @@ class BaseDatabricksHook(BaseHook):
         """Async version of _get_k8s_projected_volume_token()."""
         aiofiles = self._get_aiofiles()
 
-        projected_token_path: str = self.databricks_conn.extra_dejson["k8s_projected_volume_token_path"]
+        conn = await self.a_databricks_conn()
+        projected_token_path: str = conn.extra_dejson["k8s_projected_volume_token_path"]
 
         try:
             async with aiofiles.open(projected_token_path) as f:
@@ -733,14 +784,11 @@ class BaseDatabricksHook(BaseHook):
         """Async version of _get_k8s_token_request_api()."""
         aiofiles = self._get_aiofiles()
 
-        audience = self.databricks_conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
-        expiration_seconds = self.databricks_conn.extra_dejson.get("expiration_seconds", 3600)
-        token_path = self.databricks_conn.extra_dejson.get(
-            "k8s_token_path", DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH
-        )
-        namespace_path = self.databricks_conn.extra_dejson.get(
-            "k8s_namespace_path", DEFAULT_K8S_NAMESPACE_PATH
-        )
+        conn = await self.a_databricks_conn()
+        audience = conn.extra_dejson.get("audience", DEFAULT_K8S_AUDIENCE)
+        expiration_seconds = conn.extra_dejson.get("expiration_seconds", 3600)
+        token_path = conn.extra_dejson.get("k8s_token_path", DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH)
+        namespace_path = conn.extra_dejson.get("k8s_namespace_path", DEFAULT_K8S_NAMESPACE_PATH)
 
         try:
             async with aiofiles.open(token_path) as f:
@@ -801,14 +849,17 @@ class BaseDatabricksHook(BaseHook):
             )
         raise RuntimeError("Failed to get JWT token")
 
-    def _get_required_client_id(self) -> str:
+    def _get_required_client_id(self, conn: AnyConnection | None = None) -> str:
         """
         Get and validate client_id for Kubernetes OIDC token federation.
 
+        :param conn: Optional connection object; if not provided, the sync property is used.
         :return: Service principal client ID
         :raises AirflowException: If client_id is not provided
         """
-        client_id = self.databricks_conn.extra_dejson.get("client_id")
+        if conn is None:
+            conn = self.databricks_conn
+        client_id = conn.extra_dejson.get("client_id")
         if not client_id:
             # see: https://github.com/kubernetes/kubernetes/issues/116638
             raise AirflowException(
@@ -876,13 +927,14 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_get_federated_databricks_token(self, resource: str) -> str:
         """Async version of _get_federated_databricks_token()."""
+        conn = await self.a_databricks_conn()
         federated_token = self.oauth_tokens.get(resource)
         if federated_token and self._is_oauth_token_valid(federated_token):
             return federated_token["access_token"]
 
         self.log.info("Existing federated token is expired or missing. Fetching new token...")
 
-        client_id = self._get_required_client_id()
+        client_id = self._get_required_client_id(conn)
 
         # Get JWT from Kubernetes
         jwt_token = await self._a_get_k8s_jwt_token()
@@ -1018,37 +1070,36 @@ class BaseDatabricksHook(BaseHook):
         return None
 
     async def _a_get_token(self, raise_error: bool = False) -> str | None:
-        if "token" in self.databricks_conn.extra_dejson:
+        conn = await self.a_databricks_conn()
+        if "token" in conn.extra_dejson:
             self.log.info(
                 "Using token auth. For security reasons, please set token in Password field instead of extra"
             )
-            return self.databricks_conn.extra_dejson["token"]
-        if not self.databricks_conn.login and self.databricks_conn.password:
+            return conn.extra_dejson["token"]
+        if not conn.login and conn.password:
             self.log.debug("Using token auth.")
-            return self.databricks_conn.password
-        if "azure_tenant_id" in self.databricks_conn.extra_dejson:
-            if self.databricks_conn.login == "" or self.databricks_conn.password == "":
+            return conn.password
+        if "azure_tenant_id" in conn.extra_dejson:
+            if conn.login == "" or conn.password == "":
                 raise AirflowException("Azure SPN credentials aren't provided")
             self.log.debug("Using AAD Token for SPN.")
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
-        if self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
+        if conn.extra_dejson.get("use_azure_managed_identity", False):
             self.log.debug("Using AAD Token for managed identity.")
             await self._a_check_azure_metadata_service()
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
-        if self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
+        if conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
             self.log.debug("Using AzureDefaultCredential for authentication.")
 
             return await self._a_get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
-        if self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
-            if self.databricks_conn.login == "" or self.databricks_conn.password == "":
+        if conn.extra_dejson.get("service_principal_oauth", False):
+            if conn.login == "" or conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-            return await self._a_get_sp_token(self._get_oidc_token_service_url())
-        if self.databricks_conn.login == "federated_k8s" or self.databricks_conn.extra_dejson.get(
-            "federated_k8s", False
-        ):
+            return await self._a_get_sp_token(await self._a_get_oidc_token_service_url())
+        if conn.login == "federated_k8s" or conn.extra_dejson.get("federated_k8s", False):
             self.log.debug("Using Kubernetes OIDC token federation.")
-            return await self._a_get_federated_databricks_token(self._get_oidc_token_service_url())
+            return await self._a_get_federated_databricks_token(await self._a_get_oidc_token_service_url())
         if raise_error:
             raise AirflowException("Token authentication isn't configured")
 
@@ -1065,10 +1116,22 @@ class BaseDatabricksHook(BaseHook):
         """
         return OIDC_TOKEN_SERVICE_URL.format(f"https://{self.host}")
 
+    async def _a_get_oidc_token_service_url(self) -> str:
+        """Async version of `_get_oidc_token_service_url`."""
+        host = await self.a_host()
+        return OIDC_TOKEN_SERVICE_URL.format(f"https://{host}")
+
     def _endpoint_url(self, endpoint):
         port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
         schema = self.databricks_conn.schema or "https"
         return f"{schema}://{self.host}{port}/{endpoint}"
+
+    async def _a_endpoint_url(self, endpoint: str) -> str:
+        conn = await self.a_databricks_conn()
+        host = await self.a_host()
+        port = f":{conn.port}" if conn.port else ""
+        schema = conn.schema or "https"
+        return f"{schema}://{host}{port}/{endpoint}"
 
     def _do_api_call(
         self,
@@ -1156,18 +1219,28 @@ class BaseDatabricksHook(BaseHook):
         method, endpoint = endpoint_info
 
         full_endpoint = f"api/{endpoint}"
-        url = self._endpoint_url(full_endpoint)
+        url = await self._a_endpoint_url(full_endpoint)
 
         aad_headers = await self._a_get_aad_headers()
         headers = {**self.user_agent_header, **aad_headers}
 
-        auth: aiohttp.BasicAuth
+        auth: aiohttp.BasicAuth | BearerAuth
         token = await self._a_get_token()
         if token:
             auth = BearerAuth(token)
         else:
             self.log.info("Using basic auth.")
-            auth = aiohttp.BasicAuth(self._get_connection_attr("login"), self.databricks_conn.password)
+            conn = await self.a_databricks_conn()
+
+            # Read login/password directly off the async connection object: going through
+            # self.databricks_conn would invoke the sync get_connection() (AsyncToSync)
+            # path inside the triggerer's event loop. a_databricks_conn() has already
+            # primed the @cached_property cache for any later sync access.
+            if not (login := conn.login):
+                raise ValueError("`login` must be present in Connection")
+            if conn.password is None:
+                raise ValueError("`password` must be present in Connection for basic auth")
+            auth = aiohttp.BasicAuth(login, conn.password)
 
         request_func: Any
         if method == "GET":
@@ -1192,7 +1265,7 @@ class BaseDatabricksHook(BaseHook):
                         url,
                         json=json,
                         auth=auth,
-                        headers={**headers, **self.user_agent_header},
+                        headers=headers,
                         timeout=self.timeout_seconds,
                     ) as response:
                         self.log.debug("Response Status Code: %s", response.status)

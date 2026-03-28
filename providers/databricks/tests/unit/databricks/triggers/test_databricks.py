@@ -373,3 +373,24 @@ class TestDatabricksSQLStatementExecutionTrigger:
     async def test_on_kill_cancels_statement(self, mock_cancel_sql_statement):
         await self.trigger.on_kill()
         mock_cancel_sql_statement.assert_called_once_with(STATEMENT_ID)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_cancel_sql_statement")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_sql_statement_state")
+    async def test_run_timeout(self, mock_a_get_sql_statement_state, mock_a_cancel):
+        self.trigger.end_time = time.time() - 1
+        mock_a_get_sql_statement_state.return_value = SQLStatementState(state="PENDING")
+
+        trigger_event = self.trigger.run()
+        async for event in trigger_event:
+            assert event == TriggerEvent(
+                {
+                    "statement_id": STATEMENT_ID,
+                    "state": SQLStatementState(state="PENDING").to_json(),
+                    "error": {
+                        "error_code": "TIMEOUT",
+                        "error_message": f"Statement ID {STATEMENT_ID} timed out after set end time {self.trigger.end_time}",
+                    },
+                }
+            )
+        mock_a_cancel.assert_called_once_with(STATEMENT_ID)

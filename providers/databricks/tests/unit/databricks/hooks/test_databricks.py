@@ -719,7 +719,7 @@ class TestDatabricksHook:
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_cancel_run(self, mock_requests):
-        mock_requests.post.return_value.json.return_value = GET_RUN_RESPONSE
+        mock_requests.post.return_value.json.return_value = {}
 
         self.hook.cancel_run(RUN_ID)
 
@@ -731,6 +731,21 @@ class TestDatabricksHook:
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.post")
+    async def test_a_cancel_run(self, mock_post):
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(return_value={})
+        mock_post.return_value.__aenter__.return_value.status = 200
+
+        async with self.hook:
+            await self.hook.a_cancel_run(RUN_ID)
+
+        mock_post.assert_called_once()
+        # verify the URL and payload
+        args = mock_post.call_args
+        assert args.args[0].endswith(cancel_run_endpoint(HOST).replace(f"https://{HOST}/", ""))
+        assert args.kwargs["json"] == {"run_id": RUN_ID}
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_cancel_all_runs(self, mock_requests):
@@ -1307,6 +1322,19 @@ class TestDatabricksHook:
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.post")
+    async def test_a_cancel_sql_statement(self, mock_post):
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(return_value={})
+        mock_post.return_value.__aenter__.return_value.status = 200
+
+        async with self.hook:
+            await self.hook.a_cancel_sql_statement(STATEMENT_ID)
+
+        mock_post.assert_called_once()
+        args = mock_post.call_args
+        assert args.args[0].endswith(f"2.0/sql/statements/{STATEMENT_ID}/cancel")
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_connection_success(self, mock_requests):

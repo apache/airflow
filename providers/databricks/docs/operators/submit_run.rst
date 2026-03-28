@@ -128,9 +128,8 @@ You can also use named parameters to initialize the operator and run the job.
     :start-after: [START howto_operator_databricks_named]
     :end-before: [END howto_operator_databricks_named]
 
-DatabricksSubmitRunDeferrableOperator
-=====================================
+Deferrable Mode
+---------------
 
-Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` operator.
-
-It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
+The :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` operator can be run in deferrable mode by setting ``deferrable=True``.
+This allows for more effective use of Airflow workers during long-running Databricks jobs.
