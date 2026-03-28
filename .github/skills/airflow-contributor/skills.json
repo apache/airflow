@@ -1,0 +1,174 @@
+[
+  {
+    "id": "setup-breeze-environment",
+    "category": "environment",
+    "description": "Start the Airflow Breeze development environment. Only run on the host \u2014 never nest breeze inside breeze.",
+    "steps": [
+      {
+        "context": "host",
+        "command": "breeze start-airflow",
+        "preferred": true
+      },
+      {
+        "context": "breeze",
+        "command": "echo \"Already inside Breeze \u2014 no setup needed\"",
+        "preferred": true
+      }
+    ],
+    "prereqs": [],
+    "params": {},
+    "expected_output": "Airflow webserver is ready"
+  },
+  {
+    "id": "run-static-checks",
+    "category": "linting",
+    "description": "Run fast pre-commit stage checks (ruff, mypy, license headers) before committing. Runs on host and inside Breeze.",
+    "steps": [
+      {
+        "context": "host",
+        "command": "prek run --from-ref {target_branch} --stage pre-commit",
+        "preferred": true
+      },
+      {
+        "context": "breeze",
+        "command": "prek run --from-ref {target_branch} --stage pre-commit",
+        "preferred": true
+      }
+    ],
+    "prereqs": [],
+    "params": {
+      "target_branch": true
+    },
+    "expected_output": "All checks passed."
+  },
+  {
+    "id": "format-and-lint",
+    "category": "linting",
+    "description": "Format and lint a single Python file with ruff immediately after writing or editing it. Always scope to the provider with --project.",
+    "steps": [
+      {
+        "context": "host",
+        "command": "uv run --project {project} ruff format {file_path} && uv run --project {project} ruff check --fix {file_path}",
+        "preferred": true
+      },
+      {
+        "context": "breeze",
+        "command": "ruff format {file_path} && ruff check --fix {file_path}",
+        "preferred": true
+      }
+    ],
+    "prereqs": [],
+    "params": {
+      "project": true,
+      "file_path": true
+    },
+    "expected_output": "All checks passed"
+  },
+  {
+    "id": "run-manual-checks",
+    "category": "linting",
+    "description": "Run slower manual-stage checks before opening a PR. Requires run-static-checks to pass first.",
+    "steps": [
+      {
+        "context": "host",
+        "command": "prek run --from-ref {target_branch} --stage manual",
+        "preferred": true
+      },
+      {
+        "context": "breeze",
+        "command": "prek run --from-ref {target_branch} --stage manual",
+        "preferred": true
+      }
+    ],
+    "prereqs": [
+      "run-static-checks"
+    ],
+    "params": {
+      "target_branch": true
+    },
+    "expected_output": "All checks passed."
+  },
+  {
+    "id": "build-docs",
+    "category": "documentation",
+    "description": "Build Airflow documentation. Pass package to build only that provider's docs (much faster). Runs via breeze on host or inside breeze.",
+    "steps": [
+      {
+        "context": "host",
+        "command": "breeze build-docs",
+        "preferred": true
+      },
+      {
+        "context": "host",
+        "command": "breeze build-docs --package-filter {package}",
+        "preferred": false
+      },
+      {
+        "context": "breeze",
+        "command": "breeze build-docs",
+        "preferred": true
+      }
+    ],
+    "prereqs": [
+      "setup-breeze-environment"
+    ],
+    "params": {
+      "package": false
+    },
+    "expected_output": "Build finished."
+  },
+  {
+    "id": "run-single-test",
+    "category": "testing",
+    "description": "Run a targeted non-DB test. Prefer uv (fast, IDE-debuggable). Fall back to breeze only when system dependencies are missing (e.g. MySQL native libs).",
+    "steps": [
+      {
+        "context": "host",
+        "command": "uv run --project {project} pytest {test_path} -xvs",
+        "preferred": true
+      },
+      {
+        "context": "host",
+        "command": "breeze run pytest {test_path} -xvs",
+        "preferred": false
+      },
+      {
+        "context": "breeze",
+        "command": "pytest {test_path} -xvs",
+        "preferred": true
+      }
+    ],
+    "prereqs": [
+      "setup-breeze-environment"
+    ],
+    "params": {
+      "project": true,
+      "test_path": true
+    },
+    "expected_output": "passed"
+  },
+  {
+    "id": "run-db-test",
+    "category": "testing",
+    "description": "Run tests marked with @pytest.mark.db_test. Always uses Breeze \u2014 never try uv first, as uv cannot provision a live database.",
+    "steps": [
+      {
+        "context": "host",
+        "command": "breeze run pytest {test_path} -xvs",
+        "preferred": true
+      },
+      {
+        "context": "breeze",
+        "command": "pytest {test_path} -xvs",
+        "preferred": true
+      }
+    ],
+    "prereqs": [
+      "setup-breeze-environment"
+    ],
+    "params": {
+      "test_path": true
+    },
+    "expected_output": "passed"
+  }
+]

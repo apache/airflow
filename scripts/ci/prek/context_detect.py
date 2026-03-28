@@ -17,9 +17,9 @@
 # under the License.
 """Runtime host vs Breeze container detection for AI agent skills.
 
-Reads ``.. agent-skill::`` directives embedded directly in the contributing-docs
-source files — no generated artifacts required. Skills live next to the human
-prose that describes them, so documentation and agent commands stay in sync.
+``.. agent-skill::`` directives are embedded directly in contributing-docs RST
+files — the source of truth. A generator extracts them into ``skills.json`` so
+agents can read a static artifact without parsing RST at every invocation.
 
 Source files scanned (see AGENT_SKILLS_RST_FILES):
   contributing-docs/03a_contributors_quick_start_beginners.rst
@@ -27,8 +27,11 @@ Source files scanned (see AGENT_SKILLS_RST_FILES):
   contributing-docs/11_documentation_building.rst
   contributing-docs/testing/unit_tests.rst
 
-Provides an importable API that AI agents (and tests) use to determine the
-current execution environment and retrieve the correct command for a skill.
+Generated artifact (see AGENT_SKILLS_JSON):
+  .github/skills/airflow-contributor/skills.json
+
+The JSON is regenerated with ``--generate`` and validated against the RST with
+``--check`` (run as a prek hook so drift is caught at commit time).
 
 Detection priority chain:
   1. AIRFLOW_BREEZE_CONTAINER env var set  -> "breeze"
@@ -46,6 +49,8 @@ Usage (importable):
 
 Usage (CLI):
     python scripts/ci/prek/context_detect.py --list
+    python scripts/ci/prek/context_detect.py --generate        # write skills.json
+    python scripts/ci/prek/context_detect.py --check           # drift check (CI)
     python scripts/ci/prek/context_detect.py run-single-test project=providers/vertica test_path=...
     python scripts/ci/prek/context_detect.py run-single-test --context breeze test_path=...
 """
@@ -53,6 +58,7 @@ Usage (CLI):
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -71,6 +77,9 @@ AGENT_SKILLS_RST_FILES: list[Path] = [
 
 _DIRECTIVE_RE = re.compile(r"^\.\.\s+agent-skill::\s*$")
 _OPTION_RE = re.compile(r"^\s+:([^:]+):\s+(.+)$")
+
+# Committed JSON artifact — agent-facing interface generated from the RST sources.
+AGENT_SKILLS_JSON: Path = REPO_ROOT / ".github" / "skills" / "airflow-contributor" / "skills.json"
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +222,83 @@ def _find_skill(skill_id: str, skills: list[dict]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# JSON artifact: generate and drift-check
+# ---------------------------------------------------------------------------
+
+
+def _load_skills(
+    json_path: Path = AGENT_SKILLS_JSON,
+    rst_paths: list[Path] = AGENT_SKILLS_RST_FILES,
+) -> list[dict]:
+    """Load skills from committed JSON if available, else parse RST.
+
+    JSON is the fast path for agents at runtime. RST is the source of truth
+    and is used as fallback when JSON hasn't been generated yet (e.g. during
+    development before running ``--generate``).
+    """
+    if json_path.exists():
+        return json.loads(json_path.read_text(encoding="utf-8"))
+    return _parse_skills_from_files(rst_paths)
+
+
+def generate_skills_json(
+    output_path: Path = AGENT_SKILLS_JSON,
+    rst_paths: list[Path] = AGENT_SKILLS_RST_FILES,
+) -> None:
+    """Parse RST sources and write the canonical skills.json artifact.
+
+    Run this after editing any ``.. agent-skill::`` directive and commit the
+    updated skills.json alongside the RST change so the two stay in sync.
+
+    Raises:
+        FileNotFoundError: if any RST source file does not exist.
+        ValueError: if a duplicate skill id is found.
+    """
+    skills = _parse_skills_from_files(rst_paths)
+    output_path.write_text(json.dumps(skills, indent=2) + "\n", encoding="utf-8")
+    print(f"Generated {output_path.relative_to(REPO_ROOT)} ({len(skills)} skill(s))")
+
+
+def check_skills_json_drift(
+    json_path: Path = AGENT_SKILLS_JSON,
+    rst_paths: list[Path] = AGENT_SKILLS_RST_FILES,
+) -> list[str]:
+    """Return error strings if skills.json doesn't match what RST sources produce.
+
+    Used by the prek ``check-agent-skills-drift`` hook. An empty list means the
+    JSON is up to date and the commit can proceed.
+    """
+    errors: list[str] = []
+
+    if not json_path.exists():
+        errors.append(
+            f"skills.json not found at {json_path.relative_to(REPO_ROOT)}. "
+            f"Run: python scripts/ci/prek/context_detect.py --generate"
+        )
+        return errors
+
+    try:
+        current = _parse_skills_from_files(rst_paths)
+    except (FileNotFoundError, ValueError) as exc:
+        errors.append(str(exc))
+        return errors
+
+    stored = json.loads(json_path.read_text(encoding="utf-8"))
+
+    # Normalize both sides to a canonical JSON string for comparison.
+    current_canonical = json.dumps(current, indent=2, sort_keys=True)
+    stored_canonical = json.dumps(stored, indent=2, sort_keys=True)
+
+    if current_canonical != stored_canonical:
+        errors.append(
+            "skills.json is out of sync with RST sources.\n"
+            "  Run: python scripts/ci/prek/context_detect.py --generate\n"
+            f"  Then commit the updated {json_path.relative_to(REPO_ROOT)}"
+        )
+    return errors
+
+
+# ---------------------------------------------------------------------------
 # Command routing
 # ---------------------------------------------------------------------------
 
@@ -233,7 +319,7 @@ def get_command(
         KeyError: if skill_id is not found.
         ValueError: if a required parameter placeholder is missing from kwargs.
     """
-    skills = _parse_skills_from_files(rst_paths)
+    skills = _load_skills(rst_paths=rst_paths)
     skill = _find_skill(skill_id, skills)
     ctx = get_context()
 
@@ -286,7 +372,7 @@ def list_skills_for_context(
         FileNotFoundError: if any source RST file does not exist.
     """
     ctx = get_context()
-    skills = _parse_skills_from_files(rst_paths)
+    skills = _load_skills(rst_paths=rst_paths)
 
     def _has_step_for_context(skill: dict) -> bool:
         return any(s["context"] in (ctx, "either") for s in skill.get("steps", []))
@@ -320,14 +406,42 @@ def main() -> int:
         help="List all available skill IDs and exit",
     )
     parser.add_argument(
+        "--generate",
+        action="store_true",
+        help="Generate skills.json from RST sources and exit",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Check skills.json is in sync with RST and exit (used by prek hook)",
+    )
+    parser.add_argument(
         "--context",
         choices=["host", "breeze"],
         help="Override context detection (default: auto-detect)",
     )
     args = parser.parse_args()
 
+    if args.generate:
+        try:
+            generate_skills_json()
+            return 0
+        except (FileNotFoundError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    if args.check:
+        drift_errors = check_skills_json_drift()
+        if drift_errors:
+            for err in drift_errors:
+                print(f"ERROR: {err}", file=sys.stderr)
+            return 1
+        total = len(_load_skills())
+        print(f"OK: skills.json is up to date ({total} skill(s))")
+        return 0
+
     try:
-        skills = _parse_skills_from_files()
+        skills = _load_skills()
     except (FileNotFoundError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 1

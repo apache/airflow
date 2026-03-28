@@ -239,6 +239,7 @@ To check other usage types of the pre-commit framework, see `Pre-commit website 
    :category: linting
    :description: Format and lint a single Python file with ruff immediately after writing or editing it. Always scope to the provider with --project.
    :local: uv run --project {project} ruff format {file_path} && uv run --project {project} ruff check --fix {file_path}
+   :breeze: ruff format {file_path} && ruff check --fix {file_path}
    :params: project:required,file_path:required
    :expected-output: All checks passed
 

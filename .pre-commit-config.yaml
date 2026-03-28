@@ -976,6 +976,19 @@ repos:
           ^scripts/ci/prek/check_agent_skills_valid\.py$|
           ^scripts/ci/prek/context_detect\.py$
         pass_filenames: false
+      - id: check-agent-skills-drift
+        name: Check agent skills JSON is up to date with contributing docs
+        description: Fail if skills.json doesn't match ".. agent-skill::" directives in RST sources. Run context_detect.py --generate to fix.
+        entry: ./scripts/ci/prek/context_detect.py --check
+        language: python
+        files: >
+          (?x)
+          ^contributing-docs/03a_contributors_quick_start_beginners\.rst$|
+          ^contributing-docs/08_static_code_checks\.rst$|
+          ^contributing-docs/11_documentation_building\.rst$|
+          ^contributing-docs/testing/unit_tests\.rst$|
+          ^\.github/skills/airflow-contributor/skills\.json$
+        pass_filenames: false
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/prek/update_example_dags_paths.py
