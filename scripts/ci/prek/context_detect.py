@@ -79,7 +79,7 @@ _DIRECTIVE_RE = re.compile(r"^\.\.\s+agent-skill::\s*$")
 _OPTION_RE = re.compile(r"^\s+:([^:]+):\s+(.+)$")
 
 # Committed JSON artifact — agent-facing interface generated from the RST sources.
-AGENT_SKILLS_JSON: Path = REPO_ROOT / ".github" / "skills" / "airflow-contributor" / "skills.json"
+AGENT_SKILLS_JSON: Path = REPO_ROOT / ".github" / "skills" / "airflow-contributor" / "assets" / "skills.json"
 
 
 # ---------------------------------------------------------------------------

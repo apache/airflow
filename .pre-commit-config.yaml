@@ -987,7 +987,7 @@ repos:
           ^contributing-docs/08_static_code_checks\.rst$|
           ^contributing-docs/11_documentation_building\.rst$|
           ^contributing-docs/testing/unit_tests\.rst$|
-          ^\.github/skills/airflow-contributor/skills\.json$
+          ^\.github/skills/airflow-contributor/assets/skills\.json$
         pass_filenames: false
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
