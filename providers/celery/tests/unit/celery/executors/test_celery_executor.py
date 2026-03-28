@@ -39,7 +39,7 @@ from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
@@ -54,11 +54,12 @@ from tests_common.test_utils.version_compat import (
 )
 
 if AIRFLOW_V_3_2_PLUS:
-    stats_reference = "airflow.observability.stats"
+    # The `Stats` shim can't be used here because the test is asserting on metrics
+    # created under the base_executor using the `stats` module.
+    stats_reference = "airflow._shared.observability.metrics.stats"
 else:
-    from airflow.providers.common.compat.sdk import Stats
-
     stats_reference = f"{Stats.__module__}.Stats"
+
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion

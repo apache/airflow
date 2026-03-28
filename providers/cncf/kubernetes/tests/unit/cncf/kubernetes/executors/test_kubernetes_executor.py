@@ -61,17 +61,19 @@ try:
 except ImportError:
     # Fallback for older Airflow location where timezone is in utils
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import Stats
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_2_PLUS:
-    stats_reference = "airflow.observability.stats"
+    # The `Stats` shim can't be used here because the test is asserting on metrics
+    # created under the base_executor using the `stats` module.
+    stats_reference = "airflow._shared.observability.metrics.stats"
 else:
-    from airflow.providers.common.compat.sdk import Stats
-
     stats_reference = f"{Stats.__module__}.Stats"
+
 
 if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
