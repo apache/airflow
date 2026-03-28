@@ -20,33 +20,29 @@ import type { Page } from "@playwright/test";
 
 const HEALTH_ENDPOINT = "/api/v2/monitor/health";
 const MAX_WAIT_MS = 60_000;
-const RESPONSE_TIME_THRESHOLD_MS = 2000;
+const REQUEST_TIMEOUT_MS = 10_000;
 const BACKOFF_INTERVALS = [1000, 2000, 4000, 8000];
 
 /**
  * Wait for the Airflow server to be responsive before proceeding.
  *
- * Polls the health endpoint, checking for HTTP 200 with response time below
- * a threshold. Uses backoff intervals between retries.
+ * Polls the health endpoint, checking for HTTP 200. Uses backoff intervals between retries.
+ * We intentionally do not check response time: on Firefox/CI the health endpoint regularly
+ * exceeds 2s, which would cause the check to never succeed and tests to timeout at 60s.
  *
- * When the server responds quickly on the first attempt, this function returns
- * immediately with negligible overhead.
+ * When the server responds on the first attempt, this function returns immediately.
  */
 export async function waitForServerReady(page: Page): Promise<void> {
   const startTime = Date.now();
   let attempt = 0;
 
   while (Date.now() - startTime < MAX_WAIT_MS) {
-    const attemptStart = Date.now();
-
     try {
       const response = await page.request.get(HEALTH_ENDPOINT, {
-        timeout: RESPONSE_TIME_THRESHOLD_MS,
+        timeout: REQUEST_TIMEOUT_MS,
       });
 
-      const elapsed = Date.now() - attemptStart;
-
-      if (response.status() === 200 && elapsed < RESPONSE_TIME_THRESHOLD_MS) {
+      if (response.status() === 200) {
         return;
       }
     } catch {
@@ -66,6 +62,6 @@ export async function waitForServerReady(page: Page): Promise<void> {
   }
 
   throw new Error(
-    `Server not ready after ${MAX_WAIT_MS}ms — health endpoint ${HEALTH_ENDPOINT} did not return 200 within ${RESPONSE_TIME_THRESHOLD_MS}ms threshold`,
+    `Server not ready after ${MAX_WAIT_MS}ms — health endpoint ${HEALTH_ENDPOINT} did not return 200`,
   );
 }
