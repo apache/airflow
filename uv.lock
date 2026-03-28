@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-24T13:26:26.345846231Z"
+exclude-newer = "2026-03-24T13:29:12.067374914Z"
 exclude-newer-span = "P4D"
 
 [manifest]
@@ -2571,7 +2571,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "alibabacloud-adb20211201", specifier = ">=1.0.0" },
-    { name = "alibabacloud-oss-v2", specifier = ">=1.2.4" },
+    { name = "alibabacloud-oss-v2", specifier = ">=1.2.0" },
     { name = "alibabacloud-tea-openapi", specifier = ">=0.3.7" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
