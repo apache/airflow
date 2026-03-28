@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-23T18:07:17.162315975Z"
+exclude-newer = "2026-03-24T13:21:12.53179256Z"
 exclude-newer-span = "P4D"
 
 [manifest]
@@ -666,7 +666,7 @@ wheels = [
 
 [[package]]
 name = "alibabacloud-oss-v2"
-version = "1.2.5"
+version = "1.2.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "crcmod-plus" },
@@ -674,7 +674,7 @@ dependencies = [
     { name = "requests" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cc/d6/63966d2b017eb5c0e0b0fefc0de10d3c99d06eaaed2d170f36774d9f45fc/alibabacloud_oss_v2-1.2.5-py3-none-any.whl", hash = "sha256:f9164164da83a1ba628e8964eca9b00a66c3fc3439e1b47da17e8d16af29e614", size = 272446, upload-time = "2026-03-27T09:10:22.576Z" },
+    { url = "https://files.pythonhosted.org/packages/82/02/d681807d49a8debabb6cfde2b5a1057a27c2cd7caa0c51111127110db423/alibabacloud_oss_v2-1.2.4-py3-none-any.whl", hash = "sha256:c4f1878f3b2bf0b65bb1a1182253502b69b30bcccb7356859e3a9f079c14217c", size = 264323, upload-time = "2026-02-05T09:24:18.263Z" },
 ]
 
 [[package]]
@@ -2571,7 +2571,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "alibabacloud-adb20211201", specifier = ">=1.0.0" },
-    { name = "alibabacloud-oss-v2", specifier = ">=1.2.5" },
+    { name = "alibabacloud-oss-v2", specifier = ">=1.2.4" },
     { name = "alibabacloud-tea-openapi", specifier = ">=0.3.7" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
