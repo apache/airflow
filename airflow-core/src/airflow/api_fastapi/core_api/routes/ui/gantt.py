@@ -17,7 +17,10 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from datetime import datetime
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import or_, select, union_all
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -59,8 +62,17 @@ def get_gantt_data(
     dag_id: str,
     run_id: str,
     session: SessionDep,
+    start_date: Annotated[datetime | None, Query()] = None,
+    end_date: Annotated[datetime | None, Query()] = None,
 ) -> GanttResponse:
+   
     """Get all task instance tries for Gantt chart."""
+    
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "start_date cannot be greater than end_date",
+        )
     # Exclude mapped tasks (use grid summaries) and UP_FOR_RETRY (already in history)
     current_tis = select(
         TaskInstance.task_id.label("task_id"),
@@ -74,6 +86,16 @@ def get_gantt_data(
         TaskInstance.run_id == run_id,
         TaskInstance.map_index == -1,
         or_(TaskInstance.state != TaskInstanceState.UP_FOR_RETRY, TaskInstance.state.is_(None)),
+        *(
+            [TaskInstance.start_date <= end_date]
+            if end_date is not None
+            else []
+        ),
+        *(
+            [TaskInstance.end_date >= start_date]
+            if start_date is not None
+            else []
+        ),
     )
 
     history_tis = select(
@@ -87,6 +109,16 @@ def get_gantt_data(
         TaskInstanceHistory.dag_id == dag_id,
         TaskInstanceHistory.run_id == run_id,
         TaskInstanceHistory.map_index == -1,
+        *(
+            [TaskInstanceHistory.start_date <= end_date]
+            if end_date is not None
+            else []
+        ),
+        *(
+            [TaskInstanceHistory.end_date >= start_date]
+            if start_date is not None
+            else []
+        ),
     )
 
     combined = union_all(current_tis, history_tis).subquery()
