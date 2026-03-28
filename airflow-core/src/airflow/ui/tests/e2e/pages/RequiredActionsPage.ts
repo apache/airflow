@@ -84,7 +84,10 @@ export class RequiredActionsPage extends BasePage {
 
     await expect(taskLocator).toBeVisible({ timeout: 30_000 });
     await taskLocator.click().catch(async () => {
-      const fallbackLocator = this.page.locator(`[data-testid*="${taskId}"]`).filter({ hasText: taskId }).first();
+      const fallbackLocator = this.page
+        .locator(`[data-testid*="${taskId}"]`)
+        .filter({ hasText: taskId })
+        .first();
 
       await expect(fallbackLocator).toBeVisible({ timeout: 30_000 });
       await fallbackLocator.click();
