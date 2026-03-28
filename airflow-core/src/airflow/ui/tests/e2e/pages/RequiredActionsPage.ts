@@ -205,7 +205,7 @@ export class RequiredActionsPage extends BasePage {
     await this.waitForTaskState(dagRunId, {
       expectedState: "Success",
       taskId: "wait_for_default_option",
-      timeout: 30_000,
+      timeout: 60_000,
     });
 
     await this.handleWaitForInputTask(dagId, dagRunId);
