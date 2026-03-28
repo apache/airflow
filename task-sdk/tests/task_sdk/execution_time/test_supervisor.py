@@ -516,14 +516,21 @@ class TestWatchedSubprocess:
 
         assert rc == -9
 
-    def test_last_chance_exception_handling(self, capfd):
+    @pytest.mark.parametrize(
+        "start_date",
+        [
+            pytest.param(None, id="start_date_is_none"),
+            pytest.param(timezone.datetime(2025, 3, 28, tzinfo=timezone.utc), id="start_date_from_context"),
+        ],
+    )
+    def test_last_chance_exception_handling(self, capfd, start_date, make_ti_context):
         def subprocess_main():
             # The real main() in task_runner catches exceptions! This is what would happen if we had a syntax
             # or import error for instance - a very early exception
             raise RuntimeError("Fake syntax error")
 
         mock_client = MagicMock(spec=sdk_client.Client)
-        mock_client.task_instances.start.return_value.start_date = None
+        mock_client.task_instances.start.return_value = make_ti_context(start_date=start_date)
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
