@@ -35,7 +35,7 @@ SECTION = "common.ai"
 
 @lru_cache(maxsize=1)
 def _get_base_path():
-    from airflow.configuration import conf
+    from airflow.providers.common.compat.sdk import conf
     from airflow.sdk import ObjectStoragePath
 
     path = conf.get(SECTION, "durable_cache_path", fallback="")
