@@ -104,6 +104,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import Case, ColumnElement
 
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
     from airflow.models.dag_version import DagVersion
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
@@ -404,6 +405,26 @@ class DagRun(Base, LoggingMixin):
             return run_id
         raise ValueError(
             f"The run_id provided '{run_id}' does not match regex pattern '{regex}' or '{RUN_ID_REGEX}'"
+        )
+
+    @property
+    def dag_run_data(self) -> DRDataModel:
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
+
+        return DRDataModel(
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            logical_date=self.logical_date,
+            data_interval_start=self.data_interval_start,
+            data_interval_end=self.data_interval_end,
+            run_after=self.run_after,
+            start_date=self.start_date or timezone.utcnow(),
+            end_date=self.end_date,
+            run_type=DagRunType(self.run_type),
+            state=self.state,
+            conf=self.conf,
+            consumed_asset_events=[],
+            partition_key=self.partition_key,
         )
 
     @property
@@ -1357,7 +1378,6 @@ class DagRun(Base, LoggingMixin):
     ):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
-            DagRun as DRDataModel,
             TaskInstance as TIDataModel,
             TIRunContext,
         )
@@ -1367,27 +1387,11 @@ class DagRun(Base, LoggingMixin):
             last_ti_model = TIDataModel.model_validate(relevant_ti, from_attributes=True)
             task = dag.get_task(relevant_ti.task_id)
 
-            dag_run_data = DRDataModel(
-                dag_id=self.dag_id,
-                run_id=self.run_id,
-                logical_date=self.logical_date,
-                data_interval_start=self.data_interval_start,
-                data_interval_end=self.data_interval_end,
-                run_after=self.run_after,
-                start_date=self.start_date or timezone.utcnow(),
-                end_date=self.end_date,
-                run_type=DagRunType(self.run_type),
-                state=self.state,
-                conf=self.conf,
-                consumed_asset_events=[],
-                partition_key=self.partition_key,
-            )
-
             runtime_ti = RuntimeTaskInstance.model_construct(
                 **last_ti_model.model_dump(exclude_unset=True),
                 task=task,
                 _ti_context_from_server=TIRunContext(
-                    dag_run=dag_run_data,
+                    dag_run=self.dag_run_data,
                     max_tries=relevant_ti.max_tries,
                     variables=[],
                     connections=[],
