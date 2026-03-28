@@ -54,11 +54,11 @@ export class BasePage {
   }
 
   public async navigateTo(path: string): Promise<void> {
-    await this.goto(path, { waitUntil: "domcontentloaded" });
+    await this.safeGoto(path, { waitUntil: "domcontentloaded" });
   }
 
   /** Health-checked navigation. Subclasses should use this instead of `this.page.goto()`. */
-  protected async goto(path: string, options?: Parameters<Page["goto"]>[1]): Promise<void> {
+  protected async safeGoto(path: string, options?: Parameters<Page["goto"]>[1]): Promise<void> {
     await waitForServerReady(this.page);
     await this.page.goto(path, options);
   }
