@@ -568,6 +568,7 @@ class TestEdgeExecutorMultiTeam:
             assert len(remaining_jobs) == 2
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteTypeBody union requires Airflow 3.2+")
 class TestQueueWorkload:
     @pytest.fixture(autouse=True)
     def setup(self):
@@ -623,7 +624,6 @@ class TestQueueWorkload:
             assert len(jobs) == 1
             assert jobs[0].state == TaskInstanceState.QUEUED
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteCallback requires Airflow 3.2+")
     def test_queue_workload_execute_callback(self):
         executor = EdgeExecutor()
         id = str(uuid4())
@@ -654,7 +654,6 @@ class TestQueueWorkload:
             assert job.state == TaskInstanceState.QUEUED
             assert '"type":"ExecuteCallback"' in job.command or '"type": "ExecuteCallback"' in job.command
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecuteCallback requires Airflow 3.2+")
     def test_queue_workload_execute_callback_existing_job(self):
         executor = EdgeExecutor()
         callback_data = CallbackDTO(
