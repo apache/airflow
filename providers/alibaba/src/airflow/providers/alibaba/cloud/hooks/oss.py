@@ -340,6 +340,8 @@ class OSSHook(BaseHook):
         """
         self.log.info("Head Object oss key: %s", key)
         try:
+            if bucket_name is None:
+                raise ValueError("Missing bucket_name parameter!")
             return self._head_object(bucket_name, key)
         except oss_exceptions.BaseError as e:
             self.log.error(e)
