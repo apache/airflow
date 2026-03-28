@@ -104,7 +104,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(actionButton).toBeEnabled({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(actionButton);
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "valid_input_and_options" });
   }
 
@@ -121,7 +121,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(branchButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(branchButton);
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "choose_a_branch_to_run" });
   }
 
@@ -143,7 +143,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(okButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(okButton);
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_input" });
   }
 
@@ -169,7 +169,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(respondButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(respondButton);
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_multiple_options" });
   }
 
@@ -186,7 +186,7 @@ export class RequiredActionsPage extends BasePage {
     await expect(optionButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(optionButton);
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_option" });
   }
 
@@ -199,7 +199,7 @@ export class RequiredActionsPage extends BasePage {
       throw new Error("Failed to trigger DAG - dagRunId is null");
     }
 
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForDagRunState("Running");
 
     await this.waitForTaskState(dagRunId, {
@@ -224,7 +224,7 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async verifyFinalTaskStates(dagId: string, dagRunId: string, approved: boolean): Promise<void> {
-    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.goto(`/dags/${dagId}/runs/${dagRunId}`);
 
     if (approved) {
       await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "task_1" });
