@@ -109,9 +109,12 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
               setMdContent={setNote}
             />
             <ClearTaskInstanceButton
+              dagId={taskInstance.dag_id}
+              dagRunId={taskInstance.dag_run_id}
               isHotkeyEnabled
+              mapIndex={taskInstance.map_index}
               onOpen={() => setClearOpen(true)}
-              taskInstance={taskInstance}
+              taskId={taskInstance.task_id}
             />
             <MarkTaskInstanceAsButton isHotkeyEnabled taskInstance={taskInstance} />
           </>

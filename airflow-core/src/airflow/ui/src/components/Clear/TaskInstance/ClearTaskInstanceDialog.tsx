@@ -27,6 +27,7 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import Time from "src/components/Time";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
+import { useTaskInstanceServiceGetTaskInstance } from "openapi/queries";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
@@ -35,19 +36,28 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
 
 type Props = {
+  readonly allMapped?: boolean;
+  readonly dagId: string;
+  readonly dagRunId: string;
+  readonly mapIndex?: number;
   readonly onClose: () => void;
   readonly open: boolean;
-  readonly taskInstance: TaskInstanceResponse;
+  readonly taskId: string;
 };
 
-const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, taskInstance }: Props) => {
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
+const ClearTaskInstanceDialog = ({
+  allMapped = false,
+  dagId,
+  dagRunId,
+  mapIndex = -1,
+  onClose: onCloseDialog,
+  open: openDialog,
+  taskId,
+}: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
 
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
+  const effectiveMapIndex = allMapped ? undefined : mapIndex;
 
   const { isPending, mutate } = useClearTaskInstances({
     dagId,
@@ -65,20 +75,25 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
-  const [note, setNote] = useState<string | null>(taskInstance.note);
-  const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
-    dagId,
-    dagRunId,
-    mapIndex,
-    taskId,
-  });
+  const [note, setNote] = useState<string | null>(null);
 
-  // Get current DAG's bundle version to compare with task instance's DAG version bundle version
-  const { data: dagDetails } = useDagServiceGetDagDetails({
-    dagId,
-  });
+  const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } =
+    effectiveMapIndex !== undefined
+      ? usePatchTaskInstance({
+          dagId,
+          dagRunId,
+          mapIndex: effectiveMapIndex,
+          taskId,
+        })
+      : { isPending: false, mutate: () => {} };
+
+  const { data: dagDetails } = useDagServiceGetDagDetails({ dagId });
 
   const refetchInterval = useAutoRefresh({ dagId });
+
+  const taskIds: Array<string | [string, number]> = allMapped
+    ? [taskId]
+    : [[taskId, mapIndex]];
 
   const { data } = useClearTaskInstancesDryRun({
     dagId,
@@ -98,7 +113,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
       include_upstream: upstream,
       only_failed: onlyFailed,
       run_on_latest_version: runOnLatestVersion,
-      task_ids: [[taskId, mapIndex]],
+      task_ids: taskIds,
     },
   });
 
@@ -107,14 +122,17 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
     total_entries: 0,
   };
 
-  // Check if bundle versions are different
   const currentDagBundleVersion = dagDetails?.bundle_version;
-  const taskInstanceDagVersionBundleVersion = taskInstance.dag_version?.bundle_version;
-  const bundleVersionsDiffer = currentDagBundleVersion !== taskInstanceDagVersionBundleVersion;
   const shouldShowBundleVersionOption =
-    bundleVersionsDiffer &&
-    taskInstanceDagVersionBundleVersion !== null &&
-    taskInstanceDagVersionBundleVersion !== "";
+    currentDagBundleVersion !== null && currentDagBundleVersion !== "";
+
+  const dialogTitle = allMapped
+    ? translate("dags:runAndTaskActions.clearAllMapped.title", {
+        type: translate("taskInstance_other"),
+      })
+    : translate("dags:runAndTaskActions.clear.title", {
+        type: translate("taskInstance_one"),
+      });
 
   return (
     <>
@@ -123,13 +141,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
           <Dialog.Header>
             <VStack align="start" gap={4}>
               <Heading size="xl">
-                <strong>
-                  {translate("dags:runAndTaskActions.clear.title", {
-                    type: translate("taskInstance_one"),
-                  })}
-                  :
-                </strong>{" "}
-                {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
+                <strong>{dialogTitle}:</strong> {taskId}
               </Heading>
             </VStack>
           </Dialog.Header>
@@ -144,12 +156,12 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                 onChange={setSelectedOptions}
                 options={[
                   {
-                    disabled: taskInstance.logical_date === null,
+                    disabled: allMapped,
                     label: translate("dags:runAndTaskActions.options.past"),
                     value: "past",
                   },
                   {
-                    disabled: taskInstance.logical_date === null,
+                    disabled: allMapped,
                     label: translate("dags:runAndTaskActions.options.future"),
                     value: "future",
                   },
@@ -208,7 +220,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
             dagRunId,
             downstream,
             future,
-            mapIndex,
+            mapIndex: effectiveMapIndex,
             onlyFailed,
             past,
             taskId,
@@ -227,18 +239,30 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
                 include_upstream: upstream,
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
-                task_ids: [[taskId, mapIndex]],
+                task_ids: taskIds,
                 ...(preventRunningTask ? { prevent_running_task: true } : {}),
               },
             });
-            if (note !== taskInstance.note) {
-              mutatePatchTaskInstance({
-                dagId,
-                dagRunId,
-                mapIndex,
-                requestBody: { note },
-                taskId,
-              });
+            if (note !== null && note.length > 0) {
+              if (allMapped) {
+                for (const ti of affectedTasks.task_instances) {
+                  mutatePatchTaskInstance({
+                    dagId,
+                    dagRunId,
+                    mapIndex: ti.map_index,
+                    requestBody: { note },
+                    taskId,
+                  });
+                }
+              } else {
+                mutatePatchTaskInstance({
+                  dagId,
+                  dagRunId,
+                  mapIndex: effectiveMapIndex,
+                  requestBody: { note },
+                  taskId,
+                });
+              }
             }
             onCloseDialog();
           }}

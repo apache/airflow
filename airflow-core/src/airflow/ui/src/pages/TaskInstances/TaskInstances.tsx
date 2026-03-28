@@ -243,7 +243,7 @@ const taskInstanceColumns = ({
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearTaskInstanceButton taskInstance={row.original} />
+        <ClearTaskInstanceButton dagId={row.original.dag_id} dagRunId={row.original.dag_run_id} mapIndex={row.original.map_index} taskId={row.original.task_id} />
         <MarkTaskInstanceAsButton taskInstance={row.original} />
         <DeleteTaskInstanceButton taskInstance={row.original} />
       </Flex>
@@ -351,7 +351,12 @@ export const TaskInstances = () => {
 
   return (
     <>
-      <TaskInstancesFilter />
+      <Flex alignItems="center" justifyContent="space-between">
+        <TaskInstancesFilter />
+        {Boolean(dagId) && Boolean(runId) && Boolean(taskId) ? (
+          <ClearTaskInstanceButton allMapped dagId={dagId as string} dagRunId={runId as string} taskId={taskId as string} />
+        ) : undefined}
+      </Flex>
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}

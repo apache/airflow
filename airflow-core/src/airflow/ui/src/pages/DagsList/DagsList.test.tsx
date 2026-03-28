@@ -20,18 +20,22 @@ import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 
+import i18n from "src/i18n/config";
 import { AppWrapper } from "src/utils/AppWrapper";
 
 describe("Dag Filters", () => {
   it("Filter by selected last run state", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    await waitFor(() => expect(screen.getByText("states.success")).toBeInTheDocument());
-    await waitFor(() => screen.getByText("states.success").click());
+    const successLabel = i18n.t("common:states.success");
+    const failedLabel = i18n.t("common:states.failed");
+
+    await waitFor(() => expect(screen.getByText(successLabel)).toBeInTheDocument());
+    await waitFor(() => screen.getByText(successLabel).click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
-    await waitFor(() => expect(screen.getByText("states.failed")).toBeInTheDocument());
-    await waitFor(() => screen.getByText("states.failed").click());
+    await waitFor(() => expect(screen.getByText(failedLabel)).toBeInTheDocument());
+    await waitFor(() => screen.getByText(failedLabel).click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
   });
 });

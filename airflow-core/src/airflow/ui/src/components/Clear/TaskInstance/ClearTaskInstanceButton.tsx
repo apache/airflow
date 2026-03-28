@@ -22,37 +22,40 @@ import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
-import { ClearGroupTaskInstanceDialog } from "src/components/Clear/TaskInstance/ClearGroupTaskInstanceDialog";
 import { Tooltip } from "src/components/ui";
 
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 
 type Props = {
-  readonly groupTaskInstance?: LightGridTaskInstanceSummary;
+  readonly allMapped?: boolean;
+  readonly dagId: string;
+  readonly dagRunId: string;
   readonly isHotkeyEnabled?: boolean;
-  // Optional: allow parent to handle opening a stable, page-level dialog
+  readonly mapIndex?: number;
   readonly onOpen?: (ti: LightGridTaskInstanceSummary | TaskInstanceResponse) => void;
-  readonly taskInstance?: TaskInstanceResponse;
+  readonly taskId: string;
+  readonly taskInstance?: LightGridTaskInstanceSummary | TaskInstanceResponse;
 };
 
 const ClearTaskInstanceButton = ({
-  groupTaskInstance,
+  allMapped = false,
+  dagId,
+  dagRunId,
   isHotkeyEnabled = false,
+  mapIndex,
   onOpen,
+  taskId,
   taskInstance,
 }: Props) => {
   const { onClose, onOpen: onOpenInternal, open } = useDisclosure();
   const { t: translate } = useTranslation();
-  const isGroup = groupTaskInstance && !taskInstance;
   const useInternalDialog = !Boolean(onOpen);
-
-  const selectedInstance = taskInstance ?? groupTaskInstance;
 
   useHotkeys(
     "shift+c",
     () => {
-      if (onOpen && selectedInstance) {
-        onOpen(selectedInstance);
+      if (onOpen && taskInstance) {
+        onOpen(taskInstance);
       } else {
         onOpenInternal();
       }
@@ -66,17 +69,19 @@ const ClearTaskInstanceButton = ({
         closeDelay={100}
         content={
           isHotkeyEnabled
-            ? translate("dags:runAndTaskActions.clear.buttonTooltip")
-            : translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_one") })
+            ? translate(`dags:runAndTaskActions.${allMapped ? "clearAllMapped" : "clear"}.buttonTooltip`)
+            : translate(`dags:runAndTaskActions.${allMapped ? "clearAllMapped" : "clear"}.button`, {
+                type: translate("taskInstance_one"),
+              })
         }
         openDelay={100}
       >
         <IconButton
-          aria-label={translate("dags:runAndTaskActions.clear.button", {
+          aria-label={translate(`dags:runAndTaskActions.${allMapped ? "clearAllMapped" : "clear"}.button`, {
             type: translate("taskInstance_one"),
           })}
           colorPalette="brand"
-          onClick={() => (onOpen && selectedInstance ? onOpen(selectedInstance) : onOpenInternal())}
+          onClick={() => (onOpen && taskInstance ? onOpen(taskInstance) : onOpenInternal())}
           size="md"
           variant="ghost"
         >
@@ -84,12 +89,16 @@ const ClearTaskInstanceButton = ({
         </IconButton>
       </Tooltip>
 
-      {useInternalDialog && open && isGroup ? (
-        <ClearGroupTaskInstanceDialog onClose={onClose} open={open} taskInstance={groupTaskInstance} />
-      ) : undefined}
-
-      {useInternalDialog && open && !isGroup && taskInstance ? (
-        <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
+      {useInternalDialog && open ? (
+        <ClearTaskInstanceDialog
+          allMapped={allMapped}
+          dagId={dagId}
+          dagRunId={dagRunId}
+          mapIndex={mapIndex}
+          onClose={onClose}
+          open={open}
+          taskId={taskId}
+        />
       ) : undefined}
     </>
   );
