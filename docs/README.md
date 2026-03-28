@@ -31,7 +31,7 @@
 - [Publishing changes manually](#publishing-changes-manually)
 - [Fixing historical documentation](#fixing-historical-documentation)
   - [Manually publishing documentation directly to S3](#manually-publishing-documentation-directly-to-s3)
-  - [Manually publishing documentation via `apache-airflow-site-archive` repo](#manually-publishing-documentation-via-apache-airflow-site-archive-repo)
+  - [Manually publishing documentation via `airflow-site-archive` repo](#manually-publishing-documentation-via-airflow-site-archive-repo)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -293,18 +293,18 @@ breeze release-management publish-docs-to-s3 --source-dir-path /tmp/airflow-site
  --exclude-docs "<package_id1_to_exclude> <package_id2_to_exclude>" [--dry-run]
 ```
 
-## Manually publishing documentation via `apache-airflow-site-archive` repo
+## Manually publishing documentation via `airflow-site-archive` repo
 
 If you do not have S3 credentials and want to be careful about publishing the documentation, you can also
-use publishing via `apache-airflow-site-archive` repository. This is a little more complex, but it allows
+use publishing via `airflow-site-archive` repository. This is a little more complex, but it allows
 you to publish documentation without having S3 credentials.
 
 The process is as follows:
 
-1. Run `Sync s3 to GitHub` workflow in `apache-airflow-site-archive` repository. This will download the
+1. Run `Sync s3 to GitHub` workflow in `airflow-site-archive` repository. This will download the
    latest version of the documentation from S3 to `airflow-site-archive` repository (this should normally not
    be needed, if automated synchronization works).
-2. Checkout the `apache-airflow-site-archive` repository and create a branch for your changes.
+2. Checkout the `airflow-site-archive` repository and create a branch for your changes.
 3. Build documentation locally in `apache-airflow` repo with any cherry-picks and modifications you need, and
    publish the docs to the checked out `airflow-site-archive` branch.
 
@@ -313,9 +313,9 @@ breeze build-docs "<package_id1>" "<package_id2>" --docs-only
 breeze release-management publish-docs --override-versioned --airflow-site-directory <PATH_TO_THE_ARCHIVE_REPO>
 ```
 
-4. Commit the changes to `apache-airflow-site-archive` repository and push them to `some` branch of the
+4. Commit the changes to `airflow-site-archive` repository and push them to `some` branch of the
    repository.
-5. Run `Sync GitHub to S3` workflow in `apache-airflow-site-archive` repository. This will upload the modified
+5. Run `Sync GitHub to S3` workflow in `airflow-site-archive` repository. This will upload the modified
    documentation to S3 bucket. You can choose whether to sync the changes to `live` or `staging` bucket.
    The default is `live`. You can also specify which folders to sync - by default, all modified folders are synced.
 6. After you synchronize the changes to S3, the Sync `S3 to GitHub` workflow will be triggered
