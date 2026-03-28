@@ -235,8 +235,12 @@ def _load_skills(
     JSON is the fast path for agents at runtime. RST is the source of truth
     and is used as fallback when JSON hasn't been generated yet (e.g. during
     development before running ``--generate``).
+
+    The JSON fast path is only used when the caller is using the default RST
+    paths. If a caller overrides ``rst_paths`` (e.g. in tests), RST is always
+    parsed so the custom paths are respected.
     """
-    if json_path.exists():
+    if rst_paths is AGENT_SKILLS_RST_FILES and json_path.exists():
         return json.loads(json_path.read_text(encoding="utf-8"))
     return _parse_skills_from_files(rst_paths)
 
