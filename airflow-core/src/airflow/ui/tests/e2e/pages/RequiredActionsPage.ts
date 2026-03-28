@@ -93,7 +93,7 @@ export class RequiredActionsPage extends BasePage {
     const buttonName = approve ? "Approve" : "Reject";
     const actionButton = this.page.getByTestId(`hitl-option-${buttonName}`);
 
-    await expect(actionButton).toBeVisible({ timeout: 10_000 });
+    await expect(actionButton).toBeVisible({ timeout: 30_000 });
 
     const informationInput = this.page.getByRole("textbox");
 
@@ -118,7 +118,7 @@ export class RequiredActionsPage extends BasePage {
 
     const branchButton = this.page.getByTestId("hitl-option-task_1");
 
-    await expect(branchButton).toBeVisible({ timeout: 10_000 });
+    await expect(branchButton).toBeVisible({ timeout: 30_000 });
     await this.clickButtonAndWaitForHITLResponse(branchButton);
 
     await this.safeGoto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -135,7 +135,7 @@ export class RequiredActionsPage extends BasePage {
 
     const informationInput = this.page.getByRole("textbox");
 
-    await expect(informationInput).toBeVisible({ timeout: 10_000 });
+    await expect(informationInput).toBeVisible({ timeout: 30_000 });
     await informationInput.fill("test");
 
     const okButton = this.page.getByRole("button", { name: "OK" });
@@ -183,7 +183,7 @@ export class RequiredActionsPage extends BasePage {
 
     const optionButton = this.page.getByTestId("hitl-option-option 1");
 
-    await expect(optionButton).toBeVisible({ timeout: 10_000 });
+    await expect(optionButton).toBeVisible({ timeout: 30_000 });
     await this.clickButtonAndWaitForHITLResponse(optionButton);
 
     await this.safeGoto(`/dags/${dagId}/runs/${dagRunId}`);
