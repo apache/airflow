@@ -27,6 +27,7 @@ import {
   useTaskServiceGetTask,
 } from "openapi/queries";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
+import { DagDeactivatedBadge } from "src/components/DagDeactivatedBadge";
 import { StateBadge } from "src/components/StateBadge";
 import { TogglePause } from "src/components/TogglePause";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -66,12 +67,16 @@ export const DagBreadcrumb = () => {
       {
         label: dag?.dag_display_name ?? dagId,
         labelExtra: (
-          <TogglePause
-            dagDisplayName={dag?.dag_display_name}
-            dagId={dagId}
-            isPaused={Boolean(dag?.is_paused)}
-            skipConfirm
-          />
+          dag?.is_stale ? (
+            <DagDeactivatedBadge />
+          ) : (
+            <TogglePause
+              dagDisplayName={dag?.dag_display_name}
+              dagId={dagId}
+              isPaused={Boolean(dag?.is_paused)}
+              skipConfirm
+            />
+          )
         ),
         title: translate("dag_one"),
         value: `/dags/${dagId}`,

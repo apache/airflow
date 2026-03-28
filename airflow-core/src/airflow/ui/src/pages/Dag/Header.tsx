@@ -24,6 +24,7 @@ import { useParams, Link as RouterLink } from "react-router-dom";
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
+import { DagDeactivatedBadge } from "src/components/DagDeactivatedBadge";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
@@ -89,15 +90,6 @@ export const Header = ({
         ) : undefined,
     },
     {
-      label: translate("dagDetails.nextRun"),
-      value: Boolean(dag?.next_dagrun_run_after) ? (
-        <DagRunInfo
-          logicalDate={dag?.next_dagrun_logical_date}
-          runAfter={dag?.next_dagrun_run_after as string}
-        />
-      ) : undefined,
-    },
-    {
       label: translate("dagDetails.maxActiveRuns"),
       value:
         dag?.max_active_runs === undefined
@@ -117,6 +109,18 @@ export const Header = ({
       value: <DagVersion version={dag?.latest_dag_version} />,
     },
   ];
+
+  if (!dag?.is_stale) {
+    stats.splice(2, 0, {
+      label: translate("dagDetails.nextRun"),
+      value: Boolean(dag?.next_dagrun_run_after) ? (
+        <DagRunInfo
+          logicalDate={dag?.next_dagrun_logical_date}
+          runAfter={dag?.next_dagrun_run_after as string}
+        />
+      ) : undefined,
+    });
+  }
 
   return (
     <HeaderCard
@@ -140,8 +144,12 @@ export const Header = ({
       icon={<DagIcon />}
       stats={stats}
       subTitle={
-        dag !== undefined && (
+        dag?.is_stale ? (
+          <DagDeactivatedBadge />
+        ) : (
+          dag !== undefined && (
           <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
+          )
         )
       }
       title={dag?.dag_display_name ?? dagId}
