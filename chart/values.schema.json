@@ -31,7 +31,7 @@
             "x-docsSection": "Common"
         },
         "revisionHistoryLimit": {
-            "description": "Global number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit",
+            "description": "Global number of old ReplicaSets to retain. Can be overridden by each deployment's `revisionHistoryLimit`",
             "type": [
                 "integer",
                 "null"
@@ -1802,7 +1802,7 @@
                             "default": 60
                         },
                         "command": {
-                            "description": "Command for livenessProbe (deprecated, use `workers.celery.livenessProbe.command` instead)",
+                            "description": "Command for LivenessProbe (deprecated, use `workers.celery.livenessProbe.command` instead)",
                             "type": [
                                 "array",
                                 "null"
@@ -2757,7 +2757,7 @@
                                     "default": null
                                 },
                                 "command": {
-                                    "description": "Command for livenessProbe",
+                                    "description": "Command for LivenessProbe",
                                     "type": [
                                         "array",
                                         "null"
@@ -3646,7 +3646,7 @@
                             "default": 60
                         },
                         "command": {
-                            "description": "Command for livenessProbe",
+                            "description": "Command for LivenessProbe",
                             "type": [
                                 "array",
                                 "null"
@@ -3687,7 +3687,7 @@
                             "default": 10
                         },
                         "command": {
-                            "description": "Command for livenessProbe",
+                            "description": "Command for LivenessProbe",
                             "type": [
                                 "array",
                                 "null"
@@ -3708,7 +3708,7 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
@@ -4245,7 +4245,7 @@
                             "default": 60
                         },
                         "command": {
-                            "description": "Command for livenessProbe",
+                            "description": "Command for LivenessProbe",
                             "type": [
                                 "array",
                                 "null"
@@ -4266,7 +4266,7 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
@@ -4908,7 +4908,7 @@
                             "default": 60
                         },
                         "command": {
-                            "description": "Command for livenessProbe",
+                            "description": "Command for LivenessProbe",
                             "type": [
                                 "array",
                                 "null"
@@ -4929,7 +4929,7 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
@@ -6227,7 +6227,7 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
@@ -6998,7 +6998,7 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
@@ -7762,7 +7762,7 @@
                     }
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
@@ -8275,7 +8275,7 @@
                     }
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
@@ -8620,7 +8620,7 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
