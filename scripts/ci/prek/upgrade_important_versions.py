@@ -37,6 +37,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 
@@ -98,6 +99,20 @@ for file in PREK_DIR_PATH.rglob("*"):
         FILES_TO_UPDATE.append((file, False))
 
 
+# Synchroonize with scripts/ci/prek/upgrade_important_versions.py
+COOLDOWN_DAYS = 4
+
+
+def _is_version_within_cooldown(releases: dict, version: str) -> bool:
+    """Return True if the given version was uploaded within the cooldown period."""
+    files = releases.get(version, [])
+    if not files:
+        return False
+    upload_time = datetime.fromisoformat(files[0]["upload_time_iso_8601"].replace("Z", "+00:00"))
+    cutoff = datetime.now(timezone.utc) - timedelta(days=COOLDOWN_DAYS)
+    return upload_time > cutoff
+
+
 def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
     if not should_upgrade:
         return ""
@@ -108,10 +123,20 @@ def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
     )
     response.raise_for_status()  # Ensure we got a successful response
     data = response.json()
-    if os.environ.get(f"UPGRADE_{package_name.upper()}_INCLUDE_PRE_RELEASES", ""):
-        latest_version = str(sorted([Version(version) for version in data["releases"].keys()])[-1])
+    releases = data["releases"]
+    include_pre = os.environ.get(f"UPGRADE_{package_name.upper()}_INCLUDE_PRE_RELEASES", "")
+    if include_pre:
+        sorted_versions = sorted([Version(v) for v in releases.keys()])
     else:
-        latest_version = data["info"]["version"]  # The version info is under the 'info' key
+        sorted_versions = sorted([Version(v) for v in releases.keys() if not Version(v).is_prerelease])
+    # Skip versions released within the cooldown period
+    latest_version = ""
+    for version in reversed(sorted_versions):
+        if not _is_version_within_cooldown(releases, str(version)):
+            latest_version = str(version)
+            break
+    if not latest_version:
+        latest_version = data["info"]["version"]
     if VERBOSE:
         console.print(f"[bright_blue]Latest version for {package_name}: {latest_version}")
     return latest_version

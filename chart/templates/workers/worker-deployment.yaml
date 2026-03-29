@@ -111,7 +111,7 @@ spec:
         {{- if ne .Values.workers.name "default" }}
         worker-set: {{ .Values.workers.name }}
         {{- end }}
-        {{- if or (.Values.labels) (.Values.workers.labels) }}
+        {{- if or .Values.labels .Values.workers.labels }}
           {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
@@ -256,7 +256,7 @@ spec:
               {{- tpl (toYaml .Values.workers.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
         {{- end }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraInitContainers }}
@@ -345,7 +345,7 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- end }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
         {{- if and $persistence .Values.workers.logGroomerSidecar.enabled }}
