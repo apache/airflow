@@ -28,7 +28,7 @@ Source files scanned (see AGENT_SKILLS_RST_FILES):
   contributing-docs/testing/unit_tests.rst
 
 Generated artifact (see AGENT_SKILLS_JSON):
-  .claude/skills/airflow-contributor/assets/skills.json
+  .github/skills/airflow-contributor/assets/skills.json
 
 The JSON is regenerated with ``--generate`` and validated against the RST with
 ``--check`` (run as a prek hook so drift is caught at commit time).
@@ -79,7 +79,7 @@ _DIRECTIVE_RE = re.compile(r"^\.\.\s+agent-skill::\s*$")
 _OPTION_RE = re.compile(r"^\s+:([^:]+):\s+(.+)$")
 
 # Committed JSON artifact — agent-facing interface generated from the RST sources.
-AGENT_SKILLS_JSON: Path = REPO_ROOT / ".claude" / "skills" / "airflow-contributor" / "assets" / "skills.json"
+AGENT_SKILLS_JSON: Path = REPO_ROOT / ".github" / "skills" / "airflow-contributor" / "assets" / "skills.json"
 
 
 # ---------------------------------------------------------------------------
