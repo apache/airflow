@@ -24,9 +24,9 @@ import { useParams, Link as RouterLink } from "react-router-dom";
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
-import { DagDeactivatedBadge } from "src/components/DagDeactivatedBadge";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
+import { DagDeactivatedBadge } from "src/components/DagDeactivatedBadge";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
@@ -148,7 +148,7 @@ export const Header = ({
           <DagDeactivatedBadge />
         ) : (
           dag !== undefined && (
-          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
+            <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
           )
         )
       }

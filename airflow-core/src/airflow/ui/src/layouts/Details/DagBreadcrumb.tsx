@@ -66,17 +66,15 @@ export const DagBreadcrumb = () => {
     [
       {
         label: dag?.dag_display_name ?? dagId,
-        labelExtra: (
-          dag?.is_stale ? (
-            <DagDeactivatedBadge />
-          ) : (
-            <TogglePause
-              dagDisplayName={dag?.dag_display_name}
-              dagId={dagId}
-              isPaused={Boolean(dag?.is_paused)}
-              skipConfirm
-            />
-          )
+        labelExtra: dag?.is_stale ? (
+          <DagDeactivatedBadge />
+        ) : (
+          <TogglePause
+            dagDisplayName={dag?.dag_display_name}
+            dagId={dagId}
+            isPaused={Boolean(dag?.is_paused)}
+            skipConfirm
+          />
         ),
         title: translate("dag_one"),
         value: `/dags/${dagId}`,

@@ -114,7 +114,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <DagBreadcrumb />
           <Flex gap={1}>
             <SearchDagsButton />
-            {dag === undefined || dag.is_stale ? undefined : (
+            {dag === undefined ? undefined : (
               <TriggerDAGButton
                 allowedRunTypes={dag.allowed_run_types}
                 dagDisplayName={dag.dag_display_name}
