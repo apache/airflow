@@ -138,9 +138,9 @@ class MySqlHook(DbApiHook):
                 import MySQLdb.cursors
             except ImportError:
                 raise RuntimeError(
-                    "You do not have `mysqlclient` package installed. "
-                    "Please install it with `pip install mysqlclient` and make sure you have system "
-                    "mysql libraries installed, as well as well as `pkg-config` system package "
+                    "You do not have `mysqlclient` package installed."
+                    "Please install it with `pip install mysqlclient` and make sure you have system"
+                    "mysql libraries installed, as well as well as `pkg-config` system package"
                     "installed in case you see compilation error during installation."
                 )
 
