@@ -2278,6 +2278,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         cached_get_dag: Callable[[DagRun], SerializedDAG | None] = lru_cache()(
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
+        asset_evaluator = AssetEvaluator(session)
 
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
@@ -2320,47 +2321,33 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
             # For AssetAndTimeSchedule, defer starting until all required assets are queued.
             if isinstance(dag.timetable, AssetAndTimeSchedule):
-                # Count required assets for this Dag's schedule
-                required_count = (
-                    session.scalar(
-                        select(func.count())
-                        .select_from(DagScheduleAssetReference)
-                        .where(DagScheduleAssetReference.dag_id == dag_id)
+                queued_adrqs = session.scalars(
+                    with_row_locks(
+                        select(AssetDagRunQueue)
+                        .where(AssetDagRunQueue.target_dag_id == dag_id)
+                        .options(joinedload(AssetDagRunQueue.asset)),
+                        of=AssetDagRunQueue,
+                        session=session,
+                        skip_locked=True,
                     )
-                    or 0
-                )
+                ).all()
+                statuses = {
+                    SerializedAssetUniqueKey.from_asset(record.asset): True for record in queued_adrqs
+                }
 
-                if required_count > 0:
-                    ready_count = (
-                        session.scalar(
-                            select(func.count())
-                            .select_from(DagScheduleAssetReference)
-                            .join(
-                                AssetDagRunQueue,
-                                and_(
-                                    DagScheduleAssetReference.asset_id == AssetDagRunQueue.asset_id,
-                                    DagScheduleAssetReference.dag_id == AssetDagRunQueue.target_dag_id,
-                                ),
-                            )
-                            .where(DagScheduleAssetReference.dag_id == dag_id)
+                if not asset_evaluator.run(dag.timetable.asset_condition, statuses=statuses):
+                    self.log.debug("Deferring DagRun until assets ready; dag_id=%s run_id=%s", dag_id, run_id)
+                    # Do not increment active run counts; we didn't start it.
+                    continue
+
+                if queued_adrqs:
+                    # Consume only the rows selected for this DagRun to avoid races with new asset events.
+                    adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
+                    session.execute(
+                        delete(AssetDagRunQueue).where(
+                            tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
                         )
-                        or 0
                     )
-
-                    if ready_count < required_count:
-                        # Not all assets are present; skip starting this run for now.
-                        self.log.debug(
-                            "Deferring DagRun until assets ready; dag_id=%s run_id=%s (ready=%s required=%s)",
-                            dag_id,
-                            run_id,
-                            ready_count,
-                            required_count,
-                        )
-                        # Do not increment active run counts; we didn't start it.
-                        continue
-
-                    # Consume queued asset events for this DAG so the next run gates on new events.
-                    session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_id))
 
             active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
             _update_state(dag, dag_run)

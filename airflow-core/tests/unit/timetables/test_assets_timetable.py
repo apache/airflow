@@ -28,10 +28,19 @@ from sqlalchemy import select
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Asset, AssetAll, AssetAny, AssetOrTimeSchedule as SdkAssetOrTimeSchedule
+from airflow.sdk import (
+    Asset,
+    AssetAll,
+    AssetAndTimeSchedule as SdkAssetAndTimeSchedule,
+    AssetAny,
+    AssetOrTimeSchedule as SdkAssetOrTimeSchedule,
+)
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetAny
 from airflow.serialization.serialized_objects import DagSerialization
-from airflow.timetables.assets import AssetAndTimeSchedule, AssetOrTimeSchedule as CoreAssetOrTimeSchedule
+from airflow.timetables.assets import (
+    AssetAndTimeSchedule as CoreAssetAndTimeSchedule,
+    AssetOrTimeSchedule as CoreAssetOrTimeSchedule,
+)
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
@@ -123,14 +132,23 @@ def sdk_asset_timetable(test_timetable, test_assets) -> SdkAssetOrTimeSchedule:
 
 
 @pytest.fixture
-def asset_and_time_timetable(test_timetable: MockTimetable, test_assets: list[Asset]) -> AssetAndTimeSchedule:
+def sdk_asset_and_time_timetable(
+    test_timetable: MockTimetable, test_assets: list[Asset]
+) -> SdkAssetAndTimeSchedule:
+    return SdkAssetAndTimeSchedule(timetable=test_timetable, assets=test_assets)
+
+
+@pytest.fixture
+def core_asset_and_time_timetable(
+    test_timetable: MockTimetable, test_assets: list[Asset]
+) -> CoreAssetAndTimeSchedule:
     """
     Pytest fixture for creating an AssetAndTimeSchedule object.
 
     :param test_timetable: The test timetable instance.
     :param test_assets: A list of Asset instances.
     """
-    return AssetAndTimeSchedule(timetable=test_timetable, assets=test_assets)
+    return CoreAssetAndTimeSchedule(timetable=test_timetable, assets=test_assets)
 
 
 @pytest.fixture
@@ -171,12 +189,29 @@ def test_serialization(sdk_asset_timetable: SdkAssetOrTimeSchedule, monkeypatch:
     }
 
 
-def test_serialization_and(asset_and_time_timetable: AssetAndTimeSchedule, monkeypatch: Any) -> None:
+def test_serialization_and(sdk_asset_and_time_timetable: SdkAssetAndTimeSchedule, monkeypatch: Any) -> None:
     """Tests serialization of AssetAndTimeSchedule."""
-    monkeypatch.setattr("airflow.serialization.encoders.encode_timetable", serialize_timetable)
-    serialized = asset_and_time_timetable.serialize()
-    assert serialized["timetable"] == "serialized_timetable"
-    assert "asset_condition" in serialized
+    from airflow.serialization.encoders import _serializer
+
+    monkeypatch.setattr(
+        "airflow.serialization.encoders.encode_timetable", lambda x: "mock_serialized_timetable"
+    )
+    serialized = _serializer.serialize_timetable(sdk_asset_and_time_timetable)
+    assert serialized == {
+        "timetable": "mock_serialized_timetable",
+        "asset_condition": {
+            "__type": "asset_all",
+            "objects": [
+                {
+                    "__type": "asset",
+                    "name": "test_asset",
+                    "uri": "test://asset/",
+                    "group": "asset",
+                    "extra": {},
+                }
+            ],
+        },
+    }
 
 
 def test_deserialization(monkeypatch: Any, core_asset_timetable: CoreAssetOrTimeSchedule) -> None:
@@ -205,7 +240,9 @@ def test_deserialization(monkeypatch: Any, core_asset_timetable: CoreAssetOrTime
     assert deserialized == core_asset_timetable
 
 
-def test_deserialization_and(monkeypatch: Any) -> None:
+def test_deserialization_and(
+    monkeypatch: Any, core_asset_and_time_timetable: CoreAssetAndTimeSchedule
+) -> None:
     """Tests deserialization of AssetAndTimeSchedule."""
     monkeypatch.setattr("airflow.serialization.decoders.decode_timetable", lambda x: MockTimetable())
     mock_serialized_data = {
@@ -223,8 +260,15 @@ def test_deserialization_and(monkeypatch: Any) -> None:
             ],
         },
     }
-    deserialized = AssetAndTimeSchedule.deserialize(mock_serialized_data)
-    assert isinstance(deserialized, AssetAndTimeSchedule)
+    deserialized = CoreAssetAndTimeSchedule.deserialize(mock_serialized_data)
+    assert isinstance(deserialized, CoreAssetAndTimeSchedule)
+    assert isinstance(deserialized.timetable, MockTimetable)
+    assert isinstance(deserialized.asset_condition, SerializedAssetAll)
+    assert len(deserialized.asset_condition.objects) == 1
+    asset = deserialized.asset_condition.objects[0]
+    assert isinstance(asset, SerializedAsset)
+    assert asset.name == "test_asset"
+    assert asset.uri == "test://asset/"
 
 
 def test_infer_manual_data_interval(core_asset_timetable: CoreAssetOrTimeSchedule) -> None:
@@ -238,9 +282,9 @@ def test_infer_manual_data_interval(core_asset_timetable: CoreAssetOrTimeSchedul
     assert result == DataInterval.exact(run_after)
 
 
-def test_infer_manual_data_interval_and(asset_and_time_timetable: AssetAndTimeSchedule) -> None:
+def test_infer_manual_data_interval_and(core_asset_and_time_timetable: CoreAssetAndTimeSchedule) -> None:
     run_after = DateTime.now()
-    result = asset_and_time_timetable.infer_manual_data_interval(run_after=run_after)
+    result = core_asset_and_time_timetable.infer_manual_data_interval(run_after=run_after)
     assert isinstance(result, DataInterval)
 
 
@@ -261,10 +305,10 @@ def test_next_dagrun_info(core_asset_timetable: CoreAssetOrTimeSchedule) -> None
     )
 
 
-def test_next_dagrun_info_and(asset_and_time_timetable: AssetAndTimeSchedule) -> None:
+def test_next_dagrun_info_and(core_asset_and_time_timetable: CoreAssetAndTimeSchedule) -> None:
     last_interval = DataInterval.exact(DateTime.now())
     restriction = TimeRestriction(earliest=DateTime.now(), latest=None, catchup=True)
-    result = asset_and_time_timetable.next_dagrun_info(
+    result = core_asset_and_time_timetable.next_dagrun_info(
         last_automated_data_interval=last_interval, restriction=restriction
     )
     assert result is None or isinstance(result, DagRunInfo)
@@ -287,8 +331,8 @@ def test_generate_run_id(core_asset_timetable: CoreAssetOrTimeSchedule) -> None:
     assert run_id == "manual__2025-06-07T08:09:00+00:00"
 
 
-def test_generate_run_id_and(asset_and_time_timetable: AssetAndTimeSchedule) -> None:
-    run_id = asset_and_time_timetable.generate_run_id(
+def test_generate_run_id_and(core_asset_and_time_timetable: CoreAssetAndTimeSchedule) -> None:
+    run_id = core_asset_and_time_timetable.generate_run_id(
         run_type=DagRunType.MANUAL,
         extra_args="test",
         logical_date=DateTime.now(),

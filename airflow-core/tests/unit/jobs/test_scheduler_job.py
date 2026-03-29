@@ -100,7 +100,9 @@ from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.timetables.assets import AssetAndTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval
+from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
@@ -8998,6 +9000,122 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
             .where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
         )
         assert running_count == 2
+
+
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_start_queued_dagruns_asset_and_time_uses_asset_evaluator(session: Session, dag_maker):
+    asset_1 = Asset(uri="test://asset-and-time-or-1", name="asset-and-time-or-1")
+    asset_2 = Asset(uri="test://asset-and-time-or-2", name="asset-and-time-or-2")
+    with dag_maker(
+        dag_id="asset-and-time-uses-evaluator",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=asset_1 | asset_2,
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+
+    logical_date = timezone.utcnow() - datetime.timedelta(minutes=1)
+    dag_run = dag_maker.create_dagrun(
+        run_id="asset_and_time_queued",
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=logical_date,
+        data_interval=DataInterval.exact(logical_date),
+        session=session,
+    )
+    asset_1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_1.uri))
+    session.add(
+        AssetDagRunQueue(
+            asset_id=asset_1_id,
+            target_dag_id=dag_run.dag_id,
+            created_at=timezone.utcnow(),
+        )
+    )
+    session.flush()
+
+    job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    job_runner._start_queued_dagruns(session)
+    session.flush()
+
+    dag_run = session.get(DagRun, dag_run.id)
+    assert dag_run is not None
+    assert dag_run.state == DagRunState.RUNNING
+
+
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_start_queued_dagruns_asset_and_time_deletes_only_selected_adrq_rows(session: Session, dag_maker):
+    asset_1 = Asset(uri="test://asset-and-time-selected-1", name="asset-and-time-selected-1")
+    asset_2 = Asset(uri="test://asset-and-time-selected-2", name="asset-and-time-selected-2")
+    with dag_maker(
+        dag_id="asset-and-time-delete-selected",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=asset_1 | asset_2,
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+
+    logical_date = timezone.utcnow() - datetime.timedelta(minutes=1)
+    dag_run = dag_maker.create_dagrun(
+        run_id="asset_and_time_selected_rows",
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=logical_date,
+        data_interval=DataInterval.exact(logical_date),
+        session=session,
+    )
+    asset_1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_1.uri))
+    asset_2_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_2.uri))
+    session.add_all(
+        [
+            AssetDagRunQueue(
+                asset_id=asset_1_id,
+                target_dag_id=dag_run.dag_id,
+                created_at=timezone.utcnow(),
+            ),
+            AssetDagRunQueue(
+                asset_id=asset_2_id,
+                target_dag_id=dag_run.dag_id,
+                created_at=timezone.utcnow(),
+            ),
+        ]
+    )
+    session.flush()
+
+    job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+    def _lock_only_selected_row(query, **_):
+        if query.column_descriptions and query.column_descriptions[0].get("entity") is AssetDagRunQueue:
+            return query.where(AssetDagRunQueue.asset_id == asset_1_id)
+        return query
+
+    with patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=_lock_only_selected_row):
+        job_runner._start_queued_dagruns(session)
+
+    dag_run = session.get(DagRun, dag_run.id)
+    assert dag_run is not None
+    assert dag_run.state == DagRunState.RUNNING
+
+    adrq_1 = session.scalars(
+        select(AssetDagRunQueue).where(
+            AssetDagRunQueue.target_dag_id == dag_run.dag_id,
+            AssetDagRunQueue.asset_id == asset_1_id,
+        )
+    ).one_or_none()
+    assert adrq_1 is None
+
+    adrq_2 = session.scalars(
+        select(AssetDagRunQueue).where(
+            AssetDagRunQueue.target_dag_id == dag_run.dag_id,
+            AssetDagRunQueue.asset_id == asset_2_id,
+        )
+    ).one_or_none()
+    assert adrq_2 is not None
 
 
 class TestSchedulerJobQueriesCount:

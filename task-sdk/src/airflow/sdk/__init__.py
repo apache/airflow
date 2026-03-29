@@ -25,6 +25,7 @@ __all__ = [
     "AssetAlias",
     "AssetAll",
     "AssetAny",
+    "AssetAndTimeSchedule",
     "AssetOrTimeSchedule",
     "AssetWatcher",
     "AsyncCallback",
@@ -153,6 +154,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
+        AssetAndTimeSchedule,
         AssetOrTimeSchedule,
         PartitionedAssetTimetable,
     )
@@ -181,6 +183,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",
+    "AssetAndTimeSchedule": ".definitions.timetables.assets",
     "AssetOrTimeSchedule": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
     "AsyncCallback": ".definitions.callback",

@@ -32,6 +32,7 @@ from airflow.sdk import (
     Asset,
     AssetAlias,
     AssetAll,
+    AssetAndTimeSchedule,
     AssetAny,
     AssetOrTimeSchedule,
     ChainMapper,
@@ -281,6 +282,7 @@ class _Serializer:
     """Serialization logic."""
 
     BUILTIN_TIMETABLES: dict[type, str] = {
+        AssetAndTimeSchedule: "airflow.timetables.assets.AssetAndTimeSchedule",
         AssetOrTimeSchedule: "airflow.timetables.assets.AssetOrTimeSchedule",
         AssetTriggeredTimetable: "airflow.timetables.simple.AssetTriggeredTimetable",
         ContinuousTimetable: "airflow.timetables.simple.ContinuousTimetable",
@@ -377,6 +379,13 @@ class _Serializer:
             "timezone": encode_timezone(representitive.timezone),
             "interval": encode_interval(representitive.interval),
             "run_immediately": encode_run_immediately(representitive.run_immediately),
+        }
+
+    @serialize_timetable.register
+    def _(self, timetable: AssetAndTimeSchedule) -> dict[str, Any]:
+        return {
+            "asset_condition": encode_asset_like(timetable.asset_condition),
+            "timetable": encode_timetable(timetable.timetable),
         }
 
     @serialize_timetable.register
