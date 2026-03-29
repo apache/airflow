@@ -447,6 +447,7 @@ uv tool install -e ./dev/breeze
     We sync this new branch to the stable branch so that people would continue to backport PRs to the test branch
     while the RC is being voted. The new branch must be in sync with where you cut it off from the test branch.
 
+- Switch to the new branch in .github/workflows/ci-notification.yml `workflow-status` matrix
 - Set the Airflow version in `airflow-core/src/airflow/__init__.py` (without the RC tag).
 - Set the Task SDK version in `task-sdk/src/airflow/sdk/__init__.py` (without the RC tag)
 - Those two steps below are temporary - until we finally split task-sdk and airflow-core:
