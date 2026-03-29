@@ -91,6 +91,11 @@ def get_gantt_data(
             if start_date is not None
             else []
         ),
+        *(
+            [TaskInstance.start_date <= end_date]
+            if end_date is not None
+            else []
+        ),
     )
 
     history_tis = select(
@@ -107,6 +112,11 @@ def get_gantt_data(
         *(
             [or_(TaskInstanceHistory.end_date >= start_date, TaskInstanceHistory.end_date.is_(None))]
             if start_date is not None
+            else []
+        ),
+        *(
+            [TaskInstanceHistory.start_date <= end_date]
+            if end_date is not None
             else []
         ),
     )
