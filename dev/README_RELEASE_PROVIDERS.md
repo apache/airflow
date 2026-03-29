@@ -583,7 +583,11 @@ email.
 export VOTE_DURATION_IN_HOURS=72
 export IS_SHORTEN_VOTE=$([ $VOTE_DURATION_IN_HOURS -ge 72 ] && echo "false" || echo "true")
 export SHORTEN_VOTE_TEXT="This is a shortened ($VOTE_DURATION_IN_HOURS hours vote) as agreed by policy set it https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm"
-export VOTE_END_TIME=$(LANG=en_US.UTF-8 TZ=UTC date -v+"${VOTE_DURATION_IN_HOURS}"H "+%B %d, %Y %H:%M %p")
+if [ "$OS" = "Darwin" ]; then  # MacOS (BSD date)
+  export VOTE_END_TIME=$(date -u -v "+${VOTE_DURATION_IN_HOURS}H" -v "+10M" +'%Y-%m-%d %H:%M')
+else  # Linux
+  export VOTE_END_TIME=$(date --utc -d "now + $VOTE_DURATION_IN_HOURS hours + 10 minutes" +'%Y-%m-%d %H:%M')
+fi
 export RELEASE_MANAGER_NAME="RELEASE_MANAGER_NAME_HERE"
 export GITHUB_ISSUE_LINK="LINK_TO_GITHUB_ISSUE"
 ```
