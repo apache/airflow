@@ -62,4 +62,23 @@ describe("getHITLParamsDict", () => {
     expect(paramsDict.objectParam?.schema.type).toBe("object");
     expect(paramsDict.objectParam?.value).toEqual({ key: "value", nested: { data: 123 } });
   });
+
+  it.each([
+    { count: 3, description: "3 options renders as buttons (no dropdown)", shouldHaveDropdown: false },
+    { count: 4, description: "4 options renders as dropdown", shouldHaveDropdown: true },
+    { count: 5, description: "5 options renders as dropdown", shouldHaveDropdown: true },
+  ])("$description", ({ count, shouldHaveDropdown }) => {
+    const options = Array.from({ length: count }, (_, idx) => `Option${idx + 1}`);
+    const hitlDetail = createMockHITLDetail({ defaults: [options[0] ?? "Option1"], options });
+
+    const searchParams = new URLSearchParams();
+    const paramsDict = getHITLParamsDict(hitlDetail, mockTranslate, searchParams);
+
+    if (shouldHaveDropdown) {
+      expect(paramsDict.chosen_options).toBeDefined();
+      expect(paramsDict.chosen_options?.schema.enum).toEqual(options);
+    } else {
+      expect(paramsDict.chosen_options).toBeUndefined();
+    }
+  });
 });

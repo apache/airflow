@@ -77,7 +77,7 @@ export const getHITLParamsDict = (
     hitlDetail.options.length === 2;
   const shouldRenderOptionDropdown = preloadedHITLOptions.length > 0 && !isApprovalTask;
 
-  if (shouldRenderOptionDropdown || hitlDetail.options.length > 4 || hitlDetail.multiple) {
+  if (shouldRenderOptionDropdown || hitlDetail.options.length >= 4 || hitlDetail.multiple) {
     paramsDict.chosen_options = {
       description: translate("response.optionsDescription"),
       schema: {
