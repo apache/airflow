@@ -65,6 +65,10 @@ dependencies = [
 
 packages = []
 
+[project.scripts]
+# Definition allowing direct execution via `uvx apache-airflow ...`
+apache-airflow = "airflow.__main__:main"
+
 [project.optional-dependencies]
 # Automatically generated airflow optional dependencies (update_airflow_pyproject_toml.py)
 "all-core" = [
