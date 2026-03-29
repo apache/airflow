@@ -2320,7 +2320,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
             # For AssetAndTimeSchedule, defer starting until all required assets are queued.
             if isinstance(dag.timetable, AssetAndTimeSchedule):
-                # Count required assets for this DAG's schedule
+                # Count required assets for this Dag's schedule
                 required_count = (
                     session.scalar(
                         select(func.count())
