@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 
-__all__ = ["HookToolset", "MCPToolset", "SQLToolset"]
+__all__ = ["DataFusionToolset", "HookToolset", "MCPToolset", "MultimodalToolset", "SQLToolset"]
 
 
 def __getattr__(name: str):
@@ -40,4 +40,20 @@ def __getattr__(name: str):
 
             raise AirflowOptionalProviderFeatureException(e)
         return MCPToolset
+    if name == "DataFusionToolset":
+        try:
+            from airflow.providers.common.ai.toolsets.datafusion import DataFusionToolset
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+        return DataFusionToolset
+    if name == "MultimodalToolset":
+        try:
+            from airflow.providers.common.ai.toolsets.multimodal import MultimodalToolset
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+        return MultimodalToolset
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

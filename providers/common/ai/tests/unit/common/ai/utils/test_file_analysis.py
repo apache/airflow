@@ -156,6 +156,27 @@ class TestBuildFileAnalysisRequest:
         assert request.resolved_paths == [str(AIRFLOW_PNG_PATH)]
         assert "attached_as_binary=True" in request.user_content[0]
 
+    def test_can_omit_user_request_header(self, tmp_path):
+        path = tmp_path / "app.log"
+        path.write_text("first line\nsecond line\n", encoding="utf-8")
+
+        request = build_file_analysis_request(
+            file_path=str(path),
+            file_conn_id=None,
+            prompt="Summarize the log",
+            include_user_request=False,
+            multi_modal=False,
+            max_files=20,
+            max_file_size_bytes=1024,
+            max_total_size_bytes=2048,
+            max_text_chars=500,
+            sample_rows=10,
+        )
+
+        assert isinstance(request.user_content, str)
+        assert "User request:" not in request.user_content
+        assert "Resolved files:" in request.user_content
+
     def test_multimodal_required_for_image_and_pdf(self, tmp_path):
         path = tmp_path / "report.pdf"
         path.write_bytes(b"%PDF-1.7")

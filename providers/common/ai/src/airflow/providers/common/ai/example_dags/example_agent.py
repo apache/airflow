@@ -22,6 +22,7 @@ from datetime import timedelta
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.toolsets.hook import HookToolset
+from airflow.providers.common.ai.toolsets.multimodal import MultimodalToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.compat.sdk import dag, task
 
@@ -89,7 +90,38 @@ example_agent_operator_hook()
 
 
 # ---------------------------------------------------------------------------
-# 3. @task.agent decorator with dynamic prompt
+# 3. Multimodal file tools: inspect PDFs/images/files from a file path or prefix
+# ---------------------------------------------------------------------------
+
+
+# [START howto_operator_agent_multimodal]
+@dag
+def example_agent_operator_multimodal():
+    AgentOperator(
+        task_id="document_reviewer",
+        prompt=(
+            "Inspect the available files and summarize the key findings from the report and screenshot. "
+            "Call out any visual anomalies."
+        ),
+        llm_conn_id="pydanticai_default",
+        system_prompt="Use the multimodal file tools before answering.",
+        toolsets=[
+            MultimodalToolset(
+                file_path="s3://analytics/reviews/2024-01-15/",
+                file_conn_id="aws_default",
+                max_files=5,
+            )
+        ],
+    )
+
+
+# [END howto_operator_agent_multimodal]
+
+example_agent_operator_multimodal()
+
+
+# ---------------------------------------------------------------------------
+# 4. @task.agent decorator with dynamic prompt
 # ---------------------------------------------------------------------------
 
 
@@ -118,7 +150,7 @@ example_agent_decorator()
 
 
 # ---------------------------------------------------------------------------
-# 4. Structured output — agent returns a Pydantic model
+# 5. Structured output — agent returns a Pydantic model
 # ---------------------------------------------------------------------------
 
 
@@ -150,7 +182,7 @@ example_agent_structured_output()
 
 
 # ---------------------------------------------------------------------------
-# 5. Chaining: agent output feeds into downstream tasks via XCom
+# 6. Chaining: agent output feeds into downstream tasks via XCom
 # ---------------------------------------------------------------------------
 
 
@@ -181,7 +213,7 @@ example_agent_chain()
 
 
 # ---------------------------------------------------------------------------
-# 6. HITL Review: human approves/rejects agent output before downstream runs
+# 7. HITL Review: human approves/rejects agent output before downstream runs
 # ---------------------------------------------------------------------------
 
 
