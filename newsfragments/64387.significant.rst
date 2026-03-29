@@ -1,0 +1,1 @@
+Add start date and end date filter to the Gantt view with server-side filtering.
