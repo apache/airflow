@@ -1076,7 +1076,9 @@ workers:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
+
   # hostAliases to use in Airflow Celery worker pods and pods created with pod-template-file
+  # (deprecated, use workers.celery.nodeSelector and/or workers.kubernetes.nodeSelector instead)
   # See:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   hostAliases: []
@@ -1390,6 +1392,17 @@ workers:
     # Select certain nodes for Airflow Celery worker pods
     nodeSelector: {}
 
+    # hostAliases to use in Airflow Celery worker pods
+    # See:
+    # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+    hostAliases: []
+    # - ip: "127.0.0.2"
+    #   hostnames:
+    #   - "test.hostname.one"
+    # - ip: "127.0.0.3"
+    #   hostnames:
+    #   - "test.hostname.two"
+
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
@@ -1462,6 +1475,17 @@ workers:
 
     # Select certain nodes for pods created with pod-template-file
     nodeSelector: {}
+
+    # hostAliases to use in pods created with pod-template-file
+    # See:
+    # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+    hostAliases: []
+    # - ip: "127.0.0.2"
+    #   hostnames:
+    #   - "test.hostname.one"
+    # - ip: "127.0.0.3"
+    #   hostnames:
+    #   - "test.hostname.two"
 
 # Airflow scheduler settings
 scheduler:
