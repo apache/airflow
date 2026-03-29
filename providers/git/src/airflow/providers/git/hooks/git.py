@@ -49,6 +49,8 @@ class GitHook(BaseHook):
     * ``ssh_config_file`` — path to a custom SSH config file.
     * ``host_proxy_cmd`` — SSH ProxyCommand string (e.g. for bastion/jump hosts).
     * ``ssh_port`` — non-default SSH port.
+    * ``github_app_id`` — App ID needed for GitHub App Authentication.
+    * ``github_installation_id`` — Installation ID needed for GitHub App Authentication.
     """
 
     conn_name_attr = "git_conn_id"
@@ -76,6 +78,8 @@ class GitHook(BaseHook):
                         "ssh_config_file": "",
                         "host_proxy_cmd": "",
                         "ssh_port": "",
+                        "github_app_id": "",
+                        "github_installation_id": "",
                     }
                 )
             },
@@ -104,10 +108,26 @@ class GitHook(BaseHook):
         self.host_proxy_cmd = extra.get("host_proxy_cmd")
         self.ssh_port: int | None = int(extra["ssh_port"]) if extra.get("ssh_port") else None
 
+        # GitHub App Auth Options
+        self.github_app_id = extra.get("github_app_id")
+        self.github_installation_id: int | None = (
+            int(extra["github_installation_id"]) if extra.get("github_installation_id") else None
+        )
+
         self.env: dict[str, str] = {}
 
         if self.key_file and self.private_key:
             raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
+        if (self.github_app_id and not self.github_installation_id) or (
+            not self.github_app_id and self.github_installation_id
+        ):
+            raise AirflowException(
+                "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
+            )
+        if self.github_app_id and self.github_installation_id and self.private_key:
+            if not self.key_file and not self.private_key:
+                raise AirflowException("Missing inline private_key or key_file for GitHub App Auth")
+            self.user_name, self.auth_token = self._get_github_app_token()
         self._process_git_auth_url()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
@@ -141,6 +161,17 @@ class GitHook(BaseHook):
             parts.append(f"-p {self.ssh_port}")
 
         return " ".join(parts)
+
+    def _get_github_app_token(self):
+        from github import Auth as GithubAuth, Github as GithubClient
+
+        github_auth = GithubAuth.AppAuth(
+            app_id=self.github_app_id, private_key=self.private_key
+        ).get_installation_auth(installation_id=self.github_installation_id)
+
+        # Client is needed to generate the token
+        GithubClient(auth=github_auth)
+        return "x-access-token", github_auth.token
 
     def _process_git_auth_url(self):
         if not isinstance(self.repo_url, str):
