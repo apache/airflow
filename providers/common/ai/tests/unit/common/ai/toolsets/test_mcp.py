@@ -33,6 +33,15 @@ class TestMCPToolsetInit:
         ts = MCPToolset("my_mcp_server", tool_prefix="weather")
         assert ts._tool_prefix == "weather"
 
+    def test_describe_policy_exposure_includes_server_and_prefix(self):
+        ts = MCPToolset("my_mcp_server", tool_prefix="weather")
+
+        exposure = ts.describe_policy_exposure()
+
+        assert exposure.resources[0].category == "mcp_server"
+        assert exposure.resources[1].name == "weather"
+        assert "remote MCP capabilities may change" in exposure.risk_flags[0]
+
 
 class TestMCPToolsetGetServer:
     @patch(_HOOK_PATH, autospec=True)

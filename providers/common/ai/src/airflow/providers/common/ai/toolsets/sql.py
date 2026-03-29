@@ -36,6 +36,7 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from airflow.providers.common.ai.utils.policy_exposure import ResourceExposure, ToolsetExposure
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -146,6 +147,40 @@ class SQLToolset(AbstractToolset[Any]):
     @property
     def id(self) -> str:
         return f"sql-{self._db_conn_id}"
+
+    def describe_policy_exposure(self) -> ToolsetExposure:
+        resources = [
+            ResourceExposure(
+                category="database",
+                name=self._db_conn_id,
+                access_mode="read_write" if self._allow_writes else "read",
+                details={"schema": self._schema} if self._schema else {},
+            )
+        ]
+        for table_name in sorted(self._allowed_tables or ()):
+            resources.append(ResourceExposure(category="table", name=table_name, access_mode="read"))
+
+        risk_flags: list[str] = []
+        if self._allow_writes:
+            risk_flags.append("write-capable SQL access configured")
+        if self._allowed_tables is None:
+            risk_flags.append("SQL access is not limited to an allowed table list")
+
+        summary = "SQL access to configured database tables."
+        if self._allow_writes:
+            summary = "Write-capable SQL access to configured database tables."
+        elif self._allowed_tables:
+            summary = "Read-only SQL access to selected database tables."
+        else:
+            summary = "Read-only SQL access to database tables discoverable by the connection."
+
+        return ToolsetExposure(
+            toolset_type=type(self).__name__,
+            toolset_id=self.id,
+            summary=summary,
+            resources=resources,
+            risk_flags=risk_flags,
+        )
 
     # ------------------------------------------------------------------
     # Lazy hook resolution

@@ -37,6 +37,8 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from airflow.providers.common.ai.utils.policy_exposure import ResourceExposure, ToolsetExposure
+
 if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
 
@@ -118,6 +120,44 @@ class DataFusionToolset(AbstractToolset[Any]):
     def id(self) -> str:
         suffix = "_".join(config.table_name.replace("-", "_") for config in self._datasource_configs)
         return f"sql_datafusion_{suffix}"
+
+    def describe_policy_exposure(self) -> ToolsetExposure:
+        resources: list[ResourceExposure] = []
+        for config in self._datasource_configs:
+            resources.append(
+                ResourceExposure(
+                    category="datasource",
+                    name=config.table_name,
+                    access_mode="read_write" if self._allow_writes else "read",
+                    details={"conn_id": config.conn_id, "format": config.format},
+                )
+            )
+            resources.append(
+                ResourceExposure(
+                    category="uri",
+                    name=config.uri,
+                    access_mode="read_write" if self._allow_writes else "read",
+                    details={"table_name": config.table_name},
+                )
+            )
+
+        risk_flags: list[str] = []
+        if self._allow_writes:
+            risk_flags.append("write-capable DataFusion access configured")
+        if any("*" in config.uri for config in self._datasource_configs):
+            risk_flags.append("broad DataFusion URI exposure configured")
+
+        summary = "DataFusion access to configured datasources."
+        if self._allow_writes:
+            summary = "Write-capable DataFusion access to configured datasources."
+
+        return ToolsetExposure(
+            toolset_type=type(self).__name__,
+            toolset_id=self.id,
+            summary=summary,
+            resources=resources,
+            risk_flags=risk_flags,
+        )
 
     def _get_engine(self) -> DataFusionEngine:
         """Lazily create and configure a DataFusionEngine from *datasource_configs*."""

@@ -91,6 +91,31 @@ class TestDataFusionToolsetInit:
         with pytest.raises(ValueError, match="datasource_configs must contain at least one DataSourceConfig"):
             DataFusionToolset([])
 
+    def test_describe_policy_exposure_lists_datasources(self):
+        cfg = _make_mock_datasource_config("sales")
+        cfg.conn_id = "aws_default"
+        cfg.format = "parquet"
+        cfg.uri = "s3://bucket/sales/file.parquet"
+        ts = DataFusionToolset([cfg])
+
+        exposure = ts.describe_policy_exposure()
+
+        assert exposure.resources[0].category == "datasource"
+        assert exposure.resources[1].category == "uri"
+        assert exposure.resources[1].name == "s3://bucket/sales/file.parquet"
+        assert exposure.risk_flags == []
+
+    def test_describe_policy_exposure_flags_wildcard_uris(self):
+        cfg = _make_mock_datasource_config("sales")
+        cfg.conn_id = "aws_default"
+        cfg.format = "parquet"
+        cfg.uri = "s3://bucket/sales/*"
+        ts = DataFusionToolset([cfg])
+
+        exposure = ts.describe_policy_exposure()
+
+        assert "broad DataFusion URI exposure configured" in exposure.risk_flags
+
 
 class TestDataFusionToolsetGetTools:
     def test_returns_three_tools(self):

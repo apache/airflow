@@ -111,6 +111,61 @@ tasks can consume it.
     :end-before: [END howto_agent_chain]
 
 
+Policy Exposure Report
+----------------------
+
+``AgentOperator`` writes a best-effort **policy exposure report** to XCom at
+the start of execution. The report is a configuration-derived snapshot of the
+agent's declared access surface for that task instance.
+
+It is intended for observability and governance questions such as:
+
+- Which LLM connection and model override were configured?
+- Which toolsets were attached?
+- Which tables, hook methods, MCP servers, or DataFusion datasources were
+  exposed to the agent?
+- What high-level risk flags were present in the configuration?
+
+The report is serialized under the reserved XCom key:
+
+.. code-block:: text
+
+    airflow_common_ai_policy_exposure
+
+This key is reserved by the common-ai provider. DAG authors should not write
+unrelated values to it or depend on mutating it during task execution.
+
+**What the report contains**
+
+The payload includes:
+
+- ``captured_at``: timestamp when the snapshot was created
+- ``task``: DAG, run, task, and map-index identity
+- ``llm``: LLM connection id, hook connection type, and explicit ``model_id``
+- ``approval``: HITL review settings relevant to the task
+- ``toolsets``: one exposure summary per attached toolset
+- ``runtime_notes``: operator-level runtime controls such as tool logging or
+  durable replay
+- ``risk``: deterministic high-level risk classification derived from the
+  configured access surface
+
+**Important limits**
+
+- The report is **configuration-derived**, not a runtime execution trace.
+  It describes what the task was configured to expose, not which tools were
+  actually called.
+- The report is **best effort**. If report generation fails for a toolset,
+  the task continues and the failure is logged instead of failing the run.
+- The report is designed to avoid persisting sensitive details where possible.
+
+**For custom toolsets**
+
+Custom toolsets can participate in the report by implementing
+``describe_policy_exposure()`` and returning a structured description of their
+configured access surface. This method should stay configuration-only and
+should not make backend calls.
+
+
 Durable Execution
 -----------------
 

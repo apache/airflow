@@ -29,6 +29,15 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.utils.logging import log_run_summary, wrap_toolsets_for_logging
+from airflow.providers.common.ai.utils.policy_exposure import (
+    XCOM_POLICY_EXPOSURE,
+    ApprovalExposure,
+    LLMExposure,
+    PolicyExposureReport,
+    TaskIdentity,
+    classify_policy_risk,
+    describe_toolset_exposure,
+)
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     BaseOperator,
@@ -215,7 +224,59 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
         return [CachingToolset(wrapped=ts, storage=storage, counter=counter) for ts in toolsets]
 
+    def _build_policy_exposure_report(self, context: Context) -> PolicyExposureReport:
+        """Build a configured policy exposure snapshot from rendered operator configuration."""
+        ti = context["task_instance"]
+        llm_exposure = LLMExposure(
+            llm_conn_id=self.llm_conn_id,
+            connection_type=self.llm_hook.conn_type,
+            model_id=self.model_id,
+        )
+        approval = ApprovalExposure(
+            enable_hitl_review=self.enable_hitl_review,
+            max_hitl_iterations=self.max_hitl_iterations if self.enable_hitl_review else None,
+        )
+        runtime_notes: list[str] = []
+        if self.enable_tool_logging:
+            runtime_notes.append("tool logging enabled")
+        if self.durable:
+            runtime_notes.append("durable replay enabled")
+        if self.enable_hitl_review:
+            runtime_notes.append("human-in-the-loop review enabled")
+
+        toolset_exposures = [describe_toolset_exposure(toolset) for toolset in self.toolsets or []]
+        report = PolicyExposureReport(
+            task=TaskIdentity(
+                dag_id=ti.dag_id,
+                run_id=ti.run_id,
+                task_id=ti.task_id,
+                map_index=ti.map_index if ti.map_index is not None else -1,
+                operator_type=type(self).__name__,
+            ),
+            llm=llm_exposure,
+            approval=approval,
+            toolsets=toolset_exposures,
+            runtime_notes=runtime_notes,
+            risk=classify_policy_risk(
+                llm=llm_exposure,
+                toolsets=toolset_exposures,
+                runtime_notes=runtime_notes,
+            ),
+        )
+        return report
+
+    @staticmethod
+    def _push_policy_exposure_report(context: Context, report: PolicyExposureReport) -> None:
+        """Persist the configured policy exposure snapshot to XCom."""
+        context["task_instance"].xcom_push(key=XCOM_POLICY_EXPOSURE, value=report.model_dump(mode="json"))
+
     def execute(self, context: Context) -> Any:
+        try:
+            policy_exposure_report = self._build_policy_exposure_report(context)
+            self._push_policy_exposure_report(context, policy_exposure_report)
+        except Exception:
+            self.log.warning("Failed to build policy exposure report; continuing without it.", exc_info=True)
+
         self._durable_storage = None
         self._durable_counter = None
 

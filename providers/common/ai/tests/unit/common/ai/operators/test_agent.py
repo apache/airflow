@@ -24,6 +24,7 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
 from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.utils.policy_exposure import XCOM_POLICY_EXPOSURE
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -42,9 +43,37 @@ def _make_mock_run_result(output):
 
 def _make_mock_agent(output):
     """Create a mock agent that returns the given output."""
-    mock_agent = MagicMock(spec=["run_sync"])
+    mock_agent = MagicMock(spec=["run_sync", "model", "override"])
     mock_agent.run_sync.return_value = _make_mock_run_result(output)
+    mock_agent.model = "test-model"
+    mock_agent.override.return_value.__enter__ = MagicMock(return_value=None)
+    mock_agent.override.return_value.__exit__ = MagicMock(return_value=False)
     return mock_agent
+
+
+class _DummyToolset:
+    id = "dummy-toolset"
+
+
+def _configure_mock_hook(
+    mock_hook_cls, *, agent=None, conn_type: str = "pydanticai", model_id: str | None = None
+):
+    mock_hook = mock_hook_cls.get_hook.return_value
+    mock_hook.conn_type = conn_type
+    mock_hook.model_id = model_id
+    if agent is not None:
+        mock_hook.create_agent.return_value = agent
+    return mock_hook
+
+
+def _make_mock_context(map_index: int = -1):
+    ti = MagicMock(spec=["xcom_push", "dag_id", "run_id", "task_id", "map_index"])
+    ti.dag_id = "example_dag"
+    ti.run_id = "run_1"
+    ti.task_id = "test"
+    ti.map_index = map_index
+    ti.xcom_push = MagicMock()
+    return {"task_instance": ti}, ti
 
 
 class TestAgentOperatorValidation:
@@ -82,7 +111,7 @@ class TestAgentOperatorExecute:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_creates_agent_from_hook(self, mock_hook_cls):
         mock_agent = _make_mock_agent("The answer is 42.")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_hook = _configure_mock_hook(mock_hook_cls, agent=mock_agent)
 
         op = AgentOperator(
             task_id="test",
@@ -90,30 +119,30 @@ class TestAgentOperatorExecute:
             llm_conn_id="my_llm",
             system_prompt="You are helpful.",
         )
-        result = op.execute(context=MagicMock())
+        context, _ = _make_mock_context()
+        result = op.execute(context=context)
 
         assert result == "The answer is 42."
         mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": None})
-        mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
-            output_type=str, instructions="You are helpful."
-        )
+        mock_hook.create_agent.assert_called_once_with(output_type=str, instructions="You are helpful.")
         mock_agent.run_sync.assert_called_once_with("What is the answer?")
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_in_agent_kwargs(self, mock_hook_cls):
         """Toolsets are passed through to the agent constructor."""
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("done")
+        mock_hook = _configure_mock_hook(mock_hook_cls, agent=_make_mock_agent("done"))
 
-        mock_toolset = MagicMock()
+        mock_toolset = _DummyToolset()
         op = AgentOperator(
             task_id="test",
             prompt="Do something",
             llm_conn_id="my_llm",
             toolsets=[mock_toolset],
         )
-        op.execute(context=MagicMock())
+        context, _ = _make_mock_context()
+        op.execute(context=context)
 
-        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        create_call = mock_hook.create_agent.call_args
         passed_toolsets = create_call[1]["toolsets"]
         assert len(passed_toolsets) == 1
         assert isinstance(passed_toolsets[0], LoggingToolset)
@@ -122,9 +151,9 @@ class TestAgentOperatorExecute:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_enable_tool_logging_false_skips_wrapping(self, mock_hook_cls):
         """enable_tool_logging=False passes toolsets through unwrapped."""
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("done")
+        mock_hook = _configure_mock_hook(mock_hook_cls, agent=_make_mock_agent("done"))
 
-        mock_toolset = MagicMock()
+        mock_toolset = _DummyToolset()
         op = AgentOperator(
             task_id="test",
             prompt="Do something",
@@ -132,15 +161,16 @@ class TestAgentOperatorExecute:
             toolsets=[mock_toolset],
             enable_tool_logging=False,
         )
-        op.execute(context=MagicMock())
+        context, _ = _make_mock_context()
+        op.execute(context=context)
 
-        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        create_call = mock_hook.create_agent.call_args
         assert create_call[1]["toolsets"] == [mock_toolset]
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_agent_params(self, mock_hook_cls):
         """agent_params are unpacked into create_agent."""
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
+        mock_hook = _configure_mock_hook(mock_hook_cls, agent=_make_mock_agent("ok"))
 
         op = AgentOperator(
             task_id="test",
@@ -148,9 +178,10 @@ class TestAgentOperatorExecute:
             llm_conn_id="my_llm",
             agent_params={"retries": 3, "model_settings": {"temperature": 0}},
         )
-        op.execute(context=MagicMock())
+        context, _ = _make_mock_context()
+        op.execute(context=context)
 
-        create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
+        create_call = mock_hook.create_agent.call_args
         assert create_call[1]["retries"] == 3
         assert create_call[1]["model_settings"] == {"temperature": 0}
 
@@ -162,8 +193,9 @@ class TestAgentOperatorExecute:
             text: str
             score: float
 
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
-            Summary(text="Great", score=0.95)
+        _configure_mock_hook(
+            mock_hook_cls,
+            agent=_make_mock_agent(Summary(text="Great", score=0.95)),
         )
 
         op = AgentOperator(
@@ -172,14 +204,15 @@ class TestAgentOperatorExecute:
             llm_conn_id="my_llm",
             output_type=Summary,
         )
-        result = op.execute(context=MagicMock())
+        context, _ = _make_mock_context()
+        result = op.execute(context=context)
 
         assert result == {"text": "Great", "score": 0.95}
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_with_model_id(self, mock_hook_cls):
         """model_id is passed to PydanticAIHook."""
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent("ok")
+        _configure_mock_hook(mock_hook_cls, agent=_make_mock_agent("ok"), model_id="openai:gpt-5")
 
         op = AgentOperator(
             task_id="test",
@@ -187,7 +220,8 @@ class TestAgentOperatorExecute:
             llm_conn_id="my_llm",
             model_id="openai:gpt-5",
         )
-        op.execute(context=MagicMock())
+        context, _ = _make_mock_context()
+        op.execute(context=context)
 
         mock_hook_cls.get_hook.assert_called_once_with("my_llm", hook_params={"model_id": "openai:gpt-5"})
 
@@ -203,7 +237,7 @@ class TestAgentOperatorExecute:
         mock_result.all_messages.return_value = msg_history
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        _configure_mock_hook(mock_hook_cls, agent=mock_agent)
         mock_run_hitl.return_value = "Approved output"
 
         op = AgentOperator(
@@ -213,7 +247,7 @@ class TestAgentOperatorExecute:
             enable_hitl_review=True,
             hitl_timeout=timedelta(minutes=5),
         )
-        context = MagicMock()
+        context, _ = _make_mock_context()
         result = op.execute(context=context)
 
         assert result == "Approved output"
@@ -234,7 +268,7 @@ class TestAgentOperatorExecute:
         mock_result = _make_mock_run_result(Summary(text="Approved summary", score=0.9))
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        _configure_mock_hook(mock_hook_cls, agent=mock_agent)
         # run_hitl_review returns JSON string (as stored in session.current_output)
         mock_run_hitl.return_value = '{"text": "Approved summary", "score": 0.9}'
 
@@ -246,7 +280,7 @@ class TestAgentOperatorExecute:
             enable_hitl_review=True,
             hitl_timeout=timedelta(minutes=5),
         )
-        context = MagicMock()
+        context, _ = _make_mock_context()
         result = op.execute(context=context)
 
         assert result == {"text": "Approved summary", "score": 0.9}
@@ -261,7 +295,7 @@ class TestAgentOperatorExecute:
         mock_result = _make_mock_run_result("Initial output")
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        _configure_mock_hook(mock_hook_cls, agent=mock_agent)
         mock_run_hitl.return_value = "Approved output"
 
         op = AgentOperator(
@@ -272,7 +306,7 @@ class TestAgentOperatorExecute:
             enable_hitl_review=True,
             hitl_timeout=timedelta(minutes=5),
         )
-        context = MagicMock()
+        context, _ = _make_mock_context()
         result = op.execute(context=context)
 
         assert result == "Approved output"
@@ -289,7 +323,7 @@ class TestAgentOperatorExecute:
         mock_result = _make_mock_run_result("Initial output")
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = mock_result
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        _configure_mock_hook(mock_hook_cls, agent=mock_agent)
         mock_run_hitl.side_effect = HITLMaxIterationsError("Task exceeded max iterations.")
 
         op = AgentOperator(
@@ -300,10 +334,101 @@ class TestAgentOperatorExecute:
             max_hitl_iterations=5,
             hitl_timeout=timedelta(minutes=5),
         )
-        context = MagicMock()
+        context, _ = _make_mock_context()
 
         with pytest.raises(HITLMaxIterationsError, match="Task exceeded max iterations"):
             op.execute(context=context)
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_pushes_policy_exposure_report_to_xcom(self, mock_hook_cls):
+        _configure_mock_hook(mock_hook_cls, agent=_make_mock_agent("ok"))
+        op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm")
+        context, ti = _make_mock_context()
+
+        op.execute(context=context)
+
+        xcom_push_calls = [call.kwargs for call in ti.xcom_push.call_args_list]
+        policy_push = next(call for call in xcom_push_calls if call["key"] == XCOM_POLICY_EXPOSURE)
+        assert policy_push["value"]["task"]["dag_id"] == "example_dag"
+        assert policy_push["value"]["task"]["map_index"] == -1
+        assert policy_push["value"]["llm"]["connection_type"] == "pydanticai"
+        assert policy_push["value"]["llm"]["model_id"] is None
+        assert policy_push["value"]["risk"]["level"] == "low"
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_policy_report_includes_runtime_notes_and_map_index(self, mock_hook_cls):
+        _configure_mock_hook(mock_hook_cls, agent=_make_mock_agent("ok"))
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            durable=True,
+            enable_tool_logging=True,
+        )
+        context, ti = _make_mock_context(map_index=3)
+
+        with (
+            patch(
+                "airflow.providers.common.ai.operators.agent.AgentOperator._build_durable_toolsets",
+                autospec=True,
+                return_value=[],
+            ),
+            patch("airflow.providers.common.ai.durable.storage._get_base_path"),
+            patch("pydantic_ai.models.infer_model", autospec=True, return_value=MagicMock()),
+            patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda model: model),
+        ):
+            op.execute(context=context)
+
+        xcom_push_calls = [call.kwargs for call in ti.xcom_push.call_args_list]
+        policy_push = next(call for call in xcom_push_calls if call["key"] == XCOM_POLICY_EXPOSURE)
+        assert policy_push["value"]["task"]["map_index"] == 3
+        assert "tool logging enabled" in policy_push["value"]["runtime_notes"]
+        assert "durable replay enabled" in policy_push["value"]["runtime_notes"]
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_policy_report_uses_fallback_for_unknown_toolset(self, mock_hook_cls):
+        _configure_mock_hook(mock_hook_cls, agent=_make_mock_agent("ok"))
+
+        class CustomToolset:
+            id = "custom-toolset"
+
+        unknown_toolset = CustomToolset()
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            toolsets=[unknown_toolset],
+        )
+        context, ti = _make_mock_context()
+
+        op.execute(context=context)
+
+        xcom_push_calls = [call.kwargs for call in ti.xcom_push.call_args_list]
+        policy_push = next(call for call in xcom_push_calls if call["key"] == XCOM_POLICY_EXPOSURE)
+        assert policy_push["value"]["toolsets"][0]["toolset_type"] == "CustomToolset"
+        assert policy_push["value"]["risk"]["level"] == "high"
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_continues_when_toolset_exposure_report_fails(self, mock_hook_cls):
+        _configure_mock_hook(mock_hook_cls, agent=_make_mock_agent("ok"))
+
+        class BrokenToolset:
+            id = "broken-toolset"
+
+            def describe_policy_exposure(self):
+                raise RuntimeError("boom")
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="test",
+            llm_conn_id="my_llm",
+            toolsets=[BrokenToolset()],
+        )
+        context, _ = _make_mock_context()
+
+        result = op.execute(context=context)
+
+        assert result == "ok"
 
 
 @pytest.mark.skipif(
@@ -434,15 +559,12 @@ class TestAgentOperatorDurable:
         mock_agent.override = MagicMock()
         mock_agent.override.return_value.__enter__ = MagicMock(return_value=None)
         mock_agent.override.return_value.__exit__ = MagicMock(return_value=False)
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        _configure_mock_hook(mock_hook_cls, agent=mock_agent)
 
         mock_resolved = MagicMock()
         mock_infer.return_value = mock_resolved
 
-        context = MagicMock()
-        context.__getitem__ = MagicMock(
-            return_value=MagicMock(dag_id="d", task_id="t", run_id="r", map_index=-1)
-        )
+        context, _ = _make_mock_context()
 
         op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm", durable=True)
         result = op.execute(context=context)
@@ -456,10 +578,11 @@ class TestAgentOperatorDurable:
     def test_execute_non_durable_does_not_wrap(self, mock_hook_cls):
         """Default (durable=False) does not use override."""
         mock_agent = _make_mock_agent("ok")
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        _configure_mock_hook(mock_hook_cls, agent=mock_agent)
 
         op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm")
-        op.execute(context=MagicMock())
+        context, _ = _make_mock_context()
+        op.execute(context=context)
 
         # run_sync called directly, no override
         mock_agent.run_sync.assert_called_once_with("test")

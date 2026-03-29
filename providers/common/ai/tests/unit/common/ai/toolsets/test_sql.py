@@ -55,6 +55,25 @@ class TestSQLToolsetInit:
         ts = SQLToolset("my_pg")
         assert ts.id == "sql-my_pg"
 
+    def test_describe_policy_exposure_for_read_only_tables(self):
+        ts = SQLToolset("my_pg", allowed_tables=["orders", "users"], schema="public")
+
+        exposure = ts.describe_policy_exposure()
+
+        assert exposure.toolset_id == "sql-my_pg"
+        assert exposure.resources[0].category == "database"
+        assert exposure.resources[0].details == {"schema": "public"}
+        assert {resource.name for resource in exposure.resources[1:]} == {"orders", "users"}
+        assert exposure.risk_flags == []
+
+    def test_describe_policy_exposure_for_write_enabled_access(self):
+        ts = SQLToolset("my_pg", allow_writes=True)
+
+        exposure = ts.describe_policy_exposure()
+
+        assert "write-capable SQL access configured" in exposure.risk_flags
+        assert "allowed table list" in exposure.risk_flags[1]
+
 
 class TestSQLToolsetGetTools:
     def test_returns_four_tools(self):
