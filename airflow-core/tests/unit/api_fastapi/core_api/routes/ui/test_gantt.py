@@ -326,3 +326,27 @@ class TestGetGanttDataEndpoint:
         with assert_queries_count(3):
             response = test_client.get(f"/gantt/{dag_id}/{run_id}")
         assert response.status_code == 404
+
+    def test_gantt_with_start_date(self, test_client):
+        response = test_client.get(
+            f"/gantt/{DAG_ID}/run_1",
+            params={"start_date": "2024-11-30T10:06:00"},
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+
+        # running task (NULL end_date) should STILL be included
+        task_ids = [ti["task_id"] for ti in data["task_instances"]]
+        assert "task3" in task_ids
+
+
+    def test_gantt_invalid_date_range(self, test_client):
+        response = test_client.get(
+            f"/gantt/{DAG_ID}/run_1",
+            params={
+                "start_date": "2024-12-01T00:00:00",
+                "end_date": "2024-11-01T00:00:00",
+            },
+        )
+        assert response.status_code == 400

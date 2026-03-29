@@ -87,12 +87,7 @@ def get_gantt_data(
         TaskInstance.map_index == -1,
         or_(TaskInstance.state != TaskInstanceState.UP_FOR_RETRY, TaskInstance.state.is_(None)),
         *(
-            [TaskInstance.start_date <= end_date]
-            if end_date is not None
-            else []
-        ),
-        *(
-            [TaskInstance.end_date >= start_date]
+            [or_(TaskInstance.end_date >= start_date, TaskInstance.end_date.is_(None))]
             if start_date is not None
             else []
         ),
@@ -110,12 +105,7 @@ def get_gantt_data(
         TaskInstanceHistory.run_id == run_id,
         TaskInstanceHistory.map_index == -1,
         *(
-            [TaskInstanceHistory.start_date <= end_date]
-            if end_date is not None
-            else []
-        ),
-        *(
-            [TaskInstanceHistory.end_date >= start_date]
+            [or_(TaskInstanceHistory.end_date >= start_date, TaskInstanceHistory.end_date.is_(None))]
             if start_date is not None
             else []
         ),
