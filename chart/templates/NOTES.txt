@@ -645,6 +645,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.hostAliases) }}
+
+ DEPRECATION WARNING:
+    `workers.hostAliases` has been renamed to `workers.celery.hostAliases`/`workers.kubernetes.hostAliases`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.webserver.defaultUser) }}
 
  DEPRECATION WARNING:
