@@ -2755,6 +2755,15 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "hostAliases": [{"ip": "192.168.0.0", "hostnames": ["test"]}],
+                    "enableDefault": False,
+                    "sets": [
+                        {"name": "set1", "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]}
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_host_aliases(self, workers_values):

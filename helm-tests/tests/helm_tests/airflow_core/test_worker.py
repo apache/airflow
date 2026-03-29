@@ -390,19 +390,26 @@ class TestWorker:
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
-    def test_workers_host_aliases(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]},
+            {"celery": {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]}},
+            {
+                "hostAliases": [{"ip": "192.168.0.1", "hostnames": ["hostname"]}],
+                "celery": {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]},
             },
+        ],
+    )
+    def test_workers_host_aliases(self, workers_values):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.2"
-        assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "test.hostname"
+        assert jmespath.search("spec.template.spec.hostAliases", docs[0]) == [
+            {"ip": "127.0.0.2", "hostnames": ["test.hostname"]}
+        ]
 
     @pytest.mark.parametrize(
         ("workers_values", "expected_update_strategy"),

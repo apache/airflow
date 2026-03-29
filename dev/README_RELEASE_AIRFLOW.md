@@ -277,21 +277,7 @@ and mark those as well. You can accomplish this by running the following command
 ./dev/airflow-github needs-categorization 2.3.2 HEAD
 ```
 
-Often you also want to cherry-pick changes related to CI and development tools, to include the latest
-stability fixes in CI and improvements in development tools. Usually you can see the list of such
-changes via (this will exclude already merged changes):
-
-```shell
-git fetch apache
-git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
-git log --oneline --decorate apache/v2-2-stable..apache/main -- Dockerfile* scripts breeze* .github/ setup* dev | grep -vf /tmp/merged
-```
-
-Most of those PRs should be marked with `changelog:skip` label, so that they are excluded from the
-user-facing changelog as they only matter for developers of Airflow. We have a tool
-that allows to easily review the cherry-picked PRs and mark them with the right label - see below.
-
-You also likely want to cherry-pick some of the latest doc changes in order to bring clarification and
+You are likely want to cherry-pick some of the latest doc changes in order to bring clarification and
 explanations added to the documentation. Usually you can see the list of such changes via:
 
 ```shell
@@ -461,9 +447,12 @@ uv tool install -e ./dev/breeze
     We sync this new branch to the stable branch so that people would continue to backport PRs to the test branch
     while the RC is being voted. The new branch must be in sync with where you cut it off from the test branch.
 
+- Switch to the new branch in .github/workflows/ci-notification.yml `workflow-status` matrix
 - Set the Airflow version in `airflow-core/src/airflow/__init__.py` (without the RC tag).
 - Set the Task SDK version in `task-sdk/src/airflow/sdk/__init__.py` (without the RC tag)
-- Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
+- Those two steps below are temporary - until we finally split task-sdk and airflow-core:
+  - Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
+  - Update the Task SDK version `>=` part in `pyproject.toml` to `==` TASK_SDK_VERSION without RC
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/prek/supported_versions.py` and let prek do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
@@ -472,6 +461,8 @@ uv tool install -e ./dev/breeze
   with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
+- Create `backport-to-vX-Y-test` branch in https://github.com/apache/airflow/labels
+- Update .github/boring-cyborg.yml and change the previous `backport-...` branch auto assignment to the new one.
 - Commit the above changes with the message `Update version to ${VERSION}`.
 - Build the release notes:
 
