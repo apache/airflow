@@ -120,7 +120,7 @@ export default defineConfig({
     "**/variable.spec.ts",
   ],
 
-  timeout: 30_000,
+  timeout: 60_000,
   use: {
     actionTimeout: 10_000,
     baseURL: process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080",

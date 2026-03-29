@@ -19,7 +19,7 @@
 import type { Page } from "@playwright/test";
 
 const HEALTH_ENDPOINT = "/api/v2/monitor/health";
-const MAX_WAIT_MS = 60_000;
+const MAX_WAIT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const BACKOFF_INTERVALS = [1000, 2000, 4000, 8000];
 
@@ -28,7 +28,7 @@ const BACKOFF_INTERVALS = [1000, 2000, 4000, 8000];
  *
  * Polls the health endpoint, checking for HTTP 200. Uses backoff intervals between retries.
  * We intentionally do not check response time: on Firefox/CI the health endpoint regularly
- * exceeds 2s, which would cause the check to never succeed and tests to timeout at 60s.
+ * exceeds 2s, which would cause the check to never succeed.
  *
  * When the server responds on the first attempt, this function returns immediately.
  */
