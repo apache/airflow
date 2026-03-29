@@ -2431,8 +2431,24 @@ class TestWorkerSets:
                 "celery": {"enableDefault": False, "sets": [{"name": "set1"}]},
             },
             {
+                "celery": {
+                    "extraPorts": [{"name": "test-extra-port", "containerPort": 10}],
+                    "enableDefault": False,
+                    "sets": [{"name": "set1"}],
+                },
+            },
+            {
                 "extraPorts": [{"name": "test", "containerPort": 1}],
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {"name": "set1", "extraPorts": [{"name": "test-extra-port", "containerPort": 10}]}
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "extraPorts": [{"name": "test", "containerPort": 1}],
                     "enableDefault": False,
                     "sets": [
                         {"name": "set1", "extraPorts": [{"name": "test-extra-port", "containerPort": 10}]}
