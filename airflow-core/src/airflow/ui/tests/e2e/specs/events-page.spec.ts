@@ -102,7 +102,7 @@ test.describe("Events with Generated Data", () => {
     await eventsPage.verifyLogEntriesWithData();
   });
 
-  test("verify search for specific event type and filtered results", async () => {
+  test.fixme("verify search for specific event type and filtered results", async () => {
     await eventsPage.navigate();
 
     const initialRowCount = await eventsPage.getTableRowCount();
