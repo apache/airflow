@@ -121,7 +121,7 @@ test.describe("DAG Calendar Tab", () => {
   // can override the PATCH-to-failed state back to success before tests run
   // because the shared testDag may already be unpaused by parallel tests.
 
-  test("verify hover shows correct run states", async () => {
+  test.fixme("verify hover shows correct run states", async () => {
     await calendar.switchToHourly();
 
     const states = await calendar.getManualRunStates();

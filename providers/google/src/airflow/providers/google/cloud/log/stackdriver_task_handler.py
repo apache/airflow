@@ -113,7 +113,7 @@ class StackdriverTaskHandler(logging.Handler):
         if name is not NOTSET:
             warnings.warn(
                 "Param `name` is deprecated and will be removed in a future release. "
-                "Please use `gcp_log_name` instead. ",
+                "Please use `gcp_log_name` instead. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )

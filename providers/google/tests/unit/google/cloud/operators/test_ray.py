@@ -165,9 +165,13 @@ class TestRaySubmitJobOperator:
             },
         )
 
+    @pytest.mark.parametrize(
+        "terminal_status",
+        [JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.STOPPED],
+    )
     @mock.patch(RAY_OP_PATH.format("time.sleep"))
     @mock.patch(RAY_OP_PATH.format("RayJobHook"))
-    def test_check_job_status_reaches_terminal(self, mock_hook_cls, mock_sleep):
+    def test_check_job_status_reaches_terminal(self, mock_hook_cls, mock_sleep, terminal_status):
         mock_hook = mock_hook_cls.return_value
         mock_hook.stop_job.return_value = True
 
@@ -181,11 +185,11 @@ class TestRaySubmitJobOperator:
             get_job_logs=True,
         )
         operator.hook.get_job_status = mock.MagicMock(
-            side_effect=[JobStatus.RUNNING, JobStatus.RUNNING, JobStatus.SUCCEEDED]
+            side_effect=[JobStatus.RUNNING, JobStatus.RUNNING, terminal_status]
         )
         status = operator._check_job_status("addr", "job", polling_interval=1, timeout=100)
 
-        assert status == JobStatus.SUCCEEDED
+        assert status == terminal_status
         assert mock_sleep.call_count == 2
 
     @mock.patch(RAY_OP_PATH.format("time.sleep"))

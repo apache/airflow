@@ -434,13 +434,13 @@ For downstream partition-aware scheduling, use ``PartitionedAssetTimetable``:
 
 .. code-block:: python
 
-    from airflow.sdk import DAG, HourlyMapper, PartitionedAssetTimetable
+    from airflow.sdk import DAG, StartOfHourMapper, PartitionedAssetTimetable
 
     with DAG(
         dag_id="clean_and_combine_player_stats",
         schedule=PartitionedAssetTimetable(
             assets=team_a_player_stats & team_b_player_stats & team_c_player_stats,
-            default_partition_mapper=HourlyMapper(),
+            default_partition_mapper=StartOfHourMapper(),
         ),
         catchup=False,
     ):
@@ -458,17 +458,17 @@ Partition mappers define how upstream partition keys are transformed to the
 downstream Dag partition key:
 
 * ``IdentityMapper`` keeps keys unchanged.
-* Temporal mappers such as ``HourlyMapper``, ``DailyMapper``, and
-  ``YearlyMapper`` normalize time keys to a chosen grain. For input key
+* Temporal mappers such as ``StartOfHourMapper``, ``StartOfDayMapper``, and
+  ``StartOfYearMapper`` normalize time keys to a chosen grain. For input key
   ``2026-03-10T09:37:51``, the default outputs are:
 
-  * ``HourlyMapper`` -> ``2026-03-10T09``
-  * ``DailyMapper`` -> ``2026-03-10``
-  * ``YearlyMapper`` -> ``2026``
+  * ``StartOfHourMapper`` -> ``2026-03-10T09``
+  * ``StartOfDayMapper`` -> ``2026-03-10``
+  * ``StartOfYearMapper`` -> ``2026``
 * ``ProductMapper`` maps composite keys segment-by-segment.
   It applies one mapper per segment and then rejoins the mapped segments.
   For example, with key ``us|2026-03-10T09:00:00``,
-  ``ProductMapper(IdentityMapper(), DailyMapper())`` produces
+  ``ProductMapper(IdentityMapper(), StartOfDayMapper())`` produces
   ``us|2026-03-10``.
 * ``AllowedKeyMapper`` validates that keys are in a fixed allow-list and
   passes the key through unchanged if valid.
@@ -481,10 +481,10 @@ Example of per-asset mapper configuration and composite-key mapping:
 
     from airflow.sdk import (
         Asset,
-        DailyMapper,
         IdentityMapper,
         PartitionedAssetTimetable,
         ProductMapper,
+        StartOfDayMapper,
     )
 
     regional_sales = Asset(uri="file://incoming/sales/regional.csv", name="regional_sales")
@@ -493,7 +493,7 @@ Example of per-asset mapper configuration and composite-key mapping:
         dag_id="aggregate_regional_sales",
         schedule=PartitionedAssetTimetable(
             assets=regional_sales,
-            default_partition_mapper=ProductMapper(IdentityMapper(), DailyMapper()),
+            default_partition_mapper=ProductMapper(IdentityMapper(), StartOfDayMapper()),
         ),
     ):
         ...
@@ -503,7 +503,7 @@ You can also override mappers for specific upstream assets with
 
 .. code-block:: python
 
-    from airflow.sdk import Asset, DAG, DailyMapper, IdentityMapper, PartitionedAssetTimetable
+    from airflow.sdk import Asset, DAG, StartOfDayMapper, IdentityMapper, PartitionedAssetTimetable
 
     hourly_sales = Asset(uri="file://incoming/sales/hourly.csv", name="hourly_sales")
     daily_targets = Asset(uri="file://incoming/sales/targets.csv", name="daily_targets")
@@ -513,7 +513,7 @@ You can also override mappers for specific upstream assets with
         schedule=PartitionedAssetTimetable(
             assets=hourly_sales & daily_targets,
             # Default behavior: map timestamp-like keys to daily keys.
-            default_partition_mapper=DailyMapper(),
+            default_partition_mapper=StartOfDayMapper(),
             # Override for assets that already emit daily partition keys.
             partition_mapper_config={
                 daily_targets: IdentityMapper(),
