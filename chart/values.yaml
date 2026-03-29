@@ -1022,6 +1022,10 @@ workers:
 
   # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
   # It is used by Airflow Celery workers and pod-template-file.
+  # (deprecated, use
+  #   workers.celery.safeToEvict or/and
+  #   workers.kubernetes.safeToEvict
+  # instead)
   safeToEvict: false
 
   # Launch additional containers into Airflow Celery worker
@@ -1376,6 +1380,9 @@ workers:
     # Grace period for tasks to finish after SIGTERM is sent from kubernetes
     terminationGracePeriodSeconds: ~
 
+    # This setting tells kubernetes that its ok to evict when it wants to scale a node down
+    safeToEvict: ~
+
     # Select certain nodes for Airflow Celery worker pods
     nodeSelector: {}
 
@@ -1445,6 +1452,9 @@ workers:
 
     # Grace period for tasks to finish after SIGTERM is sent from kubernetes
     terminationGracePeriodSeconds: ~
+
+    # This setting tells kubernetes that its ok to evict when it wants to scale a node down
+    safeToEvict: ~
 
     # Select certain nodes for pods created with pod-template-file
     nodeSelector: {}

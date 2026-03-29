@@ -42,6 +42,7 @@ AlertApi
 alertPolicies
 Alibaba
 alibaba
+alibabacloud
 allAuthenticatedUsers
 allowlist
 allUsers
