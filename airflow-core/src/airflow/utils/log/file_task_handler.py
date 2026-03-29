@@ -723,8 +723,7 @@ class FileTaskHandler(logging.Handler):
             config_default = 8793
 
         if not hostname:
-            msg = f"Cannot construct log URL for {log_type.value if log_type else LogType.WORKER.value}: missing hostname."
-            raise ValueError(msg)
+            return None, None
 
         return (
             urljoin(
@@ -909,6 +908,12 @@ class FileTaskHandler(logging.Handler):
         try:
             log_type = LogType.TRIGGER if getattr(ti, "triggerer_job", False) else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
+            if not url or not rel_path:
+                sources.append(
+                    f"Could not read served logs: Hostname not available for "
+                    f"{log_type.value if log_type else LogType.WORKER.value}."
+                )
+                return sources, log_streams
             response = _fetch_logs_from_service(url, rel_path)
             if response.status_code == 403:
                 sources.append(
