@@ -84,11 +84,9 @@ class LogGroomerTestBase:
             values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
         )
 
-        assert (
-            jmespath.search("spec.template.spec.containers[1].env[0].name", docs[0])
-            == "AIRFLOW__LOG_RETENTION_DAYS"
+        assert {"name": "AIRFLOW__LOG_RETENTION_DAYS", "value": "15"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
         )
-        assert jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0]) == "15"
 
     def test_log_groomer_collector_custom_env(self):
         env = [

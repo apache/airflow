@@ -125,6 +125,18 @@ def get_status_emoji(constraint_date, latest_date, is_latest_version):
         return "📢 N/A".ljust(col_target), "new"
 
 
+def get_days_stale(latest_release_date: str) -> str:
+    """Return the number of days since the latest release if >365, else empty string."""
+    try:
+        latest_release_dt = datetime.strptime(latest_release_date, "%Y-%m-%d")
+        days_since = (datetime.now() - latest_release_dt).days
+        if days_since > 365:
+            return str(days_since)
+    except Exception:
+        pass
+    return ""
+
+
 def get_max_package_length(packages: list[tuple[str, str]]) -> int:
     return max(len(pkg) for pkg, _ in packages)
 
@@ -279,6 +291,7 @@ def get_table_format(packages: list[tuple[str, str]]):
         "Latest Version": 15,
         "Latest Date": 12,
         "📢 Status": 17,
+        "# Days Stale": 12,
         "# Versions Behind": 19,
         "PyPI Link": 60,
     }
@@ -289,6 +302,7 @@ def get_table_format(packages: list[tuple[str, str]]):
         f"{{:<{col_widths['Latest Version']}}} | "
         f"{{:<{col_widths['Latest Date']}}} | "
         f"{{:<{col_widths['📢 Status']}}} | "
+        f"{{:<{col_widths['# Days Stale']}}} | "
         f"{{:<{col_widths['# Versions Behind']}}} | "
         f"{{:<{col_widths['PyPI Link']}}}"
     )
@@ -299,6 +313,7 @@ def get_table_format(packages: list[tuple[str, str]]):
         "Latest Version",
         "Latest Date",
         "📢 Status",
+        "# Days Stale",
         "# Versions Behind",
         "PyPI Link",
     ]
@@ -323,7 +338,7 @@ def print_table_footer(
     console_print(f"[bold cyan]\nTotal packages checked:[/] [white]{total_pkgs}[/]")
     console_print(f"  [green]✅ Up to date:[/] [white]{status_counts['ok']}[/]")
     console_print(f"  [yellow]📢 New (<5d):[/] [white]{status_counts['new']}[/]")
-    console_print(f"  [yellow]🔶 Warning (<30d):[/] [white]{status_counts['warning']}[/]")
+    console_print(f"  [magenta]🔶 Warning (<30d):[/] [white]{status_counts['warning']}[/]")
     console_print(f"  [red]🚨 Critical (>30d):[/] [white]{status_counts['critical']}[/]")
     console_print(f"[bold yellow]Outdated packages found:[/] [white]{outdated_count}[/]")
     if mode == "diff-constraints":
@@ -465,12 +480,18 @@ def print_package_table_row(
         datetime.now().strftime("%Y-%m-%d"),
         is_latest_version,
     )
+    days_stale_str = get_days_stale(latest_release_date)
     pypi_link = f"https://pypi.org/project/{pkg}/{latest_version}"
-    color = (
-        "green"
-        if is_latest_version
-        else ("yellow" if status.startswith("📢") or status.startswith("🔶") else "red")
-    )
+    if status_category == "ok":
+        color = "green"
+    elif status_category == "new":
+        color = "yellow"
+    elif status_category == "warning":
+        color = "magenta"
+    elif status_category == "critical":
+        color = "red"
+    else:
+        color = "white"
     string_to_print = format_str.format(
         pkg,
         pinned_version[: col_widths["Constraint Version"]],
@@ -478,6 +499,7 @@ def print_package_table_row(
         latest_version[: col_widths["Latest Version"]],
         latest_release_date[: col_widths["Latest Date"]],
         status[: col_widths["📢 Status"]],
+        days_stale_str,
         versions_behind_str,
         pypi_link,
     )
