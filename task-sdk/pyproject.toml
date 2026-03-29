@@ -139,6 +139,7 @@ path = "src/airflow/sdk/__init__.py"
 "../shared/observability/src/airflow_shared/observability" = "src/airflow/sdk/_shared/observability"
 "../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/sdk/_shared/secrets_backend"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
+"../shared/serialization/src/airflow_shared/serialization" = "src/airflow/sdk/_shared/serialization"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 "../shared/listeners/src/airflow_shared/listeners" = "src/airflow/sdk/_shared/listeners"
 "../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/sdk/_shared/plugins_manager"
@@ -307,6 +308,7 @@ shared_distributions = [
     "apache-airflow-shared-module-loading",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-serialization",
     "apache-airflow-shared-timezones",
     "apache-airflow-shared-observability",
     "apache-airflow-shared-plugins-manager",

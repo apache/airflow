@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+5.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix an import in providers/sftp to be Airflow 2 compatible (#63822)``
+* ``Return a warning instead of an error when file is already absent (#62639)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 5.7.1
 .....
 

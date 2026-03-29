@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg, GroupCommand, lazy_load_command
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     import argparse

@@ -34,6 +34,7 @@ from airflow.sdk import (
     AssetAll,
     AssetAny,
     AssetOrTimeSchedule,
+    ChainMapper,
     CronDataIntervalTimetable,
     CronTriggerTimetable,
     DeltaDataIntervalTimetable,
@@ -43,15 +44,15 @@ from airflow.sdk import (
     MultipleCronTriggerTimetable,
     PartitionMapper,
     ProductMapper,
-    ToDailyMapper,
-    ToMonthlyMapper,
-    ToQuarterlyMapper,
-    ToWeeklyMapper,
-    ToYearlyMapper,
+    StartOfDayMapper,
+    StartOfMonthMapper,
+    StartOfQuarterMapper,
+    StartOfWeekMapper,
+    StartOfYearMapper,
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
-from airflow.sdk.definitions.partition_mappers.temporal import ToHourlyMapper
+from airflow.sdk.definitions.partition_mappers.temporal import StartOfHourMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
     PartitionedAssetTimetable,
@@ -392,15 +393,16 @@ class _Serializer:
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
-        IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
-        ToHourlyMapper: "airflow.partition_mappers.temporal.ToHourlyMapper",
-        ToDailyMapper: "airflow.partition_mappers.temporal.ToDailyMapper",
-        ToWeeklyMapper: "airflow.partition_mappers.temporal.ToWeeklyMapper",
-        ToMonthlyMapper: "airflow.partition_mappers.temporal.ToMonthlyMapper",
-        ToQuarterlyMapper: "airflow.partition_mappers.temporal.ToQuarterlyMapper",
-        ToYearlyMapper: "airflow.partition_mappers.temporal.ToYearlyMapper",
-        ProductMapper: "airflow.partition_mappers.product.ProductMapper",
         AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
+        ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
+        IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
+        ProductMapper: "airflow.partition_mappers.product.ProductMapper",
+        StartOfDayMapper: "airflow.partition_mappers.temporal.StartOfDayMapper",
+        StartOfHourMapper: "airflow.partition_mappers.temporal.StartOfHourMapper",
+        StartOfMonthMapper: "airflow.partition_mappers.temporal.StartOfMonthMapper",
+        StartOfQuarterMapper: "airflow.partition_mappers.temporal.StartOfQuarterMapper",
+        StartOfWeekMapper: "airflow.partition_mappers.temporal.StartOfWeekMapper",
+        StartOfYearMapper: "airflow.partition_mappers.temporal.StartOfYearMapper",
     }
 
     @functools.singledispatchmethod
@@ -412,23 +414,27 @@ class _Serializer:
         return partition_mapper.serialize()
 
     @serialize_partition_mapper.register
+    def _(self, partition_mapper: ChainMapper) -> dict[str, Any]:
+        return {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
+
+    @serialize_partition_mapper.register
     def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
         return {}
 
-    @serialize_partition_mapper.register(ToHourlyMapper)
-    @serialize_partition_mapper.register(ToDailyMapper)
-    @serialize_partition_mapper.register(ToWeeklyMapper)
-    @serialize_partition_mapper.register(ToMonthlyMapper)
-    @serialize_partition_mapper.register(ToQuarterlyMapper)
-    @serialize_partition_mapper.register(ToYearlyMapper)
+    @serialize_partition_mapper.register(StartOfHourMapper)
+    @serialize_partition_mapper.register(StartOfDayMapper)
+    @serialize_partition_mapper.register(StartOfWeekMapper)
+    @serialize_partition_mapper.register(StartOfMonthMapper)
+    @serialize_partition_mapper.register(StartOfQuarterMapper)
+    @serialize_partition_mapper.register(StartOfYearMapper)
     def _(
         self,
-        partition_mapper: ToHourlyMapper
-        | ToDailyMapper
-        | ToWeeklyMapper
-        | ToMonthlyMapper
-        | ToQuarterlyMapper
-        | ToYearlyMapper,
+        partition_mapper: StartOfHourMapper
+        | StartOfDayMapper
+        | StartOfWeekMapper
+        | StartOfMonthMapper
+        | StartOfQuarterMapper
+        | StartOfYearMapper,
     ) -> dict[str, Any]:
         return {
             "input_format": partition_mapper.input_format,

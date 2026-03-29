@@ -33,19 +33,24 @@ from celery import Celery
 from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_9_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
@@ -761,3 +766,51 @@ def test_celery_tasks_registered_on_import():
         assert "execute_command" in registered_tasks, (
             "execute_command must be registered for Airflow 2.x compatibility."
         )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_1_9_PLUS, reason="TaskAlreadyRunningError requires Airflow 3.1.9+")
+def test_execute_workload_ignores_already_running_task():
+    """Test that execute_workload raises Celery Ignore when task is already running."""
+    import importlib
+
+    from celery.exceptions import Ignore
+
+    from airflow.sdk.exceptions import TaskAlreadyRunningError
+
+    importlib.reload(celery_executor_utils)
+    execute_workload_unwrapped = celery_executor_utils.execute_workload.__wrapped__
+
+    mock_current_task = mock.MagicMock()
+    mock_current_task.request.id = "test-celery-task-id"
+    mock_app = mock.MagicMock()
+    mock_app.current_task = mock_current_task
+
+    with (
+        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
+        mock.patch.object(celery_executor_utils, "app", mock_app),
+    ):
+        mock_supervise.side_effect = TaskAlreadyRunningError("Task already running")
+
+        workload_json = """
+        {
+            "type": "ExecuteTask",
+            "token": "test-token",
+            "dag_rel_path": "test_dag.py",
+            "bundle_info": {"name": "test-bundle", "version": null},
+            "log_path": "test.log",
+            "ti": {
+                "id": "019bdec0-d353-7b68-abe0-5ac20fa75ad0",
+                "dag_version_id": "019bdead-fdcd-78ab-a9f2-aba3b80fded2",
+                "task_id": "test_task",
+                "dag_id": "test_dag",
+                "run_id": "test_run",
+                "try_number": 1,
+                "map_index": -1,
+                "pool_slots": 1,
+                "queue": "default",
+                "priority_weight": 1
+            }
+        }
+        """
+        with pytest.raises(Ignore):
+            execute_workload_unwrapped(workload_json)

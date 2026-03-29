@@ -24,7 +24,7 @@ from unittest.mock import patch
 import elasticsearch
 import pytest
 
-from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchRemoteLogIO
+from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchRemoteLogIO, _render_log_id
 
 # The ES service hostname as defined in scripts/ci/docker-compose/integration-elasticsearch.yml
 ES_HOST = "http://elasticsearch:9200"
@@ -101,8 +101,8 @@ class TestElasticsearchRemoteLogIOIntegration:
         expected_messages = ["start", "processing", "end"]
         for expected, log_message in zip(expected_messages, log_messages):
             log_entry = json.loads(log_message)
-            assert "message" in log_entry
-            assert log_entry["message"] == expected
+            assert "event" in log_entry
+            assert log_entry["event"] == expected
 
     def test_read_missing_log(self, ti):
         """Verify that a missing log returns the expected error message.
@@ -118,3 +118,30 @@ class TestElasticsearchRemoteLogIOIntegration:
         assert log_source_info == []
         assert len(log_messages) == 1
         assert "not found in Elasticsearch" in log_messages[0]
+
+    def test_read_error_detail_integration(self, ti):
+        """Verify that error_detail is correctly retrieved and formatted in integration tests."""
+        # Manually index a log entry with error_detail
+        error_detail = [
+            {
+                "is_cause": False,
+                "frames": [{"filename": "/opt/airflow/dags/fail.py", "lineno": 13, "name": "log_and_raise"}],
+                "exc_type": "RuntimeError",
+                "exc_value": "Woopsie. Something went wrong.",
+            }
+        ]
+        body = {
+            "event": "Task failed with exception",
+            "log_id": _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number),
+            "offset": 1,
+            "error_detail": error_detail,
+        }
+        self.elasticsearch_io.client.index(index=self.target_index, document=body)
+        self.elasticsearch_io.client.indices.refresh(index=self.target_index)
+
+        log_source_info, log_messages = self.elasticsearch_io.read("", ti)
+
+        assert len(log_messages) == 1
+        log_entry = json.loads(log_messages[0])
+        assert "error_detail" in log_entry
+        assert log_entry["error_detail"] == error_detail

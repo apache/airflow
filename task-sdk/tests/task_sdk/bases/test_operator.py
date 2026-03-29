@@ -41,6 +41,7 @@ from airflow.sdk.bases.operator import (
 )
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.definitions.template import literal
+from airflow.triggers.base import StartTriggerArgs
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -108,9 +109,18 @@ class MockOperator(BaseOperator):
         super().__init__(**kwargs)
         self.arg1 = arg1
         self.arg2 = arg2
+        if self.start_from_trigger:
+            self.start_trigger_args = StartTriggerArgs(
+                trigger_cls="trigger_cls",
+                next_method="next_method",
+                trigger_kwargs={"arg1": arg1, "arg2": arg2},
+            )
 
 
 class TestBaseOperator:
+    def setup_method(self, method):
+        MockOperator.start_from_trigger = False
+
     # Since we have a custom metaclass, lets double check the behaviour of
     # passing args in the wrong way (args etc)
     def test_kwargs_only(self):
@@ -799,6 +809,16 @@ class TestBaseOperator:
 
         task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
         assert mock_jinja_env.call_count == 1
+
+    def test_validate_start_from_trigger_kwargs(self):
+        MockOperator.start_from_trigger = True
+
+        with pytest.raises(
+            ValueError,
+            match="MockOperator with task_id 'one' has a callable in trigger kwargs named "
+            "'arg2', which is not allowed when start_from_trigger is enabled.",
+        ):
+            MockOperator(task_id="one", arg1="{{ foo }}", arg2=lambda context, jinja_env: "bar")
 
     def test_params_source(self):
         # Test bug when copying an operator attached to a Dag

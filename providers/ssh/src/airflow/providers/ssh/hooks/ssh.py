@@ -598,7 +598,7 @@ class SSHHookAsync(BaseHook):
 
         host_key = extra_options.get("host_key")
         nhkc_raw = extra_options.get("no_host_key_check")
-        no_host_key_check = str(nhkc_raw).lower() == "true" if nhkc_raw is not None else False
+        no_host_key_check = str(nhkc_raw).lower() == "true" if nhkc_raw is not None else True
 
         if host_key is not None and no_host_key_check:
             raise ValueError("Host key check was skipped, but `host_key` value was given")
