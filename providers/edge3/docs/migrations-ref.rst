@@ -34,7 +34,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-----------------+----------------------------------------------------------+
 | Revision ID             | Revises ID       | Edge3 Version   | Description                                              |
 +=========================+==================+=================+==========================================================+
-| ``a09c3ee8e1d3`` (head) | ``8c275b6fbaa8`` | ``3.3.0``       | Add team_name column to edge_job and edge_worker tables. |
+| ``a09c3ee8e1d3`` (head) | ``8c275b6fbaa8`` | ``3.4.0``       | Add team_name column to edge_job and edge_worker tables. |
 +-------------------------+------------------+-----------------+----------------------------------------------------------+
 | ``8c275b6fbaa8``        | ``b3c4d5e6f7a8`` | ``3.2.0``       | Fix migration file/ORM inconsistencies.                  |
 +-------------------------+------------------+-----------------+----------------------------------------------------------+
