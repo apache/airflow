@@ -116,6 +116,9 @@ tmp_path_retention_policy = "failed"
 extend = "../../pyproject.toml"
 src = ["src"]
 
+[tool.uv]
+# Synchroonize with scripts/ci/prek/upgrade_important_versions.py
+exclude-newer = "4 days"
 
 [tool.mypy]
 ignore_missing_imports = true

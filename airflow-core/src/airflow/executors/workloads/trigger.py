@@ -41,5 +41,8 @@ class RunTrigger(BaseModel):
     timeout_after: datetime | None = None
     type: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
     dag_data: dict | None = (
-        None  # Serialized Dag model in dict format so it can be deserialized in trigger subprocess.
+        None  # Serialized DagModel in dict format so it can be deserialized in trigger subprocess.
+    )
+    dag_run_data: dict | None = (
+        None  # Serialized DagRun data in dict format so it can be deserialized in trigger subprocess.
     )

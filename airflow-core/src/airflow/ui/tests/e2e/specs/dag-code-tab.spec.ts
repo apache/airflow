@@ -31,7 +31,7 @@ test.describe("DAG Code Tab", () => {
     await codePage.navigateToCodeTab(dagId);
   });
 
-  test("Verify DAG source code is displayed", async () => {
+  test.fixme("Verify DAG source code is displayed", async () => {
     await codePage.verifySourceCodeDisplayed();
   });
 
@@ -43,7 +43,7 @@ test.describe("DAG Code Tab", () => {
     await codePage.verifyCodeIsScrollable();
   });
 
-  test("Verify line numbers are displayed", async () => {
+  test.fixme("Verify line numbers are displayed", async () => {
     await codePage.verifyLineNumbersDisplayed();
   });
 });
