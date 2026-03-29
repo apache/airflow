@@ -216,8 +216,8 @@ class TestEdgeDBManager:
         assert "3.2.0" in _REVISION_HEADS_MAP
         assert _REVISION_HEADS_MAP["3.2.0"] == "8c275b6fbaa8"
 
-        assert "3.3.0" in _REVISION_HEADS_MAP
-        assert _REVISION_HEADS_MAP["3.3.0"] == "a09c3ee8e1d3"
+        assert "3.4.0" in _REVISION_HEADS_MAP
+        assert _REVISION_HEADS_MAP["3.4.0"] == "a09c3ee8e1d3"
 
     def test_initdb_stamps_and_upgrades_when_tables_exist_without_version(self, session):
         """Test that initdb runs incremental migrations when tables exist but alembic version table does not."""
