@@ -138,6 +138,12 @@ def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
 
     config = get_default_celery_config(team_conf)
 
+    # Apply celery_config_options override if explicitly configured
+    if conf.has_option("celery", "celery_config_options"):
+        user_config = conf.getimport("celery", "celery_config_options")
+        if isinstance(user_config, dict):
+            config.update(user_config)
+
     celery_app = Celery(celery_app_name, config_source=config)
 
     # Register tasks with this app
