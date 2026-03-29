@@ -1,4 +1,4 @@
- <!-- SPDX-License-Identifier: Apache-2.0
+<!-- SPDX-License-Identifier: Apache-2.0
       https://www.apache.org/licenses/LICENSE-2.0 -->
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -16,10 +16,14 @@
 
 New scripts in `dev/` must be standalone Python scripts (not bash). Each script must include
 [inline script metadata](https://packaging.python.org/en/latest/specifications/inline-script-metadata/)
-so that `uv run` can execute it without any prior installation:
+placed **after** the Apache License header, so that `uv run` can execute it without any prior
+installation:
 
 ```python
 #!/usr/bin/env python3
+# Licensed to the Apache Software Foundation (ASF) ...
+#   http://www.apache.org/licenses/LICENSE-2.0
+# ...
 # /// script
 # requires-python = ">=3.9"
 # dependencies = [
