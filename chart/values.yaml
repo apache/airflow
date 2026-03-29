@@ -1064,9 +1064,9 @@ workers:
 
   runtimeClassName: ~
 
-  # Use `workers.celery.priorityClassName` and/or `workers.kubernetes.priorityClassName` to separate
-  # value between Celery workers and pod-template-file
+  # (deprecated, use workers.celery.priorityClassName and/or workers.kubernetes.priorityClassName instead)
   priorityClassName: ~
+
   affinity: {}
   # Default Airflow Celery worker affinity is:
   #  podAntiAffinity:
