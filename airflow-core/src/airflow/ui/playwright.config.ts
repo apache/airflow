@@ -119,6 +119,7 @@ export default defineConfig({
     "**/task-logs.spec.ts",
     "**/dag-tasks.spec.ts",
     "**/variable.spec.ts",
+    "**/xcoms.spec.ts",
   ],
 
   timeout: 60_000,

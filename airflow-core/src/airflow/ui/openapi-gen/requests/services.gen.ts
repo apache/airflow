@@ -172,6 +172,7 @@ export class AssetService {
      * Materialize an asset by triggering a DAG run that produces it.
      * @param data The data for the request.
      * @param data.assetId
+     * @param data.requestBody
      * @returns DAGRunResponse Successful Response
      * @throws ApiError
      */
@@ -182,6 +183,8 @@ export class AssetService {
             path: {
                 asset_id: data.assetId
             },
+            body: data.requestBody,
+            mediaType: 'application/json',
             errors: {
                 400: 'Bad Request',
                 401: 'Unauthorized',
