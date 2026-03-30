@@ -152,11 +152,11 @@ Gate scheduled runs on asset updates
 
 Use ``AssetAndTimeSchedule`` when you want a Dag to follow a normal time-based timetable but only start after specific assets have been updated. Airflow creates the DagRun at the scheduled time and keeps it queued until every required asset has queued an event. When the DagRun starts, those asset events are consumed so the next scheduled run waits for new updates. This does not create additional asset-triggered runs.
 
+If ``dagrun_timeout`` is set on the DAG, it also limits how long an ``AssetAndTimeSchedule`` run may remain queued while waiting for its asset condition to become ready.
+
 .. code-block:: python
 
-    from airflow.sdk import DAG, Asset
-    from airflow.timetables.assets import AssetAndTimeSchedule
-    from airflow.timetables.trigger import CronTriggerTimetable
+    from airflow.sdk import DAG, Asset, AssetAndTimeSchedule, CronTriggerTimetable
 
     example_asset = Asset("s3://asset/example.csv")
 
