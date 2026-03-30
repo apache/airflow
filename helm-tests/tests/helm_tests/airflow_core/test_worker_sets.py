@@ -2542,6 +2542,13 @@ class TestWorkerSets:
                     "sets": [{"name": "set1", "priorityClassName": "test-class"}],
                 },
             },
+            {
+                "celery": {
+                    "priorityClassName": "test",
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "priorityClassName": "test-class"}],
+                },
+            },
         ],
     )
     def test_overwrite_priority_class_name(self, workers_values):

@@ -1063,7 +1063,10 @@ workers:
   nodeSelector: {}
 
   runtimeClassName: ~
+
+  # (deprecated, use workers.celery.priorityClassName and/or workers.kubernetes.priorityClassName instead)
   priorityClassName: ~
+
   affinity: {}
   # Default Airflow Celery worker affinity is:
   #  podAntiAffinity:
@@ -1392,6 +1395,8 @@ workers:
     # Select certain nodes for Airflow Celery worker pods
     nodeSelector: {}
 
+    priorityClassName: ~
+
     # hostAliases to use in Airflow Celery worker pods
     # See:
     # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -1475,6 +1480,8 @@ workers:
 
     # Select certain nodes for pods created with pod-template-file
     nodeSelector: {}
+
+    priorityClassName: ~
 
     # hostAliases to use in pods created with pod-template-file
     # See:
