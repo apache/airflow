@@ -48,7 +48,7 @@ class DBDagBag:
 
     def __init__(self, load_op_links: bool = True) -> None:
         self._max_dag_version_cache_size: int = conf.getint(
-            "core", "max_dag_version_cache_size", fallback=512
+            "core", "max_dag_version_cache_size", fallback=4096
         )
         self._dags: OrderedDict[UUID, SerializedDagModel] = OrderedDict()
         self.load_op_links = load_op_links

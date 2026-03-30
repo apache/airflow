@@ -527,7 +527,7 @@ core:
       version_added: 3.2.0
       type: integer
       example: ~
-      default: "512"
+      default: "4096"
 database:
   description: ~
   options:
