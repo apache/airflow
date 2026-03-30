@@ -42,6 +42,7 @@ AlertApi
 alertPolicies
 Alibaba
 alibaba
+alibabacloud
 allAuthenticatedUsers
 allowlist
 allUsers
@@ -256,6 +257,7 @@ cncf
 cnf
 cnt
 codebase
+codec
 codecov
 codepoints
 Colour
@@ -1156,6 +1158,7 @@ passwd
 pathlib
 pathType
 Paxos
+PDFs
 PEM
 Pem
 pem

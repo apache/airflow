@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from airflow.api_fastapi.common.types import OklchColor
+from airflow.api_fastapi.common.types import OklchColor, Theme, ThemeColors
 
 
 class TestOklchColor:
@@ -74,3 +74,136 @@ class TestOklchColor:
         with pytest.raises(ValidationError) as exc_info:
             OklchColor.model_validate(input_str)
         assert error_message in str(exc_info.value)
+
+
+# Shared test data for Theme/ThemeColors tests
+_BRAND_SCALE = {
+    "50": {"value": "oklch(0.975 0.007 298.0)"},
+    "100": {"value": "oklch(0.950 0.014 298.0)"},
+    "200": {"value": "oklch(0.900 0.023 298.0)"},
+    "300": {"value": "oklch(0.800 0.030 298.0)"},
+    "400": {"value": "oklch(0.680 0.038 298.0)"},
+    "500": {"value": "oklch(0.560 0.044 298.0)"},
+    "600": {"value": "oklch(0.460 0.048 298.0)"},
+    "700": {"value": "oklch(0.390 0.049 298.0)"},
+    "800": {"value": "oklch(0.328 0.050 298.0)"},
+    "900": {"value": "oklch(0.230 0.043 298.0)"},
+    "950": {"value": "oklch(0.155 0.035 298.0)"},
+}
+_GRAY_SCALE = {
+    "50": {"value": "oklch(0.975 0.002 264.0)"},
+    "100": {"value": "oklch(0.950 0.003 264.0)"},
+    "200": {"value": "oklch(0.880 0.005 264.0)"},
+    "300": {"value": "oklch(0.780 0.008 264.0)"},
+    "400": {"value": "oklch(0.640 0.012 264.0)"},
+    "500": {"value": "oklch(0.520 0.015 264.0)"},
+    "600": {"value": "oklch(0.420 0.015 264.0)"},
+    "700": {"value": "oklch(0.340 0.012 264.0)"},
+    "800": {"value": "oklch(0.260 0.009 264.0)"},
+    "900": {"value": "oklch(0.200 0.007 264.0)"},
+    "950": {"value": "oklch(0.145 0.005 264.0)"},
+}
+_BLACK_SHADE = {"value": "oklch(0.220 0.025 288.6)"}
+_WHITE_SHADE = {"value": "oklch(0.985 0.002 264.0)"}
+
+
+class TestThemeColors:
+    def test_brand_only(self):
+        colors = ThemeColors.model_validate({"brand": _BRAND_SCALE})
+        assert colors.brand is not None
+        assert colors.gray is None
+        assert colors.black is None
+        assert colors.white is None
+
+    def test_gray_only(self):
+        colors = ThemeColors.model_validate({"gray": _GRAY_SCALE})
+        assert colors.gray is not None
+        assert colors.brand is None
+
+    def test_black_and_white_only(self):
+        colors = ThemeColors.model_validate({"black": _BLACK_SHADE, "white": _WHITE_SHADE})
+        assert colors.black is not None
+        assert colors.white is not None
+        assert colors.brand is None
+        assert colors.gray is None
+
+    def test_all_tokens(self):
+        colors = ThemeColors.model_validate(
+            {"brand": _BRAND_SCALE, "gray": _GRAY_SCALE, "black": _BLACK_SHADE, "white": _WHITE_SHADE}
+        )
+        assert colors.brand is not None
+        assert colors.gray is not None
+        assert colors.black is not None
+        assert colors.white is not None
+
+    def test_empty_colors_rejected(self):
+        with pytest.raises(ValidationError) as exc_info:
+            ThemeColors.model_validate({})
+        assert "At least one color token must be provided" in str(exc_info.value)
+
+    def test_invalid_shade_key_rejected(self):
+        with pytest.raises(ValidationError):
+            ThemeColors.model_validate({"gray": {"999": {"value": "oklch(0.5 0.1 264.0)"}}})
+
+    def test_serialization_excludes_none_fields(self):
+        colors = ThemeColors.model_validate({"brand": _BRAND_SCALE})
+        dumped = colors.model_dump()
+        assert "brand" in dumped
+        assert "gray" not in dumped
+        assert "black" not in dumped
+        assert "white" not in dumped
+
+
+class TestTheme:
+    def test_brand_only_theme(self):
+        """Backwards-compatible: existing configs with only brand still work."""
+        theme = Theme.model_validate({"tokens": {"colors": {"brand": _BRAND_SCALE}}})
+        assert theme.tokens["colors"].brand is not None
+        assert theme.tokens["colors"].gray is None
+        assert theme.globalCss is None
+
+    def test_gray_only_theme(self):
+        """New: brand is no longer required."""
+        theme = Theme.model_validate({"tokens": {"colors": {"gray": _GRAY_SCALE}}})
+        assert theme.tokens["colors"].gray is not None
+        assert theme.tokens["colors"].brand is None
+
+    def test_black_white_theme(self):
+        theme = Theme.model_validate({"tokens": {"colors": {"black": _BLACK_SHADE, "white": _WHITE_SHADE}}})
+        assert theme.tokens["colors"].black is not None
+        assert theme.tokens["colors"].white is not None
+
+    def test_all_tokens_theme(self):
+        theme = Theme.model_validate(
+            {
+                "tokens": {
+                    "colors": {
+                        "brand": _BRAND_SCALE,
+                        "gray": _GRAY_SCALE,
+                        "black": _BLACK_SHADE,
+                        "white": _WHITE_SHADE,
+                    }
+                }
+            }
+        )
+        colors = theme.tokens["colors"]
+        assert colors.brand is not None
+        assert colors.gray is not None
+        assert colors.black is not None
+        assert colors.white is not None
+
+    def test_empty_colors_rejected(self):
+        with pytest.raises(ValidationError) as exc_info:
+            Theme.model_validate({"tokens": {"colors": {}}})
+        assert "At least one color token must be provided" in str(exc_info.value)
+
+    def test_serialization_round_trip(self):
+        """Verify None color fields are excluded and OklchColor values are serialized as strings."""
+        theme = Theme.model_validate({"tokens": {"colors": {"brand": _BRAND_SCALE}}})
+        dumped = theme.model_dump()
+        colors = dumped["tokens"]["colors"]
+        assert "brand" in colors
+        assert "gray" not in colors
+        assert "black" not in colors
+        assert "white" not in colors
+        assert colors["brand"]["50"]["value"] == "oklch(0.975 0.007 298.0)"

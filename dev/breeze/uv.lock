@@ -6,6 +6,10 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+[options]
+exclude-newer = "2026-03-26T03:40:02.344129Z"
+exclude-newer-span = "P4D"
+
 [[package]]
 name = "anyio"
 version = "4.13.0"

@@ -29,20 +29,28 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { ActionBar } from "src/components/ui/ActionBar";
+import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
+import BulkDeleteTaskInstancesButton from "./BulkDeleteTaskInstancesButton";
+import BulkMarkTaskInstancesAsButton from "./BulkMarkTaskInstancesAsButton";
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
+
+const getRowKey = (ti: TaskInstanceResponse) => `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -63,17 +71,47 @@ const {
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
+type ColumnProps = {
+  readonly dagId?: string;
+  readonly runId?: string;
+  readonly taskId?: string;
+  readonly translate: TFunction;
+};
+
 const taskInstanceColumns = ({
+  allRowsSelected,
   dagId,
+  onRowSelect,
+  onSelectAll,
   runId,
+  selectedRows,
   taskId,
   translate,
-}: {
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
-  translate: TFunction;
-}): Array<ColumnDef<TaskInstanceResponse>> => [
+}: ColumnProps & GetColumnsParams): Array<ColumnDef<TaskInstanceResponse>> => [
+  {
+    accessorKey: "select",
+    cell: ({ row }) => (
+      <Checkbox
+        borderWidth={1}
+        checked={selectedRows.get(getRowKey(row.original))}
+        colorPalette="brand"
+        onCheckedChange={(event) => onRowSelect(getRowKey(row.original), Boolean(event.checked))}
+      />
+    ),
+    enableHiding: false,
+    enableSorting: false,
+    header: () => (
+      <Checkbox
+        borderWidth={1}
+        checked={allRowsSelected}
+        colorPalette="brand"
+        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+      />
+    ),
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
   ...(Boolean(dagId)
     ? []
     : [
@@ -95,7 +133,6 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "run_after",
-          // If we don't show the taskId column, make the dag run a link to the task instance
           cell: ({ row: { original } }: TaskInstanceRow) =>
             Boolean(taskId) ? (
               <Link asChild color="fg.info" fontWeight="bold">
@@ -292,9 +329,22 @@ export const TaskInstances = () => {
     },
   );
 
+  const { allRowsSelected, clearSelections, handleRowSelect, handleSelectAll, selectedRows } =
+    useRowSelection({
+      data: data?.task_instances,
+      getKey: getRowKey,
+    });
+
+  const selectedTaskInstances = (data?.task_instances ?? []).filter((ti) => selectedRows.has(getRowKey(ti)));
+
   const columns = taskInstanceColumns({
+    allRowsSelected,
     dagId,
+    multiTeam: false,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
     runId,
+    selectedRows,
     taskId: Boolean(groupId) ? undefined : taskId,
     translate,
   });
@@ -312,6 +362,27 @@ export const TaskInstances = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
+      <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
+        <ActionBar.Content>
+          <ActionBar.SelectionTrigger>
+            {selectedRows.size} {translate("selected")}
+          </ActionBar.SelectionTrigger>
+          <ActionBar.Separator />
+          <BulkClearTaskInstancesButton
+            clearSelections={clearSelections}
+            selectedTaskInstances={selectedTaskInstances}
+          />
+          <BulkMarkTaskInstancesAsButton
+            clearSelections={clearSelections}
+            selectedTaskInstances={selectedTaskInstances}
+          />
+          <BulkDeleteTaskInstancesButton
+            clearSelections={clearSelections}
+            selectedTaskInstances={selectedTaskInstances}
+          />
+          <ActionBar.CloseTrigger onClick={clearSelections} />
+        </ActionBar.Content>
+      </ActionBar.Root>
     </>
   );
 };

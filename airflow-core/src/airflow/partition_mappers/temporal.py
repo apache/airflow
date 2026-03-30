@@ -63,7 +63,7 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
         )
 
 
-class ToHourlyMapper(_BaseTemporalMapper):
+class StartOfHourMapper(_BaseTemporalMapper):
     """Map a time-based partition key to hour."""
 
     default_output_format = "%Y-%m-%dT%H"
@@ -72,7 +72,7 @@ class ToHourlyMapper(_BaseTemporalMapper):
         return dt.replace(minute=0, second=0, microsecond=0)
 
 
-class ToDailyMapper(_BaseTemporalMapper):
+class StartOfDayMapper(_BaseTemporalMapper):
     """Map a time-based partition key to day."""
 
     default_output_format = "%Y-%m-%d"
@@ -81,7 +81,7 @@ class ToDailyMapper(_BaseTemporalMapper):
         return dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-class ToWeeklyMapper(_BaseTemporalMapper):
+class StartOfWeekMapper(_BaseTemporalMapper):
     """Map a time-based partition key to week."""
 
     default_output_format = "%Y-%m-%d (W%V)"
@@ -91,7 +91,7 @@ class ToWeeklyMapper(_BaseTemporalMapper):
         return start.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-class ToMonthlyMapper(_BaseTemporalMapper):
+class StartOfMonthMapper(_BaseTemporalMapper):
     """Map a time-based partition key to month."""
 
     default_output_format = "%Y-%m"
@@ -106,7 +106,7 @@ class ToMonthlyMapper(_BaseTemporalMapper):
         )
 
 
-class ToQuarterlyMapper(_BaseTemporalMapper):
+class StartOfQuarterMapper(_BaseTemporalMapper):
     """Map a time-based partition key to quarter."""
 
     default_output_format = "%Y-Q{quarter}"
@@ -128,7 +128,7 @@ class ToQuarterlyMapper(_BaseTemporalMapper):
         return dt.strftime(self.output_format).format(quarter=quarter)
 
 
-class ToYearlyMapper(_BaseTemporalMapper):
+class StartOfYearMapper(_BaseTemporalMapper):
     """Map a time-based partition key to year."""
 
     default_output_format = "%Y"

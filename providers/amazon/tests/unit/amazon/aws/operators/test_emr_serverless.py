@@ -1406,6 +1406,14 @@ class TestEmrServerlessDeleteOperator:
         with pytest.raises(TaskDeferred):
             operator.execute(None)
 
+    def test_execute_complete_error(self):
+        operator = EmrServerlessDeleteApplicationOperator(
+            task_id=task_id, application_id=application_id_delete_operator
+        )
+        error_event = {"status": "error", "message": "Delete failed", "application_id": "test"}
+        with pytest.raises(AirflowException, match="Error deleting EMR Serverless application"):
+            operator.execute_complete({}, error_event)
+
     def test_template_fields(self):
         operator = EmrServerlessDeleteApplicationOperator(
             task_id=task_id, application_id=application_id_delete_operator
@@ -1486,6 +1494,18 @@ class TestEmrServerlessStopOperator:
             operator.execute({})
 
         assert "no running jobs found with application ID test" in caplog.messages
+
+    def test_execute_complete_error(self):
+        operator = EmrServerlessStopApplicationOperator(task_id=task_id, application_id="test")
+        error_event = {"status": "error", "message": "Stop failed", "application_id": "test"}
+        with pytest.raises(AirflowException, match="Error stopping EMR Serverless application"):
+            operator.execute_complete({}, error_event)
+
+    def test_stop_application_error(self):
+        operator = EmrServerlessStopApplicationOperator(task_id=task_id, application_id="test")
+        error_event = {"status": "error", "message": "Cancel jobs failed", "application_id": "test"}
+        with pytest.raises(AirflowException, match="Error cancelling EMR Serverless jobs"):
+            operator.stop_application({}, error_event)
 
     def test_template_fields(self):
         operator = EmrServerlessStopApplicationOperator(
