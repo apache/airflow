@@ -1,0 +1,62 @@
+[build-system]
+requires = ["flit_core==3.12.0"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "apache-airflow-providers-grafana"
+version = "1.0.0"
+description = "Provider package apache-airflow-providers-grafana for Apache Airflow"
+readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
+authors = [
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
+]
+maintainers = [
+    {name="Apache Software Foundation", email="dev@airflow.apache.org"},
+]
+keywords = [ "airflow-provider", "grafana", "loki", "airflow", "integration" ]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Framework :: Apache Airflow",
+    "Framework :: Apache Airflow :: Provider",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.10"
+
+dependencies = [
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.12.0",
+    "requests>=2.27.0",
+    "tenacity>=8.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "apache-airflow",
+    "apache-airflow-task-sdk",
+    "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
+]
+
+docs = [
+    "apache-airflow-devel-common[docs]"
+]
+
+[tool.uv.sources]
+apache-airflow = {workspace = true}
+apache-airflow-devel-common = {workspace = true}
+apache-airflow-task-sdk = {workspace = true}
+
+[project.entry-points."apache_airflow_provider"]
+provider_info = "airflow.providers.grafana.get_provider_info:get_provider_info"
+
+[tool.flit.module]
+name = "airflow.providers.grafana"

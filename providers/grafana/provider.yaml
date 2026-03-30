@@ -1,0 +1,22 @@
+package-name: apache-airflow-providers-grafana
+name: Grafana
+description: |
+    `Grafana <https://grafana.com/>`__
+state: ready
+source-date-epoch: 1714241088
+versions:
+  - 1.0.0
+
+dependencies:
+  - apache-airflow>=2.11.0
+  - requests>=2.27.0
+  - tenacity>=8.0.0
+
+integrations:
+  - integration-name: Grafana Loki
+    external-doc-url: https://grafana.com/oss/loki/
+    logo: /integration-logos/grafana/Loki.png
+    tags: [logging]
+
+logging:
+  - airflow.providers.grafana.loki.log.loki_task_handler.LokiTaskHandler

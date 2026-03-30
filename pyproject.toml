@@ -108,7 +108,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.cassandra" = [
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
+    "apache-airflow-providers-apache-cassandra>=3.7.0"
 ]
 "apache.drill" = [
     "apache-airflow-providers-apache-drill>=2.8.1"
@@ -168,7 +168,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-celery>=3.8.3"
 ]
 "cloudant" = [
-    "apache-airflow-providers-cloudant>=4.0.1"
+    "apache-airflow-providers-cloudant>=4.0.1; python_version !=\"3.9\""
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=9.0.0"
@@ -235,6 +235,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "google" = [
     "apache-airflow-providers-google>=10.24.0"
+]
+"grafana" = [
+    "apache-airflow-providers-grafana>=1.0.0" # Set from local provider pyproject.toml
 ]
 "grpc" = [
     "apache-airflow-providers-grpc>=3.7.0"
@@ -398,7 +401,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
     "apache-airflow-providers-apache-flink>=1.6.0",
@@ -418,7 +421,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-asana>=2.7.0",
     "apache-airflow-providers-atlassian-jira>=2.7.1",
     "apache-airflow-providers-celery>=3.8.3",
-    "apache-airflow-providers-cloudant>=4.0.1",
+    "apache-airflow-providers-cloudant>=4.0.1; python_version !=\"3.9\"",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-ai>=0.0.1", # Set from local provider pyproject.toml
@@ -441,6 +444,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-github>=2.8.0",
     "apache-airflow-providers-google>=10.24.0",
+    "apache-airflow-providers-grafana>=1.0.0", # Set from local provider pyproject.toml
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
@@ -1142,6 +1146,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/github/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/google/src",
     "$MYPY_CONFIG_FILE_DIR/providers/google/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/grafana/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/grafana/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/grpc/src",
     "$MYPY_CONFIG_FILE_DIR/providers/grpc/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/hashicorp/src",
@@ -1428,6 +1434,7 @@ apache-airflow-providers-ftp = { workspace = true }
 apache-airflow-providers-git = { workspace = true }
 apache-airflow-providers-github = { workspace = true }
 apache-airflow-providers-google = { workspace = true }
+apache-airflow-providers-grafana = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
@@ -1561,6 +1568,7 @@ members = [
     "providers/git",
     "providers/github",
     "providers/google",
+    "providers/grafana",
     "providers/grpc",
     "providers/hashicorp",
     "providers/http",

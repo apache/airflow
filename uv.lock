@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-25T09:25:36.898664504Z"
+exclude-newer = "2026-03-26T21:12:11.341378713Z"
 exclude-newer-span = "P4D"
 
 [manifest]
@@ -75,6 +75,7 @@ members = [
     "apache-airflow-providers-git",
     "apache-airflow-providers-github",
     "apache-airflow-providers-google",
+    "apache-airflow-providers-grafana",
     "apache-airflow-providers-grpc",
     "apache-airflow-providers-hashicorp",
     "apache-airflow-providers-http",
@@ -826,7 +827,7 @@ all = [
     { name = "apache-airflow-providers-airbyte" },
     { name = "apache-airflow-providers-alibaba" },
     { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "python3-saml", "s3fs"] },
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-apache-cassandra" },
     { name = "apache-airflow-providers-apache-drill" },
     { name = "apache-airflow-providers-apache-druid" },
     { name = "apache-airflow-providers-apache-flink" },
@@ -869,6 +870,7 @@ all = [
     { name = "apache-airflow-providers-git" },
     { name = "apache-airflow-providers-github" },
     { name = "apache-airflow-providers-google" },
+    { name = "apache-airflow-providers-grafana" },
     { name = "apache-airflow-providers-grpc" },
     { name = "apache-airflow-providers-hashicorp" },
     { name = "apache-airflow-providers-http" },
@@ -945,7 +947,7 @@ apache-atlas = [
     { name = "atlasclient" },
 ]
 apache-cassandra = [
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-apache-cassandra" },
 ]
 apache-drill = [
     { name = "apache-airflow-providers-apache-drill" },
@@ -1090,6 +1092,9 @@ google = [
 google-auth = [
     { name = "apache-airflow-providers-fab" },
     { name = "authlib" },
+]
+grafana = [
+    { name = "apache-airflow-providers-grafana" },
 ]
 graphviz = [
     { name = "apache-airflow-core", extra = ["graphviz"] },
@@ -1348,8 +1353,8 @@ requires-dist = [
     { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], marker = "extra == 'aiobotocore'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["python3-saml"], marker = "extra == 'amazon-aws-auth'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["s3fs"], marker = "extra == 's3fs'", editable = "providers/amazon" },
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/cassandra" },
-    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
+    { name = "apache-airflow-providers-apache-cassandra", marker = "extra == 'all'", editable = "providers/apache/cassandra" },
+    { name = "apache-airflow-providers-apache-cassandra", marker = "extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'all'", editable = "providers/apache/drill" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'apache-drill'", editable = "providers/apache/drill" },
     { name = "apache-airflow-providers-apache-druid", marker = "extra == 'all'", editable = "providers/apache/druid" },
@@ -1389,8 +1394,8 @@ requires-dist = [
     { name = "apache-airflow-providers-atlassian-jira", marker = "extra == 'atlassian-jira'", editable = "providers/atlassian/jira" },
     { name = "apache-airflow-providers-celery", marker = "extra == 'all'", editable = "providers/celery" },
     { name = "apache-airflow-providers-celery", marker = "extra == 'celery'", editable = "providers/celery" },
-    { name = "apache-airflow-providers-cloudant", marker = "extra == 'all'", editable = "providers/cloudant" },
-    { name = "apache-airflow-providers-cloudant", marker = "extra == 'cloudant'", editable = "providers/cloudant" },
+    { name = "apache-airflow-providers-cloudant", marker = "python_full_version != '3.9.*' and extra == 'all'", editable = "providers/cloudant" },
+    { name = "apache-airflow-providers-cloudant", marker = "python_full_version != '3.9.*' and extra == 'cloudant'", editable = "providers/cloudant" },
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'all'", editable = "providers/cncf/kubernetes" },
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'cncf-kubernetes'", editable = "providers/cncf/kubernetes" },
     { name = "apache-airflow-providers-cohere", marker = "extra == 'all'", editable = "providers/cohere" },
@@ -1439,6 +1444,8 @@ requires-dist = [
     { name = "apache-airflow-providers-github", marker = "extra == 'github'", editable = "providers/github" },
     { name = "apache-airflow-providers-google", marker = "extra == 'all'", editable = "providers/google" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
+    { name = "apache-airflow-providers-grafana", marker = "extra == 'all'", editable = "providers/grafana" },
+    { name = "apache-airflow-providers-grafana", marker = "extra == 'grafana'", editable = "providers/grafana" },
     { name = "apache-airflow-providers-grpc", marker = "extra == 'all'", editable = "providers/grpc" },
     { name = "apache-airflow-providers-grpc", marker = "extra == 'grpc'", editable = "providers/grpc" },
     { name = "apache-airflow-providers-hashicorp", marker = "extra == 'all'", editable = "providers/hashicorp" },
@@ -1553,7 +1560,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.11.1" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grafana", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5165,6 +5172,45 @@ dev = [
     { name = "apache-airflow-providers-ssh", editable = "providers/ssh" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-providers-trino", editable = "providers/trino" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-grafana"
+version = "1.0.0"
+source = { editable = "providers/grafana" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "requests" },
+    { name = "tenacity" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "requests", specifier = ">=2.27.0" },
+    { name = "tenacity", specifier = ">=8.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
