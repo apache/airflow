@@ -14,3 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+import pytest
+
+pytestmark = pytest.mark.db_test
+
+
+@pytest.fixture
+def old_ver_client(client):
+    """Last released execution API before `/dags/{dag_id}` was added."""
+    client.headers["Airflow-API-Version"] = "2025-11-05"
+    return client
+
+
+def test_dag_endpoint_not_available_in_previous_version(old_ver_client):
+    response = old_ver_client.get("/execution/dags/test_dag")
+
+    assert response.status_code == 404

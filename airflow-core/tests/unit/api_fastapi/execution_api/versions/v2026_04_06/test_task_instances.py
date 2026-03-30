@@ -40,8 +40,8 @@ RUN_PATCH_BODY = {
 
 @pytest.fixture
 def old_ver_client(client):
-    """Client configured to use API version before start_date nullable change."""
-    client.headers["Airflow-API-Version"] = "2025-12-08"
+    """Last released execution API before nullable DagRun.start_date (2026-04-06 bundle)."""
+    client.headers["Airflow-API-Version"] = "2025-11-05"
     return client
 
 
