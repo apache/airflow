@@ -49,6 +49,8 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
         dt = datetime.strptime(key, self.input_format)
         if dt.tzinfo is None:
             dt = make_aware(dt, self._timezone)
+        else:
+            dt = dt.astimezone(self._timezone)
         normalized = self.normalize(dt)
         return self.format(normalized)
 
