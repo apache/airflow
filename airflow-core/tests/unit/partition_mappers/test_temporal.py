@@ -50,6 +50,13 @@ class TestTemporalMappers:
         assert pm.to_downstream("2026-02-10T14:30:45") == expected_downstream_key
 
     @pytest.mark.parametrize(
+        ("timezone", "expected_timezone"),
+        [
+            (None, "UTC"),
+            ("America/New_York", "America/New_York"),
+        ],
+    )
+    @pytest.mark.parametrize(
         ("mapper_cls", "expected_outut_format"),
         [
             (StartOfHourMapper, "%Y-%m-%dT%H"),
@@ -60,10 +67,16 @@ class TestTemporalMappers:
             (StartOfYearMapper, "%Y"),
         ],
     )
-    def test_serialize(self, mapper_cls: type[_BaseTemporalMapper], expected_outut_format: str):
-        pm = mapper_cls()
+    def test_serialize(
+        self,
+        mapper_cls: type[_BaseTemporalMapper],
+        expected_outut_format: str,
+        timezone: str | None,
+        expected_timezone: str,
+    ):
+        pm = mapper_cls() if timezone is None else mapper_cls(timezone=timezone)
         assert pm.serialize() == {
-            "timezone": "UTC",
+            "timezone": expected_timezone,
             "input_format": "%Y-%m-%dT%H:%M:%S",
             "output_format": expected_outut_format,
         }
