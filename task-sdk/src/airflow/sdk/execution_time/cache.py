@@ -21,7 +21,6 @@ import datetime
 import multiprocessing
 
 from airflow.sdk import timezone
-from airflow.sdk.configuration import conf
 
 
 class SecretCache:
@@ -55,6 +54,8 @@ class SecretCache:
         """
         if cls._cache is not None:
             return
+        from airflow.sdk.configuration import conf
+
         use_cache = conf.getboolean(section="secrets", key="use_cache", fallback=False)
         if not use_cache:
             return
