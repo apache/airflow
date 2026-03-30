@@ -9017,7 +9017,7 @@ def test_start_queued_dagruns_asset_and_time_uses_asset_evaluator(session: Sessi
     ):
         EmptyOperator(task_id="dummy_task")
 
-    logical_date = timezone.utcnow() - datetime.timedelta(minutes=1)
+    logical_date = pendulum.now("UTC") - datetime.timedelta(minutes=1)
     dag_run = dag_maker.create_dagrun(
         run_id="asset_and_time_queued",
         state=DagRunState.QUEUED,
@@ -9060,7 +9060,7 @@ def test_start_queued_dagruns_asset_and_time_deletes_only_selected_adrq_rows(ses
     ):
         EmptyOperator(task_id="dummy_task")
 
-    logical_date = timezone.utcnow() - datetime.timedelta(minutes=1)
+    logical_date = pendulum.now("UTC") - datetime.timedelta(minutes=1)
     dag_run = dag_maker.create_dagrun(
         run_id="asset_and_time_selected_rows",
         state=DagRunState.QUEUED,
@@ -9135,7 +9135,7 @@ def test_start_queued_dagruns_asset_and_time_times_out_while_waiting_for_assets(
     ):
         EmptyOperator(task_id="dummy_task")
 
-    logical_date = timezone.utcnow() - datetime.timedelta(minutes=3)
+    logical_date = pendulum.now("UTC") - datetime.timedelta(minutes=3)
     dag_run = dag_maker.create_dagrun(
         run_id="asset_and_time_wait_timeout",
         state=DagRunState.QUEUED,
@@ -9180,7 +9180,7 @@ def test_start_queued_dagruns_asset_and_time_times_out_older_run_before_starting
     ):
         EmptyOperator(task_id="dummy_task")
 
-    older_logical_date = timezone.utcnow() - datetime.timedelta(minutes=3)
+    older_logical_date = pendulum.now("UTC") - datetime.timedelta(minutes=3)
     older_dag_run = dag_maker.create_dagrun(
         run_id="asset_and_time_older_waiting_run",
         state=DagRunState.QUEUED,
@@ -9189,7 +9189,7 @@ def test_start_queued_dagruns_asset_and_time_times_out_older_run_before_starting
         data_interval=DataInterval.exact(older_logical_date),
         session=session,
     )
-    newer_logical_date = timezone.utcnow() - datetime.timedelta(minutes=1)
+    newer_logical_date = pendulum.now("UTC") - datetime.timedelta(minutes=1)
     newer_dag_run = dag_maker.create_dagrun(
         run_id="asset_and_time_newer_waiting_run",
         state=DagRunState.QUEUED,

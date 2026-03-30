@@ -82,7 +82,7 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
 @attrs.define(kw_only=True)
 class AssetAndTimeSchedule(BaseTimetable):
     """
-    Combine time-based scheduling with asset gating.
+    Combine time-based scheduling with asset conditions.
 
     :param assets: An asset or list of assets, in the same format as
         ``DAG(schedule=...)`` when using event-driven scheduling. This is used
