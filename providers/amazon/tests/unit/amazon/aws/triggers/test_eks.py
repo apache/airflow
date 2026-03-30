@@ -441,13 +441,13 @@ class TestEksPodTrigger:
         mock_eks_hook_init,
         mock_get_session,
     ):
-        """run() should raise AirflowException when credentials cannot be retrieved."""
+        """run() should raise RuntimeError when credentials cannot be retrieved."""
         mock_session = MagicMock()
         mock_get_session.return_value = mock_session
         mock_session.get_credentials.return_value = None
 
         trigger = self._create_trigger()
 
-        with pytest.raises(AirflowException, match="Unable to retrieve AWS credentials"):
+        with pytest.raises(RuntimeError, match="Unable to retrieve AWS credentials"):
             async for _ in trigger.run():
                 pass

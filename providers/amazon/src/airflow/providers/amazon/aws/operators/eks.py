@@ -1151,7 +1151,7 @@ class EksPodOperator(KubernetesPodOperator):
         trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
 
         if self.pod is None or self.pod.metadata is None:
-            raise AirflowException("Pod must be created with metadata before deferring")
+            raise RuntimeError("Pod must be created with metadata before deferring")
 
         trigger = EksPodTrigger(
             eks_cluster_name=self.cluster_name,

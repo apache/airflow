@@ -1112,7 +1112,7 @@ class TestEksPodOperator:
         op._credentials_file_path = str(credentials_file)
 
         # Call the refresh method and expect it to raise
-        with pytest.raises(AirflowException, match="Unable to retrieve fresh AWS credentials"):
+        with pytest.raises(RuntimeError, match="Unable to retrieve fresh AWS credentials"):
             op._refresh_cached_properties()
 
         # Verify super()._refresh_cached_properties() was NOT called since we raised
@@ -1157,7 +1157,7 @@ class TestEksPodOperator:
         "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
     )
     def test_invoke_defer_method_raises_when_pod_is_none(self, mock_convert_config):
-        """invoke_defer_method should raise AirflowException when pod is None."""
+        """invoke_defer_method should raise RuntimeError when pod is None."""
         op = EksPodOperator(
             task_id="run_pod",
             pod_name="run_pod",
@@ -1172,5 +1172,5 @@ class TestEksPodOperator:
         # pod is None by default
         op.pod = None
 
-        with pytest.raises(AirflowException, match="Pod must be created with metadata before deferring"):
+        with pytest.raises(RuntimeError, match="Pod must be created with metadata before deferring"):
             op.invoke_defer_method()
