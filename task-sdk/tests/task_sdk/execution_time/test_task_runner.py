@@ -2064,6 +2064,54 @@ class TestRuntimeTaskInstance:
             assert mock_get_all.called
 
     @pytest.mark.parametrize(
+        ("task_ids", "get_all_return", "default", "expected_result"),
+        [
+            pytest.param(
+                "task_a",
+                ["actual_value"],
+                "fallback",
+                "actual_value",
+                id="single_task_returns_actual_value",
+            ),
+            pytest.param(
+                ["task_a"],
+                ["actual_value"],
+                "fallback",
+                ["actual_value"],
+                id="list_single_task_returns_actual_value",
+            ),
+            pytest.param(
+                ["task_a", "task_b"],
+                ["actual_value"],
+                "fallback",
+                ["actual_value", "actual_value"],
+                id="multiple_tasks_all_return_actual_value",
+            ),
+        ],
+    )
+    def test_xcom_pull_returns_actual_value_when_xcom_exists(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        task_ids,
+        get_all_return,
+        default,
+        expected_result,
+    ):
+        """Test that xcom_pull returns the actual XCom value (not default) when XCom exists."""
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                print("This is a custom operator")
+
+        task = CustomOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with patch.object(XCom, "get_all", return_value=get_all_return):
+            result = runtime_ti.xcom_pull(key="key", task_ids=task_ids, default=default)
+            assert result == expected_result
+
+    @pytest.mark.parametrize(
         "api_return_value",
         [
             pytest.param(("data", "test_value"), id="api returns tuple"),
