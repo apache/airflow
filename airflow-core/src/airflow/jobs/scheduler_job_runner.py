@@ -2321,6 +2321,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
             # For AssetAndTimeSchedule, defer starting until all required assets are queued.
             if isinstance(dag.timetable, AssetAndTimeSchedule):
+                # Reuse dagrun_timeout to fail runs that wait in QUEUED for assets for too long.
+                if (
+                    dag.dagrun_timeout
+                    and dag_run.queued_at
+                    and dag_run.queued_at < timezone.utcnow() - dag.dagrun_timeout
+                ):
+                    dag_run.set_state(DagRunState.FAILED)
+                    session.flush()
+                    self.log.info(
+                        "Run %s of %s has timed-out while waiting for assets",
+                        dag_run.run_id,
+                        dag_run.dag_id,
+                    )
+                    if (
+                        dag_run.run_type
+                        in (
+                            DagRunType.SCHEDULED,
+                            DagRunType.MANUAL,
+                            DagRunType.ASSET_TRIGGERED,
+                        )
+                        and dag_run.dag_model is not None
+                    ):
+                        self._set_exceeds_max_active_runs(dag_model=dag_run.dag_model, session=session)
+                    dag_run.notify_dagrun_state_changed(msg="timed_out")
+                    continue
+
                 queued_adrqs = session.scalars(
                     with_row_locks(
                         select(AssetDagRunQueue)

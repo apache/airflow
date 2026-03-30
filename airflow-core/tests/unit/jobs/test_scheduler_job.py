@@ -9118,6 +9118,119 @@ def test_start_queued_dagruns_asset_and_time_deletes_only_selected_adrq_rows(ses
     assert adrq_2 is not None
 
 
+@time_machine.travel("2026-03-29 22:40:00+00:00")
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_start_queued_dagruns_asset_and_time_times_out_while_waiting_for_assets(session: Session, dag_maker):
+    asset = Asset(uri="test://asset-and-time-timeout", name="asset-and-time-timeout")
+    with dag_maker(
+        dag_id="asset-and-time-times-out-while-waiting",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        max_active_runs=1,
+        dagrun_timeout=datetime.timedelta(minutes=2),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+
+    logical_date = timezone.utcnow() - datetime.timedelta(minutes=3)
+    dag_run = dag_maker.create_dagrun(
+        run_id="asset_and_time_wait_timeout",
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=logical_date,
+        data_interval=DataInterval.exact(logical_date),
+        session=session,
+    )
+    dag_run.queued_at = timezone.utcnow() - datetime.timedelta(minutes=3)
+    dag_maker.dag_model.exceeds_max_non_backfill = True
+    session.flush()
+
+    job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    job_runner._start_queued_dagruns(session)
+    session.flush()
+
+    dag_run = session.get(DagRun, dag_run.id)
+    assert dag_run is not None
+    assert dag_run.state == DagRunState.FAILED
+
+    session.refresh(dag_maker.dag_model)
+    assert dag_maker.dag_model.exceeds_max_non_backfill is False
+
+
+@time_machine.travel("2026-03-29 22:40:00+00:00")
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_start_queued_dagruns_asset_and_time_times_out_older_run_before_starting_newer_one(
+    session: Session, dag_maker
+):
+    asset = Asset(
+        uri="test://asset-and-time-timeout-releases-next", name="asset-and-time-timeout-releases-next"
+    )
+    with dag_maker(
+        dag_id="asset-and-time-timeout-releases-next",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        dagrun_timeout=datetime.timedelta(minutes=2),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+
+    older_logical_date = timezone.utcnow() - datetime.timedelta(minutes=3)
+    older_dag_run = dag_maker.create_dagrun(
+        run_id="asset_and_time_older_waiting_run",
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=older_logical_date,
+        data_interval=DataInterval.exact(older_logical_date),
+        session=session,
+    )
+    newer_logical_date = timezone.utcnow() - datetime.timedelta(minutes=1)
+    newer_dag_run = dag_maker.create_dagrun(
+        run_id="asset_and_time_newer_waiting_run",
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=newer_logical_date,
+        data_interval=DataInterval.exact(newer_logical_date),
+        session=session,
+    )
+    older_dag_run.queued_at = timezone.utcnow() - datetime.timedelta(minutes=3)
+    newer_dag_run.queued_at = timezone.utcnow() - datetime.timedelta(minutes=1)
+
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    session.add(
+        AssetDagRunQueue(
+            asset_id=asset_id,
+            target_dag_id=older_dag_run.dag_id,
+            created_at=timezone.utcnow(),
+        )
+    )
+    session.flush()
+
+    job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    job_runner._start_queued_dagruns(session)
+    session.flush()
+
+    older_dag_run = session.get(DagRun, older_dag_run.id)
+    newer_dag_run = session.get(DagRun, newer_dag_run.id)
+    assert older_dag_run is not None
+    assert older_dag_run.state == DagRunState.FAILED
+    assert newer_dag_run is not None
+    assert newer_dag_run.state == DagRunState.RUNNING
+
+    remaining_adrq = session.scalar(
+        select(AssetDagRunQueue).where(
+            AssetDagRunQueue.target_dag_id == newer_dag_run.dag_id,
+            AssetDagRunQueue.asset_id == asset_id,
+        )
+    )
+    assert remaining_adrq is None
+
+
 class TestSchedulerJobQueriesCount:
     """
     These tests are designed to detect changes in the number of queries for
