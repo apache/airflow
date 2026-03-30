@@ -1,6 +1,6 @@
 ---
 name: Airflow Issue report
-description: Report issues/bugs for airflow core, providers, helm chart etc
+description: Report issues/bugs for airflow core, task sdk, providers, helm chart etc
 labels: ["kind:bug", "needs-triage"]
 body:
   - type: markdown
@@ -8,7 +8,7 @@ body:
       # yamllint disable rule:line-length
       value: "
         <img src='https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/logos/airflow_64x64_emoji_transparent.png' align='left' width='80' height='80'>
-        Thank you for finding the time to report a problem!
+        Thank you for finding the time to report the problem!
 
         We really appreciate the community's efforts to improve Airflow.
 
@@ -33,6 +33,7 @@ body:
         - "Providers"
         - "Airflow Core"
         - "Helm chart"
+        - "Task SDK"
     validations:
       required: true
   - type: input
@@ -252,7 +253,7 @@ body:
   - type: input
     attributes:
       label: Kubernetes Version
-      description: Which Kubernetes Version do you use?Enter "Not Applicable" if the issue type isn't
+      description: Which Kubernetes Version do you use? Enter "Not Applicable" if the issue type isn't
         "Helm chart".
   - type: textarea
     attributes:
