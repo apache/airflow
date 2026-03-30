@@ -1620,24 +1620,26 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
         if event is None:
             self.log.error("Trigger error: event is None")
             raise AirflowException("Trigger error: event is None")
-        if event["status"] == "success":
-            self.hook.conn.stop_application(applicationId=self.application_id)
-            self.defer(
-                trigger=EmrServerlessStopApplicationTrigger(
-                    application_id=self.application_id,
-                    aws_conn_id=self.aws_conn_id,
-                    waiter_delay=self.waiter_delay,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                ),
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-                method_name="execute_complete",
-            )
+        if event["status"] != "success":
+            raise AirflowException(f"Error cancelling EMR Serverless jobs: {event}")
+        self.hook.conn.stop_application(applicationId=self.application_id)
+        self.defer(
+            trigger=EmrServerlessStopApplicationTrigger(
+                application_id=self.application_id,
+                aws_conn_id=self.aws_conn_id,
+                waiter_delay=self.waiter_delay,
+                waiter_max_attempts=self.waiter_max_attempts,
+            ),
+            timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
 
-        if validated_event["status"] == "success":
-            self.log.info("EMR serverless application %s stopped successfully", self.application_id)
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error stopping EMR Serverless application: {validated_event}")
+        self.log.info("EMR serverless application %s stopped successfully", self.application_id)
 
 
 class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperator):
@@ -1743,5 +1745,6 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
 
-        if validated_event["status"] == "success":
-            self.log.info("EMR serverless application %s deleted successfully", self.application_id)
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error deleting EMR Serverless application: {validated_event}")
+        self.log.info("EMR serverless application %s deleted successfully", self.application_id)

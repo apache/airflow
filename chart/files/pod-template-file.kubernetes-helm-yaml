@@ -28,7 +28,7 @@
 {{- $containerLifecycleHooksKerberosInitContainer := or .Values.workers.kubernetes.kerberosInitContainer.containerLifecycleHooks .Values.workers.kerberosInitContainer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list .Values.workers.kubernetes .Values.workers .Values) }}
 {{- $containerLifecycleHooks := or .Values.workers.kubernetes.containerLifecycleHooks .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
-{{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
+{{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (or .Values.workers.kubernetes.safeToEvict (and (not (has .Values.workers.kubernetes.safeToEvict (list true false))) .Values.workers.safeToEvict) | toString) }}
 {{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
 {{- $schedulerName := or .Values.workers.schedulerName .Values.schedulerName }}
 apiVersion: v1
@@ -216,15 +216,15 @@ spec:
     {{- if .Values.workers.extraContainers }}
       {{- tpl (toYaml .Values.workers.extraContainers) . | nindent 4 }}
     {{- end }}
-  {{- if .Values.workers.priorityClassName }}
-  priorityClassName: {{ .Values.workers.priorityClassName }}
+  {{- if or .Values.workers.kubernetes.priorityClassName .Values.workers.priorityClassName }}
+  priorityClassName: {{ .Values.workers.kubernetes.priorityClassName | default .Values.workers.priorityClassName }}
   {{- end }}
   {{- if .Values.workers.runtimeClassName }}
   runtimeClassName: {{ .Values.workers.runtimeClassName }}
   {{- end }}
   imagePullSecrets: {{- include "image_pull_secrets" . | nindent 4 }}
-  {{- if .Values.workers.hostAliases }}
-  hostAliases: {{- toYaml .Values.workers.hostAliases | nindent 4 }}
+  {{- if or .Values.workers.kubernetes.hostAliases .Values.workers.hostAliases }}
+  hostAliases: {{- toYaml (.Values.workers.kubernetes.hostAliases | default .Values.workers.hostAliases) | nindent 4 }}
   {{- end }}
   restartPolicy: Never
   securityContext: {{ $securityContext | nindent 4 }}

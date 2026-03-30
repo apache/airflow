@@ -104,6 +104,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import Case, ColumnElement
 
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
     from airflow.models.dag_version import DagVersion
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
@@ -404,6 +405,26 @@ class DagRun(Base, LoggingMixin):
             return run_id
         raise ValueError(
             f"The run_id provided '{run_id}' does not match regex pattern '{regex}' or '{RUN_ID_REGEX}'"
+        )
+
+    @property
+    def dag_run_data(self) -> DRDataModel:
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
+
+        return DRDataModel(
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            logical_date=self.logical_date,
+            data_interval_start=self.data_interval_start,
+            data_interval_end=self.data_interval_end,
+            run_after=self.run_after,
+            start_date=self.start_date or timezone.utcnow(),
+            end_date=self.end_date,
+            run_type=DagRunType(self.run_type),
+            state=self.state,
+            conf=self.conf,
+            consumed_asset_events=[],
+            partition_key=self.partition_key,
         )
 
     @property
@@ -1357,7 +1378,6 @@ class DagRun(Base, LoggingMixin):
     ):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
-            DagRun as DRDataModel,
             TaskInstance as TIDataModel,
             TIRunContext,
         )
@@ -1367,27 +1387,11 @@ class DagRun(Base, LoggingMixin):
             last_ti_model = TIDataModel.model_validate(relevant_ti, from_attributes=True)
             task = dag.get_task(relevant_ti.task_id)
 
-            dag_run_data = DRDataModel(
-                dag_id=self.dag_id,
-                run_id=self.run_id,
-                logical_date=self.logical_date,
-                data_interval_start=self.data_interval_start,
-                data_interval_end=self.data_interval_end,
-                run_after=self.run_after,
-                start_date=self.start_date or timezone.utcnow(),
-                end_date=self.end_date,
-                run_type=DagRunType(self.run_type),
-                state=self.state,
-                conf=self.conf,
-                consumed_asset_events=[],
-                partition_key=self.partition_key,
-            )
-
             runtime_ti = RuntimeTaskInstance.model_construct(
                 **last_ti_model.model_dump(exclude_unset=True),
                 task=task,
                 _ti_context_from_server=TIRunContext(
-                    dag_run=dag_run_data,
+                    dag_run=self.dag_run_data,
                     max_tries=relevant_ti.max_tries,
                     variables=[],
                     connections=[],
@@ -1986,7 +1990,14 @@ class DagRun(Base, LoggingMixin):
         debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
         expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
         for ti in schedulable_tis:
-            if ti.is_schedulable:
+            if not ti.is_schedulable:
+                empty_ti_ids.append(ti.id)
+            # The defer_task method will check "start_trigger_args" to see whether the operator
+            # start execution from triggerer. If so, we'll also check "start_from_trigger"
+            # to see whether this feature is turned on and defer this task.
+            # If not, we'll add this "ti" into "schedulable_ti_ids" and later
+            # execute it to run in the worker.
+            elif not ti.defer_task(session=session):
                 schedulable_ti_ids.append(ti.id)
                 if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
                     reschedule_ti_ids.add(ti.id)
@@ -1998,25 +2009,6 @@ class DagRun(Base, LoggingMixin):
                         ti.try_number,
                         ti.state,
                     )
-            # Check "start_trigger_args" to see whether the operator supports
-            # start execution from triggerer. If so, we'll check "start_from_trigger"
-            # to see whether this feature is turned on and defer this task.
-            # If not, we'll add this "ti" into "schedulable_ti_ids" and later
-            # execute it to run in the worker.
-            # TODO TaskSDK: This is disabled since we haven't figured out how
-            # to render start_from_trigger in the scheduler. If we need to
-            # render the value in a worker, it kind of defeats the purpose of
-            # this feature (which is to save a worker process if possible).
-            # elif task.start_trigger_args is not None:
-            #     if task.expand_start_from_trigger(context=ti.get_template_context()):
-            #         ti.start_date = timezone.utcnow()
-            #         if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-            #             ti.try_number += 1
-            #         ti.defer_task(exception=None, session=session)
-            #     else:
-            #         schedulable_ti_ids.append(ti.id)
-            else:
-                empty_ti_ids.append(ti.id)
 
         count = 0
         # Don't only check if the TI.id is in id_chunk

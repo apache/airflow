@@ -130,11 +130,11 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
         from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
         # Read Core's config.yml (Phase 1: shared config.yml)
-        configuration_description = retrieve_configuration_description()
+        _configuration_description = retrieve_configuration_description()
         # Create default values parser
-        _default_values = create_default_config_parser(configuration_description)
+        _default_values = create_default_config_parser(_configuration_description)
         super().__init__(
-            configuration_description,
+            _configuration_description,
             _default_values,
             ProvidersManagerTaskRuntime,
             create_default_config_parser,
@@ -142,7 +142,7 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
             *args,
             **kwargs,
         )
-        self.configuration_description = configuration_description
+        self._configuration_description = _configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
 

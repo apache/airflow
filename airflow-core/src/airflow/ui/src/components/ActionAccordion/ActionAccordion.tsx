@@ -20,7 +20,11 @@ import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
+import type {
+  DAGRunResponse,
+  TaskInstanceCollectionResponse,
+  TaskInstanceResponse,
+} from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
 import { Accordion } from "src/components/ui";
 
@@ -29,17 +33,59 @@ import { getColumns } from "./columns";
 
 type Props = {
   readonly affectedTasks?: TaskInstanceCollectionResponse;
+  readonly groupByRunId?: boolean;
   readonly note: DAGRunResponse["note"];
   readonly setNote: (value: string) => void;
 };
 
+const TasksTable = ({
+  noRowsMessage,
+  tasks,
+}: {
+  readonly noRowsMessage: string;
+  readonly tasks: Array<TaskInstanceResponse>;
+}) => {
+  const { t: translate } = useTranslation();
+  const columns = getColumns(translate);
+
+  return (
+    <DataTable
+      columns={columns}
+      data={tasks}
+      displayMode="table"
+      modelName="common:taskInstance"
+      noRowsMessage={noRowsMessage}
+      total={tasks.length}
+    />
+  );
+};
+
 // Table is in memory, pagination and sorting are disabled.
 // TODO: Make a front-end only unconnected table component with client side ordering and pagination
-const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
+const ActionAccordion = ({ affectedTasks, groupByRunId = false, note, setNote }: Props) => {
   const showTaskSection = affectedTasks !== undefined;
   const { t: translate } = useTranslation();
 
-  const columns = getColumns(translate);
+  // Group task instances by dag_run_id when requested
+  const runGroups = (() => {
+    if (!groupByRunId || !affectedTasks) {
+      return undefined;
+    }
+
+    const map = new Map<string, Array<TaskInstanceResponse>>();
+
+    for (const ti of affectedTasks.task_instances) {
+      const group = map.get(ti.dag_run_id) ?? [];
+
+      group.push(ti);
+      map.set(ti.dag_run_id, group);
+    }
+
+    return map;
+  })();
+
+  // Only group when there are actually multiple run IDs
+  const shouldGroup = groupByRunId && runGroups !== undefined && runGroups.size > 1;
 
   return (
     <Accordion.Root
@@ -59,14 +105,33 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
           </Accordion.ItemTrigger>
           <Accordion.ItemContent>
             <Box maxH="400px" overflowY="scroll">
-              <DataTable
-                columns={columns}
-                data={affectedTasks.task_instances}
-                displayMode="table"
-                modelName="common:taskInstance"
-                noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
-                total={affectedTasks.total_entries}
-              />
+              {shouldGroup ? (
+                <Accordion.Root collapsible multiple variant="plain">
+                  {[...runGroups.entries()].map(([runId, tis]) => (
+                    <Accordion.Item key={runId} value={runId}>
+                      <Accordion.ItemTrigger px={2} py={1}>
+                        <Text fontSize="sm" fontWeight="semibold">
+                          {translate("runId")}: {runId}{" "}
+                          <Text as="span" color="fg.subtle" fontWeight="normal">
+                            ({tis.length})
+                          </Text>
+                        </Text>
+                      </Accordion.ItemTrigger>
+                      <Accordion.ItemContent>
+                        <TasksTable
+                          noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
+                          tasks={tis}
+                        />
+                      </Accordion.ItemContent>
+                    </Accordion.Item>
+                  ))}
+                </Accordion.Root>
+              ) : (
+                <TasksTable
+                  noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
+                  tasks={affectedTasks.task_instances}
+                />
+              )}
             </Box>
           </Accordion.ItemContent>
         </Accordion.Item>

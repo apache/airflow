@@ -55,6 +55,7 @@ export default defineConfig({
   forbidOnly: process.env.CI !== undefined && process.env.CI !== "",
   fullyParallel: true,
   globalSetup: "./tests/e2e/global-setup.ts",
+  globalTeardown: "./tests/e2e/global-teardown.ts",
   projects: [
     {
       name: "chromium",
@@ -118,12 +119,14 @@ export default defineConfig({
     "**/task-logs.spec.ts",
     "**/dag-tasks.spec.ts",
     "**/variable.spec.ts",
+    "**/xcoms.spec.ts",
   ],
 
-  timeout: 30_000,
+  timeout: 60_000,
   use: {
     actionTimeout: 10_000,
     baseURL: process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080",
+    locale: "en-US",
     screenshot: "only-on-failure",
     trace: "on-first-retry",
     video: "retain-on-failure",

@@ -199,6 +199,7 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "selected": "Selected",
   "showDetailsPanel": "Show Details Panel",
   "signedInAs": "Signed in as",
   "source": {
@@ -299,11 +300,25 @@
     "utc": "UTC (Coordinated Universal Time)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Bulk Clear {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully cleared. Keys: {{keys}}",
+        "title": "Bulk Clear {{resourceName}} Request Submitted"
+      }
+    },
     "bulkDelete": {
       "error": "Bulk Delete {{resourceName}} Request Failed",
       "success": {
         "description": "{{count}} {{resourceName}} have been successfully deleted. Keys: {{keys}}",
         "title": "Bulk Delete {{resourceName}} Request Submitted"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Bulk Update {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully updated. Keys: {{keys}}",
+        "title": "Bulk Update {{resourceName}} Request Submitted"
       }
     },
     "create": {

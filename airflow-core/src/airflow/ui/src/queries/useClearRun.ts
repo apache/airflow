@@ -23,13 +23,12 @@ import {
   useDagRunServiceClearDagRun,
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
-  UseDagServiceGetDagDetailsKeyFn,
   UseGanttServiceGetGanttDataKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
-  UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
 import { createErrorToaster } from "src/utils";
 
+import { gridQueryKeys } from "./gridViewQueryKeys";
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
 export const useClearDagRun = ({
@@ -58,15 +57,16 @@ export const useClearDagRun = ({
   const onSuccess = async () => {
     const queryKeys = [
       [useTaskInstanceServiceGetTaskInstancesKey],
-      UseDagServiceGetDagDetailsKeyFn({ dagId }),
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
       [useClearDagRunDryRunKey, dagId],
-      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all([
+      ...gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    ]);
 
     onSuccessConfirm();
   };

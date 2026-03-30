@@ -264,7 +264,7 @@ class TestDagRunDetail:
     def test_get_state(self, client, session, dag_maker):
         dag_id = "test_dag_id"
         # Named deliberately to check if this routes correctly.
-        # See v2025_11_07.test_dag_runs::test_get_previous_dag_run_redirect
+        # See v2026_04_06.test_dag_runs::test_get_previous_dag_run_redirect
         run_id = "previous"
 
         with dag_maker(dag_id=dag_id, schedule=None, session=session, serialized=True):
