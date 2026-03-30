@@ -279,8 +279,7 @@ Here's an example of a Dag using ``AssetOrTimeSchedule``:
 
 .. code-block:: python
 
-    from airflow.timetables.assets import AssetOrTimeSchedule
-    from airflow.timetables.trigger import CronTriggerTimetable
+    from airflow.sdk import AssetOrTimeSchedule, CronTriggerTimetable
 
 
     @dag(
@@ -297,8 +296,7 @@ Here's an example of a Dag using ``AssetAndTimeSchedule`` to require both the ti
 
 .. code-block:: python
 
-    from airflow.timetables.assets import AssetAndTimeSchedule
-    from airflow.timetables.trigger import CronTriggerTimetable
+    from airflow.sdk import AssetAndTimeSchedule, CronTriggerTimetable
 
 
     @dag(
