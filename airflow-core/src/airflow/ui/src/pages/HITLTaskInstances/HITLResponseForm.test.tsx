@@ -18,6 +18,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/// <reference types="@testing-library/jest-dom" />
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -102,6 +104,7 @@ describe("HITLResponseForm – option button rendering boundary", () => {
 
   it("renders per-option buttons for 3 options", () => {
     const opts = ["Creator", "Explorer", "Viewer"];
+
     renderForm(opts);
     for (const opt of opts) {
       expect(screen.getByTestId(`hitl-option-${opt}`)).toBeInTheDocument();
@@ -111,6 +114,7 @@ describe("HITLResponseForm – option button rendering boundary", () => {
   // Regression test for #64413 — exactly 4 options previously rendered nothing.
   it("renders per-option buttons for exactly 4 options", () => {
     const opts = ["Creator", "Explorer", "ExplorerCanPublish", "Viewer"];
+
     renderForm(opts);
     for (const opt of opts) {
       expect(screen.getByTestId(`hitl-option-${opt}`)).toBeInTheDocument();
@@ -119,6 +123,7 @@ describe("HITLResponseForm – option button rendering boundary", () => {
 
   it("does NOT render per-option buttons for 5 options", () => {
     const opts = ["A", "B", "C", "D", "E"];
+
     renderForm(opts);
     for (const opt of opts) {
       expect(screen.queryByTestId(`hitl-option-${opt}`)).not.toBeInTheDocument();
