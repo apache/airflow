@@ -2370,8 +2370,8 @@ class TestRuntimeTaskInstance:
 
         mock_log.exception.assert_called_once_with(
             "Failed to set rendered fields during finalization",
-            task_id=runtime_ti.task_id,
-            dag_id=runtime_ti.dag_id,
+            ti=runtime_ti,
+            task=task,
         )
 
     @pytest.mark.parametrize(

@@ -66,6 +66,7 @@
     "moment-timezone": "^0.6.1"
   },
   "pnpm": {
+    "minimumReleaseAge": 5760,
     "onlyBuiltDependencies": [],
     "overrides": {
       "minimatch@>=10.0.0 <10.2.3": ">=10.2.3",
