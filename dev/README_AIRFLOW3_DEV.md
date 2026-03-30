@@ -34,8 +34,10 @@
   - [Backporting during pre-release period (before 3.2.0 GA)](#backporting-during-pre-release-period-before-320-ga)
   - [How to backport PR with GitHub Actions](#how-to-backport-pr-with-github-actions)
   - [How to backport PR with `cherry-picker` CLI](#how-to-backport-pr-with-cherry-picker-cli)
+  - [Merging PRs for Airflow 2.11.x](#merging-prs-for-airflow-211x)
   - [Merging PRs for Airflow 3](#merging-prs-for-airflow-3)
 - [Milestones for PR](#milestones-for-pr)
+  - [Set 2.11.x milestone](#set-211x-milestone)
   - [Set 3.2.x milestone](#set-32x-milestone)
   - [Set 3.3 milestone](#set-33-milestone)
 
@@ -76,13 +78,70 @@ PRs should target `main` branch.
 
 ## Developing for Airflow 2.11.x
 
-If a PR can be cleanly cherry-picked from `main` to `v2-11-test`, it should target the `main` branch and include the `backport-to-v2-11-test` label to automate the backport.
-If the PR cannot be cherry-picked without conflicts, you must manually create a PR targeting the `v2-11-test` branch.
-
 > [!IMPORTANT]
-> Airflow 2.11 is intended as a bridge release for Airflow 3.
-> As such, it is not expected to introduce new features beyond those relevant to the transition to Airflow 3.
-> That said, we focus only critical security fixes in the maintenance period until end-of-life.
+> Airflow 2.11 is intended as a bridge release for Airflow 3 and reaches **end-of-life on April 22,
+> 2026**. There will likely be just one last **2.11.3** release before EOL — there are already some
+> bug fixes targeting 2.11 and one final update of dependencies will be done before we reach EOL.
+> We focus only on critical bug fixes and security fixes in this maintenance period.
+
+### Core and FAB provider changes
+
+The `v2-11-test` branch has diverged significantly from `main` (Airflow 3.x) — both for core
+Airflow and for the FAB provider. Cherry-picks rarely apply cleanly, so **if an issue affects both
+Airflow 2.11 and Airflow 3, you need to create two separate PRs** — one targeting `main` and one
+targeting `v2-11-test`:
+
+1. **If the bug is reproducible on both `main` and 2.11:** fix it on `main` first, then create a
+   separate PR targeting `v2-11-test` with the equivalent fix.
+2. **If the bug is only reproducible on 2.11.x (not on `main`):** create a PR targeting `v2-11-test`
+   directly.
+3. **If a cherry-pick happens to apply cleanly:** you may target `main` and add the
+   `backport-to-v2-11-test` label to automate the backport, but this is rare for core changes.
+
+**Special exception — FAB provider (apache-airflow-providers-fab 1.5.x):**
+
+The FAB provider is a special case. The FAB provider version on `main` (2.x+) has
+`min-airflow-version` of Airflow 3 and uses FastAPI, while the older FAB provider 1.5.x for
+Airflow 2.11 still uses Connexion — the code is heavily different between the two versions.
+The FAB provider 1.5.x is maintained directly in the `v2-11-test` branch, which makes it easier
+to test any changes for the Airflow 2.11 + FAB 1.5 combination together.
+
+If your fix is for the FAB provider and affects both Airflow 2.11 and Airflow 3:
+
+1. Create a PR targeting `main` for the FAB provider 2.x+ (Airflow 3).
+2. Create a separate PR against `v2-11-test` for the FAB provider 1.5.x (Airflow 2.11).
+3. If the fix is only relevant to Airflow 2.11 (not reproducible on `main`), target
+   `v2-11-test` directly.
+
+### Testing changes for Airflow 2.11.x
+
+To test your changes locally, check out the `v2-11-test` branch. Breeze on Airflow 3 (`main`) is
+not compatible with Airflow 2.11, so you need to reinstall it manually:
+
+```bash
+git checkout v2-11-test
+uv tool install --force -e ./dev/breeze
+```
+
+After that, you can work as usual — including running `breeze start-airflow` to spin up a local
+Airflow 2.11 environment for testing.
+
+> [!WARNING]
+> When you switch back to working on Airflow 3 (`main`), don't forget to reinstall Breeze from
+> the `main` branch, as the Airflow 2.11 version of Breeze is not compatible with Airflow 3:
+>
+> ```bash
+> git checkout main
+> uv tool install --force -e ./dev/breeze
+> ```
+
+### Other provider changes
+
+Providers (other than FAB) are released from `main` and are generally decoupled from the core
+Airflow version. Most provider fixes should target `main` — they will be validated against
+Airflow 2.11 by the 2.11 compatibility tests in CI.
+
+### Release process
 
 When preparing a new 2.11.x release, the release manager will sync the `v2-11-test` branch to `v2-11-stable` and cut the release from the stable branch.
 PRs should **never** target `v2-11-stable` directly unless explicitly instructed by the release manager.
@@ -241,16 +300,46 @@ cherry_picker --continue  # Should continue cherry-picking process
 > you might need to run `git config --local --remove-section cherry-picker` to clean up the configuration
 > stored in `.git/config`.
 
+## Merging PRs for Airflow 2.11.x
+
+> [!NOTE]
+> Airflow 2.11 reaches end-of-life on April 22, 2026. There will likely be one last 2.11.3 release
+> before EOL. The FAB Provider 1.5.* reaches end-of-life 12 months after 2.11.0 was released - which is
+> May 22, 2026.
+
+Since the `v2-11-test` branch has diverged significantly from `main`, committers should be aware that:
+
+* Most core and FAB provider bug fixes require **two separate PRs** — one for `main` and one for
+  `v2-11-test` — because cherry-picks rarely apply cleanly.
+* The committer merging a bug fix to `main` should verify whether it also affects 2.11.x and, if so,
+  ensure a corresponding PR is created against `v2-11-test` (either by the original author or by the
+  committer).
+* Other provider PRs (non-FAB) should generally only go to `main`.
+
+### FAB provider 1.5.x (Airflow 2.11 only)
+
+The FAB provider on `main` (at the time of this writing 2.x+) requires Airflow 3 and uses FastAPI,
+while the 1.5.x line uses Connexion — the code is heavily different. The FAB provider 1.5.x
+is maintained directly in the `v2-11-test` branch, so FAB fixes for Airflow 2.11
+should target `v2-11-test`.
+
 ## Merging PRs for Airflow 3
 
-Make sure PR target `main` branch.
+Make sure PRs target `main` branch.
 
 ### PRs that involve breaking changes
 
-Our goal is to avoid breaking changes whenever possible. Therefore, we should allow time for community members to review PRs that contain such changes - please avoid rushing to merge them. Also, please make sure that such PRs contain a `significant` newsfragment that contains `**Breaking Change**`.
-
+Our goal is to avoid breaking changes whenever possible. Therefore, we should allow time for community
+members to review PRs that contain such changes - please avoid rushing to merge them.
+Also, please make sure that such PRs contain a `significant newsfragment` that contains `**Breaking Change**`.
 
 # Milestones for PR
+
+## Set 2.11.x milestone
+
+Set for bug fixes and security fixes targeting Airflow 2.11.x (until end-of-life on April 22, 2026).
+
+1. PR targeting `v2-11-test` directly — milestone will be on that PR.
 
 ## Set 3.2.x milestone
 
@@ -261,4 +350,4 @@ Milestone will be added only to the original PR.
 
 ## Set 3.3 milestone
 
-Set for any feature that targets Airflow 3.x only.
+Set for any feature that targets Airflow 3.3 only.
