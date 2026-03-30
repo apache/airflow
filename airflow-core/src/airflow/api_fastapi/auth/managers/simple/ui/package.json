@@ -64,6 +64,7 @@
     "vitest": "^4.1.0"
   },
   "pnpm": {
+    "minimumReleaseAge": 5760,
     "onlyBuiltDependencies": [
       "@swc/core",
       "esbuild"
