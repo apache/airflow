@@ -59,7 +59,7 @@ classifiers = [
 version = "3.2.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.3.0,>=1.2.0",
+    "apache-airflow-task-sdk==1.2.0",
     "apache-airflow-core==3.2.0",
 ]
 
@@ -539,7 +539,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.10.12",
+    "uv>=0.11.1",
 ]
 
 [project.urls]
@@ -1339,6 +1339,8 @@ leveldb = [
 
 [tool.uv]
 required-version = ">=0.6.3"
+# Synchroonize with scripts/ci/prek/upgrade_important_versions.py
+exclude-newer = "4 days"
 no-build-isolation-package = ["sphinx-redoc"]
 constraint-dependencies = ["lxml==6.0.2"]  # Remove after https://github.com/aws/amazon-redshift-python-driver/pull/272
 
