@@ -25,8 +25,8 @@ import { useDagRunServiceTriggerDagRun, useDagServiceGetDagsUiKey } from "openap
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import { toaster } from "src/components/ui";
-import { createErrorToaster } from "src/utils";
 import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
+import { createErrorToaster } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();

@@ -22,8 +22,8 @@ import { useTranslation } from "react-i18next";
 import { useDagServiceDeleteDag, useDagServiceGetDagsUiKey } from "openapi/queries";
 import { useDagServiceGetDagKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
-import { createErrorToaster } from "src/utils";
 import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
+import { createErrorToaster } from "src/utils";
 
 export const useDeleteDag = ({
   dagId,

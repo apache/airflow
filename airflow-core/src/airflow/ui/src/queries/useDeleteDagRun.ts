@@ -27,8 +27,8 @@ import {
   useTaskInstanceServiceGetHitlDetailsKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
-import { createErrorToaster } from "src/utils";
 import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
+import { createErrorToaster } from "src/utils";
 
 type DeleteDagRunParams = {
   dagId: string;
