@@ -2028,7 +2028,7 @@ class TestRuntimeTaskInstance:
                 assert not mock_get_all.called
 
     @pytest.mark.parametrize(
-        ("task_ids", "default", "expected_value"),
+        ("task_ids", "default", "expected_default"),
         [
             pytest.param("task_a", "fallback", "fallback", id="single_task_str_default"),
             pytest.param("task_a", NOTSET, NOTSET, id="single_task_NOTSET_default"),
@@ -2047,7 +2047,7 @@ class TestRuntimeTaskInstance:
         mock_supervisor_comms,
         task_ids,
         default,
-        expected_value,
+        expected_default,
     ):
         """Test that xcom_pull returns `default` when no XCom is found and map_indexes is NOTSET."""
 
@@ -2060,7 +2060,7 @@ class TestRuntimeTaskInstance:
 
         with patch.object(XCom, "get_all", return_value=None) as mock_get_all:
             result = runtime_ti.xcom_pull(key="key", task_ids=task_ids, default=default)
-            assert result == expected_value
+            assert result == expected_default
             assert mock_get_all.called
 
     @pytest.mark.parametrize(
