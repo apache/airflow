@@ -1092,3 +1092,13 @@ class TestGenAIGeminiDeleteFileOperator:
         mock_hook.return_value.delete_file.assert_called_once_with(
             file_name=TEST_FILE_NAME,
         )
+
+    def test_count_tokens_invalid_project_id(self):
+        op = GenAICountTokensOperator(
+            task_id="test",
+            project_id=None,
+            location="us-central1",
+        )
+
+        with pytest.raises(AirflowException):
+            op.execute(context={"ti": mock.MagicMock()})
