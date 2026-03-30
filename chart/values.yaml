@@ -1062,8 +1062,7 @@ workers:
   # (deprecated, use workers.celery.nodeSelector or/and workers.kubernetes.nodeSelector instead)
   nodeSelector: {}
 
-  # Use `workers.celery.runtimeClassName` and/or `workers.kubernetes.runtimeClassName` to separate
-  # value between Celery workers and pod-template-file
+  # (deprecated, use workers.celery.runtimeClassName and/or workers.kubernetes.runtimeClassName instead)
   runtimeClassName: ~
 
   # (deprecated, use workers.celery.priorityClassName and/or workers.kubernetes.priorityClassName instead)
