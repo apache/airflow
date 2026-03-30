@@ -17,25 +17,19 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, endpoint
+import pytest
+
+pytestmark = pytest.mark.db_test
 
 
-class MovePreviousRunEndpoint(VersionChange):
-    """Add new previous-run endpoint and migrate old endpoint."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        endpoint("/dag-runs/previous", ["GET"]).didnt_exist,
-        endpoint("/dag-runs/{dag_id}/previous", ["GET"]).existed,
-    )
+@pytest.fixture
+def old_ver_client(client):
+    """Last released execution API before `/dags/{dag_id}` was added."""
+    client.headers["Airflow-API-Version"] = "2025-11-05"
+    return client
 
 
-class AddDagRunDetailEndpoint(VersionChange):
-    """Add dag run detail endpoint."""
+def test_dag_endpoint_not_available_in_previous_version(old_ver_client):
+    response = old_ver_client.get("/execution/dags/test_dag")
 
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        endpoint("/dag-runs/{dag_id}/{run_id}", ["GET"]).didnt_exist,
-    )
+    assert response.status_code == 404

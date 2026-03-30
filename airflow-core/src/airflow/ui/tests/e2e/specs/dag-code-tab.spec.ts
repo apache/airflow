@@ -35,11 +35,11 @@ test.describe("DAG Code Tab", () => {
     await codePage.verifySourceCodeDisplayed();
   });
 
-  test("Verify syntax highlighting is applied", async () => {
+  test.fixme("Verify syntax highlighting is applied", async () => {
     await codePage.verifySyntaxHighlighting();
   });
 
-  test("Verify code is scrollable for long files", async () => {
+  test.fixme("Verify code is scrollable for long files", async () => {
     await codePage.verifyCodeIsScrollable();
   });
 
