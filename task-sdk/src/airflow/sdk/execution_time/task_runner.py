@@ -1881,7 +1881,10 @@ def main():
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
 
-    stats.initialize(factory=stats_utils.get_stats_factory())
+    stats.initialize(
+        factory=stats_utils.get_stats_factory(),
+        export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+    )
 
     stack = ExitStack()
     with stack:

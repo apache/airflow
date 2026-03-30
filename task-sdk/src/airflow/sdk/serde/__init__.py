@@ -375,7 +375,10 @@ def _register():
     _deserializers.clear()
     _stringifiers.clear()
 
-    stats.initialize(factory=stats_utils.get_stats_factory())
+    stats.initialize(
+        factory=stats_utils.get_stats_factory(),
+        export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+    )
 
     with stats.timer("serde.load_serializers") as timer:
         serializers_module = import_module("airflow.sdk.serde.serializers")

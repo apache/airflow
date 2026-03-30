@@ -74,7 +74,7 @@ def normalize_name_for_stats(name: str, log_warning: bool = True) -> str:
 def initialize(
     *,
     factory: Callable[[], StatsLogger | NoStatsLogger],
-    export_legacy_names: bool = True,
+    export_legacy_names: bool,
 ) -> None:
     """Initialize the stats module with a backend factory and legacy name configuration."""
     global _factory, _backend, _instance_pid, _export_legacy_names
@@ -294,7 +294,7 @@ class Stats:
     Class-based shim providing access to module-level stats functions.
 
     All attributes delegate to the corresponding module-level function so call-sites
-    can use the familiar ``Stats.incr(…)`` syntax for backwards compatibility.
+    can use the old ``Stats.incr(…)`` syntax for backwards compatibility.
     """
 
     initialize = staticmethod(initialize)

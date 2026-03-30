@@ -111,7 +111,9 @@ class TestStats:
         """Test that enabling this sets the right instance properties"""
         importlib.reload(airflow_shared.observability.metrics.stats)
         stats = airflow_shared.observability.metrics.stats
-        stats.initialize(factory=get_statsd_logger_factory(stats_class=statsd.StatsClient))
+        stats.initialize(
+            factory=get_statsd_logger_factory(stats_class=statsd.StatsClient), export_legacy_names=True
+        )
         backend = stats._get_backend()
         assert isinstance(backend.statsd, statsd.StatsClient)
         assert not hasattr(backend, "dogstatsd")
@@ -121,7 +123,9 @@ class TestStats:
     def test_load_custom_statsd_client(self):
         importlib.reload(airflow_shared.observability.metrics.stats)
         stats = airflow_shared.observability.metrics.stats
-        stats.initialize(factory=get_statsd_logger_factory(stats_class=CustomStatsd))
+        stats.initialize(
+            factory=get_statsd_logger_factory(stats_class=CustomStatsd), export_legacy_names=True
+        )
         assert isinstance(stats._get_backend().statsd, CustomStatsd)
         # Avoid side-effects
         importlib.reload(airflow_shared.observability.metrics.stats)
@@ -133,7 +137,8 @@ class TestStats:
             factory=get_statsd_logger_factory(
                 stats_class=statsd.StatsClient,
                 metrics_allow_list="name1,name2",
-            )
+            ),
+            export_legacy_names=True,
         )
         backend = stats._get_backend()
         assert isinstance(backend.metrics_validator, PatternAllowListValidator)
@@ -148,7 +153,8 @@ class TestStats:
             factory=get_statsd_logger_factory(
                 stats_class=statsd.StatsClient,
                 metrics_block_list="name1,name2",
-            )
+            ),
+            export_legacy_names=True,
         )
         backend = stats._get_backend()
         assert isinstance(backend.metrics_validator, PatternBlockListValidator)
@@ -164,7 +170,8 @@ class TestStats:
                 stats_class=statsd.StatsClient,
                 metrics_allow_list="name1,name2",
                 metrics_block_list="name1,name2",
-            )
+            ),
+            export_legacy_names=True,
         )
         backend = stats._get_backend()
         assert isinstance(backend.metrics_validator, PatternAllowListValidator)
@@ -346,7 +353,8 @@ class TestPatternValidatorConfigOption:
                 stats_class=statsd.StatsClient,
                 metrics_allow_list=allow_list,
                 metrics_block_list=block_list,
-            )
+            ),
+            export_legacy_names=True,
         )
 
         backend = airflow_shared.observability.metrics.stats._get_backend()
@@ -361,7 +369,8 @@ class TestPatternValidatorConfigOption:
                     stats_class=statsd.StatsClient,
                     metrics_allow_list="baz,qux",
                     metrics_block_list="foo,bar",
-                )
+                ),
+                export_legacy_names=True,
             )
 
             backend = airflow_shared.observability.metrics.stats._get_backend()
@@ -475,7 +484,7 @@ def always_valid(stat_name):
 
 
 class TestStatsHelpers:
-    """Tests for internal stats helper functions, migrated from TestDualStatsManager."""
+    """Tests for internal stats helper functions, used for exporting legacy metric names."""
 
     @pytest.mark.parametrize(
         ("kwargs", "expected"),
@@ -654,6 +663,96 @@ class TestStatsHelpers:
             assert _get_legacy_stat(stat, variables) == expected_legacy_stat
 
 
+class TestLegacyNameTagsExport:
+    """Tests for the dual stats export behavior when legacy_name_tags is provided."""
+
+    @pytest.fixture
+    def mock_backend(self):
+        with mock.patch("airflow_shared.observability.metrics.stats._get_backend") as m:
+            backend = mock.MagicMock()
+            m.return_value = backend
+            yield backend
+
+    def test_incr_with_legacy_name_tags_emits_both(self, mock_backend):
+        airflow_shared.observability.metrics.stats.incr(
+            "operator_failures",
+            tags={"dag_id": "test_dag"},
+            legacy_name_tags={"operator_name": "EmptyOperator"},
+        )
+        assert mock_backend.incr.call_count == 2
+        mock_backend.incr.assert_any_call("operator_failures_EmptyOperator", tags={"dag_id": "test_dag"})
+        mock_backend.incr.assert_any_call(
+            "operator_failures",
+            tags={"dag_id": "test_dag", "operator_name": "EmptyOperator"},
+        )
+
+    def test_incr_without_legacy_name_tags_emits_once(self, mock_backend):
+        airflow_shared.observability.metrics.stats.incr(
+            "operator_failures",
+            tags={"dag_id": "test_dag"},
+        )
+        mock_backend.incr.assert_called_once_with("operator_failures", tags={"dag_id": "test_dag"})
+
+    def test_incr_legacy_export_disabled_emits_once(self, mock_backend, monkeypatch):
+        monkeypatch.setattr(airflow_shared.observability.metrics.stats, "_export_legacy_names", False)
+        airflow_shared.observability.metrics.stats.incr(
+            "operator_failures",
+            tags={"dag_id": "test_dag"},
+            legacy_name_tags={"operator_name": "EmptyOperator"},
+        )
+        mock_backend.incr.assert_called_once_with(
+            "operator_failures",
+            tags={"dag_id": "test_dag", "operator_name": "EmptyOperator"},
+        )
+
+    def test_decr_with_legacy_name_tags_emits_both(self, mock_backend):
+        airflow_shared.observability.metrics.stats.decr(
+            "operator_failures",
+            tags={"dag_id": "test_dag"},
+            legacy_name_tags={"operator_name": "EmptyOperator"},
+        )
+        assert mock_backend.decr.call_count == 2
+        mock_backend.decr.assert_any_call("operator_failures_EmptyOperator", tags={"dag_id": "test_dag"})
+        mock_backend.decr.assert_any_call(
+            "operator_failures",
+            tags={"dag_id": "test_dag", "operator_name": "EmptyOperator"},
+        )
+
+    def test_gauge_with_legacy_name_tags_emits_both(self, mock_backend):
+        airflow_shared.observability.metrics.stats.gauge(
+            "ti.scheduled",
+            42,
+            legacy_name_tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
+        )
+        assert mock_backend.gauge.call_count == 2
+        mock_backend.gauge.assert_any_call("ti.scheduled.default.test_dag.test_task", 42)
+        mock_backend.gauge.assert_any_call(
+            "ti.scheduled",
+            42,
+            tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
+        )
+
+    def test_timing_with_legacy_name_tags_emits_both(self, mock_backend):
+        airflow_shared.observability.metrics.stats.timing(
+            "operator_failures",
+            1.5,
+            legacy_name_tags={"operator_name": "EmptyOperator"},
+        )
+        assert mock_backend.timing.call_count == 2
+        mock_backend.timing.assert_any_call("operator_failures_EmptyOperator", 1.5)
+        mock_backend.timing.assert_any_call("operator_failures", 1.5, tags={"operator_name": "EmptyOperator"})
+
+    def test_timer_with_legacy_name_tags_times_both(self, mock_backend):
+        with airflow_shared.observability.metrics.stats.timer(
+            "operator_failures",
+            legacy_name_tags={"operator_name": "EmptyOperator"},
+        ):
+            pass
+        assert mock_backend.timer.call_count == 2
+        mock_backend.timer.assert_any_call("operator_failures_EmptyOperator")
+        mock_backend.timer.assert_any_call("operator_failures", tags={"operator_name": "EmptyOperator"})
+
+
 class TestCustomStatsName:
     def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self):
         with mock.patch("statsd.StatsClient") as mock_statsd:
@@ -662,7 +761,8 @@ class TestCustomStatsName:
                 factory=get_statsd_logger_factory(
                     stats_class=mock_statsd,
                     stat_name_handler=always_invalid,
-                )
+                ),
+                export_legacy_names=True,
             )
             airflow_shared.observability.metrics.stats.incr("empty_key")
             mock_statsd.return_value.assert_not_called()
@@ -677,7 +777,8 @@ class TestCustomStatsName:
                     port="1234",
                     namespace="airflow",
                     stat_name_handler=always_invalid,
-                )
+                ),
+                export_legacy_names=True,
             )
             airflow_shared.observability.metrics.stats.incr("empty_key")
             mock_dogstatsd.return_value.assert_not_called()
@@ -689,7 +790,8 @@ class TestCustomStatsName:
                 factory=get_statsd_logger_factory(
                     stats_class=mock_statsd,
                     stat_name_handler=always_valid,
-                )
+                ),
+                export_legacy_names=True,
             )
             airflow_shared.observability.metrics.stats.incr("empty_key")
             mock_statsd.return_value.incr.assert_called_once_with("empty_key", 1, 1)
@@ -704,7 +806,8 @@ class TestCustomStatsName:
                     port="1234",
                     namespace="airflow",
                     stat_name_handler=always_valid,
-                )
+                ),
+                export_legacy_names=True,
             )
 
             airflow_shared.observability.metrics.stats.incr("empty_key")

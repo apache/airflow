@@ -1504,7 +1504,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # local import due to type_checking.
 
-            stats.initialize(factory=stats_utils.get_stats_factory())
+            stats.initialize(
+                factory=stats_utils.get_stats_factory(),
+                export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+            )
 
             self._run_scheduler_loop()
 
