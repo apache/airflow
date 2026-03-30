@@ -539,18 +539,24 @@ def check_hook_classes_with_conn_type_are_registered(yaml_files: dict[str, dict]
 )
 def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tuple[int, int]:
     """
-    Walk all provider source files, find Hook/Operator/Sensor/Trigger/Executor/Notifier
-    subclasses, and verify they are registered in the appropriate provider.yaml section.
+    Walk all provider source files, find Hook/Operator/Sensor/Trigger/Executor/Notifier/
+    SecretsBackend/AuthManager/LoggingHandler/DagBundle/DBManager subclasses, and verify
+    they are registered in the appropriate provider.yaml section.
 
     This catches classes placed in non-standard directories or modules that were missed
     when updating provider.yaml.
     """
+    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+    from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.baseoperator import BaseOperator
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
+    from airflow.secrets.base_secrets import BaseSecretsBackend
     from airflow.sensors.base import BaseSensorOperator
     from airflow.triggers.base import BaseTrigger
+    from airflow.utils.db_manager import BaseDBManager
+    from airflow.utils.log.file_task_handler import FileTaskHandler
 
     # Most specific first — BaseSensorOperator is a BaseOperator subclass
     base_class_resource_map: list[tuple[type, str]] = [
@@ -560,10 +566,22 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
         (BaseNotifier, "notifications"),
         (BaseExecutor, "executors"),
         (BaseOperator, "operators"),
+        (BaseSecretsBackend, "secrets-backends"),
+        (BaseAuthManager, "auth-managers"),
+        (FileTaskHandler, "logging"),
+        (BaseDagBundle, "bundles"),
+        (BaseDBManager, "db-managers"),
     ]
 
     # Resource types where registration is by class path (not module)
-    class_level_resource_types = {"executors", "notifications"}
+    class_level_resource_types = {
+        "executors",
+        "notifications",
+        "secrets-backends",
+        "auth-managers",
+        "logging",
+        "db-managers",
+    }
 
     num_checks = 0
     num_errors = 0
@@ -585,12 +603,18 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
             if python_module:
                 registered_modules.add(python_module)
 
-        # Collect class paths for class-level registrations (executors, notifications)
+        # Collect class paths for class-level registrations
         registered_classes: set[str] = set()
-        for class_path in provider_data.get("executors", []):
-            registered_classes.add(class_path)
-        for class_path in provider_data.get("notifications", []):
-            registered_classes.add(class_path)
+        for resource_type in (
+            "executors",
+            "notifications",
+            "secrets-backends",
+            "auth-managers",
+            "logging",
+            "db-managers",
+        ):
+            for class_path in provider_data.get(resource_type, []):
+                registered_classes.add(class_path)
 
         # Find the src directory for the provider
         src_dir = package_dir / "src"
@@ -752,6 +776,26 @@ def check_executor_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
 @run_check("Checking queues belong to package, exist and are classes")
 def check_queue_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
     return _check_simple_class_list("queues", yaml_files)
+
+
+@run_check("Checking secrets-backends belong to package, exist and are classes")
+def check_secrets_backend_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    return _check_simple_class_list("secrets-backends", yaml_files)
+
+
+@run_check("Checking auth-managers belong to package, exist and are classes")
+def check_auth_manager_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    return _check_simple_class_list("auth-managers", yaml_files)
+
+
+@run_check("Checking logging handlers belong to package, exist and are classes")
+def check_logging_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    return _check_simple_class_list("logging", yaml_files)
+
+
+@run_check("Checking db-managers belong to package, exist and are classes")
+def check_db_manager_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    return _check_simple_class_list("db-managers", yaml_files)
 
 
 @run_check("Checking for duplicates in list of transfers")
@@ -1007,6 +1051,10 @@ if __name__ == "__main__":
     check_queue_classes(all_parsed_yaml_files)
     check_plugin_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
+    check_secrets_backend_classes(all_parsed_yaml_files)
+    check_auth_manager_classes(all_parsed_yaml_files)
+    check_logging_classes(all_parsed_yaml_files)
+    check_db_manager_classes(all_parsed_yaml_files)
     check_correctness_of_list_of_sensors_operators_hook_trigger_modules(all_parsed_yaml_files)
     check_all_provider_classes_are_registered(all_parsed_yaml_files)
     check_notification_classes(all_parsed_yaml_files)
