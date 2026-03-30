@@ -132,9 +132,7 @@ def sdk_asset_timetable(test_timetable, test_assets) -> SdkAssetOrTimeSchedule:
 
 
 @pytest.fixture
-def sdk_asset_and_time_timetable(
-    test_timetable: MockTimetable, test_assets: list[Asset]
-) -> SdkAssetAndTimeSchedule:
+def sdk_asset_and_time_timetable(test_timetable, test_assets) -> SdkAssetAndTimeSchedule:
     return SdkAssetAndTimeSchedule(timetable=test_timetable, assets=test_assets)
 
 
