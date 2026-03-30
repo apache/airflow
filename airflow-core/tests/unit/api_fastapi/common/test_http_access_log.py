@@ -25,11 +25,8 @@ from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from airflow._shared.secrets_masker import _secrets_masker
-from airflow.api_fastapi.common.http_access_log import (
-    _HEALTH_PATHS,
-    HttpAccessLogMiddleware,
-    _redact_query_string,
-)
+from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware, _redact_query_string
+from airflow.api_fastapi.common.http_paths import HEALTH_PATHS
 
 
 @pytest.fixture
@@ -55,12 +52,24 @@ def _make_app(raise_exc: bool = False) -> Starlette:
             raise RuntimeError("boom")
         return PlainTextResponse("ok")
 
+    async def api_item(request):
+        return PlainTextResponse("ok")
+
+    async def ui_item(request):
+        return PlainTextResponse("ok")
+
+    async def api_fail(request):
+        raise RuntimeError("boom")
+
     async def health(request):
         return PlainTextResponse("healthy")
 
     app = Starlette(
         routes=[
             Route("/", homepage),
+            Route("/api/v2/items/{item_id}", api_item),
+            Route("/ui/items/{item_id}", ui_item),
+            Route("/api/v2/fail", api_fail),
             Route("/api/v2/monitor/health", health),
         ]
     )
@@ -152,7 +161,7 @@ def test_non_http_scope_not_logged():
 
 
 def test_health_paths_constant():
-    assert "/api/v2/monitor/health" in _HEALTH_PATHS
+    assert "/api/v2/monitor/health" in HEALTH_PATHS
 
 
 @pytest.mark.enable_redact
