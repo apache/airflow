@@ -187,7 +187,7 @@ class EksPodTrigger(KubernetesPodTrigger):
         session = eks_hook.get_session()
         credentials_obj = session.get_credentials()
         if credentials_obj is None:
-            raise AirflowException(
+            raise RuntimeError(
                 "Unable to retrieve AWS credentials for EKS trigger. "
                 "Credentials may have expired or not been configured."
             )
