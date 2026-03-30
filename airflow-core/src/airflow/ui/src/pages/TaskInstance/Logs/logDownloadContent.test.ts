@@ -51,7 +51,6 @@ describe("Task log download content (log level filter)", () => {
 
   it("is empty when every structured line is excluded by the level filter", () => {
     const fetchedData: TaskInstancesLogResponse = {
-      continuation_token: null,
       content: [
         {
           event: "hello",
@@ -60,6 +59,7 @@ describe("Task log download content (log level filter)", () => {
           timestamp: "2025-09-11T17:44:52.597476Z",
         },
       ],
+      continuation_token: null,
     };
 
     const text = logStringForDownload(fetchedData, ["error"], translate);
@@ -69,13 +69,13 @@ describe("Task log download content (log level filter)", () => {
 
   it("is empty when structured lines have no level and any log level filter is set", () => {
     const fetchedData: TaskInstancesLogResponse = {
-      continuation_token: null,
       content: [
         {
           event: "[timestamp] {file.py:1} INFO - legacy line without level field",
           timestamp: "2025-02-28T10:49:09.679000+05:30",
         },
       ],
+      continuation_token: null,
     };
 
     const text = logStringForDownload(fetchedData, ["info"], translate);
@@ -85,7 +85,6 @@ describe("Task log download content (log level filter)", () => {
 
   it("does not prefix the download with newlines when earlier lines are filtered out", () => {
     const fetchedData: TaskInstancesLogResponse = {
-      continuation_token: null,
       content: [
         {
           event: "hidden-group-marker",
@@ -100,6 +99,7 @@ describe("Task log download content (log level filter)", () => {
           timestamp: "2025-09-11T17:44:52.597500Z",
         },
       ],
+      continuation_token: null,
     };
 
     const text = logStringForDownload(fetchedData, ["info"], translate);
@@ -111,7 +111,6 @@ describe("Task log download content (log level filter)", () => {
 
   it("includes matching structured lines when the filter matches level", () => {
     const fetchedData: TaskInstancesLogResponse = {
-      continuation_token: null,
       content: [
         {
           event: "hello",
@@ -120,6 +119,7 @@ describe("Task log download content (log level filter)", () => {
           timestamp: "2025-09-11T17:44:52.597476Z",
         },
       ],
+      continuation_token: null,
     };
 
     const text = logStringForDownload(fetchedData, ["info"], translate);
