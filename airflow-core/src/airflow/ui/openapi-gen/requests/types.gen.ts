@@ -2201,13 +2201,7 @@ export type TeamResponse = {
  */
 export type Theme = {
     tokens: {
-        [key: string]: {
-            [key: string]: {
-                [key: string]: {
-                    [key: string]: OklchColor;
-                };
-            };
-        };
+        [key: string]: ThemeColors;
     };
     globalCss?: {
     [key: string]: {
@@ -2216,6 +2210,10 @@ export type Theme = {
 } | null;
     icon?: string | null;
     icon_dark_mode?: string | null;
+};
+
+export type ThemeColors = {
+    [key: string]: unknown;
 };
 
 /**

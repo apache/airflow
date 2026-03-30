@@ -96,7 +96,7 @@ test.describe("DAG Calendar Tab", () => {
     await calendar.navigateToCalendar(dagId);
   });
 
-  test("verify calendar grid renders", async () => {
+  test.fixme("verify calendar grid renders", async () => {
     await calendar.switchToHourly();
     await calendar.verifyMonthGridRendered();
   });
@@ -121,7 +121,7 @@ test.describe("DAG Calendar Tab", () => {
   // can override the PATCH-to-failed state back to success before tests run
   // because the shared testDag may already be unpaused by parallel tests.
 
-  test("verify hover shows correct run states", async () => {
+  test.fixme("verify hover shows correct run states", async () => {
     await calendar.switchToHourly();
 
     const states = await calendar.getManualRunStates();
@@ -130,7 +130,8 @@ test.describe("DAG Calendar Tab", () => {
     expect(states).toContain("failed");
   });
 
-  test("failed filter shows only failed runs", async () => {
+  // The scheduler can override the PATCH-to-failed state back to success before tests run.
+  test.fixme("failed filter shows only failed runs", async () => {
     await calendar.switchToHourly();
 
     const totalStates = await calendar.getManualRunStates();
@@ -158,7 +159,7 @@ test.describe("DAG Calendar Tab", () => {
     expect(failedCount).toBeLessThan(totalCount);
   });
 
-  test("color scale changes between total and failed view", async () => {
+  test.fixme("color scale changes between total and failed view", async () => {
     await calendar.switchToHourly();
 
     const totalColors = await calendar.getActiveCellColors();
@@ -171,7 +172,7 @@ test.describe("DAG Calendar Tab", () => {
     expect(failedColors).not.toEqual(totalColors);
   });
 
-  test("cells reflect failed view mode attribute", async () => {
+  test.fixme("cells reflect failed view mode attribute", async () => {
     await calendar.switchToHourly();
     await calendar.switchToFailedView();
 

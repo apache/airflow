@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useDagServiceDeleteDag, useDagServiceGetDagsUiKey } from "openapi/queries";
 import { useDagServiceGetDagKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
+import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
 import { createErrorToaster } from "src/utils";
 
 export const useDeleteDag = ({
@@ -46,7 +47,11 @@ export const useDeleteDag = ({
   };
 
   const onSuccess = async () => {
-    const queryKeys = [[useDagServiceGetDagKey, { dagId }], [useDagServiceGetDagsUiKey]];
+    const queryKeys = [
+      [useDagServiceGetDagKey, { dagId }],
+      [useDagServiceGetDagsUiKey],
+      ...gridQueryKeys(dagId),
+    ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 

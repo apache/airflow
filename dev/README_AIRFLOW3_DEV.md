@@ -24,26 +24,27 @@
 - [Contributors](#contributors)
   - [Developing for the Helm Chart](#developing-for-the-helm-chart)
   - [Developing for Providers](#developing-for-providers)
-  - [Developing for Airflow 3.x, 3.1.x](#developing-for-airflow-3x-31x)
+  - [Developing for Airflow 3.x, 3.2.x](#developing-for-airflow-3x-32x)
   - [Developing for Airflow 3](#developing-for-airflow-3)
   - [Developing for Airflow 2.11.x](#developing-for-airflow-211x)
 - [Committers / PMCs](#committers--pmcs)
   - [Merging PRs for providers and Helm chart](#merging-prs-for-providers-and-helm-chart)
   - [Merging PRs targeted for Airflow 3.X](#merging-prs-targeted-for-airflow-3x)
-  - [What do we backport to `v3-1-test` branch?](#what-do-we-backport-to-v3-1-test-branch)
+  - [What do we backport to `v3-2-test` branch?](#what-do-we-backport-to-v3-2-test-branch)
+  - [Backporting during pre-release period (before 3.2.0 GA)](#backporting-during-pre-release-period-before-320-ga)
   - [How to backport PR with GitHub Actions](#how-to-backport-pr-with-github-actions)
   - [How to backport PR with `cherry-picker` CLI](#how-to-backport-pr-with-cherry-picker-cli)
   - [Merging PRs for Airflow 3](#merging-prs-for-airflow-3)
 - [Milestones for PR](#milestones-for-pr)
-  - [Set 3.1.x milestone](#set-31x-milestone)
-  - [Set 3.2 milestone](#set-32-milestone)
+  - [Set 3.2.x milestone](#set-32x-milestone)
+  - [Set 3.3 milestone](#set-33-milestone)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # Main branch is Airflow 3.x
 
 The `main` branch is for development of Airflow 3.x (next minor release).
-Airflow 3.1.x releases will be cut from `v3-1-stable` branch.
+Airflow 3.2.x releases will be cut from `v3-2-stable` branch.
 Airflow 2.11.x releases will be cut from `v2-11-stable` branch.
 
 # Contributors
@@ -60,14 +61,14 @@ PRs should target the `main` branch.
 Make sure your changes are only related to Providers or the Helm chart.
 Avoid mixing core changes into the same PR.
 
-## Developing for Airflow 3.x, 3.1.x
+## Developing for Airflow 3.x, 3.2.x
 
-If the PR is relevant to both Airflow 3.x and 3.1.x, it should target the `main` branch.
+If the PR is relevant to both Airflow 3.x and 3.2.x, it should target the `main` branch.
 
-If you want to have a fix backported to 3.1.x please add (or request to add) "backport-to-v3-1-test" label to the PR. CI will automatically attempt to create a backport PR after merge.
+If you want to have a fix backported to 3.2.x please add (or request to add) "backport-to-v3-2-test" label to the PR. CI will automatically attempt to create a backport PR after merge.
 
-When preparing a new 3.1.x release, the release manager will sync the `v3-1-test` branch to `v3-1-stable` and cut the release from the stable branch.
-PRs should **never** target `v3-1-stable` directly unless explicitly instructed by the release manager.
+When preparing a new 3.2.x release, the release manager will sync the `v3-2-test` branch to `v3-2-stable` and cut the release from the stable branch.
+PRs should **never** target `v3-2-stable` directly unless explicitly instructed by the release manager.
 
 ## Developing for Airflow 3
 
@@ -100,17 +101,17 @@ Do not treat PR approval (Green V) as exclusion approval.
 
 ## Merging PRs targeted for Airflow 3.X
 
-The committer who merges the PR **is responsible for backporting the PRs that are 3.1 bug fixes (generally speaking)**
-to `v3-1-test` (latest active branch we release bugfixes from). See next chapter to see what kind of changes we cherry-pick.
+The committer who merges the PR **is responsible for backporting the PRs that are 3.2 bug fixes (generally speaking)**
+to `v3-2-test` (latest active branch we release bugfixes from). See next chapter to see what kind of changes we cherry-pick.
 
 It means that they should create a new PR where the original commit from main is cherry-picked and take care for resolving conflicts.
-If the cherry-pick is too complex, then ask the PR author / start your own PR against `v3-1-test` directly with the change.
+If the cherry-pick is too complex, then ask the PR author / start your own PR against `v3-2-test` directly with the change.
 Note: tracking that the PRs merged as expected is the responsibility of committer who merged the PR.
 
-Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v3-1-test` prior to accepting the code change.
+Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v3-2-test` prior to accepting the code change.
 
 Mistakes happen, and such backport PR work might fall through cracks. Therefore, if the committer thinks
-that certain PRs should be backported, they **should set 3.1.x milestone for them.**
+that certain PRs should be backported, they **should set 3.2.x milestone for them.**
 
 This way release manager can verify (as usual) if all the "expected" PRs have
 been backported and cherry-pick remaining PRS.
@@ -119,9 +120,9 @@ We are using `cherry-picker` - a [tool](https://github.com/python/cherry-picker)
 Python developers. It allows to easily cherry-pick PRs from one branch to another. It works both - via
 command line and via GitHub Actions interface.
 
-## What do we backport to `v3-1-test` branch?
+## What do we backport to `v3-2-test` branch?
 
-The `v3-1-test` latest branch is generally used to release bugfixes, but what we cherry-pick is a bit more
+The `v3-2-test` latest branch is generally used to release bugfixes, but what we cherry-pick is a bit more
 nuanced than `bugfixes only`. We cherry-pick:
 
 * **Bug-fixes** (obviously) - but not all of them - often we might decide to not cherry-pick bug-fixes that are
@@ -140,6 +141,28 @@ nuanced than `bugfixes only`. We cherry-pick:
   why this change is cherry-picked even if it is not a bug-fix.
 
 
+## Backporting during pre-release period (before 3.2.0 GA)
+
+During the pre-release period (after a beta/RC has been cut but before 3.2.0 GA is released), we need to
+be careful about what gets merged into `v3-2-test` to avoid introducing risk into the upcoming release.
+
+The following types of changes **can be merged directly** into `v3-2-test` during the pre-release period:
+
+* **dev/CI changes** — keeping CI green and workflows up-to-date
+* **Security fixes** — critical security patches
+* **Fixes for issues found in the beta/RC** — bugs discovered during beta/RC testing
+
+For **bug fixes targeting 3.2.1** (i.e., fixes that are not critical for the 3.2.0 release):
+
+1. Merge the PR to `main` as usual.
+2. Cherry-pick it to `v3-2-test` (either automatically via label or manually).
+3. Set the **3.2.1 milestone** on the PR.
+4. **Keep the backport PR as a Draft** — do not merge it until 3.2.0 GA is released.
+5. After 3.2.0 GA is released, go back and merge the draft backport PRs.
+
+This approach avoids creating additional branches while ensuring that 3.2.0 is not destabilized by
+changes that are not strictly necessary for the initial release.
+
 ## How to backport PR with GitHub Actions
 
 When you want to backport commit via GitHub actions (you need to be a committer), you
@@ -153,7 +176,7 @@ You can pin the workflow from the list of workflows for easy access to it.
 ![Backport commit](images/backport_commit_action.png)
 
 Use `main` as source of the workflow and copy the commit hash and enter the target branch name
-(e.g. `v2-11-test`, `v3-0-test`).
+(e.g. `v2-11-test`, `v3-2-test`).
 
 The action should create a new PR with the cherry-picked commit and add a comment in the PR when it is
 successful (or when it fails). If automatic backporting fails because of conflicts, you have to revert to
@@ -229,13 +252,13 @@ Our goal is to avoid breaking changes whenever possible. Therefore, we should al
 
 # Milestones for PR
 
-## Set 3.1.x milestone
+## Set 3.2.x milestone
 
 Milestone will be added only to the original PR.
 
-1. PR targeting `v3-1-test` directly - milestone will be on that PR.
-2. PR targeting `main` with backport PR targeting `v3-1-test`. Milestone will be added only on the PR targeting `v3-1-main`.
+1. PR targeting `v3-2-test` directly - milestone will be on that PR.
+2. PR targeting `main` with backport PR targeting `v3-2-test`. Milestone will be added only on the PR targeting `main`.
 
-## Set 3.2 milestone
+## Set 3.3 milestone
 
 Set for any feature that targets Airflow 3.x only.
