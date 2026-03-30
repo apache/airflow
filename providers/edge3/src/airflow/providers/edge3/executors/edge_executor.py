@@ -222,6 +222,15 @@ class EdgeExecutor(BaseExecutor):
                 )
             )
 
+    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
+        """
+        No-op: EdgeExecutor does not use the BaseExecutor workload pipeline.
+
+        EdgeExecutor handles task queuing directly in queue_workload() by writing
+        to the EdgeJobModel database table, bypassing BaseExecutor's queued_tasks.
+        Therefore, trigger_tasks() never accumulates workloads to pass here.
+        """
+
     def _check_worker_liveness(self, session: Session) -> bool:
         """Reset worker state if heartbeat timed out."""
         changed = False
