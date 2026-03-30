@@ -259,17 +259,17 @@ def timer(
     use (duration is available but no metric is emitted).
 
     When ``legacy_name_tags`` is provided and legacy name export is enabled, both the
-    legacy metric name and the modern name are timed simultaneously via an
-    ExitStack. Otherwise the backend timer is returned directly, preserving the
+    legacy metric name and the regular name are timed simultaneously via an
+    ExitStack. Otherwise, the backend timer is returned directly, preserving the
     ability to access ``timer.duration`` on the returned object.
     """
     if stat is None:
         return _get_backend().timer()
 
-    modern_kw: dict[str, Any] = {**kwargs}
+    regular_kw: dict[str, Any] = {**kwargs}
     merged = _merged(tags, legacy_name_tags)
     if merged:
-        modern_kw["tags"] = merged
+        regular_kw["tags"] = merged
 
     if _export_legacy_names and legacy_name_tags is not None:
         legacy_kw: dict[str, Any] = {**kwargs}
@@ -283,10 +283,10 @@ def timer(
                 _get_backend().timer(_emit_legacy(stat, legacy_name_tags), **legacy_kw),
             )
         )
-        stack.enter_context(_get_backend().timer(stat, **modern_kw))
+        stack.enter_context(_get_backend().timer(stat, **regular_kw))
         return cast("Timer", stack)
 
-    return _get_backend().timer(stat, **modern_kw)
+    return _get_backend().timer(stat, **regular_kw)
 
 
 class Stats:

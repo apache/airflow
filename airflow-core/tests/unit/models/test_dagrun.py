@@ -1043,7 +1043,7 @@ class TestDagRun:
         runs = func(session).all()
         assert runs == []
 
-    @mock.patch("airflow.models.dagrun.stats.timing")
+    @mock.patch("airflow._shared.observability.metrics.stats.timing")
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock, session, testing_dag_bundle):
         """
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
@@ -1121,7 +1121,7 @@ class TestDagRun:
             ti.set_state(TaskInstanceState.SUCCESS, session)
             session.flush()
 
-            with mock.patch("airflow.models.dagrun.stats.timing") as stats_mock:
+            with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
                 dag_run.update_state(session)
 
             metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"

@@ -576,14 +576,14 @@ class TestStatsHelpers:
             ),
             pytest.param(
                 {},
-                {"test_extra": True},
-                {"test_extra": True},
+                {"test_legacy": True},
+                {"test_legacy": True},
                 id="only_legacy_name_tags",
             ),
             pytest.param(
                 {"test": True},
-                {"test_extra": True},
-                {"test": True, "test_extra": True},
+                {"test_legacy": True},
+                {"test": True, "test_legacy": True},
                 id="both_provided",
             ),
             pytest.param(
@@ -600,13 +600,13 @@ class TestStatsHelpers:
             ),
             pytest.param(
                 {"test1": True, "test2": False},
-                {"test_extra1": True, "test_extra2": False, "test_extra3": True},
+                {"test_legacy1": True, "test_legacy2": False, "test_legacy3": True},
                 {
                     "test1": True,
                     "test2": False,
-                    "test_extra1": True,
-                    "test_extra2": False,
-                    "test_extra3": True,
+                    "test_legacy1": True,
+                    "test_legacy2": False,
+                    "test_legacy3": True,
                 },
                 id="multiple_params",
             ),
@@ -663,8 +663,12 @@ class TestStatsHelpers:
             assert _get_legacy_stat(stat, variables) == expected_legacy_stat
 
 
-class TestLegacyNameTagsExport:
-    """Tests for the dual stats export behavior when legacy_name_tags is provided."""
+class TestLegacyNameTagsParam:
+    """
+    Tests for the dual stats export behavior when legacy_name_tags is provided.
+
+    The internal _export_legacy_names defaults to True if used before calling initialize().
+    """
 
     @pytest.fixture
     def mock_backend(self):
@@ -694,6 +698,7 @@ class TestLegacyNameTagsExport:
         mock_backend.incr.assert_called_once_with("operator_failures", tags={"dag_id": "test_dag"})
 
     def test_incr_legacy_export_disabled_emits_once(self, mock_backend, monkeypatch):
+        # Patch the config to disable it.
         monkeypatch.setattr(airflow_shared.observability.metrics.stats, "_export_legacy_names", False)
         airflow_shared.observability.metrics.stats.incr(
             "operator_failures",
