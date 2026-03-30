@@ -10271,9 +10271,7 @@
                     "items": {
                         "type": "string"
                     },
-                    "default": [
-                        "bash"
-                    ]
+                    "default": null
                 },
                 "args": {
                     "description": "Args to use when running the database cleanup cronjob (templated).",
@@ -10285,6 +10283,7 @@
                         "type": "string"
                     },
                     "default": [
+                        "bash",
                         "-c",
                         "CLEAN_TS=$(date -d \"-{{ .Values.databaseCleanup.retentionDays }} days\" +\"%Y-%m-%dT%H:%M:%S\"); echo \"Cleaning up metadata DB entries older than ${CLEAN_TS}\"; exec airflow db clean --clean-before-timestamp \"${CLEAN_TS}\" --yes {{- if .Values.databaseCleanup.skipArchive }} --skip-archive{{ end }} {{- if .Values.databaseCleanup.verbose }} --verbose{{ end }} {{- with .Values.databaseCleanup.batchSize }} --batch-size {{ . }}{{ end }} {{- with .Values.databaseCleanup.tables }} --tables {{ . | join \",\" }}{{ end }}"
                     ]
