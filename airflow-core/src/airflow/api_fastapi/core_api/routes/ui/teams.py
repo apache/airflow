@@ -48,7 +48,7 @@ def list_teams(
     offset: QueryOffset,
     order_by: Annotated[
         SortParam,
-        Depends(SortParam(["id"], Team).dynamic_depends()),
+        Depends(SortParam(["name"], Team).dynamic_depends()),
     ],
     readable_teams_filter: ReadableTeamsFilterDep,
     session: SessionDep,

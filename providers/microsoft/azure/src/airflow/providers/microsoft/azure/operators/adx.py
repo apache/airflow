@@ -23,14 +23,13 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
 if TYPE_CHECKING:
     from azure.kusto.data._models import KustoResultTable
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class AzureDataExplorerQueryOperator(BaseOperator):
@@ -42,7 +41,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     :param options: Optional query options. See:
       https://docs.microsoft.com/en-us/azure/kusto/api/netfx/request-properties#list-of-clientrequestproperties
     :param azure_data_explorer_conn_id: Reference to the
-        :ref:`Azure Data Explorer connection<howto/connection:adx>`.
+        :ref:`Azure Data Explorer connection<howto/connection:azure_data_explorer>`.
     """
 
     ui_color = "#00a1f2"

@@ -24,7 +24,7 @@ import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeleteFunctionOperator,
     CloudFunctionDeployFunctionOperator,

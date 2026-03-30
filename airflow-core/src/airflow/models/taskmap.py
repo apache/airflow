@@ -24,21 +24,23 @@ import enum
 from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
+from opentelemetry import trace
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, mapped_column
 
+from airflow._shared.observability.traces import new_task_run_carrier
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
-from airflow.utils.sqlalchemy import ExtendedJSON, mapped_column, with_row_locks
+from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
+tracer = trace.get_tracer(__name__)
 
 
 class TaskMapVariant(enum.Enum):
@@ -126,7 +128,7 @@ class TaskMap(TaskInstanceDependencies):
     @classmethod
     def expand_mapped_task(
         cls,
-        task: SerializedBaseOperator | MappedOperator,
+        task: Operator,
         run_id: str,
         *,
         session: Session,
@@ -139,12 +141,15 @@ class TaskMap(TaskInstanceDependencies):
             order by map index, and the maximum map index value.
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import MappedOperator, get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+        from airflow.serialization.definitions.mappedoperator import (
+            SerializedMappedOperator,
+            get_mapped_ti_count,
+        )
         from airflow.settings import task_instance_mutation_hook
 
-        if not isinstance(task, (MappedOperator, SerializedBaseOperator)):
+        if not isinstance(task, (SerializedMappedOperator, SerializedBaseOperator)):
             raise RuntimeError(
                 f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
             )
@@ -161,7 +166,7 @@ class TaskMap(TaskInstanceDependencies):
                 )
             total_length = None
 
-        state: TaskInstanceState | None = None
+        state: str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == task.dag_id,
@@ -215,19 +220,21 @@ class TaskMap(TaskInstanceDependencies):
                     task.log.debug("Deleting the original task instance: %s", unmapped_ti)
                     session.delete(unmapped_ti)
                 state = unmapped_ti.state
-            dag_version_id = unmapped_ti.dag_version_id
 
         if total_length is None or total_length < 1:
             # Nothing to fixup.
             indexes_to_map: Iterable[int] = ()
         else:
             # Only create "missing" ones.
-            current_max_mapping = session.scalar(
-                select(func.max(TaskInstance.map_index)).where(
-                    TaskInstance.dag_id == task.dag_id,
-                    TaskInstance.task_id == task.task_id,
-                    TaskInstance.run_id == run_id,
+            current_max_mapping = (
+                session.scalar(
+                    select(func.max(TaskInstance.map_index)).where(
+                        TaskInstance.dag_id == task.dag_id,
+                        TaskInstance.task_id == task.task_id,
+                        TaskInstance.run_id == run_id,
+                    )
                 )
+                or 0
             )
             indexes_to_map = range(current_max_mapping + 1, total_length)
 
@@ -237,6 +244,18 @@ class TaskMap(TaskInstanceDependencies):
             dag_version_id = dag_version.id
         else:
             dag_version_id = None
+
+        if unmapped_ti:
+            dr = unmapped_ti.dag_run
+        else:
+            from airflow.models import DagRun
+
+            dr = session.scalar(
+                select(DagRun).where(
+                    DagRun.dag_id == task.dag_id,
+                    DagRun.run_id == run_id,
+                )
+            )
 
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
@@ -250,6 +269,7 @@ class TaskMap(TaskInstanceDependencies):
             task.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)
+            ti.context_carrier = new_task_run_carrier(dr.context_carrier)
             ti.refresh_from_task(task)  # session.merge() loses task information.
             all_expanded_tis.append(ti)
 
@@ -265,8 +285,7 @@ class TaskMap(TaskInstanceDependencies):
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
-        to_update = session.scalars(query)
+        to_update = session.scalars(with_row_locks(query, of=TaskInstance, session=session, skip_locked=True))
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
         session.flush()

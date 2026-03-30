@@ -32,7 +32,7 @@ from google.cloud.logging_v2.types import LogSink
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.cloud_logging_sink import (
     CloudLoggingCreateSinkOperator,
     CloudLoggingDeleteSinkOperator,

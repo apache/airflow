@@ -21,8 +21,7 @@ from unittest.mock import Mock
 import pytest
 from openai.types.batch import Batch
 
-from airflow.exceptions import TaskDeferred
-from airflow.providers.common.compat.sdk import Context
+from airflow.providers.common.compat.sdk import Context, TaskDeferred
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator, OpenAITriggerBatchOperator
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 

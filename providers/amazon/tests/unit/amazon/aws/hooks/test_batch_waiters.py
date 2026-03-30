@@ -28,9 +28,9 @@ from botocore.exceptions import ClientError, WaiterError
 from botocore.waiter import SingleWaiterConfig, WaiterModel
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_waiters import BatchWaitersHook
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.providers.common.compat.sdk import AirflowException
 
 INTERMEDIATE_STATES = ("SUBMITTED", "PENDING", "RUNNABLE", "STARTING")
 RUNNING_STATE = "RUNNING"

@@ -44,8 +44,13 @@ You can also access variables through the Task Context using
     def my_task():
         context = get_current_context()
         var = context["var"]
-        my_variable = var.get("my_variable_name")
+        my_variable = var["value"].get("my_variable_name")
         return my_variable
+
+The ``context["var"]`` dictionary provides two ways to access variables:
+
+- ``var["value"]``: returns the variable as a raw string value.
+- ``var["json"]``:  returns the variable as a JSON value. This is useful when the variable stores a dictionary, list, or other structured data.
 
 You can also use them from :ref:`templates <concepts:jinja-templating>`::
 
@@ -55,7 +60,7 @@ You can also use them from :ref:`templates <concepts:jinja-templating>`::
     # Auto-deserialize JSON value
     echo {{ var.json.<variable_name> }}
 
-Variables are **global**, and should only be used for overall configuration that covers the entire installation; to pass data from one Task/Operator to another, you should use :doc:`xcoms` instead.
+Variables are **global** unless created for a specific :ref:`Airflow Team <multi-team-variables>` (if your environment is configured to use Multi-Team). Global Variables should only be used for overall configuration that covers the entire installation. Team based Variables should be used for overall configuration related to one specific Team. To pass data from one Task/Operator to another, you should use :doc:`xcoms` instead.
 
 We also recommend that you try to keep most of your settings and configuration in your Dag files, so it can be versioned using source control; Variables are really only for values that are truly runtime-dependent.
 

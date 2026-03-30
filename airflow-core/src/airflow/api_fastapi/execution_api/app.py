@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import time
 from contextlib import AsyncExitStack
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -126,6 +127,39 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class JWTReissueMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        from airflow.configuration import conf
+
+        response: Response = await call_next(request)
+
+        refreshed_token: str | None = None
+        auth_header = request.headers.get("authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            token = auth_header.split(" ", 1)[1]
+            try:
+                async with svcs.Container(request.app.state.svcs_registry) as services:
+                    validator: JWTValidator = await services.aget(JWTValidator)
+                    claims = await validator.avalidated_claims(token, {})
+
+                    now = int(time.time())
+                    validity = conf.getint("execution_api", "jwt_expiration_time")
+                    refresh_when_less_than = max(int(validity * 0.20), 30)
+                    valid_left = int(claims.get("exp", 0)) - now
+                    if valid_left <= refresh_when_less_than:
+                        generator: JWTGenerator = await services.aget(JWTGenerator)
+                        refreshed_token = generator.generate(claims)
+            except Exception as err:
+                # Do not block the response if refreshing fails; log a warning for visibility
+                logger.warning(
+                    "JWT reissue middleware failed to refresh token", error=str(err), exc_info=True
+                )
+
+        if refreshed_token:
+            response.headers["Refreshed-API-Token"] = refreshed_token
+        return response
+
+
 class CadwynWithOpenAPICustomization(Cadwyn):
     # Workaround lack of customzation https://github.com/zmievsa/cadwyn/issues/255
     async def openapi_jsons(self, req: Request) -> JSONResponse:
@@ -186,6 +220,15 @@ class CadwynWithOpenAPICustomization(Cadwyn):
                 if prop.get("type") == "string" and (const := prop.pop("const", None)):
                     prop["enum"] = [const]
 
+        # Remove internal x-airflow-* extension fields from OpenAPI spec
+        # These are used for runtime validation but shouldn't be exposed in the public API
+        for path_item in openapi_schema.get("paths", {}).values():
+            for operation in path_item.values():
+                if isinstance(operation, dict):
+                    keys_to_remove = [key for key in operation.keys() if key.startswith("x-airflow-")]
+                    for key in keys_to_remove:
+                        del operation[key]
+
         return openapi_schema
 
 
@@ -211,6 +254,7 @@ def create_task_execution_api_app() -> FastAPI:
 
     # Add correlation-id middleware for request tracing
     app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(JWTReissueMiddleware)
 
     app.generate_and_include_versioned_routers(execution_api_router)
 
@@ -230,6 +274,7 @@ def get_extra_schemas() -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
     from airflow.executors.workloads import BundleInfo
+    from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.trigger_rule import TriggerRule
     from airflow.task.weight_rule import WeightRule
     from airflow.utils.state import TaskInstanceState, TerminalTIState
@@ -243,6 +288,11 @@ def get_extra_schemas() -> dict[str, dict]:
         "TaskInstanceState": {"type": "string", "enum": list(TaskInstanceState)},
         "WeightRule": {"type": "string", "enum": list(WeightRule)},
         "TriggerRule": {"type": "string", "enum": list(TriggerRule)},
+        "DagAttributeTypes": {
+            "type": "string",
+            "enum": [DagAttributeTypes.OP.value, DagAttributeTypes.TASK_GROUP.value],
+            "x-enum-varnames": [DagAttributeTypes.OP.name, DagAttributeTypes.TASK_GROUP.name],
+        },
     }
 
 
@@ -263,25 +313,26 @@ class InProcessExecutionAPI:
         if not self._app:
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
-            from airflow.api_fastapi.execution_api.deps import (
-                JWTBearerDep,
-                JWTBearerTIPathDep,
-                JWTRefresherDep,
-            )
+            from airflow.api_fastapi.execution_api.datamodels.token import TIToken
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
+            from airflow.api_fastapi.execution_api.security import _jwt_bearer
 
             self._app = create_task_execution_api_app()
 
             # Set up dag_bag in app state for dependency injection
             self._app.state.dag_bag = create_dag_bag()
 
-            async def always_allow(): ...
+            async def always_allow(request: Request):
+                from uuid import UUID
 
-            self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
-            self._app.dependency_overrides[JWTBearerTIPathDep.dependency] = always_allow
-            self._app.dependency_overrides[JWTRefresherDep.dependency] = always_allow
+                ti_id = UUID(
+                    request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000")
+                )
+                return TIToken(id=ti_id, claims={"scope": "execution"})
+
+            self._app.dependency_overrides[_jwt_bearer] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow

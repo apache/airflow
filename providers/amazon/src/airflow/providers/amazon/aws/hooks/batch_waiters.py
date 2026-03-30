@@ -36,8 +36,8 @@ from typing import TYPE_CHECKING, Any
 import botocore.exceptions
 import botocore.waiter
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher

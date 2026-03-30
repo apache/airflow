@@ -23,8 +23,8 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowFailException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
+from airflow.providers.common.compat.sdk import AirflowFailException
 
 
 @mock_aws

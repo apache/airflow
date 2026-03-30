@@ -19,14 +19,18 @@ from __future__ import annotations
 import json
 from io import BytesIO
 from unittest import mock
+from unittest.mock import ANY
 
 import pytest
+from sqlalchemy import select
 
+from airflow.models.team import Team
 from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_variables
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_teams, clear_db_variables
 from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
@@ -45,6 +49,10 @@ TEST_VARIABLE_KEY3 = "dictionary_password"
 TEST_VARIABLE_VALUE3 = '{"password": "some_password"}'
 TEST_VARIABLE_DESCRIPTION3 = "Some description for the variable"
 
+TEST_VARIABLE_KEY5 = "nested_dictionary_variable"
+TEST_VARIABLE_VALUE5 = '{"config": {"password": "some_password", "next": {"api_key": "some_api_key", "next_again": {"token": "some_token"}}}}'
+TEST_VARIABLE_DESCRIPTION5 = "Variable with a nested sensitive key"
+
 TEST_VARIABLE_KEY4 = "test_variable_key/with_slashes"
 TEST_VARIABLE_VALUE4 = "test_variable_value"
 TEST_VARIABLE_DESCRIPTION4 = "Some description for the variable"
@@ -62,6 +70,8 @@ def create_file_upload(content: dict) -> BytesIO:
 
 @provide_session
 def _create_variables(session) -> None:
+    team = session.scalars(select(Team).where(Team.name == "test")).one()
+
     Variable.set(
         key=TEST_VARIABLE_KEY,
         value=TEST_VARIABLE_VALUE,
@@ -87,6 +97,7 @@ def _create_variables(session) -> None:
         key=TEST_VARIABLE_KEY4,
         value=TEST_VARIABLE_VALUE4,
         description=TEST_VARIABLE_DESCRIPTION4,
+        team_name=team.name,
         session=session,
     )
 
@@ -97,30 +108,48 @@ def _create_variables(session) -> None:
         session=session,
     )
 
+    Variable.set(
+        key=TEST_VARIABLE_KEY5,
+        value=TEST_VARIABLE_VALUE5,
+        description=TEST_VARIABLE_DESCRIPTION5,
+        session=session,
+    )
+
+
+@provide_session
+def _create_team(session) -> None:
+    session.add(Team(name="test"))
+    session.commit()
+
 
 class TestVariableEndpoint:
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self):
         clear_db_variables()
+        clear_db_teams()
+        with conf_vars({("core", "multi_team"): "True"}):
+            yield
 
-    def teardown_method(self) -> None:
+    def teardown_method(self):
         clear_db_variables()
+        clear_db_teams()
 
     def create_variables(self):
+        _create_team()
         _create_variables()
 
 
 class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variables()
-        variables = session.query(Variable).all()
-        assert len(variables) == 5
+        variables = session.scalars(select(Variable)).all()
+        assert len(variables) == 6
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         response = test_client.delete(f"/variables/{TEST_VARIABLE_KEY4}")
         assert response.status_code == 204
-        variables = session.query(Variable).all()
-        assert len(variables) == 3
+        variables = session.scalars(select(Variable)).all()
+        assert len(variables) == 4
         check_last_log(session, dag_id=None, event="delete_variable", logical_date=None)
 
     def test_delete_should_respond_401(self, unauthenticated_test_client):
@@ -150,6 +179,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "value": TEST_VARIABLE_VALUE,
                     "description": TEST_VARIABLE_DESCRIPTION,
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
             (
@@ -159,6 +189,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "value": "***",
                     "description": TEST_VARIABLE_DESCRIPTION2,
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
             (
@@ -168,6 +199,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "value": '{"password": "***"}',
                     "description": TEST_VARIABLE_DESCRIPTION3,
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
             (
@@ -177,6 +209,7 @@ class TestGetVariable(TestVariableEndpoint):
                     "value": TEST_VARIABLE_VALUE4,
                     "description": TEST_VARIABLE_DESCRIPTION4,
                     "is_encrypted": True,
+                    "team_name": ANY,
                 },
             ),
             (
@@ -186,6 +219,17 @@ class TestGetVariable(TestVariableEndpoint):
                     "value": TEST_VARIABLE_SEARCH_VALUE,
                     "description": TEST_VARIABLE_SEARCH_DESCRIPTION,
                     "is_encrypted": True,
+                    "team_name": None,
+                },
+            ),
+            (
+                TEST_VARIABLE_KEY5,
+                {
+                    "key": TEST_VARIABLE_KEY5,
+                    "value": '{"config": {"password": "***", "next": {"api_key": "***", "next_again": {"token": "***"}}}}',
+                    "description": TEST_VARIABLE_DESCRIPTION5,
+                    "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
         ],
@@ -219,33 +263,36 @@ class TestGetVariables(TestVariableEndpoint):
             # Filters
             (
                 {},
-                5,
+                6,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
                     TEST_VARIABLE_KEY3,
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
+                    TEST_VARIABLE_KEY5,
                 ],
             ),
-            ({"limit": 1}, 5, [TEST_VARIABLE_KEY]),
-            ({"limit": 1, "offset": 1}, 5, [TEST_VARIABLE_KEY2]),
+            ({"limit": 1}, 6, [TEST_VARIABLE_KEY]),
+            ({"limit": 1, "offset": 1}, 6, [TEST_VARIABLE_KEY2]),
             # Sort
             (
                 {"order_by": "id"},
-                5,
+                6,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
                     TEST_VARIABLE_KEY3,
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
+                    TEST_VARIABLE_KEY5,
                 ],
             ),
             (
                 {"order_by": "-id"},
-                5,
+                6,
                 [
+                    TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_KEY3,
@@ -255,9 +302,10 @@ class TestGetVariables(TestVariableEndpoint):
             ),
             (
                 {"order_by": "key"},
-                5,
+                6,
                 [
                     TEST_VARIABLE_KEY3,
+                    TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_KEY2,
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY4,
@@ -266,25 +314,27 @@ class TestGetVariables(TestVariableEndpoint):
             ),
             (
                 {"order_by": "-key"},
-                5,
+                6,
                 [
                     TEST_VARIABLE_SEARCH_KEY,
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
+                    TEST_VARIABLE_KEY5,
                     TEST_VARIABLE_KEY3,
                 ],
             ),
             # Search
             (
                 {"variable_key_pattern": "~"},
-                5,
+                6,
                 [
                     TEST_VARIABLE_KEY,
                     TEST_VARIABLE_KEY2,
                     TEST_VARIABLE_KEY3,
                     TEST_VARIABLE_KEY4,
                     TEST_VARIABLE_SEARCH_KEY,
+                    TEST_VARIABLE_KEY5,
                 ],
             ),
             ({"variable_key_pattern": "search"}, 1, [TEST_VARIABLE_SEARCH_KEY]),
@@ -343,6 +393,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": "The new value",
                     "description": "The new description",
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
             (
@@ -351,6 +402,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "key": TEST_VARIABLE_KEY,
                     "value": "The new value",
                     "description": "The new description",
+                    "team_name": None,
                 },
                 {"update_mask": ["value"]},
                 {
@@ -358,6 +410,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": "The new value",
                     "description": TEST_VARIABLE_DESCRIPTION,
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
             (
@@ -373,6 +426,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": "The new value",
                     "description": TEST_VARIABLE_DESCRIPTION4,
                     "is_encrypted": True,
+                    "team_name": ANY,
                 },
             ),
             (
@@ -388,6 +442,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": "***",
                     "description": TEST_VARIABLE_DESCRIPTION2,
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
             (
@@ -403,6 +458,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": '{"password": "***"}',
                     "description": "new description",
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
         ],
@@ -412,6 +468,25 @@ class TestPatchVariable(TestVariableEndpoint):
         response = test_client.patch(f"/variables/{key}", json=body, params=params)
         assert response.status_code == 200
         assert response.json() == expected_response
+        check_last_log(session, dag_id=None, event="patch_variable", logical_date=None)
+
+    def test_patch_with_team_should_respond_200(self, test_client, session, testing_team):
+        self.create_variables()
+        body = {
+            "key": TEST_VARIABLE_KEY,
+            "value": "The new value",
+            "description": "The new description",
+            "team_name": str(testing_team.name),
+        }
+        response = test_client.patch(f"/variables/{TEST_VARIABLE_KEY}", json=body)
+        assert response.status_code == 200
+        assert response.json() == {
+            "key": TEST_VARIABLE_KEY,
+            "value": "The new value",
+            "description": "The new description",
+            "is_encrypted": True,
+            "team_name": testing_team.name,
+        }
         check_last_log(session, dag_id=None, event="patch_variable", logical_date=None)
 
     def test_patch_should_respond_400(self, test_client):
@@ -446,6 +521,23 @@ class TestPatchVariable(TestVariableEndpoint):
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
 
+    @pytest.mark.enable_redact
+    def test_patch_with_update_mask_description_only(self, test_client, session):
+        """PATCH with update_mask=['description'] should only update description, keeping value unchanged."""
+        self.create_variables()
+        response = test_client.patch(
+            f"/variables/{TEST_VARIABLE_KEY}",
+            json={
+                "key": TEST_VARIABLE_KEY,
+                "value": "ignored_value",
+                "description": "updated description",
+            },
+            params={"update_mask": ["description"]},
+        )
+        assert response.status_code == 200
+        assert response.json()["description"] == "updated description"
+        assert response.json()["key"] == TEST_VARIABLE_KEY
+
 
 class TestPostVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
@@ -463,6 +555,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "value": "new variable value",
                     "description": "new variable description",
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
             (
@@ -476,6 +569,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "value": "***",
                     "description": "another password",
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
             (
@@ -489,6 +583,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "value": '{"password": "***"}',
                     "description": "some description",
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
             (
@@ -502,6 +597,7 @@ class TestPostVariable(TestVariableEndpoint):
                     "value": "",
                     "description": "some description",
                     "is_encrypted": True,
+                    "team_name": None,
                 },
             ),
         ],
@@ -511,6 +607,25 @@ class TestPostVariable(TestVariableEndpoint):
         response = test_client.post("/variables", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
+        check_last_log(session, dag_id=None, event="post_variable", logical_date=None)
+
+    def test_post_with_team_should_respond_201(self, test_client, testing_team, session):
+        self.create_variables()
+        body = {
+            "key": "new variable key",
+            "value": "new variable value",
+            "description": "new variable description",
+            "team_name": str(testing_team.name),
+        }
+        response = test_client.post("/variables", json=body)
+        assert response.status_code == 201
+        assert response.json() == {
+            "key": "new variable key",
+            "value": "new variable value",
+            "description": "new variable description",
+            "is_encrypted": True,
+            "team_name": str(testing_team.name),
+        }
         check_last_log(session, dag_id=None, event="post_variable", logical_date=None)
 
     def test_post_should_respond_401(self, unauthenticated_test_client):

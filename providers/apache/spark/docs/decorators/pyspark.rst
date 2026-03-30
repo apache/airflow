@@ -42,7 +42,7 @@ Example
 -------
 
 The following example shows how to use the ``@task.pyspark`` decorator. Note
-that the ``spark`` and ``sc`` objects are injected into the function.
+that the ``spark`` object is injected into the function.
 
 .. exampleinclude:: /../tests/system/apache/spark/example_pyspark.py
     :language: python

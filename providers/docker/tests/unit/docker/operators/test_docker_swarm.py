@@ -26,7 +26,7 @@ from docker import APIClient, types
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 
 

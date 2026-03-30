@@ -54,6 +54,7 @@ def structure_data(
     dag_id: str,
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
+    depth: int | None = None,
     root: str | None = None,
     external_dependencies: bool = False,
     version_number: int | None = None,
@@ -83,7 +84,10 @@ def structure_data(
 
     if root:
         dag = dag.partial_subset(
-            task_ids=root, include_upstream=include_upstream, include_downstream=include_downstream
+            task_ids=root,
+            include_upstream=include_upstream,
+            include_downstream=include_downstream,
+            depth=depth,
         )
 
     nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]

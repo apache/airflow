@@ -24,8 +24,10 @@
     "baseUrl": ".",
     "paths": {
       "src/*": ["./src/*"],
-      "openapi/*": ["./openapi-gen/*"]
+      "openapi/*": ["./openapi-gen/*"],
+      "tests/*": ["./tests/*"],
+      "playwright.config": ["./playwright.config.ts"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "tests/**/*.ts", "playwright.config.ts"]
 }

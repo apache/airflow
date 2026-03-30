@@ -18,46 +18,60 @@
 Parameters reference
 ====================
 
-The following tables lists the configurable parameters of the Airflow chart and their default values.
+The following tables lists the configurable parameters of the Airflow chart and their default values:
 
 .. jinja:: params_ctx
 
-    {% for section in sections %}
+   {% for section in sections %}
 
-    .. _parameters:{{ section["name"] }}:
+   .. _parameters:{{ section["name"] }}:
 
-    {{ section["name"] }}
-    {{ "=" * (section["name"]|length + 2) }}
+   {{ section["name"] }}
+   {{ "=" * (section["name"]|length + 2) }}
 
-    .. list-table::
-       :widths: 15 10 30
-       :header-rows: 1
+   .. list-table::
+      :widths: 15 10 30
+      :header-rows: 1
 
-       * - Parameter
-         - Description
-         - Default
+      * - Parameter
+        - Description
+        - Default
 
       {% for param in section["params"] %}
-       * - ``{{ param["name"] }}``
-         - {{ param["description"] }}
-         - ``{{ param["default"] }}``
+      * - ``{{ param["name"] }}``
+        - {{ param["description"] }}
+        - ``{{ param["default"] }}``
          {% if param["examples"] %}
-           Examples:
 
-           .. code-block:: yaml
+          .. code-block:: yaml
+             :caption: Examples
 
-              {{ param["examples"] | indent(width=10) }}
+             {{ param["examples"] | indent(width=10) }}
 
          {% endif %}
       {% endfor %}
 
-    {% endfor %}
+   {% endfor %}
 
 
-Specify each parameter using the ``--set key=value[,key=value]`` argument to ``helm install``. For example,
+Specify each parameter using the ``--set key=value[,key=value]`` argument to ``helm install``:
 
 .. code-block:: bash
 
-  helm install my-release apache-airflow/airflow \
-    --set executor=CeleryExecutor \
-    --set enablePodLaunching=false .
+   helm install my-release apache-airflow/airflow \
+     --set executor=CeleryExecutor \
+     --set enablePodLaunching=false
+
+or override values by using the ``override-values.yaml`` file:
+
+.. code-block:: yaml
+   :caption: override-values.yaml
+
+   executor: CeleryExecutor
+   enablePodLaunching: false
+
+and install the chart:
+
+.. code-block:: bash
+
+   helm install my-release apache-airflow/airflow --values override-values.yaml

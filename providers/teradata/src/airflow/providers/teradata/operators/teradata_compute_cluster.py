@@ -39,7 +39,7 @@ from airflow.providers.teradata.triggers.teradata_compute_cluster import Teradat
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 # Represents

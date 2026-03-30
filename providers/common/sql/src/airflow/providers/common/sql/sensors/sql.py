@@ -20,8 +20,7 @@ from collections.abc import Callable, Mapping, Sequence
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook, BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseSensorOperator
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:

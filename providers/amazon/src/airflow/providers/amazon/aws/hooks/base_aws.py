@@ -51,16 +51,11 @@ from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
 
-from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowNotFoundException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook, conf
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -417,8 +412,15 @@ class BaseSessionFactory(LoggingMixin):
     def _get_web_identity_credential_fetcher(
         self,
     ) -> botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher:
-        base_session = self.basic_session._session or botocore.session.get_session()
-        client_creator = base_session.create_client
+        session_config = self.config
+        endpoint_url = self.conn.get_service_endpoint_url("sts", sts_connection_assume=True)
+
+        def client_creator(service_name, **kwargs):
+            config = kwargs.pop("config", None)
+            if session_config:
+                config = session_config.merge(config) if config else session_config
+            return self.basic_session.client(service_name, config=config, endpoint_url=endpoint_url, **kwargs)
+
         federation = str(self.extra_config.get("assume_role_with_web_identity_federation"))
 
         web_identity_token_loader = {

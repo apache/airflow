@@ -31,7 +31,7 @@ import pytest
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import DefaultCredentialsError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _DEFAULT_SCOPES,
     AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT,

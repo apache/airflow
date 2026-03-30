@@ -30,6 +30,7 @@ import {
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui/Toaster";
+import { createErrorToaster } from "src/utils";
 import type { HITLResponseParams } from "src/utils/hitl";
 
 export const useUpdateHITLDetail = ({
@@ -64,12 +65,8 @@ export const useUpdateHITLDetail = ({
     });
   };
 
-  const onError = (_error: Error) => {
-    toaster.create({
-      description: _error.message,
-      title: translate("response.error"),
-      type: "error",
-    });
+  const onError = (apiError: unknown) => {
+    createErrorToaster(apiError, { titleKey: "hitl:response.error" }, translate);
   };
 
   const { isPending, mutate } = useTaskInstanceServiceUpdateHitlDetail({
@@ -78,15 +75,19 @@ export const useUpdateHITLDetail = ({
   });
 
   const updateHITLResponse = (updateHITLResponseRequestBody: HITLResponseParams) => {
+    const mapIndexValue = mapIndex ?? -1;
+
+    const requestBody = {
+      chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
+      params_input: updateHITLResponseRequestBody.params_input ?? {},
+    };
+
     try {
       mutate({
         dagId,
         dagRunId,
-        mapIndex: mapIndex ?? -1,
-        requestBody: {
-          chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
-          params_input: updateHITLResponseRequestBody.params_input ?? {},
-        },
+        mapIndex: mapIndexValue,
+        requestBody,
         taskId,
       });
     } catch (parseError) {

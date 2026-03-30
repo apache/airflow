@@ -126,7 +126,7 @@ class TestListBackfills(TestBackfillEndpoint):
         session.add(b)
         session.commit()
 
-        with assert_queries_count(2):
+        with assert_queries_count(3):
             response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
 
         assert response.status_code == 200
@@ -176,6 +176,18 @@ class TestGetBackfill(TestBackfillEndpoint):
             "updated_at": mock.ANY,
         }
 
+    def test_get_backfill_with_null_conf(self, session, test_client):
+        """dag_run_conf can be NULL in the DB; the API should still serialize it."""
+        (dag,) = self._create_dag_models()
+        from_date = timezone.utcnow()
+        to_date = timezone.utcnow()
+        backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date, dag_run_conf=None)
+        session.add(backfill)
+        session.commit()
+        response = test_client.get(f"/backfills/{backfill.id}")
+        assert response.status_code == 200
+        assert response.json()["dag_run_conf"] is None
+
     def test_no_exist(self, session, test_client):
         response = test_client.get(f"/backfills/{231984098}")
         assert response.status_code == 404
@@ -205,7 +217,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_create_backfill(self, repro_act, repro_exp, session, dag_maker, test_client):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -244,7 +256,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
 
     def test_dag_not_exist(self, session, test_client):
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -270,7 +282,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_no_schedule_dag(self, session, dag_maker, test_client):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="None") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -306,7 +318,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     ):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask", depends_on_past=True)
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -332,12 +344,12 @@ class TestCreateBackfill(TestBackfillEndpoint):
             if run_backwards:
                 assert (
                     response.json().get("detail")
-                    == "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True."
+                    == "Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True."
                 )
             else:
                 assert (
                     response.json().get("detail")
-                    == "DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
+                    == "Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
 
     @pytest.mark.parametrize(
@@ -350,7 +362,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_create_backfill_future_dates(self, session, dag_maker, test_client, run_backwards):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = timezone.utcnow() + timedelta(days=1)
         to_date = timezone.utcnow() + timedelta(days=1)
@@ -381,7 +393,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_create_backfill_past_future_dates(self, session, dag_maker, test_client, run_backwards):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = timezone.utcnow() - timedelta(days=2)
         to_date = timezone.utcnow() + timedelta(days=1)
@@ -540,10 +552,38 @@ class TestCreateBackfill(TestBackfillEndpoint):
         actual = list(session.scalars(select(DagRun.run_type).where(DagRun.backfill_id == backfill_id)))
         assert actual == ["backfill"] * len(expected_dates)
 
+    def test_should_respond_400_if_backfill_runs_denied(self, session, dag_maker, test_client):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.scalars(select(DagModel)).all()
+        session.commit()
+        dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+        dag_model.allowed_run_types = ["scheduled", "manual"]
+        session.commit()
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-02-01")
+        to_date_iso = to_iso(to_date)
+        max_active_runs = 5
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": False,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+        }
+        response = test_client.post(
+            url="/backfills",
+            json=data,
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == f"Dag with dag_id: '{dag.dag_id}' does not allow backfill runs"
+
     def test_should_respond_401(self, unauthenticated_test_client, dag_maker, session):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -564,7 +604,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_should_respond_403(self, unauthorized_test_client, dag_maker, session):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -590,28 +630,76 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             (
                 "none",
                 [
-                    {"logical_date": "2024-01-01T00:00:00Z"},
-                    {"logical_date": "2024-01-04T00:00:00Z"},
-                    {"logical_date": "2024-01-05T00:00:00Z"},
+                    {
+                        "logical_date": "2024-01-01T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-04T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-05T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
                 ],
             ),
             (
                 "failed",
                 [
-                    {"logical_date": "2024-01-01T00:00:00Z"},
-                    {"logical_date": "2024-01-03T00:00:00Z"},  # Reprocess failed
-                    {"logical_date": "2024-01-04T00:00:00Z"},
-                    {"logical_date": "2024-01-05T00:00:00Z"},
+                    {
+                        "logical_date": "2024-01-01T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-03T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },  # Reprocess failed
+                    {
+                        "logical_date": "2024-01-04T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-05T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
                 ],
             ),
             (
                 "completed",
                 [
-                    {"logical_date": "2024-01-01T00:00:00Z"},
-                    {"logical_date": "2024-01-02T00:00:00Z"},  # Reprocess all
-                    {"logical_date": "2024-01-03T00:00:00Z"},
-                    {"logical_date": "2024-01-04T00:00:00Z"},
-                    {"logical_date": "2024-01-05T00:00:00Z"},
+                    {
+                        "logical_date": "2024-01-01T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-02T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },  # Reprocess all
+                    {
+                        "logical_date": "2024-01-03T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-04T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
+                    {
+                        "logical_date": "2024-01-05T00:00:00Z",
+                        "partition_date": None,
+                        "partition_key": None,
+                    },
                 ],
             ),
         ],
@@ -682,7 +770,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
     ):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask", depends_on_past=True)
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -708,12 +796,12 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             if run_backwards:
                 assert (
                     response.json().get("detail")
-                    == "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True."
+                    == "Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True."
                 )
             else:
                 assert (
                     response.json().get("detail")
-                    == "DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
+                    == "Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
 
 

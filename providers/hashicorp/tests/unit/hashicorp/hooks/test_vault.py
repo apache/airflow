@@ -199,6 +199,8 @@ class TestVaultHook:
         [
             (True, "https://localhost:8180"),
             (False, "http://localhost:8180"),
+            ("true", "https://localhost:8180"),
+            ("false", "http://localhost:8180"),
         ],
     )
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
@@ -730,6 +732,85 @@ class TestVaultHook:
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         mock_kubernetes.assert_called_with(mock_client.adapter)
         mock_kubernetes.return_value.login.assert_called_with(role="kube_role", jwt="data")
+        test_client.is_authenticated.assert_called_with()
+        assert test_hook.vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_init_params(self, mock_hvac, mock_get_connection):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_connection = self.get_mock_connection()
+        mock_get_connection.return_value = mock_connection
+
+        connection_dict = {}
+
+        mock_connection.extra_dejson.get.side_effect = connection_dict.get
+        test_hook = VaultHook(
+            auth_type="jwt",
+            jwt_role="my-role",
+            jwt_token="eyJhbGciOiJSUzI1NiJ9.test",
+            vault_conn_id="vault_conn_id",
+            session=None,
+        )
+        mock_get_connection.assert_called_with("vault_conn_id")
+        test_client = test_hook.get_conn()
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+        test_client.auth.jwt.jwt_login.assert_called_with(role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.test")
+        test_client.is_authenticated.assert_called_with()
+        assert test_hook.vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_dejson(self, mock_hvac, mock_get_connection):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_connection = self.get_mock_connection()
+        mock_get_connection.return_value = mock_connection
+
+        connection_dict = {
+            "auth_type": "jwt",
+            "jwt_role": "my-role",
+            "jwt_token": "eyJhbGciOiJSUzI1NiJ9.dejson-test",
+        }
+
+        mock_connection.extra_dejson.get.side_effect = connection_dict.get
+
+        test_hook = VaultHook(vault_conn_id="vault_conn_id", session=None)
+        mock_get_connection.assert_called_with("vault_conn_id")
+        test_client = test_hook.get_conn()
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+        test_client.auth.jwt.jwt_login.assert_called_with(
+            role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.dejson-test"
+        )
+        test_client.is_authenticated.assert_called_with()
+        assert test_hook.vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_jwt_with_token_path(self, mock_hvac, mock_get_connection):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_connection = self.get_mock_connection()
+        mock_get_connection.return_value = mock_connection
+
+        connection_dict = {
+            "auth_type": "jwt",
+            "jwt_role": "my-role",
+            "jwt_token_path": "/path/to/jwt",
+        }
+
+        mock_connection.extra_dejson.get.side_effect = connection_dict.get
+
+        with patch("builtins.open", mock_open(read_data="eyJhbGciOiJSUzI1NiJ9.from-file")) as mock_file:
+            test_hook = VaultHook(vault_conn_id="vault_conn_id", session=None)
+            test_client = test_hook.get_conn()
+        mock_get_connection.assert_called_with("vault_conn_id")
+        mock_file.assert_called_with("/path/to/jwt")
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+        test_client.auth.jwt.jwt_login.assert_called_with(
+            role="my-role", jwt="eyJhbGciOiJSUzI1NiJ9.from-file"
+        )
         test_client.is_authenticated.assert_called_with()
         assert test_hook.vault_client.kv_engine_version == 2
 

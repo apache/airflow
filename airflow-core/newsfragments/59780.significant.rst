@@ -1,0 +1,9 @@
+Methods removed from PriorityWeightStrategy and TaskInstance
+
+On (experimental) class ``PriorityWeightStrategy``, functions ``serialize()``
+and ``deserialize()`` were never used anywhere, and have been removed. They
+should not be relied on in user code.
+
+On class ``TaskInstance``, functions ``run()``, ``render_templates()``, and
+private members related to them have been removed. The class has been
+considered internal since 3.0, and should not be relied on in user code.

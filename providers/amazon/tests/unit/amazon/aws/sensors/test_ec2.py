@@ -20,9 +20,9 @@ from __future__ import annotations
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.sensors.ec2 import EC2InstanceStateSensor
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 
 class TestEC2InstanceStateSensor:

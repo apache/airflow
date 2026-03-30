@@ -25,8 +25,7 @@ from airbyte_api.api import CancelJobRequest, GetJobRequest
 from airbyte_api.models import JobCreateRequest, JobStatusEnum, JobTypeEnum, SchemeClientCredentials, Security
 from requests import Session
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 T = TypeVar("T", bound=Any)
 
@@ -182,6 +181,20 @@ class AirbyteHook(BaseHook):
                 request=JobCreateRequest(
                     connection_id=connection_id,
                     job_type=JobTypeEnum.SYNC,
+                )
+            )
+            self.log.debug("Job request successful, response: %s", res.job_response)
+            return res.job_response
+        except Exception as e:
+            raise AirflowException(e)
+
+    def submit_reset_connection(self, connection_id: str) -> Any:
+        try:
+            self.log.debug("Creating job request..")
+            res = self.airbyte_api.jobs.create_job(
+                request=JobCreateRequest(
+                    connection_id=connection_id,
+                    job_type=JobTypeEnum.RESET,
                 )
             )
             self.log.debug("Job request successful, response: %s", res.job_response)

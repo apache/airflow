@@ -37,7 +37,6 @@ try:
 except ImportError:
     import tomli as tomllib
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_ROOT_PATH, console
 
 SHARED_DIR = AIRFLOW_ROOT_PATH / "shared"
@@ -126,7 +125,7 @@ def check_private_classifier(pyproject: dict) -> bool:
 
 def check_build_system(pyproject: dict, shared_path: Path) -> bool:
     build_system = pyproject.get("build-system", {})
-    if build_system == {"requires": ["hatchling"], "build-backend": "hatchling.build"}:
+    if build_system["build-backend"] == "hatchling.build":
         console.print(
             f"  build-system is correct for [magenta]{shared_path.name}[/magenta] [bold green]OK[/bold green]"
         )
@@ -164,11 +163,7 @@ def check_ruff(pyproject: dict, shared_path: Path) -> tuple[bool, dict]:
 def check_ruff_lint_rules(ruff: dict, shared_path: Path) -> bool:
     ruff_lint = ruff.get("lint", {})
     per_file_ignores = ruff_lint.get("per-file-ignores", {})
-    flake8_tidy_imports = ruff_lint.get("flake8-tidy-imports", {})
-    if (
-        per_file_ignores.get("!src/*", None) == ["D", "S101", "TRY002"]
-        and flake8_tidy_imports.get("ban-relative-imports", None) == "parents"
-    ):
+    if per_file_ignores.get("!src/*", None) == ["D", "S101", "TRY002"]:
         console.print(
             f"  tool.ruff.lint rules are correct for [magenta]{shared_path.name}[/magenta] [bold green]OK[/bold green]"
         )
@@ -217,6 +212,12 @@ def main() -> None:
     all_ok = True
     for shared_project in SHARED_DIR.iterdir():
         if shared_project.is_dir():
+            # Not having a pyproject.toml means no distribution here, so using it as a marker to skip
+            if not (shared_project / "pyproject.toml").exists():
+                console.print(
+                    f"\n[yellow]Skipping empty directory:[/yellow] [magenta]{shared_project.name}[/magenta]"
+                )
+                continue
             ok = check_shared_distribution(shared_project)
             if not ok:
                 all_ok = False

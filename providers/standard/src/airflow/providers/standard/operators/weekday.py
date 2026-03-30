@@ -20,8 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.sdk import timezone
-from airflow.providers.standard.operators.branch import BaseBranchOperator
+from airflow.providers.common.compat.sdk import BaseBranchOperator, timezone
 from airflow.providers.standard.utils.weekday import WeekDay
 
 if TYPE_CHECKING:

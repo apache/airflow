@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.exceptions import (
-    AirflowException,
-)
+from airflow.exceptions import AirflowException
+
+# Todo: we cannot have a backcompat import for AirflowException yet
+# because PodMutationHookException is redefined in airflow.exception
+# Remove this and either import AirflowException from common.sdk or
+# import it from airflow.sdk.exceptions when PodMutationHookException
+# is removed from airflow.exceptions
 
 
 class PodMutationHookException(AirflowException):

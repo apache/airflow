@@ -24,12 +24,12 @@ from typing import Annotated, Any, Literal
 
 from pydantic import (
     AwareDatetime,
-    Discriminator,
     Field,
     JsonValue,
     Tag,
     TypeAdapter,
     WithJsonSchema,
+    model_validator,
 )
 
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -130,7 +130,7 @@ class TIDeferredStatePayload(StrictBaseModel):
         ),
     ]
     classpath: str
-    trigger_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
+    trigger_kwargs: Annotated[dict[str, JsonValue] | str, Field(default_factory=dict)]
     """
     Kwargs to pass to the trigger constructor, either a plain dict or an encrypted string.
 
@@ -138,9 +138,10 @@ class TIDeferredStatePayload(StrictBaseModel):
     """
 
     trigger_timeout: timedelta | None = None
+    queue: str | None = None
     next_method: str
     """The name of the method on the operator to call in the worker after the trigger has fired."""
-    next_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
+    next_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
     """
     Kwargs to pass to the above method, either a plain dict or an encrypted string.
 
@@ -227,7 +228,7 @@ TIStateUpdate = Annotated[
     | Annotated[TIDeferredStatePayload, Tag("deferred")]
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
-    Discriminator(ti_state_discriminator),
+    Field(discriminator=ti_state_discriminator),
 ]
 
 
@@ -295,7 +296,7 @@ class DagRun(StrictBaseModel):
     data_interval_start: UtcDateTime | None
     data_interval_end: UtcDateTime | None
     run_after: UtcDateTime
-    start_date: UtcDateTime
+    start_date: UtcDateTime | None
     end_date: UtcDateTime | None
     clear_number: int = 0
     run_type: DagRunType
@@ -304,6 +305,50 @@ class DagRun(StrictBaseModel):
     triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
+    note: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def safe_extract_from_orm(cls, data: Any) -> Any:
+        """
+        Safely extract data from SQLAlchemy DagRun instances.
+
+        Handles the 'note' association proxy and provides defaults for unloaded relationships
+        to prevent DetachedInstanceError when the instance is not bound to a session.
+        """
+        from sqlalchemy import inspect as sa_inspect
+        from sqlalchemy.exc import NoInspectionAvailable
+        from sqlalchemy.orm.state import InstanceState
+
+        if isinstance(data, dict):
+            return data
+
+        # Check if this is a SQLAlchemy model by looking for the inspection interface
+        try:
+            insp: InstanceState = sa_inspect(data)
+        except NoInspectionAvailable:
+            # Not a SQLAlchemy object, return as-is for Pydantic to handle
+            return data
+
+        values = {}
+
+        for field_name in cls.model_fields:
+            if field_name in insp.dict:
+                values[field_name] = insp.dict[field_name]
+            elif field_name == "state" and "_state" in insp.dict:
+                values["state"] = insp.dict["_state"]
+
+        if "consumed_asset_events" not in values:
+            values["consumed_asset_events"] = []
+
+        # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
+        if "note" not in values:
+            if "dag_run_note" in insp.dict:
+                values["note"] = data.note
+            else:
+                values["note"] = None
+
+        return values
 
 
 class TIRunContext(BaseModel):
@@ -323,8 +368,6 @@ class TIRunContext(BaseModel):
 
     connections: Annotated[list[ConnectionResponse], Field(default_factory=list)]
     """Connections that can be accessed by the task instance."""
-
-    upstream_map_indexes: dict[str, int | list[int] | None] | None = None
 
     next_method: str | None = None
     """Method to call. Set when task resumes from a trigger."""
@@ -349,6 +392,21 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     data_interval_end: UtcDateTime | None = None
     start_date: UtcDateTime | None = None
     end_date: UtcDateTime | None = None
+
+
+class PreviousTIResponse(BaseModel):
+    """Schema for response with previous TaskInstance information."""
+
+    task_id: str
+    dag_id: str
+    run_id: str
+    logical_date: UtcDateTime | None = None
+    start_date: UtcDateTime | None = None
+    end_date: UtcDateTime | None = None
+    state: str | None = None
+    try_number: int
+    map_index: int | None = -1
+    duration: float | None = None
 
 
 class TaskStatesResponse(BaseModel):

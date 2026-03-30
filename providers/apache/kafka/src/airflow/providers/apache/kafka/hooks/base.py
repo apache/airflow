@@ -72,7 +72,7 @@ class KafkaBaseHook(BaseHook):
             try:
                 from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
             except ImportError:
-                from airflow.exceptions import AirflowOptionalProviderFeatureException
+                from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
                 raise AirflowOptionalProviderFeatureException(
                     "Failed to import ManagedKafkaHook. For using this functionality google provider version "

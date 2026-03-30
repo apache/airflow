@@ -23,8 +23,6 @@ from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.bedrock import (
     BedrockAgentHook,
     BedrockAgentRuntimeHook,
@@ -41,11 +39,11 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.utils.helpers import prune_dict
-from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class BedrockInvokeModelOperator(AwsBaseOperator[BedrockRuntimeHook]):
@@ -237,7 +235,7 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
                 if not self.ensure_unique_job_name:
                     raise error
                 retry = True
-                self.job_name = f"{self.job_name}-{int(utcnow().timestamp())}"
+                self.job_name = f"{self.job_name}-{int(timezone.utcnow().timestamp())}"
                 self.log.info("Changed job name to '%s' to avoid collision.", self.job_name)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 201:

@@ -56,7 +56,8 @@ good (and we don't have to test an ever increasing matrix of versions to ensure 
 The one caveat to this is due to the side-effect that these shared modules are going to be
 imported from different locations (for example `airflow._shared.timezones.timezone` and
 `airflow.sdk._shared.timezones.timezone`) then any imports inside the shared code to other parts
-of shared libraries _must_ make use of relative imports, and possibly needs `# noqa: TID252`
+of shared libraries _must_ make use of relative imports (but only in sources - tests are still
+required to use absolute imports).
 
 For example, to use the shared timezone library from another shared library, let's say
 `shared/logging/src/airflow_shared/logging/config.py` you would have

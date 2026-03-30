@@ -39,8 +39,8 @@ from google.auth import exceptions
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.utils.id_token_credentials import get_default_id_token_credentials
 
@@ -135,12 +135,12 @@ def requires_authentication(function: T):
         access_token = _get_id_token_from_request(flask_request)
         if not access_token:
             log.debug("Missing ID Token")
-            return Response("Forbidden", 403)
+            return Response("Unauthorized", 401)
 
         userid = _verify_id_token(access_token)
         if not userid:
             log.debug("Invalid ID Token")
-            return Response("Forbidden", 403)
+            return Response("Unauthorized", 401)
 
         log.debug("Looking for user with e-mail: %s", userid)
 

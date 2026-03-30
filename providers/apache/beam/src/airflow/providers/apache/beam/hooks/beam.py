@@ -34,8 +34,8 @@ from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
-from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.exceptions import AirflowConfigException
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.common.compat.standard.utils import prepare_virtualenv
 
 if TYPE_CHECKING:
@@ -378,7 +378,7 @@ class BeamHook(BaseHook):
         try:
             from airflow.providers.google.go_module_utils import init_module, install_dependencies
         except ImportError:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "Failed to import apache-airflow-google-provider. To start a go pipeline, please install the"

@@ -28,7 +28,7 @@ from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.exasol.hooks.exasol import ExasolHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class ExasolToS3Operator(BaseOperator):

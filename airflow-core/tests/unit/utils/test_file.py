@@ -19,16 +19,15 @@ from __future__ import annotations
 
 import os
 import zipfile
-from pathlib import Path
 from pprint import pformat
 from unittest import mock
 
 import pytest
 
+from airflow._shared.module_loading import find_path_from_directory
 from airflow.utils import file as file_utils
 from airflow.utils.file import (
     correct_maybe_zipped,
-    find_path_from_directory,
     list_py_file_paths,
     open_maybe_zipped,
 )
@@ -97,23 +96,6 @@ class TestOpenMaybeZipped:
 
 
 class TestListPyFilesPath:
-    @pytest.fixture
-    def test_dir(self, tmp_path):
-        # create test tree with symlinks
-        source = os.path.join(tmp_path, "folder")
-        target = os.path.join(tmp_path, "symlink")
-        py_file = os.path.join(source, "hello_world.py")
-        ignore_file = os.path.join(tmp_path, ".airflowignore")
-        os.mkdir(source)
-        os.symlink(source, target)
-        # write ignore files
-        with open(ignore_file, "w") as f:
-            f.write("folder")
-        # write sample pyfile
-        with open(py_file, "w") as f:
-            f.write("print('hello world')")
-        return tmp_path
-
     def test_find_path_from_directory_regex_ignore(self):
         should_ignore = [
             "test_invalid_cron.py",
@@ -153,36 +135,6 @@ class TestListPyFilesPath:
         assert actual_included_filenames == should_not_ignore, (
             f"actual_included_filenames: {pformat(actual_included_filenames)}\nexpected_included_filenames: {pformat(should_not_ignore)}"
         )
-
-    def test_find_path_from_directory_respects_symlinks_regexp_ignore(self, test_dir):
-        ignore_list_file = ".airflowignore"
-        found = list(find_path_from_directory(test_dir, ignore_list_file))
-
-        assert os.path.join(test_dir, "symlink", "hello_world.py") in found
-        assert os.path.join(test_dir, "folder", "hello_world.py") not in found
-
-    def test_find_path_from_directory_respects_symlinks_glob_ignore(self, test_dir):
-        ignore_list_file = ".airflowignore"
-        found = list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
-
-        assert os.path.join(test_dir, "symlink", "hello_world.py") in found
-        assert os.path.join(test_dir, "folder", "hello_world.py") not in found
-
-    def test_find_path_from_directory_fails_on_recursive_link(self, test_dir):
-        # add a recursive link
-        recursing_src = os.path.join(test_dir, "folder2", "recursor")
-        recursing_tgt = os.path.join(test_dir, "folder2")
-        os.mkdir(recursing_tgt)
-        os.symlink(recursing_tgt, recursing_src)
-
-        ignore_list_file = ".airflowignore"
-
-        error_message = (
-            f"Detected recursive loop when walking DAG directory {test_dir}: "
-            f"{Path(recursing_tgt).resolve()} has appeared more than once."
-        )
-        with pytest.raises(RuntimeError, match=error_message):
-            list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
 
     def test_might_contain_dag_with_default_callable(self):
         file_path_with_dag = os.path.join(TEST_DAGS_FOLDER, "test_scheduler_dags.py")

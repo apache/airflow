@@ -23,7 +23,6 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
@@ -44,17 +43,19 @@ from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationDeprovisionedTrigger,
     DmsReplicationTerminalStatusTrigger,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import (
+    create_task_instance,
+    get_template_context,
+    render_template_fields,
+)
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
@@ -332,7 +333,7 @@ class TestDmsDescribeTasksOperator:
         if AIRFLOW_V_3_0_PLUS:
             sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
-            ti = TaskInstance(task=describe_task, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=describe_task, run_id="test", dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -352,7 +353,7 @@ class TestDmsDescribeTasksOperator:
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
-        marker, response = describe_task.execute(ti.get_template_context())
+        marker, response = describe_task.execute(get_template_context(ti, describe_task))
 
         assert marker is None
         assert response == self.MOCK_RESPONSE
@@ -534,23 +535,14 @@ class TestDmsDescribeReplicationConfigsOperator:
         if AIRFLOW_V_3_0_PLUS:
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
                 logical_date=logical_date,
-            )
-            sync_dag_to_db(dag)
-            dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
-            dag_run = DagRun(
-                dag_id=dag.dag_id,
-                run_id="test",
-                run_type=DagRunType.MANUAL,
-                state=DagRunState.RUNNING,
-                logical_date=logical_date,
+                run_after=timezone.utcnow(),
             )
         else:
             dag_run = DagRun(
@@ -562,11 +554,7 @@ class TestDmsDescribeReplicationConfigsOperator:
             )
             ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context(session)
-        ti.render_templates(context)
-
+        render_template_fields(ti, op)
         assert op.filter == self.filter
 
 
@@ -874,6 +862,24 @@ class TestDmsDeleteReplicationConfigOperator:
 
         assert isinstance(defer.value.trigger, DmsReplicationTerminalStatusTrigger)
 
+    def test_execute_complete_error(self):
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn="arn:test",
+        )
+        error_event = {"status": "error", "message": "Timeout", "replication_config_arn": "arn:test"}
+        with pytest.raises(AirflowException, match="Error deleting DMS replication config"):
+            op.execute_complete({}, error_event)
+
+    def test_retry_execution_error(self):
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn="arn:test",
+        )
+        error_event = {"status": "error", "message": "Timeout", "replication_config_arn": "arn:test"}
+        with pytest.raises(AirflowException, match="Error waiting for DMS replication config"):
+            op.retry_execution({}, error_event)
+
 
 class TestDmsDescribeReplicationsOperator:
     FILTER = [{"Name": "replication-type", "Values": ["cdc"]}]
@@ -1020,6 +1026,30 @@ class TestDmsStartReplicationOperator:
         op.execute({})
         assert mock_conn.start_replication.call_count == 1
 
+    def test_execute_complete_error(self):
+        op = DmsStartReplicationOperator(
+            task_id="start_replication",
+            replication_config_arn="arn:test",
+            replication_start_type="reload",
+        )
+        error_event = {
+            "status": "error",
+            "message": "Replication failed",
+            "replication_config_arn": "arn:test",
+        }
+        with pytest.raises(AirflowException, match="Error in DMS replication"):
+            op.execute_complete({}, error_event)
+
+    def test_retry_execution_error(self):
+        op = DmsStartReplicationOperator(
+            task_id="start_replication",
+            replication_config_arn="arn:test",
+            replication_start_type="reload",
+        )
+        error_event = {"status": "error", "message": "Timeout", "replication_config_arn": "arn:test"}
+        with pytest.raises(AirflowException, match="Error waiting for DMS replication"):
+            op.retry_execution({}, error_event)
+
 
 class TestDmsStopReplicationOperator:
     def mock_describe_replication_response(self, status: str):
@@ -1078,3 +1108,12 @@ class TestDmsStopReplicationOperator:
         op.execute({})
         mock_get_waiter.assert_called_with("replication_stopped")
         mock_get_waiter.assert_called_once()
+
+    def test_execute_complete_error(self):
+        op = DmsStopReplicationOperator(
+            task_id="stop_replication",
+            replication_config_arn="arn:test",
+        )
+        error_event = {"status": "error", "message": "Timeout", "replication_config_arn": "arn:test"}
+        with pytest.raises(AirflowException, match="Error stopping DMS replication"):
+            op.execute_complete({}, error_event)

@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "Alle Extra JSON Daten einklappen",
-      "expandAllExtra": "Alle Extra JSON Daten ausklappen"
-    },
     "columns": {
       "event": "Ereignis",
       "extra": "Extra JSON Daten",
@@ -16,11 +12,35 @@
     "title": "Prüf-Log"
   },
   "xcom": {
+    "add": {
+      "error": "Fehler beim Hinzufügen von Task Kommunikation (XCom)",
+      "errorTitle": "Fehler",
+      "success": "Task Kommunikation (XCom) erfolgreich hinzugefügt",
+      "successTitle": "Task Kommunikation (XCom) hinzugefügt",
+      "title": "Task Kommunikation (XCom) hinzufügen"
+    },
     "columns": {
       "dag": "Dag",
       "key": "Name",
       "value": "Wert"
     },
-    "title": "Task Kommunikation (XComs)"
+    "delete": {
+      "error": "Fehler beim Löschen von Task Kommunikation (XCom)",
+      "errorTitle": "Fehler",
+      "success": "Task Kommunikation (XCom) erfolgreich gelöscht",
+      "successTitle": "Task Kommunikation (XCom) gelöscht",
+      "title": "Task Kommunikation (XCom) löschen",
+      "warning": "Sind Sie sicher, dass Sie diese Task Kommunikation (XCom) löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden."
+    },
+    "edit": {
+      "error": "Fehler beim Aktualisieren von Task Kommunikation (XCom)",
+      "errorTitle": "Fehler",
+      "success": "Task Kommunikation (XCom) erfolgreich aktualisiert",
+      "successTitle": "Task Kommunikation (XCom) aktualisiert",
+      "title": "Task Kommunikation (XCom) bearbeiten"
+    },
+    "key": "Name",
+    "title": "Task Kommunikation (XComs)",
+    "value": "Wert"
   }
 }

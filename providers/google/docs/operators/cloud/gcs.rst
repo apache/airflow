@@ -37,7 +37,7 @@ Operators
 .. _howto/operator:GCSTimeSpanFileTransformOperator:
 
 GCSTimeSpanFileTransformOperator
---------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSTimeSpanFileTransformOperator`
@@ -56,7 +56,7 @@ processes all files older than ``data_interval_start``.
 .. _howto/operator:GCSBucketCreateAclEntryOperator:
 
 GCSBucketCreateAclEntryOperator
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Creates a new ACL entry on the specified bucket.
 
@@ -90,7 +90,7 @@ See Google Cloud Storage Documentation to `create a new ACL entry for a bucket
 .. _howto/operator:GCSObjectCreateAclEntryOperator:
 
 GCSObjectCreateAclEntryOperator
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Creates a new ACL entry on the specified object.
 
@@ -125,7 +125,7 @@ See Google Cloud Storage insert documentation to `create a ACL entry for ObjectA
 .. _howto/operator:GCSListObjectsOperator:
 
 GCSListObjectsOperator
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSListObjectsOperator`
@@ -141,7 +141,7 @@ names begin with that prefix, and a delimiter to emulate directory-like organiza
 .. _howto/operator:GCSDeleteObjectsOperator:
 
 GCSDeleteObjectsOperator
-------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSDeleteObjectsOperator`
@@ -174,7 +174,7 @@ You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 parameters which allows you to dynamically determine values.
 
 Reference
----------
+"""""""""
 
 For further information, look at:
 
@@ -187,7 +187,7 @@ Sensors
 .. _howto/sensor:GCSObjectExistenceSensor:
 
 GCSObjectExistenceSensor
-------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor` to wait (poll) for the existence of a file in Google Cloud Storage.
 
@@ -208,7 +208,7 @@ Also you can use deferrable mode in this operator if you would like to free up t
 .. _howto/sensor:GCSObjectsWithPrefixExistenceSensor:
 
 GCSObjectsWithPrefixExistenceSensor
------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor` to wait (poll) for the existence of a file with a specified prefix in Google Cloud Storage.
 
@@ -233,7 +233,7 @@ for this functionality to work.
 
 
 GCSUploadSessionCompleteSensor
-------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor` to check for a change in the number of files with a specified prefix in Google Cloud Storage.
 
@@ -255,7 +255,7 @@ You can set the parameter ``deferrable`` to True if you want the worker slots to
 .. _howto/sensor:GCSObjectUpdateSensor:
 
 GCSObjectUpdateSensor
----------------------
+^^^^^^^^^^^^^^^^^^^^^
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor` to check if an object is updated in Google Cloud Storage.
 

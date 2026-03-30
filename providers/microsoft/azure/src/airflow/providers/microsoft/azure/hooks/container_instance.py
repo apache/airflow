@@ -21,10 +21,11 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
+from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 
@@ -154,10 +155,11 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param resource_group: the name of the resource group
         :param name: the name of the container group
         """
-        for container in self.connection.container_groups.list_by_resource_group(resource_group):
-            if container.name == name:
-                return True
-        return False
+        try:
+            self.connection.container_groups.get(resource_group, name)
+            return True
+        except ResourceNotFoundError:
+            return False
 
     def test_connection(self):
         """Test a configured Azure Container Instance connection."""

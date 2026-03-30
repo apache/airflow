@@ -20,20 +20,15 @@ Global constants that are used by all other Breeze components.
 
 from __future__ import annotations
 
-import json
 import platform
-import subprocess
-from collections.abc import Generator
 from enum import Enum
 from pathlib import Path
-from threading import Lock
 
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_CTL_SOURCES_PATH,
-    AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
     AIRFLOW_TASK_SDK_SOURCES_PATH,
 )
@@ -54,10 +49,11 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
-# We set 3.12 as default image version until FAB supports Python 3.13
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = (
+    "3.13"  # "highest complete" python version (where all providers are included)
+)
 
 
 # Maps each supported Python version to the minimum Airflow version that supports it.
@@ -67,14 +63,16 @@ PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "v3.10.18"}
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
 # No database will be started - access to a database will fail.
+# The "custom" value allows providing an external database via AIRFLOW__DATABASE__SQL_ALCHEMY_CONN.
 SQLITE_BACKEND = "sqlite"
 MYSQL_BACKEND = "mysql"
 POSTGRES_BACKEND = "postgres"
 NONE_BACKEND = "none"
-ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
+CUSTOM_BACKEND = "custom"
+ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND, CUSTOM_BACKEND]
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_CORE_INTEGRATIONS = ["kerberos", "redis"]
+TESTABLE_CORE_INTEGRATIONS = ["kerberos", "otel", "redis"]
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
@@ -92,7 +90,6 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "ydb",
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
-    "elasticsearch",
     "mssql",
     "localstack",  # just for local integration testing for now
 ]
@@ -108,8 +105,9 @@ KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
 OTEL_INTEGRATION = "otel"
 OPENLINEAGE_INTEGRATION = "openlineage"
-OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, OTEL_INTEGRATION, KEYCLOAK_INTEGRATION]
-OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION]
+OPENSEARCH_INTEGRATION = "opensearch"
+OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, KEYCLOAK_INTEGRATION]
+OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION, OPENSEARCH_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_CORE_INTEGRATIONS = sorted(
     [
@@ -146,14 +144,17 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
+ALLOWED_TERMINAL_MULTIPLEXERS = ["mprocs", "tmux"]
 ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
+ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
+DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0", "v1.35.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -171,11 +172,14 @@ ALLOWED_EXECUTORS = [
 SIMPLE_AUTH_MANAGER = "SimpleAuthManager"
 FAB_AUTH_MANAGER = "FabAuthManager"
 
+GOLANG_WORKER = "go"
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
 START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
+ALLOWED_WORKER_TYPES = [GOLANG_WORKER]
 
 CONSTRAINTS_SOURCE_PROVIDERS = "constraints-source-providers"
 CONSTRAINTS = "constraints"
@@ -184,6 +188,22 @@ CONSTRAINTS_NO_PROVIDERS = "constraints-no-providers"
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = [CONSTRAINTS_SOURCE_PROVIDERS, CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS]
 ALLOWED_CONSTRAINTS_MODES_PROD = [CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS, CONSTRAINTS_SOURCE_PROVIDERS]
+
+ALLOWED_LLM_MODELS = [
+    # Claude models (via claude CLI)
+    "claude/claude-opus-4-6",
+    "claude/claude-sonnet-4-6",
+    "claude/claude-opus-4-20250514",
+    "claude/claude-sonnet-4-20250514",
+    "claude/claude-haiku-4-5-20251001",
+    "claude/sonnet",
+    "claude/opus",
+    "claude/haiku",
+    # OpenAI Codex models (via codex CLI)
+    "codex/o3",
+    "codex/o4-mini",
+    "codex/gpt-4.1",
+]
 
 ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
 DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]
@@ -220,11 +240,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "25.3"
-UV_VERSION = "0.9.11"
-
-DEFAULT_UV_HTTP_TIMEOUT = 300
-DEFAULT_WSL2_HTTP_TIMEOUT = 900
+PIP_VERSION = "26.0.1"
+UV_VERSION = "0.11.1"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -389,7 +406,7 @@ ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
-ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
 GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
 PR_NUMBER_PATTERN = r"^\d+$"
@@ -420,6 +437,7 @@ MYSQL_HOST_PORT = "23306"
 POSTGRES_HOST_PORT = "25433"
 RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
+RABBITMQ_HOST_PORT = "25672"
 SSH_PORT = "12322"
 VITE_DEV_PORT = "5173"
 WEB_HOST_PORT = "28080"
@@ -439,7 +457,7 @@ PRODUCTION_IMAGE = False
 # All python versions include all past python versions available in previous branches
 # Even if we remove them from the main version. This is needed to make sure we can cherry-pick
 # changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
 ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
@@ -460,6 +478,8 @@ PYTHON_3_7_TO_3_11 = ["3.7", "3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_11 = ["3.8", "3.9", "3.10", "3.11"]
 PYTHON_3_8_TO_3_12 = ["3.8", "3.9", "3.10", "3.11", "3.12"]
 PYTHON_3_9_TO_3_12 = ["3.9", "3.10", "3.11", "3.12"]
+PYTHON_3_10_TO_3_13 = ["3.10", "3.11", "3.12", "3.13"]
+PYTHON_3_10_TO_3_14 = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 
 AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
@@ -513,6 +533,9 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.4": PYTHON_3_8_TO_3_12,
     "2.10.5": PYTHON_3_8_TO_3_12,
     "2.11.0": PYTHON_3_9_TO_3_12,
+    "3.0.0": PYTHON_3_9_TO_3_12,
+    "3.1.0": PYTHON_3_10_TO_3_13,
+    "3.2.0": PYTHON_3_10_TO_3_14,
 }
 
 DB_RESET = False
@@ -544,6 +567,8 @@ COMMITTERS = [
     "bolkedebruin",
     "bugraoz93",
     "criccomini",
+    "dabla",
+    "dheerajturaga",
     "dimberman",
     "dirrao",
     "dstandish",
@@ -598,6 +623,7 @@ COMMITTERS = [
     "xinbinhuang",
     "yuqian90",
     "zhongjiajie",
+    "choo121600",
 ]
 
 
@@ -652,101 +678,13 @@ def get_airflow_extras():
 
 # Initialize integrations
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
-AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
-AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
-    AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json.sha256sum"
-)
 
-ALL_PYPROJECT_TOML_FILES = []
+ALL_PYPROJECT_TOML_FILES: list[Path] = []
 
-
-def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
-    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text().splitlines()
-    in_workspace = False
-    for line in pyproject_toml_content:
-        trimmed_line = line.strip()
-        if not in_workspace and trimmed_line.startswith("[tool.uv.workspace]"):
-            in_workspace = True
-        elif in_workspace:
-            if trimmed_line.startswith("#"):
-                continue
-            if trimmed_line.startswith('"'):
-                path = trimmed_line.split('"')[1]
-                ALL_PYPROJECT_TOML_FILES.append(AIRFLOW_ROOT_PATH / path / "pyproject.toml")
-                if trimmed_line.startswith('"providers/'):
-                    yield AIRFLOW_ROOT_PATH / path / "pyproject.toml"
-                    yield AIRFLOW_ROOT_PATH / path / "provider.yaml"
-            elif trimmed_line.startswith("]"):
-                break
-
-
-_regenerate_provider_deps_lock = Lock()
-_has_regeneration_of_providers_run = False
 
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
     AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
 )
-
-
-def regenerate_provider_dependencies_once() -> None:
-    """Run provider dependencies regeneration once per interpreter execution.
-
-    This function is safe to call multiple times from different modules; the
-    underlying command will only run once. If the underlying command fails the
-    CalledProcessError is propagated to the caller.
-    """
-    global _has_regeneration_of_providers_run
-    with _regenerate_provider_deps_lock:
-        if _has_regeneration_of_providers_run:
-            return
-        # Run the regeneration command from the repository root to ensure correct
-        # relative paths if the script expects to be run from AIRFLOW_ROOT_PATH.
-        subprocess.check_call(
-            ["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()], cwd=AIRFLOW_ROOT_PATH
-        )
-        _has_regeneration_of_providers_run = True
-
-
-def _calculate_provider_deps_hash():
-    import hashlib
-
-    hasher = hashlib.sha256()
-    for file in sorted(get_all_provider_pyproject_toml_provider_yaml_files()):
-        hasher.update(file.read_bytes())
-    return hasher.hexdigest()
-
-
-def _run_provider_dependencies_generation(calculated_hash=None) -> dict:
-    if calculated_hash is None:
-        calculated_hash = _calculate_provider_deps_hash()
-    AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.write_text(calculated_hash)
-    # We use regular print there as rich console might not be initialized yet here
-    print("Regenerating provider dependencies file")
-    regenerate_provider_dependencies_once()
-    return json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
-
-
-if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
-    PROVIDER_DEPENDENCIES = _run_provider_dependencies_generation()
-else:
-    PROVIDER_DEPENDENCIES = json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
-
-
-def generate_provider_dependencies_if_needed():
-    regenerate_provider_dependencies = False
-    if (
-        not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists()
-        or not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.exists()
-    ):
-        regenerate_provider_dependencies = True
-        calculated_hash = _calculate_provider_deps_hash()
-    else:
-        calculated_hash = _calculate_provider_deps_hash()
-        if calculated_hash.strip() != AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.read_text().strip():
-            regenerate_provider_dependencies = True
-    if regenerate_provider_dependencies:
-        global PROVIDER_DEPENDENCIES
-        PROVIDER_DEPENDENCIES = _run_provider_dependencies_generation(calculated_hash)
 
 
 DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
@@ -769,8 +707,9 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.30.0"
-HELM_VERSION = "v3.17.3"
+KIND_VERSION = "v0.31.0"
+HELM_VERSION = "v3.19.0"
+SKAFFOLD_VERSION = "v2.17.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -827,14 +766,8 @@ DEFAULT_EXTRAS = [
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
-        "airflow-version": "2.10.5",
-        "remove-providers": "common.messaging fab git keycloak",
-        "run-unit-tests": "true",
-    },
-    {
-        "python-version": "3.10",
-        "airflow-version": "2.11.0",
-        "remove-providers": "common.messaging fab git keycloak",
+        "airflow-version": "2.11.1",
+        "remove-providers": "common.messaging edge3 fab git keycloak informatica common.ai",
         "run-unit-tests": "true",
     },
     {
@@ -845,21 +778,31 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.1.2",
+        "airflow-version": "3.1.8",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.10": "3.10.19",
-    "3.11": "3.11.14",
-    "3.12": "3.12.12",
-    "3.13": "3.13.9",
+    "3.10": "3.10.20",
+    "3.11": "3.11.15",
+    "3.12": "3.12.13",
+    "3.13": "3.13.12",
+    "3.14": "3.14.3",
 }
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
+
+# Number of slices for core test types (splitting reduces memory per xdist collection)
+NUMBER_OF_CORE_SLICES = 2
+
+# Milestone Tag Assistant configuration
+# Labels indicating a bug fix PR that should have a milestone
+MILESTONE_BUG_LABELS: frozenset[str] = frozenset({"kind:bug", "type:bug-fix"})
+# Labels that indicate the PR should be skipped from milestone auto-tagging
+MILESTONE_SKIP_LABELS: frozenset[str] = frozenset({"area:dev-tools", "area:dev-env", "area:CI"})
 
 
 class GithubEvents(Enum):

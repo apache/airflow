@@ -22,8 +22,6 @@ from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.neptune import NeptuneHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.neptune import (
@@ -31,10 +29,12 @@ from airflow.providers.amazon.aws.triggers.neptune import (
     NeptuneClusterInstancesAvailableTrigger,
     NeptuneClusterStoppedTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 def handle_waitable_exception(
@@ -188,14 +188,13 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         return {"db_cluster_id": self.cluster_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
-        status = ""
-        cluster_id = ""
+        validated_event = validate_execute_complete_event(event)
 
-        if event:
-            status = event.get("status", "")
-            cluster_id = event.get("cluster_id", "")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error starting Neptune cluster: {validated_event}")
 
-        self.log.info("Neptune cluster %s available with status: %s", cluster_id, status)
+        cluster_id = validated_event.get("db_cluster_id", "")
+        self.log.info("Neptune cluster %s available with status: %s", cluster_id, validated_event["status"])
 
         return {"db_cluster_id": cluster_id}
 
@@ -315,13 +314,12 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         return {"db_cluster_id": self.cluster_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
-        status = ""
-        cluster_id = ""
-        self.log.info(event)
-        if event:
-            status = event.get("status", "")
-            cluster_id = event.get("cluster_id", "")
+        validated_event = validate_execute_complete_event(event)
 
-        self.log.info("Neptune cluster %s stopped with status: %s", cluster_id, status)
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error stopping Neptune cluster: {validated_event}")
+
+        cluster_id = validated_event.get("db_cluster_id", "")
+        self.log.info("Neptune cluster %s stopped with status: %s", cluster_id, validated_event["status"])
 
         return {"db_cluster_id": cluster_id}

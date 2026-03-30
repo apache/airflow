@@ -22,8 +22,8 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.sensors.oss_key import OSSKeySensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 MODULE_NAME = "airflow.providers.alibaba.cloud.sensors.oss_key"
 

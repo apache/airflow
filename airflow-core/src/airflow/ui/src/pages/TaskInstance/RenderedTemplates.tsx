@@ -18,24 +18,15 @@
  */
 import { Box, Table } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
-import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
-import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
-import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
-import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
-import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
-import { oneLight, oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { SqlParserProvider } from "src/components/SqlParserProvider";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 import { detectLanguage } from "src/utils/detectLanguage";
+import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
 
-SyntaxHighlighter.registerLanguage("json", json);
-SyntaxHighlighter.registerLanguage("yaml", yaml);
-SyntaxHighlighter.registerLanguage("sql", sql);
-SyntaxHighlighter.registerLanguage("bash", bash);
-
-export const RenderedTemplates = () => {
+const RenderedTemplatesContent = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const { colorMode } = useColorMode();
 
@@ -104,3 +95,9 @@ export const RenderedTemplates = () => {
     </Box>
   );
 };
+
+export const RenderedTemplates = () => (
+  <SqlParserProvider>
+    <RenderedTemplatesContent />
+  </SqlParserProvider>
+);

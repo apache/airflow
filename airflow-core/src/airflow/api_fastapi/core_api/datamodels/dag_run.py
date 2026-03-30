@@ -32,7 +32,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 
 class DAGRunPatchStates(str, Enum):
@@ -126,10 +126,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
                     end=timezone.coerce_datetime(self.data_interval_end),
                 )
             else:
-                data_interval = dag.timetable.infer_manual_data_interval(
-                    run_after=coerced_logical_date or timezone.coerce_datetime(run_after)
-                )
-                run_after = data_interval.end
+                data_interval = dag.timetable.infer_manual_data_interval(run_after=coerced_logical_date)
 
         run_id = self.dag_run_id or dag.timetable.generate_run_id(
             run_type=DagRunType.MANUAL,

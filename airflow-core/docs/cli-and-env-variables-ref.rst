@@ -37,6 +37,11 @@ development and testing.
 Providers that implement executors might contribute additional commands to the CLI. Here are the commands
 contributed by the community providers:
 
+
+.. important::
+  Starting in Airflow ``3.2.0``, provider-level CLI commands are available to manage core extensions such as auth managers and executors. Implementing provider-level CLI commands can reduce CLI startup time by avoiding heavy imports when they are not required.
+  See :doc:`provider-level CLI <apache-airflow-providers:core-extensions/cli-commands>` for implementation guidance.
+
 * Celery Executor and related CLI commands: :doc:`apache-airflow-providers-celery:cli-ref`
 * Kubernetes Executor and related CLI commands: :doc:`apache-airflow-providers-cncf-kubernetes:cli-ref`
 * Edge Executor and related CLI commands: :doc:`apache-airflow-providers-edge3:cli-ref`

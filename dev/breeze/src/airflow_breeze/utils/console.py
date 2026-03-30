@@ -119,5 +119,5 @@ def get_stderr_console(output: Output | None = None) -> Console:
     )
 
 
-def console_print(*message) -> None:
-    return get_console().print(*message)
+def console_print(*message, **kwargs) -> None:
+    return get_console().print(*message, **kwargs)

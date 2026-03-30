@@ -20,11 +20,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestOpenSearchServerlessCollectionActiveSensor:

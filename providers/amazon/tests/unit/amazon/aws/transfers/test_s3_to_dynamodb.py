@@ -22,9 +22,9 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError, WaiterError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.transfers.s3_to_dynamodb import S3ToDynamoDBOperator
+from airflow.providers.common.compat.sdk import AirflowException
 
 TASK_ID = "transfer_1"
 BUCKET = "test-bucket"

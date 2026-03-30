@@ -38,9 +38,8 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk.web.async_client import AsyncWebClient
 from typing_extensions import NotRequired
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.common.compat.connection import get_async_connection
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
 from airflow.utils.helpers import exactly_one
 
@@ -228,6 +227,7 @@ class SlackHook(BaseHook):
         channel_id: str | None = None,
         file_uploads: FileUploadTypeDef | list[FileUploadTypeDef],
         initial_comment: str | None = None,
+        thread_ts: str | None = None,
     ) -> SlackResponse:
         """
         Send one or more files to a Slack channel using the Slack SDK Client method `files_upload_v2`.
@@ -236,6 +236,8 @@ class SlackHook(BaseHook):
             If omitting this parameter, then file will send to workspace.
         :param file_uploads: The file(s) specification to upload.
         :param initial_comment: The message text introducing the file in specified ``channel``.
+        :param thread_ts: Provide another message's ``ts`` value to upload the file as a reply in a
+            thread. See https://api.slack.com/messaging#threading.
         """
         if channel_id and channel_id.startswith("#"):
             retried_channel_id = self.get_channel_id(channel_id[1:])
@@ -261,6 +263,7 @@ class SlackHook(BaseHook):
             # see: https://github.com/python/mypy/issues/4976
             file_uploads=file_uploads,  # type: ignore[arg-type]
             initial_comment=initial_comment,
+            thread_ts=thread_ts,
         )
 
     def send_file_v1_to_v2(
@@ -273,6 +276,7 @@ class SlackHook(BaseHook):
         initial_comment: str | None = None,
         title: str | None = None,
         snippet_type: str | None = None,
+        thread_ts: str | None = None,
     ) -> list[SlackResponse]:
         """
         Smooth transition between ``send_file`` and ``send_file_v2`` methods.
@@ -286,6 +290,8 @@ class SlackHook(BaseHook):
         :param initial_comment: The message text introducing the file in specified ``channels``.
         :param title: Title of the file.
         :param snippet_type: Syntax type for the content being uploaded.
+        :param thread_ts: Provide another message's ``ts`` value to upload the file as a reply in a
+            thread. See https://api.slack.com/messaging#threading.
         """
         if not exactly_one(file, content):
             raise ValueError("Either `file` or `content` must be provided, not both.")
@@ -304,11 +310,20 @@ class SlackHook(BaseHook):
         else:
             channels_to_share = [None]
 
+        if thread_ts is not None and len(channels_to_share) > 1:
+            raise ValueError(
+                "thread_ts cannot be used with multiple channels. "
+                "A thread belongs to a single channel; specify exactly one channel when replying in a thread."
+            )
+
         responses = []
         for channel in channels_to_share:
             responses.append(
                 self.send_file_v2(
-                    channel_id=channel, file_uploads=file_uploads, initial_comment=initial_comment
+                    channel_id=channel,
+                    file_uploads=file_uploads,
+                    initial_comment=initial_comment,
+                    thread_ts=thread_ts,
                 )
             )
         return responses

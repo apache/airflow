@@ -28,9 +28,9 @@ from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 
 from airflow.sdk import Asset, ObjectStoragePath
+from airflow.sdk._shared.module_loading import qualname
 from airflow.sdk.io import attach
 from airflow.sdk.io.store import _STORE_CACHE, ObjectStore
-from airflow.sdk.module_loading import qualname
 
 
 def test_init():
@@ -59,6 +59,49 @@ def test_str(input_str):
     assert str(o) == input_str
 
 
+class TestConnIdPropagation:
+    """conn_id must survive all path-producing operations."""
+
+    @pytest.fixture
+    def base(self):
+        return ObjectStoragePath("s3://aws_default@bucket/prefix")
+
+    def test_truediv(self, base):
+        child = base / "x"
+        assert child.conn_id == "aws_default"
+
+    def test_joinpath(self, base):
+        child = base.joinpath("a", "b")
+        assert child.conn_id == "aws_default"
+
+    def test_parent(self, base):
+        assert base.parent.conn_id == "aws_default"
+
+    def test_parents(self, base):
+        for p in base.parents:
+            assert p.conn_id == "aws_default"
+
+    def test_with_name(self, base):
+        assert base.with_name("other").conn_id == "aws_default"
+
+    def test_with_suffix(self, base):
+        p = ObjectStoragePath("s3://aws_default@bucket/file.txt")
+        assert p.with_suffix(".csv").conn_id == "aws_default"
+
+    def test_with_stem(self, base):
+        p = ObjectStoragePath("s3://aws_default@bucket/file.txt")
+        assert p.with_stem("other").conn_id == "aws_default"
+
+    def test_nested_truediv(self, base):
+        grandchild = base / "x" / "y" / "z"
+        assert grandchild.conn_id == "aws_default"
+
+    def test_no_conn_id_stays_none(self):
+        p = ObjectStoragePath("s3://bucket/key")
+        child = p / "x"
+        assert child.conn_id is None
+
+
 def test_cwd():
     assert ObjectStoragePath.cwd()
 
@@ -70,16 +113,19 @@ def test_home():
 def test_lazy_load():
     o = ObjectStoragePath("file:///tmp/foo")
     with pytest.raises(AttributeError):
-        assert o._fs_cached
+        assert o.__wrapped__._fs_cached
 
+    # ObjectStoragePath overrides .fs and provides cached filesystems via the STORE_CACHE
     assert o.fs is not None
-    assert o._fs_cached
+
+    with pytest.raises(AttributeError):
+        assert o.__wrapped__._fs_cached
     # Clear the cache to avoid side effects in other tests below
     _STORE_CACHE.clear()
 
 
 class _FakeRemoteFileSystem(MemoryFileSystem):
-    protocol = ("s3", "fakefs", "ffs", "ffs2")
+    protocol = ("s3", "fake", "fakefs", "ffs", "ffs2")
     root_marker = ""
     store: ClassVar[dict[str, Any]] = {}
     pseudo_dirs = [""]
@@ -97,6 +143,21 @@ class _FakeRemoteFileSystem(MemoryFileSystem):
             return path.rstrip("/")
         path = path.lstrip("/").rstrip("/")
         return path
+
+
+@pytest.fixture(scope="module", autouse=True)
+def register_fake_remote_filesystem():
+    # Register the fake filesystem with fsspec so UPath can discover it
+    from fsspec.registry import _registry as fsspec_implementation_registry, register_implementation
+
+    old_registry = fsspec_implementation_registry.copy()
+    try:
+        for proto in _FakeRemoteFileSystem.protocol:
+            register_implementation(proto, _FakeRemoteFileSystem, clobber=True)
+        yield
+    finally:
+        fsspec_implementation_registry.clear()
+        fsspec_implementation_registry.update(old_registry)
 
 
 class TestAttach:
@@ -168,10 +229,6 @@ class TestAttach:
 
 
 class TestRemotePath:
-    @pytest.fixture(autouse=True)
-    def fake_fs(self, monkeypatch):
-        monkeypatch.setattr(ObjectStoragePath, "_fs_factory", lambda *a, **k: _FakeRemoteFileSystem())
-
     def test_bucket_key_protocol(self):
         bucket = "bkt"
         key = "yek"
@@ -262,7 +319,11 @@ class TestLocalPath:
         o1 = ObjectStoragePath(f"file://{target}")
         o2 = ObjectStoragePath(f"file://{tmp_path.as_posix()}")
         o3 = ObjectStoragePath(f"file:///{uuid.uuid4()}")
-        assert o1.relative_to(o2) == o1
+        # relative_to returns the relative path from o2 to o1
+        relative = o1.relative_to(o2)
+        # The relative path should be the basename (uuid) of the target
+        expected_relative = target.split("/")[-1]
+        assert str(relative) == expected_relative
         with pytest.raises(ValueError, match="is not in the subpath of"):
             o1.relative_to(o3)
 

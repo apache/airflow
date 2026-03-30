@@ -20,7 +20,7 @@ from __future__ import annotations
 import collections.abc
 import functools
 from collections import Counter
-from collections.abc import Iterator, KeysView, Mapping
+from collections.abc import Iterator, KeysView, Mapping, Sequence
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
@@ -33,14 +33,14 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.expression import ColumnOperators
+    from sqlalchemy.sql import ColumnElement
 
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
+    from airflow.typing_compat import Unpack
 
 
 class _UpstreamTIStates(NamedTuple):
@@ -74,6 +74,7 @@ class _UpstreamTIStates(NamedTuple):
         for ti in finished_upstreams:
             if TYPE_CHECKING:
                 assert ti.task
+                assert ti.state
             curr_state = {ti.state: 1}
             counter.update(curr_state)
             if ti.task.is_setup:
@@ -131,8 +132,8 @@ class TriggerRuleDep(BaseTIDep):
         """
         from airflow.exceptions import NotMapped
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import is_mapped
         from airflow.models.taskinstance import TaskInstance
+        from airflow.serialization.definitions.mappedoperator import is_mapped
 
         task = ti.task
         if TYPE_CHECKING:
@@ -146,7 +147,7 @@ class TriggerRuleDep(BaseTIDep):
             This extra closure allows us to query the database only when needed,
             and at most once.
             """
-            from airflow.models.mappedoperator import get_mapped_ti_count
+            from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
             return get_mapped_ti_count(task, ti.run_id, session=session)
 
@@ -223,7 +224,7 @@ class TriggerRuleDep(BaseTIDep):
                 return True
             return False
 
-        def _iter_upstream_conditions(relevant_tasks: dict) -> Iterator[ColumnOperators]:
+        def _iter_upstream_conditions(relevant_tasks: dict) -> Iterator[ColumnElement]:
             # Optimization: If the current task is not in a mapped task group,
             # it depends on all upstream task instances.
             from airflow.models.taskinstance import TaskInstance
@@ -255,7 +256,7 @@ class TriggerRuleDep(BaseTIDep):
                     yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
 
         def _evaluate_setup_constraint(
-            *, relevant_setups: Mapping[str, SerializedBaseOperator | MappedOperator]
+            *, relevant_setups: Mapping[str, Operator]
         ) -> Iterator[tuple[TIDepStatus, bool]]:
             """
             Evaluate whether ``ti``'s trigger rule was met as part of the setup constraint.
@@ -371,7 +372,8 @@ class TriggerRuleDep(BaseTIDep):
                 upstream = len(upstream_tasks)
                 upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
             else:
-                task_id_counts: list[Row[tuple[str, int]]] = session.execute(
+                # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+                task_id_counts: Sequence[Row[Unpack[tuple[str, int]]]] = session.execute(  # type: ignore[type-arg]
                     select(TaskInstance.task_id, func.count(TaskInstance.task_id))
                     .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                     .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
@@ -617,19 +619,66 @@ class TriggerRuleDep(BaseTIDep):
                     reason=f"No strategy to evaluate trigger rule '{trigger_rule_str}'."
                 )
 
+        def _evaluate_teardown_scope() -> Iterator[TIDepStatus]:
+            """Ensure all tasks between setup(s) and this teardown have completed."""
+            if not task.dag:
+                return
+
+            setup_task_ids = {t.task_id for t in task.upstream_list if t.is_setup}
+
+            all_upstream_ids = task.get_flat_relative_ids(upstream=True)
+            indirect_upstream_ids = all_upstream_ids - task.upstream_task_ids
+
+            if not indirect_upstream_ids:
+                return
+
+            in_scope_ids = set()
+            for setup_id in setup_task_ids:
+                setup_obj = task.dag.get_task(setup_id)
+                in_scope_ids.update(indirect_upstream_ids & setup_obj.get_flat_relative_ids(upstream=False))
+
+            in_scope_tasks = {tid: task.dag.get_task(tid) for tid in in_scope_ids}
+
+            done = sum(
+                1
+                for x in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+                if _is_relevant_upstream(upstream=x, relevant_ids=in_scope_ids)
+            )
+
+            if not any(t.get_needs_expansion() for t in in_scope_tasks.values()):
+                expected = len(in_scope_tasks)
+            else:
+                expected = (
+                    session.scalar(
+                        select(func.count(TaskInstance.task_id))
+                        .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                        .where(or_(*_iter_upstream_conditions(relevant_tasks=in_scope_tasks)))
+                    )
+                    or 0
+                )
+
+            if done < expected:
+                trigger_rule_str = getattr(task.trigger_rule, "value", task.trigger_rule)
+                yield self._failing_status(
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule_str}' requires all tasks between "
+                        f"setup and teardown to have completed, but found {expected - done} "
+                        f"in-scope task(s) not done. "
+                        f"in_scope_task_ids={in_scope_ids}"
+                    )
+                )
+
         if not task.is_teardown:
             # a teardown cannot have any indirect setups
-            relevant_setups: dict[str, MappedOperator | SerializedBaseOperator] = {
-                # TODO (GH-52141): This should return scheduler types, but
-                # currently we reuse logic in SDK DAGNode.
-                t.task_id: t  # type: ignore[misc]
-                for t in task.get_upstreams_only_setups()
-            }
-            if relevant_setups:
+            if relevant_setups := {t.task_id: t for t in task.get_upstreams_only_setups()}:
                 for status, changed in _evaluate_setup_constraint(relevant_setups=relevant_setups):
                     yield status
                     if not status.passed and changed:
                         # no need to evaluate trigger rule; we've already marked as skipped or failed
                         return
-
-        yield from _evaluate_direct_relatives()
+            yield from _evaluate_direct_relatives()
+        else:
+            statuses = list(_evaluate_direct_relatives())
+            yield from statuses
+            if not statuses:
+                yield from _evaluate_teardown_scope()

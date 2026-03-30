@@ -29,7 +29,7 @@
 #
 """Definition of the public interface for airflow.providers.common.sql.operators.generic_transfer."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import cached_property as cached_property
 from typing import Any, ClassVar
 
@@ -38,7 +38,7 @@ from _typeshed import Incomplete as Incomplete
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.hooks.sql import DbApiHook as DbApiHook
-from airflow.utils.context import Context as Context
+from airflow.sdk import Context
 
 class GenericTransfer(BaseOperator):
     template_fields: Sequence[str]
@@ -51,6 +51,7 @@ class GenericTransfer(BaseOperator):
     source_hook_params: Incomplete
     destination_conn_id: Incomplete
     destination_hook_params: Incomplete
+    rows_processor: Incomplete
     preoperator: Incomplete
     insert_args: Incomplete
     page_size: Incomplete
@@ -63,6 +64,7 @@ class GenericTransfer(BaseOperator):
         source_hook_params: dict | None = None,
         destination_conn_id: str,
         destination_hook_params: dict | None = None,
+        rows_processor: Callable[..., list[Any]] | None = None,
         preoperator: str | list[str] | None = None,
         insert_args: dict | None = None,
         page_size: int | None = None,

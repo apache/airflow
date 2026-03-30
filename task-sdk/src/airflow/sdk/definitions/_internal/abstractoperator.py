@@ -28,8 +28,6 @@ from collections.abc import (
 )
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
-import methodtools
-
 from airflow.sdk import TriggerRule, WeightRule
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
@@ -68,7 +66,6 @@ DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
     seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
 )
-DEFAULT_RETRY_DELAY_MULTIPLIER: float = 2.0
 MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
 
 # TODO: Task-SDK -- these defaults should be overridable from the Airflow config
@@ -79,12 +76,9 @@ DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
     "core", "default_task_execution_timeout"
 )
-
+DEFAULT_EMAIL_ON_FAILURE: bool = conf.getboolean("email", "default_email_on_failure", fallback=True)
+DEFAULT_EMAIL_ON_RETRY: bool = conf.getboolean("email", "default_email_on_retry", fallback=True)
 log = logging.getLogger(__name__)
-
-
-class NotMapped(Exception):
-    """Raise if a task is neither mapped nor has any parent mapped groups."""
 
 
 class AbstractOperator(Templater, DAGNode):
@@ -142,6 +136,10 @@ class AbstractOperator(Templater, DAGNode):
             "operator_extra_link_dict",
         )
     )
+
+    @property
+    def is_async(self) -> bool:
+        return False
 
     @property
     def task_type(self) -> str:
@@ -257,67 +255,35 @@ class AbstractOperator(Templater, DAGNode):
     #   _render
     def get_template_env(self, dag: DAG | None = None) -> jinja2.Environment:
         """Get the template environment for rendering templates."""
+        from airflow.sdk.definitions._internal.templater import create_template_env
+
         if dag is None:
             dag = self.get_dag()
+        # Check if the operator has an explicit native rendering preference
+        render_op_template_as_native_obj = getattr(self, "render_template_as_native_obj", None)
+        if render_op_template_as_native_obj is not None:
+            if dag:
+                # Use dag's template settings (searchpath, macros, filters, etc.)
+                searchpath = [dag.folder]
+                if dag.template_searchpath:
+                    searchpath += dag.template_searchpath
+                return create_template_env(
+                    native=render_op_template_as_native_obj,
+                    searchpath=searchpath,
+                    template_undefined=dag.template_undefined,
+                    jinja_environment_kwargs=dag.jinja_environment_kwargs,
+                    user_defined_macros=dag.user_defined_macros,
+                    user_defined_filters=dag.user_defined_filters,
+                )
+            # No dag context available, use minimal template env
+            return create_template_env(native=render_op_template_as_native_obj)
+        # No operator-level override, delegate to parent class
         return super().get_template_env(dag=dag)
 
     def _render(self, template, context, dag: DAG | None = None):
         if dag is None:
             dag = self.get_dag()
         return super()._render(template, context, dag=dag)
-
-    def _do_render_template_fields(
-        self,
-        parent: Any,
-        template_fields: Iterable[str],
-        context: Context,
-        jinja_env: jinja2.Environment,
-        seen_oids: set[int],
-    ) -> None:
-        """Override the base to use custom error logging."""
-        for attr_name in template_fields:
-            try:
-                value = getattr(parent, attr_name)
-            except AttributeError:
-                raise AttributeError(
-                    f"{attr_name!r} is configured as a template field "
-                    f"but {parent.task_type} does not have this attribute."
-                )
-            try:
-                if not value:
-                    continue
-            except Exception:
-                # This may happen if the templated field points to a class which does not support `__bool__`,
-                # such as Pandas DataFrames:
-                # https://github.com/pandas-dev/pandas/blob/9135c3aaf12d26f857fcc787a5b64d521c51e379/pandas/core/generic.py#L1465
-                log.info(
-                    "Unable to check if the value of type '%s' is False for task '%s', field '%s'.",
-                    type(value).__name__,
-                    self.task_id,
-                    attr_name,
-                )
-                # We may still want to render custom classes which do not support __bool__
-                pass
-
-            try:
-                if callable(value):
-                    rendered_content = value(context=context, jinja_env=jinja_env)
-                else:
-                    rendered_content = self.render_template(value, context, jinja_env, seen_oids)
-            except Exception:
-                # Mask sensitive values in the template before logging
-                from airflow.sdk._shared.secrets_masker import redact
-
-                masked_value = redact(value)
-                log.exception(
-                    "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
-                    self.task_id,
-                    attr_name,
-                    masked_value,
-                )
-                raise
-            else:
-                setattr(parent, attr_name, rendered_content)
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """
@@ -408,21 +374,3 @@ class AbstractOperator(Templater, DAGNode):
             else:
                 self._needs_expansion = False
         return self._needs_expansion
-
-    @methodtools.lru_cache(maxsize=None)
-    def get_parse_time_mapped_ti_count(self) -> int:
-        """
-        Return the number of mapped task instances that can be created on Dag run creation.
-
-        This only considers literal mapped arguments, and would return *None*
-        when any non-literal values are used for mapping.
-
-        :raise NotFullyPopulated: If non-literal mapped arguments are encountered.
-        :raise NotMapped: If the operator is neither mapped, nor has any parent
-            mapped task groups.
-        :return: Total number of mapped TIs this task should have.
-        """
-        group = self.get_closest_mapped_task_group()
-        if group is None:
-            raise NotMapped()
-        return group.get_parse_time_mapped_ti_count()

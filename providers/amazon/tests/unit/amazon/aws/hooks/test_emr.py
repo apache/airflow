@@ -27,8 +27,8 @@ import pytest
 from botocore.exceptions import WaiterError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestEmrHook:

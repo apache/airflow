@@ -23,11 +23,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 
 # Import Operator
 from airflow.providers.apache.kafka.operators.consume import VALID_COMMIT_CADENCE, ConsumeFromTopicOperator
+from airflow.providers.common.compat.sdk import AirflowException
 
 log = logging.getLogger(__name__)
 

@@ -26,9 +26,9 @@ from typing import TYPE_CHECKING
 
 import attrs
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -68,7 +68,7 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
         """Returns S3Hook."""
         return S3Hook(
             aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"),
-            transfer_config_args={"use_threads": False},
+            transfer_config_args={"use_threads": False, "preferred_transfer_client": "classic"},
         )
 
     def s3_log_exists(self, remote_log_location: str) -> bool:

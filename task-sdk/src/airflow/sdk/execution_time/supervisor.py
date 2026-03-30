@@ -36,14 +36,7 @@ from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
 from socket import socket, socketpair
-from typing import (
-    TYPE_CHECKING,
-    BinaryIO,
-    ClassVar,
-    NoReturn,
-    TextIO,
-    cast,
-)
+from typing import TYPE_CHECKING, BinaryIO, ClassVar, NoReturn, TextIO, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -73,6 +66,8 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagResult,
+    DagRunResult,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -83,9 +78,12 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDag,
+    GetDagRun,
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
@@ -136,9 +134,9 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.secrets import BaseSecretsBackend
 
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
@@ -326,6 +324,28 @@ def block_orm_access():
 
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
     os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
+
+
+# From <linux/prctl.h>
+_PR_SET_DUMPABLE = 4
+_PR_GET_DUMPABLE = 3
+
+
+def _make_process_nondumpable() -> None:
+    """Mark the current process as non-dumpable to prevent same-UID memory access."""
+    if sys.platform != "linux":
+        return
+    try:
+        import ctypes
+
+        # CDLL(None) is dlopen(NULL) — a handle to the current process, which always
+        # includes libc symbols since CPython is linked against it.
+        libc = ctypes.CDLL(None, use_errno=True)
+        rc = libc.prctl(_PR_SET_DUMPABLE, 0, 0, 0, 0)
+        if rc != 0:
+            log.warning("Failed to set PR_SET_DUMPABLE=0", errno=ctypes.get_errno())
+    except Exception:
+        log.warning("Unable to set PR_SET_DUMPABLE=0", exc_info=True)
 
 
 def _fork_main(
@@ -908,17 +928,39 @@ def _remote_logging_conn(client: Client):
     # Fetch connection details on-demand without caching the entire API client instance
     conn = _fetch_remote_logging_conn(conn_id, client)
 
-    if conn:
-        key = f"AIRFLOW_CONN_{conn_id.upper()}"
-        old = os.getenv(key)
-        os.environ[key] = conn.get_uri()
+    if not conn:
         try:
             yield
         finally:
-            if old is None:
-                del os.environ[key]
-            else:
-                os.environ[key] = old
+            # Ensure we don't leak the caller's client when no connection was fetched.
+            del conn
+            del client
+        return
+
+    key = f"AIRFLOW_CONN_{conn_id.upper()}"
+    old_conn = os.getenv(key)
+    old_context = os.getenv("_AIRFLOW_PROCESS_CONTEXT")
+
+    os.environ[key] = conn.get_uri()
+    # Set process context to "client" so that Connection deserialization uses SDK Connection class
+    # which has from_uri() method, instead of core Connection class
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
+    try:
+        yield
+    finally:
+        if old_conn is None:
+            del os.environ[key]
+        else:
+            os.environ[key] = old_conn
+
+        if old_context is None:
+            del os.environ["_AIRFLOW_PROCESS_CONTEXT"]
+        else:
+            os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old_context
+
+        # Explicitly drop local references so the caller's client can be garbage collected.
+        del conn
+        del client
 
 
 @attrs.define(kw_only=True)
@@ -957,15 +999,28 @@ class ActivitySubprocess(WatchedSubprocess):
         client: Client,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
+        sentry_integration: str = "",
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
         proc: Self = super().start(id=what.id, client=client, target=target, logger=logger, **kwargs)
         # Tell the task process what it needs to do!
-        proc._on_child_started(ti=what, dag_rel_path=dag_rel_path, bundle_info=bundle_info)
+        proc._on_child_started(
+            ti=what,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            sentry_integration=sentry_integration,
+        )
         return proc
 
-    def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
+    def _on_child_started(
+        self,
+        *,
+        ti: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info,
+        sentry_integration: str,
+    ) -> None:
         """Send startup message to the subprocess."""
         self.ti = ti  # type: ignore[assignment]
         start_date = datetime.now(tz=timezone.utc)
@@ -987,6 +1042,7 @@ class ActivitySubprocess(WatchedSubprocess):
             bundle_info=bundle_info,
             ti_context=ti_context,
             start_date=start_date,
+            sentry_integration=sentry_integration,
         )
 
         # Send the message to tell the process what it needs to execute
@@ -1075,6 +1131,13 @@ class ActivitySubprocess(WatchedSubprocess):
                     self._process_exit_monotonic
                     and time.monotonic() - self._process_exit_monotonic > SOCKET_CLEANUP_TIMEOUT
                 ):
+                    log.warning(
+                        "Process exited with open sockets; cleaning up after timeout",
+                        pid=self.pid,
+                        exit_code=self._exit_code,
+                        socket_types=list(self._open_sockets.values()),
+                        timeout_seconds=SOCKET_CLEANUP_TIMEOUT,
+                    )
                     self._cleanup_open_sockets()
 
             if alive:
@@ -1332,12 +1395,11 @@ class ActivitySubprocess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, TriggerDagRun):
             resp = self.client.dag_runs.trigger(
-                msg.dag_id,
-                msg.run_id,
-                msg.conf,
-                msg.logical_date,
-                msg.reset_dag_run,
+                msg.dag_id, msg.run_id, msg.conf, msg.logical_date, msg.reset_dag_run, msg.note
             )
+        elif isinstance(msg, GetDagRun):
+            dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
+            resp = DagRunResult.from_api_response(dr_resp)
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp)
@@ -1382,6 +1444,14 @@ class ActivitySubprocess(WatchedSubprocess):
                 logical_date=msg.logical_date,
                 state=msg.state,
             )
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
+                state=msg.state,
+            )
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, ValidateInletsAndOutlets):
@@ -1409,6 +1479,11 @@ class ActivitySubprocess(WatchedSubprocess):
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
             mask_secret(msg.value, msg.name)
+        elif isinstance(msg, GetDag):
+            dag = self.client.dags.get(
+                dag_id=msg.dag_id,
+            )
+            resp = DagResult.from_api_response(dag)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -1834,10 +1909,10 @@ def process_log_messages_from_subprocess(
             # TODO: convert the dict back to a pretty stack trace
             event["error_detail"] = exc
 
-        level = NAME_TO_LEVEL[event.pop("level")]
-        msg = event.pop("event", None)
-        for target in loggers:
-            target.log(level, msg, **event)
+        if level := NAME_TO_LEVEL.get(event.pop("level")):
+            msg = event.pop("event", None)
+            for target in loggers:
+                target.log(level, msg, **event)
 
 
 def forward_to_log(
@@ -1936,6 +2011,7 @@ def supervise(
     log_path: str | None = None,
     subprocess_logs_to_stdout: bool = False,
     client: Client | None = None,
+    sentry_integration: str = "",
 ) -> int:
     """
     Run a single task execution to completion.
@@ -1949,10 +2025,13 @@ def supervise(
     :param log_path: Path to write logs, if required.
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
+    :param sentry_integration: If the executor has a Sentry integration, import
+        path to a callable to initialize it (empty means no integration).
     :return: Exit code of the process.
     :raises ValueError: If server URL is empty or invalid.
     """
-    # One or the other
+    _make_process_nondumpable()
+
     from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 
     if not client:
@@ -2022,6 +2101,7 @@ def supervise(
             logger=logger,
             bundle_info=bundle_info,
             subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+            sentry_integration=sentry_integration,
         )
 
         exit_code = process.wait()

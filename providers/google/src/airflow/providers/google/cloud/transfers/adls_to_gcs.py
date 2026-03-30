@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-import os
+import posixpath
+import warnings
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -30,7 +31,7 @@ try:
     from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
     from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 except ModuleNotFoundError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(e)
 
@@ -45,6 +46,8 @@ class ADLSToGCSOperator(ADLSListOperator):
     :param src_adls: The Azure Data Lake path to find the objects (templated)
     :param dest_gcs: The Google Cloud Storage bucket and prefix to
         store the objects. (templated)
+    :param file_system_name: Name of the file system (container) in ADLS Gen2.
+        This is passed via ``**kwargs`` to the parent ``ADLSListOperator``.
     :param replace: If true, replaces same-named files in GCS
     :param gzip: Option to compress file for upload
     :param azure_data_lake_conn_id: The connection ID to use when
@@ -58,6 +61,9 @@ class ADLSToGCSOperator(ADLSListOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param return_gcs_uris: If True, returns a list of GCS URIs (e.g., ``gs://bucket/path/file.csv``).
+        If False, returns the legacy list of ADLS file paths. Default (None) is equivalent to False
+        but emits a ``FutureWarning`` because the default will change to True in a future release.
 
     **Examples**:
         The following Operator would copy a single file named
@@ -115,9 +121,14 @@ class ADLSToGCSOperator(ADLSListOperator):
         replace: bool = False,
         gzip: bool = False,
         google_impersonation_chain: str | Sequence[str] | None = None,
+        return_gcs_uris: bool | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(path=src_adls, azure_data_lake_conn_id=azure_data_lake_conn_id, **kwargs)
+        super().__init__(
+            path=src_adls,
+            azure_data_lake_conn_id=azure_data_lake_conn_id,
+            **self._validate_kwargs(kwargs),
+        )
 
         self.src_adls = src_adls
         self.dest_gcs = dest_gcs
@@ -125,10 +136,32 @@ class ADLSToGCSOperator(ADLSListOperator):
         self.gcp_conn_id = gcp_conn_id
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
+        if return_gcs_uris is None:
+            self.return_gcs_uris = False
+            warnings.warn(
+                "Returning a list of ADLS file paths from ADLSToGCSOperator is deprecated and will "
+                "change to list[str] of GCS URIs in a future release. Set return_gcs_uris=True to opt in.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        else:
+            self.return_gcs_uris = return_gcs_uris
 
-    def execute(self, context: Context):
+    @staticmethod
+    def _validate_kwargs(kwargs: dict) -> dict:
+        file_system_name = kwargs.pop("file_system_name", None)
+        if file_system_name is None:
+            raise TypeError(
+                "The 'file_system_name' parameter is required. "
+                "ADLSListOperator has been migrated from Azure Data Lake Storage Gen1 (retired) "
+                "to Gen2, which requires specifying a file system name. "
+                "Please add file_system_name='your-container-name' to your operator instantiation."
+            )
+        return {"file_system_name": file_system_name, **kwargs}
+
+    def execute(self, context: Context) -> list[str]:
         # use the super to list all files in an Azure Data Lake path
-        files = super().execute(context)
+        files: list[str] = super().execute(context)
         g_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
@@ -142,23 +175,27 @@ class ADLSToGCSOperator(ADLSListOperator):
             existing_files = g_hook.list(bucket_name=bucket_name, prefix=prefix)
             files = list(set(files) - set(existing_files))
 
+        destination_uris = []
         if files:
             hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
+            dest_gcs_bucket, dest_gcs_prefix = _parse_gcs_url(self.dest_gcs)
 
             for obj in files:
                 with NamedTemporaryFile(mode="wb", delete=True) as f:
                     hook.download_file(local_path=f.name, remote_path=obj)
                     f.flush()
-                    dest_gcs_bucket, dest_gcs_prefix = _parse_gcs_url(self.dest_gcs)
-                    dest_path = os.path.join(dest_gcs_prefix, obj)
+                    dest_path = posixpath.join(dest_gcs_prefix, obj)
                     self.log.info("Saving file to %s", dest_path)
 
                     g_hook.upload(
                         bucket_name=dest_gcs_bucket, object_name=dest_path, filename=f.name, gzip=self.gzip
                     )
+                    destination_uris.append(f"gs://{dest_gcs_bucket}/{dest_path}")
 
             self.log.info("All done, uploaded %d files to GCS", len(files))
         else:
             self.log.info("In sync, no files needed to be uploaded to GCS")
 
+        if self.return_gcs_uris:
+            return destination_uris
         return files

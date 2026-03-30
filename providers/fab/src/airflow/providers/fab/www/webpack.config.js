@@ -20,7 +20,6 @@
 const webpack = require("webpack");
 const path = require("path");
 const { WebpackManifestPlugin } = require("webpack-manifest-plugin");
-const cwplg = require("clean-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const MomentLocalesPlugin = require("moment-locales-webpack-plugin");
@@ -152,9 +151,6 @@ const config = {
       // d3-tip is named index.js in its dist folder which was confusing the manifest
       map: (file) =>
         file.path === "d3-tip.js" ? { ...file, name: "d3-tip.js" } : file,
-    }),
-    new cwplg.CleanWebpackPlugin({
-      verbose: true,
     }),
     new MiniCssExtractPlugin({
       filename: "[name].[chunkhash].css",

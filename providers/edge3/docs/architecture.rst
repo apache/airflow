@@ -63,7 +63,7 @@ deployed outside of the central Airflow cluster is connected via HTTP(s) to the 
 * **Workers** (Central) - Execute the assigned tasks - most standard setup has local or centralized workers, e.g. via Celery
 * **Edge Workers** - Special workers which pull tasks via HTTP(s) as provided as feature via this provider package
 * **Scheduler** - Responsible for adding the necessary tasks to the queue. The EdgeExecutor is running as a module inside the scheduler.
-* **API server** (webserver in Airflow 2.x) - HTTP REST API Server provides access to Dag/task status information. The required end-points are
+* **API server** - HTTP REST API Server provides access to Dag/task status information. The required end-points are
   provided by the Edge provider plugin. The Edge Worker uses this API to pull tasks and send back the results.
 * **Database** - Contains information about the status of tasks, Dags, Variables, connections, etc.
 
@@ -77,7 +77,7 @@ In detail the parts of the Edge provider are deployed as follows:
   need to set the ``executor`` configuration option in the ``airflow.cfg`` file to
   ``airflow.providers.edge3.executors.EdgeExecutor``. For more details see :doc:`edge_executor`. Note that also
   multiple executors can be used in parallel together with the EdgeExecutor.
-* **API server** (webserver in Airflow 2.x) - The API server is providing REST endpoints to the web UI as well
+* **API server** - The API server is providing REST endpoints to the web UI as well
   as serves static files. The Edge provider adds a plugin that provides additional REST API for the Edge Worker
   as well as UI elements to manage workers (not available in Airflow 3.0).
   The API server is responsible for handling requests from the Edge Worker and sending back the results. To

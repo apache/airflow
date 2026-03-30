@@ -25,8 +25,8 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 DB_NAME = "db"
 TABLE_NAME = "table"

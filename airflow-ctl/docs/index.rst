@@ -29,7 +29,7 @@ Please head over to :doc:`/start` to get started.
     installation/index
     howto/index
     security
-    changelog
+    release_notes
 
 .. toctree::
     :hidden:

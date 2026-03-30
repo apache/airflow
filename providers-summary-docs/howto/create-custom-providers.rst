@@ -74,6 +74,9 @@ Exposing customized functionality to the Airflow's core:
   ``airflow/config_templates/config.yml.schema.json`` with configuration contributed by the providers
   See :doc:`apache-airflow:howto/set-config` for details about setting configuration.
 
+* ``cli`` - this field should contain the list of all the functions that return CLI commands
+  to be included in Airflow CLI. See :doc:`apache-airflow:cli-and-env-variables-ref` for description of CLI commands.
+
 * ``connection-types`` - this field should contain the list of all the connection types together with hook
   class names implementing those custom connection types (providing custom extra fields and
   custom field behaviour). This field is available as of Airflow 2.2.0 and it replaces deprecated

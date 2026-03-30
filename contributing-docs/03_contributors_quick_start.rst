@@ -19,7 +19,9 @@
 Contributor's Quick Start
 *************************
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Note to Starters
 ################
@@ -57,6 +59,7 @@ If you do not work in a remote development environment, you will need these prer
 
 The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_.
 It might be slightly different on different machines.
+For Windows, click on Start menu and type WSL to enter Linux console. Please note, not doing this will result in errors in next steps.
 
 Docker Community Edition
 ------------------------
@@ -223,7 +226,7 @@ Forking and cloning Project
 
 3. Follow `Cloning a repository <https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE`_
-   chapter below
+   chapter below)
 
 .. note::
     For windows based machines, on cloning, the Git line endings may be different from unix based systems
@@ -236,6 +239,9 @@ Forking and cloning Project
 
 Configuring prek
 ----------------
+
+.. note::
+   Run the commands in this section in your **local terminal** (on your host machine), not inside a Breeze shell. Prek hooks run on your host to check and format code before you commit.
 
 Before committing changes to github or raising a pull request, the code needs to be checked for certain quality standards
 such as spell check, code syntax, code formatting, compatibility with Apache License requirements etc. This set of
@@ -260,6 +266,14 @@ To avoid burden on our CI infrastructure and to save time, prek hooks can be run
 
 Installing prek is best done with ``uv`` (recommended) or ``pipx``.
 
+You can also update the tools installed with UV, including ``prek``.
+
+   Run the following command to upgrade all UV-managed tools:
+
+   .. code-block:: bash
+
+     uv tool upgrade --all
+
 1.  Installing required packages
 
 on Debian / Ubuntu, install via
@@ -283,6 +297,7 @@ on macOS, install via
 .. code-block:: bash
 
   uv tool install prek
+
 
 or with pipx:
 
@@ -353,12 +368,13 @@ It will run prek hooks automatically before committing and stops the commit on f
   prek install
   git commit -m "Added xyz"
 
-8. To disable prek hooks
+8. If you want to disable prek hooks
 
 .. code-block:: bash
 
   cd ~/Projects/airflow
   prek uninstall
+
 
 - For more information on this visit |08_static_code_checks.rst|
 
@@ -400,7 +416,7 @@ see in CI in your local environment.
    It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
    in September 2023
 
-2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze`` in your checked-out
+2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze``) in your checked-out
    repository. Make sure to follow any instructions printed during the installation - this is needed
    to make sure that the ``breeze`` command is available in your PATH
 
@@ -454,7 +470,7 @@ see in CI in your local environment.
 
    .. code-block:: bash
 
-      breeze compile-ui-assets
+      breeze ui compile-assets
 
    After running this, verify that the compiled UI assets have been added to ``/airflow/.build/ui``.
 
@@ -465,7 +481,7 @@ see in CI in your local environment.
       breeze --python 3.10 --backend postgres
 
 
-5. When you enter the Breeze environment you should see a prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
+5. When you enter the Breeze environment you should see a prompt similar to ``[Breeze:3.10.19] root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command
 
@@ -475,11 +491,11 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# airflow db reset
+  [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# airflow db reset
 
 .. code-block:: bash
 
-        root@b76fcb399bb6:/opt/airflow# airflow users create \
+   [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# airflow users create \
                 --username admin \
                 --firstname FIRST_NAME \
                 --lastname LAST_NAME \
@@ -495,7 +511,7 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# exit
+  [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# exit
 
 8. You can stop the environment (which means deleting the databases and database servers running in the
    background) via ``breeze down`` command
@@ -630,25 +646,66 @@ If ``breeze`` was started with ``breeze start-airflow``, this command will stop 
 
 .. code-block:: bash
 
-  root@f3619b74c59a:/opt/airflow# stop_airflow
+  [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# stop_airflow
   breeze down
 
 If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or similar):
 
 .. code-block:: bash
 
-  root@f3619b74c59a:/opt/airflow# exit
+  [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# exit
   breeze down
 
 .. note::
-    ``stop_airflow`` is available only when `breeze` is started with ``breeze start-airflow``.
+    ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow``.
+
+Using tmux Instead of mprocs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, ``breeze start-airflow`` uses mprocs to manage Airflow components. You can use ``tmux`` as an
+alternative with the ``--terminal-multiplexer tmux`` argument. The last choice of yours will be remembered
+for the next run, you can switch back to ``mprocs`` anytime by using ``--terminal-multiplexer mprocs``.
+
+.. code-block:: bash
+
+  breeze start-airflow --terminal-multiplexer tmux
+
+and
+
+.. code-block:: bash
+
+  breeze start-airflow --terminal-multiplexer mprocs
+
+You can also switch terminal multiplexer via breeze config:
+
+.. code-block:: bash
+
+  breeze setup config --terminal_multiplexer tmux
+  breeze setup config --terminal_multiplexer mprocs
+
+** Benefits of using tmux:**
+
+* Familiar terminal multiplexer for many developers
+* More control over panes and windows
+* Customizable key bindings and layouts
+* Wide range of plugins and extensions
+* ability to see more than one log at a time
+
+**Benefits of using mprocs:**
+
+* Modern terminal UI with better visual feedback
+* Easier navigation with mouse and keyboard
+* Individual process controls (start, stop, restart)
+* Process status indicators
+* Better cross-platform support
+
+For more information on mprocs, look at `mprocs documentation <mprocs/MPROCS_QUICK_REFERENCE.md>`__.
 
 1. Knowing more about Breeze
 
 .. code-block:: bash
 
-  breeze --help
-
+   breeze --help
 
 Following are some of important topics of `Breeze documentation <../dev/breeze/doc/README.rst>`__:
 
@@ -691,7 +748,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
+   [Breeze:3.10.19] root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
    ============================================================= test session starts ==============================================================
    platform linux -- Python 3.10.20, pytest-8.3.3, pluggy-1.5.0 -- /usr/python/bin/python
    cachedir: .pytest_cache
@@ -828,7 +885,7 @@ If you are familiar with Python development and use your favourite editors, Airf
 similarly to other projects of yours. However, if you need specific instructions for your IDE you
 will find more detailed instructions here:
 
-* `Pycharm/IntelliJ <quick-start-ide/contributors_quick_start_pycharm.rst>`_
+* `Pycharm/IntelliJ <quick-start-ide/contributors_quick_start_pycharm_intellij.rst>`_
 * `Visual Studio Code <quick-start-ide/contributors_quick_start_vscode.rst>`_
 
 

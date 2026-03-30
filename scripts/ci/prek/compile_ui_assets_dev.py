@@ -18,11 +18,9 @@
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 from common_prek_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH
 
 # NOTE!. This script is executed from a node environment created by a prek hook, and this environment
@@ -78,13 +76,14 @@ if __name__ == "__main__":
             stdout=f,
             stderr=subprocess.STDOUT,
         )
-        subprocess.Popen(
-            ["pnpm", "dev"],
-            cwd=os.fspath(UI_DIRECTORY),
-            env=env,
-            stdout=f,
-            stderr=subprocess.STDOUT,
-        )
+
+    subprocess.Popen(
+        ["pnpm", "dev"],
+        cwd=os.fspath(UI_DIRECTORY),
+        env=env,
+        stdout=open(UI_ASSET_OUT_DEV_MODE_FILE, "a"),
+        stderr=subprocess.STDOUT,
+    )
 
     with open(SIMPLE_AUTH_MANAGER_UI_ASSET_OUT_DEV_MODE_FILE, "w") as f:
         subprocess.run(
@@ -94,11 +93,15 @@ if __name__ == "__main__":
             stdout=f,
             stderr=subprocess.STDOUT,
         )
-        subprocess.run(
-            ["pnpm", "dev"],
-            check=True,
-            cwd=os.fspath(SIMPLE_AUTH_MANAGER_UI_DIRECTORY),
-            env=env,
-            stdout=f,
-            stderr=subprocess.STDOUT,
-        )
+
+    subprocess.Popen(
+        ["pnpm", "dev"],
+        cwd=os.fspath(SIMPLE_AUTH_MANAGER_UI_DIRECTORY),
+        env=env,
+        stdout=open(SIMPLE_AUTH_MANAGER_UI_ASSET_OUT_DEV_MODE_FILE, "a"),
+        stderr=subprocess.STDOUT,
+    )
+
+    # Keep script alive so child processes stay in the same process group.
+    # When breeze exits, kill_process_group() will terminate all processes together.
+    signal.pause()

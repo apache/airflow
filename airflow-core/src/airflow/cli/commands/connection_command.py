@@ -30,7 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import is_stdout, print_export_output
+from airflow.cli.utils import SENSITIVE_PLACEHOLDER, is_stdout, print_export_output
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
@@ -43,28 +43,92 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session
 
 
+def _mask_uri_credentials(uri: str) -> str:
+    """
+    Mask credentials in a URI while preserving structure.
+
+    Examples::
+
+        postgresql://user:pass@host:5432/db -> postgresql://***:***@host:5432/db
+        mysql://host/db -> mysql://host/db  (no credentials to mask)
+    """
+    if not uri:
+        return uri
+
+    try:
+        parsed = urlsplit(uri)
+        if not parsed.scheme:
+            return SENSITIVE_PLACEHOLDER
+
+        if "@" in parsed.netloc:
+            _creds, host_port = parsed.netloc.split("@", 1)
+            masked_netloc = f"{SENSITIVE_PLACEHOLDER}:{SENSITIVE_PLACEHOLDER}@{host_port}"
+            return urlunsplit((parsed.scheme, masked_netloc, parsed.path, parsed.query, parsed.fragment))
+        return uri
+    except Exception:
+        return SENSITIVE_PLACEHOLDER
+
+
+class ConnectionDisplayMapper:
+    """Mapper class for formatting connection data for CLI display."""
+
+    @staticmethod
+    def full_details(conn: Connection) -> dict[str, Any]:
+        """Return complete connection details including all fields."""
+        return {
+            "id": conn.id,
+            "conn_id": conn.conn_id,
+            "conn_type": conn.conn_type,
+            "description": conn.description,
+            "host": conn.host,
+            "schema": conn.schema,
+            "login": conn.login,
+            "password": conn.password,
+            "port": conn.port,
+            "is_encrypted": conn.is_encrypted,
+            "is_extra_encrypted": conn.is_encrypted,
+            "extra_dejson": conn.extra_dejson,
+            "get_uri": conn.get_uri(),
+        }
+
+    @staticmethod
+    def ids_only(conn: Connection) -> dict[str, Any]:
+        """Return only connection identifiers (no sensitive values). Used by list by default."""
+        return {
+            "conn_id": conn.conn_id,
+            "conn_type": conn.conn_type,
+        }
+
+    @staticmethod
+    def masked_sensitive(conn: Connection) -> dict[str, Any]:
+        """Return full connection structure with password, extra, and URI credentials masked."""
+        return {
+            "id": conn.id,
+            "conn_id": conn.conn_id,
+            "conn_type": conn.conn_type,
+            "description": conn.description,
+            "host": conn.host,
+            "schema": conn.schema,
+            "login": conn.login,
+            "password": SENSITIVE_PLACEHOLDER if conn.password else conn.password,
+            "port": conn.port,
+            "is_encrypted": conn.is_encrypted,
+            "is_extra_encrypted": conn.is_encrypted,
+            "extra_dejson": SENSITIVE_PLACEHOLDER if conn.extra_dejson else conn.extra_dejson,
+            "get_uri": _mask_uri_credentials(conn.get_uri()),
+        }
+
+
 def _connection_mapper(conn: Connection) -> dict[str, Any]:
-    return {
-        "id": conn.id,
-        "conn_id": conn.conn_id,
-        "conn_type": conn.conn_type,
-        "description": conn.description,
-        "host": conn.host,
-        "schema": conn.schema,
-        "login": conn.login,
-        "password": conn.password,
-        "port": conn.port,
-        "is_encrypted": conn.is_encrypted,
-        "is_extra_encrypted": conn.is_encrypted,
-        "extra_dejson": conn.extra_dejson,
-        "get_uri": conn.get_uri(),
-    }
+    return ConnectionDisplayMapper.full_details(conn)
 
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def connections_get(args):
     """Get a connection."""
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
     try:
         conn = Connection.get_connection_from_secrets(args.conn_id)
     except AirflowNotFoundException:
@@ -79,18 +143,33 @@ def connections_get(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def connections_list(args):
-    """List all connections at the command line."""
+    """
+    List all connections at the command line.
+
+    By default only connection IDs and types are shown. Use --show-values to display
+    full connection details; use --hide-sensitive to mask passwords and URIs.
+    """
+    show_values = getattr(args, "show_values", False)
+    hide_sensitive = getattr(args, "hide_sensitive", False)
+
+    if hide_sensitive and not show_values:
+        raise SystemExit("--hide-sensitive can only be used with --show-values")
+
+    if not show_values:
+        mapper = ConnectionDisplayMapper.ids_only
+    elif hide_sensitive:
+        mapper = ConnectionDisplayMapper.masked_sensitive
+    else:
+        mapper = ConnectionDisplayMapper.full_details
+
     with create_session() as session:
         query = select(Connection)
-        if args.conn_id:
-            query = query.where(Connection.conn_id == args.conn_id)
-        query = session.scalars(query)
-        conns = query.all()
+        conns = session.scalars(query).all()
 
         AirflowConsole().print_as(
             data=conns,
             output=args.output,
-            mapper=_connection_mapper,
+            mapper=mapper,
         )
 
 
@@ -358,6 +437,8 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
 @providers_configuration_loaded
 def connections_test(args) -> None:
     """Test an Airflow connection."""
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
     console = AirflowConsole()
     if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
         console.print(

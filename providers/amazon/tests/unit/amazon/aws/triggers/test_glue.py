@@ -22,7 +22,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.triggers.glue import (
@@ -85,10 +84,12 @@ class TestGlueJobTrigger:
             waiter_delay=10,
         )
         generator = trigger.run()
+        event = await generator.asend(None)
 
-        with pytest.raises(AirflowException):
-            await generator.asend(None)
         assert_expected_waiter_type(mock_get_waiter, "job_complete")
+        assert event.payload["status"] == "error"
+        assert "message" in event.payload
+        assert event.payload["run_id"] == "JobRunId"
 
     def test_serialization(self):
         trigger = GlueJobCompleteTrigger(

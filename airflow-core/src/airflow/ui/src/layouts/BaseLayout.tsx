@@ -21,6 +21,9 @@ import { useEffect, type PropsWithChildren } from "react";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 
+import { usePluginServiceGetPlugins } from "openapi/queries";
+import type { ReactAppResponse } from "openapi/requests/types.gen";
+import { ReactPlugin } from "src/pages/ReactPlugin";
 import { useConfig } from "src/queries/useConfig";
 
 import { Nav } from "./Nav";
@@ -28,6 +31,13 @@ import { Nav } from "./Nav";
 export const BaseLayout = ({ children }: PropsWithChildren) => {
   const instanceName = useConfig("instance_name");
   const { i18n } = useTranslation();
+  const { data: pluginData } = usePluginServiceGetPlugins();
+  const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
+
+  const baseReactPlugins =
+    pluginData?.plugins
+      .flatMap((plugin) => plugin.react_apps)
+      .filter((reactApp: ReactAppResponse) => reactApp.destination === "base") ?? [];
 
   if (typeof instanceName === "string") {
     document.title = instanceName;
@@ -50,11 +60,67 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
     };
   }, [i18n]);
 
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+
+    if (!link) {
+      return undefined;
+    }
+
+    const defaultFavicon = link.href;
+    const darkIcon = theme?.icon_dark_mode;
+    const lightIcon = theme?.icon;
+    // favicon color theme should follow system color scheme, not the one set in Airflow UI.
+    // (tab colors in browsers are based on system color scheme, not the one set in the website)
+    const darkModeQuery = globalThis.matchMedia("(prefers-color-scheme: dark)");
+
+    const updateFavicon = () => {
+      const customIcon =
+        darkModeQuery.matches && typeof darkIcon === "string" && darkIcon.length > 0 ? darkIcon : lightIcon;
+
+      if (typeof customIcon === "string" && customIcon.length > 0) {
+        link.href = customIcon;
+
+        const img = new Image();
+
+        img.addEventListener("error", () => {
+          link.href = defaultFavicon;
+        });
+        img.src = customIcon;
+      } else {
+        link.href = defaultFavicon;
+      }
+    };
+
+    updateFavicon();
+    darkModeQuery.addEventListener("change", updateFavicon);
+
+    return () => {
+      darkModeQuery.removeEventListener("change", updateFavicon);
+      link.href = defaultFavicon;
+    };
+  }, [theme?.icon, theme?.icon_dark_mode]);
+
   return (
     <LocaleProvider locale={i18n.language || "en"}>
-      <Nav />
-      <Box _ltr={{ ml: 20 }} _rtl={{ mr: 20 }} display="flex" flexDirection="column" h="100vh" p={3}>
-        {children ?? <Outlet />}
+      <Box display="flex" flexDirection="column" h="100vh">
+        <Nav />
+        <Box
+          _ltr={{ ml: 16 }}
+          _rtl={{ mr: 16 }}
+          data-testid="main-content"
+          display="flex"
+          flex={1}
+          flexDirection="column"
+          minH={0}
+          overflowY="auto"
+          p={3}
+        >
+          {baseReactPlugins.map((plugin) => (
+            <ReactPlugin key={plugin.name} reactApp={plugin} />
+          ))}
+          {children ?? <Outlet />}
+        </Box>
       </Box>
     </LocaleProvider>
   );

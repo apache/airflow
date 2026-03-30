@@ -20,8 +20,6 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.comprehend import (
@@ -29,9 +27,10 @@ from airflow.providers.amazon.aws.triggers.comprehend import (
     ComprehendPiiEntitiesDetectionJobCompletedTrigger,
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class ComprehendBaseSensor(AwsBaseSensor[ComprehendHook]):

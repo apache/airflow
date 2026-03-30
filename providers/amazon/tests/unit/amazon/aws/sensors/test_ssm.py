@@ -92,3 +92,55 @@ class TestSsmRunCommandCompletedSensor:
         mock_ssm_list_invocations(mock_conn, state)
         with pytest.raises(RuntimeError, match=self.SENSOR.FAILURE_MESSAGE):
             self.sensor.poke({})
+
+    @mock.patch.object(SsmHook, "conn")
+    def test_sensor_default_fails_on_failed_status(self, mock_conn, mock_ssm_list_invocations):
+        """Test that sensor fails on Failed status in traditional mode (fail_on_nonzero_exit=True)."""
+        mock_ssm_list_invocations(mock_conn, "Failed")
+        self.sensor.hook.conn = mock_conn
+        with pytest.raises(RuntimeError, match=self.SENSOR.FAILURE_MESSAGE):
+            self.sensor.poke({})
+
+    @mock.patch.object(SsmHook, "conn")
+    def test_sensor_enhanced_mode_tolerates_failed_status(self, mock_conn, mock_ssm_list_invocations):
+        """Test that sensor tolerates Failed status in enhanced mode (fail_on_nonzero_exit=False)."""
+        sensor = self.SENSOR(**self.default_op_kwarg, fail_on_nonzero_exit=False)
+        mock_ssm_list_invocations(mock_conn, "Failed")
+        sensor.hook.conn = mock_conn
+        assert sensor.poke({}) is True
+
+    @mock.patch.object(SsmHook, "conn")
+    def test_sensor_enhanced_mode_fails_on_timeout(self, mock_conn, mock_ssm_list_invocations):
+        """Test that sensor still fails on TimedOut status in enhanced mode."""
+        sensor = self.SENSOR(**self.default_op_kwarg, fail_on_nonzero_exit=False)
+        mock_ssm_list_invocations(mock_conn, "TimedOut")
+        sensor.hook.conn = mock_conn
+        with pytest.raises(RuntimeError, match=f"SSM command {COMMAND_ID} TimedOut"):
+            sensor.poke({})
+
+    @mock.patch.object(SsmHook, "conn")
+    def test_sensor_enhanced_mode_fails_on_cancelled(self, mock_conn, mock_ssm_list_invocations):
+        """Test that sensor still fails on Cancelled status in enhanced mode."""
+        sensor = self.SENSOR(**self.default_op_kwarg, fail_on_nonzero_exit=False)
+        mock_ssm_list_invocations(mock_conn, "Cancelled")
+        sensor.hook.conn = mock_conn
+        with pytest.raises(RuntimeError, match=f"SSM command {COMMAND_ID} Cancelled"):
+            sensor.poke({})
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.ssm.SsmRunCommandTrigger")
+    def test_sensor_passes_parameter_to_trigger(self, mock_trigger_class):
+        """Test that fail_on_nonzero_exit parameter is passed correctly to trigger in deferrable mode."""
+        sensor = self.SENSOR(**self.default_op_kwarg, fail_on_nonzero_exit=False, deferrable=True)
+
+        with mock.patch.object(sensor, "defer") as mock_defer:
+            sensor.execute({})
+
+            # Verify defer was called
+            assert mock_defer.called
+
+            # Verify the trigger was instantiated with correct parameters
+            mock_trigger_class.assert_called_once()
+            call_kwargs = mock_trigger_class.call_args[1]
+
+            assert call_kwargs["command_id"] == COMMAND_ID
+            assert call_kwargs["fail_on_nonzero_exit"] is False

@@ -1,15 +1,15 @@
 {
   "favorite": {
-    "favoriteDags_many": "Primeiros {{count}} DAGs favoritos",
-    "favoriteDags_one": "Primeiro {{count}} DAG favorito",
-    "favoriteDags_other": "Primeiros {{count}} DAGs favoritos",
-    "favoriteDags_zero": "Nenhum DAG favorito",
+    "favoriteDags_many": "Primeiros {{count}} Dags favoritos",
+    "favoriteDags_one": "Primeiro {{count}} Dag favorito",
+    "favoriteDags_other": "Primeiros {{count}} Dags favoritos",
+    "favoriteDags_zero": "Nenhum Dag favorito",
     "noDagRuns": "Ainda não há DagRun para este dag.",
-    "noFavoriteDags": "Nenhum favorito ainda. Clique no ícone de estrela ao lado de um DAG na lista para adicioná-lo aos seus favoritos."
+    "noFavoriteDags": "Nenhum favorito ainda. Clique no ícone de estrela ao lado de um Dag na lista para adicioná-lo aos seus favoritos."
   },
   "group": "Grupo",
   "health": {
-    "dagProcessor": "Processador de DAG",
+    "dagProcessor": "Processador de Dag",
     "health": "Saúde",
     "healthy": "Saúde",
     "lastHeartbeat": "Último Heartbeat",
@@ -21,10 +21,10 @@
   },
   "history": "Histórico",
   "importErrors": {
-    "dagImportError_many": "Erros de Importação de DAG",
-    "dagImportError_one": "Erro de Importação de DAG",
-    "dagImportError_other": "Erros de Importação de DAG",
-    "dagImportError_zero": "Nenhum erro de importação de DAG",
+    "dagImportError_many": "Erros de Importação de Dag",
+    "dagImportError_one": "Erro de Importação de Dag",
+    "dagImportError_other": "Erros de Importação de Dag",
+    "dagImportError_zero": "Nenhum erro de importação de Dag",
     "searchByFile": "Pesquisar por arquivo",
     "timestamp": "Timestamp"
   },
@@ -37,11 +37,11 @@
   },
   "source": "Fonte",
   "stats": {
-    "activeDags": "DAGs Ativos",
-    "failedDags": "DAGs Falhados",
-    "queuedDags": "DAGs em Fila",
+    "activeDags": "Dags Ativos",
+    "failedDags": "Dags Falhados",
+    "queuedDags": "Dags em Fila",
     "requiredActions": "Ações Necessárias",
-    "runningDags": "DAGs em Execução",
+    "runningDags": "Dags em Execução",
     "stats": "Estatísticas"
   },
   "uri": "URI",

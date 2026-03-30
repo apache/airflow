@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.teradata.utils.bteq_util import (
     identify_os,
     is_valid_encoding,

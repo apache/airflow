@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.utils.databricks import (
     extract_failed_task_errors,
@@ -67,6 +67,19 @@ class TestDatabricksOperatorSharedFunctions:
             "test_tuple": ["1", "1.0", "a", "b"],
         }
         assert normalise_json_content(test_json) == expected
+
+    def test_normalise_json_content_with_xcom_arg(self):
+        """XComArg values should be passed through since they resolve at runtime."""
+        from airflow.providers.common.compat.sdk import DAG, BaseOperator
+
+        with DAG(dag_id="test_dag"):
+            op = BaseOperator(task_id="test_task")
+            xcom_arg = op.output
+
+        test_json = {"job_id": xcom_arg, "name": "test"}
+        result = normalise_json_content(test_json)
+        assert result["job_id"] is xcom_arg
+        assert result["name"] == "test"
 
     def test_validate_trigger_event_success(self):
         event = {

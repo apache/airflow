@@ -23,10 +23,9 @@ from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import pagerduty
-from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.connection import get_async_connection
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.http.hooks.http import HttpAsyncHook
 
 if TYPE_CHECKING:
@@ -286,7 +285,7 @@ class PagerdutyEventsAsyncHook(HttpAsyncHook):
             return self.integration_key
 
         if self.pagerduty_events_conn_id is not None:
-            conn = await sync_to_async(self.get_connection)(self.pagerduty_events_conn_id)
+            conn = await get_async_connection(self.pagerduty_events_conn_id)
             self.integration_key = conn.password
             if self.integration_key:
                 return self.integration_key

@@ -27,6 +27,162 @@
 Changelog
 ---------
 
+6.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add PAT authentication support to SnowflakeSqlApiHook (#62162)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``Adds documentation for previously added support (#63487)``
+* ``Remove 3.12 warning (#63325)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+6.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow SnowflakeHook + SnowflakeSqlApiHook 'private_key_content' to use raw key in addition to base64 encoding (#62378)``
+
+Misc
+~~~~
+
+* ``Centralize OAuth grant_type validation in SnowflakeHook (#61969)``
+* ``Lazy load 'snowflake' imports in Snowflake provider. (#62365)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add missing conn-fields for providers migrated to yaml (#62116)``
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Added retry logic for Snowflake OAuth token requests (#61796)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Migrate connection UI metadata to YAML for some providers (#62011)``
+
+6.9.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle HTTP 422 responses via _process_response instead of raising immediately in Snowflake SQL API hook (#60891)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``(feat): add HTTP request customization parameters to 'SnowflakeSqlApiHook' (#60689)``
+
+Misc
+~~~~
+
+* ``reformat add proxy support commit (#60432)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.8.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix OAuth token refresh for long-running SnowflakeHook tasks and add tests. (#60027)``
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrated conf imports for snowflake provider to use sdk config (#60002)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve changelog descriptions in PR #59947 (latest versions only) (#60036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.8.1
+.....
+
+Misc
+~~~~
+
+* ``Remove unneeded call to SnowflakeSqlApiHook (#59470)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+6.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support optional scope in OAuth token request (#58871)``
+
+Misc
+~~~~
+
+* ``chore: use OL macros instead of building OL ids from scratch (#59197)``
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.7.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add support for cancelling running queries via SQL API (#56164)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
 6.6.1
 .....
 

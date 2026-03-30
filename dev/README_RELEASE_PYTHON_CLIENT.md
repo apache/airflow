@@ -25,13 +25,9 @@
 - [Release package](#release-package)
   - [Prepare PyPI convenience "RC" packages](#prepare-pypi-convenience-rc-packages)
   - [Prepare Vote email on the Airflow Client release candidate](#prepare-vote-email-on-the-airflow-client-release-candidate)
-- [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
-  - [SVN check](#svn-check)
-  - [Reproducible package check](#reproducible-package-check)
-  - [Signature check](#signature-check)
-  - [SHA512 checksum check](#sha512-checksum-check)
-- [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
-  - [Testing with Breeze's start-airflow](#testing-with-breezes-start-airflow)
+- [Verification of the release candidate](#verification-of-the-release-candidate)
+  - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
+  - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
 - [Publish the final Apache Airflow client release](#publish-the-final-apache-airflow-client-release)
   - [Summarize the voting for the Apache Airflow client release](#summarize-the-voting-for-the-apache-airflow-client-release)
   - [Publish release to SVN](#publish-release-to-svn)
@@ -279,9 +275,14 @@ Body:
 cat <<EOF
 Hey fellow Airflowers,
 
-I have cut the first release candidate for the Apache Airflow Python Client ${VERSION}.
-This email is calling for a vote on the release,
-which will last for 72 hours. Consider this my (binding) +1.
+The release candidate for Apache Airflow Python Client ${VERSION_RC} is now available for testing!
+
+This email is calling for a vote on the release, which will last at least 72 hours, from Friday, October 8, 2025 at 4:00 pm UTC
+until Monday, October 11, 2025 at 4:00 pm UTC, and until 3 binding +1 votes have been received.
+
+https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
+
+Consider this my (binding) +1.
 
 Airflow Client ${VERSION}${VERSION_SUFFIX} is available at:
 https://dist.apache.org/repos/dist/dev/airflow/clients/python/${VERSION_RC}/
@@ -324,7 +325,9 @@ Cheers,
 EOF
 ```
 
-# Verify the release candidate by PMC members
+# Verification of the release candidate
+
+## Verify the release candidate by PMC members
 
 PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
@@ -340,20 +343,28 @@ The legal checks include:
 * verifying if all the checksums are valid for the release
 * verifying if all the sources have correct licences
 
-## SVN check
+### Setup Verification
 
-The files should be present in the sub-folder of
-[Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/clients/python)
+Set versions of the packages to be checked:
 
-The following files should be present (6 files):
-
-* .tar.gz + .asc + .sha512
-* -py3-none-any.whl + .asc + .sha512
-
-As a PMC member, you should be able to clone the SVN repository
+Go to directory where your airflow sources are checked out and set the following environment variables:
 
 ```shell script
-svn co https://dist.apache.org/repos/dist/dev/airflow/clients/python
+export AIRFLOW_REPO_ROOT="$(pwd -P)"
+VERSION=X.Y.Z
+VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
+```
+
+First clone the repo if you do not have it.
+As a PMC member, you should be able to clone the SVN repository.
+
+```shell script
+cd ..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
+
+export PATH_TO_AIRFLOW_SVN="${PWD}/asf-dist/dev/airflow/"
 ```
 
 Or update it if you already checked it out:
@@ -362,35 +373,61 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-## Reproducible package check
+### SVN check
+
+The files should be present in the sub-folder of
+[Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/clients/python)
+
+The following files should be present (9 files):
+
+* .tar.gz + .asc + .sha512
+* -py3-none-any.whl + .asc + .sha512
+
+Enter into the release directory
+
+```shell script
+cd ${PATH_TO_AIRFLOW_SVN}
+ls -la clients/python/${VERSION_RC}
+```
+
+Example Output:
+
+```shell
+(airflow) bugra@dev:~/PycharmProjects/asf-dist/dev/airflow/clients/python/3.1.8rc1$ ls -la
+total 57448
+drwxrwxr-x 2 bugra bugra     4096 Mar 25 21:29 .
+drwxrwxr-x 3 bugra bugra     4096 Mar 25 21:28 ..
+-rw-rw-r-- 1 bugra bugra   386033 Mar 25 21:29 apache_airflow_client-3.1.8-py3-none-any.whl
+-rw-rw-r-- 1 bugra bugra      228 Mar 25 21:29 apache_airflow_client-3.1.8-py3-none-any.whl.asc
+-rw-rw-r-- 1 bugra bugra      175 Mar 25 21:29 apache_airflow_client-3.1.8-py3-none-any.whl.sha512
+-rw-rw-r-- 1 bugra bugra   223960 Mar 25 21:29 apache_airflow_client-3.1.8.tar.gz
+-rw-rw-r-- 1 bugra bugra      228 Mar 25 21:29 apache_airflow_client-3.1.8.tar.gz.asc
+-rw-rw-r-- 1 bugra bugra      165 Mar 25 21:29 apache_airflow_client-3.1.8.tar.gz.sha512
+-rw-rw-r-- 1 bugra bugra 58173692 Mar 25 21:29 apache_airflow_python_client-3.1.8-source.tar.gz
+-rw-rw-r-- 1 bugra bugra      228 Mar 25 21:29 apache_airflow_python_client-3.1.8-source.tar.gz.asc
+-rw-rw-r-- 1 bugra bugra      179 Mar 25 21:29 apache_airflow_python_client-3.1.8-source.tar.gz.sha512
+```
+
+### Reproducible package check
 
 Airflow Python client supports reproducible builds, which means that the packages prepared from the same
 sources should produce binary identical packages in reproducible way. You should check if the packages can be
 binary-reproduced when built from the sources.
 
-1) Set versions of the packages to be checked:
+1) Change directory where your airflow sources are checked out
 
 ```shell script
-cd <directory where airflow is checked out>
-VERSION=X.Y.Z
-VERSION_SUFFIX=rc1
-VERSION_RC=${VERSION}${VERSION_SUFFIX}
-```
-
-2) Change directory where your airflow sources are checked out
-
-```shell
 cd "${AIRFLOW_REPO_ROOT}"
 ```
 
-3) Check out the ``python-client`` tag (assume apache is the remote name of the repository):
+2) Check out the ``python-client`` tag (assume apache is the remote name of the repository):
 
 ```shell
 git fetch apache --tags
 git checkout python-client/${VERSION_RC}
 ```
 
-4) Build the distribution and source tarball:
+3) Build the distribution and source tarball:
 
 ```shell script
 rm -rf dist/*
@@ -416,15 +453,8 @@ file containing airflow sources in dist folder.
 you just built:
 
 ```shell script
-# First clone the repo if you do not have it
-cd ..
-[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
-svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
-
-export PATH_TO_SVN="${PWD}/asf-dist/dev/airflow/"
-
 # Then compare the packages
-cd ${PATH_TO_SVN}/clients/python/${VERSION_RC}
+cd ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"
@@ -439,14 +469,14 @@ In case the files are different, you should see:
 Binary files apache_airflow-client-2.9.0.tar.gz and .../apache_airflow-2.9.0.tar.gz differ
 ```
 
-You can use `check_files.py` script to verify that all expected files are
-present in SVN. This script may help also with verifying installation of the packages.
+You can use the `breeze release-management check-release-files` command to verify that all expected files are
+present in SVN. This command may also help with verifying installation of the packages.
 
 ```shell script
-cd $AIRFLOW_REPO_ROOT/dev
-uv run check_files.py python-client -v ${VERSION_RC} -p ${PATH_TO_SVN}
+breeze release-management check-release-files python-client --version ${VERSION_RC}
 ```
 
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ### Licence check
 
@@ -454,28 +484,32 @@ This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
 
-You can run this command to do it for you:
+You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz -O /tmp/apache-rat-0.18-bin.tar.gz
+echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_SVN}/clients/python/${VERSION_RC}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
+rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
 ```
 
 Run the check:
 
 ```shell script
-java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-python-client-src/.rat-excludes /tmp/apache-airflow-python-client-src/ | grep -E "! |INFO: "
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-python-client-src/.rat-excludes
+java -jar /tmp/apache-rat-0.18/apache-rat-0.18.jar --input-exclude-file /tmp/apache-airflow-python-client-src/.rat-excludes /tmp/apache-airflow-python-client-src/ | grep -E "! |INFO: "
 ```
 
 You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
 
 ```
-INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Apache Creadur RAT 0.18 (Apache Software Foundation)
 INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
 INFO: Excluding MISC collection.
 INFO: Excluding HIDDEN_DIR collection.
@@ -505,7 +539,7 @@ For example:
 ! /CODE_OF_CONDUCT.md
 ```
 
-## Signature check
+### Signature check
 
 Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
@@ -513,6 +547,7 @@ Make sure you have imported into your GPG the PGP key of the person signing the 
 You can import the whole KEYS file:
 
 ```shell script
+wget https://dist.apache.org/repos/dist/release/airflow/KEYS
 gpg --import KEYS
 ```
 
@@ -537,7 +572,7 @@ gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7
 Once you have the keys, the signatures can be verified by running this:
 
 ```shell script
-cd ${PATH_TO_SVN}/clients/python/${VERSION_RC}
+cd ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}
 for i in *.asc
 do
    echo -e "Checking $i\n"; gpg --verify $i
@@ -572,12 +607,12 @@ gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 ```
 
-## SHA512 checksum check
+### SHA512 checksum check
 
 Run this:
 
 ```shell script
-cd ${PATH_TO_SVN}/clients/python/${VERSION_RC}
+cd ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}
 for i in *.sha512
 do
     echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
@@ -592,7 +627,7 @@ Checking apache_airflow-client-2.0.2rc4-py2.py3-none-any.whl.sha512
 ```
 
 
-# Verify the release candidate by Contributors
+## Verify the release candidate by Contributors
 
 This can be done (and we encourage to) by any of the Contributors. In fact, it's best if the
 actual users of Airflow Client test it in their own staging/test installations. Each release candidate
@@ -603,7 +638,7 @@ release candidate number 1,2,3,....).
 Once you install and run Airflow Client, you should perform any verification you see as necessary to check
 that the client works as you expected.
 
-## Testing with Breeze's start-airflow
+### Testing with Breeze's start-airflow
 
 You can test the client by running the `start-airflow` command from Breeze. This will start Airflow
 and allows you to test the client in a real environment.
@@ -652,10 +687,19 @@ python /opt/airflow/clients/python/test_python_client.py
 
 ## Summarize the voting for the Apache Airflow client release
 
+Subject:
+
+```
+[RESULT][VOTE] Release Airflow Python Client 3.1.3 from 3.1.3rc1
+```
+
 ```shell script
 Hello,
 
-Apache Airflow Python Client 2.5.0 (based on RC1) has been accepted.
+The vote to release Apache Airflow Python Client version 3.1.3 based on 3.1.3rc1 is now closed.
+
+The vote PASSED with 3 binding "+1", 1 non-binding "+1" and 0 "-1" votes:
+
 
 3 "+1" binding votes received:
 - Ephraim Anierobi
@@ -723,13 +767,13 @@ We need to upload the packages to PyPI. Note that we are not copying the generat
 
 ```shell script
 cd ${VERSION}
-twine check *.tar.gz *.whl
+twine check *${VERSION}.tar.gz *.whl
 ```
 
 - Upload the package to PyPi's production environment:
 
 ```shell script
-twine upload -r pypi *.tar.gz *.whl
+twine upload -r pypi *${VERSION}.tar.gz *.whl
 ```
 
 - Confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow-client
@@ -773,7 +817,7 @@ Dear Airflow community,
 I'm happy to announce that Apache Airflow Python Client ${VERSION} was just released.
 
 We made this version available on PyPI for convenience:
-\`pip install apache-airflow-client\`
+\`pip install apache-airflow-client==${VERSION}\`
 https://pypi.org/project/apache-airflow-client/${VERSION}/
 
 The documentation is available at:

@@ -16,8 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { BiTargetLock } from "react-icons/bi";
 import { FiBarChart, FiUser } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
 import {
@@ -28,15 +31,24 @@ import {
   MdCode,
   MdPlayArrow,
   MdCheckCircle,
+  MdBuild,
+  MdComputer,
 } from "react-icons/md";
+import { PiQueue } from "react-icons/pi";
 
-import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
+import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
 import type { FilterConfig } from "src/components/FilterBar";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
-import { dagRunStateOptions, dagRunTypeOptions } from "src/constants/stateOptions";
+import {
+  dagRunStateOptions,
+  dagRunTypeOptions,
+  jobStateOptions,
+  jobTypeOptions,
+  taskInstanceStateOptions,
+} from "src/constants/stateOptions";
 
 import { SearchParamsKeys } from "./searchParams";
 
@@ -49,13 +61,13 @@ export enum FilterTypes {
 }
 
 export const useFilterConfigs = () => {
-  const { t: translate } = useTranslation(["browse", "common", "admin", "hitl"]);
+  const { t: translate } = useTranslation(["browse", "common", "components", "admin", "hitl"]);
 
   const filterConfigMap = {
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.END_DATE,
       icon: <MdDateRange />,
-      label: translate("common:logicalDate"),
+      label: translate("components:backfill.dateRange"),
       startKey: SearchParamsKeys.START_DATE,
       type: FilterTypes.DATERANGE,
     },
@@ -63,6 +75,12 @@ export const useFilterConfigs = () => {
       hotkeyDisabled: true,
       icon: <MdSearch />,
       label: translate("hitl:filters.body"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.BUNDLE_VERSION]: {
+      hotkeyDisabled: true,
+      icon: <MdCode />,
+      label: translate("common:bundleVersion"),
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.CONF_CONTAINS]: {
@@ -115,6 +133,13 @@ export const useFilterConfigs = () => {
       min: 0,
       type: FilterTypes.NUMBER,
     },
+    [SearchParamsKeys.END_DATE_RANGE]: {
+      endKey: SearchParamsKeys.END_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:endDate"),
+      startKey: SearchParamsKeys.END_DATE_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.BEFORE,
       icon: <MdDateRange />,
@@ -125,6 +150,36 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.EVENT_TYPE]: {
       label: translate("browse:auditLog.filters.eventType"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.EXECUTOR_CLASS]: {
+      hotkeyDisabled: true,
+      icon: <MdBuild />,
+      label: translate("admin:jobs.columns.executorClass"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.HOSTNAME]: {
+      hotkeyDisabled: true,
+      icon: <MdComputer />,
+      label: translate("admin:jobs.columns.hostname"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.JOB_STATE]: {
+      icon: <MdCheckCircle />,
+      label: translate("common:state"),
+      options: jobStateOptions.items.map((option) => ({
+        label: translate(option.label),
+        value: option.value === "all" ? "" : option.value,
+      })),
+      type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.JOB_TYPE]: {
+      icon: <MdBuild />,
+      label: translate("admin:jobs.columns.jobType"),
+      options: jobTypeOptions.items.map((option) => ({
+        label: translate(option.label),
+        value: option.value === "all" ? "" : option.value,
+      })),
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.KEY_PATTERN]: {
       icon: <MdSearch />,
@@ -143,6 +198,36 @@ export const useFilterConfigs = () => {
       label: translate("common:mapIndex"),
       min: -1,
       type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.NAME_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <TaskIcon />,
+      label: translate("common:taskId"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.OPERATOR_NAME_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <MdBuild />,
+      label: translate("common:task.operator"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.PARTITION_KEY_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <MdSearch />,
+      label: translate("common:dagRun.partitionKey"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.POOL_NAME_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <BiTargetLock />,
+      label: translate("common:taskInstance.pool"),
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.QUEUE_NAME_PATTERN]: {
+      hotkeyDisabled: true,
+      icon: <PiQueue />,
+      label: translate("common:taskInstance.queue"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.RESPONDED_BY_USER_NAME]: {
       hotkeyDisabled: true,
@@ -202,6 +287,13 @@ export const useFilterConfigs = () => {
       })),
       type: FilterTypes.SELECT,
     },
+    [SearchParamsKeys.START_DATE_RANGE]: {
+      endKey: SearchParamsKeys.START_DATE_LTE,
+      icon: <MdDateRange />,
+      label: translate("common:startDate"),
+      startKey: SearchParamsKeys.START_DATE_GTE,
+      type: FilterTypes.DATERANGE,
+    },
     [SearchParamsKeys.STATE]: {
       icon: <MdCheckCircle />,
       label: translate("common:state"),
@@ -232,6 +324,20 @@ export const useFilterConfigs = () => {
       icon: <TaskIcon />,
       label: translate("common:taskId"),
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.TASK_STATE]: {
+      icon: <MdCheckCircle />,
+      label: translate("common:state"),
+      options: taskInstanceStateOptions.items.map((option) => ({
+        label:
+          option.value === "all" ? (
+            translate(option.label)
+          ) : (
+            <StateBadge state={option.value as TaskInstanceState}>{translate(option.label)}</StateBadge>
+          ),
+        value: option.value === "all" ? "" : option.value,
+      })),
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
       hotkeyDisabled: true,

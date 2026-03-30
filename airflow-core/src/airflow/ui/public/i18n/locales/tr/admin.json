@@ -3,6 +3,7 @@
     "description": "Açıklama",
     "key": "Anahtar",
     "name": "Ad",
+    "team": "Takım",
     "value": "Değer"
   },
   "config": {
@@ -49,6 +50,12 @@
     "searchPlaceholder": "Bağlantıları Ara",
     "test": "Bağlantıyı Test Et",
     "testDisabled": "Bağlantı test özelliği devre dışı. Etkinleştirmek için lütfen bir yönetici ile iletişime geçin.",
+    "testError": {
+      "title": "Bağlantı Testi Başarısız"
+    },
+    "testSuccess": {
+      "title": "Bağlantı Testi Başarılı"
+    },
     "typeMeta": {
       "error": "Bağlantı Tipi Meta verileri alınamadı",
       "standardFields": {
@@ -73,6 +80,23 @@
   },
   "formActions": {
     "save": "Kaydet"
+  },
+  "jobs": {
+    "columns": {
+      "executorClass": "Yürütücü Sınıfı",
+      "hostname": "Sunucu Adı",
+      "id": "Kimlik",
+      "jobType": "İş Tipi",
+      "latestHeartbeat": "Son Kalp Atışı",
+      "unixname": "Unix Adı"
+    },
+    "filters": {
+      "allStates": "Bütün Durumlar",
+      "allTypes": "Bütün Tipler",
+      "dagProcessorJob": "Dag İşlemcisi İşi",
+      "schedulerJob": "Zamanlayıcı İşi",
+      "triggererJob": "Tetikleyici İşi"
+    }
   },
   "plugins": {
     "columns": {

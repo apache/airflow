@@ -23,11 +23,9 @@ from typing import TYPE_CHECKING, Any
 
 from airbyte_api.models import JobStatusEnum
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -96,7 +94,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
             self.log.debug("Running in non-deferrable mode...")
             hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
         else:
-            self.log.debug("Running in defferable mode in job state %s...", state)
+            self.log.debug("Running in deferrable mode in job state %s...", state)
             if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
                 self.defer(
                     timeout=self.execution_timeout,

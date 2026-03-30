@@ -21,9 +21,9 @@ from unittest.mock import ANY
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 
 class TestGlueJobSensor:

@@ -103,6 +103,11 @@ export const $ExecuteTask = {
         ti: {
             '$ref': '#/components/schemas/TaskInstance'
         },
+        sentry_integration: {
+            type: 'string',
+            title: 'Sentry Integration',
+            default: ''
+        },
         type: {
             type: 'string',
             const: 'ExecuteTask',
@@ -250,6 +255,21 @@ export const $JobCollectionResponse = {
     required: ['jobs', 'total_entries'],
     title: 'JobCollectionResponse',
     description: 'Job Collection serializer.'
+} as const;
+
+export const $ConcurrencyRequest = {
+    properties: {
+        concurrency: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            title: 'Concurrency',
+            description: 'New concurrency limit for the worker.'
+        }
+    },
+    type: 'object',
+    required: ['concurrency'],
+    title: 'ConcurrencyRequest',
+    description: 'Request body for worker concurrency update.'
 } as const;
 
 export const $MaintenanceRequest = {

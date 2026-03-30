@@ -28,6 +28,125 @@
 Changelog
 ---------
 
+4.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement execution_timeout semantics for DbtCloudRunJobOperator in deferrable mode (#61472)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Migrate dbt Cloud connection UI fields to YAML config (#62579)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
+4.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add sync and async helpers to resolve the dbt Cloud account ID from the (#61757)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Raise on unexpected terminal dbt Cloud job run states (#61300)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.6.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DbtCloudRunJobTrigger timeout error message and add final status check (#61979) (#62306)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
+4.6.4
+.....
+
+Misc
+~~~~
+
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix time-machine lib >=3.0.0 supporting changes (#60939)``
+
+4.6.3
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Source dbt provider to use airflow.sdk.configuration.conf (#59988)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+
+4.6.2
+.....
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+4.6.1
+.....
+
+Misc
+~~~~
+
+* ``chore: use OL macros instead of building OL ids from scratch (#59197)``
+* ``Add backcompat for exceptions in providers (#58727)``
+
+Doc-only
+~~~~~~~~
+
+* ``CHG: fix address (#59193)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.6.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Bump min version of openlineage libraries to 1.40.0 to fix compat issues (#58302)``
+
 4.5.0
 .....
 

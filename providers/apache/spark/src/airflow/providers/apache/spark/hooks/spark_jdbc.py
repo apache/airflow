@@ -20,8 +20,8 @@ from __future__ import annotations
 import os
 from typing import Any, cast
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class SparkJDBCHook(SparkSubmitHook):
@@ -29,7 +29,7 @@ class SparkJDBCHook(SparkSubmitHook):
     Extends the SparkSubmitHook for performing data transfers to/from JDBC-based databases with Apache Spark.
 
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
-    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark-submit>`
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>`
         as configured in Airflow administration
     :param spark_conf: Any additional Spark configuration properties
     :param spark_py_files: Additional python files used (.zip, .egg, or .py)

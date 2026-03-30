@@ -134,7 +134,7 @@ class TestGetJobs(TestJobEndpoint):
             (TESTCASE_ONE_SCHEDULER, {}, 200, 1),
             (TESTCASE_ONE_SCHEDULER_WITH_HOSTNAME, {"hostname": "HOSTNAME"}, 200, 1),
             (TESTCASE_HA_SCHEDULERS, {"limit": 100}, 200, 3),
-            (TESTCASE_IGNORE_NOT_RUNNING, {}, 200, 0),
+            (TESTCASE_IGNORE_NOT_RUNNING, {}, 200, 3),
             (TESTCASE_MULTIPLE_SCHEDULERS_ON_ONE_HOST, {"limit": 100}, 200, 3),
         ],
     )
@@ -151,19 +151,21 @@ class TestGetJobs(TestJobEndpoint):
         response_json = response.json()
         assert response_json["total_entries"] == expected_total_entries
 
-        for idx, resp_job in enumerate(response_json["jobs"]):
+        for resp_job in response_json["jobs"]:
+            matched = [j for j in self.scheduler_jobs if j.id == resp_job["id"]]
+            assert len(matched) == 1
             expected_job = {
-                "id": self.scheduler_jobs[idx].id,
+                "id": matched[0].id,
                 "dag_display_name": None,
                 "dag_id": None,
-                "state": "running",
+                "state": matched[0].state,
                 "job_type": "SchedulerJob",
-                "start_date": from_datetime_to_zulu(self.scheduler_jobs[idx].start_date),
+                "start_date": from_datetime_to_zulu(matched[0].start_date),
                 "end_date": None,
-                "latest_heartbeat": from_datetime_to_zulu(self.scheduler_jobs[idx].latest_heartbeat),
+                "latest_heartbeat": from_datetime_to_zulu(matched[0].latest_heartbeat),
                 "executor_class": None,
-                "hostname": self.scheduler_jobs[idx].hostname,
-                "unixname": self.scheduler_jobs[idx].unixname,
+                "hostname": matched[0].hostname,
+                "unixname": matched[0].unixname,
             }
             assert resp_job == expected_job
 

@@ -63,7 +63,7 @@ For pre-defined schemes (e.g., ``file``, ``postgres``, and ``s3``), you must pro
     # invalid asset:
     must_contain_bucket_name = Asset("s3://")
 
-Do not use the ``airflow`` scheme, which is is reserved for Airflow's internals.
+Do not use the ``airflow`` scheme, which is reserved for Airflow's internals.
 
 Airflow always prefers using lower cases in schemes, and case sensitivity is needed in the host part of the URI to correctly distinguish between resources.
 
@@ -90,10 +90,10 @@ The identifier does not have to be absolute; it can be a scheme-less, relative U
 
 Non-absolute identifiers are considered plain strings that do not carry any semantic meanings to Airflow.
 
-Extra information on asset
+Extra information on assets
 ----------------------------
 
-If needed, you can include an extra dictionary in an asset:
+If needed, you can include an additional dictionary in an asset using the ``extra`` parameter:
 
 .. code-block:: python
 
@@ -102,9 +102,54 @@ If needed, you can include an extra dictionary in an asset:
         extra={"team": "trainees"},
     )
 
-This can be used to supply custom description to the asset, such as who has ownership to the target file, or what the file is for. The extra information does not affect an asset's identity.
+This allows you to provide custom metadata about the asset, such as ownership information or the purpose of the file. The ``extra`` field does **NOT** affect the identity of an asset.
+Thus, maintaining the uniqueness of the ``extra`` value is the user responsibility. It suggested to have only one single set of ``extra`` value per asset.
 
-.. note:: **Security Note:** Asset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either asset URIs or extra key values!
+For example, in the following snippet, only one of the ``extra`` dictionaries will ultimately be stored, but it does guaranteed which one will be stored.
+
+.. code-block:: python
+
+     Asset("s3://asset/example.csv", extra={"d": "e"})
+     Asset("s3://asset/example.csv", extra={"f": "g"})
+
+This behavior also applies to dynamically generated assets created through ``AssetAlias``.
+In the example below, the final stored ``extra`` value is not guaranteed and it might vary based on Dag processor settings.
+
+.. code-block:: python
+
+    from airflow.sdk import AssetAlias
+
+
+    @dag(schedule=None)
+    def my_dag_1():
+
+        @task(outlets=[AssetAlias("my-task-outputs")])
+        def my_task_with_outlet_events(*, outlet_events):
+            outlet_events[AssetAlias("my-task-outputs")].add(
+                # Asset extra set as {"from": "asset alias"}
+                Asset("s3://bucket/my-task", extra={"from": "asset alias"})
+            )
+
+        my_task_with_outlet_events()
+
+
+    # Asset extra set as {"key": "value"}
+    @dag(schedule=Asset("s3://bucket/my-task", extra={"key": "value"}))
+    def my_dag_2(): ...
+
+
+    my_dag_1()
+    my_dag_2()
+
+    # It's not guaranteed which extra will be the one stored
+
+Security Warnings
+----------------------------
+
+1. **Secure naming of asset URIs:** Asset URIs and values in the ``extra`` field are stored in cleartext in Airflow's metadata database. These fields are **not encrypted**. **DO NOT** store sensitive information, especially credentials, in either the asset URI or the ``extra`` dictionary.
+
+2. **Security Implication of Asset Creation**: In Airflow's security model, granting the ``can_create`` permission on Assets is effectively equivalent to granting "trigger" permissions on all downstream Dags that depend on those assets. Because Airflow uses an "implicit trust" model for data-aware scheduling, any user who can create an Asset Event (via the API or a task) can trigger any Dag scheduled on that asset, even if the user does not have permission to view or edit the downstream Dags. Exercise caution when granting ``can_create`` on Assets in multi-tenant environments, as it allows users to influence workflows outside their direct scope.
+
 
 Creating a task to emit asset events
 ------------------------------------
@@ -149,7 +194,7 @@ Attaching extra information to an emitting asset event
 .. versionadded:: 2.10.0
 
 A task with an asset outlet can optionally attach extra information before it emits an asset event. This is different
-from `Extra information on asset`_. Extra information on an asset statically describes the entity pointed to by the asset URI; extra information on the *asset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
+from `Extra information on assets`_. Extra information on an asset statically describes the entity pointed to by the asset URI; extra information on the *asset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
 
 The easiest way to attach extra information to the asset event is by ``yield``-ing a ``Metadata`` object from a task:
 
@@ -356,3 +401,151 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
         def consume_asset_alias_events(*, inlet_events):
             events = inlet_events[AssetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
+
+Asset partitions
+----------------
+
+.. versionadded:: 3.2.0
+
+Asset events can include a ``partition_key`` to make it _partitioned__. This lets you model
+the same asset at partition granularity (for example, ``2026-03-10T09:00:00`` for an
+hourly partition).
+
+To produce partitioned events on a schedule, use
+``CronPartitionTimetable`` in the producer Dag (or ``@asset``). This timetable
+creates asset events with a partition key on each run.
+
+.. code-block:: python
+
+    from airflow.sdk import CronPartitionTimetable, asset
+
+
+    @asset(
+        uri="file://incoming/player-stats/team_b.csv",
+        schedule=CronPartitionTimetable("15 * * * *", timezone="UTC"),
+    )
+    def team_b_player_stats():
+        pass
+
+Partitioned events are intended for partition-aware downstream scheduling, and
+do not trigger non-partition-aware Dags.
+
+For downstream partition-aware scheduling, use ``PartitionedAssetTimetable``:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, StartOfHourMapper, PartitionedAssetTimetable
+
+    with DAG(
+        dag_id="clean_and_combine_player_stats",
+        schedule=PartitionedAssetTimetable(
+            assets=team_a_player_stats & team_b_player_stats & team_c_player_stats,
+            default_partition_mapper=StartOfHourMapper(),
+        ),
+        catchup=False,
+    ):
+        ...
+
+``PartitionedAssetTimetable`` requires partitioned asset events. If an asset
+event does not contain a ``partition_key``, it will not trigger a downstream
+Dag that uses ``PartitionedAssetTimetable``.
+
+``default_partition_mapper`` is used for every upstream asset unless you
+override it via ``partition_mapper_config``. The default mapper is
+``IdentityMapper`` (no key transformation).
+
+Partition mappers define how upstream partition keys are transformed to the
+downstream Dag partition key:
+
+* ``IdentityMapper`` keeps keys unchanged.
+* Temporal mappers such as ``StartOfHourMapper``, ``StartOfDayMapper``, and
+  ``StartOfYearMapper`` normalize time keys to a chosen grain. For input key
+  ``2026-03-10T09:37:51``, the default outputs are:
+
+  * ``StartOfHourMapper`` -> ``2026-03-10T09``
+  * ``StartOfDayMapper`` -> ``2026-03-10``
+  * ``StartOfYearMapper`` -> ``2026``
+* ``ProductMapper`` maps composite keys segment-by-segment.
+  It applies one mapper per segment and then rejoins the mapped segments.
+  For example, with key ``us|2026-03-10T09:00:00``,
+  ``ProductMapper(IdentityMapper(), StartOfDayMapper())`` produces
+  ``us|2026-03-10``.
+* ``AllowedKeyMapper`` validates that keys are in a fixed allow-list and
+  passes the key through unchanged if valid.
+  For example, ``AllowedKeyMapper(["us", "eu", "apac"])`` accepts only those
+  region keys and rejects all others.
+
+Example of per-asset mapper configuration and composite-key mapping:
+
+.. code-block:: python
+
+    from airflow.sdk import (
+        Asset,
+        IdentityMapper,
+        PartitionedAssetTimetable,
+        ProductMapper,
+        StartOfDayMapper,
+    )
+
+    regional_sales = Asset(uri="file://incoming/sales/regional.csv", name="regional_sales")
+
+    with DAG(
+        dag_id="aggregate_regional_sales",
+        schedule=PartitionedAssetTimetable(
+            assets=regional_sales,
+            default_partition_mapper=ProductMapper(IdentityMapper(), StartOfDayMapper()),
+        ),
+    ):
+        ...
+
+You can also override mappers for specific upstream assets with
+``partition_mapper_config``:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset, DAG, StartOfDayMapper, IdentityMapper, PartitionedAssetTimetable
+
+    hourly_sales = Asset(uri="file://incoming/sales/hourly.csv", name="hourly_sales")
+    daily_targets = Asset(uri="file://incoming/sales/targets.csv", name="daily_targets")
+
+    with DAG(
+        dag_id="join_sales_and_targets",
+        schedule=PartitionedAssetTimetable(
+            assets=hourly_sales & daily_targets,
+            # Default behavior: map timestamp-like keys to daily keys.
+            default_partition_mapper=StartOfDayMapper(),
+            # Override for assets that already emit daily partition keys.
+            partition_mapper_config={
+                daily_targets: IdentityMapper(),
+            },
+        ),
+    ):
+        ...
+
+If transformed partition keys from all required upstream assets do not align,
+the downstream Dag will not be triggered for that partition.
+
+The same applies when a mapper cannot transform a key. For example, if an
+upstream event has ``partition_key="random-text"`` and the downstream mapping
+uses ``DailyMapper`` (which expects a timestamp-like key), no downstream
+partition match can be produced, so the downstream Dag is not triggered for
+that key.
+
+Inside partitioned Dag runs, access the resolved partition through
+``dag_run.partition_key``.
+
+You can also trigger a DagRun manually with a partition key (for example,
+through the Trigger Dag window in the UI, or through the REST API by
+including ``partition_key`` in the request body):
+
+.. code-block:: bash
+
+    curl -X POST "http://<airflow-host>/api/v2/dags/aggregate_regional_sales/dagRuns" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "logical_date": "2026-03-10T00:00:00Z",
+        "partition_key": "us|2026-03-10T09:00:00"
+      }'
+
+For complete runnable examples, see
+``airflow-core/src/airflow/example_dags/example_asset_partition.py``.

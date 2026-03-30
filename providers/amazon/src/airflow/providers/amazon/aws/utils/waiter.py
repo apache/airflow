@@ -22,7 +22,7 @@ import time
 from collections.abc import Callable
 from enum import Enum
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 
 log = logging.getLogger(__name__)
 

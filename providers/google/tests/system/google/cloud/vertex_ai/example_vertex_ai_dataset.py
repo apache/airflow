@@ -90,11 +90,6 @@ TABULAR_DATASET = {
         Value(),
     ),
 }
-VIDEO_DATASET = {
-    "display_name": f"video-dataset-{ENV_ID}",
-    "metadata_schema_uri": schema.dataset.metadata.video,
-    "metadata": Value(string_value="video-dataset"),
-}
 TEST_EXPORT_CONFIG = {"gcs_destination": {"output_uri_prefix": f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/exports"}}
 TEST_IMPORT_CONFIG = [
     {
@@ -133,12 +128,6 @@ with DAG(
     create_tabular_dataset_job = CreateDatasetOperator(
         task_id="tabular_dataset",
         dataset=TABULAR_DATASET,
-        region=REGION,
-        project_id=PROJECT_ID,
-    )
-    create_video_dataset_job = CreateDatasetOperator(
-        task_id="video_dataset",
-        dataset=VIDEO_DATASET,
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -192,7 +181,7 @@ with DAG(
         task_id="update_dataset",
         project_id=PROJECT_ID,
         region=REGION,
-        dataset_id=create_video_dataset_job.output["dataset_id"],
+        dataset_id=create_time_series_dataset_job.output["dataset_id"],
         dataset=DATASET_TO_UPDATE,
         update_mask=TEST_UPDATE_MASK,
     )
@@ -224,14 +213,6 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    delete_video_dataset_job = DeleteDatasetOperator(
-        task_id="delete_video_dataset",
-        dataset_id=create_video_dataset_job.output["dataset_id"],
-        region=REGION,
-        project_id=PROJECT_ID,
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket",
         bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
@@ -243,10 +224,9 @@ with DAG(
         create_bucket
         # TEST BODY
         >> [
-            create_time_series_dataset_job >> delete_dataset_job,
+            create_time_series_dataset_job >> update_dataset_job >> delete_dataset_job,
             create_tabular_dataset_job >> get_dataset >> delete_tabular_dataset_job,
             create_image_dataset_job >> import_data_job >> export_data_job >> delete_image_dataset_job,
-            create_video_dataset_job >> update_dataset_job >> delete_video_dataset_job,
             list_dataset_job,
         ]
         # TEST TEARDOWN

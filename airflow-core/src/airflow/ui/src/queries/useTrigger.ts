@@ -21,16 +21,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
-import {
-  UseDagRunServiceGetDagRunsKeyFn,
-  useDagRunServiceTriggerDagRun,
-  useDagServiceGetDagsUiKey,
-  UseTaskInstanceServiceGetTaskInstancesKeyFn,
-  UseGridServiceGetGridRunsKeyFn,
-} from "openapi/queries";
+import { useDagRunServiceTriggerDagRun, useDagServiceGetDagsUiKey } from "openapi/queries";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
-import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
+import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import { toaster } from "src/components/ui";
+import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
+import { createErrorToaster } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -40,14 +36,10 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   const { dagId: selectedDagId } = useParams();
 
   const onSuccess = async (dagRun: TriggerDagRunResponse) => {
-    const queryKeys = [
-      [useDagServiceGetDagsUiKey],
-      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
-      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
-    ];
-
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagsUiKey] }),
+      ...gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    ]);
 
     toaster.create({
       description: translate("triggerDag.toaster.success.description"),
@@ -58,12 +50,13 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
     // Only redirect if we're already on the dag page
     if (selectedDagId === dagRun.dag_id) {
-      navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`);
+      void Promise.resolve(navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`));
     }
   };
 
-  const onError = (_error: unknown) => {
-    setError(_error);
+  const onError = (apiError: unknown) => {
+    createErrorToaster(apiError, { titleKey: "components:triggerDag.toaster.error.title" }, translate);
+    setError(apiError);
   };
 
   const { isPending, mutate } = useDagRunServiceTriggerDagRun({
@@ -75,9 +68,20 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<string, unknown>;
 
     const logicalDate = dagRunRequestBody.logicalDate ? new Date(dagRunRequestBody.logicalDate) : undefined;
-
     // eslint-disable-next-line unicorn/no-null
     const formattedLogicalDate = logicalDate?.toISOString() ?? null;
+
+    const dataIntervalStart = dagRunRequestBody.dataIntervalStart
+      ? new Date(dagRunRequestBody.dataIntervalStart)
+      : undefined;
+    // eslint-disable-next-line unicorn/no-null
+    const formattedDataIntervalStart = dataIntervalStart?.toISOString() ?? null;
+
+    const dataIntervalEnd = dagRunRequestBody.dataIntervalEnd
+      ? new Date(dagRunRequestBody.dataIntervalEnd)
+      : undefined;
+    // eslint-disable-next-line unicorn/no-null
+    const formattedDataIntervalEnd = dataIntervalEnd?.toISOString() ?? null;
 
     const checkDagRunId = dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId;
     const checkNote = dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
@@ -87,6 +91,8 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
       requestBody: {
         conf: parsedConfig,
         dag_run_id: checkDagRunId,
+        data_interval_end: formattedDataIntervalEnd,
+        data_interval_start: formattedDataIntervalStart,
         logical_date: formattedLogicalDate,
         note: checkNote,
         partition_key: dagRunRequestBody.partitionKey ?? null,
@@ -94,5 +100,9 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     });
   };
 
-  return { error, isPending, triggerDagRun };
+  return {
+    error,
+    isPending,
+    triggerDagRun,
+  };
 };

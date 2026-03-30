@@ -23,9 +23,9 @@ from unittest.mock import call, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.db import clear_test_connections
 

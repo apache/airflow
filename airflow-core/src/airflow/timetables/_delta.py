@@ -34,6 +34,21 @@ class DeltaMixin:
     def __init__(self, delta: datetime.timedelta | relativedelta) -> None:
         self._delta = delta
 
+    def __eq__(self, other: object) -> bool:
+        """
+        Return if the offsets match.
+
+        This is only for testing purposes and should not be relied on otherwise.
+        """
+        from airflow.serialization.encoders import coerce_to_core_timetable
+
+        if not isinstance(other := coerce_to_core_timetable(other), type(self)):
+            return NotImplemented
+        return self._delta == other._delta
+
+    def __hash__(self):
+        return hash(self._delta)
+
     @property
     def summary(self) -> str:
         return str(self._delta)

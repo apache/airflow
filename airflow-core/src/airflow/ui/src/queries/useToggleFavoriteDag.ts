@@ -17,7 +17,6 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
 
 import {
   useDagServiceGetDagsUiKey,
@@ -29,7 +28,7 @@ import {
 export const useToggleFavoriteDag = (dagId: string) => {
   const queryClient = useQueryClient();
 
-  const onSuccess = useCallback(async () => {
+  const onSuccess = async () => {
     // Invalidate the DAGs list query
     await queryClient.invalidateQueries({
       queryKey: [useDagServiceGetDagsUiKey, UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }])],
@@ -42,7 +41,7 @@ export const useToggleFavoriteDag = (dagId: string) => {
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
-  }, [queryClient, dagId]);
+  };
 
   const favoriteMutation = useDagServiceFavoriteDag({
     onSuccess,
@@ -52,14 +51,11 @@ export const useToggleFavoriteDag = (dagId: string) => {
     onSuccess,
   });
 
-  const toggleFavorite = useCallback(
-    (isFavorite: boolean) => {
-      const mutation = isFavorite ? unfavoriteMutation : favoriteMutation;
+  const toggleFavorite = (isFavorite: boolean) => {
+    const mutation = isFavorite ? unfavoriteMutation : favoriteMutation;
 
-      mutation.mutate({ dagId });
-    },
-    [dagId, favoriteMutation, unfavoriteMutation],
-  );
+    mutation.mutate({ dagId });
+  };
 
   return {
     error: favoriteMutation.error ?? unfavoriteMutation.error,

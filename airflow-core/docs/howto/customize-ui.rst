@@ -61,6 +61,199 @@ After
 
 .. image:: ../img/change-site-title/example_instance_name_configuration.png
 
+.. _customizing-ui-theme:
+
+Customizing UI theme
+--------------------
+
+We can provide a JSON configuration to customize the UI.
+
+.. important::
+
+  - You can customize the ``brand``, ``gray``, ``black``, and ``white`` color tokens, ``globalCss``, and the navigation icon via ``icon`` (and ``icon_dark_mode``).
+  - All color tokens are **optional** — you can override any subset without supplying the others.
+  - ``brand`` and ``gray`` each accept an 11-shade scale with keys ``50``–``950``.
+  - ``black`` and ``white`` each accept a single color: ``{ "value": "oklch(...)" }``.
+  - OKLCH colors must use the format ``oklch(l c h)``. For more info see :ref:`config:api__theme`
+  - There is also the ability to provide custom global CSS for fine-grained theme control.
+
+.. note::
+
+  Modifying the ``brand`` color palette also modifies the navbar/sidebar.
+  Modifying ``gray`` controls neutral surfaces and borders.
+  Modifying ``black`` and ``white`` controls the darkest and lightest surface colors.
+
+To customize the UI, simply:
+
+1.  Add the configuration option of ``theme`` under the ``[api]`` section inside ``airflow.cfg``:
+
+.. code-block::
+
+  [api]
+
+  theme = {
+      "tokens": {
+        "colors": {
+          "brand": {
+            "50": { "value": "oklch(0.971 0.013 17.38)" },
+            "100": { "value": "oklch(0.936 0.032 17.717)" },
+            "200": { "value": "oklch(0.885 0.062 18.334)" },
+            "300": { "value": "oklch(0.808 0.114 19.571)" },
+            "400": { "value": "oklch(0.704 0.191 22.216)" },
+            "500": { "value": "oklch(0.637 0.237 25.331)" },
+            "600": { "value": "oklch(0.577 0.245 27.325)" },
+            "700": { "value": "oklch(0.505 0.213 27.518)" },
+            "800": { "value": "oklch(0.444 0.177 26.899)" },
+            "900": { "value": "oklch(0.396 0.141 25.723)" },
+            "950": { "value": "oklch(0.258 0.092 26.042)" }
+          }
+        }
+      }
+    }
+
+
+.. note::
+
+  The whitespace, particularly on the last line, is important so a multi-line value works properly. More details can be found in the
+  the `configparser docs <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_.
+
+2.  Alternatively, you can set a custom theme using the environment variable:
+
+.. code-block::
+
+  AIRFLOW__API__THEME='{
+    "tokens": {
+      "colors": {
+        "brand": {
+          "50": { "value": "oklch(0.971 0.013 17.38)" },
+          "100": { "value": "oklch(0.936 0.032 17.717)" },
+          "200": { "value": "oklch(0.885 0.062 18.334)" },
+          "300": { "value": "oklch(0.808 0.114 19.571)" },
+          "400": { "value": "oklch(0.704 0.191 22.216)" },
+          "500": { "value": "oklch(0.637 0.237 25.331)" },
+          "600": { "value": "oklch(0.577 0.245 27.325)" },
+          "700": { "value": "oklch(0.505 0.213 27.518)" },
+          "800": { "value": "oklch(0.444 0.177 26.899)" },
+          "900": { "value": "oklch(0.396 0.141 25.723)" },
+          "950": { "value": "oklch(0.258 0.092 26.042)" }
+        }
+      }
+    }
+  }'
+
+
+Screenshots
+^^^^^^^^^^^
+
+Light Mode
+""""""""""
+
+.. image:: ../img/change-theme/exmaple_theme_configuration_light_mode.png
+
+Dark Mode
+"""""""""
+
+.. image:: ../img/change-theme/exmaple_theme_configuration_dark_mode.png
+
+3.  To add custom CSS rules to the airflow UI, you can include a ``globalCss`` key in the theme configuration. More information https://chakra-ui.com/docs/theming/customization/global-css
+
+.. code-block::
+
+  AIRFLOW__API__THEME='{
+    "tokens": {
+      "colors": {
+        "brand": {
+          "50": { "value": "oklch(0.971 0.013 17.38)" },
+          "100": { "value": "oklch(0.936 0.032 17.717)" },
+          "200": { "value": "oklch(0.885 0.062 18.334)" },
+          "300": { "value": "oklch(0.808 0.114 19.571)" },
+          "400": { "value": "oklch(0.704 0.191 22.216)" },
+          "500": { "value": "oklch(0.637 0.237 25.331)" },
+          "600": { "value": "oklch(0.577 0.245 27.325)" },
+          "700": { "value": "oklch(0.505 0.213 27.518)" },
+          "800": { "value": "oklch(0.444 0.177 26.899)" },
+          "900": { "value": "oklch(0.396 0.141 25.723)" },
+          "950": { "value": "oklch(0.258 0.092 26.042)" }
+        }
+      }
+    },
+    "globalCss": {
+      "button": {
+        "text-transform": "uppercase"
+      }
+    }
+  }'
+
+Customizing gray, black, and white tokens
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can override the neutral palette and surface colors independently of ``brand``. ``gray`` controls
+borders and neutral UI elements, while ``black`` and ``white`` control the darkest and lightest surface
+backgrounds. All fields are optional — supply only the tokens you want to change.
+
+.. code-block::
+
+  AIRFLOW__API__THEME='{
+    "tokens": {
+      "colors": {
+        "gray": {
+          "50":  { "value": "oklch(0.975 0.002 264.0)" },
+          "100": { "value": "oklch(0.950 0.003 264.0)" },
+          "200": { "value": "oklch(0.880 0.005 264.0)" },
+          "300": { "value": "oklch(0.780 0.008 264.0)" },
+          "400": { "value": "oklch(0.640 0.012 264.0)" },
+          "500": { "value": "oklch(0.520 0.015 264.0)" },
+          "600": { "value": "oklch(0.420 0.015 264.0)" },
+          "700": { "value": "oklch(0.340 0.012 264.0)" },
+          "800": { "value": "oklch(0.260 0.009 264.0)" },
+          "900": { "value": "oklch(0.200 0.007 264.0)" },
+          "950": { "value": "oklch(0.145 0.005 264.0)" }
+        },
+        "black": { "value": "oklch(0.220 0.025 288.6)" },
+        "white": { "value": "oklch(0.985 0.002 264.0)" }
+      }
+    }
+  }'
+
+Icon (SVG-only)
+^^^^^^^^^^^^^^^
+
+You can replace the default Airflow icon in the navigation bar by providing an ``icon`` key (and optionally
+``icon_dark_mode`` for dark color mode) in the ``theme`` configuration. The value must be either an absolute
+``http(s)`` URL or an app-relative path starting with ``/``, and must point to an ``.svg`` file.
+
+.. code-block::
+
+  [api]
+
+  theme = {
+      "tokens": {
+        "colors": {
+          "brand": {
+            "50": { "value": "oklch(0.971 0.013 17.38)" },
+            "100": { "value": "oklch(0.936 0.032 17.717)" },
+            "200": { "value": "oklch(0.885 0.062 18.334)" },
+            "300": { "value": "oklch(0.808 0.114 19.571)" },
+            "400": { "value": "oklch(0.704 0.191 22.216)" },
+            "500": { "value": "oklch(0.637 0.237 25.331)" },
+            "600": { "value": "oklch(0.577 0.245 27.325)" },
+            "700": { "value": "oklch(0.505 0.213 27.518)" },
+            "800": { "value": "oklch(0.444 0.177 26.899)" },
+            "900": { "value": "oklch(0.396 0.141 25.723)" },
+            "950": { "value": "oklch(0.258 0.092 26.042)" }
+          }
+        }
+      },
+      "icon": "/static/company-icon.svg",
+      "icon_dark_mode": "/static/company-icon-dark.svg"
+    }
+
+.. note::
+
+  - Only SVG icons are supported.
+  - If the icon fails to load, Airflow falls back to its default icon.
+  - Icon sizing is controlled by the UI and cannot be configured via the theme.
+
 |
 
 Adding Dashboard Alert Messages
@@ -84,10 +277,10 @@ To add static alert messages that remain constant until the webserver is restart
 
   .. code-block:: python
 
-      from airflow.www.utils import UIAlert
+      from airflow.api_fastapi.common.types import UIAlert
 
       DASHBOARD_UIALERTS = [
-          UIAlert("Welcome to Airflow"),
+          UIAlert("Welcome to Airflow", category="info"),
       ]
 
 3. Restart the Airflow webserver, and you should now see the alert message displayed on the dashboard.
@@ -121,7 +314,7 @@ message of heading 2 with a link included:
 
 .. code-block:: python
 
-    from airflow.www.utils import UIAlert
+    from airflow.api_fastapi.common.types import UIAlert
 
     DASHBOARD_UIALERTS = [
         UIAlert(text="## Visit [airflow.apache.org](https://airflow.apache.org)", category="info"),
@@ -163,7 +356,7 @@ cases might include alerts yielded from APIs, database queries or files.
 .. code-block:: python
 
     import random
-    from airflow.www.utils import UIAlert
+    from airflow.api_fastapi.common.types import UIAlert
 
 
     class DynamicAlerts(list):

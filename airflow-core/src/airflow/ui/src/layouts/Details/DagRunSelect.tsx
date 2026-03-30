@@ -17,7 +17,7 @@
  * under the License.
  */
 import { createListCollection, type SelectValueChangeDetails, Select } from "@chakra-ui/react";
-import { forwardRef, useMemo } from "react";
+import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -41,23 +41,22 @@ export const DagRunSelect = forwardRef<HTMLDivElement, DagRunSelectProps>(({ lim
   const navigate = useNavigate();
 
   const { data: gridRuns, isLoading } = useGridRuns({ limit });
-  const runOptions = useMemo(
-    () =>
-      createListCollection({
-        items: (gridRuns ?? []).map((dr: GridRunsResponse) => ({
-          run: dr,
-          value: dr.run_id,
-        })),
-      }),
-    [gridRuns],
-  );
+
+  const runOptions = createListCollection({
+    items: (gridRuns ?? []).map((dr: GridRunsResponse) => ({
+      run: dr,
+      value: dr.run_id,
+    })),
+  });
 
   const selectDagRun = ({ items }: SelectValueChangeDetails<DagRunSelected>) => {
     const runPartialPath = items.length > 0 ? `/runs/${items[0]?.run.run_id}` : "";
 
-    navigate({
-      pathname: `/dags/${dagId}${runPartialPath}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
-    });
+    void Promise.resolve(
+      navigate({
+        pathname: `/dags/${dagId}${runPartialPath}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
+      }),
+    );
   };
 
   const selectedRun = (gridRuns ?? []).find((dr) => dr.run_id === runId);

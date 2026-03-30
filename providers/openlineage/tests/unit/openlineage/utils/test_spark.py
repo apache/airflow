@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime as dt
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -110,16 +111,18 @@ def test_get_parent_job_information_as_spark_properties():
     assert result == EXAMPLE_PARENT_JOB_SPARK_PROPERTIES
 
 
-@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
 def test_get_transport_information_as_spark_properties(mock_ol_listener):
-    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
         HttpConfig.from_dict(EXAMPLE_HTTP_TRANSPORT_CONFIG)
     )
     result = _get_transport_information_as_spark_properties()
     assert result == EXAMPLE_TRANSPORT_SPARK_PROPERTIES
 
 
-@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
 def test_get_transport_information_as_spark_properties_unsupported_transport_type(mock_ol_listener):
     kafka_config = KafkaConfig(
         topic="my_topic",
@@ -131,16 +134,20 @@ def test_get_transport_information_as_spark_properties_unsupported_transport_typ
         flush=True,
         messageKey="some",
     )
-    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = KafkaTransport(
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = KafkaTransport(
         kafka_config
     )
     result = _get_transport_information_as_spark_properties()
     assert result == {}
 
 
-@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
 def test_get_transport_information_as_spark_properties_composite_transport_type(mock_ol_listener):
-    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = CompositeTransport(
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = CompositeTransport(
         CompositeConfig.from_dict(
             {"transports": {"http": EXAMPLE_HTTP_TRANSPORT_CONFIG, "kafka": EXAMPLE_KAFKA_TRANSPORT_CONFIG}}
         )
@@ -298,9 +305,11 @@ def test_inject_parent_job_information_into_spark_properties(properties, should_
         ),
     ],
 )
-@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
 def test_inject_transport_information_into_spark_properties(mock_ol_listener, properties, should_inject):
-    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
         HttpConfig.from_dict(EXAMPLE_HTTP_TRANSPORT_CONFIG)
     )
     result = inject_transport_information_into_spark_properties(properties, EXAMPLE_CONTEXT)
@@ -337,11 +346,13 @@ def test_inject_transport_information_into_spark_properties(mock_ol_listener, pr
         ),
     ],
 )
-@patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
 def test_inject_composite_transport_information_into_spark_properties(
     mock_ol_listener, properties, should_inject
 ):
-    mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = CompositeTransport(
+    fake_listener = mock.MagicMock()
+    mock_ol_listener.return_value = fake_listener
+    fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = CompositeTransport(
         CompositeConfig(
             transports={
                 "http": EXAMPLE_HTTP_TRANSPORT_CONFIG,

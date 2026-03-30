@@ -16,15 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+from unittest.mock import patch
 
+import pytest
+from sqlalchemy import select
+
+from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.models import Trigger
 from airflow.models.callback import (
     Callback,
     CallbackFetchMethod,
     CallbackState,
+    DagProcessorCallback,
     ExecutorCallback,
     TriggererCallback,
+    _accepts_context,
 )
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.triggers.base import TriggerEvent
@@ -118,11 +124,11 @@ class TestTriggererCallback:
         session.add(callback)
         session.commit()
 
-        retrieved = session.query(Callback).filter_by(id=callback.id).one()
+        retrieved = session.scalar(select(Callback).where(Callback.id == callback.id))
         assert isinstance(retrieved, TriggererCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_ASYNC_CALLBACK.serialize()
-        assert retrieved.state == CallbackState.PENDING.value
+        assert retrieved.state == CallbackState.SCHEDULED.value
         assert retrieved.output is None
         assert retrieved.priority_weight == 1
         assert retrieved.created_at is not None
@@ -130,7 +136,7 @@ class TestTriggererCallback:
 
     def test_queue(self, session):
         callback = TriggererCallback(TEST_ASYNC_CALLBACK)
-        assert callback.state == CallbackState.PENDING
+        assert callback.state == CallbackState.SCHEDULED
         assert callback.trigger is None
 
         callback.queue()
@@ -188,11 +194,11 @@ class TestExecutorCallback:
         session.add(callback)
         session.commit()
 
-        retrieved = session.query(Callback).filter_by(id=callback.id).one()
+        retrieved = session.scalar(select(Callback).where(Callback.id == callback.id))
         assert isinstance(retrieved, ExecutorCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_SYNC_CALLBACK.serialize()
-        assert retrieved.state == CallbackState.PENDING.value
+        assert retrieved.state == CallbackState.SCHEDULED.value
         assert retrieved.output is None
         assert retrieved.priority_weight == 1
         assert retrieved.created_at is not None
@@ -200,10 +206,59 @@ class TestExecutorCallback:
 
     def test_queue(self):
         callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.DAG_ATTRIBUTE)
-        assert callback.state == CallbackState.PENDING
+        assert callback.state == CallbackState.SCHEDULED
 
         callback.queue()
         assert callback.state == CallbackState.QUEUED
 
 
-# Note: class DagProcessorCallback is tested in airflow-core/tests/unit/dag_processing/test_manager.py
+class TestDagProcessorCallback:
+    def test_polymorphic_serde(self, session):
+        callback_request = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="testing",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            is_failure_callback=True,
+            run_id="123",
+        )
+        callback = DagProcessorCallback(priority_weight=11, callback=callback_request)
+        session.add(callback)
+        session.commit()
+
+        retrieved = session.scalar(select(Callback).where(Callback.id == callback.id))
+        assert isinstance(retrieved, DagProcessorCallback)
+        assert retrieved.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE
+        assert retrieved.bundle_name == "testing"
+        assert retrieved.priority_weight == 11
+        assert retrieved.state is None
+
+
+class TestAcceptsContext:
+    def test_true_when_var_keyword_present(self):
+        def func_with_var_keyword(**kwargs):
+            pass
+
+        assert _accepts_context(func_with_var_keyword) is True
+
+    def test_true_when_context_param_present(self):
+        def func_with_context(context, alert_type):
+            pass
+
+        assert _accepts_context(func_with_context) is True
+
+    def test_false_when_no_context_or_var_keyword(self):
+        def func_without_context(a, b):
+            pass
+
+        assert _accepts_context(func_without_context) is False
+
+    def test_false_when_no_params(self):
+        def func_no_params():
+            pass
+
+        assert _accepts_context(func_no_params) is False
+
+    def test_true_for_uninspectable_callable(self):
+        with patch("airflow.models.callback.inspect.signature", side_effect=ValueError):
+            assert _accepts_context(lambda: None) is True

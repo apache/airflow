@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ast
+import logging
 from copy import deepcopy
 from unittest import mock
 
@@ -26,7 +27,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator,
     ComputeEngineDeleteInstanceGroupManagerOperator,
@@ -254,6 +255,86 @@ class TestGceInstanceInsert:
             zone=GCE_ZONE,
             request_id=None,
         )
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_instance_should_recreate_on_drift(self, mock_hook):
+
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+
+        # Set existing machine_type config.
+        get_instance_obj_mock.machine_type = "zones/zone/machineTypes/old-type"
+
+        mock_hook.return_value.get_instance.side_effect = [
+            get_instance_obj_mock,  # First existence check.
+            get_instance_obj_mock,  # After recreation fetch.
+        ]
+
+        body = deepcopy(GCE_INSTANCE_BODY_API_CALL)
+
+        # Set config for new machine_type.
+        body["machine_type"] = "zones/zone/machineTypes/new-type"
+
+        op = ComputeEngineInsertInstanceOperator(
+            project_id=GCP_PROJECT_ID,
+            body=body,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            recreate_if_machine_type_different=True,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        op.execute(context=mock.MagicMock())
+
+        mock_hook.return_value.delete_instance.assert_called_once_with(
+            resource_id=op.resource_id,
+            project_id=GCP_PROJECT_ID,
+            request_id=None,
+            zone=GCE_ZONE,
+        )
+
+        mock_hook.return_value.insert_instance.assert_called_once_with(
+            body=body,
+            request_id=None,
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+        )
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_instance_logs_drift(self, mock_hook, caplog):
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+
+        # Set existing machine_type config.
+        get_instance_obj_mock.machine_type = "zones/zone/machineTypes/old-type"
+
+        mock_hook.return_value.get_instance.return_value = get_instance_obj_mock
+
+        body = deepcopy(GCE_INSTANCE_BODY_API_CALL)
+
+        # Set config for new machine_type.
+        body["machine_type"] = "zones/zone/machineTypes/new-type"
+
+        op = ComputeEngineInsertInstanceOperator(
+            project_id=GCP_PROJECT_ID,
+            resource_id=GCE_RESOURCE_ID,
+            body=body,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            recreate_if_machine_type_different=False,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with caplog.at_level(logging.WARNING):
+            op.execute(context=mock.MagicMock())
+
+        assert any("differs from requested configuration" in r.message for r in caplog.records)
+
+        # Ensure that no instances are deleted or created.
+        mock_hook.return_value.delete_instance.assert_not_called()
+        mock_hook.return_value.insert_instance.assert_not_called()
 
 
 class TestGceInstanceInsertFromTemplate:
@@ -502,14 +583,12 @@ class TestGceInstanceStart:
             api_version="{{ dag.dag_id }}",
             task_id="id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.project_id
-        assert dag_id == ti.task.zone
-        assert dag_id == ti.task.resource_id
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.project_id
+        assert dag_id == rendered.zone
+        assert dag_id == rendered.resource_id
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     def test_instance_start_should_throw_ex_when_missing_project_id(self):
         with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
@@ -595,14 +674,12 @@ class TestGceInstanceStop:
             api_version="{{ dag.dag_id }}",
             task_id="id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.project_id
-        assert dag_id == ti.task.zone
-        assert dag_id == ti.task.resource_id
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.project_id
+        assert dag_id == rendered.zone
+        assert dag_id == rendered.resource_id
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     def test_instance_stop_should_throw_ex_when_missing_project_id(self):
         with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
@@ -679,14 +756,12 @@ class TestGceInstanceSetMachineType:
             api_version="{{ dag.dag_id }}",
             task_id="id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.project_id
-        assert dag_id == ti.task.zone
-        assert dag_id == ti.task.resource_id
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.project_id
+        assert dag_id == rendered.zone
+        assert dag_id == rendered.resource_id
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     def test_machine_type_set_should_throw_ex_when_missing_project_id(self):
         with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):

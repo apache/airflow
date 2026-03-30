@@ -24,19 +24,20 @@ from unittest.mock import Mock
 import pytest
 import time_machine
 
-from airflow.exceptions import (
+from airflow.models.trigger import TriggerFailureReason
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import TaskInstanceState, timezone
+from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue, poke_mode_only
+from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
+    TaskDeferralError,
 )
-from airflow.models.trigger import TriggerFailureReason
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import TaskInstanceState, timezone
-from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue, poke_mode_only
-from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.execution_time.comms import RescheduleTask, TaskRescheduleStartDate
 from airflow.sdk.timezone import datetime
 
@@ -175,7 +176,7 @@ class TestBaseSensor:
         assert msg.reschedule_date == date1 + timedelta(seconds=sensor.poke_interval)
 
         # second poke returns False and task is re-scheduled
-        time_machine.coordinates.shift(sensor.poke_interval)
+        time_machine.shift(sensor.poke_interval)
         date2 = date1 + timedelta(seconds=sensor.poke_interval)
         state, msg, _ = run_task(task=sensor)
 
@@ -183,7 +184,7 @@ class TestBaseSensor:
         assert msg.reschedule_date == date2 + timedelta(seconds=sensor.poke_interval)
 
         # third poke returns True and task succeeds
-        time_machine.coordinates.shift(sensor.poke_interval)
+        time_machine.shift(sensor.poke_interval)
         state, _, _ = run_task(task=sensor)
 
         assert state == TaskInstanceState.SUCCESS
@@ -201,7 +202,7 @@ class TestBaseSensor:
         assert msg.reschedule_date == date1 + timedelta(seconds=sensor.poke_interval)
 
         # second poke returns False, timeout occurs
-        time_machine.coordinates.shift(sensor.poke_interval)
+        time_machine.shift(sensor.poke_interval)
 
         # Mocking values from DB/API-server
         mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=date1)
@@ -223,7 +224,7 @@ class TestBaseSensor:
         assert state == TaskInstanceState.UP_FOR_RESCHEDULE
 
         # second poke returns False, timeout occurs
-        time_machine.coordinates.shift(sensor.poke_interval)
+        time_machine.shift(sensor.poke_interval)
 
         # Mocking values from DB/API-server
         mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=date1)
@@ -258,7 +259,7 @@ class TestBaseSensor:
         # loop poke returns false
         for _poke_count in range(1, false_count + 1):
             curr_date = curr_date + timedelta(seconds=new_interval)
-            time_machine.coordinates.shift(new_interval)
+            time_machine.shift(new_interval)
             state, msg, _ = run_task(sensor, context_update={"task_reschedule_count": _poke_count})
             assert state == TaskInstanceState.UP_FOR_RESCHEDULE
             old_interval = new_interval
@@ -268,13 +269,13 @@ class TestBaseSensor:
 
         # last poke returns True and task succeeds
         curr_date = curr_date + timedelta(seconds=new_interval)
-        time_machine.coordinates.shift(new_interval)
+        time_machine.shift(new_interval)
 
         state, msg, _ = run_task(sensor, context_update={"task_reschedule_count": false_count + 1})
         assert state == TaskInstanceState.SUCCESS
 
     def test_invalid_mode(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="The mode must be one of"):
             DummySensor(task_id="a", mode="foo")
 
     def test_ok_with_custom_reschedule_exception(self, make_sensor, run_task):
@@ -311,7 +312,9 @@ class TestBaseSensor:
         negative_poke_interval = -10
         non_number_poke_interval = "abcd"
         positive_poke_interval = 10
-        with pytest.raises(AirflowException):
+        with pytest.raises(
+            ValueError, match="Operator arg `poke_interval` must be timedelta object or a non-negative number"
+        ):
             DummySensor(
                 task_id="test_sensor_task_1",
                 return_value=None,
@@ -319,7 +322,9 @@ class TestBaseSensor:
                 timeout=25,
             )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(
+            ValueError, match="Operator arg `poke_interval` must be timedelta object or a non-negative number"
+        ):
             DummySensor(
                 task_id="test_sensor_task_2",
                 return_value=None,
@@ -335,12 +340,16 @@ class TestBaseSensor:
         negative_timeout = -25
         non_number_timeout = "abcd"
         positive_timeout = 25
-        with pytest.raises(AirflowException):
+        with pytest.raises(
+            ValueError, match="Operator arg `timeout` must be timedelta object or a non-negative number"
+        ):
             DummySensor(
                 task_id="test_sensor_task_1", return_value=None, poke_interval=10, timeout=negative_timeout
             )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(
+            ValueError, match="Operator arg `timeout` must be timedelta object or a non-negative number"
+        ):
             DummySensor(
                 task_id="test_sensor_task_2", return_value=None, poke_interval=10, timeout=non_number_timeout
             )
@@ -676,3 +685,59 @@ class TestAsyncSensor:
         async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", soft_fail=soft_fail)
         with pytest.raises(expected_exception):
             async_sensor.resume_execution("execute_complete", None, {})
+
+    @pytest.mark.parametrize(
+        ("soft_fail", "expected_exception"),
+        [
+            (True, AirflowSkipException),
+            (False, AirflowSensorTimeout),
+        ],
+    )
+    def test_timeout_after_resuming_deferred_sensor_with_soft_fail(self, soft_fail, expected_exception):
+        """Test that deferrable sensors with soft_fail skip on timeout instead of failing."""
+        async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", soft_fail=soft_fail)
+        with pytest.raises(expected_exception):
+            async_sensor.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                context={},
+            )
+
+    def test_timeout_after_resuming_deferred_sensor_with_never_fail(self):
+        """Test that deferrable sensors with never_fail skip on timeout."""
+        async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", never_fail=True)
+        with pytest.raises(AirflowSkipException):
+            async_sensor.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                context={},
+            )
+
+    @pytest.mark.parametrize(
+        ("soft_fail", "expected_exception"),
+        [
+            (True, AirflowSkipException),
+            (False, TaskDeferralError),
+        ],
+    )
+    def test_trigger_failure_after_resuming_deferred_sensor_with_soft_fail(
+        self, soft_fail, expected_exception
+    ):
+        """Test that deferrable sensors with soft_fail skip on trigger failure instead of failing."""
+        async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", soft_fail=soft_fail)
+        with pytest.raises(expected_exception):
+            async_sensor.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_FAILURE},
+                context={},
+            )
+
+    def test_trigger_failure_after_resuming_deferred_sensor_with_never_fail(self):
+        """Test that deferrable sensors with never_fail skip on trigger failure."""
+        async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", never_fail=True)
+        with pytest.raises(AirflowSkipException):
+            async_sensor.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_FAILURE},
+                context={},
+            )

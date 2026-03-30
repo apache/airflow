@@ -20,11 +20,11 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import Integer, String, Text
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class ParseImportError(Base):

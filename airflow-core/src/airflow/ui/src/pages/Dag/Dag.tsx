@@ -17,7 +17,7 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiCode, FiUser, FiCalendar } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
@@ -26,6 +26,7 @@ import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
+import { ApiError } from "openapi/requests/core/ApiError";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
@@ -33,6 +34,7 @@ import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { DagNotFound } from "./DagNotFound";
 import { Header } from "./Header";
 
 export const Dag = () => {
@@ -57,6 +59,11 @@ export const Dag = () => {
 
   const refetchInterval = useAutoRefresh({ dagId });
   const [hasPendingRuns, setHasPendingRuns] = useState<boolean | undefined>(false);
+  const previousLatestRunIdRef = useRef<string>("");
+
+  useEffect(() => {
+    previousLatestRunIdRef.current = "";
+  }, [dagId]);
 
   const {
     data: dag,
@@ -94,9 +101,19 @@ export const Dag = () => {
     undefined,
     {
       enabled: Boolean(dagId),
-      refetchInterval: (query) => {
-        if (query.state.data && isStatePending(query.state.data.state)) {
-          setHasPendingRuns(true);
+      refetchInterval: ({ state: { data } }) => {
+        if (data) {
+          const { run_id: runId, state } = data;
+          const runIdChanged =
+            previousLatestRunIdRef.current !== "" && previousLatestRunIdRef.current !== runId;
+
+          if (runIdChanged || isStatePending(state)) {
+            setHasPendingRuns(true);
+          }
+
+          previousLatestRunIdRef.current = runId;
+        } else {
+          previousLatestRunIdRef.current = "";
         }
 
         return hasPendingRuns ? refetchInterval : false;
@@ -105,7 +122,10 @@ export const Dag = () => {
   );
 
   const { tabs: processedTabs } = useRequiredActionTabs({ dagId }, tabs, {
-    refetchInterval,
+    refetchInterval:
+      (dag?.active_runs_count ?? 0) > 0 || (latestRun && isStatePending(latestRun.state))
+        ? refetchInterval
+        : false,
   });
 
   const displayTabs = processedTabs.filter((tab) => {
@@ -116,16 +136,15 @@ export const Dag = () => {
     return true;
   });
 
+  // Handle 404 error when Dag is not found
+  if (error instanceof ApiError && error.status === 404) {
+    return <DagNotFound dagId={dagId} />;
+  }
+
   return (
     <ReactFlowProvider>
       <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
-        <Header
-          dag={dag}
-          isRefreshing={
-            latestRun ? Boolean(isStatePending(latestRun.state) && Boolean(refetchInterval)) : false
-          }
-          latestRunInfo={latestRun ?? undefined}
-        />
+        <Header dag={dag} latestRunInfo={latestRun ?? undefined} />
       </DetailsLayout>
     </ReactFlowProvider>
   );

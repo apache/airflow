@@ -19,18 +19,17 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 
-import boto3
 import pytest
 
-from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
+from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient, get_s3_client
 
 
 class TestRemoteLogging:
     airflow_client = AirflowClient()
     dag_id = "example_xcom_test"
     task_count = 6
-    retry_interval_in_seconds = 1
-    max_retries = 5
+    retry_interval_in_seconds = 5
+    max_retries = 12
 
     def test_dag_unpause(self):
         self.airflow_client.un_pause_dag(
@@ -56,15 +55,10 @@ class TestRemoteLogging:
 
         # This bucket will be created part of the docker-compose setup in
         bucket_name = "test-airflow-logs"
-        s3_client = boto3.client(
-            "s3",
-            endpoint_url="http://localhost:4566",
-            aws_access_key_id="test",
-            aws_secret_access_key="test",
-            region_name="us-east-1",
-        )
+        s3_client = get_s3_client()
 
         # Wait for logs to be available in S3 before we call `get_task_logs`
+        contents = []
         for _ in range(self.max_retries):
             response = s3_client.list_objects_v2(Bucket=bucket_name)
             contents = response.get("Contents", [])

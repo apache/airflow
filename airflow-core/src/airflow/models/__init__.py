@@ -64,9 +64,12 @@ def import_all_models():
     import airflow.models.backfill
     import airflow.models.dag_favorite
     import airflow.models.dag_version
+    import airflow.models.dagbag
     import airflow.models.dagbundle
     import airflow.models.dagwarning
+    import airflow.models.deadline_alert
     import airflow.models.errors
+    import airflow.models.revoked_token
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
@@ -80,7 +83,7 @@ def __getattr__(name):
     if not path:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-    from airflow.utils.module_loading import import_string
+    from airflow._shared.module_loading import import_string
 
     val = import_string(f"{path}.{name}")
 
@@ -99,20 +102,21 @@ __lazy_imports = {
     "BaseXCom": "airflow.sdk.bases.xcom",
     "Callback": "airflow.models.callback",
     "Connection": "airflow.models.connection",
-    "DagBag": "airflow.models.dagbag",
+    "DagBag": "airflow.dag_processing.dagbag",
     "DagModel": "airflow.models.dag",
     "DagRun": "airflow.models.dagrun",
     "DagTag": "airflow.models.dag",
     "DagWarning": "airflow.models.dagwarning",
     "DbCallbackRequest": "airflow.models.db_callback_request",
     "Deadline": "airflow.models.deadline",
+    "DeadlineAlert": "airflow.models.deadline_alert",
     "Log": "airflow.models.log",
     "HITLDetail": "airflow.models.hitl",
-    "MappedOperator": "airflow.models.mappedoperator",
+    "MappedOperator": "airflow.sdk.definitions.mappedoperator",
     "Param": "airflow.sdk.definitions.param",
     "Pool": "airflow.models.pool",
     "RenderedTaskInstanceFields": "airflow.models.renderedtifields",
-    "SkipMixin": "airflow.models.skipmixin",
+    "SkipMixin": "airflow.sdk.bases.skipmixin",
     "TaskInstance": "airflow.models.taskinstance",
     "TaskReschedule": "airflow.models.taskreschedule",
     "Team": "airflow.models.team",
@@ -125,27 +129,28 @@ __lazy_imports = {
 if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
+    from airflow.dag_processing.dagbag import DagBag
     from airflow.models.base import ID_LEN, Base
     from airflow.models.callback import Callback
     from airflow.models.connection import Connection
     from airflow.models.dag import DagModel, DagTag
-    from airflow.models.dagbag import DagBag
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest
     from airflow.models.deadline import Deadline
+    from airflow.models.deadline_alert import DeadlineAlert
     from airflow.models.log import Log
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.pool import Pool
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
-    from airflow.models.skipmixin import SkipMixin
     from airflow.models.taskinstance import TaskInstance, clear_task_instances
     from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
     from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Param
+    from airflow.sdk.bases.skipmixin import SkipMixin
     from airflow.sdk.bases.xcom import BaseXCom
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.xcom import XCom
 
 
@@ -170,6 +175,9 @@ __deprecated_classes = {
     },
     "baseoperatorlink": {
         "BaseOperatorLink": "airflow.sdk.BaseOperatorLink",
+    },
+    "skipmixin": {
+        "SkipMixin": "airflow.sdk.bases.skipmixin.SkipMixin",
     },
     "operator": {
         "BaseOperator": "airflow.sdk.BaseOperator",

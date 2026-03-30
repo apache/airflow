@@ -113,7 +113,7 @@ class TestAirflowInfo:
             "plugins_folder",
             "base_log_folder",
             "remote_base_log_folder",
-            "dags_folder",
+            "dag_bundle_names",
             "sql_alchemy_conn",
         }
         assert self.unique_items(instance._airflow_info) == expected

@@ -24,8 +24,9 @@ import pytest
 
 from airflow.providers.apache.druid.hooks.druid import IngestionType
 from airflow.providers.apache.druid.operators.druid import DruidOperator
-from airflow.utils import timezone
-from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.compat import timezone
+from tests_common.test_utils.taskinstance import get_template_context
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -65,10 +66,8 @@ def test_render_template(dag_maker):
             params={"index_type": "index_hadoop", "datasource": "datasource_prd"},
         )
 
-    dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-    dag_maker.session.add(dag_run.task_instances[0])
-    dag_maker.session.commit()
-    dag_run.task_instances[0].render_templates()
+    ti = dag_maker.create_ti(operator.task_id)
+    operator.render_template_fields(get_template_context(ti, operator))
     assert json.loads(operator.json_index_file) == RENDERED_INDEX
 
 
@@ -91,7 +90,8 @@ def test_render_template_from_file(tmp_path, dag_maker):
             params={"index_type": "index_hadoop", "datasource": "datasource_prd"},
         )
 
-    dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED).task_instances[0].render_templates()
+    ti = dag_maker.create_ti(operator.task_id)
+    operator.render_template_fields(get_template_context(ti, operator))
     assert json.loads(operator.json_index_file) == RENDERED_INDEX
 
 

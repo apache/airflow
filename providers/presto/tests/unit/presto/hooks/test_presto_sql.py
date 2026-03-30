@@ -25,8 +25,8 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 from sqlalchemy.engine.url import make_url
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.presto.hooks.presto import PrestoHook
 
 SerializableRow = namedtuple("SerializableRow", ["id", "value"])

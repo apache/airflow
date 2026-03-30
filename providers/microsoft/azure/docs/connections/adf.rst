@@ -17,7 +17,7 @@
 
 
 
-.. _howto/connection:adf:
+.. _howto/connection:azure_data_factory:
 
 Microsoft Azure Data Factory
 =======================================

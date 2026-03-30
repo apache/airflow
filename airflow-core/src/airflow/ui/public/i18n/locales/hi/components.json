@@ -10,6 +10,7 @@
     "maxRuns": "अधिकतम सक्रिय रन्स",
     "missingAndErroredRuns": "गुम और त्रुटि वाले रन्स",
     "missingRuns": "गुम रन्स",
+    "permissionDenied": "ड्राई रन विफल: उपयोगकर्ता के पास बैकफ़िल बनाने की अनुमति नहीं है।",
     "reprocessBehavior": "पुनः प्रक्रिया व्यवहार",
     "run": "बैकफ़िल चलाएं",
     "selectDescription": "तिथियों की रेंज के लिए इस डैग को चलाएं",
@@ -50,6 +51,13 @@
     "warning_one": "1 चेतावनी",
     "warning_other": "{{count}} चेतावनियां"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "अमान्य तिथि प्रारूप।",
+      "invalidTimeFormat": "अमान्य समय प्रारूप।",
+      "startBeforeEnd": "प्रारंभ तिथि/समय समाप्ति तिथि/समय से पहले होनी चाहिए"
+    }
+  },
   "durationChart": {
     "duration": "अवधि (सेकंड)",
     "lastDagRun_one": "अंतिम डैग रन",
@@ -89,9 +97,13 @@
   },
   "limitedList": "+{{count}} और",
   "limitedList.allItems": "सभी {{count}} आइटम:",
+  "limitedList.allTags_one": "सभी टैग्स (1)",
+  "limitedList.allTags_other": "सभी टैग्स ({{count}})",
   "limitedList.clickToInteract": "टैग पर क्लिक करके Dags फ़िल्टर करें",
   "limitedList.clickToOpenFull": "\"+{{count}} और\" पर क्लिक करके पूरी सूची खोलें",
   "limitedList.copyPasteText": "आप ऊपर दिए गए पाठ को कॉपी और पेस्ट कर सकते हैं",
+  "limitedList.showingItems_one": "1 आइटम दिखा रहा है",
+  "limitedList.showingItems_other": "{{count}} आइटम दिखा रहा है",
   "logs": {
     "file": "फ़ाइल",
     "location": "{{name}} में लाइन {{line}}"
@@ -101,10 +113,23 @@
   "sortedDescending": "अवरोही क्रम में सॉर्ट किया गया",
   "sortedUnsorted": "अनसॉर्टेड",
   "taskTries": "टास्क प्रयास",
+  "taskTryPlaceholder": "टास्क प्रयास",
+  "team": {
+    "selector": {
+      "helperText": "वैकल्पिक। उपयोग को एक विशिष्ट टीम तक सीमित करें।",
+      "label": "टीम",
+      "placeHolder": "टीम चुनें"
+    }
+  },
   "toggleCardView": "कार्ड व्यू दिखाएं",
   "toggleTableView": "टेबल व्यू दिखाएं",
   "triggerDag": {
     "button": "ट्रिगर करें",
+    "dataInterval": "डेटा अंतराल",
+    "dataIntervalAuto": "तार्किक तिथि और टाइमटेबल से अनुमानित",
+    "dataIntervalManual": "मैन्युअल रूप से निर्दिष्ट करें",
+    "intervalEnd": "अंत",
+    "intervalStart": "प्रारंभ",
     "loading": "डैग जानकारी लोड हो रही है...",
     "loadingFailed": "डैग जानकारी लोड करने में विफल। कृपया पुनः प्रयास करें।",
     "runIdHelp": "वैकल्पिक - प्रदान न किए जाने पर जेनरेट किया जाएगा",
@@ -112,11 +137,15 @@
     "selectLabel": "सिंगल रन",
     "title": "डैग ट्रिगर करें",
     "toaster": {
+      "error": {
+        "title": "डैग ट्रिगर करने में विफल"
+      },
       "success": {
         "description": "डैग रन सफलतापूर्वक ट्रिगर किया गया।",
         "title": "डैग रन ट्रिगर किया गया"
       }
     },
+    "triggerAgainWithConfig": "इस कॉन्फ़िग के साथ फिर से ट्रिगर करें",
     "unpause": "ट्रिगर पर {{dagDisplayName}} को अनपॉज़ करें"
   },
   "trimText": {
@@ -132,6 +161,7 @@
     "versionId": "संस्करण ID"
   },
   "versionSelect": {
+    "allVersions": "सभी संस्करण",
     "dagVersion": "डैग संस्करण",
     "versionCode": "v{{versionCode}}"
   }

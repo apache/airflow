@@ -76,4 +76,5 @@ rules:
       - "events"
     verbs:
       - "list"
+      - "watch"
 {{- end }}

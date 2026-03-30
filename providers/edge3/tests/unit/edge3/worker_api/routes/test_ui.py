@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from sqlalchemy import delete
 
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 
@@ -34,7 +35,7 @@ pytestmark = pytest.mark.db_test
 class TestUiApiRoutes:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, session: Session):
-        session.query(EdgeWorkerModel).delete()
+        session.execute(delete(EdgeWorkerModel))
         session.add(EdgeWorkerModel(worker_name="worker1", queues=["default"], state=EdgeWorkerState.RUNNING))
         session.commit()
 
@@ -46,3 +47,30 @@ class TestUiApiRoutes:
         assert worker_response.total_entries == 1
         assert len(worker_response.workers) == 1
         assert worker_response.workers[0].worker_name == "worker1"
+
+    def test_set_worker_concurrency_limit(self, session: Session):
+        from airflow.providers.edge3.worker_api.datamodels_ui import ConcurrencyRequest
+        from airflow.providers.edge3.worker_api.routes.ui import set_worker_concurrency_limit
+
+        set_worker_concurrency_limit(
+            worker_name="worker1",
+            concurrency_request=ConcurrencyRequest(concurrency=4),
+            session=session,
+        )
+        worker_model = session.get(EdgeWorkerModel, "worker1")
+        assert worker_model is not None
+        assert worker_model.concurrency == 4
+
+    def test_set_worker_concurrency_limit_not_found(self, session: Session):
+        from fastapi import HTTPException
+
+        from airflow.providers.edge3.worker_api.datamodels_ui import ConcurrencyRequest
+        from airflow.providers.edge3.worker_api.routes.ui import set_worker_concurrency_limit
+
+        with pytest.raises(HTTPException) as exc_info:
+            set_worker_concurrency_limit(
+                worker_name="nonexistent_worker",
+                concurrency_request=ConcurrencyRequest(concurrency=4),
+                session=session,
+            )
+        assert exc_info.value.status_code == 404

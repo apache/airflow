@@ -21,7 +21,7 @@ import logging
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.providers.redis.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler

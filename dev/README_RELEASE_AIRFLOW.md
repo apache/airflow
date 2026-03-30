@@ -22,7 +22,7 @@
 
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
-  - [Validating completeness of i18n locale files and announcing i18n freeze time](#validating-completeness-of-i18n-locale-files-and-announcing-i18n-freeze-time)
+  - [i18n workflow](#i18n-workflow)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
   - [Making the cherry picking](#making-the-cherry-picking)
   - [Collapse Cadwyn Migrations](#collapse-cadwyn-migrations)
@@ -39,6 +39,7 @@
   - [Licence check](#licence-check)
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
+  - [Optional: Automated verification using Breeze](#optional-automated-verification-using-breeze)
 - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
   - [Installing release candidate in your local virtual environment](#installing-release-candidate-in-your-local-virtual-environment)
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
@@ -60,6 +61,8 @@
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
   - [API clients](#api-clients)
+- [Additional processes](#additional-processes)
+  - [Fixing released documentation](#fixing-released-documentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -86,20 +89,117 @@ The first step of a release is to work out what is being included. This differs 
 - For a *patch* release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
 
 
-## Validating completeness of i18n locale files and announcing i18n freeze time
+## i18n workflow
 
 > [!NOTE]
-> It is recommended to delegate all operations in this task to another committer.
+>
+> 1. The instructions in this section should be applied only for major/minor releases.
+> 2. It is recommended to delegate all operations in this task to another committer.
+> 3. Except for the dev list announcements, it is recommended to communicate them via the #i18n Slack channel as well.
 
-Before cutting the release candidate (RC), you should announce a freeze time for i18n changes to allow translators to complete translations for the upcoming release without being overloaded by new terms, or other significant changes.
-The freeze should last at least one week, and until the RC is cut.
-It is recommended to announce the freeze at least two weeks before it starts.
-To prepare for the announcement, generate an output of completeness for all locale files - follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/public/i18n/README.md#81-checking-completeness-of-i18n-files) for doing so.
-The reminder should be sent via dev@airflow.apache.org mailing list - you may accompany it with a GitHub issue for tracking purposes.
+### Validating completeness of locale files
 
-> [!NOTE]
-> When applicable - you should mention, within the output, translations that have been incomplete in the past release,
-> and warn that they might be removed if they are not completed by the release date.
+Before cutting the release candidate (RC), you should verify the completeness of all merged locale files.
+Generate a completeness output for all locale files – follow the instructions in section 8.1 of the [internationalization (i18n) policy](../airflow-core/src/airflow/ui/public/i18n/README.md#81-checking-completeness-of-i18n-files) to do so.
+
+#### Patch releases (v3-X-test branch)
+
+For patch releases, post a reminder to the dev@airflow.apache.org list to complete missing phrases against the v3-X-test branch.
+
+Subject:
+
+```shell script
+[REMINDER] i18n phrases for Airflow ${VERSION} patch release (v${VERSION_BRANCH}-test)
+```
+
+Body (assuming delegation to another committer):
+
+```shell script
+cat <<EOF
+Hey fellow Airflowers,
+
+I'm sending this reminder on behalf of the release managers.
+We plan to cut the Airflow ${VERSION} RC soon/by <RELEASE_DATE> from v${VERSION_BRANCH}-test.
+
+After running the i18n completeness script against the v${VERSION_BRANCH}-test branch, here is the current coverage across merged locales as of <CURRENT_DATE>:
+
+<OUTPUT_OF_I18N_COMPLETENESS_SCRIPT>
+
+Translation owners and engaged translators are kindly asked to add missing phrases in the v3-<X>-test branch ahead of the RC.
+
+Notes:
+1. Changes merged after the final patch release won't be included, and missing terms will fall back to English.
+2. Please coordinate via the #i18n Slack channel if you need assistance or expect terminology changes.
+3. Keep PRs small and focused to minimize review time on the patch branch.
+
+Thanks for your cooperation!
+<your name>
+EOF
+```
+
+When it is time to cut the RC:
+
+- Regenerate the completeness output against v${VERSION_BRANCH}-test.
+- Post the final completeness output on the same thread.
+
+#### Minor/Major releases
+
+If the median completeness across all supported languages is below 90%, or upon other justifying circumstances (e.g., release of a critical UI feature), you should consider skipping the following instructions and applying an i18n translation freeze instead (see subsection below).
+Otherwise, you should announce the completeness status to the dev@airflow.apache.org mailing list.
+
+Subject:
+
+```shell script
+[ANNOUNCEMENT] i18n completeness check for Airflow ${VERSION} RC
+```
+
+Body (assuming delegation to another committer):
+
+
+```shell script
+cat <<EOF
+Hey fellow Airflowers,
+
+I'm sending this message on behalf of the release managers.
+The release managers are planning to cut the Airflow ${VERSION} RC soon/by <RELEASE_DATE>.
+
+After running the i18n completeness script, this is the coverage state of all merged locales as of <CURRENT_DATE>:
+
+<OUTPUT_OF_I18N_COMPLETENESS_SCRIPT>
+
+Code owners, translation owners, and engaged translators whose locales are currently below 90% coverage are kindly asked to complete their translations prior to the RC being cut.
+This will help ensure that all languages included in the upcoming release remain complete and consistent.
+
+Contributors are also encouraged to plan their PRs accordingly and avoid introducing large sets of new English terms close to the release date, to prevent unexpected translation work for code owners.
+
+Important notes:
+1. Locales that remain incomplete for two consecutive major or minor releases may be removed from the project, according to the i18n policy.
+2. Any changes merged after the final release won't be included, and missing terms will fall back to English.
+3. Code owners are responsible for ensuring that their assigned locales reach at least 90% coverage before the RC is cut.
+4. Requests for assistance, coordination, or early heads-up on expected terminology changes may be shared in the #i18n Slack channel.
+5. PRs introducing new translations may continue to be merged as usual, provided that coverage remains complete by the RC date.
+
+Thanks for your cooperation!
+<your name>
+EOF
+```
+
+When it is time to cut the RC, you should:
+
+1. Generate an additional completeness output:
+  a. If there are incomplete locales that were also incomplete in the previous major/minor release, please contact the code owner and ask them to act according to section "Relinquishing translation/code ownership" in the i18n policy (section 6.4).
+  b. If there are other incomplete locales, please write it as a reminder for the next major/minor release.
+2. Post the final completeness output on the same thread.
+
+### Applying an i18n translation freeze
+
+Before cutting the release candidate (RC), you may announce a freeze time to allow translators to complete translations for the upcoming release.
+During the freeze time, no changes to the English locale file should be merged (enforced by CI checks), except for approved exemptions (see below).
+In general, if the overall median coverage across all supported languages stays above 90%, a freeze is not required. However, if significant changes are introduced that lower the median coverage to or below this threshold, a freeze period can help translators complete their work without being overloaded.
+When a freeze is used, it should remain in effect until the median coverage reaches at least 90% again, or until the RC is cut, whichever comes first.
+The freeze should be announced at least two weeks before it starts, to allow time for translators to get ready and for contributors to plan their PRs accordingly.
+To prepare for the announcement, fetch the completeness output generated earlier.
+The announcement should be sent via the dev@airflow.apache.org mailing list – you may accompany it with a GitHub issue for tracking purposes.
 
 Subject:
 
@@ -125,13 +225,15 @@ After running the i18n completeness script, this is the coverage state of all me
 To prevent overloading the translators and to ensure completeness of all translations by the release, a freeze upon the English locale will be applied starting <START_DATE>,
 and until the RC is cut.
 Code owners, translation owners, and engaged translators are asked to complete the coverage of their assigned locales during this time.
+Contributors are also encouraged to plan their PRs accordingly, to avoid modifying the English locale during the freeze time.
 
 Important notes:
-1. Any changes merged after the final release won't not be included, and missing terms will fall back to English.
-2. Any PR that modifies the English locale during the freeze time will fail CI checks.
-3. Requests for exemptions should be communicated in the #i18n Slack channel, and approved by at least 1 PMC member - guidelines for approval are available in the i18n policy.
-4. PRs approved for an exemption will be labeled with `allow translation change`, and then the relevant CI check will pass. Translators are encouraged to complete the translations for the exempted terms during the freeze time.
-5. Merging PRs for adding new translations could be done during the freeze time - designated code owners should validate that by the end of the freeze time, the coverage of the suggested translation is complete.
+1. Locales that remain incomplete for two consecutive major or minor releases may be removed from the project, according to the i18n policy.
+2. Any changes merged after the final release won't be included, and missing terms will fall back to English.
+3. Any PR that modifies the English locale during the freeze time will fail CI checks.
+4. Requests for exemptions should be communicated in the #i18n Slack channel, and approved by at least 1 PMC member - guidelines for approval are available in the i18n policy.
+5. PRs approved for an exemption will be labeled with `allow translation change`, and then the relevant CI check will pass. Translators are encouraged to complete the translations for the exempted terms during the freeze time.
+6. Merging PRs for adding new translations could be done during the freeze time - designated code owners should validate that by the end of the freeze time, the coverage of the suggested translation is complete.
 
 
 Thanks for your cooperation!
@@ -140,12 +242,12 @@ EOF
 ```
 
 When the freeze starts, you should merge a PR for setting the flag `FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED` to `True` in the file [selective_checks.py](./breeze/src/airflow_breeze/utils/selective_checks.py).
-If the freeze gets extended, you should update the announcement thread accordingly.
+If the freeze gets extended beyond the originally announced date, you should post an update on the same thread.
 When it is time to cut the RC, you should:
 
 1. Generate an additional completeness output:
   a. If there are incomplete locales that were also incomplete in the previous completeness output, please contact the code owner and ask them to act according to section "Relinquishing translation/code ownership" in the i18n policy (section 6.4).
-  b. If there are other incomplete locales, please write it as a reminder for the next freeze announcement.
+  b. If there are other incomplete locales, please write it as a reminder for the next major/minor release.
 2. Create a PR for setting the flag back to `False`.
 3. Post on the same thread that the freeze is lifted, and share the final completeness output.
 
@@ -175,26 +277,12 @@ and mark those as well. You can accomplish this by running the following command
 ./dev/airflow-github needs-categorization 2.3.2 HEAD
 ```
 
-Often you also want to cherry-pick changes related to CI and development tools, to include the latest
-stability fixes in CI and improvements in development tools. Usually you can see the list of such
-changes via (this will exclude already merged changes):
-
-```shell
-git fetch apache
-git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
-git log --oneline --decorate apache/v2-2-stable..apache/main -- Dockerfile* scripts breeze* .github/ setup* dev | grep -vf /tmp/merged
-```
-
-Most of those PRs should be marked with `changelog:skip` label, so that they are excluded from the
-user-facing changelog as they only matter for developers of Airflow. We have a tool
-that allows to easily review the cherry-picked PRs and mark them with the right label - see below.
-
-You also likely want to cherry-pick some of the latest doc changes in order to bring clarification and
+You are likely want to cherry-pick some of the latest doc changes in order to bring clarification and
 explanations added to the documentation. Usually you can see the list of such changes via:
 
 ```shell
 git fetch apache
-git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline apache/v3-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
 git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
 ```
 
@@ -282,13 +370,13 @@ git show --format=tformat:"" --stat --name-only $(cat /tmp/doc-only-changes.txt)
 Then if you see suspicious file (example airflow/sensors/base.py) you can find details on where they came from:
 
 ```shell
-git log apache/v3-1-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
+git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
 ```
 
 And the URL to the PR it comes from:
 
 ```shell
-git log apache/v3-1-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
+git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
     xargs -n 1 git log --oneline --max-count=1 | \
     sed s'/.*(#\([0-9]*\))$/https:\/\/github.com\/apache\/airflow\/pull\/\1/'
 ```
@@ -314,7 +402,7 @@ export GPG_TTY=$(tty)
 # Set Version
 export VERSION=3.1.3
 export VERSION_SUFFIX=rc1
-export VERSION_RC=${VERSION}${VERSION_RC}
+export VERSION_RC=${VERSION}${VERSION_SUFFIX}
 export VERSION_BRANCH=3-1
 export TASK_SDK_VERSION=1.1.3
 export TASK_SDK_VERSION_RC=${TASK_SDK_VERSION}${VERSION_SUFFIX}
@@ -359,9 +447,12 @@ uv tool install -e ./dev/breeze
     We sync this new branch to the stable branch so that people would continue to backport PRs to the test branch
     while the RC is being voted. The new branch must be in sync with where you cut it off from the test branch.
 
+- Switch to the new branch in .github/workflows/ci-notification.yml `workflow-status` matrix
 - Set the Airflow version in `airflow-core/src/airflow/__init__.py` (without the RC tag).
 - Set the Task SDK version in `task-sdk/src/airflow/sdk/__init__.py` (without the RC tag)
-- Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
+- Those two steps below are temporary - until we finally split task-sdk and airflow-core:
+  - Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
+  - Update the Task SDK version `>=` part in `pyproject.toml` to `==` TASK_SDK_VERSION without RC
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/prek/supported_versions.py` and let prek do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
@@ -370,13 +461,26 @@ uv tool install -e ./dev/breeze
   with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
+- Create `backport-to-vX-Y-test` label:
+
+    ```shell script
+    gh label create 'backport-to-vX-Y-test' --repo apache/airflow --description 'Backport to vX-Y-test' --color 0e8a16
+    ```
+
+- Update `.github/boring-cyborg.yml` and add `backport-to-vX-Y-test` auto-assignment for the new branch.
+- Update `.github/` configuration on `main` to add the new `vX-Y-test` branch (you can use the
+  `uv run dev/update_github_branch_config.py X Y` helper script for this). The following files need updating:
+  - `.github/dependabot.yml` — add `target-branch: vX-Y-test` entries for github-actions, pip, and npm ecosystems.
+  - `.github/workflows/milestone-tag-assistant.yml` — add `vX-Y-test` to the push branches list.
+  - `.github/workflows/basic-tests.yml` — update the release-management dry-run commands to test the new version.
+  - `.github/workflows/ci-notification.yml` — switch the `workflow-status` matrix branch to the new branch.
 - Commit the above changes with the message `Update version to ${VERSION}`.
 - Build the release notes:
 
   Preview with:
 
     ```shell script
-    towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir . --config newsfragments/config.toml
+    towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir airflow-core --config airflow-core/newsfragments/config.toml
     ```
 
 
@@ -430,6 +534,7 @@ uv tool install -e ./dev/breeze
        --version ${VERSION_RC} \
        --previous-version ${PREVIOUS_VERSION} \
        --task-sdk-version ${TASK_SDK_VERSION_RC} \
+       --sync-branch ${SYNC_BRANCH} \
        --remote-name upstream \
        --dry-run
    ```
@@ -648,6 +753,17 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 
 # Verify the release candidate by PMC members
 
+PMC members should perform the manual verification steps below.
+
+Optionally, you can also run the automated Breeze verification via `breeze release-management verify-rc-by-pmc` as a
+cross-check after completing the manual steps (see
+[Optional: Automated verification using Breeze](#optional-automated-verification-using-breeze)).
+
+> [!NOTE]
+> `verify-rc-by-pmc` is **experimental** and can change without notice. If you choose to use it, treat it only as an
+> additional validation step after completing the manual verification below, and compare the results. Do not use it
+> as the sole verification method.
+
 PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
 
@@ -681,8 +797,8 @@ git fetch apache --tags
 git checkout ${VERSION_RC}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-distributions --distribution-format both
-breeze release-management prepare-task-sdk-distributions --distribution-format both
+breeze release-management prepare-airflow-distributions --distribution-format both --version-suffix ""
+breeze release-management prepare-task-sdk-distributions --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION} --version-suffix ${VERSION_SUFFIX}
 ```
 
@@ -691,8 +807,8 @@ will be done in a docker container.  However, if you have  `hatch` installed loc
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
-breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
-breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch
+breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch --version-suffix ""
+breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION} --version-suffix ${VERSION_SUFFIX}
 ```
 
@@ -752,31 +868,33 @@ As a PMC member, you should be able to clone the SVN repository
 or update it if you already checked it out:
 
 ```shell script
+cd ${AIRFLOW_REPO_ROOT}
 cd ..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/dev/airflow
 ```
 
-Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+Set an environment variable: PATH_TO_AIRFLOW_SVN to the root of folder where you clone the SVN repository:
 
 ```shell scrupt
 cd asf-dist/dev/airflow
-export PATH_TO_SVN=$(pwd -P)
+export PATH_TO_AIRFLOW_SVN=$(pwd -P)
 ```
 
-Optionally you can use `check_files.py` script to verify that all expected files are
-present in SVN. This script may help also with verifying installation of the packages.
+Optionally you can use the `breeze release-management check-release-files` command to verify that all expected files are
+present in SVN. This command may also help with verifying installation of the packages.
 
 ```shell script
-cd $AIRFLOW_REPO_ROOT/dev
-uv run check_files.py airflow -v ${VERSION_RC} -p ${PATH_TO_SVN}
+breeze release-management check-release-files airflow --version ${VERSION_RC}
 ```
 
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ```shell script
-cd $AIRFLOW_REPO_ROOT/dev
-uv run check_files.py task-sdk -v ${TASK_SDK_VERSION_RC} -p ${PATH_TO_SVN}/task-sdk
+breeze release-management check-release-files task-sdk --version ${TASK_SDK_VERSION_RC}
 ```
+
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ## Licence check
 
@@ -784,28 +902,32 @@ This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
 
-You can run this command to do it for you:
+You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz -O /tmp/apache-rat-0.18-bin.tar.gz
+echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache-airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
+rm -rf /tmp/apache-airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
 ```
 
 Run the check:
 
 ```shell script
-java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-src/.rat-excludes
+java -jar /tmp/apache-rat-0.18/apache-rat-0.18.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
 ```
 
 You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
 
 ```
-INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Apache Creadur RAT 0.18 (Apache Software Foundation)
 INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
 INFO: Excluding MISC collection.
 INFO: Excluding HIDDEN_DIR collection.
@@ -844,6 +966,7 @@ Make sure you have imported into your GPG the PGP key of the person signing the 
 You can import the whole KEYS file:
 
 ```shell script
+wget https://dist.apache.org/repos/dist/release/airflow/KEYS
 gpg --import KEYS
 ```
 
@@ -869,13 +992,18 @@ Once you have the keys, the signatures can be verified after switching to the di
 release packages:
 
 ```shell script
-cd ${PATH_TO_SVN}/${VERSION_RC}
-```
-
-And running this:
-
-
-```shell script
+cd ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}
+echo
+echo "Checking Airflow ${VERSION_RC} Signatures"
+echo
+for i in *.asc
+do
+   echo -e "Checking $i\n"; gpg --verify $i
+done
+cd ../task-sdk/${TASK_SDK_VERSION_RC}
+echo
+echo "Checking TaskSDK ${TASK_SDK_VERSION_RC} Signatures"
+echo
 for i in *.asc
 do
    echo -e "Checking $i\n"; gpg --verify $i
@@ -891,32 +1019,74 @@ this is a valid key already.  To suppress the warning you may edit the key's tru
 by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
-Checking apache-airflow-3.0.5rc4.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-3.0.5rc4.tar.gz'
-gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Checking Airflow 3.1.8rc1 Signatures
 
-Checking apache_airflow-3.0.5rc4-py2.py3-none-any.whl.asc
-gpg: assuming signed data in 'apache_airflow-3.0.5rc4-py2.py3-none-any.whl'
-gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Checking apache_airflow-3.1.8-py3-none-any.whl.asc
 
-Checking apache-airflow-3.0.5rc4-source.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-3.0.5rc4-source.tar.gz'
-gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
+gpg: assuming signed data in 'apache_airflow-3.1.8-py3-none-any.whl'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow-3.1.8-source.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow-3.1.8-source.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:06 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow-3.1.8.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow-3.1.8.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:06 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow_core-3.1.8-py3-none-any.whl.asc
+
+gpg: assuming signed data in 'apache_airflow_core-3.1.8-py3-none-any.whl'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow_core-3.1.8.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow_core-3.1.8.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+
+Checking TaskSDK 1.1.8rc1 Signatures
+
+Checking apache_airflow_task_sdk-1.1.8-py3-none-any.whl.asc
+
+gpg: assuming signed data in 'apache_airflow_task_sdk-1.1.8-py3-none-any.whl'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow_task_sdk-1.1.8.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow_task_sdk-1.1.8.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
 ```
 
 ## SHA512 sum check
@@ -924,6 +1094,18 @@ Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 Run this:
 
 ```shell script
+cd ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}
+echo
+echo "Checking Airflow ${VERSION_RC} Checksums"
+echo
+for i in *.sha512
+do
+    echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
+done
+cd ../task-sdk/${TASK_SDK_VERSION_RC}
+echo
+echo "Checking TaskSDK ${TASK_SDK_VERSION_RC} Checksums"
+echo
 for i in *.sha512
 do
     echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
@@ -933,9 +1115,57 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-3.1.3rc4.tar.gz.sha512
-Checking apache_airflow-3.1.3rc4-py2.py3-none-any.whl.sha512
-Checking apache_airflow-3.1.3rc4-source.tar.gz.sha512
+Checking Airflow 3.1.8rc1 Checksums
+
+Checking apache_airflow-3.1.8-py3-none-any.whl.sha512
+Checking apache_airflow-3.1.8-source.tar.gz.sha512
+Checking apache_airflow-3.1.8.tar.gz.sha512
+Checking apache_airflow_core-3.1.8-py3-none-any.whl.sha512
+Checking apache_airflow_core-3.1.8.tar.gz.sha512
+
+Checking TaskSDK 1.1.8rc1 Checksums
+
+Checking apache_airflow_task_sdk-1.1.8-py3-none-any.whl.sha512
+Checking apache_airflow_task_sdk-1.1.8.tar.gz.sha512
+```
+
+## Optional: Automated verification using Breeze
+
+If you want to run the automated cross-check, use `breeze release-management verify-rc-by-pmc`.
+
+What the automation does (high level):
+
+* Validates expected SVN files, signatures, checksums, Apache RAT licenses, and reproducible builds.
+* Uses a detached git worktree for reproducible builds so it can build from the release tag without
+  changing your current checkout (and still use the latest Breeze code).
+* Fails early if the SVN working copy is locked (to avoid hanging on `svn` commands).
+
+If the automation output disagrees with your manual verification, treat the manual results as authoritative and
+report the discrepancy.
+
+For the full command documentation see
+[Breeze Command to verify RC](breeze/doc/09_release_management_tasks.rst).
+
+Example (run all checks):
+
+```shell script
+breeze release-management verify-rc-by-pmc \
+  --distribution airflow \
+  --version ${VERSION_RC} \
+  --task-sdk-version ${TASK_SDK_VERSION_RC} \
+  --path-to-airflow-svn ~/asf-dist/dev/airflow \
+  --verbose
+```
+
+Example (only signatures + checksums):
+
+```shell script
+breeze release-management verify-rc-by-pmc \
+  --distribution airflow \
+  --version ${VERSION_RC} \
+  --task-sdk-version ${TASK_SDK_VERSION_RC} \
+  --path-to-airflow-svn ~/asf-dist/dev/airflow \
+  --checks signatures,checksums
 ```
 
 
@@ -1044,25 +1274,18 @@ The best way of doing this is to svn cp between the two repos (this avoids havin
 
 ```shell script
 export VERSION=3.1.3
-export VERSION_SUFFIX=rc1
-export VERSION_RC=${VERSION}${VERSION_SUFFIX}
 export TASK_SDK_VERSION=1.1.3
-export TASK_SDK_VERSION_RC=${TASK_SDK_VERSION}${VERSION_SUFFIX}
 export PREVIOUS_RELEASE=3.1.2
 # cd to the airflow repo directory and set the environment variable below
 export AIRFLOW_REPO_ROOT=$(pwd)
 # start the release process by running the below command
 breeze release-management start-release \
-    --release-candidate ${VERSION_RC} \
-    --previous-release ${PREVIOUS_RELEASE} \
-    --task-sdk-release-candidate ${TASK_SDK_VERSION_RC}
+    --version ${VERSION} \
+    --task-sdk-version ${TASK_SDK_VERSION}
 ```
 
-Note: The `--task-sdk-release-candidate` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
+Note: The `--task-sdk-version` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
 
-```Dockerfile
-ARG AIRFLOW_EXTRAS=".....,<provider>,...."
-```
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
    ``airflow/__init__.py``
@@ -1092,13 +1315,13 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.10 3.11 3.12 3.13
+for PYTHON in 3.10 3.11 3.12 3.13 3.14
 do
-    docker pull apache/airflow:${VERSION_RC}-python${PYTHON}
-    breeze prod-image verify --image-name apache/airflow:${VERSION_RC}-python${PYTHON}
+    docker pull apache/airflow:${VERSION}-python${PYTHON}
+    breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
 done
-docker pull apache/airflow:${VERSION_RC}
-breeze prod-image verify --image-name apache/airflow:${VERSION_RC}
+docker pull apache/airflow:${VERSION}
+breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
 
 ## Publish final documentation
@@ -1269,17 +1492,6 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* LinkedIn: https://www.linkedin.com/company/apache-airflow/
-* Fosstodon: https://fosstodon.org/@airflow
-* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
-
-Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask a PMC member to post.
-
-------------------------------------------------------------------------------------------------------------
-
-Tweet and post on Linkedin about the release:
-
 ```shell
 cat <<EOF
 We've just released Apache Airflow $VERSION 🎉
@@ -1292,6 +1504,17 @@ We've just released Apache Airflow $VERSION 🎉
 Thanks to all the contributors who made this possible.
 EOF
 ```
+
+Post on social media about the release:
+
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+
+Make sure to attach the release image generated with Figma to the post.
+If you don't have access to the account ask a PMC member to post.
+
+------------------------------------------------------------------------------------------------------------
 
 ## Update `main` with the latest release details
 
@@ -1362,3 +1585,35 @@ According to the policy above, if we have to release clients:
 
     - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
     - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)
+
+# Additional processes
+
+Those processes are related to the release of Airflow but should be run in exceptional situations.
+
+## Fixing released documentation
+
+Sometimes we want to rebuild the documentation with some fixes that were merged in main or `v3-X-stable`
+branch, for example when there are html layout changes or typo fixes, or formatting issue fixes.
+
+In this case the process is as follows:
+
+* When you want to re-publish `3.X.Y` docs, create (or pull if already created) `3.X.Y-docs` branch
+* Cherry-pick changes you want to add and push to the main `apache/airflow` repo
+* Run the publishing workflow.
+
+In case you are releasing latest released version of Airflow (which should be most of the cases), run this:
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref 3.X.Y-docs \
+   --skip-tag-validation --airflow-version 3.X.Y \
+   apache-airflow
+```
+
+In case you are releasing an older version of Airflow, you should skip writing to the stable folder
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref 3.X.Y-docs \
+   --skip-tag-validation --airflow-version 3.X.Y \
+   --skip-write-to-stable-folder \
+   apache-airflow
+```

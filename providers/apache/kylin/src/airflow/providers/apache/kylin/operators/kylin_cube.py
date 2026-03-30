@@ -24,9 +24,8 @@ from typing import TYPE_CHECKING
 
 from kylinpy import kylinpy
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

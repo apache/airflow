@@ -26,8 +26,7 @@ from typing import TYPE_CHECKING
 from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import Batch, JobStatus
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 

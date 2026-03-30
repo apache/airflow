@@ -32,7 +32,9 @@ def get_provider_info():
                 "plugin-class": "airflow.providers.edge3.plugins.edge_executor_plugin.EdgeExecutorPlugin",
             }
         ],
+        "cli": ["airflow.providers.edge3.cli.definition.get_edge_cli_commands"],
         "executors": ["airflow.providers.edge3.executors.EdgeExecutor"],
+        "db-managers": ["airflow.providers.edge3.models.db.EdgeDBManager"],
         "config": {
             "edge": {
                 "description": "This section only applies if you are using the EdgeExecutor in\n``[core]`` section above\n",

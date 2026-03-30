@@ -22,8 +22,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseSensorOperator
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 

@@ -28,12 +28,12 @@ from airflow.providers.common.compat.sdk import BaseOperator
 try:
     from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 except ModuleNotFoundError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(e)
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class AzureBlobStorageToS3Operator(BaseOperator):

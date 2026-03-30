@@ -41,7 +41,7 @@ We have big number (currently more than 100) python distributions in Apache Airf
 ``apache-airflow-task-sdk`` package, ``apache-airflow-ctl`` package, and several other packages.
 
 They are all connected together via ``uv`` workspace feature (workspace is defined in the root ``pyproject.toml``
-file of the repository in the ``apache-airflow`` distribution definition. The workspace feature allows us to
+file of the repository in the ``apache-airflow`` distribution definition). The workspace feature allows us to
 run ``uv sync`` at the top of the repository to install all packages in editable mode in the development
 environment from all the distributions and resolve the dependencies together, so that we know that
 the dependencies have no conflicting requirements. Also the distributions are referring to each other via
@@ -49,7 +49,7 @@ name - which means that when you run locally ``uv sync``, the local version of t
 ones released on PyPI, which means that you can develop and test changes that span multiple packages at the
 same time. This is a very powerful feature that allows us to maintain the complex ecosystem of Apache Airflow
 distributions in a single monorepo, and allows us - for example to add new feature to common distributions used
-by multiple providers and test them all together before releasing new versions of either of those pacckages
+by multiple providers and test them all together before releasing new versions of either of those packages.
 
 Managing dependencies in ``pyproject.toml`` files
 .................................................
@@ -80,7 +80,7 @@ When you add a new dependency, you should make sure that:
   development dependencies)
 
 * Some parts of those dependencies might be automatically generated (and overwritten) by our ``prek``
-  hooks. Those are the necessary dependencies that ``prek`` hoks can figure out automatically by
+  hooks. Those are the necessary dependencies that ``prek`` hooks can figure out automatically by
   analyzing the imports in the sources and structure of the project. We also have special case of
   shared dependencies (described in `shared dependencies document <../shared/README.md>`__) where we
   effectively "static-link" some libraries into multiple distributions, to avoid unnecessary coupling and
@@ -212,6 +212,15 @@ rules to remember:
   just copy the dependency line to outside of those comments and add the
   ``# use next version`` comment to it, next time when ``prek hook`` will be run it will remove the automatically
   added line and keep only the manually added line with the comment.
+
+# There is an automated check for that in case of ``common.compat`` provider - because it is one that changes
+  often and almost always when it changes, there are some providers that need those changes - so you should
+  add the ``# use next version`` comment to such providers always when you modify ``common.compat``.
+  In case there is a change in the ``common.compat`` package that requires updating other providers, and there
+  are no changes in other providers that require such update - you will get and error in the Selective Check
+  CI job that will remind you to add such comments to the providers that need to be updated. You can skip
+  the check if you are sure that no other providers do not need to be updated by adding
+  ``skip common compat check`` label to the PR. Only maintainers and collaborators can add such label.
 
 * Some of our dependencies have forced minimum version - mostly because of the Airflow 3 minimum version
   compatibility. Just in case in the future, we have other distributions referring to them we are forcing a
@@ -408,9 +417,6 @@ There are also some manually defined extras for optional features that are often
 
 You can read more about those extras in the
 `extras reference <https://airflow.apache.org/docs/apache-airflow/stable/extra-packages-ref.html>`_.
-
-
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 
 -----

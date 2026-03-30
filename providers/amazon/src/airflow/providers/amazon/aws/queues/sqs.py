@@ -19,8 +19,8 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 try:
     from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider

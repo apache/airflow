@@ -31,17 +31,17 @@ from urllib.parse import urlparse
 import pendulum
 from opensearchpy import OpenSearch
 from opensearchpy.exceptions import NotFoundError
+from sqlalchemy import select
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models import DagRun
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
 from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -58,7 +58,55 @@ else:
 
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
-TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger"]
+TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger", "error_detail", "message", "levelname"]
+
+
+def _format_error_detail(error_detail: Any) -> str | None:
+    """Render the structured ``error_detail`` written by the Airflow 3 supervisor as a traceback string."""
+    if not error_detail:
+        return None
+    if not isinstance(error_detail, list):
+        return str(error_detail)
+
+    lines: list[str] = ["Traceback (most recent call last):"]
+    for exc_info in error_detail:
+        if not isinstance(exc_info, dict):
+            lines.append(str(exc_info))
+            continue
+        if exc_info.get("is_cause"):
+            lines.append("\nThe above exception was the direct cause of the following exception:\n")
+            lines.append("Traceback (most recent call last):")
+        for frame in exc_info.get("frames", []):
+            lines.append(
+                f'  File "{frame.get("filename", "<unknown>")}", line {frame.get("lineno", "?")}, in {frame.get("name", "<unknown>")}'
+            )
+        exc_type = exc_info.get("exc_type", "")
+        exc_value = exc_info.get("exc_value", "")
+        if exc_type:
+            lines.append(f"{exc_type}: {exc_value}" if exc_value else exc_type)
+    return "\n".join(lines)
+
+
+def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
+    """Filter an OpenSearch hit to ``TASK_LOG_FIELDS`` and ensure compatibility with StructuredLogMessage."""
+    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS or k == "@timestamp"}
+
+    # Map @timestamp to timestamp
+    if "@timestamp" in fields and "timestamp" not in fields:
+        fields["timestamp"] = fields.pop("@timestamp")
+
+    # Map levelname to level
+    if "levelname" in fields and "level" not in fields:
+        fields["level"] = fields.pop("levelname")
+
+    # Airflow 3 StructuredLogMessage requires 'event'
+    if "event" not in fields:
+        fields["event"] = fields.pop("message", "")
+
+    # Clean up error_detail if it's empty
+    if "error_detail" in fields and not fields["error_detail"]:
+        fields.pop("error_detail")
+    return fields
 
 
 def getattr_nested(obj, item, default):
@@ -86,15 +134,13 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 
     if not isinstance(ti, TaskInstanceKey):
         return ti
-    val = (
-        session.query(TaskInstance)
-        .filter(
+    val = session.scalar(
+        select(TaskInstance).where(
             TaskInstance.task_id == ti.task_id,
             TaskInstance.dag_id == ti.dag_id,
             TaskInstance.run_id == ti.run_id,
             TaskInstance.map_index == ti.map_index,
         )
-        .one_or_none()
     )
     if isinstance(val, TaskInstance):
         val.try_number = ti.try_number
@@ -105,7 +151,6 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 def get_os_kwargs_from_config() -> dict[str, Any]:
     open_search_config = conf.getsection("opensearch_configs")
     kwargs_dict = {key: value for key, value in open_search_config.items()} if open_search_config else {}
-
     return kwargs_dict
 
 
@@ -419,9 +464,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
                 # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(
-                        **{k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
-                    )
+                    StructuredLogMessage(**_build_log_fields(hit.to_dict()))
                     for hits in logs_by_host.values()
                     for hit in hits
                 ]

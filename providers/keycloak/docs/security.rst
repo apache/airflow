@@ -16,3 +16,9 @@
     under the License.
 
 .. include:: /../../../devel-common/src/sphinx_exts/includes/security.rst
+
+
+Setting up Keycloak Client
+==========================
+You can both create or use an existing Keycloak realm and create a client for Airflow in it.
+To create a client, follow the `Keycloak Client </auth-manager/manage/login.html>`_

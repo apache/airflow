@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -22,21 +23,32 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.asset import Asset, AssetAlias
+    from airflow.listeners.types import AssetEvent
+    from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
 
 hookspec = HookspecMarker("airflow")
 
 
 @hookspec
-def on_asset_created(asset: Asset):
+def on_asset_created(asset: SerializedAsset):
     """Execute when a new asset is created."""
 
 
 @hookspec
-def on_asset_alias_created(asset_alias: AssetAlias):
+def on_asset_alias_created(asset_alias: SerializedAssetAlias):
     """Execute when a new asset alias is created."""
 
 
 @hookspec
-def on_asset_changed(asset: Asset):
+def on_asset_changed(asset: SerializedAsset):
     """Execute when asset change is registered."""
+
+
+@hookspec
+def on_asset_event_emitted(asset_event: AssetEvent):
+    """
+    Execute when an asset event is emitted.
+
+    This is generally called together with ``on_asset_changed``, but with
+    information on the emitted event instead.
+    """

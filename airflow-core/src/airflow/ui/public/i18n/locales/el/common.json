@@ -25,6 +25,7 @@
     "requiredActions": "Απαιτούμενες Ενέργειες",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Σύμπτυξη όλων των επιπλέον json",
   "collapseDetailsPanel": "Σύμπτυξη Πίνακα Λεπτομερειών",
   "createdAssetEvent_one": "Δημιουργήθηκε Συμβάν Οντότητας",
   "createdAssetEvent_other": "Δημιουργήθηκαν Συμβάντα Οντοτήτων",
@@ -93,6 +94,7 @@
     "hotkey": "e",
     "tooltip": "Πατήστε {{hotkey}} για εναλλαγή ανάπτυξης"
   },
+  "expandAllExtra": "Ανάπτυξη όλων των επιπλέον json",
   "expression": {
     "all": "Όλα",
     "and": "ΚΑΙ",

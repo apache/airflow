@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 
 from tests_common.test_utils.config import conf_vars
@@ -27,17 +29,24 @@ class TestTokenRouter:
     token = "token"
     token_body_dict = {"username": "username", "password": "password"}
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"username": "username", "password": "password"},
+            {"grant_type": "password", "username": "username", "password": "password"},
+        ],
+    )
     @conf_vars(
         {
             ("api_auth", "jwt_expiration_time"): "10",
         }
     )
-    @patch("airflow.providers.keycloak.auth_manager.routes.token.create_token_for")
-    def test_create_token(self, mock_create_token_for, client):
+    @patch("airflow.providers.keycloak.auth_manager.datamodels.token.create_token_for")
+    def test_create_token_password_grant(self, mock_create_token_for, client, body):
         mock_create_token_for.return_value = self.token
         response = client.post(
             AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token",
-            json=self.token_body_dict,
+            json=body,
         )
 
         assert response.status_code == 201
@@ -49,7 +58,7 @@ class TestTokenRouter:
             ("api_auth", "jwt_expiration_time"): "10",
         }
     )
-    @patch("airflow.providers.keycloak.auth_manager.routes.token.create_token_for")
+    @patch("airflow.providers.keycloak.auth_manager.datamodels.token.create_token_for")
     def test_create_token_cli(self, mock_create_token_for, client):
         mock_create_token_for.return_value = self.token
         response = client.post(
@@ -59,3 +68,54 @@ class TestTokenRouter:
 
         assert response.status_code == 201
         assert response.json() == {"access_token": self.token}
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.datamodels.token.create_client_credentials_token")
+    def test_create_token_client_credentials(self, mock_create_client_credentials_token, client):
+        mock_create_client_credentials_token.return_value = self.token
+        response = client.post(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token",
+            json={
+                "grant_type": "client_credentials",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json() == {"access_token": self.token}
+        mock_create_client_credentials_token.assert_called_once_with(
+            "client_id", "client_secret", expiration_time_in_seconds=10
+        )
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"client_id": "client_id", "client_secret": "client_secret"},
+            {"grant_type": "password", "client_id": "client_id", "client_secret": "client_secret"},
+            {"grant_type": "password", "client_id": "client_id", "password": "password"},
+            {"grant_type": "password", "username": "username", "client_secret": "client_secret"},
+            {"grant_type": "client_credentials", "username": "username", "password": "password"},
+            {"grant_type": "client_credentials", "client_id": "client_id", "password": "password"},
+            {"grant_type": "client_credentials", "username": "username", "client_secret": "client_secret"},
+        ],
+    )
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.datamodels.token.create_client_credentials_token")
+    def test_create_token_invalid_body(self, mock_create_client_credentials_token, client, body):
+        mock_create_client_credentials_token.return_value = self.token
+        response = client.post(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token",
+            json=body,
+        )
+
+        assert response.status_code == 422
+        mock_create_client_credentials_token.assert_not_called()

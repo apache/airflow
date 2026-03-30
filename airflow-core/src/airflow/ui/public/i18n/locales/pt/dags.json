@@ -2,11 +2,11 @@
   "assetSchedule": "{{count}} de {{total}} ativos atualizados",
   "dagActions": {
     "delete": {
-      "button": "Excluir DAG",
-      "warning": "Isso removerá todas as metadados relacionados ao DAG, incluindo Execuções e Tarefas."
+      "button": "Excluir Dag",
+      "warning": "Isso removerá todas as metadados relacionados ao Dag, incluindo Execuções e Tarefas."
     }
   },
-  "favoriteDag": "DAG Favorito",
+  "favoriteDag": "Dag Favorito",
   "filters": {
     "allRunTypes": "Todos os Tipos de Execução",
     "allStates": "Todos os Estados",
@@ -20,7 +20,7 @@
       "all": "Todos",
       "paused": "Pausado"
     },
-    "runIdPatternFilter": "Pesquisar Execuções de DAG"
+    "runIdPatternFilter": "Pesquisar Execuções de Dag"
   },
   "ownerLink": "Link do Proprietário para {{owner}}",
   "runAndTaskActions": {
@@ -69,7 +69,7 @@
   "search": {
     "advanced": "Pesquisa Avançada",
     "clear": "Limpar pesquisa",
-    "dags": "Pesquisar DAGs",
+    "dags": "Pesquisar Dags",
     "hotkey": "+K",
     "tasks": "Pesquisar Tarefas"
   },
@@ -87,10 +87,10 @@
       "desc": "Ordenar por Estado da Última Execução (Z-A)"
     },
     "nextDagRun": {
-      "asc": "Ordenar por Próxima Execução do DAG (Mais Antiga-Mais Recente)",
-      "desc": "Ordenar por Próxima Execução do DAG (Mais Recente-Mais Antiga)"
+      "asc": "Ordenar por Próxima Execução do Dag (Mais Antiga-Mais Recente)",
+      "desc": "Ordenar por Próxima Execução do Dag (Mais Recente-Mais Antiga)"
     },
     "placeholder": "Ordenar por"
   },
-  "unfavoriteDag": "Remover DAG dos Favoritos"
+  "unfavoriteDag": "Remover Dag dos Favoritos"
 }
