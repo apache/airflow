@@ -46,8 +46,6 @@ else:
     setproctitle = lambda title, logger: real_setproctitle(title)
 
 if TYPE_CHECKING:
-    from structlog.typing import FilteringBoundLogger as Logger
-
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadResultType
 
@@ -114,33 +112,16 @@ def _run_worker(
             output.put((workload.key, workload.running_state, None))
 
         try:
-            _execute_workload(log, workload, team_conf)
+            BaseExecutor.run_workload(
+                workload,
+                server=_get_execution_api_server_url(team_conf),
+                proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
+                subprocess_logs_to_stdout=True,
+            )
             output.put((workload.key, workload.success_state, None))
         except Exception as e:
             log.exception("Workload execution failed.", workload_type=type(workload).__name__)
             output.put((workload.key, workload.failure_state, e))
-
-
-def _execute_workload(log: Logger, workload: ExecutorWorkload, team_conf) -> None:
-    """
-    Execute any workload type in a supervised subprocess.
-
-    All workload types are run in a supervised child process, providing process isolation,
-    stdout/stderr capture, signal handling, and crash detection.
-
-    :param log: Logger instance
-    :param workload: The workload to execute (ExecuteTask or ExecuteCallback)
-    :param team_conf: Team-specific executor configuration
-    """
-    from airflow.sdk.execution_time.supervisor import supervise_workload
-
-    supervise_workload(
-        workload,
-        server=_get_execution_api_server_url(team_conf),
-        subprocess_logs_to_stdout=True,
-        proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
-    )
-
 
 
 class LocalExecutor(BaseExecutor):

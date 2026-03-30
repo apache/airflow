@@ -32,6 +32,8 @@ from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads.callback import ExecuteCallback
+from airflow.executors.workloads.task import ExecuteTask
 from airflow.models import Log
 from airflow.models.callback import CallbackKey
 from airflow.observability.metrics import stats_utils
@@ -579,6 +581,76 @@ class BaseExecutor(LoggingMixin):
         Make sure to choose unique names for those commands, to avoid collisions.
         """
         return []
+
+    @staticmethod
+    def run_workload(
+        workload: ExecutorWorkload,
+        *,
+        server: str | None = None,
+        dry_run: bool = False,
+        subprocess_logs_to_stdout: bool = False,
+        proctitle: str | None = None,
+    ) -> int:
+        """
+        Pass the workload to the appropriate supervisor based on workload type.
+
+        Workload-specific attributes (log_path, sentry_integration, bundle_info, etc.) are read from the
+        workload object itself.
+
+        :param workload: The ``ExecutorWorkload`` to execute.
+        :param server: Base URL of the API server (used by task workloads).
+        :param dry_run: If True, execute without actual task execution (simulate run).
+        :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
+        :param proctitle: Process title to set for this workload. If not provided, defaults to
+            ``"airflow supervisor: <workload.display_name>"``.
+        :return: Exit code of the process.
+        """
+        try:
+            from setproctitle import setproctitle
+
+            setproctitle(proctitle or f"airflow supervisor: {workload.display_name}")
+        except ImportError:
+            pass
+
+        # Resolve server URL from config when not explicitly provided.
+        # For example, team-specific executors may wish to pass their own server URL.
+        if server is None:
+            base_url = conf.get("api", "base_url", fallback="/")
+            if base_url.startswith("/"):
+                base_url = f"http://localhost:8080{base_url}"
+            server = conf.get(
+                "core",
+                "execution_api_server_url",
+                fallback=f"{base_url.rstrip('/')}/execution/",
+            )
+
+        if isinstance(workload, ExecuteTask):
+            from airflow.sdk.execution_time.supervisor import supervise_task
+
+            # workload.ti is a TaskInstanceDTO which duck-types as TaskInstance.
+            # TODO: Create a protocol for this.
+            return supervise_task(
+                ti=workload.ti,  # type: ignore[arg-type]
+                bundle_info=workload.bundle_info,
+                dag_rel_path=workload.dag_rel_path,
+                token=workload.token,
+                server=server,
+                dry_run=dry_run,
+                log_path=workload.log_path,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                sentry_integration=getattr(workload, "sentry_integration", ""),
+            )
+        if isinstance(workload, ExecuteCallback):
+            from airflow.sdk.execution_time.callback_supervisor import supervise_callback
+
+            return supervise_callback(
+                id=workload.callback.id,
+                callback_path=workload.callback.data.get("path", ""),
+                callback_kwargs=workload.callback.data.get("kwargs", {}),
+                log_path=workload.log_path,
+                bundle_info=workload.bundle_info,
+            )
+        raise ValueError(f"Unknown workload type: {type(workload).__name__}")
 
     @classmethod
     def _get_parser(cls) -> argparse.ArgumentParser:

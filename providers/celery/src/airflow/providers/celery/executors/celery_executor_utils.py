@@ -217,9 +217,7 @@ def execute_workload(input: str) -> None:
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
     try:
-        from airflow.sdk.execution_time.supervisor import supervise_workload
-
-        supervise_workload(workload)
+        BaseExecutor.run_workload(workload)
     except Exception as e:
         if AIRFLOW_V_3_1_9_PLUS:
             from airflow.sdk.exceptions import TaskAlreadyRunningError

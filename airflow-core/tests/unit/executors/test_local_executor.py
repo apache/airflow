@@ -28,8 +28,8 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.executors import workloads
-from airflow.executors.base_executor import ExecutorConf
-from airflow.executors.local_executor import LocalExecutor, _execute_workload
+from airflow.executors.base_executor import BaseExecutor, ExecutorConf
+from airflow.executors.local_executor import LocalExecutor, _get_execution_api_server_url
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import CallbackDTO
 from airflow.executors.workloads.task import TaskInstanceDTO
@@ -127,8 +127,8 @@ class TestLocalExecutor:
             executor.end()
 
     @skip_non_fork_mp_start
-    @mock.patch("airflow.sdk.execution_time.supervisor.supervise_workload")
-    def test_execution(self, mock_supervise_workload):
+    @mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload")
+    def test_execution(self, mock_run_workload):
         success_tis = [
             TaskInstanceDTO(
                 id=uuid7(),
@@ -151,14 +151,14 @@ class TestLocalExecutor:
         # We just mock both styles here, only one will be hit though
         has_failed_once = False
 
-        def fake_supervise_workload(workload, **kwargs):
+        def fake_run_workload(workload, **kwargs):
             nonlocal has_failed_once
             if workload.ti.id == fail_ti.id and not has_failed_once:
                 has_failed_once = True
                 raise RuntimeError("fake failure")
             return 0
 
-        mock_supervise_workload.side_effect = fake_supervise_workload
+        mock_run_workload.side_effect = fake_run_workload
 
         executor = LocalExecutor(parallelism=2)
 
@@ -273,22 +273,22 @@ class TestLocalExecutor:
             "relative_base_url",
         ],
     )
-    @mock.patch("airflow.sdk.execution_time.supervisor.supervise_workload")
-    def test_execution_api_server_url_config(self, mock_supervise_workload, conf_values, expected_server):
+    @mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload")
+    def test_execution_api_server_url_config(self, mock_run_workload, conf_values, expected_server):
         """Test that execution_api_server_url is correctly configured with fallback"""
-        from airflow.executors.base_executor import ExecutorConf
 
         with conf_vars(conf_values):
             team_conf = ExecutorConf(team_name=None)
-            _execute_workload(log=mock.ANY, workload=_make_mock_task_workload(), team_conf=team_conf)
+            BaseExecutor.run_workload(
+                _make_mock_task_workload(), server=_get_execution_api_server_url(team_conf)
+            )
 
-            mock_supervise_workload.assert_called_once()
-            assert mock_supervise_workload.call_args.kwargs["server"] == expected_server
+            mock_run_workload.assert_called_once()
+            assert mock_run_workload.call_args.kwargs["server"] == expected_server
 
-    @mock.patch("airflow.sdk.execution_time.supervisor.supervise_workload")
-    def test_team_and_global_config_isolation(self, mock_supervise_workload):
+    @mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload")
+    def test_team_and_global_config_isolation(self, mock_run_workload):
         """Test that team-specific and global executors use correct configurations side-by-side"""
-        from airflow.executors.base_executor import ExecutorConf
 
         team_name = "ml_team"
         team_server = "http://team-ml-server:8080/execution/"
@@ -309,21 +309,25 @@ class TestLocalExecutor:
             with conf_vars(config_overrides):
                 # Test team-specific config
                 team_conf = ExecutorConf(team_name=team_name)
-                _execute_workload(log=mock.ANY, workload=_make_mock_task_workload(), team_conf=team_conf)
+                BaseExecutor.run_workload(
+                    _make_mock_task_workload(), server=_get_execution_api_server_url(team_conf)
+                )
 
                 # Verify team-specific server URL was used
-                assert mock_supervise_workload.call_count == 1
-                assert mock_supervise_workload.call_args.kwargs["server"] == team_server
+                assert mock_run_workload.call_count == 1
+                assert mock_run_workload.call_args.kwargs["server"] == team_server
 
-                mock_supervise_workload.reset_mock()
+                mock_run_workload.reset_mock()
 
                 # Test global config (no team)
                 global_conf = ExecutorConf(team_name=None)
-                _execute_workload(log=mock.ANY, workload=_make_mock_task_workload(), team_conf=global_conf)
+                BaseExecutor.run_workload(
+                    _make_mock_task_workload(), server=_get_execution_api_server_url(global_conf)
+                )
 
                 # Verify default server URL was used
-                assert mock_supervise_workload.call_count == 1
-                assert mock_supervise_workload.call_args.kwargs["server"] == default_server
+                assert mock_run_workload.call_count == 1
+                assert mock_run_workload.call_args.kwargs["server"] == default_server
 
     def test_multiple_team_executors_isolation(self):
         """Test that multiple team executors can coexist with isolated resources"""
@@ -431,7 +435,7 @@ class TestLocalExecutorCallbackSupport:
             log_path="test.log",
         )
 
-        _execute_workload(log=mock.ANY, workload=callback_workload, team_conf=ExecutorConf(team_name=None))
+        BaseExecutor.run_workload(callback_workload)
 
         mock_supervise_callback.assert_called_once_with(
             id=self.CALLBACK_UUID,
@@ -460,6 +464,4 @@ class TestLocalExecutorCallbackSupport:
         )
 
         with pytest.raises(RuntimeError, match="Callback subprocess exited with code 1"):
-            _execute_workload(
-                log=mock.ANY, workload=callback_workload, team_conf=ExecutorConf(team_name=None)
-            )
+            BaseExecutor.run_workload(callback_workload)
