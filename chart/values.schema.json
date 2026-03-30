@@ -2349,7 +2349,7 @@
                     "default": null
                 },
                 "priorityClassName": {
-                    "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.priorityClassName`` and/or ``workers.kubernetes.priorityClassName`` instead).",
                     "type": [
                         "string",
                         "null"
@@ -3310,6 +3310,14 @@
                                 "type": "string"
                             }
                         },
+                        "priorityClassName": {
+                            "description": "Specify priority for Airflow Celery worker pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "hostAliases": {
                             "description": "Specify HostAliases for Airflow Celery worker pods.",
                             "items": {
@@ -3628,6 +3636,14 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "priorityClassName": {
+                            "description": "Specify priority for pods created with pod-template-file.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         },
                         "hostAliases": {
                             "description": "Specify HostAliases for pods created with pod-template-file.",
