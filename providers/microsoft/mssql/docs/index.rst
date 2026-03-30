@@ -78,7 +78,7 @@ apache-airflow-providers-microsoft-mssql package
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
 
-Release: 4.5.0
+Release: 4.5.1
 
 Provider package
 ----------------
@@ -98,14 +98,15 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=======================================  ==================
+=======================================  ======================================
 PIP package                              Version required
-=======================================  ==================
+=======================================  ======================================
 ``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.32.0``
-``pymssql``                              ``>=2.3.5``
+``pymssql``                              ``>=2.3.5; python_version < "3.14"``
+``pymssql``                              ``>=2.3.13; python_version >= "3.14"``
 ``methodtools``                          ``>=0.4.7``
-=======================================  ==================
+=======================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -133,5 +134,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-mssql 4.5.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-mssql 4.5.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-mssql 4.5.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-mssql 4.5.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.5.1-py3-none-any.whl.sha512>`__)

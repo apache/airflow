@@ -65,7 +65,7 @@ class GlueJobCompleteTrigger(AwsBaseWaiterTrigger):
             waiter_args={"JobName": job_name, "RunId": run_id},
             failure_message="AWS Glue job failed.",
             status_message="Status of AWS Glue job is",
-            status_queries=["JobRun.JobRunState"],
+            status_queries=["JobRun.JobRunState", "JobRun.ErrorMessage"],
             return_key="run_id",
             return_value=run_id,
             waiter_delay=waiter_delay,

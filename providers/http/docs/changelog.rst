@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+6.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow override of HTTP method in run_method of LivyAsyncHook (#64150)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Refactor HttpAsyncHook to support session-based async HTTP operations and simplify LivyAsyncHook (#60458)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typo in HTTP hook test comment (#63654)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 6.0.0
 .....
 

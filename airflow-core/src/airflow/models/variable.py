@@ -480,14 +480,14 @@ class Variable(Base, LoggingMixin):
                             _backend_name,
                             _backend_name,
                         )
-                        return
+                        return None
                 except Exception:
                     log.exception(
                         "Unable to retrieve variable from secrets backend (%s). "
                         "Checking subsequent secrets backend.",
                         type(secrets_backend).__name__,
                     )
-            return None
+        return None
 
     @staticmethod
     def get_variable_from_secrets(key: str, team_name: str | None = None) -> str | None:

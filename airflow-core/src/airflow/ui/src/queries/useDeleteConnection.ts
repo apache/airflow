@@ -21,19 +21,21 @@ import { useTranslation } from "react-i18next";
 
 import { useConnectionServiceDeleteConnection, useConnectionServiceGetConnectionsKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
+import { createErrorToaster } from "src/utils";
 
 export const useDeleteConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation(["admin", "common"]);
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("common:toaster.delete.error", {
-        resourceName: translate("admin:connections.connection_one"),
-      }),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    createErrorToaster(
+      error,
+      {
+        params: { resourceName: translate("admin:connections.connection_one") },
+        titleKey: "common:toaster.delete.error",
+      },
+      translate,
+    );
   };
 
   const onSuccess = async () => {
