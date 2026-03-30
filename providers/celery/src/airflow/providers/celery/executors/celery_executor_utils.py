@@ -223,6 +223,7 @@ def execute_workload(input: str) -> None:
                 token=workload.token,
                 server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
                 log_path=workload.log_path,
+                subprocess_logs_to_stdout=conf.getboolean("logging", "task_log_to_stdout", fallback=False),
             )
         elif isinstance(workload, workloads.ExecuteCallback):
             success, error_msg = execute_callback_workload(workload.callback, log)

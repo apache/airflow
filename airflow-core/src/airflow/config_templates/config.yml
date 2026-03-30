@@ -1076,6 +1076,16 @@ logging:
       type: boolean
       example: ~
       default: "False"
+    task_log_to_stdout:
+      description: |
+        When True, task log messages are duplicated to the worker process's stdout
+        in addition to the task log file (and any configured remote log handler).
+        This is useful for container-based deployments where a log shipper (e.g.
+        CloudWatch agent, Fluentd, Fluent Bit) captures stdout.
+      version_added: 3.2.1
+      type: boolean
+      example: "True"
+      default: "False"
     color_log_error_keywords:
       description: |
         A comma separated list of keywords related to errors whose presence should display the line in red
