@@ -22,6 +22,7 @@ import re
 import tempfile
 from contextlib import redirect_stdout
 from io import StringIO
+from unittest import mock
 
 import pytest
 
@@ -388,9 +389,9 @@ class TestCliUsers:
             user_command.users_manage_role(args, remove=False)
         assert 'User "test4" added to role "Op"' in stdout.getvalue()
 
-        assert _does_user_belong_to_role(
-            appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename="Op"
-        ), "User should have been added to role 'Op'"
+        assert _does_user_belong_to_role(appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename="Op"), (
+            "User should have been added to role 'Op'"
+        )
 
     def test_cli_remove_user_role(self, create_user_test4):
         assert _does_user_belong_to_role(
@@ -534,3 +535,37 @@ class TestCliUsers:
         with redirect_stdout(StringIO()) as stdout:
             user_command.user_reset_password(args)
         assert 'User "test3" password reset successfully' in stdout.getvalue()
+
+    def test_cli_reset_user_password_uses_single_appbuilder_context(self):
+        args = self.parser.parse_args(
+            [
+                "users",
+                "create",
+                "--username",
+                "test4",
+                "--lastname",
+                "doe",
+                "--firstname",
+                "jane",
+                "--email",
+                "jane@example.com",
+                "--role",
+                "Viewer",
+                "--password",
+                "TempPass123!",
+            ]
+        )
+        user_command.users_create(args)
+
+        args = self.parser.parse_args(
+            ["users", "reset-password", "--username", "test4", "--password", "ResetPass456!"]
+        )
+
+        with mock.patch.object(
+            user_command, "get_application_builder", wraps=user_command.get_application_builder
+        ) as mocked_get_application_builder:
+            with redirect_stdout(StringIO()) as stdout:
+                user_command.user_reset_password(args)
+
+        assert mocked_get_application_builder.call_count == 1
+        assert 'User "test4" password reset successfully' in stdout.getvalue()
