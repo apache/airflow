@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from airflow.configuration import conf
 from airflow.models.dagbag import DBDagBag
 
 if TYPE_CHECKING:
@@ -30,7 +31,8 @@ if TYPE_CHECKING:
 
 def create_dag_bag() -> DBDagBag:
     """Create DagBag to retrieve DAGs from the database."""
-    return DBDagBag()
+    max_cache_size = conf.getint("api", "dag_version_cache_size", fallback=4096)
+    return DBDagBag(max_cache_size=max_cache_size)
 
 
 def dag_bag_from_app(request: Request) -> DBDagBag:

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from collections import OrderedDict
 from unittest import mock
 from uuid import uuid4
 
@@ -91,11 +90,7 @@ class TestDBDagBagLRUCache:
     """Tests for the bounded LRU eviction behaviour of DBDagBag._dags."""
 
     def _make_bag(self, max_size: int) -> DBDagBag:
-        bag = DBDagBag.__new__(DBDagBag)
-        bag.load_op_links = True
-        bag._max_dag_version_cache_size = max_size
-        bag._dags = OrderedDict()
-        return bag
+        return DBDagBag(max_cache_size=max_size)
 
     def _make_model(self, version_id):
         m = mock.MagicMock()
@@ -143,3 +138,22 @@ class TestDBDagBagLRUCache:
         bag._read_dag(m)
 
         assert len(bag._dags) == 0
+
+    def test_cache_metrics_on_hit(self):
+        """A cache hit emits dag_bag.cache.hits via Stats.incr."""
+        bag = self._make_bag(max_size=10)
+        uid = uuid4()
+        bag._dags[uid] = self._make_model(uid)
+
+        with mock.patch("airflow.models.dagbag.Stats") as mock_stats:
+            bag.get_serialized_dag_model(uid, session=mock.MagicMock())
+            mock_stats.incr.assert_called_with("dag_bag.cache.hits")
+
+    def test_unbounded_cache_never_evicts(self):
+        """max_cache_size=None (scheduler mode) never evicts entries."""
+        bag = DBDagBag(max_cache_size=None)
+        ids = [uuid4() for _ in range(100)]
+        for uid in ids:
+            bag._read_dag(self._make_model(uid))
+
+        assert len(bag._dags) == 100

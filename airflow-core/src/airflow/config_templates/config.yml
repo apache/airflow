@@ -517,17 +517,6 @@ core:
       type: boolean
       example: ~
       default: "False"
-    max_dag_version_cache_size:
-      description: |
-        Maximum number of DAG versions to keep in the in-memory cache used by DBDagBag.
-        When the limit is reached the least-recently-used version is evicted. Increase this
-        value if you have many concurrently active DAG versions and can afford the memory;
-        decrease it to reduce the memory footprint of long-running API server or scheduler
-        processes.
-      version_added: 3.2.0
-      type: integer
-      example: ~
-      default: "4096"
 database:
   description: ~
   options:
@@ -1845,6 +1834,17 @@ api:
       type: string
       example: "/etc/airflow/certs/client.key"
       default: ~
+    dag_version_cache_size:
+      description: |
+        Maximum number of DAG versions to keep in the API server's in-memory LRU cache.
+        The API server may serve historical run views so it benefits from retaining older
+        versions. When the limit is reached the least-recently-used version is evicted.
+        The scheduler does not use this setting — its cache is naturally bounded by the
+        number of active DAGs.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "4096"
 workers:
   description: Configuration related to workers that run Airflow tasks.
   options:

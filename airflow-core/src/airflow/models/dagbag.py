@@ -25,9 +25,9 @@ from uuid import UUID
 from sqlalchemy import String, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column
 
-from airflow.configuration import conf
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
+from airflow.observability.stats import Stats
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -46,10 +46,8 @@ class DBDagBag:
     :meta private:
     """
 
-    def __init__(self, load_op_links: bool = True) -> None:
-        self._max_dag_version_cache_size: int = conf.getint(
-            "core", "max_dag_version_cache_size", fallback=4096
-        )
+    def __init__(self, load_op_links: bool = True, max_cache_size: int | None = None) -> None:
+        self._max_dag_version_cache_size = max_cache_size  # None = unbounded
         self._dags: OrderedDict[UUID, SerializedDagModel] = OrderedDict()
         self.load_op_links = load_op_links
 
@@ -59,8 +57,13 @@ class DBDagBag:
             version_id = serialized_dag_model.dag_version_id
             self._dags[version_id] = serialized_dag_model
             self._dags.move_to_end(version_id)
-            if len(self._dags) > self._max_dag_version_cache_size:
-                self._dags.popitem(last=False)  # evict LRU entry
+            if (
+                self._max_dag_version_cache_size is not None
+                and len(self._dags) > self._max_dag_version_cache_size
+            ):
+                self._dags.popitem(last=False)
+                Stats.incr("dag_bag.cache.evictions")
+            Stats.gauge("dag_bag.cache.size", len(self._dags), rate=0.1)
         return dag
 
     def get_serialized_dag_model(self, version_id: UUID, session: Session) -> SerializedDagModel | None:
@@ -82,11 +85,13 @@ class DBDagBag:
         internal cache (``self._dags``) before being returned.
         """
         if not (serialized_dag_model := self._dags.get(version_id)):
+            Stats.incr("dag_bag.cache.misses")
             dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
             if not dag_version or not (serialized_dag_model := dag_version.serialized_dag):
                 return None
             self._read_dag(serialized_dag_model)
         else:
+            Stats.incr("dag_bag.cache.hits")
             self._dags.move_to_end(version_id)  # promote to MRU on cache hit
         return serialized_dag_model
 

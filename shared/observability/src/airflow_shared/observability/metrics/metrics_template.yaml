@@ -292,11 +292,35 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "dag_bag.cache.hits"
+    description: "Number of DBDagBag cache hits (DAG version found in memory)"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_bag.cache.misses"
+    description: "Number of DBDagBag cache misses (DAG version fetched from DB)"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_bag.cache.evictions"
+    description: "Number of DAG versions evicted from the DBDagBag LRU cache"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   # ==========
   # Gauges
   # ==========
   - name: "dagbag_size"
     description: "Number of Dags found when the scheduler ran a scan based on its configuration"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_bag.cache.size"
+    description: "Current number of DAG versions held in the DBDagBag in-memory LRU cache"
     type: "gauge"
     legacy_name: "-"
     name_variables: []
