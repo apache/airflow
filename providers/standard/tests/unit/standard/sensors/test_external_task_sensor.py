@@ -1122,7 +1122,7 @@ exit 0
 
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_deferrable_check_existence_dag_not_found(self, dag_maker):
-        """Test that deferrable sensor raises ExternalDagNotFoundError when DAG doesn't exist."""
+        """Test that deferrable sensor raises ExternalDagNotFoundError when Dag doesn't exist."""
         context = {"execution_date": DEFAULT_DATE}
         with dag_maker() as dag:
             op = ExternalTaskSensor(
