@@ -157,6 +157,7 @@ balancers
 Bas
 BaseClient
 BaseHook
+basename
 BaseOperator
 baseOperator
 BaseOperatorLink
@@ -676,6 +677,7 @@ gelf
 gemini
 generateUploadUrl
 geq
+gessing
 getattr
 getboolean
 getfqdn
@@ -1130,6 +1132,7 @@ os
 OSS
 oss
 ot
+OTel
 otel
 PaaS
 Pagerduty
@@ -1214,6 +1217,7 @@ prefetches
 preflight
 prek
 Preload
+preload
 prepend
 prepended
 preprocess
