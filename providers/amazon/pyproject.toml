@@ -86,11 +86,10 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-# There is conflict between boto3 and aiobotocore dependency botocore.
-# TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-# boto3 have native async support and we move away from aio aiobotocore
+# Note: aiobotocore removed its [boto3] extra in 3.3.0; boto3 is already
+# in the provider's main dependencies so no extra is needed here.
 "aiobotocore" = [
-    "aiobotocore[boto3]>=2.26.0",
+    "aiobotocore>=2.26.0",
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=7.2.0",
