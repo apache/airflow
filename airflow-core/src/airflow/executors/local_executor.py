@@ -30,6 +30,7 @@ import multiprocessing
 import multiprocessing.sharedctypes
 import os
 import sys
+import traceback
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
 
@@ -106,7 +107,8 @@ def _run_worker(
                 output.put((workload.ti.key, TaskInstanceState.SUCCESS, None))
             except Exception as e:
                 log.exception("Task execution failed.")
-                output.put((workload.ti.key, TaskInstanceState.FAILED, e))
+                safe_exc = Exception(f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}")
+                output.put((workload.ti.key, TaskInstanceState.FAILED, safe_exc))
 
         elif isinstance(workload, workloads.ExecuteCallback):
             output.put((workload.callback.id, CallbackState.RUNNING, None))
@@ -115,7 +117,8 @@ def _run_worker(
                 output.put((workload.callback.id, CallbackState.SUCCESS, None))
             except Exception as e:
                 log.exception("Callback execution failed")
-                output.put((workload.callback.id, CallbackState.FAILED, e))
+                safe_exc = Exception(f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}")
+                output.put((workload.callback.id, CallbackState.FAILED, safe_exc))
 
         else:
             raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
