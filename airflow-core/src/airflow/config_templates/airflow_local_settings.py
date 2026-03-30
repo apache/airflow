@@ -281,6 +281,36 @@ if REMOTE_LOGGING:
             )
         )
         remote_task_handler_kwargs = {}
+    elif remote_base_log_folder.startswith("loki://"):
+        from airflow.providers.grafana.loki.log.loki_task_handler import LokiRemoteLogIO
+        
+        url_parts = urlsplit(remote_base_log_folder)
+        loki_host = f"http://{url_parts.netloc}"
+        if url_parts.port:
+            pass # netloc already includes port
+
+        REMOTE_TASK_LOG = LokiRemoteLogIO(
+            **(
+                {
+                    "base_log_folder": BASE_LOG_FOLDER,
+                    "host": loki_host,
+                    "delete_local_copy": delete_local_copy,
+                }
+                | remote_task_handler_kwargs
+            )
+        )
+        # Configure logging dictionary to use LokiTaskHandler for the webserver reads
+        LOKI_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
+            "task": {
+                "class": "airflow.providers.grafana.loki.log.loki_task_handler.LokiTaskHandler",
+                "formatter": "airflow",
+                "base_log_folder": BASE_LOG_FOLDER,
+                "host": loki_host,
+                "frontend": conf.get("logging", "loki_frontend_url", fallback=""),
+            },
+        }
+        DEFAULT_LOGGING_CONFIG["handlers"].update(LOKI_REMOTE_HANDLERS)
+        remote_task_handler_kwargs = {}
     elif ELASTICSEARCH_HOST:
         from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchRemoteLogIO
 
