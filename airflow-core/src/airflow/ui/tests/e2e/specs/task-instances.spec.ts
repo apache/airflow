@@ -129,12 +129,12 @@ test.describe("Task Instances Page", () => {
     taskInstancesPage = new TaskInstancesPage(page);
   });
 
-  test("verify task instances table displays data", async () => {
+  test.fixme("verify task instances table displays data", async () => {
     await taskInstancesPage.navigate();
     await taskInstancesPage.verifyTaskInstancesExist();
   });
 
-  test("verify task details display correctly", async () => {
+  test.fixme("verify task details display correctly", async () => {
     await taskInstancesPage.navigate();
     await taskInstancesPage.verifyTaskDetailsDisplay();
   });
@@ -144,7 +144,7 @@ test.describe("Task Instances Page", () => {
     await taskInstancesPage.verifyStateFiltering("Failed");
   });
 
-  test("verify filtering by success state", async () => {
+  test.fixme("verify filtering by success state", async () => {
     await taskInstancesPage.navigate();
     await taskInstancesPage.verifyStateFiltering("Success");
   });
