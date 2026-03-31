@@ -299,3 +299,4 @@ dev/registry/output/
 dev/registry/logos/
 dev/registry/modules.json
 dev/registry/providers.json
+.worktrees/
