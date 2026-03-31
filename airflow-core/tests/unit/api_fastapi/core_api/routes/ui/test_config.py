@@ -192,3 +192,5 @@ class TestGetConfig:
         theme = response.json()["theme"]
         assert "tokens" not in theme
         assert theme["globalCss"] == {"button": {"text-transform": "uppercase"}}
+        assert "icon" not in theme
+        assert "icon_dark_mode" not in theme
