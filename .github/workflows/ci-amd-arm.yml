@@ -40,7 +40,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-  UV_VERSION: "0.11.1"  # Keep this comment to allow automatic replacement of uv version
+  UV_VERSION: "0.11.2"  # Keep this comment to allow automatic replacement of uv version
   VERBOSE: "true"
 
 concurrency:

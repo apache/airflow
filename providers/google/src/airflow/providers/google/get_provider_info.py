@@ -1437,6 +1437,10 @@ def get_provider_info():
                 },
             },
             {
+                "hook-class-name": "airflow.providers.google.cloud.hooks.spanner.SpannerHook",
+                "connection-type": "gcpspanner",
+            },
+            {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook",
                 "connection-type": "dataprep",
             },

@@ -456,6 +456,8 @@ uv tool install -e ./dev/breeze
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/prek/supported_versions.py` and let prek do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
+- Update the build status badge in `README.md` to point to the new `vX-Y-test` branch (the `3.x` row in the
+  build status table). The `uv run dev/update_github_branch_config.py X Y` script does this automatically.
 - Add entry for default python version to `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py`
   with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
   with minimum version for the next version of Airflow will be added in the future.
@@ -499,10 +501,21 @@ uv tool install -e ./dev/breeze
 
 - PR from the 'test' branch to the 'stable' branch
 
-- When the PR is approved, install `dev/breeze` in a virtualenv:
+> [!TIP]
+> **Shortcut for first RC candidates:** When preparing the first RC candidate for a new minor release
+> (e.g., 3.2.0rc1), it is unlikely to be approved on the first attempt — bugs are typically found during
+> RC testing. In this case, the release manager can prepare the RC directly from the `v3-X-test` branch
+> without opening a PR to `v3-X-stable`. This saves the overhead of creating and managing a PR that will
+> likely need additional changes before GA. However, when using this shortcut, the release manager **must**
+> verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
+> check this at:
+> https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml?query=event%3Apush+branch%3Av3-2-test
+> (adjust the branch filter for the relevant `v3-X-test` branch).
+
+- When the PR is approved (or when using the shortcut above), install `dev/breeze` in a virtualenv:
 
     ```shell script
-    pip install -e ./dev/breeze
+    uv pip install -e ./dev/breeze
     ```
 
 - Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC.
