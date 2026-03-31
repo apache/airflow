@@ -1199,6 +1199,8 @@ connection-types:
         schema:
           type: ["boolean", "null"]
           default: false
+  - hook-class-name: airflow.providers.google.cloud.hooks.spanner.SpannerHook
+    connection-type: gcpspanner
   - hook-class-name: airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
     connection-type: dataprep
   - hook-class-name: airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook
