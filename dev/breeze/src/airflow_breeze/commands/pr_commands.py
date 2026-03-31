@@ -2239,6 +2239,9 @@ def _compute_default_action(
     elif not has_ci_failures and not has_conflicts and has_unresolved_comments:
         # CI passes, no conflicts, no LLM issues — only unresolved review comments; just add a comment
         action = TriageAction.COMMENT
+    elif not has_ci_failures and not has_conflicts and not has_unresolved_comments:
+        # Only soft violations (e.g. missing UI demo) — just comment, don't convert to draft
+        action = TriageAction.COMMENT
     else:
         action = TriageAction.DRAFT
 
@@ -6905,6 +6908,7 @@ def _review_ready_prs_review_mode(
         PRAssessment,
         assess_pr_checks,
         assess_pr_conflicts,
+        assess_pr_ui_demo,
         assess_pr_unresolved_comments,
     )
 
@@ -7006,8 +7010,9 @@ def _review_ready_prs_review_mode(
             comments_assessment = assess_pr_unresolved_comments(
                 pr.number, pr.unresolved_review_comments, pr.unresolved_threads
             )
+            ui_demo_assessment = assess_pr_ui_demo(pr.number, pr.labels, pr.body, pr.author_association)
 
-            if ci_assessment or conflict_assessment or comments_assessment:
+            if ci_assessment or conflict_assessment or comments_assessment or ui_demo_assessment:
                 violations = []
                 summaries = []
                 if conflict_assessment:
@@ -7019,6 +7024,9 @@ def _review_ready_prs_review_mode(
                 if comments_assessment:
                     violations.extend(comments_assessment.violations)
                     summaries.append(comments_assessment.summary)
+                if ui_demo_assessment:
+                    violations.extend(ui_demo_assessment.violations)
+                    summaries.append(ui_demo_assessment.summary)
 
                 assessment = PRAssessment(
                     should_flag=True,
@@ -8552,6 +8560,7 @@ def _assess_pr_deterministic(
     from airflow_breeze.utils.github import (
         assess_pr_checks,
         assess_pr_conflicts,
+        assess_pr_ui_demo,
         assess_pr_unresolved_comments,
     )
 
@@ -8580,11 +8589,14 @@ def _assess_pr_deterministic(
     comments_assessment = assess_pr_unresolved_comments(
         pr.number, pr.unresolved_review_comments, pr.unresolved_threads
     )
+    ui_demo_assessment = assess_pr_ui_demo(pr.number, pr.labels, pr.body, pr.author_association)
 
-    if ci_assessment or conflict_assessment or comments_assessment:
+    if ci_assessment or conflict_assessment or comments_assessment or ui_demo_assessment:
         if pr.is_draft:
             return DeterministicResult(category="draft_skipped")
-        merged = _merge_pr_assessments(conflict_assessment, ci_assessment, comments_assessment)
+        merged = _merge_pr_assessments(
+            conflict_assessment, ci_assessment, comments_assessment, ui_demo_assessment
+        )
         return DeterministicResult(category="flagged", assessment=merged)
 
     # No deterministic issues found — needs further categorization
