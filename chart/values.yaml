@@ -777,10 +777,10 @@ workers:
     # (deprecated, use `workers.celery.podDisruptionBudget.config` instead)
     config:
       # minAvailable and maxUnavailable are mutually exclusive
-      maxUnavailable: 1
       # (deprecated, use `workers.celery.podDisruptionBudget.config.maxUnavailable` instead)
-      # minAvailable: 1
+      maxUnavailable: 1
       # (deprecated, use `workers.celery.podDisruptionBudget.config.minAvailable` instead)
+      # minAvailable: 1
 
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
   serviceAccount:
