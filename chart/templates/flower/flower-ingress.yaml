@@ -22,7 +22,7 @@
 #################################
 {{- if .Values.flower.enabled }}
 {{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
-{{- $fullname := (include "airflow.fullname" .) }}
+{{- $fullname := include "airflow.fullname" . }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -33,7 +33,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.flower.labels) }}
+    {{- if or .Values.labels .Values.flower.labels }}
       {{- mustMerge .Values.flower.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   {{- with .Values.ingress.flower.annotations }}
@@ -43,21 +43,17 @@ spec:
   {{- if and .Values.ingress.flower.hosts (.Values.ingress.flower.hosts | first | kindIs "string" | not) }}
   {{- $anyTlsHosts := false -}}
   {{- range .Values.ingress.flower.hosts }}
-  {{- if .tls }}
-  {{- if .tls.enabled }}
+  {{- if and .tls .tls.enabled }}
   {{- $anyTlsHosts = true -}}
-  {{- end }}
   {{- end }}
   {{- end }}
   {{- if $anyTlsHosts }}
   tls:
   {{- range .Values.ingress.flower.hosts }}
-  {{- if .tls }}
-  {{- if .tls.enabled }}
+  {{- if and .tls .tls.enabled }}
     - hosts:
         - {{ tpl .name $ | quote }}
       secretName: {{ .tls.secretName }}
-  {{- end }}
   {{- end }}
   {{- end }}
   {{- end }}

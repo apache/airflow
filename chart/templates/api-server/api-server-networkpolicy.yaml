@@ -20,8 +20,7 @@
 ################################
 ## Airflow API Server NetworkPolicy
 #################################
-{{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
-{{- if .Values.networkPolicies.enabled }}
+{{- if and .Values.apiServer.enabled .Values.networkPolicies.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -32,7 +31,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.apiServer.labels) }}
+    {{- if or .Values.labels .Values.apiServer.labels }}
       {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
@@ -54,5 +53,4 @@ spec:
           {{- end }}
       {{- end }}
   {{- end }}
-{{- end }}
 {{- end }}
