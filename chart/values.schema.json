@@ -3323,7 +3323,8 @@
                             "type": [
                                 "string",
                                 "null"
-                            ]
+                            ],
+                            "default": null
                         },
                         "hostAliases": {
                             "description": "Specify HostAliases for Airflow Celery worker pods.",
