@@ -22,7 +22,7 @@ from datetime import datetime
 from unittest import mock
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 
 from airflow.datasets import Dataset, DatasetAlias
 from airflow.datasets.manager import DatasetManager
@@ -228,3 +228,32 @@ class TestDatasetManager:
         # Ensure the listener was notified
         assert len(dataset_listener.created) == 1
         assert dataset_listener.created[0].uri == dsm.uri
+
+    @pytest.mark.skip_if_database_isolation_mode
+    def test_register_dataset_change_queues_stale_dag(self, session, mock_task_instance):
+        dsem = DatasetManager()
+
+        dsm = DatasetModel(uri="test_dataset_uri_3")
+        session.add(dsm)
+
+        # Setup a dag that is STALE but NOT PAUSED
+        # We want stale dags to still receive updates
+        stale_dag = DagModel(dag_id="stale_dag", is_active=False, is_paused=False)
+        session.add(stale_dag)
+
+        # Link stale dags to the dataset
+        dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=stale_dag.dag_id)]
+
+        session.execute(delete(DatasetDagRunQueue))
+        session.flush()
+
+        dsem.register_dataset_change(
+            task_instance=mock_task_instance,
+            dataset=Dataset(dsm.uri),
+            session=session,
+        )
+        session.flush()
+
+        # Verify the stale Dag was NOT ignored
+        assert session.scalar(select(func.count()).select_from(DatasetDagRunQueue)) == 1
+        assert session.scalar(select(DatasetDagRunQueue.target_dag_id)) == "stale_dag"

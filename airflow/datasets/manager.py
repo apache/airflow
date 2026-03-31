@@ -114,7 +114,7 @@ class DatasetManager(LoggingMixin):
         session.add(dataset_event)
 
         dags_to_queue_from_dataset = {
-            ref.dag for ref in dataset_model.consuming_dags if ref.dag.is_active and not ref.dag.is_paused
+            ref.dag for ref in dataset_model.consuming_dags if not ref.dag.is_paused
         }
         dags_to_queue_from_dataset_alias = set()
         if source_alias_names:
@@ -133,9 +133,7 @@ class DatasetManager(LoggingMixin):
                 session.add(dsa)
 
                 dags_to_queue_from_dataset_alias |= {
-                    alias_ref.dag
-                    for alias_ref in dsa.consuming_dags
-                    if alias_ref.dag.is_active and not alias_ref.dag.is_paused
+                    alias_ref.dag for alias_ref in dsa.consuming_dags if not alias_ref.dag.is_paused
                 }
 
         dags_to_reparse = dags_to_queue_from_dataset_alias - dags_to_queue_from_dataset
