@@ -256,7 +256,7 @@ repos:
           (?x)
           ^\.pre-commit-config\.yaml$|
           ^\.github/\.pre-commit-config\.yaml$|
-          ^scripts/ci/prek/update_installers_and_prek\.py$
+          ^scripts/ci/prek/upgrade_important_versions\.py$
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
