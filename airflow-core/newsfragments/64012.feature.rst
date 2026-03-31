@@ -1,0 +1,1 @@
+Standardize Airflow contributor workflows for AI agents using the agentskills.io specification, with contributor-docs as workflow source of truth and Breeze-aware host/container command routing for static checks and targeted tests.

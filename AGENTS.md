@@ -37,6 +37,8 @@
 - **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`
 - **Build docs:** `breeze build-docs`
 - **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`
+Agent skills (machine-readable) are in `.agents/skills/`.
+Use `contributing-docs` as workflow source of truth; treat Breeze CLI as execution interface.
 
 SQLite is the default backend. Use `--backend postgres` or `--backend mysql` for integration tests that need those databases. If Docker networking fails, run `docker network prune`.
 

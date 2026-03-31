@@ -192,6 +192,7 @@ markers = [
 ]
 norecursedirs = [
     ".eggs",
+    "dev",
 ]
 log_level = "INFO"
 filterwarnings = [
