@@ -1112,7 +1112,7 @@ class TestEksPodOperator:
         op._credentials_file_path = str(credentials_file)
 
         # Call the refresh method and expect it to raise
-        with pytest.raises(RuntimeError, match="Unable to retrieve fresh AWS credentials"):
+        with pytest.raises(AirflowException, match="Unable to retrieve fresh AWS credentials"):
             op._refresh_cached_properties()
 
         # Verify super()._refresh_cached_properties() was NOT called since we raised
