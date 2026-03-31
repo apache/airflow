@@ -314,12 +314,13 @@ def clear_dag_run(
 
         if body.only_new:
             # Create lightweight NewTaskResponse objects for new tasks
-            task_instances = [
+            new_task_ids = cast("set[str]", task_instances_or_ids)
+            task_instances: list[TaskInstanceResponse | NewTaskResponse] = [
                 NewTaskResponse(task_id=task_id, task_display_name=task_id)
-                for task_id in sorted(task_instances_or_ids)
+                for task_id in sorted(new_task_ids)
             ]
         else:
-            task_instances = cast("list[TaskInstanceResponse]", task_instances_or_ids)
+            task_instances = cast("list[TaskInstanceResponse | NewTaskResponse]", task_instances_or_ids)
 
         return TaskInstanceCollectionResponse(
             task_instances=task_instances,

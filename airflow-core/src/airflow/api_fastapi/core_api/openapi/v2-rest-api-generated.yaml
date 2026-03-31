@@ -12575,7 +12575,7 @@ components:
       properties:
         task_instances:
           items:
-            anyOf:
+            oneOf:
             - $ref: '#/components/schemas/TaskInstanceResponse'
             - $ref: '#/components/schemas/NewTaskResponse'
           type: array

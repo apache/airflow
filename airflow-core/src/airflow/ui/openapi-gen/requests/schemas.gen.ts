@@ -5324,7 +5324,7 @@ export const $TaskInstanceCollectionResponse = {
     properties: {
         task_instances: {
             items: {
-                anyOf: [
+                oneOf: [
                     {
                         '$ref': '#/components/schemas/TaskInstanceResponse'
                     },

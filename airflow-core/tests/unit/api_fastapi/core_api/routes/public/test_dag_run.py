@@ -1555,10 +1555,11 @@ class TestClearDagRun:
             run_id=DAG1_RUN1_ID,
             task_ids=None,
             only_new=True,
+            only_failed=False,
+            run_on_latest_version=False,
             dry_run=True,
             session=mock.ANY,
         )
-        # Verify dry_run does not create a log entry
         logs = session.scalar(
             select(func.count())
             .select_from(Log)
@@ -1597,6 +1598,8 @@ class TestClearDagRun:
             run_id=DAG1_RUN1_ID,
             task_ids=None,
             only_new=True,
+            only_failed=False,
+            run_on_latest_version=False,
             session=mock.ANY,
         )
         _check_last_log(
