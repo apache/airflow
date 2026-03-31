@@ -9007,59 +9007,8 @@ export const $TeamResponse = {
 } as const;
 
 export const $Theme = {
-    properties: {
-        tokens: {
-            additionalProperties: {
-                '$ref': '#/components/schemas/ThemeColors'
-            },
-            propertyNames: {
-                const: 'colors'
-            },
-            type: 'object',
-            title: 'Tokens'
-        },
-        globalCss: {
-            anyOf: [
-                {
-                    additionalProperties: {
-                        additionalProperties: true,
-                        type: 'object'
-                    },
-                    type: 'object'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Globalcss'
-        },
-        icon: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Icon'
-        },
-        icon_dark_mode: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Icon Dark Mode'
-        }
-    },
-    type: 'object',
-    required: ['tokens'],
-    title: 'Theme',
-    description: "JSON to modify Chakra's theme."
+    additionalProperties: true,
+    type: 'object'
 } as const;
 
 export const $ThemeColors = {

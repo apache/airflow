@@ -2212,20 +2212,8 @@ export type TeamResponse = {
     name: string;
 };
 
-/**
- * JSON to modify Chakra's theme.
- */
 export type Theme = {
-    tokens: {
-        [key: string]: ThemeColors;
-    };
-    globalCss?: {
-    [key: string]: {
-        [key: string]: unknown;
-    };
-} | null;
-    icon?: string | null;
-    icon_dark_mode?: string | null;
+    [key: string]: unknown;
 };
 
 export type ThemeColors = {

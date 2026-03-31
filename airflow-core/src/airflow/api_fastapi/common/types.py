@@ -216,7 +216,11 @@ class ThemeColors(BaseModel):
 class Theme(BaseModel):
     """JSON to modify Chakra's theme."""
 
-    tokens: dict[Literal["colors"], ThemeColors]
+    tokens: dict[Literal["colors"], ThemeColors] | None = None
     globalCss: dict[str, dict] | None = None
     icon: ThemeIconType = None
     icon_dark_mode: ThemeIconType = None
+
+    @model_serializer(mode="wrap")
+    def serialize_model(self, handler: Any) -> dict:
+        return {k: v for k, v in handler(self).items() if v is not None}

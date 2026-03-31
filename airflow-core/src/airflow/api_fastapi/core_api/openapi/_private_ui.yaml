@@ -3270,37 +3270,8 @@ components:
       title: TeamResponse
       description: Base serializer for Team.
     Theme:
-      properties:
-        tokens:
-          additionalProperties:
-            $ref: '#/components/schemas/ThemeColors'
-          propertyNames:
-            const: colors
-          type: object
-          title: Tokens
-        globalCss:
-          anyOf:
-          - additionalProperties:
-              additionalProperties: true
-              type: object
-            type: object
-          - type: 'null'
-          title: Globalcss
-        icon:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Icon
-        icon_dark_mode:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Icon Dark Mode
+      additionalProperties: true
       type: object
-      required:
-      - tokens
-      title: Theme
-      description: JSON to modify Chakra's theme.
     ThemeColors:
       additionalProperties: true
       type: object

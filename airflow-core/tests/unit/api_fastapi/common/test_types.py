@@ -207,3 +207,30 @@ class TestTheme:
         assert "black" not in colors
         assert "white" not in colors
         assert colors["brand"]["50"]["value"] == "oklch(0.975 0.007 298.0)"
+
+    def test_globalcss_only_theme(self):
+        """tokens is optional; globalCss alone is sufficient."""
+        theme = Theme.model_validate({"globalCss": {"button": {"text-transform": "uppercase"}}})
+        assert theme.tokens is None
+        assert theme.globalCss == {"button": {"text-transform": "uppercase"}}
+
+    def test_icon_only_theme(self):
+        """tokens is optional; an icon URL alone is sufficient."""
+        theme = Theme.model_validate({"icon": "https://example.com/logo.svg"})
+        assert theme.tokens is None
+        assert theme.icon == "https://example.com/logo.svg"
+
+    def test_empty_theme(self):
+        """An empty theme object is valid — it means 'use OSS defaults'."""
+        theme = Theme.model_validate({})
+        assert theme.tokens is None
+        assert theme.globalCss is None
+        assert theme.icon is None
+        assert theme.icon_dark_mode is None
+
+    def test_theme_serialization_excludes_none_tokens(self):
+        """When tokens is None it must not appear in the serialized output."""
+        theme = Theme.model_validate({"globalCss": {"a": {"color": "red"}}})
+        dumped = theme.model_dump()
+        assert "tokens" not in dumped
+        assert dumped == {"globalCss": {"a": {"color": "red"}}}
