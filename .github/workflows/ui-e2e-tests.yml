@@ -157,3 +157,20 @@ jobs:
           retention-days: 7
           if-no-files-found: 'warn'
         if: always()
+      - name: "Extract E2E test failures and fixme tests"
+        run: python3 scripts/ci/extract_e2e_test_results.py
+        env:
+          RESULTS_JSON: "airflow-core/src/airflow/ui/test-results/results.json"
+          OUTPUT_DIR: "e2e-test-report"
+          BROWSER: "${{ env.BROWSER }}"
+          RUN_ID: "${{ github.run_id }}"
+          RUN_ATTEMPT: "${{ github.run_attempt }}"
+        if: always()
+      - name: "Upload E2E test report"
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        with:
+          name: "e2e-test-report-${{ env.BROWSER }}"
+          path: e2e-test-report/
+          retention-days: 14
+          if-no-files-found: 'warn'
+        if: always()

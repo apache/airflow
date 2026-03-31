@@ -102,7 +102,7 @@ PIP package                                 Version required
 ==========================================  ========================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
-``oss2``                                    ``>=2.14.0``
+``alibabacloud-oss-v2``                     ``>=1.2.0``
 ``alibabacloud_adb20211201``                ``>=1.0.0``
 ``alibabacloud_tea_openapi``                ``>=0.3.7``
 ``pyodps``                                  ``>=0.12.2.2; python_version < "3.13"``
