@@ -101,13 +101,6 @@ class TaskInstanceCollectionResponse(BaseModel):
     total_entries: int
 
 
-class NewTaskCollectionResponse(BaseModel):
-    """Collection of new tasks discovered during an only_new dry run."""
-
-    new_tasks: list[NewTaskResponse]
-    total_entries: int
-
-
 class TaskDependencyResponse(BaseModel):
     """Task Dependency serializer for responses."""
 
