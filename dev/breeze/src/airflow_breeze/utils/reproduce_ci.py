@@ -84,7 +84,7 @@ def build_reproduction_command_from_context(
     for param in ctx.command.params:
         if not getattr(param, "expose_value", True):
             continue
-        if param.name in _EXCLUDED_PARAMS:
+        if param.name is None or param.name in _EXCLUDED_PARAMS:
             continue
 
         value = ctx.params.get(param.name)
@@ -128,7 +128,7 @@ def build_reproduction_command_from_context(
 
     # Append positional arguments at the end
     for param in ctx.command.params:
-        if isinstance(param, click.Argument):
+        if isinstance(param, click.Argument) and param.name is not None:
             value = ctx.params.get(param.name)
             if value:
                 if isinstance(value, (list, tuple)):
