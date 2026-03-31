@@ -236,3 +236,122 @@ class TestSalesforceBulkOperator:
             batch_size=batch_size,
             use_serial=use_serial,
         )
+
+
+    @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
+    def test_check_result_logs_warning_on_record_failure(self, mock_get_conn):
+        """
+        Test that _check_result_for_failures logs a warning when any record fails.
+        """
+        failed_result = [
+            {"success": True, "created": True, "id": "001xx0000001AAA", "errors": []},
+            {
+                "success": False,
+                "created": False,
+                "id": None,
+                "errors": [
+                    {
+                        "statusCode": "INVALID_FIELD",
+                        "message": "No such column \'Bad_Field\'",
+                        "fields": [],
+                    }
+                ],
+            },
+        ]
+        mock_get_conn.return_value.bulk.__getattr__("Account").insert = Mock(
+            return_value=failed_result
+        )
+
+        operator = SalesforceBulkOperator(
+            task_id="bulk_insert_with_failure",
+            operation="insert",
+            object_name="Account",
+            payload=[{"Name": "OK"}, {"Bad_Field": "x"}],
+        )
+
+        with pytest.warns(None):
+            result = operator.execute(context={})
+
+        assert result is None
+
+    @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
+    def test_raise_on_failures_raises_when_records_fail(self, mock_get_conn):
+        """
+        Test that raise_on_failures=True causes AirflowException when records fail.
+        """
+        from airflow.exceptions import AirflowException
+
+        failed_result = [
+            {
+                "success": False,
+                "created": False,
+                "id": None,
+                "errors": [
+                    {
+                        "statusCode": "REQUIRED_FIELD_MISSING",
+                        "message": "Required fields are missing: [Name]",
+                        "fields": ["Name"],
+                    }
+                ],
+            }
+        ]
+        mock_get_conn.return_value.bulk.__getattr__("Contact").update = Mock(
+            return_value=failed_result
+        )
+
+        operator = SalesforceBulkOperator(
+            task_id="bulk_update_raise_on_failures",
+            operation="update",
+            object_name="Contact",
+            payload=[{"Id": "003xx0000001AAA"}],
+            raise_on_failures=True,
+        )
+
+        with pytest.raises(AirflowException, match="1 out of 1"):
+            operator.execute(context={})
+
+    @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
+    def test_raise_on_failures_does_not_raise_on_success(self, mock_get_conn):
+        """
+        Test that raise_on_failures=True does not raise when all records succeed.
+        """
+        success_result = [
+            {"success": True, "created": True, "id": "001xx0000001BBB", "errors": []}
+        ]
+        mock_get_conn.return_value.bulk.__getattr__("Lead").insert = Mock(
+            return_value=success_result
+        )
+
+        operator = SalesforceBulkOperator(
+            task_id="bulk_insert_all_success",
+            operation="insert",
+            object_name="Lead",
+            payload=[{"LastName": "Test"}],
+            raise_on_failures=True,
+        )
+
+        result = operator.execute(context={})
+        assert result is None
+
+    @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
+    def test_execute_returns_result_list_when_xcom_push(self, mock_get_conn):
+        """
+        Test that execute returns the full result list when do_xcom_push is True.
+        """
+        success_result = [
+            {"success": True, "created": True, "id": "001xx0000001CCC", "errors": []}
+        ]
+        mock_get_conn.return_value.bulk.__getattr__("Account").insert = Mock(
+            return_value=success_result
+        )
+
+        operator = SalesforceBulkOperator(
+            task_id="bulk_insert_xcom",
+            operation="insert",
+            object_name="Account",
+            payload=[{"Name": "Test Account"}],
+            do_xcom_push=True,
+        )
+
+        result = operator.execute(context={})
+        assert result == success_result
