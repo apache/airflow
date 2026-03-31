@@ -390,19 +390,26 @@ class TestWorker:
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
-    def test_workers_host_aliases(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]},
+            {"celery": {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]}},
+            {
+                "hostAliases": [{"ip": "192.168.0.1", "hostnames": ["hostname"]}],
+                "celery": {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]},
             },
+        ],
+    )
+    def test_workers_host_aliases(self, workers_values):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.2"
-        assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "test.hostname"
+        assert jmespath.search("spec.template.spec.hostAliases", docs[0]) == [
+            {"ip": "127.0.0.2", "hostnames": ["test.hostname"]}
+        ]
 
     @pytest.mark.parametrize(
         ("workers_values", "expected_update_strategy"),
@@ -1919,6 +1926,27 @@ class TestWorker:
         )
 
         assert jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0]) == 5
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraPorts": [{"name": "test-extra-port", "containerPort": 10}]},
+            {"celery": {"extraPorts": [{"name": "test-extra-port", "containerPort": 10}]}},
+            {
+                "extraPorts": [{"name": "test", "containerPort": 1}],
+                "celery": {"extraPorts": [{"name": "test-extra-port", "containerPort": 10}]},
+            },
+        ],
+    )
+    def test_overwrite_extra_ports(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].ports[:-1]", docs[0]) == [
+            {"name": "test-extra-port", "containerPort": 10}
+        ]
 
 
 class TestWorkerLogGroomer(LogGroomerTestBase):

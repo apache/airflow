@@ -27,7 +27,8 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture
 def ver_client(client):
-    client.headers["Airflow-API-Version"] = "2025-11-07"
+    """Last released execution API (before 2026-04-06); uses legacy previous-run path."""
+    client.headers["Airflow-API-Version"] = "2025-11-05"
     return client
 
 

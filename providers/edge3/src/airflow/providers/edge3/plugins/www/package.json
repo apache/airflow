@@ -73,7 +73,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "eslint-plugin-unicorn": "^63.0.0",
     "globals": "^17.4.0",
-    "happy-dom": "^20.8.8",
+    "happy-dom": "^20.8.9",
     "prettier": "^3.8.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
@@ -83,6 +83,7 @@
     "vitest": "^4.0.18"
   },
   "pnpm": {
+    "minimumReleaseAge": 5760,
     "onlyBuiltDependencies": [
       "@swc/core",
       "esbuild"

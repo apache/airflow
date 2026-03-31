@@ -277,26 +277,12 @@ and mark those as well. You can accomplish this by running the following command
 ./dev/airflow-github needs-categorization 2.3.2 HEAD
 ```
 
-Often you also want to cherry-pick changes related to CI and development tools, to include the latest
-stability fixes in CI and improvements in development tools. Usually you can see the list of such
-changes via (this will exclude already merged changes):
-
-```shell
-git fetch apache
-git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
-git log --oneline --decorate apache/v2-2-stable..apache/main -- Dockerfile* scripts breeze* .github/ setup* dev | grep -vf /tmp/merged
-```
-
-Most of those PRs should be marked with `changelog:skip` label, so that they are excluded from the
-user-facing changelog as they only matter for developers of Airflow. We have a tool
-that allows to easily review the cherry-picked PRs and mark them with the right label - see below.
-
-You also likely want to cherry-pick some of the latest doc changes in order to bring clarification and
+You are likely want to cherry-pick some of the latest doc changes in order to bring clarification and
 explanations added to the documentation. Usually you can see the list of such changes via:
 
 ```shell
 git fetch apache
-git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline apache/v3-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
 git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
 ```
 
@@ -384,13 +370,13 @@ git show --format=tformat:"" --stat --name-only $(cat /tmp/doc-only-changes.txt)
 Then if you see suspicious file (example airflow/sensors/base.py) you can find details on where they came from:
 
 ```shell
-git log apache/v3-1-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
+git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
 ```
 
 And the URL to the PR it comes from:
 
 ```shell
-git log apache/v3-1-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
+git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
     xargs -n 1 git log --oneline --max-count=1 | \
     sed s'/.*(#\([0-9]*\))$/https:\/\/github.com\/apache\/airflow\/pull\/\1/'
 ```
@@ -461,17 +447,35 @@ uv tool install -e ./dev/breeze
     We sync this new branch to the stable branch so that people would continue to backport PRs to the test branch
     while the RC is being voted. The new branch must be in sync with where you cut it off from the test branch.
 
+- Switch to the new branch in .github/workflows/ci-notification.yml `workflow-status` matrix
 - Set the Airflow version in `airflow-core/src/airflow/__init__.py` (without the RC tag).
 - Set the Task SDK version in `task-sdk/src/airflow/sdk/__init__.py` (without the RC tag)
-- Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
+- Those two steps below are temporary - until we finally split task-sdk and airflow-core:
+  - Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
+  - Update the Task SDK version `>=` part in `pyproject.toml` to `==` TASK_SDK_VERSION without RC
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/prek/supported_versions.py` and let prek do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
+- Update the build status badge in `README.md` to point to the new `vX-Y-test` branch (the `3.x` row in the
+  build status table). The `uv run dev/update_github_branch_config.py X Y` script does this automatically.
 - Add entry for default python version to `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py`
   with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
   with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
+- Create `backport-to-vX-Y-test` label:
+
+    ```shell script
+    gh label create 'backport-to-vX-Y-test' --repo apache/airflow --description 'Backport to vX-Y-test' --color 0e8a16
+    ```
+
+- Update `.github/boring-cyborg.yml` and add `backport-to-vX-Y-test` auto-assignment for the new branch.
+- Update `.github/` configuration on `main` to add the new `vX-Y-test` branch (you can use the
+  `uv run dev/update_github_branch_config.py X Y` helper script for this). The following files need updating:
+  - `.github/dependabot.yml` — add `target-branch: vX-Y-test` entries for github-actions, pip, and npm ecosystems.
+  - `.github/workflows/milestone-tag-assistant.yml` — add `vX-Y-test` to the push branches list.
+  - `.github/workflows/basic-tests.yml` — update the release-management dry-run commands to test the new version.
+  - `.github/workflows/ci-notification.yml` — switch the `workflow-status` matrix branch to the new branch.
 - Commit the above changes with the message `Update version to ${VERSION}`.
 - Build the release notes:
 

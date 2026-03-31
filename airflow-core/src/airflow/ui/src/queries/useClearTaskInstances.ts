@@ -24,6 +24,7 @@ import {
   useDagRunServiceGetDagRunsKey,
   UseGanttServiceGetGanttDataKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
+  useTaskInstanceServiceGetTaskInstancesKey,
   useTaskInstanceServicePostClearTaskInstances,
 } from "openapi/queries";
 import type { ApiError } from "openapi/requests";
@@ -114,6 +115,7 @@ export const useClearTaskInstances = ({
       ...taskInstanceKeys,
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
+      [useTaskInstanceServiceGetTaskInstancesKey],
       [useClearTaskInstancesDryRunKey, dagId],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
       UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),

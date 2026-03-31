@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-04-13"
+API_VERSION: Final[str] = "2026-04-06"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
