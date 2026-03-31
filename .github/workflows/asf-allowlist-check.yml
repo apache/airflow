@@ -14,3 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+---
+name: "ASF Allowlist Check"
+"on":
+  pull_request:
+    paths: [".github/**"]
+  push:
+    branches: [main, v*-test]
+    paths: [".github/**"]
+permissions:
+  contents: read
+jobs:
+  asf-allowlist-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: apache/infrastructure-actions/allowlist-check@493edcdbd80d9e78a767f256a877b1cc6c9712ba  # main

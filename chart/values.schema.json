@@ -2288,7 +2288,7 @@
                     "default": 600
                 },
                 "safeToEvict": {
-                    "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down. It is used by Airflow Celery workers and pod-template-file.",
+                    "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down. It is used by Airflow Celery workers and pod-template-file (deprecated, use ``workers.celery.safeToEvict`` or/and ``workers.kubernetes.safeToEvict`` instead).",
                     "type": "boolean",
                     "default": false
                 },
@@ -2309,7 +2309,7 @@
                     }
                 },
                 "extraPorts": {
-                    "description": "Expose additional ports of Airflow Celery worker container.",
+                    "description": "Expose additional ports of Airflow Celery worker container (deprecated, use `workers.celery.extraPorts` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2349,7 +2349,7 @@
                     "default": null
                 },
                 "priorityClassName": {
-                    "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.priorityClassName`` and/or ``workers.kubernetes.priorityClassName`` instead).",
                     "type": [
                         "string",
                         "null"
@@ -2381,7 +2381,7 @@
                     }
                 },
                 "hostAliases": {
-                    "description": "Specify HostAliases for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify HostAliases for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.hostAliases`` and/or ``workers.kubernetes.hostAliases`` instead).",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
                     },
@@ -3286,6 +3286,22 @@
                             ],
                             "default": null
                         },
+                        "safeToEvict": {
+                            "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
+                            "type": [
+                                "boolean",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "extraPorts": {
+                            "description": "Expose additional ports of Airflow Celery worker container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
+                            }
+                        },
                         "nodeSelector": {
                             "description": "Select certain nodes for Airflow Celery worker pods.",
                             "type": "object",
@@ -3293,6 +3309,36 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "priorityClassName": {
+                            "description": "Specify priority for Airflow Celery worker pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "hostAliases": {
+                            "description": "Specify HostAliases for Airflow Celery worker pods.",
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                            },
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                {
+                                    "ip": "127.0.0.2",
+                                    "hostnames": [
+                                        "test.hostname.one"
+                                    ]
+                                },
+                                {
+                                    "ip": "127.0.0.3",
+                                    "hostnames": [
+                                        "test.hostname.two"
+                                    ]
+                                }
+                            ]
                         }
                     }
                 },
@@ -3575,6 +3621,14 @@
                             ],
                             "default": null
                         },
+                        "safeToEvict": {
+                            "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
+                            "type": [
+                                "boolean",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "nodeSelector": {
                             "description": "Select certain nodes for pods created with pod-template-file.",
                             "type": "object",
@@ -3582,6 +3636,36 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "priorityClassName": {
+                            "description": "Specify priority for pods created with pod-template-file.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "hostAliases": {
+                            "description": "Specify HostAliases for pods created with pod-template-file.",
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                            },
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                {
+                                    "ip": "127.0.0.2",
+                                    "hostnames": [
+                                        "test.hostname.one"
+                                    ]
+                                },
+                                {
+                                    "ip": "127.0.0.3",
+                                    "hostnames": [
+                                        "test.hostname.two"
+                                    ]
+                                }
+                            ]
                         }
                     }
                 }
@@ -10203,9 +10287,7 @@
                     "items": {
                         "type": "string"
                     },
-                    "default": [
-                        "bash"
-                    ]
+                    "default": null
                 },
                 "args": {
                     "description": "Args to use when running the database cleanup cronjob (templated).",
@@ -10217,6 +10299,7 @@
                         "type": "string"
                     },
                     "default": [
+                        "bash",
                         "-c",
                         "CLEAN_TS=$(date -d \"-{{ .Values.databaseCleanup.retentionDays }} days\" +\"%Y-%m-%dT%H:%M:%S\"); echo \"Cleaning up metadata DB entries older than ${CLEAN_TS}\"; exec airflow db clean --clean-before-timestamp \"${CLEAN_TS}\" --yes {{- if .Values.databaseCleanup.skipArchive }} --skip-archive{{ end }} {{- if .Values.databaseCleanup.verbose }} --verbose{{ end }} {{- with .Values.databaseCleanup.batchSize }} --batch-size {{ . }}{{ end }} {{- with .Values.databaseCleanup.tables }} --tables {{ . | join \",\" }}{{ end }}"
                     ]

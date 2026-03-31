@@ -107,7 +107,7 @@ def get_status_emoji(constraint_date, latest_date, is_latest_version):
     Returns a tuple of (formatted_status_string, status_category) where status_category
     is one of "ok", "new", "warning", "critical".
     """
-    col_target = 16
+    col_target = 11
     if is_latest_version:
         return "✅ OK".ljust(col_target), "ok"
 
@@ -290,7 +290,7 @@ def get_table_format(packages: list[tuple[str, str]]):
         "Constraint Date": 15,
         "Latest Version": 15,
         "Latest Date": 12,
-        "📢 Status": 17,
+        "📢 Status": 12,
         "# Days Stale": 12,
         "# Versions Behind": 19,
         "PyPI Link": 60,

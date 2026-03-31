@@ -2079,3 +2079,35 @@ class TestWaitDagRun:
         assert response.status_code == 200
         data = response.json()
         assert data == {"state": DagRunState.SUCCESS, "results": {"task_1": '"result_1"'}}
+
+    def test_should_respond_403_when_user_lacks_xcom_permission(self, test_client):
+        from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
+            autospec=True,
+        ) as mock_get_auth_manager:
+            mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
+
+            response = test_client.get(
+                f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+                params={"interval": "1", "result": "task_1"},
+            )
+
+            assert response.status_code == 403
+            mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
+                method="GET",
+                access_entity=DagAccessEntity.XCOM,
+                details=DagDetails(id=DAG1_ID),
+                user=mock.ANY,
+            )
+
+    def test_should_respond_200_without_result_when_user_lacks_xcom_permission(self, test_client):
+        """Waiting without result parameter should not require XCom permissions."""
+        response = test_client.get(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+            params={"interval": "1"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data == {"state": DagRunState.SUCCESS}

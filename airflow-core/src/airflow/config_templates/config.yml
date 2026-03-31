@@ -1700,6 +1700,14 @@ api:
       type: string
       example: path/to/logging_config.yaml
       default: ~
+    log_stream_buffer_size:
+      description: |
+        Number of log lines to buffer before flushing to the client when streaming task logs
+        in NDJSON format. Larger values reduce HTTP overhead but increase time-to-first-byte.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "500"
     ssl_cert:
       description: |
         Paths to the SSL certificate and key for the api server. When both are
