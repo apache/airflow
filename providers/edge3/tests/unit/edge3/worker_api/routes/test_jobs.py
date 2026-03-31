@@ -81,6 +81,7 @@ class TestJobsApiRoutes:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, dag_maker, session: Session):
         session.execute(delete(EdgeJobModel))
+        session.execute(delete(EdgeWorkerModel))
         session.commit()
 
     @patch(f"{Stats.__module__}.Stats.incr")
