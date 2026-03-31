@@ -704,9 +704,9 @@ def assess_pr_ui_demo(
                 severity="warning",
                 details=(
                     "For UI changes, please add screenshots or a short screen recording "
-                    "to the PR description so reviewers can verify the visual changes. "
-                    "You can paste images directly into the GitHub PR description or "
-                    "drag-and-drop a screen recording. "
+                    "directly to the PR description (not in comments) so reviewers can "
+                    "verify the visual changes. You can paste images directly into the "
+                    "GitHub PR description or drag-and-drop a screen recording. "
                     f"See [pull request guidelines]({_CONTRIBUTING_DOCS_URL}/05_pull_requests.rst)."
                 ),
             )
