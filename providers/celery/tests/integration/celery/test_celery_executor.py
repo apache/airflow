@@ -128,8 +128,6 @@ class TestCeleryExecutor:
         db.clear_db_runs()
         db.clear_db_jobs()
 
-<<<<<<< HEAD
-=======
 
 def setup_dagrun_with_success_and_fail_workloads(dag_maker):
     date = timezone.utcnow()
@@ -141,7 +139,6 @@ def setup_dagrun_with_success_and_fail_workloads(dag_maker):
 
     return dag_maker.create_dagrun(logical_date=date)
 
->>>>>>> 29a855f79e (Clean up CeleryExecutor docstrings, comments, variable names, and typing to align with the workload-based executor model.)
     @pytest.mark.flaky(reruns=5, reruns_delay=3)
     @pytest.mark.parametrize("broker_url", _prepare_test_bodies())
     @pytest.mark.parametrize(
@@ -214,7 +211,6 @@ def setup_dagrun_with_success_and_fail_workloads(dag_maker):
                 key_fail = TaskInstanceKey(
                     ti_fail.dag_id, ti_fail.task_id, ti_fail.run_id, ti_fail.try_number, ti_fail.map_index
                 )
-<<<<<<< HEAD
                 key_success = TaskInstanceKey(
                     ti_success.dag_id,
                     ti_success.task_id,
@@ -233,7 +229,6 @@ def setup_dagrun_with_success_and_fail_workloads(dag_maker):
                         bundle_info=BundleInfo(name="test"),
                         log_path="test.log",
                     )
-=======
                 keys = [
                     TaskInstanceKey("id", "success", "abc", 0, -1),
                     TaskInstanceKey("id", "fail", "abc", 0, -1),
@@ -246,7 +241,6 @@ def setup_dagrun_with_success_and_fail_workloads(dag_maker):
                     ),
                     workloads.ExecuteTask.make(ti=ti_fail),
                 ):
->>>>>>> 29a855f79e (Clean up CeleryExecutor docstrings, comments, variable names, and typing to align with the workload-based executor model.)
                     executor.queue_workload(w, session=None)
 
                 executor.trigger_tasks(open_slots=10)

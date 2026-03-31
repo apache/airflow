@@ -298,7 +298,7 @@ config:
         default: "prefork"
       operation_timeout:
         description: |
-          The number of seconds to wait before timing out ``send_task_to_executor`` or
+          The number of seconds to wait before timing out ``send_workload_to_executor`` or
           ``fetch_celery_task_state`` operations.
         version_added: ~
         type: float

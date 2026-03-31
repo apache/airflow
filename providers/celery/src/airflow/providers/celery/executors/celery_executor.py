@@ -32,7 +32,7 @@ import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 from celery import states as celery_states
 from deprecated import deprecated
@@ -64,7 +64,11 @@ if TYPE_CHECKING:
     from airflow.providers.celery.executors.celery_executor_utils import TaskTuple, WorkloadInCelery
 
     if AIRFLOW_V_3_2_PLUS:
-        from airflow.executors.workloads.types import WorkloadKey
+        from airflow.executors.workloads.types import WorkloadKey as _WorkloadKey
+
+        WorkloadKey: TypeAlias = _WorkloadKey
+    else:
+        WorkloadKey: TypeAlias = TaskInstanceKey  # type: ignore[no-redef, misc]
 
 
 # PEP562
@@ -202,7 +206,7 @@ class CeleryExecutor(BaseExecutor):
                 if retries < self.workload_publish_max_retries:
                     Stats.incr("celery.task_timeout_error")
                     self.log.info(
-                        "[Try %s of %s] Task Timeout Error for Workload: (%s).",
+                        "[Try %s of %s] Celery Task Timeout Error for Workload: (%s).",
                         self.workload_publish_retries[key] + 1,
                         self.workload_publish_max_retries,
                         tuple(key),
@@ -271,7 +275,7 @@ class CeleryExecutor(BaseExecutor):
         for key, async_result in list(self.workloads.items()):
             state, info = state_and_info_by_celery_task_id.get(async_result.task_id)
             if state:
-                self.update_workload_state(key, state, info)
+                self.update_task_state(cast("TaskInstanceKey", key), state, info)
 
     def change_state(
         self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
@@ -279,13 +283,13 @@ class CeleryExecutor(BaseExecutor):
         super().change_state(key, state, info, remove_running=remove_running)
         self.workloads.pop(key, None)
 
-    def update_workload_state(self, key: WorkloadKey, state: str, info: Any) -> None:
+    def update_task_state(self, key: TaskInstanceKey, state: str, info: Any) -> None:
         """Update state of a single workload."""
         try:
             if state == celery_states.SUCCESS:
-                self.success(cast("TaskInstanceKey", key), info)
+                self.success(key, info)
             elif state in (celery_states.FAILURE, celery_states.REVOKED):
-                self.fail(cast("TaskInstanceKey", key), info)
+                self.fail(key, info)
             elif state in (celery_states.STARTED, celery_states.PENDING, celery_states.RETRY):
                 pass
             else:
@@ -353,7 +357,7 @@ class CeleryExecutor(BaseExecutor):
             # like we just queried it.
             self.workloads[ti.key] = result
             self.running.add(ti.key)
-            self.update_workload_state(ti.key, state, info)
+            self.update_task_state(ti.key, state, info)
             adopted.append(f"{ti} in state {state}")
 
         if adopted:
