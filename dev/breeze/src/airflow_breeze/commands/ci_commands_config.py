@@ -84,7 +84,6 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Upgrade steps",
             "options": [
                 "--autoupdate",
-                "--pin-versions",
                 "--update-chart-dependencies",
                 "--upgrade-important-versions",
                 "--update-uv-lock",
