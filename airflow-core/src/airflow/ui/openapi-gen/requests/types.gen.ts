@@ -1154,14 +1154,6 @@ export type MaterializeAssetBody = {
     partition_key?: string | null;
 };
 
-/** 
- * Collection of new tasks discovered during an only_new dry run.
- */
-export type NewTaskCollectionResponse = {
-    new_tasks: Array<NewTaskResponse>;
-    total_entries: number;
-};
-
 /**
  * Lightweight response for new tasks that don't have TaskInstances yet.
  */
@@ -1396,9 +1388,12 @@ export type TaskInletAssetReference = {
 
 /**
  * Task Instance Collection serializer for responses.
+ *
+ * Can contain either full TaskInstanceResponse objects or lightweight NewTaskResponse
+ * objects for tasks that don't have instances yet.
  */
 export type TaskInstanceCollectionResponse = {
-    task_instances: Array<TaskInstanceResponse>;
+    task_instances: Array<(TaskInstanceResponse | NewTaskResponse)>;
     total_entries: number;
 };
 
@@ -2558,7 +2553,7 @@ export type ClearDagRunData = {
     requestBody: DAGRunClearBody;
 };
 
-export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse | NewTaskCollectionResponse;
+export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
     bundleVersion?: string | null;
@@ -4648,7 +4643,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: TaskInstanceCollectionResponse | DAGRunResponse | NewTaskCollectionResponse;
+                200: TaskInstanceCollectionResponse | DAGRunResponse;
                 /**
                  * Unauthorized
                  */

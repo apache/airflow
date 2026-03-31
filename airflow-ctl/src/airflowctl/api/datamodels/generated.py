@@ -1646,15 +1646,6 @@ class JobCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class NewTaskCollectionResponse(BaseModel):
-    """
-    Collection of new tasks discovered during an only_new dry run.
-    """
-
-    new_tasks: Annotated[list[NewTaskResponse], Field(title="New Tasks")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
-
-
 class PatchTaskInstanceBody(BaseModel):
     """
     Request body for Clear Task Instances endpoint.
@@ -2066,9 +2057,12 @@ class TaskCollectionResponse(BaseModel):
 class TaskInstanceCollectionResponse(BaseModel):
     """
     Task Instance Collection serializer for responses.
+
+    Can contain either full TaskInstanceResponse objects or lightweight NewTaskResponse
+    objects for tasks that don't have instances yet.
     """
 
-    task_instances: Annotated[list[TaskInstanceResponse], Field(title="Task Instances")]
+    task_instances: Annotated[list[TaskInstanceResponse | NewTaskResponse], Field(title="Task Instances")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

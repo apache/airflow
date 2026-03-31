@@ -40,6 +40,13 @@ from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
 
 
+class NewTaskResponse(BaseModel):
+    """Lightweight response for new tasks that don't have TaskInstances yet."""
+
+    task_id: str
+    task_display_name: str
+
+
 class TaskInstanceResponse(BaseModel):
     """TaskInstance serializer for responses."""
 
@@ -83,17 +90,15 @@ class TaskInstanceResponse(BaseModel):
 
 
 class TaskInstanceCollectionResponse(BaseModel):
-    """Task Instance Collection serializer for responses."""
+    """
+    Task Instance Collection serializer for responses.
 
-    task_instances: Iterable[TaskInstanceResponse]
+    Can contain either full TaskInstanceResponse objects or lightweight NewTaskResponse
+    objects for tasks that don't have instances yet.
+    """
+
+    task_instances: Iterable[TaskInstanceResponse | NewTaskResponse]
     total_entries: int
-
-
-class NewTaskResponse(BaseModel):
-    """Lightweight response for new tasks that don't have TaskInstances yet."""
-
-    task_id: str
-    task_display_name: str
 
 
 class NewTaskCollectionResponse(BaseModel):

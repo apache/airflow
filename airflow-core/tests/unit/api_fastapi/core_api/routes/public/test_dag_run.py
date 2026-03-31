@@ -1545,11 +1545,11 @@ class TestClearDagRun:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 3
-        # Verify new tasks are returned with correct task_ids
-        task_ids = sorted(t["task_id"] for t in body["new_tasks"])
+        # Verify new tasks are returned with correct task_ids in task_instances
+        task_ids = sorted(t["task_id"] for t in body["task_instances"])
         assert task_ids == ["new_task_1", "new_task_2", "new_task_3"]
         # Verify task_display_name defaults to task_id
-        for task in body["new_tasks"]:
+        for task in body["task_instances"]:
             assert task["task_display_name"] == task["task_id"]
         mock_clear.assert_called_once_with(
             run_id=DAG1_RUN1_ID,
@@ -1577,7 +1577,7 @@ class TestClearDagRun:
         )
         assert response.status_code == 200
         body = response.json()
-        assert body["new_tasks"] == []
+        assert body["task_instances"] == []
         assert body["total_entries"] == 0
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")

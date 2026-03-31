@@ -24,7 +24,6 @@ import { CgRedo } from "react-icons/cg";
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type {
   DAGRunResponse,
-  NewTaskCollectionResponse,
   TaskInstanceCollectionResponse,
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
@@ -35,11 +34,6 @@ import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
-
-/** Type guard to distinguish NewTaskCollectionResponse from TaskInstanceCollectionResponse. */
-const isNewTaskCollection = (
-  data: NewTaskCollectionResponse | TaskInstanceCollectionResponse,
-): data is NewTaskCollectionResponse => "new_tasks" in data;
 
 type Props = {
   readonly dagRun: DAGRunResponse;
@@ -55,7 +49,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const [note, setNote] = useState<string | null>(dagRun.note);
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
   const onlyFailed = selectedOptions.includes("onlyFailed");
-  const onlyNew = selectedOptions.includes("new_tasks");
+  const onlyNew = selectedOptions.includes("newTasks");
   const [runOnLatestVersion, setRunOnLatestVersion] = useState(false);
 
   // Get current DAG's bundle version to compare with DAG run's bundle version
@@ -65,21 +59,16 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
 
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const { data: dryRunData } = useClearDagRunDryRun({
+  const { data: affectedTasks = { task_instances: [], total_entries: 0 } } = useClearDagRunDryRun({
     dagId,
     dagRunId,
     options: {
-      refetchInterval: (query) => {
-        const queryData = query.state.data;
-
-        if (!queryData || isNewTaskCollection(queryData)) {
-          return false;
-        }
-
-        return queryData.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some(
+          (ti: TaskInstanceResponse) => "state" in ti && isStatePending(ti.state),
+        )
           ? refetchInterval
-          : false;
-      },
+          : false,
     },
     requestBody: {
       only_failed: onlyFailed,
@@ -87,25 +76,6 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
       run_on_latest_version: runOnLatestVersion,
     },
   });
-
-  // Normalise both response shapes into the format ActionAccordion expects.
-  const affectedTasks: TaskInstanceCollectionResponse = (() => {
-    const empty: TaskInstanceCollectionResponse = { task_instances: [], total_entries: 0 };
-
-    if (!dryRunData) {
-      return empty;
-    }
-    if (isNewTaskCollection(dryRunData)) {
-      return {
-        task_instances: dryRunData.new_tasks.map(
-          (task) => ({ task_id: task.task_id }) as TaskInstanceResponse,
-        ),
-        total_entries: dryRunData.total_entries,
-      };
-    }
-
-    return dryRunData;
-  })();
 
   const { isPending, mutate } = useClearDagRun({
     dagId,
@@ -160,7 +130,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                 },
                 {
                   label: translate("dags:runAndTaskActions.options.queueNew"),
-                  value: "new_tasks",
+                  value: "newTasks",
                 },
               ]}
             />

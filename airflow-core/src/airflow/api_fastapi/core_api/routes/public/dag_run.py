@@ -74,7 +74,6 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     TriggerDAGRunPostBody,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
-    NewTaskCollectionResponse,
     NewTaskResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
@@ -287,7 +286,7 @@ def clear_dag_run(
     body: DAGRunClearBody,
     dag_bag: DagBagDep,
     session: SessionDep,
-) -> TaskInstanceCollectionResponse | DAGRunResponse | NewTaskCollectionResponse:
+) -> TaskInstanceCollectionResponse | DAGRunResponse:
     dag_run = session.scalar(
         select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
     )
@@ -302,51 +301,35 @@ def clear_dag_run(
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
-    if body.only_new:
-        if body.dry_run:
-            new_task_ids = dag.clear(
-                run_id=dag_run_id,
-                task_ids=None,
-                only_new=True,
-                dry_run=True,
-                session=session,
-            )
-            new_tasks = [
-                NewTaskResponse(task_id=task_id, task_display_name=task_id)
-                for task_id in sorted(new_task_ids)
-            ]
-            return NewTaskCollectionResponse(
-                new_tasks=new_tasks,
-                total_entries=len(new_tasks),
-            )
-        dag.clear(
-            run_id=dag_run_id,
-            task_ids=None,
-            only_new=True,
-            session=session,
-        )
-        dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
-        if not dag_run_cleared:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "DAG run not found after clearing")
-        return dag_run_cleared
-
     if body.dry_run:
-        task_instances = dag.clear(
+        task_instances_or_ids = dag.clear(
             run_id=dag_run_id,
             task_ids=None,
+            only_new=body.only_new,
             only_failed=body.only_failed,
             run_on_latest_version=body.run_on_latest_version,
             dry_run=True,
             session=session,
         )
 
+        if body.only_new:
+            # Create lightweight NewTaskResponse objects for new tasks
+            task_instances = [
+                NewTaskResponse(task_id=task_id, task_display_name=task_id)
+                for task_id in sorted(task_instances_or_ids)
+            ]
+        else:
+            task_instances = cast("list[TaskInstanceResponse]", task_instances_or_ids)
+
         return TaskInstanceCollectionResponse(
-            task_instances=cast("list[TaskInstanceResponse]", task_instances),
+            task_instances=task_instances,
             total_entries=len(task_instances),
         )
+
     dag.clear(
         run_id=dag_run_id,
         task_ids=None,
+        only_new=body.only_new,
         only_failed=body.only_failed,
         run_on_latest_version=body.run_on_latest_version,
         session=session,

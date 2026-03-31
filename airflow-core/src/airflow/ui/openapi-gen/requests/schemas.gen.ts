@@ -4581,26 +4581,6 @@ export const $MaterializeAssetBody = {
     description: 'Materialize asset request.'
 } as const;
 
-export const $NewTaskCollectionResponse = {
-    properties: {
-        new_tasks: {
-            items: {
-                '$ref': '#/components/schemas/NewTaskResponse'
-            },
-            type: 'array',
-            title: 'New Tasks'
-        },
-        total_entries: {
-            type: 'integer',
-            title: 'Total Entries'
-        }
-    },
-    type: 'object',
-    required: ['new_tasks', 'total_entries'],
-    title: 'NewTaskCollectionResponse',
-    description: 'Collection of new tasks discovered during an only_new dry run.'
-} as const;
-
 export const $NewTaskResponse = {
     properties: {
         task_id: {
@@ -5344,7 +5324,14 @@ export const $TaskInstanceCollectionResponse = {
     properties: {
         task_instances: {
             items: {
-                '$ref': '#/components/schemas/TaskInstanceResponse'
+                anyOf: [
+                    {
+                        '$ref': '#/components/schemas/TaskInstanceResponse'
+                    },
+                    {
+                        '$ref': '#/components/schemas/NewTaskResponse'
+                    }
+                ]
             },
             type: 'array',
             title: 'Task Instances'
@@ -5357,7 +5344,10 @@ export const $TaskInstanceCollectionResponse = {
     type: 'object',
     required: ['task_instances', 'total_entries'],
     title: 'TaskInstanceCollectionResponse',
-    description: 'Task Instance Collection serializer for responses.'
+    description: `Task Instance Collection serializer for responses.
+
+Can contain either full TaskInstanceResponse objects or lightweight NewTaskResponse
+objects for tasks that don't have instances yet.`
 } as const;
 
 export const $TaskInstanceHistoryCollectionResponse = {

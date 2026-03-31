@@ -19,13 +19,7 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
 import { DagRunService } from "openapi/requests/services.gen";
-import type {
-  DAGRunClearBody,
-  NewTaskCollectionResponse,
-  TaskInstanceCollectionResponse,
-} from "openapi/requests/types.gen";
-
-type ClearDagRunDryRunResponse = NewTaskCollectionResponse | TaskInstanceCollectionResponse;
+import type { DAGRunClearBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 
 type Props<TData, TError> = {
   dagId: string;
@@ -36,7 +30,7 @@ type Props<TData, TError> = {
 
 export const useClearDagRunDryRunKey = "clearRunDryRun";
 
-export const useClearDagRunDryRun = <TData = ClearDagRunDryRunResponse, TError = unknown>({
+export const useClearDagRunDryRun = <TData = TaskInstanceCollectionResponse, TError = unknown>({
   dagId,
   dagRunId,
   options,
