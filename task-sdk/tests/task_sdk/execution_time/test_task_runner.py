@@ -2064,6 +2064,51 @@ class TestRuntimeTaskInstance:
             assert mock_get_all.called
 
     @pytest.mark.parametrize(
+        ("task_ids", "default", "expected_result"),
+        [
+            pytest.param(
+                "task_a",
+                "fallback",
+                [],
+                id="single_task_empty_list_returns_empty",
+            ),
+            pytest.param(
+                ["task_a"],
+                "fallback",
+                [],
+                id="list_single_task_empty_list_returns_empty",
+            ),
+            pytest.param(
+                ["task_a", "task_b"],
+                "fallback",
+                [],
+                id="multiple_tasks_empty_list_returns_empty",
+            ),
+        ],
+    )
+    def test_xcom_pull_with_get_all_returning_empty_list(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        task_ids,
+        default,
+        expected_result,
+    ):
+        """Test xcom_pull behavior when XCom.get_all() returns an empty list instead of None."""
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                print("This is a custom operator")
+
+        task = CustomOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with patch.object(XCom, "get_all", return_value=[]) as mock_get_all:
+            result = runtime_ti.xcom_pull(key="key", task_ids=task_ids, default=default)
+            assert result == expected_result
+            assert mock_get_all.called
+
+    @pytest.mark.parametrize(
         ("task_ids", "get_all_return", "default", "expected_result"),
         [
             pytest.param(
