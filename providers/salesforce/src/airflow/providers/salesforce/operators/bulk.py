@@ -16,9 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
+from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 
@@ -46,7 +47,12 @@ class SalesforceBulkOperator(BaseOperator):
     :param batch_size: number of records to assign for each batch in the job
     :param use_serial: Process batches in serial mode
     :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:salesforce>`.
+    :param raise_on_failures: If True, raise an :class:`~airflow.exceptions.AirflowException` when
+        any record in the result set reports ``success=False``. Defaults to ``False`` for backward
+        compatibility — failures are always logged as warnings regardless of this setting.
     """
+
+    template_fields: Sequence[str] = ("object_name", "payload", "external_id_field")
 
     available_operations = ("insert", "update", "upsert", "delete", "hard_delete")
 
@@ -60,6 +66,7 @@ class SalesforceBulkOperator(BaseOperator):
         batch_size: int = 10000,
         use_serial: bool = False,
         salesforce_conn_id: str = "salesforce_default",
+        raise_on_failures: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -70,6 +77,7 @@ class SalesforceBulkOperator(BaseOperator):
         self.batch_size = batch_size
         self.use_serial = use_serial
         self.salesforce_conn_id = salesforce_conn_id
+        self.raise_on_failures = raise_on_failures
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:
@@ -80,6 +88,53 @@ class SalesforceBulkOperator(BaseOperator):
             raise ValueError(
                 f"Operation {self.operation!r} not found! "
                 f"Available operations are {self.available_operations}."
+            )
+
+    def _check_result_for_failures(self, result: list) -> None:
+        """
+        Inspect the Salesforce Bulk API result list and log any record-level failures.
+
+        Salesforce's Bulk API does not raise an exception when individual records fail — it returns
+        a list of result dicts where unsuccessful records carry ``success=False`` and a populated
+        ``errors`` list.  This method surfaces those failures so they are visible in task logs
+        rather than being silently swallowed.
+
+        If ``raise_on_failures`` is ``True`` and at least one record failed, an
+        :class:`~airflow.exceptions.AirflowException` is raised after logging all failures.
+        """
+        failed = [r for r in result if not r.get("success")]
+        total = len(result)
+        num_failed = len(failed)
+
+        if failed:
+            self.log.warning(
+                "Salesforce Bulk API %s on %s: %d/%d records failed.",
+                self.operation,
+                self.object_name,
+                num_failed,
+                total,
+            )
+            for idx, record in enumerate(failed):
+                for error in record.get("errors", []):
+                    self.log.warning(
+                        "Record failure %d — status: %s | message: %s | fields: %s",
+                        idx,
+                        error.get("statusCode"),
+                        error.get("message"),
+                        error.get("fields"),
+                    )
+            if self.raise_on_failures:
+                raise AirflowException(
+                    f"Salesforce Bulk API {self.operation} on {self.object_name} failed "
+                    f"for {num_failed} out of {total} record(s). "
+                    "See task logs for per-record error details."
+                )
+        else:
+            self.log.info(
+                "Salesforce Bulk API %s on %s completed: %d record(s) processed successfully.",
+                self.operation,
+                self.object_name,
+                total,
             )
 
     def execute(self, context: Context):
@@ -118,7 +173,10 @@ class SalesforceBulkOperator(BaseOperator):
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
 
-        if self.do_xcom_push and result:
-            return result
+        result_list = list(result) if result else []
+        self._check_result_for_failures(result_list)
+
+        if self.do_xcom_push and result_list:
+            return result_list
 
         return None
