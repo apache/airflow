@@ -509,11 +509,11 @@ class TestKubernetesExecutor:
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
-        mock_kube_client.create_namespaced_pod = mock.MagicMock(side_effect=ApiException(http_resp=response))
+        mock_kube_client.create_namespaced_pod = mock.MagicMock(side_effect=ApiException(http_resp=response))  # type: ignore[attr-defined]
         mock_get_kube_client.return_value = mock_kube_client
         mock_api_client = mock.MagicMock()
         mock_api_client.sanitize_for_serialization.return_value = {}
-        mock_kube_client.api_client = mock_api_client
+        mock_kube_client.api_client = mock_api_client  # type: ignore[attr-defined]
         config = {
             ("kubernetes_executor", "pod_template_file"): template_file,
         }
@@ -532,23 +532,23 @@ class TestKubernetesExecutor:
                 )
                 kubernetes_executor.sync()
 
-                assert mock_kube_client.create_namespaced_pod.call_count == 1
+                assert mock_kube_client.create_namespaced_pod.call_count == 1  # type: ignore[attr-defined]
 
                 if should_requeue:
                     assert not kubernetes_executor.task_queue.empty()
 
                     # Disable the ApiException
                     if task_expected_state == State.SUCCESS or task_expected_state == State.QUEUED:
-                        mock_kube_client.create_namespaced_pod.side_effect = None
+                        mock_kube_client.create_namespaced_pod.side_effect = None  # type: ignore[attr-defined]
 
                     # Execute the task without errors should empty the queue
-                    mock_kube_client.create_namespaced_pod.reset_mock()
+                    mock_kube_client.create_namespaced_pod.reset_mock()  # type: ignore[attr-defined]
 
                     if retry_delay:
                         time.sleep(retry_delay + 1)
 
                     kubernetes_executor.sync()
-                    assert mock_kube_client.create_namespaced_pod.called
+                    assert mock_kube_client.create_namespaced_pod.called  # type: ignore[attr-defined]
                     assert kubernetes_executor.task_queue.empty()
                     if task_expected_state != State.SUCCESS:
                         assert kubernetes_executor.event_buffer[task_instance_key][0] == task_expected_state
@@ -576,7 +576,7 @@ class TestKubernetesExecutor:
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
-        mock_kube_client.create_namespaced_pod = mock.MagicMock(
+        mock_kube_client.create_namespaced_pod = mock.MagicMock(  # type: ignore[attr-defined]
             side_effect=ApiException(
                 http_resp=HTTPResponse(
                     body="Too many requests, please try again later.",
@@ -588,7 +588,7 @@ class TestKubernetesExecutor:
         mock_get_kube_client.return_value = mock_kube_client
         mock_api_client = mock.MagicMock()
         mock_api_client.sanitize_for_serialization.return_value = {}
-        mock_kube_client.api_client = mock_api_client
+        mock_kube_client.api_client = mock_api_client  # type: ignore[attr-defined]
         config = {
             ("kubernetes_executor", "pod_template_file"): template_file,
         }
@@ -607,7 +607,7 @@ class TestKubernetesExecutor:
                 kubernetes_executor.sync()
 
                 # There should be only one request to create pod which fails
-                assert mock_kube_client.create_namespaced_pod.call_count == 1
+                assert mock_kube_client.create_namespaced_pod.call_count == 1  # type: ignore[attr-defined]
                 # The task is queued
                 assert not kubernetes_executor.task_queue.empty()
 
@@ -617,7 +617,7 @@ class TestKubernetesExecutor:
                 kubernetes_executor.sync()
 
                 assert not kubernetes_executor.task_queue.empty()
-                assert mock_kube_client.create_namespaced_pod.call_count == 1
+                assert mock_kube_client.create_namespaced_pod.call_count == 1  # type: ignore[attr-defined]
 
                 kubernetes_executor.create_pods_after = datetime.now() - timedelta(hours=1)
 
