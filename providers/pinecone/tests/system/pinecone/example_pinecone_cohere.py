@@ -60,7 +60,7 @@ with DAG(
     )
 
     @task
-    def transform_output(embedding_output) -> list[dict]:
+    def transform_output(embedding_output) -> list[dict[str, str]]:
         # Convert each embedding to a map with an ID and the embedding vector
         return [dict(id=str(i), values=embedding) for i, embedding in enumerate(embedding_output)]
 
