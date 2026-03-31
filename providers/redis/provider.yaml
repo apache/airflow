@@ -158,4 +158,4 @@ connection-types:
           default: false
 
 logging:
-  - airflow.providers.redis.redis_task_handler.RedisTaskHandler
+  - airflow.providers.redis.log.redis_task_handler.RedisTaskHandler
