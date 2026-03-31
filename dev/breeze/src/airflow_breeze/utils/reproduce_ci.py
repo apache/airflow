@@ -23,6 +23,8 @@ import shlex
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import click
+from click.core import ParameterSource
 from rich.markup import escape
 
 from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY
@@ -33,11 +35,108 @@ if TYPE_CHECKING:
     from airflow_breeze.params.build_ci_params import BuildCiParams
     from airflow_breeze.params.shell_params import ShellParams
 
+# Options that are side-effect-only or not meaningful for reproduction (safety net;
+# expose_value=False options like --verbose/--dry-run/--answer are already excluded
+# automatically because they don't appear in ctx.params).
+_EXCLUDED_PARAMS: frozenset[str] = frozenset(
+    {
+        "verbose",
+        "dry_run",
+        "answer",
+        "include_success_outputs",
+        "debug_resources",
+        "skip_cleanup",
+    }
+)
+
+# These sources represent values explicitly provided by the user or CI.
+_EXPLICIT_SOURCES: frozenset[ParameterSource] = frozenset(
+    {
+        ParameterSource.COMMANDLINE,
+        ParameterSource.ENVIRONMENT,
+        ParameterSource.PROMPT,
+    }
+)
+
 
 @dataclass
 class ReproductionCommand:
     argv: list[str]
     comment: str | None = None
+
+
+def build_reproduction_command_from_context(
+    ctx: click.Context,
+    *,
+    comment: str = "Run the same Breeze command locally",
+) -> ReproductionCommand:
+    """Reconstruct the CLI invocation from the current click Context.
+
+    Iterates over every parameter defined on the command, uses
+    ``ctx.get_parameter_source()`` to identify explicitly-provided values
+    (COMMANDLINE / ENVIRONMENT / PROMPT), and emits only those.  DEFAULT
+    and DEFAULT_MAP values are omitted to keep the output concise.
+
+    This removes the need for per-command builder functions.
+    """
+    argv: list[str] = ctx.command_path.split()
+
+    for param in ctx.command.params:
+        if not getattr(param, "expose_value", True):
+            continue
+        if param.name in _EXCLUDED_PARAMS:
+            continue
+
+        value = ctx.params.get(param.name)
+        source = ctx.get_parameter_source(param.name)
+
+        if isinstance(param, click.Argument):
+            continue  # collected after options
+
+        if not isinstance(param, click.Option):
+            continue
+
+        # Flag pair (e.g. --force-sa-warnings/--no-force-sa-warnings):
+        # emit the appropriate side only when explicitly provided.
+        if param.is_flag and param.secondary_opts:
+            if source in _EXPLICIT_SOURCES:
+                flag = param.opts[0] if value else param.secondary_opts[0]
+                argv.append(flag)
+            continue
+
+        # Simple boolean flag (no secondary_opts)
+        if param.is_flag:
+            if value and source in _EXPLICIT_SOURCES:
+                argv.append(param.opts[-1])
+            continue
+
+        # Non-flag option: only emit explicitly-provided values
+        if source not in _EXPLICIT_SOURCES:
+            continue
+        if value is None:
+            continue
+
+        flag = param.opts[-1]  # prefer long form
+
+        # Multiple option (e.g. --package-filter repeated)
+        if param.multiple:
+            for item in value:
+                argv.extend([flag, str(item)])
+            continue
+
+        argv.extend([flag, str(value)])
+
+    # Append positional arguments at the end
+    for param in ctx.command.params:
+        if isinstance(param, click.Argument):
+            value = ctx.params.get(param.name)
+            if value:
+                if isinstance(value, (list, tuple)):
+                    argv.extend(str(v) for v in value)
+                else:
+                    argv.append(str(value))
+
+    return ReproductionCommand(argv=argv, comment=comment)
 
 
 def build_checkout_reproduction_commands(github_repository: str) -> list[ReproductionCommand]:

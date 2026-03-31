@@ -16,20 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-import shlex
 from unittest import mock
 
+import click
+import click.testing
 import pytest
 
-from airflow_breeze.commands.developer_commands import _build_docs_reproduction_command
-from airflow_breeze.commands.testing_commands import (
-    _build_core_or_providers_tests_reproduction_command,
-    _build_task_sdk_tests_reproduction_command,
-)
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.utils.reproduce_ci import (
     ReproductionCommand,
     build_local_reproduction_commands,
+    build_reproduction_command_from_context,
     print_local_reproduction,
     should_print_local_reproduction,
 )
@@ -162,115 +159,243 @@ def test_print_local_reproduction_renders_copyable_commands(mock_get_console, mo
     assert "breeze build-docs --docs-only" in rendered_output
 
 
-def test_build_docs_reproduction_command_contains_expected_flags():
-    command = _build_docs_reproduction_command(
-        clean_build=False,
-        refresh_airflow_inventories=True,
-        docs_only=True,
-        github_repository="apache/airflow",
-        include_not_ready_providers=True,
-        include_removed_providers=False,
-        include_commits=False,
-        one_pass_only=False,
-        package_filter=("apache-airflow-providers-*",),
-        distributions_list="amazon google",
-        spellcheck_only=False,
-        doc_packages=("docs",),
-    )
-
-    assert shlex.join(command.argv) == (
-        "breeze build-docs --refresh-airflow-inventories --docs-only "
-        "--include-not-ready-providers --package-filter 'apache-airflow-providers-*' "
-        "--distributions-list 'amazon google'"
-    )
+# ---------------------------------------------------------------------------
+# Tests for build_reproduction_command_from_context
+# ---------------------------------------------------------------------------
 
 
-def test_build_core_or_providers_tests_reproduction_command_contains_expected_flags():
-    command = _build_core_or_providers_tests_reproduction_command(
-        command_name="providers-tests",
-        airflow_constraints_reference="constraints-main",
-        allow_pre_releases=False,
-        backend="postgres",
-        collect_only=False,
-        custom_db_url=None,
-        clean_airflow_installation=False,
-        db_reset=True,
-        downgrade_sqlalchemy=False,
-        downgrade_pendulum=True,
-        enable_coverage=False,
-        excluded_parallel_test_types="Always",
-        excluded_providers="apache.beam",
-        extra_pytest_args=("providers/google/tests/unit/google/cloud/operators/test_bigquery.py",),
-        force_sa_warnings=True,
-        forward_credentials=False,
-        force_lowest_dependencies=False,
-        github_repository="apache/airflow",
-        install_airflow_with_constraints=False,
-        keep_env_variables=False,
-        mount_sources="skip",
-        no_db_cleanup=False,
-        parallel_test_types="Providers[google]",
-        parallelism=4,
-        distribution_format="wheel",
-        providers_constraints_location="/tmp/providers-constraints.txt",
-        providers_skip_constraints=True,
-        python="3.11",
-        run_db_tests_only=False,
-        run_in_parallel=True,
-        skip_db_tests=False,
-        skip_docker_compose_down=False,
-        skip_providers="apache.facebook",
-        test_timeout=120,
-        test_type="All",
-        total_test_timeout=3600,
-        upgrade_boto=False,
-        upgrade_sqlalchemy=True,
-        use_airflow_version="main",
-        use_distributions_from_dist=True,
-        use_xdist=False,
-        mysql_version="8",
-        postgres_version="16",
-    )
+def _build_test_command(**options):
+    """Build a simple click command with the given options for testing."""
 
-    formatted = shlex.join(command.argv)
-    assert formatted.startswith(
-        "breeze testing providers-tests --python 3.11 --backend postgres --mount-sources skip "
-        "--test-timeout 120 --test-type All --airflow-constraints-reference constraints-main"
-    )
-    assert "--db-reset" in formatted
-    assert "--force-sa-warnings" in formatted
-    assert "--run-in-parallel" in formatted
-    assert "--parallel-test-types 'Providers[google]'" in formatted
-    assert "--parallelism 4 --total-test-timeout 3600" in formatted
-    assert "--excluded-parallel-test-types Always" in formatted
-    assert "--excluded-providers apache.beam" in formatted
-    assert "--providers-constraints-location /tmp/providers-constraints.txt" in formatted
-    assert "--providers-skip-constraints" in formatted
-    assert "--skip-providers apache.facebook" in formatted
-    assert "--use-airflow-version main" in formatted
-    assert "--distribution-format wheel --use-distributions-from-dist" in formatted
-    assert formatted.endswith("providers/google/tests/unit/google/cloud/operators/test_bigquery.py")
+    @click.command("test-cmd")
+    def cmd(**kwargs):
+        pass
+
+    for _name, opt in options.items():
+        cmd = opt(cmd)
+    return cmd
 
 
-def test_build_task_sdk_tests_reproduction_command_contains_supported_flags_only():
-    command = _build_task_sdk_tests_reproduction_command(
-        collect_only=True,
-        enable_coverage=True,
-        extra_pytest_args=("task-sdk/tests/execution_time/test_supervisor.py",),
-        force_sa_warnings=False,
-        forward_credentials=True,
-        github_repository="apache/airflow",
-        keep_env_variables=True,
-        mount_sources="skip",
-        python="3.10",
-        skip_docker_compose_down=True,
-        test_timeout=90,
-    )
+def _invoke_and_get_context(cmd, args, env=None):
+    """Invoke a click command and capture the context."""
+    captured_ctx = {}
 
-    formatted = shlex.join(command.argv)
-    assert formatted == (
-        "breeze testing task-sdk-tests --python 3.10 --mount-sources skip --test-timeout 90 "
-        "--no-force-sa-warnings --collect-only --enable-coverage --forward-credentials "
-        "--keep-env-variables --skip-docker-compose-down "
-        "task-sdk/tests/execution_time/test_supervisor.py"
-    )
+    original_invoke = cmd.invoke
+
+    def patched_invoke(ctx):
+        captured_ctx["ctx"] = ctx
+        return original_invoke(ctx)
+
+    cmd.invoke = patched_invoke
+    runner = click.testing.CliRunner(env=env or {})
+    result = runner.invoke(cmd, args, catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    return captured_ctx["ctx"]
+
+
+class TestBuildReproductionCommandFromContext:
+    """Tests for the generic Click context-based command renderer."""
+
+    def test_simple_bool_flag_emitted_when_true(self):
+        @click.command("my-cmd")
+        @click.option("--verbose-output", is_flag=True, default=False)
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["--verbose-output"])
+        result = build_reproduction_command_from_context(ctx)
+        assert result.argv == ["my-cmd", "--verbose-output"]
+
+    def test_simple_bool_flag_omitted_when_default(self):
+        @click.command("my-cmd")
+        @click.option("--verbose-output", is_flag=True, default=False)
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, [])
+        result = build_reproduction_command_from_context(ctx)
+        assert result.argv == ["my-cmd"]
+
+    def test_flag_pair_emits_positive_side(self):
+        @click.command("my-cmd")
+        @click.option("--force/--no-force", default=False)
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["--force"])
+        result = build_reproduction_command_from_context(ctx)
+        assert "--force" in result.argv
+        assert "--no-force" not in result.argv
+
+    def test_flag_pair_emits_negative_side(self):
+        @click.command("my-cmd")
+        @click.option("--force/--no-force", default=True)
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["--no-force"])
+        result = build_reproduction_command_from_context(ctx)
+        assert "--no-force" in result.argv
+        assert result.argv.count("--force") == 0
+
+    def test_flag_pair_omitted_when_default(self):
+        @click.command("my-cmd")
+        @click.option("--force/--no-force", default=True)
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, [])
+        result = build_reproduction_command_from_context(ctx)
+        assert "--force" not in result.argv
+        assert "--no-force" not in result.argv
+
+    def test_string_option_emitted_when_explicit(self):
+        @click.command("my-cmd")
+        @click.option("--backend", default="sqlite")
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["--backend", "postgres"])
+        result = build_reproduction_command_from_context(ctx)
+        assert result.argv == ["my-cmd", "--backend", "postgres"]
+
+    def test_string_option_omitted_when_default(self):
+        @click.command("my-cmd")
+        @click.option("--backend", default="sqlite")
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, [])
+        result = build_reproduction_command_from_context(ctx)
+        assert result.argv == ["my-cmd"]
+
+    def test_multiple_option_repeats_flag(self):
+        @click.command("my-cmd")
+        @click.option("--package-filter", multiple=True)
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["--package-filter", "foo", "--package-filter", "bar"])
+        result = build_reproduction_command_from_context(ctx)
+        assert result.argv == ["my-cmd", "--package-filter", "foo", "--package-filter", "bar"]
+
+    def test_positional_arguments_appended_at_end(self):
+        @click.command("my-cmd")
+        @click.option("--flag", is_flag=True)
+        @click.argument("files", nargs=-1)
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["--flag", "file1.py", "file2.py"])
+        result = build_reproduction_command_from_context(ctx)
+        assert result.argv == ["my-cmd", "--flag", "file1.py", "file2.py"]
+
+    def test_expose_value_false_option_excluded(self):
+        @click.command("my-cmd")
+        @click.option("--verbose", is_flag=True, expose_value=False)
+        @click.option("--backend", default="sqlite")
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["--verbose", "--backend", "postgres"])
+        result = build_reproduction_command_from_context(ctx)
+        assert "--verbose" not in result.argv
+        assert "--backend" in result.argv
+
+    def test_excluded_params_filtered_out(self):
+        @click.command("my-cmd")
+        @click.option("--debug-resources", is_flag=True)
+        @click.option("--backend", default="sqlite")
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["--debug-resources", "--backend", "postgres"])
+        result = build_reproduction_command_from_context(ctx)
+        assert "--debug-resources" not in result.argv
+        assert "--backend" in result.argv
+
+    def test_envvar_source_included(self):
+        @click.command("my-cmd")
+        @click.option("--backend", default="sqlite", envvar="BACKEND")
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, [], env={"BACKEND": "postgres"})
+        result = build_reproduction_command_from_context(ctx)
+        assert result.argv == ["my-cmd", "--backend", "postgres"]
+
+    def test_envvar_same_as_default_still_included(self):
+        """When envvar explicitly sets the same value as default, it should still be emitted."""
+
+        @click.command("my-cmd")
+        @click.option("--backend", default="sqlite", envvar="BACKEND")
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, [], env={"BACKEND": "sqlite"})
+        result = build_reproduction_command_from_context(ctx)
+        assert result.argv == ["my-cmd", "--backend", "sqlite"]
+
+    def test_custom_comment(self):
+        @click.command("my-cmd")
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, [])
+        result = build_reproduction_command_from_context(ctx, comment="Custom comment")
+        assert result.comment == "Custom comment"
+
+    def test_default_comment(self):
+        @click.command("my-cmd")
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, [])
+        result = build_reproduction_command_from_context(ctx)
+        assert result.comment == "Run the same Breeze command locally"
+
+    def test_subcommand_path(self):
+        @click.group()
+        def grp():
+            pass
+
+        @grp.command("sub-cmd")
+        @click.option("--flag", is_flag=True)
+        def sub_cmd(**kwargs):
+            pass
+
+        captured_ctx = {}
+
+        original_invoke = sub_cmd.invoke
+
+        def patched_invoke(ctx):
+            captured_ctx["ctx"] = ctx
+            return original_invoke(ctx)
+
+        sub_cmd.invoke = patched_invoke
+        runner = click.testing.CliRunner()
+        result = runner.invoke(grp, ["sub-cmd", "--flag"], catch_exceptions=False)
+        assert result.exit_code == 0
+        ctx = captured_ctx["ctx"]
+        repro = build_reproduction_command_from_context(ctx)
+        assert repro.argv == ["grp", "sub-cmd", "--flag"]
+
+    def test_integer_option_converted_to_string(self):
+        @click.command("my-cmd")
+        @click.option("--timeout", type=int, default=60)
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["--timeout", "120"])
+        result = build_reproduction_command_from_context(ctx)
+        assert result.argv == ["my-cmd", "--timeout", "120"]
+
+    def test_prefers_long_option_form(self):
+        @click.command("my-cmd")
+        @click.option("-b", "--backend", default="sqlite")
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["-b", "postgres"])
+        result = build_reproduction_command_from_context(ctx)
+        assert result.argv == ["my-cmd", "--backend", "postgres"]

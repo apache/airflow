@@ -89,7 +89,6 @@ from airflow_breeze.global_constants import (
     ALL_TEST_TYPE,
     ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_TEST_TYPE_CHOICES,
-    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     GroupOfTests,
     all_selective_core_test_types,
     providers_test_type,
@@ -114,8 +113,8 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.reproduce_ci import (
-    ReproductionCommand,
     build_local_reproduction_commands,
+    build_reproduction_command_from_context,
     print_local_reproduction,
 )
 from airflow_breeze.utils.run_tests import (
@@ -197,168 +196,6 @@ TEST_PROGRESS_REGEXP = (
     r"airflow-core/tests/.*|providers/.*/tests/.*|task-sdk/tests/.*|airflow-ctl/tests/.*|.*=====.*"
 )
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
-
-
-def _append_option(command: list[str], option_name: str, value: str | None):
-    if value is not None:
-        command.extend([option_name, value])
-
-
-def _append_bool_option(command: list[str], option_name: str, enabled: bool):
-    if enabled:
-        command.append(option_name)
-
-
-def _build_core_or_providers_tests_reproduction_command(
-    *,
-    command_name: str,
-    airflow_constraints_reference: str,
-    allow_pre_releases: bool,
-    backend: str,
-    collect_only: bool,
-    custom_db_url: str | None,
-    clean_airflow_installation: bool,
-    db_reset: bool,
-    downgrade_sqlalchemy: bool,
-    downgrade_pendulum: bool,
-    enable_coverage: bool,
-    excluded_parallel_test_types: str,
-    excluded_providers: str,
-    extra_pytest_args: tuple[str, ...],
-    force_sa_warnings: bool,
-    forward_credentials: bool,
-    force_lowest_dependencies: bool,
-    github_repository: str,
-    install_airflow_with_constraints: bool,
-    keep_env_variables: bool,
-    mount_sources: str,
-    no_db_cleanup: bool,
-    parallel_test_types: str,
-    parallelism: int,
-    distribution_format: str,
-    providers_constraints_location: str,
-    providers_skip_constraints: bool,
-    python: str,
-    run_db_tests_only: bool,
-    run_in_parallel: bool,
-    skip_db_tests: bool,
-    skip_docker_compose_down: bool,
-    skip_providers: str,
-    test_timeout: int,
-    test_type: str,
-    total_test_timeout: int,
-    upgrade_boto: bool,
-    upgrade_sqlalchemy: bool,
-    use_airflow_version: str | None,
-    use_distributions_from_dist: bool,
-    use_xdist: bool,
-    mysql_version: str = "",
-    postgres_version: str = "",
-) -> ReproductionCommand:
-    command = ["breeze", "testing", command_name]
-    if github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
-        command.extend(["--github-repository", github_repository])
-    command.extend(
-        [
-            "--python",
-            python,
-            "--backend",
-            backend,
-            "--mount-sources",
-            mount_sources,
-            "--test-timeout",
-            str(test_timeout),
-            "--test-type",
-            test_type,
-            "--airflow-constraints-reference",
-            airflow_constraints_reference,
-        ]
-    )
-    _append_bool_option(command, "--db-reset", db_reset)
-    command.append("--force-sa-warnings" if force_sa_warnings else "--no-force-sa-warnings")
-    _append_bool_option(command, "--collect-only", collect_only)
-    _append_bool_option(command, "--enable-coverage", enable_coverage)
-    _append_bool_option(command, "--forward-credentials", forward_credentials)
-    _append_bool_option(command, "--keep-env-variables", keep_env_variables)
-    _append_bool_option(command, "--run-db-tests-only", run_db_tests_only)
-    _append_bool_option(command, "--skip-db-tests", skip_db_tests)
-    _append_bool_option(command, "--no-db-cleanup", no_db_cleanup)
-    _append_bool_option(command, "--run-in-parallel", run_in_parallel)
-    _append_bool_option(command, "--use-xdist", use_xdist)
-    _append_bool_option(command, "--skip-docker-compose-down", skip_docker_compose_down)
-    _append_bool_option(command, "--clean-airflow-installation", clean_airflow_installation)
-    _append_bool_option(command, "--install-airflow-with-constraints", install_airflow_with_constraints)
-    _append_bool_option(command, "--allow-pre-releases", allow_pre_releases)
-    _append_bool_option(command, "--force-lowest-dependencies", force_lowest_dependencies)
-    _append_bool_option(command, "--downgrade-sqlalchemy", downgrade_sqlalchemy)
-    _append_bool_option(command, "--downgrade-pendulum", downgrade_pendulum)
-    _append_bool_option(command, "--upgrade-boto", upgrade_boto)
-    _append_bool_option(command, "--upgrade-sqlalchemy", upgrade_sqlalchemy)
-    _append_option(command, "--custom-db-url", custom_db_url)
-    if backend == "mysql":
-        _append_option(command, "--mysql-version", mysql_version)
-    if backend == "postgres":
-        _append_option(command, "--postgres-version", postgres_version)
-    if run_in_parallel:
-        _append_option(command, "--parallel-test-types", parallel_test_types)
-        command.extend(["--parallelism", str(parallelism), "--total-test-timeout", str(total_test_timeout)])
-    elif use_xdist and parallelism > 0:
-        command.extend(["--parallelism", str(parallelism)])
-    _append_option(command, "--excluded-parallel-test-types", excluded_parallel_test_types)
-    if command_name == "providers-tests":
-        _append_option(command, "--excluded-providers", excluded_providers)
-        _append_option(command, "--providers-constraints-location", providers_constraints_location)
-        _append_bool_option(command, "--providers-skip-constraints", providers_skip_constraints)
-        _append_option(command, "--skip-providers", skip_providers)
-    if use_airflow_version:
-        _append_option(command, "--use-airflow-version", use_airflow_version)
-    if use_distributions_from_dist:
-        command.extend(["--distribution-format", distribution_format, "--use-distributions-from-dist"])
-    command.extend(extra_pytest_args)
-    return ReproductionCommand(
-        argv=command,
-        comment="Run the same Breeze command locally",
-    )
-
-
-def _build_task_sdk_tests_reproduction_command(
-    *,
-    collect_only: bool,
-    enable_coverage: bool,
-    extra_pytest_args: tuple[str, ...],
-    force_sa_warnings: bool,
-    forward_credentials: bool,
-    github_repository: str,
-    keep_env_variables: bool,
-    mount_sources: str,
-    python: str,
-    skip_docker_compose_down: bool,
-    test_timeout: int,
-) -> ReproductionCommand:
-    command = ["breeze", "testing", "task-sdk-tests"]
-    if github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
-        command.extend(["--github-repository", github_repository])
-    command.extend(
-        [
-            "--python",
-            python,
-            "--mount-sources",
-            mount_sources,
-            "--test-timeout",
-            str(test_timeout),
-        ]
-    )
-    command.append("--force-sa-warnings" if force_sa_warnings else "--no-force-sa-warnings")
-    _append_bool_option(command, "--collect-only", collect_only)
-    _append_bool_option(command, "--enable-coverage", enable_coverage)
-    _append_bool_option(command, "--forward-credentials", forward_credentials)
-    _append_bool_option(command, "--keep-env-variables", keep_env_variables)
-    _append_bool_option(command, "--skip-docker-compose-down", skip_docker_compose_down)
-    command.extend(extra_pytest_args)
-    return ReproductionCommand(
-        argv=command,
-        comment="Run the same Breeze command locally",
-    )
 
 
 def _run_test(
@@ -854,8 +691,10 @@ option_total_test_timeout = click.option(
 @option_use_xdist
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-def core_tests(**kwargs):
+@click.pass_context
+def core_tests(ctx: click.Context, **kwargs):
     _run_test_command(
+        click_context=ctx,
         test_group=GroupOfTests.CORE,
         integration=(),
         excluded_providers="",
@@ -921,8 +760,9 @@ def core_tests(**kwargs):
 @option_use_xdist
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-def providers_tests(**kwargs):
-    _run_test_command(test_group=GroupOfTests.PROVIDERS, integration=(), **kwargs)
+@click.pass_context
+def providers_tests(ctx: click.Context, **kwargs):
+    _run_test_command(click_context=ctx, test_group=GroupOfTests.PROVIDERS, integration=(), **kwargs)
 
 
 @testing_group.command(
@@ -946,9 +786,11 @@ def providers_tests(**kwargs):
 @option_test_timeout
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-def task_sdk_tests(**kwargs):
+@click.pass_context
+def task_sdk_tests(ctx: click.Context, **kwargs):
     """Run task SDK tests."""
     _run_test_command(
+        click_context=ctx,
         test_group=GroupOfTests.TASK_SDK,
         allow_pre_releases=False,
         airflow_constraints_reference="constraints-main",
@@ -1901,6 +1743,7 @@ def run_with_timeout(timeout: int, shell_params: ShellParams) -> Generator[Timeo
 
 def _run_test_command(
     *,
+    click_context: click.Context | None = None,
     test_group: GroupOfTests,
     airflow_constraints_reference: str,
     allow_pre_releases: bool,
@@ -1997,73 +1840,11 @@ def _run_test_command(
         run_tests=True,
         db_reset=db_reset if not skip_db_tests else False,
     )
-    reproduction_command: ReproductionCommand | None = None
-    if test_group in (GroupOfTests.CORE, GroupOfTests.PROVIDERS):
-        command_name = "core-tests" if test_group == GroupOfTests.CORE else "providers-tests"
-        reproduction_command = _build_core_or_providers_tests_reproduction_command(
-            command_name=command_name,
-            airflow_constraints_reference=airflow_constraints_reference,
-            allow_pre_releases=allow_pre_releases,
-            backend=backend,
-            collect_only=collect_only,
-            custom_db_url=custom_db_url,
-            clean_airflow_installation=clean_airflow_installation,
-            db_reset=db_reset if not skip_db_tests else False,
-            downgrade_sqlalchemy=downgrade_sqlalchemy,
-            downgrade_pendulum=downgrade_pendulum,
-            enable_coverage=enable_coverage,
-            excluded_parallel_test_types=excluded_parallel_test_types,
-            excluded_providers=excluded_providers,
-            extra_pytest_args=extra_pytest_args,
-            force_sa_warnings=force_sa_warnings,
-            forward_credentials=forward_credentials,
-            force_lowest_dependencies=force_lowest_dependencies,
-            github_repository=github_repository,
-            install_airflow_with_constraints=install_airflow_with_constraints,
-            keep_env_variables=keep_env_variables,
-            mount_sources=mount_sources,
-            no_db_cleanup=no_db_cleanup,
-            parallel_test_types=parallel_test_types,
-            parallelism=parallelism,
-            distribution_format=distribution_format,
-            providers_constraints_location=providers_constraints_location,
-            providers_skip_constraints=providers_skip_constraints,
-            python=python,
-            run_db_tests_only=run_db_tests_only,
-            run_in_parallel=run_in_parallel,
-            skip_db_tests=skip_db_tests,
-            skip_docker_compose_down=skip_docker_compose_down,
-            skip_providers=skip_providers,
-            test_timeout=test_timeout,
-            test_type=test_type,
-            total_test_timeout=total_test_timeout,
-            upgrade_boto=upgrade_boto,
-            upgrade_sqlalchemy=upgrade_sqlalchemy,
-            use_airflow_version=use_airflow_version,
-            use_distributions_from_dist=use_distributions_from_dist,
-            use_xdist=use_xdist,
-            mysql_version=mysql_version,
-            postgres_version=postgres_version,
-        )
-    elif test_group == GroupOfTests.TASK_SDK:
-        reproduction_command = _build_task_sdk_tests_reproduction_command(
-            collect_only=collect_only,
-            enable_coverage=enable_coverage,
-            extra_pytest_args=extra_pytest_args,
-            force_sa_warnings=force_sa_warnings,
-            forward_credentials=forward_credentials,
-            github_repository=github_repository,
-            keep_env_variables=keep_env_variables,
-            mount_sources=mount_sources,
-            python=python,
-            skip_docker_compose_down=skip_docker_compose_down,
-            test_timeout=test_timeout,
-        )
-    if reproduction_command:
+    if click_context:
         print_local_reproduction(
             build_local_reproduction_commands(
                 command_params=shell_params,
-                main_command=reproduction_command,
+                main_command=build_reproduction_command_from_context(click_context),
             )
         )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
