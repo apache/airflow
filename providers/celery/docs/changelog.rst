@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+3.17.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set task name for 2.11.X path (#63746)``
+* ``Fix misaligned 'queued_tasks' types in hybrid executors (#63744)``
+* ``Add gc.freeze to minimize memory usage in celery worker (#62212)``
+* ``Warn about hardcoded 24h visibility_timeout that kills long-running Celery tasks (#62869)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Refactor: remove modules that are supposed to be removed in Airflow 3.2 (#62927)``
+* ``Make test_celery_integration runnable (#64153)``
+* ``Update celery provider conf imports to use common compat SDK (#64134)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``remove useless mock db (#63740)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 3.17.1
 ......
 

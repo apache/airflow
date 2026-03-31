@@ -30,11 +30,15 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
 from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
@@ -2649,6 +2653,164 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     assert ti.max_tries == expected_max_tries
 
 
+def test_defer_task_returns_false_when_no_start_from_trigger(create_task_instance):
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task_op",
+    )
+    assert not ti.defer_task(session=session)
+
+
+def test_defer_task_returns_false_when_no_start_trigger_args(create_task_instance):
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task",
+        start_from_trigger=True,
+    )
+    assert not ti.defer_task(session=session)
+
+
+def test_defer_task(create_task_instance):
+    from airflow.models.trigger import Trigger
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={"key": "value"},
+        ),
+    )
+    assert ti.defer_task(session=session)
+
+    # Check that session.add was called with a Trigger
+    assert session.add.call_count == 1
+    trigger_row = session.add.call_args[0][0]
+    assert isinstance(trigger_row, Trigger)
+    assert trigger_row.classpath == "trigger_cls"
+    assert trigger_row.kwargs == {"key": "value"}
+
+    # Check that session.flush was called
+    session.flush.assert_called_once()
+
+    # Check that TaskInstance state was updated
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert ti.trigger_id == trigger_row.id
+    assert ti.next_method == "next_method"
+    assert ti.next_kwargs == {}
+
+    # Check trigger_timeout is set (should be None since no timeout provided)
+    assert ti.trigger_timeout is None
+
+
+def test_defer_task_with_trigger_timeout(create_task_instance):
+    from airflow.models.trigger import Trigger
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+    timeout = datetime.timedelta(hours=1)
+    ti = create_task_instance(
+        dag_id="test_defer_task_with_trigger_timeout",
+        task_id="test_defer_task_with_trigger_timeout_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={"key": "value"},
+            timeout=timeout,
+        ),
+    )
+
+    # Save start_date to calculate expected trigger_timeout
+    now = timezone.utcnow()
+    ti.start_date = now
+
+    ti.defer_task(session=session)
+
+    # Check session interactions
+    assert session.add.call_count == 1
+    trigger_row = session.add.call_args[0][0]
+    assert isinstance(trigger_row, Trigger)
+    session.flush.assert_called_once()
+
+    # TaskInstance fields
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert ti.trigger_id == trigger_row.id
+    assert ti.next_method == "next_method"
+    assert ti.next_kwargs == {}
+
+    # Check trigger_timeout is set correctly (within a small tolerance)
+    expected_timeout = now + timeout
+    assert abs((ti.trigger_timeout - expected_timeout).total_seconds()) < 5
+
+
+@pytest.mark.parametrize(
+    ("initial_state", "initial_try_number", "expected_try_number", "msg"),
+    [
+        (TaskInstanceState.DEFERRED, 1, 2, "try_number should increment if state is not UP_FOR_RESCHEDULE"),
+        (
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            5,
+            5,
+            "try_number should NOT increment if state is UP_FOR_RESCHEDULE",
+        ),
+    ],
+)
+def test_defer_task_try_number_increment_on_state(
+    create_task_instance, initial_state, initial_try_number, expected_try_number, msg
+):
+    """
+    Test that defer_task increments try_number only if the pre-deferral state is not UP_FOR_RESCHEDULE.
+    """
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+
+    ti = create_task_instance(
+        dag_id="test_defer_task_try_number",
+        task_id="test_defer_task_try_number_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={},
+        ),
+    )
+    ti.state = initial_state
+    ti.try_number = initial_try_number
+    ti.defer_task(session=session)
+    assert ti.try_number == expected_try_number, msg
+
+
+class TestTaskInstanceRelationships:
+    @pytest.mark.parametrize(
+        "attr",
+        ["rendered_task_instance_fields", "hitl_detail"],
+    )
+    def test_noload_relationships_raise_without_joinedload(self, dag_maker, session, attr):
+        """Accessing lazy='raise' relationships without joinedload should raise."""
+        from sqlalchemy.exc import InvalidRequestError
+
+        with dag_maker("test_dag", session=session):
+            EmptyOperator(task_id="task_1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task_1")
+        session.merge(ti)
+        session.commit()
+
+        loaded_ti = session.scalar(select(TaskInstance).where(TaskInstance.id == ti.id))
+
+        with pytest.raises(InvalidRequestError):
+            getattr(loaded_ti, attr)
+
+
 class TestTaskInstanceRecordTaskMapXComPush:
     """Test TI.xcom_push() correctly records return values for task-mapping."""
 
@@ -3298,3 +3460,103 @@ def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
 
     assert dr_from_ti is not None
     assert dr_from_ti == dr
+
+
+class TestMakeTaskCarrier:
+    """Tests for the _make_task_carrier helper."""
+
+    @pytest.fixture(autouse=True)
+    def sdk_tracer_provider(self):
+        provider = TracerProvider()
+        real_tracer = provider.get_tracer("airflow.models.taskinstance")
+        with (
+            mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+            mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+        ):
+            yield
+
+    def test_make_task_carrier_returns_traceparent(self):
+        carrier = new_task_run_carrier(new_dagrun_trace_carrier())
+        assert isinstance(carrier, dict)
+        assert "traceparent" in carrier
+
+    def test_make_task_carrier_child_of_parent(self):
+        parent_carrier = new_dagrun_trace_carrier()
+        child_carrier = new_task_run_carrier(parent_carrier)
+
+        propagator = TraceContextTextMapPropagator()
+        parent_trace_id = (
+            otel_trace.get_current_span(context=propagator.extract(parent_carrier))
+            .get_span_context()
+            .trace_id
+        )
+        child_trace_id = (
+            otel_trace.get_current_span(context=propagator.extract(child_carrier)).get_span_context().trace_id
+        )
+        assert child_trace_id == parent_trace_id
+        assert child_trace_id != 0
+
+    def test_make_task_carrier_with_none_carrier(self):
+        carrier = new_task_run_carrier(None)
+        assert isinstance(carrier, dict)
+        assert "traceparent" in carrier
+
+
+@pytest.mark.db_test
+def test_insert_mapping_includes_context_carrier(dag_maker, session):
+    """insert_mapping should include a context_carrier with a traceparent derived from the dag run."""
+    provider = TracerProvider()
+    real_tracer = provider.get_tracer("airflow.models.taskinstance")
+    with (
+        mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+        mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+    ):
+        with dag_maker("test_insert_mapping_carrier"):
+            EmptyOperator(task_id="t1")
+        session.flush()
+
+        # Get the scheduler-side operator (has a proper PriorityWeightStrategy, not the enum weight_rule).
+        op = create_scheduler_operator(dag_maker.dag.get_task("t1"))
+
+        # Mock the DagRun to avoid inserting into the dag_run table (schema migrations may be pending).
+        dag_run = mock.MagicMock()
+        dag_run.context_carrier = new_dagrun_trace_carrier()
+
+        mapping = TaskInstance.insert_mapping(
+            run_id="test_run",
+            task=op,
+            map_index=0,
+            dag_version_id=None,
+            dag_run=dag_run,
+        )
+
+    assert "context_carrier" in mapping
+    assert mapping["context_carrier"] is not None
+    assert "traceparent" in mapping["context_carrier"]
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_resets_context_carrier(dag_maker, session):
+    """clear_task_instances should assign fresh context carriers to both the TI and its dag run."""
+    provider = TracerProvider()
+    real_tracer = provider.get_tracer("airflow.models.taskinstance")
+    with (
+        mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+        mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+    ):
+        with dag_maker("test_clear_carrier"):
+            EmptyOperator(task_id="t1")
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("t1", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        # Set an explicit carrier so we can verify it changes.
+        ti.context_carrier = {"traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaa0001-bbbbbbbbbbbbbbbb-01"}
+        session.flush()
+
+        original_ti_traceparent = ti.context_carrier["traceparent"]
+        original_dr_traceparent = dag_run.context_carrier["traceparent"]
+
+        clear_task_instances([ti], session)
+
+    assert ti.context_carrier["traceparent"] != original_ti_traceparent
+    assert dag_run.context_carrier["traceparent"] != original_dr_traceparent

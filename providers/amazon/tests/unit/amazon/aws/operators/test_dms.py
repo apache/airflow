@@ -862,6 +862,24 @@ class TestDmsDeleteReplicationConfigOperator:
 
         assert isinstance(defer.value.trigger, DmsReplicationTerminalStatusTrigger)
 
+    def test_execute_complete_error(self):
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn="arn:test",
+        )
+        error_event = {"status": "error", "message": "Timeout", "replication_config_arn": "arn:test"}
+        with pytest.raises(AirflowException, match="Error deleting DMS replication config"):
+            op.execute_complete({}, error_event)
+
+    def test_retry_execution_error(self):
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn="arn:test",
+        )
+        error_event = {"status": "error", "message": "Timeout", "replication_config_arn": "arn:test"}
+        with pytest.raises(AirflowException, match="Error waiting for DMS replication config"):
+            op.retry_execution({}, error_event)
+
 
 class TestDmsDescribeReplicationsOperator:
     FILTER = [{"Name": "replication-type", "Values": ["cdc"]}]
@@ -1008,6 +1026,30 @@ class TestDmsStartReplicationOperator:
         op.execute({})
         assert mock_conn.start_replication.call_count == 1
 
+    def test_execute_complete_error(self):
+        op = DmsStartReplicationOperator(
+            task_id="start_replication",
+            replication_config_arn="arn:test",
+            replication_start_type="reload",
+        )
+        error_event = {
+            "status": "error",
+            "message": "Replication failed",
+            "replication_config_arn": "arn:test",
+        }
+        with pytest.raises(AirflowException, match="Error in DMS replication"):
+            op.execute_complete({}, error_event)
+
+    def test_retry_execution_error(self):
+        op = DmsStartReplicationOperator(
+            task_id="start_replication",
+            replication_config_arn="arn:test",
+            replication_start_type="reload",
+        )
+        error_event = {"status": "error", "message": "Timeout", "replication_config_arn": "arn:test"}
+        with pytest.raises(AirflowException, match="Error waiting for DMS replication"):
+            op.retry_execution({}, error_event)
+
 
 class TestDmsStopReplicationOperator:
     def mock_describe_replication_response(self, status: str):
@@ -1066,3 +1108,12 @@ class TestDmsStopReplicationOperator:
         op.execute({})
         mock_get_waiter.assert_called_with("replication_stopped")
         mock_get_waiter.assert_called_once()
+
+    def test_execute_complete_error(self):
+        op = DmsStopReplicationOperator(
+            task_id="stop_replication",
+            replication_config_arn="arn:test",
+        )
+        error_event = {"status": "error", "message": "Timeout", "replication_config_arn": "arn:test"}
+        with pytest.raises(AirflowException, match="Error stopping DMS replication"):
+            op.execute_complete({}, error_event)

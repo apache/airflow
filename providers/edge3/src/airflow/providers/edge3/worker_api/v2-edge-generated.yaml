@@ -1316,6 +1316,13 @@ components:
           title: Queues
           description: List of queues the worker is pulling jobs from. If not provided,
             worker pulls from all queues.
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+          description: Team name for multi-team setups. If not provided, worker operates
+            without team isolation.
         state:
           $ref: '#/components/schemas/EdgeWorkerState'
           description: State of the worker from the view of the worker.
@@ -1419,6 +1426,13 @@ components:
           title: Queues
           description: List of queues the worker is pulling jobs from. If not provided,
             worker pulls from all queues.
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+          description: Team name for multi-team setups. If not provided, worker operates
+            without team isolation.
         free_concurrency:
           type: integer
           title: Free Concurrency
@@ -1484,6 +1498,13 @@ components:
           title: Queues
           description: List of queues the worker is pulling jobs from. If not provided,
             worker pulls from all queues.
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+          description: Team name for multi-team setups. If not provided, worker operates
+            without team isolation.
         state:
           $ref: '#/components/schemas/EdgeWorkerState'
           description: State of the worker from the view of the worker.

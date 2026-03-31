@@ -427,6 +427,7 @@ export type ClearTaskInstancesBody = {
      */
     run_on_latest_version?: boolean;
     prevent_running_task?: boolean;
+    note?: string | null;
 };
 
 /**
@@ -1131,6 +1132,22 @@ export type JsonValue = unknown;
 export type LastAssetEventResponse = {
     id?: number | null;
     timestamp?: string | null;
+};
+
+/**
+ * Materialize asset request.
+ */
+export type MaterializeAssetBody = {
+    dag_run_id?: string | null;
+    data_interval_start?: string | null;
+    data_interval_end?: string | null;
+    logical_date?: string | null;
+    run_after?: string | null;
+    conf?: {
+    [key: string]: unknown;
+} | null;
+    note?: string | null;
+    partition_key?: string | null;
 };
 
 /**
@@ -2200,13 +2217,7 @@ export type TeamResponse = {
  */
 export type Theme = {
     tokens: {
-        [key: string]: {
-            [key: string]: {
-                [key: string]: {
-                    [key: string]: OklchColor;
-                };
-            };
-        };
+        [key: string]: ThemeColors;
     };
     globalCss?: {
     [key: string]: {
@@ -2215,6 +2226,10 @@ export type Theme = {
 } | null;
     icon?: string | null;
     icon_dark_mode?: string | null;
+};
+
+export type ThemeColors = {
+    [key: string]: unknown;
 };
 
 /**
@@ -2306,6 +2321,7 @@ export type CreateAssetEventResponse = AssetEventResponse;
 
 export type MaterializeAssetData = {
     assetId: number;
+    requestBody?: MaterializeAssetBody | null;
 };
 
 export type MaterializeAssetResponse = DAGRunResponse;

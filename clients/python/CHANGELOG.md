@@ -17,6 +17,15 @@
  under the License.
  -->
 
+# v3.1.8
+
+## Bug Fixes:
+
+ - Fix: 404 queued asset events from API server logs ([#62934](https://github.com/apache/airflow/pull/62934))
+ - Fix executor slots showing negative infinity ([#61140](https://github.com/apache/airflow/pull/61140))
+ - Fix Pool API slots validation ([#61071](https://github.com/apache/airflow/pull/61071))
+ - Add ``run_after`` alias to ``XComResponse`` for backward compatibility ([#61443](https://github.com/apache/airflow/pull/61443))
+
 # v3.1.6
 
 ## Bug Fixes:

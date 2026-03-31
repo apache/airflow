@@ -123,9 +123,6 @@ versions:
   - 2.0.0
   - 1.0.0
 
-excluded-python-versions:
-  - "3.14"
-
 integrations:
   - integration-name: Google Analytics (GA4)
     external-doc-url: https://analytics.google.com/
@@ -1202,6 +1199,8 @@ connection-types:
         schema:
           type: ["boolean", "null"]
           default: false
+  - hook-class-name: airflow.providers.google.cloud.hooks.spanner.SpannerHook
+    connection-type: gcpspanner
   - hook-class-name: airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
     connection-type: dataprep
   - hook-class-name: airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook

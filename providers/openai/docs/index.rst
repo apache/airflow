@@ -73,7 +73,7 @@ Enables interaction with OpenAI APIs for text generation, embeddings,
 and other AI-powered workflows directly from Airflow DAGs.
 
 
-Release: 1.7.2
+Release: 1.7.3
 
 Provider package
 ----------------
@@ -126,5 +126,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-openai 1.7.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-openai 1.7.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-openai 1.7.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-openai 1.7.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.7.3-py3-none-any.whl.sha512>`__)

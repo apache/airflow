@@ -309,8 +309,13 @@ class DagRun(StrictBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def extract_dag_run_note(cls, data: Any) -> Any:
-        """Extract the `note` (`str | None` from `association_proxy("dag_run_note", "content")`) relationship from `DagRun` to prevent `DetachedInstanceError` when constructing `DagRunContext` or `TIRunContext` models."""
+    def safe_extract_from_orm(cls, data: Any) -> Any:
+        """
+        Safely extract data from SQLAlchemy DagRun instances.
+
+        Handles the 'note' association proxy and provides defaults for unloaded relationships
+        to prevent DetachedInstanceError when the instance is not bound to a session.
+        """
         from sqlalchemy import inspect as sa_inspect
         from sqlalchemy.exc import NoInspectionAvailable
         from sqlalchemy.orm.state import InstanceState
@@ -325,19 +330,24 @@ class DagRun(StrictBaseModel):
             # Not a SQLAlchemy object, return as-is for Pydantic to handle
             return data
 
-        # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
-        if "note" in insp.dict:
-            note_value: str | None = insp.dict["note"]
-        else:
-            note_value = None
+        values = {}
 
-        # Convert to dict to avoid further lazy loading issues
-        values = {
-            field_name: getattr(data, field_name, None)
-            for field_name in cls.model_fields
-            if field_name != "note"
-        }
-        values["note"] = note_value
+        for field_name in cls.model_fields:
+            if field_name in insp.dict:
+                values[field_name] = insp.dict[field_name]
+            elif field_name == "state" and "_state" in insp.dict:
+                values["state"] = insp.dict["_state"]
+
+        if "consumed_asset_events" not in values:
+            values["consumed_asset_events"] = []
+
+        # Check if dag_run_note is already loaded (avoid lazy load on detached instance)
+        if "note" not in values:
+            if "dag_run_note" in insp.dict:
+                values["note"] = data.note
+            else:
+                values["note"] = None
+
         return values
 
 

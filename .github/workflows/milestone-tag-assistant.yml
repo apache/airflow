@@ -21,6 +21,7 @@ on:  # yamllint disable-line rule:truthy
   push:
     branches:
       - main
+      - v3-2-test
       - v3-1-test
 
 permissions:
