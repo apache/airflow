@@ -20,8 +20,6 @@ from __future__ import annotations
 import datetime
 import multiprocessing
 
-from airflow.sdk import timezone
-
 
 class SecretCache:
     """A static class to manage the global secret cache."""
@@ -35,10 +33,14 @@ class SecretCache:
 
     class _CacheValue:
         def __init__(self, value: str | None) -> None:
+            from airflow.sdk import timezone
+
             self.value = value
             self.date = timezone.utcnow()
 
         def is_expired(self, ttl: datetime.timedelta) -> bool:
+            from airflow.sdk import timezone
+
             return timezone.utcnow() - self.date > ttl
 
     _VARIABLE_PREFIX = "__v_"
