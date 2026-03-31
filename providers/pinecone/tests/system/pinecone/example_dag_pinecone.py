@@ -36,8 +36,8 @@ with DAG(
     PineconeIngestOperator(
         task_id="pinecone_vector_ingest",
         index_name=index_name,
-        input_vectors=[
-            ("id1", [1.0, 2.0, 3.0]),
+        input_vectors=[  # type: ignore[arg-type]
+            ("id1", [1.0, 2.0, 3.0], {"key": "value"}),
             ("id2", [1.0, 2.0, 3.0]),
         ],
         namespace=namespace,
