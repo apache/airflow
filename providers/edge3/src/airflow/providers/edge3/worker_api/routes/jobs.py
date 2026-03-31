@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Body, Depends, status
+from fastapi import Body, Depends, HTTPException, status
 from sqlalchemy import select, update
 
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
@@ -33,6 +33,7 @@ try:
 except ImportError:
     DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
+from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
@@ -70,6 +71,10 @@ def fetch(
     session: SessionDep,
 ) -> EdgeJobFetched | None:
     """Fetch a job to execute on the edge worker."""
+    worker = session.scalar(select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Worker not found")
+
     query = (
         select(EdgeJobModel)
         .where(
@@ -80,7 +85,7 @@ def fetch(
     )
     if body.queues:
         query = query.where(EdgeJobModel.queue.in_(body.queues))
-    query = query.where(EdgeJobModel.team_name == body.team_name)
+    query = query.where(EdgeJobModel.team_name == worker.team_name)
     query = query.limit(1)
     query = query.with_for_update(skip_locked=True)
     job: EdgeJobModel | None = session.scalar(query)

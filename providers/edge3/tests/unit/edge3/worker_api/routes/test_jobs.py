@@ -24,6 +24,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
+from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueuesBody
 from airflow.providers.edge3.worker_api.routes.jobs import fetch, state
 from airflow.utils.session import create_session
@@ -136,6 +137,11 @@ class TestJobsApiRoutes:
 
     def test_fetch_filters_by_team_name(self, session: Session):
         with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name="team_a"
+                )
+            )
             job_team_a = EdgeJobModel(
                 dag_id="dag_a",
                 task_id="task_a",
@@ -163,15 +169,20 @@ class TestJobsApiRoutes:
             session.add_all([job_team_a, job_team_b])
             session.commit()
 
-            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name="team_a")
+            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name="team_b")
             result = fetch("worker1", body, session)
             assert result is not None
             assert result.dag_id == "dag_a"
             assert result.task_id == "task_a"
 
     def test_fetch_without_team_name_returns_any_team(self, session: Session):
-        """When team_name is None, no team filter is applied so any queued job can be returned."""
+        """When a worker has no team_name, no team filter is applied so any queued job can be returned."""
         with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name=None
+                )
+            )
             job_team_a = EdgeJobModel(
                 dag_id="dag_a",
                 task_id="task_a",
