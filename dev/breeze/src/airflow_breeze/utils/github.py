@@ -434,6 +434,8 @@ class PRAssessment:
     summary: str = ""
     error: bool = False
     error_debug_file: str = ""
+    duration: float = 0.0  # actual LLM execution time in seconds
+    attempts: int = 1  # number of LLM attempts (including retries)
 
 
 _MYPY_HOOK_RE = re.compile(r"\b(mypy-[\w-]+)\b", re.IGNORECASE)

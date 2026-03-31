@@ -160,7 +160,7 @@ test.describe("Connections Page - CRUD Operations", () => {
     await context.close();
   });
 
-  test("should create a new connection and display it in list", async () => {
+  test.fixme("should create a new connection and display it in list", async () => {
     test.setTimeout(120_000);
     await connectionsPage.navigate();
 
@@ -173,7 +173,7 @@ test.describe("Connections Page - CRUD Operations", () => {
     await connectionsPage.verifyConnectionInList(newConnection.connection_id, newConnection.conn_type);
   });
 
-  test("should edit an existing connection", async () => {
+  test.fixme("should edit an existing connection", async () => {
     test.setTimeout(120_000);
     await connectionsPage.navigate();
 

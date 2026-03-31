@@ -120,7 +120,8 @@
       "includeDeferred": "Delegierte Tasks",
       "nameMaxLength": "Der Name kann maximal 256 Zeichen lang sein",
       "nameRequired": "Ein Name ist erforderlich",
-      "slots": "Plätze im Pool"
+      "slots": "Plätze im Pool",
+      "slotsHelperText": "Auf -1 setzen für unbegrenzten Pool."
     },
     "noPoolsFound": "Keine Pools gefunden",
     "pool_one": "Pool",

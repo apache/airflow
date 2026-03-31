@@ -21,7 +21,7 @@ requires = [
     "packaging==26.0",
     "pathspec==1.0.4",
     "pluggy==1.6.0",
-    "tomli==2.4.0; python_version < '3.11'",
+    "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
 ]
 build-backend = "hatchling.build"
@@ -64,6 +64,10 @@ dependencies = [
 ]
 
 packages = []
+
+[project.scripts]
+# Definition allowing direct execution via `uvx apache-airflow ...`
+apache-airflow = "airflow.__main__:main"
 
 [project.optional-dependencies]
 # Automatically generated airflow optional dependencies (update_airflow_pyproject_toml.py)
@@ -539,7 +543,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.10.12",
+    "uv>=0.11.2",
 ]
 
 [project.urls]
