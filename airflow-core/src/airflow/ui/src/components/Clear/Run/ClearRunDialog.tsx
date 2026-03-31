@@ -24,7 +24,6 @@ import { CgRedo } from "react-icons/cg";
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type {
   DAGRunResponse,
-  TaskInstanceCollectionResponse,
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
