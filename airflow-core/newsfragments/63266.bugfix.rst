@@ -1,0 +1,1 @@
+Fix ``ti_skip_downstream`` overwriting RUNNING tasks to SKIPPED in HA deployments.

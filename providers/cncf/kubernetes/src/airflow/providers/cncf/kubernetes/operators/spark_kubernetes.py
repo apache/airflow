@@ -265,6 +265,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             #
             # Pending pods are considered to handle recent driver restarts without
             # prematurely failing the task.
+            # Pending pods are preferred over Running pods, as if a new pod is created
+            # that means the old pod is terminating (which is running state with deletion timestamp)
+            # and we always prefer a new pod over an old pod.
             pod = max(
                 pod_list,
                 key=lambda p: (
@@ -395,6 +398,12 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                     spec_dict[component]["labels"] = {}
 
                 spec_dict[component]["labels"].update(task_context_labels)
+
+        spec_dict = template_body.setdefault("spark", {}).setdefault("spec", {})
+        for component in ["driver", "executor"]:
+            env_list = spec_dict.setdefault(component, {}).setdefault("env", [])
+            if not any(e.get("name") == "SPARK_APPLICATION_NAME" for e in env_list):
+                env_list.append({"name": "SPARK_APPLICATION_NAME", "value": self.name})
 
         self.log.info("Creating sparkApplication.")
         self.launcher = CustomObjectLauncher(

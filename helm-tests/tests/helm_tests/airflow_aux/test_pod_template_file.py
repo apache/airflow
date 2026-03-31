@@ -934,23 +934,38 @@ class TestPodTemplateFile:
         assert "my_annotation" in annotations
         assert "annotated!" in annotations["my_annotation"]
 
-    @pytest.mark.parametrize("safe_to_evict", [True, False])
-    def test_safe_to_evict_annotation(self, safe_to_evict: bool):
+    @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            ({"safeToEvict": True}, "true"),
+            ({"kubernetes": {"safeToEvict": True}}, "true"),
+            ({"safeToEvict": False, "kubernetes": {"safeToEvict": True}}, "true"),
+            ({"safeToEvict": False}, "false"),
+            ({"kubernetes": {"safeToEvict": False}}, "false"),
+            ({"safeToEvict": True, "kubernetes": {"safeToEvict": False}}, "false"),
+        ],
+    )
+    def test_safe_to_evict_annotation(self, workers_values, expected):
         docs = render_chart(
-            values={"workers": {"safeToEvict": safe_to_evict}},
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert annotations == {
-            "cluster-autoscaler.kubernetes.io/safe-to-evict": "true" if safe_to_evict else "false"
-        }
+        assert annotations == {"cluster-autoscaler.kubernetes.io/safe-to-evict": expected}
 
-    def test_safe_to_evict_annotation_other_services(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"safeToEvict": False},
+            {"kubernetes": {"safeToEvict": False}},
+        ],
+    )
+    def test_safe_to_evict_annotation_other_services(self, workers_values):
         """Workers' safeToEvict value should not overwrite safeToEvict value of other services."""
         docs = render_chart(
             values={
-                "workers": {"safeToEvict": False},
+                "workers": workers_values,
                 "scheduler": {"safeToEvict": True},
                 "triggerer": {"safeToEvict": True},
                 "executor": "KubernetesExecutor",
@@ -1153,27 +1168,39 @@ class TestPodTemplateFile:
         )
         assert jmespath.search("spec.containers[0].resources", docs[0]) == {}
 
-    def test_workers_host_aliases(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]},
+            {"kubernetes": {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]}},
+            {
+                "hostAliases": [{"ip": "192.168.0.1", "hostnames": ["hostname"]}],
+                "kubernetes": {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]},
             },
+        ],
+    )
+    def test_workers_host_aliases(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.hostAliases[0].ip", docs[0]) == "127.0.0.2"
-        assert jmespath.search("spec.hostAliases[0].hostnames[0]", docs[0]) == "test.hostname"
+        assert jmespath.search("spec.hostAliases", docs[0]) == [
+            {"ip": "127.0.0.2", "hostnames": ["test.hostname"]}
+        ]
 
-    def test_workers_priority_class_name(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"priorityClassName": "test-priority"},
+            {"kubernetes": {"priorityClassName": "test-priority"}},
+            {"priorityClassName": "test", "kubernetes": {"priorityClassName": "test-priority"}},
+        ],
+    )
+    def test_workers_priority_class_name(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    "priorityClassName": "test-priority",
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )

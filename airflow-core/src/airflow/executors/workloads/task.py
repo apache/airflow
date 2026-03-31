@@ -86,7 +86,6 @@ class ExecuteTask(BaseDagBundleWorkload):
         from airflow.utils.helpers import log_filename_template_renderer
 
         ser_ti = TaskInstanceDTO.model_validate(ti, from_attributes=True)
-        ser_ti.context_carrier = ti.dag_run.context_carrier
         if not bundle_info:
             bundle_info = BundleInfo(
                 name=ti.dag_model.bundle_name,

@@ -168,8 +168,10 @@ class LLMApprovalMixin:
         output = generated_output
         params_input: dict[str, Any] = event.get("params_input") or {}
 
-        # If the reviewer provided modified output, return their version
-        if params_input:
+        # Only accept modified output when the operator explicitly allows modifications.
+        # Without this guard a reviewer could craft a request with params_input even
+        # when allow_modifications=False, bypassing the read-only approval flow.
+        if getattr(self, "allow_modifications", False) and params_input:
             modified = params_input.get("output")
             if modified is not None and modified != generated_output:
                 log.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)

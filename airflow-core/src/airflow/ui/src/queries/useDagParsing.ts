@@ -25,15 +25,15 @@ import {
   UseDagSourceServiceGetDagSourceKeyFn,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
-import { createErrorToaster } from "src/components/ui/createErrorToaster";
+import { createErrorToaster } from "src/utils";
 
 export const useDagParsing = ({ dagId }: { readonly dagId: string }) => {
   const queryClient = useQueryClient();
-  const { t: translate } = useTranslation(["dag", "common"]);
-  const onError = createErrorToaster(translate, {
-    description: translate("parse.toaster.error.description"),
-    title: translate("parse.toaster.error.title"),
-  });
+  const { t: translate } = useTranslation("dag");
+
+  const onError = (error: unknown) => {
+    createErrorToaster(error, { titleKey: "dag:parse.toaster.error.title" }, translate);
+  };
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
