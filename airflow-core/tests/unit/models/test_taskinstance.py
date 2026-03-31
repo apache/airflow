@@ -2654,7 +2654,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "weight_rule, expected_weight",
+    ("weight_rule", "expected_weight"),
     [
         pytest.param("downstream", 10 + 5, id="downstream-sums-descendants"),
         pytest.param("upstream", 10, id="upstream-no-ancestors"),
@@ -2663,7 +2663,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
 )
 def test_refresh_from_task_with_non_serialized_operator(weight_rule, expected_weight):
     """Regression: TaskInstance must work with non-serialized operators whose weight_rule is a WeightRule enum."""
-    with DAG(dag_id="test_dag") as dag:
+    with DAG(dag_id="test_dag"):
         root = EmptyOperator(task_id="root", priority_weight=10, weight_rule=weight_rule)
         child = EmptyOperator(task_id="child", priority_weight=5)
         root >> child
