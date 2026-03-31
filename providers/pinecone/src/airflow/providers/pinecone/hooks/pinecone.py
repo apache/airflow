@@ -29,6 +29,8 @@ from pinecone import Pinecone, PodSpec, PodType, ServerlessSpec
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
+    from multiprocessing.pool import ApplyResult
+
     from pinecone import Vector
     from pinecone.core.openapi.db_data.models import IndexDescription as DescribeIndexStatsResponse
     from pinecone.db_data import QueryResponse, UpsertResponse
@@ -156,7 +158,7 @@ class PineconeHook(BaseHook):
         batch_size: int | None = None,
         show_progress: bool = True,
         **kwargs: Any,
-    ) -> UpsertResponse:
+    ) -> UpsertResponse | ApplyResult:
         """
         Write vectors into a namespace.
 
@@ -320,7 +322,7 @@ class PineconeHook(BaseHook):
         include_values: bool | None = None,
         include_metadata: bool | None = None,
         sparse_vector: SparseValues | SparseVectorTypedDict | None = None,
-    ) -> QueryResponse:
+    ) -> QueryResponse | ApplyResult:
         """
         Search a namespace using query vector.
 
