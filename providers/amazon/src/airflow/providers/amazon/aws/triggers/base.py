@@ -21,6 +21,7 @@ from abc import abstractmethod
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.helpers import prune_dict
@@ -149,13 +150,17 @@ class AwsBaseWaiterTrigger(BaseTrigger):
                 client=client,
                 config_overrides=self.waiter_config_overrides,
             )
-            await async_wait(
-                waiter,
-                self.waiter_delay,
-                self.attempts,
-                self.waiter_args,
-                self.failure_message,
-                self.status_message,
-                self.status_queries,
-            )
-            yield TriggerEvent({"status": "success", self.return_key: self.return_value})
+            try:
+                await async_wait(
+                    waiter,
+                    self.waiter_delay,
+                    self.attempts,
+                    self.waiter_args,
+                    self.failure_message,
+                    self.status_message,
+                    self.status_queries,
+                )
+            except AirflowException as e:
+                yield TriggerEvent({"status": "error", "message": str(e), self.return_key: self.return_value})
+            else:
+                yield TriggerEvent({"status": "success", self.return_key: self.return_value})

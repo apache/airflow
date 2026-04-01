@@ -120,7 +120,7 @@ export class EventsPage extends BasePage {
 
   public async navigateToAuditLog(dagId: string): Promise<void> {
     await expect(async () => {
-      await this.page.goto(EventsPage.getEventsUrl(dagId), {
+      await this.safeGoto(EventsPage.getEventsUrl(dagId), {
         timeout: 10_000,
         waitUntil: "domcontentloaded",
       });

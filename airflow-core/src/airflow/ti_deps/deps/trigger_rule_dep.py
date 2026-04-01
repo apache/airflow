@@ -637,6 +637,9 @@ class TriggerRuleDep(BaseTIDep):
                 setup_obj = task.dag.get_task(setup_id)
                 in_scope_ids.update(indirect_upstream_ids & setup_obj.get_flat_relative_ids(upstream=False))
 
+            if not in_scope_ids:
+                return
+
             in_scope_tasks = {tid: task.dag.get_task(tid) for tid in in_scope_ids}
 
             done = sum(
@@ -678,7 +681,9 @@ class TriggerRuleDep(BaseTIDep):
                         return
             yield from _evaluate_direct_relatives()
         else:
-            statuses = list(_evaluate_direct_relatives())
-            yield from statuses
-            if not statuses:
+            has_status = False
+            for status in _evaluate_direct_relatives():
+                has_status = True
+                yield status
+            if not has_status:
                 yield from _evaluate_teardown_scope()

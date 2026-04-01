@@ -65,6 +65,10 @@ dependencies = [
 
 packages = []
 
+[project.scripts]
+# Definition allowing direct execution via `uvx apache-airflow ...`
+apache-airflow = "airflow.__main__:main"
+
 [project.optional-dependencies]
 # Automatically generated airflow optional dependencies (update_airflow_pyproject_toml.py)
 "all-core" = [
@@ -539,7 +543,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.1",
+    "uv>=0.11.2",
 ]
 
 [project.urls]
@@ -1309,6 +1313,7 @@ dev = [
     "apache-airflow-shared-providers-discovery",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-serialization",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
 ]
@@ -1338,7 +1343,9 @@ leveldb = [
 ]
 
 [tool.uv]
-required-version = ">=0.6.3"
+required-version = ">=0.9.17"
+# Synchroonize with scripts/ci/prek/upgrade_important_versions.py
+exclude-newer = "4 days"
 no-build-isolation-package = ["sphinx-redoc"]
 constraint-dependencies = ["lxml==6.0.2"]  # Remove after https://github.com/aws/amazon-redshift-python-driver/pull/272
 
@@ -1371,6 +1378,7 @@ apache-airflow-shared-plugins-manager = { workspace = true }
 apache-airflow-shared-providers-discovery = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
+apache-airflow-shared-serialization = { workspace = true }
 apache-airflow-shared-template-rendering = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
@@ -1503,6 +1511,7 @@ members = [
     "shared/providers_discovery",
     "shared/secrets_backend",
     "shared/secrets_masker",
+    "shared/serialization",
     "shared/template_rendering",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
