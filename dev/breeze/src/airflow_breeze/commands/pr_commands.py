@@ -4665,8 +4665,8 @@ def _run_tui_triage(
         for entry in entries:
             if entry.llm_status in ("in_progress", "pending"):
                 n = entry.pr.number
-                fut = _llm_pr_to_future.get(n)
-                if fut is not None and not fut.done():
+                llm_fut = _llm_pr_to_future.get(n)
+                if llm_fut is not None and not llm_fut.done():
                     _undone_entries.append(entry)
                 elif n in _llm_completed_pr_nums and n not in _llm_result_pr_nums:
                     entry.llm_status = "error"
