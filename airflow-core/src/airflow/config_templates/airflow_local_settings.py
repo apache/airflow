@@ -291,6 +291,27 @@ if REMOTE_LOGGING:
         ELASTICSEARCH_HOST_FIELD: str = conf.get_mandatory_value("elasticsearch", "HOST_FIELD")
         ELASTICSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value("elasticsearch", "OFFSET_FIELD")
         ELASTICSEARCH_LOG_ID_TEMPLATE: str = conf.get_mandatory_value("elasticsearch", "LOG_ID_TEMPLATE")
+        ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("elasticsearch", "END_OF_LOG_MARK")
+        ELASTICSEARCH_FRONTEND: str = conf.get_mandatory_value("elasticsearch", "FRONTEND")
+        ELASTICSEARCH_JSON_FIELDS: str = conf.get_mandatory_value("elasticsearch", "JSON_FIELDS")
+
+        ELASTICSEARCH_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
+            "task": {
+                "class": "airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler",
+                "formatter": "airflow",
+                "base_log_folder": BASE_LOG_FOLDER,
+                "end_of_log_mark": ELASTICSEARCH_END_OF_LOG_MARK,
+                "host": ELASTICSEARCH_HOST,
+                "frontend": ELASTICSEARCH_FRONTEND,
+                "write_stdout": ELASTICSEARCH_WRITE_STDOUT,
+                "write_to_es": ELASTICSEARCH_WRITE_TO_ES,
+                "json_format": ELASTICSEARCH_JSON_FORMAT,
+                "json_fields": ELASTICSEARCH_JSON_FIELDS,
+                "host_field": ELASTICSEARCH_HOST_FIELD,
+                "offset_field": ELASTICSEARCH_OFFSET_FIELD,
+            },
+        }
+        DEFAULT_LOGGING_CONFIG["handlers"].update(ELASTICSEARCH_REMOTE_HANDLERS)
 
         REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(
             host=ELASTICSEARCH_HOST,
