@@ -1987,7 +1987,7 @@ paths:
             application/json:
               schema:
                 anyOf:
-                - $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+                - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
                 - $ref: '#/components/schemas/DAGRunResponse'
                 title: Response Clear Dag Run
         '401':
@@ -9834,6 +9834,25 @@ components:
       - action
       - entities
       title: BulkUpdateAction[VariableBody]
+    ClearTaskInstanceCollectionResponse:
+      properties:
+        task_instances:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/TaskInstanceResponse'
+            - $ref: '#/components/schemas/NewTaskResponse'
+          type: array
+          title: Task Instances
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - task_instances
+      - total_entries
+      title: ClearTaskInstanceCollectionResponse
+      description: Response for clear dag run dry run, which may contain new tasks
+        without full TaskInstance data.
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -12575,9 +12594,7 @@ components:
       properties:
         task_instances:
           items:
-            oneOf:
-            - $ref: '#/components/schemas/TaskInstanceResponse'
-            - $ref: '#/components/schemas/NewTaskResponse'
+            $ref: '#/components/schemas/TaskInstanceResponse'
           type: array
           title: Task Instances
         total_entries:
@@ -12588,12 +12605,7 @@ components:
       - task_instances
       - total_entries
       title: TaskInstanceCollectionResponse
-      description: 'Task Instance Collection serializer for responses.
-
-
-        Can contain either full TaskInstanceResponse objects or lightweight NewTaskResponse
-
-        objects for tasks that don''t have instances yet.'
+      description: Task Instance Collection serializer for responses.
     TaskInstanceHistoryCollectionResponse:
       properties:
         task_instances:

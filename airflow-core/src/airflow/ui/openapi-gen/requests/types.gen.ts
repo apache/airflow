@@ -401,6 +401,14 @@ export type BulkUpdateAction_VariableBody_ = {
 };
 
 /**
+ * Response for clear dag run dry run, which may contain new tasks without full TaskInstance data.
+ */
+export type ClearTaskInstanceCollectionResponse = {
+    task_instances: Array<(TaskInstanceResponse | NewTaskResponse)>;
+    total_entries: number;
+};
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type ClearTaskInstancesBody = {
@@ -1388,12 +1396,9 @@ export type TaskInletAssetReference = {
 
 /**
  * Task Instance Collection serializer for responses.
- *
- * Can contain either full TaskInstanceResponse objects or lightweight NewTaskResponse
- * objects for tasks that don't have instances yet.
  */
 export type TaskInstanceCollectionResponse = {
-    task_instances: Array<(TaskInstanceResponse | NewTaskResponse)>;
+    task_instances: Array<TaskInstanceResponse>;
     total_entries: number;
 };
 
@@ -2553,7 +2558,7 @@ export type ClearDagRunData = {
     requestBody: DAGRunClearBody;
 };
 
-export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
+export type ClearDagRunResponse = ClearTaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
     bundleVersion?: string | null;
@@ -4643,7 +4648,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: TaskInstanceCollectionResponse | DAGRunResponse;
+                200: ClearTaskInstanceCollectionResponse | DAGRunResponse;
                 /**
                  * Unauthorized
                  */

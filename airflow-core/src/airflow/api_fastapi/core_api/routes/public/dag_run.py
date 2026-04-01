@@ -74,8 +74,8 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     TriggerDAGRunPostBody,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    ClearTaskInstanceCollectionResponse,
     NewTaskResponse,
-    TaskInstanceCollectionResponse,
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -286,7 +286,7 @@ def clear_dag_run(
     body: DAGRunClearBody,
     dag_bag: DagBagDep,
     session: SessionDep,
-) -> TaskInstanceCollectionResponse | DAGRunResponse:
+) -> ClearTaskInstanceCollectionResponse | DAGRunResponse:
     dag_run = session.scalar(
         select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
     )
@@ -322,7 +322,7 @@ def clear_dag_run(
         else:
             task_instances = cast("list[TaskInstanceResponse | NewTaskResponse]", task_instances_or_ids)
 
-        return TaskInstanceCollectionResponse(
+        return ClearTaskInstanceCollectionResponse(
             task_instances=task_instances,
             total_entries=len(task_instances),
         )

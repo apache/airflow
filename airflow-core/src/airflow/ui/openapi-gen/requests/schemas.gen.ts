@@ -1264,6 +1264,33 @@ export const $BulkUpdateAction_VariableBody_ = {
     title: 'BulkUpdateAction[VariableBody]'
 } as const;
 
+export const $ClearTaskInstanceCollectionResponse = {
+    properties: {
+        task_instances: {
+            items: {
+                oneOf: [
+                    {
+                        '$ref': '#/components/schemas/TaskInstanceResponse'
+                    },
+                    {
+                        '$ref': '#/components/schemas/NewTaskResponse'
+                    }
+                ]
+            },
+            type: 'array',
+            title: 'Task Instances'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['task_instances', 'total_entries'],
+    title: 'ClearTaskInstanceCollectionResponse',
+    description: 'Response for clear dag run dry run, which may contain new tasks without full TaskInstance data.'
+} as const;
+
 export const $ClearTaskInstancesBody = {
     properties: {
         dry_run: {
@@ -5324,14 +5351,7 @@ export const $TaskInstanceCollectionResponse = {
     properties: {
         task_instances: {
             items: {
-                oneOf: [
-                    {
-                        '$ref': '#/components/schemas/TaskInstanceResponse'
-                    },
-                    {
-                        '$ref': '#/components/schemas/NewTaskResponse'
-                    }
-                ]
+                '$ref': '#/components/schemas/TaskInstanceResponse'
             },
             type: 'array',
             title: 'Task Instances'
@@ -5344,10 +5364,7 @@ export const $TaskInstanceCollectionResponse = {
     type: 'object',
     required: ['task_instances', 'total_entries'],
     title: 'TaskInstanceCollectionResponse',
-    description: `Task Instance Collection serializer for responses.
-
-Can contain either full TaskInstanceResponse objects or lightweight NewTaskResponse
-objects for tasks that don't have instances yet.`
+    description: 'Task Instance Collection serializer for responses.'
 } as const;
 
 export const $TaskInstanceHistoryCollectionResponse = {

@@ -91,6 +91,13 @@ class TaskInstanceResponse(BaseModel):
     dag_version: DagVersionResponse | None
 
 
+class TaskInstanceCollectionResponse(BaseModel):
+    """Task Instance Collection serializer for responses."""
+
+    task_instances: Iterable[TaskInstanceResponse]
+    total_entries: int
+
+
 def _task_instance_discriminator(v: Any) -> str:
     """Discriminate between TaskInstanceResponse and NewTaskResponse in the union."""
     if isinstance(v, NewTaskResponse):
@@ -101,13 +108,8 @@ def _task_instance_discriminator(v: Any) -> str:
     return "full"
 
 
-class TaskInstanceCollectionResponse(BaseModel):
-    """
-    Task Instance Collection serializer for responses.
-
-    Can contain either full TaskInstanceResponse objects or lightweight NewTaskResponse
-    objects for tasks that don't have instances yet.
-    """
+class ClearTaskInstanceCollectionResponse(BaseModel):
+    """Response for clear dag run dry run, which may contain new tasks without full TaskInstance data."""
 
     task_instances: Iterable[
         Annotated[

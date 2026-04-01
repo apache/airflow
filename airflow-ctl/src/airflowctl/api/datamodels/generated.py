@@ -1949,6 +1949,15 @@ class BulkDeleteActionBulkTaskInstanceBody(BaseModel):
     action_on_non_existence: BulkActionNotOnExistence | None = "fail"
 
 
+class ClearTaskInstanceCollectionResponse(BaseModel):
+    """
+    Response for clear dag run dry run, which may contain new tasks without full TaskInstance data.
+    """
+
+    task_instances: Annotated[list[TaskInstanceResponse | NewTaskResponse], Field(title="Task Instances")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
 class DAGCollectionResponse(BaseModel):
     """
     DAG Collection serializer for responses.
@@ -2057,12 +2066,9 @@ class TaskCollectionResponse(BaseModel):
 class TaskInstanceCollectionResponse(BaseModel):
     """
     Task Instance Collection serializer for responses.
-
-    Can contain either full TaskInstanceResponse objects or lightweight NewTaskResponse
-    objects for tasks that don't have instances yet.
     """
 
-    task_instances: Annotated[list[TaskInstanceResponse | NewTaskResponse], Field(title="Task Instances")]
+    task_instances: Annotated[list[TaskInstanceResponse], Field(title="Task Instances")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
