@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from airflow import DAG
 
@@ -32,6 +33,10 @@ from airflow.providers.pinecone.operators.pinecone import (
     CreateServerlessIndexOperator,
     PineconeIngestOperator,
 )
+
+if TYPE_CHECKING:
+    from pinecone.db_data.types import VectorTypedDict
+
 
 index_name = os.getenv("INDEX_NAME", "example-pinecone-index")
 namespace = os.getenv("NAMESPACE", "example-pinecone-index")
@@ -60,7 +65,7 @@ with DAG(
     )
 
     @task
-    def transform_output(embedding_output) -> list[dict]:
+    def transform_output(embedding_output) -> list[VectorTypedDict]:
         # Convert each embedding to a map with an ID and the embedding vector
         return [dict(id=str(i), values=embedding) for i, embedding in enumerate(embedding_output)]
 

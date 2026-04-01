@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -66,6 +67,7 @@ class XComModel(TaskInstanceDependencies):
     task_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
     map_index: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False, server_default="-1")
     key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
+    dag_result: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=False)
 
     # Denormalized for easier lookup.
     dag_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
@@ -163,6 +165,7 @@ class XComModel(TaskInstanceDependencies):
         run_id: str,
         map_index: int = -1,
         serialize: bool = True,
+        dag_result: bool = False,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -241,6 +244,7 @@ class XComModel(TaskInstanceDependencies):
             task_id=task_id,
             dag_id=dag_id,
             map_index=map_index,
+            dag_result=dag_result,
         )
         session.add(new)
         session.flush()

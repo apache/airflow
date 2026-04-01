@@ -2341,7 +2341,7 @@
                     }
                 },
                 "runtimeClassName": {
-                    "description": "Specify runtime for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify runtime for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.runtimeClassName`` and/or ``workers.kubernetes.runtimeClassName`` instead).",
                     "type": [
                         "string",
                         "null"
@@ -2349,7 +2349,7 @@
                     "default": null
                 },
                 "priorityClassName": {
-                    "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.priorityClassName`` and/or ``workers.kubernetes.priorityClassName`` instead).",
                     "type": [
                         "string",
                         "null"
@@ -3310,6 +3310,21 @@
                                 "type": "string"
                             }
                         },
+                        "runtimeClassName": {
+                            "description": "Specify runtime for Airflow Celery worker pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "priorityClassName": {
+                            "description": "Specify priority for Airflow Celery worker pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
                         "hostAliases": {
                             "description": "Specify HostAliases for Airflow Celery worker pods.",
                             "items": {
@@ -3628,6 +3643,22 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "runtimeClassName": {
+                            "description": "Specify runtime for pods created with pod-template-file.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "priorityClassName": {
+                            "description": "Specify priority for pods created with pod-template-file.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         },
                         "hostAliases": {
                             "description": "Specify HostAliases for pods created with pod-template-file.",
@@ -10271,9 +10302,7 @@
                     "items": {
                         "type": "string"
                     },
-                    "default": [
-                        "bash"
-                    ]
+                    "default": null
                 },
                 "args": {
                     "description": "Args to use when running the database cleanup cronjob (templated).",
@@ -10285,6 +10314,7 @@
                         "type": "string"
                     },
                     "default": [
+                        "bash",
                         "-c",
                         "CLEAN_TS=$(date -d \"-{{ .Values.databaseCleanup.retentionDays }} days\" +\"%Y-%m-%dT%H:%M:%S\"); echo \"Cleaning up metadata DB entries older than ${CLEAN_TS}\"; exec airflow db clean --clean-before-timestamp \"${CLEAN_TS}\" --yes {{- if .Values.databaseCleanup.skipArchive }} --skip-archive{{ end }} {{- if .Values.databaseCleanup.verbose }} --verbose{{ end }} {{- with .Values.databaseCleanup.batchSize }} --batch-size {{ . }}{{ end }} {{- with .Values.databaseCleanup.tables }} --tables {{ . | join \",\" }}{{ end }}"
                     ]

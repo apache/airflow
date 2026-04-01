@@ -114,6 +114,7 @@ class TUIAction(Enum):
     ACTION_READY = "ready"
     ACTION_FLAG = "flag"
     ACTION_LLM = "llm"
+    ACTION_AUTHOR_INFO = "author_info"
 
 
 class _FocusPanel(Enum):
@@ -325,6 +326,8 @@ def _read_tui_key(*, timeout: float | None = None) -> TUIAction | MouseEvent | s
         return TUIAction.ACTION_RERUN
     if ch == "l":
         return TUIAction.ACTION_LLM
+    if ch == "i":
+        return TUIAction.ACTION_AUTHOR_INFO
     # Ctrl-C
     if ch == "\x03":
         return TUIAction.QUIT
@@ -350,6 +353,8 @@ class PRListEntry:
         self.llm_submit_time: float = 0.0  # monotonic time when actually started running
         self.llm_duration: float = 0.0  # actual measured LLM execution time in seconds
         self.llm_attempts: int = 0  # number of LLM attempts (including retries)
+        # Author scoring (populated when author profile is fetched)
+        self.author_scoring: dict | None = None
 
 
 class TriageTUI:
@@ -785,9 +790,33 @@ class TriageTUI:
 
         # Author
         author_url = f"https://github.com/{self.github_repository}/pulls/{pr.author_login}"
-        lines.append(
+        author_line = (
             f"Author: [bold][link={author_url}]{pr.author_login}[/link][/] ([dim]{pr.author_association}[/])"
         )
+        scoring = entry.author_scoring if entry else None
+        if scoring:
+            tier = scoring.get("contributor_tier", "")
+            risk = scoring.get("risk_level", "")
+            tier_colors = {
+                "established": "green",
+                "regular": "cyan",
+                "occasional": "yellow",
+                "attempted": "red",
+                "new": "red",
+            }
+            risk_colors = {"low": "green", "medium": "yellow", "high": "red"}
+            parts = []
+            if tier:
+                parts.append(f"[{tier_colors.get(tier, 'dim')}]{tier}[/]")
+            if risk and risk != "low":
+                parts.append(f"risk:[{risk_colors.get(risk, 'dim')}]{risk}[/]")
+            repo_rate = scoring.get("repo_merge_rate", 0)
+            if repo_rate > 0:
+                rc = "green" if repo_rate >= 0.5 else "yellow" if repo_rate >= 0.3 else "red"
+                parts.append(f"[{rc}]{repo_rate:.0%}[/] merged")
+            if parts:
+                author_line += f"  {' | '.join(parts)}"
+        lines.append(author_line)
 
         # Timestamps
         lines.append(
@@ -1264,6 +1293,7 @@ class TriageTUI:
             direct_parts: list[str] = []
             direct_parts.append("[bold]o[/] Open")
             direct_parts.append("[bold]s[/] Skip")
+            direct_parts.append("[bold]i[/] Author")
             available = self.get_available_actions(entry)
             if available:
                 if self.review_mode:
@@ -1548,6 +1578,126 @@ class TriageTUI:
         # Ignore other mouse events
         return None
 
+    def render_author_overlay(self, profile: dict) -> None:
+        """Render a full-screen overlay with detailed author information.
+
+        Blocks until the user presses any key to dismiss.
+        """
+        from rich.console import Console
+        from rich.panel import Panel
+
+        width, height = _get_terminal_size()
+
+        login = profile.get("login", "unknown")
+        tier = profile.get("contributor_tier", "")
+        risk = profile.get("risk_level", "")
+        repo_rate = profile.get("repo_merge_rate", 0)
+        global_rate = profile.get("global_merge_rate", 0)
+        age_days = profile.get("account_age_days", 0)
+
+        tier_colors = {
+            "established": "green",
+            "regular": "cyan",
+            "occasional": "yellow",
+            "attempted": "red",
+            "new": "red",
+        }
+        risk_colors = {"low": "green", "medium": "yellow", "high": "red"}
+
+        lines: list[str] = []
+        lines.append(f"[bold]Account age:[/] {profile.get('account_age', 'unknown')} ({age_days} days)")
+        lines.append("")
+
+        # PR stats table
+        repo_total = profile.get("repo_total_prs", 0)
+        repo_merged = profile.get("repo_merged_prs", 0)
+        repo_closed = profile.get("repo_closed_prs", 0)
+        rc = "green" if repo_rate >= 0.5 else "yellow" if repo_rate >= 0.3 else "red"
+
+        global_total = profile.get("global_total_prs", 0)
+        global_merged = profile.get("global_merged_prs", 0)
+        global_closed = profile.get("global_closed_prs", 0)
+        gc = "green" if global_rate >= 0.5 else "yellow" if global_rate >= 0.3 else "red"
+
+        lines.append(
+            f"[bold]This repo:[/]  {repo_total} PRs, "
+            f"[green]{repo_merged} merged[/], "
+            f"[red]{repo_closed} closed[/], "
+            f"rate [{rc}]{repo_rate:.0%}[/]"
+        )
+        lines.append(
+            f"[bold]All GitHub:[/] {global_total} PRs, "
+            f"[green]{global_merged} merged[/], "
+            f"[red]{global_closed} closed[/], "
+            f"rate [{gc}]{global_rate:.0%}[/]"
+        )
+        lines.append("")
+
+        # Scoring
+        tc = tier_colors.get(tier, "dim")
+        rkc = risk_colors.get(risk, "dim")
+        lines.append(f"[bold]Contributor tier:[/] [{tc}]{tier}[/]")
+        lines.append(f"[bold]Risk level:[/] [{rkc}]{risk}[/]")
+        lines.append("")
+
+        # Contributed repos
+        repos = profile.get("contributed_repos", [])
+        contrib_total = profile.get("contributed_repos_total", 0)
+        if repos:
+            lines.append(f"[bold]Contributed to ({contrib_total} repos):[/]")
+            for repo in repos:
+                stars = repo.get("stars", 0)
+                star_text = f" ({stars} stars)" if stars else ""
+                lines.append(f"  [link={repo['url']}]{repo['name']}[/link]{star_text}")
+        else:
+            lines.append("[dim]No public repo contributions found[/]")
+
+        lines.append("")
+        lines.append("[dim]Press any key to close[/]")
+
+        author_url = f"https://github.com/{login}"
+        panel_width = min(width - 8, 70)
+        panel_height = min(height - 6, len(lines) + 4)
+        panel = Panel(
+            "\n".join(lines),
+            title=f"[bold][link={author_url}]{login}[/link][/] — Contributor Profile",
+            border_style=self._accent_bold,
+            height=panel_height,
+            width=panel_width,
+        )
+
+        # Render the panel into a string buffer
+        buf = io.StringIO()
+        buf_console = Console(
+            file=buf, force_terminal=True, color_system="standard", width=panel_width, theme=get_theme()
+        )
+        buf_console.print(panel)
+        panel_lines = buf.getvalue().split("\n")
+
+        # Calculate centering offsets
+        top_offset = max(1, (height - panel_height) // 2)
+        left_offset = max(1, (width - panel_width) // 2)
+        # Background fill: blank line the full width of the overlay area
+        blank_line = " " * (panel_width + 2)
+
+        # Save cursor, hide it, then draw overlay lines at centered position
+        out = "\033[?25l"  # hide cursor
+        # First paint a solid background block to cover TUI content behind
+        for row in range(top_offset, top_offset + panel_height + 1):
+            out += f"\033[{row};{left_offset}H{blank_line}"
+        # Then draw the panel lines on top
+        for i, pline in enumerate(panel_lines):
+            if pline:
+                row = top_offset + i
+                out += f"\033[{row};{left_offset}H {pline}"
+        sys.stdout.write(out)
+        sys.stdout.flush()
+
+        # Wait for any key to dismiss
+        _read_raw_input(timeout=None)
+        sys.stdout.write("\033[?25h")  # restore cursor
+        sys.stdout.flush()
+
     def run_interactive(
         self, *, timeout: float | None = None
     ) -> tuple[PRListEntry | None, TUIAction | str | None]:
@@ -1615,6 +1765,9 @@ class TriageTUI:
                 if selected:
                     return selected[0], key
                 return None, key
+            # Author info — always available
+            if key == TUIAction.ACTION_AUTHOR_INFO:
+                return self.get_selected_entry(), key
             # Direct action keys — pass through if available for this PR
             if isinstance(key, TUIAction) and key.name.startswith("ACTION_"):
                 entry = self.get_selected_entry()
@@ -1661,6 +1814,9 @@ class TriageTUI:
                 if selected:
                     return selected[0], key
                 return None, key
+            # Author info — always available
+            if key == TUIAction.ACTION_AUTHOR_INFO:
+                return self.get_selected_entry(), key
             # Direct action keys
             if isinstance(key, TUIAction) and key.name.startswith("ACTION_"):
                 entry = self.get_selected_entry()
@@ -1717,6 +1873,9 @@ class TriageTUI:
                 entry.action_taken = "skipped"
                 self.move_cursor(1)
             return entry, key
+        # Author info — always available
+        if key == TUIAction.ACTION_AUTHOR_INFO:
+            return self.get_selected_entry(), key
         # Direct action keys — pass through if available for this PR
         if isinstance(key, TUIAction) and key.name.startswith("ACTION_"):
             entry = self.get_selected_entry()
