@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-31T09:07:50.501915057Z"
+exclude-newer = "2026-03-31T13:04:07.423682Z"
 exclude-newer-span = "P4D"
 
 [manifest]
@@ -123,6 +123,7 @@ members = [
     "apache-airflow-providers-teradata",
     "apache-airflow-providers-trino",
     "apache-airflow-providers-vertica",
+    "apache-airflow-providers-vespa",
     "apache-airflow-providers-weaviate",
     "apache-airflow-providers-yandex",
     "apache-airflow-providers-ydb",
@@ -837,6 +838,7 @@ all = [
     { name = "apache-airflow-providers-teradata" },
     { name = "apache-airflow-providers-trino" },
     { name = "apache-airflow-providers-vertica" },
+    { name = "apache-airflow-providers-vespa" },
     { name = "apache-airflow-providers-weaviate" },
     { name = "apache-airflow-providers-yandex" },
     { name = "apache-airflow-providers-ydb" },
@@ -1194,6 +1196,9 @@ uv = [
 vertica = [
     { name = "apache-airflow-providers-vertica" },
 ]
+vespa = [
+    { name = "apache-airflow-providers-vespa" },
+]
 weaviate = [
     { name = "apache-airflow-providers-weaviate" },
 ]
@@ -1455,6 +1460,8 @@ requires-dist = [
     { name = "apache-airflow-providers-trino", marker = "extra == 'trino'", editable = "providers/trino" },
     { name = "apache-airflow-providers-vertica", marker = "extra == 'all'", editable = "providers/vertica" },
     { name = "apache-airflow-providers-vertica", marker = "extra == 'vertica'", editable = "providers/vertica" },
+    { name = "apache-airflow-providers-vespa", marker = "extra == 'all'", editable = "providers/vespa" },
+    { name = "apache-airflow-providers-vespa", marker = "extra == 'vespa'", editable = "providers/vespa" },
     { name = "apache-airflow-providers-weaviate", marker = "extra == 'all'", editable = "providers/weaviate" },
     { name = "apache-airflow-providers-weaviate", marker = "extra == 'weaviate'", editable = "providers/weaviate" },
     { name = "apache-airflow-providers-yandex", marker = "extra == 'all'", editable = "providers/yandex" },
@@ -1473,7 +1480,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.11.2" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "alibaba", "amazon", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -7387,6 +7394,43 @@ dev = [
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
 [[package]]
+name = "apache-airflow-providers-vespa"
+version = "0.1.0"
+source = { editable = "providers/vespa" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "pyvespa" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "pyvespa", specifier = ">=1.1.2" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
 name = "apache-airflow-providers-weaviate"
 version = "3.3.2"
 source = { editable = "providers/weaviate" }
@@ -10752,6 +10796,15 @@ wheels = [
 ]
 
 [[package]]
+name = "fastcore"
+version = "1.12.33"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/eb/c8/0adaaac97243184055748ecbe8273cda40e7bfd80d2056acbaeef93e464d/fastcore-1.12.33.tar.gz", hash = "sha256:53381b45459b41a854b2ea0cc37439adbe691bbcf8390d3b2aa822591451fd86", size = 94481, upload-time = "2026-03-30T07:01:21.805Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/0b/8aa5e85b6d242a8e9d7377aac1d40e0e015a93c9de894382f3e2e7171d37/fastcore-1.12.33-py3-none-any.whl", hash = "sha256:a7e389ca1ec824e565d34154879ee2a42bfe5baf33486a0088da7ad7008d92a5", size = 98684, upload-time = "2026-03-30T07:01:19.743Z" },
+]
+
+[[package]]
 name = "fastjsonschema"
 version = "2.21.2"
 source = { registry = "https://pypi.org/simple" }
@@ -12756,6 +12809,44 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c1/1f/e86365613582c027dda5ddb64e1010e57a3d53e99ab8a72093fa13d565ec/httplib2-0.31.2.tar.gz", hash = "sha256:385e0869d7397484f4eab426197a4c020b606edd43372492337c0b4010ae5d24", size = 250800, upload-time = "2026-01-23T11:04:44.165Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2f/90/fd509079dfcab01102c0fdd87f3a9506894bc70afcf9e9785ef6b2b3aff6/httplib2-0.31.2-py3-none-any.whl", hash = "sha256:dbf0c2fa3862acf3c55c078ea9c0bc4481d7dc5117cae71be9514912cf9f8349", size = 91099, upload-time = "2026-01-23T11:04:42.78Z" },
+]
+
+[[package]]
+name = "httpr"
+version = "0.4.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/38/eb/644349f01f0e8af737a52aff18f69c8490922ed890ed2c256d8d5db0c6c4/httpr-0.4.1.tar.gz", hash = "sha256:4a592c26b775e3542ea0fea069dd2cd9e9dc5a80e24e1fa2a466d5ac374eb03c", size = 567261, upload-time = "2026-03-21T07:41:37.912Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/9e/6babaca23d526b8c32232919104def1d81cd503741896a2be9e8ba9f0d9a/httpr-0.4.1-cp313-cp313t-macosx_10_12_x86_64.whl", hash = "sha256:134a8b0042ab6b102a141c717219994ae9aa89e88ad97a09c8702f790225a623", size = 2458573, upload-time = "2026-03-21T07:41:21.009Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/81/271cf119550d684cab56101807540458f801f8c2c51f44d287ea59047031/httpr-0.4.1-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:524216fd1d688c78b0a523c6fe5220198789ddc27f4576d2a43a34ff7b7dbfe7", size = 2284320, upload-time = "2026-03-21T07:41:17.336Z" },
+    { url = "https://files.pythonhosted.org/packages/36/f0/d093b7f779eb3cf97148c377c046d4408ff569332db3fb3ffa70a90978ff/httpr-0.4.1-cp313-cp313t-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:fd00861c9271056d4e270e8d8ca764ada592e4b1c451d3a5d7558f59fbae35d1", size = 2496084, upload-time = "2026-03-21T07:41:08.694Z" },
+    { url = "https://files.pythonhosted.org/packages/70/4d/19234dda67df6a552c0776c4987d875cb1a77190a0bd4e418cb558b44d63/httpr-0.4.1-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b6fcd417f838cb05ccf538f08fb3ed91586dad2641f4285a2b36b312405bc85d", size = 2528763, upload-time = "2026-03-21T07:40:59.741Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/cc/ea799133ebae7922a10e161a5d0d50099035b999d03f11d5cbff7d8d3b10/httpr-0.4.1-cp313-cp313t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:724edde6bd87e86f64b6581bb94690adbf73f5eb6d5f207b2adeece53069fcbd", size = 2391113, upload-time = "2026-03-21T07:41:04.198Z" },
+    { url = "https://files.pythonhosted.org/packages/85/43/f48b3f7f064f06435f002d33298c8d2e09967c29135f959011daada6c3c6/httpr-0.4.1-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:83a702fd09af35bc03b95edde0d1eafa5f2ed46750e0f240a75b370452ba6782", size = 2614235, upload-time = "2026-03-21T07:41:13.141Z" },
+    { url = "https://files.pythonhosted.org/packages/69/33/28787212ac8e0e166a7a06decaa9531d1840ed68698f2e10c3372ce13a60/httpr-0.4.1-cp313-cp313t-musllinux_1_2_aarch64.whl", hash = "sha256:91e96795f20b53e54cdb031013134de87b7995d3bfa51ecc4aa26de9311b3653", size = 2704440, upload-time = "2026-03-21T07:41:25.228Z" },
+    { url = "https://files.pythonhosted.org/packages/07/78/ce957ec65331b375a276471856bea3345c7e797e1f700e4f038527d9b3a8/httpr-0.4.1-cp313-cp313t-musllinux_1_2_i686.whl", hash = "sha256:46f9b006d3c61f597f3f7af03b69827bd1a14de6a6adfca28f6b9a5e3ad3dc23", size = 2649805, upload-time = "2026-03-21T07:41:28.814Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/93/c87b7e11e644948fd83f853b71e3d0989b217592cfc2efb37bbd4e835bd1/httpr-0.4.1-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:4cb71034ef883243572debc078726e011a586932450951929d707e429aa509f6", size = 2859262, upload-time = "2026-03-21T07:41:33.622Z" },
+    { url = "https://files.pythonhosted.org/packages/85/1a/bbde0bac4410178b895100c986346681e7b216d6f09d367270b692cb8e2c/httpr-0.4.1-cp313-cp313t-win32.whl", hash = "sha256:637d58b3338656ae68d04df938db3028cf83a217874da92d94a0fe85ae286ecc", size = 2075114, upload-time = "2026-03-21T07:41:43.364Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/05/f9652691effe48ac17c75372716cb6361245a4f8f7d70129dd7b72bd33e5/httpr-0.4.1-cp313-cp313t-win_amd64.whl", hash = "sha256:cd4497483a78f4a10eaa9d67211a44176b7aec7a7de288228b7f1e3e0b958b0d", size = 2334107, upload-time = "2026-03-21T07:41:39.248Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/ee/7f654baa4061a88e9f4f156bea797783a4ba28929cf620778e7813ce19d5/httpr-0.4.1-cp314-cp314t-macosx_10_12_x86_64.whl", hash = "sha256:13f1e2768d2c1543c874119beef2f68e98a9452c7c076038833ca03a60fc2e5c", size = 2460211, upload-time = "2026-03-21T07:41:22.512Z" },
+    { url = "https://files.pythonhosted.org/packages/61/c4/3adb4b708cc2f5b44110f31dc217f292a0b33e71f6ed0d0c2211dcb03236/httpr-0.4.1-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:12db774b08250742183f9e4ae45695c64f832627f4c5f268cb59aba1e5c360b1", size = 2285243, upload-time = "2026-03-21T07:41:18.466Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/fc/c4c6755d38f4a97302992da1a5a9aa8d01e5ec180c09c47b93e2a7a9f85a/httpr-0.4.1-cp314-cp314t-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:1e610d73c813ea8c5b65b3830459f9aa8a5ce29afd4e50548e4706c1dc270405", size = 2496899, upload-time = "2026-03-21T07:41:09.968Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/16/2e62a445588f0a4f832c4f3a8cb3e3d24ade52fdf59ef5ad426ad8fcf090/httpr-0.4.1-cp314-cp314t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:567ad9d8d24e889a06863ac6108f7bac7960b0cacd74ead04608bb9baaf44444", size = 2530318, upload-time = "2026-03-21T07:41:01.137Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/bf/92a47a0ffdfc7729786b00743dbfce34d7d2bab3ee3bde3ca17aa3413d52/httpr-0.4.1-cp314-cp314t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:d77c62647bf6308d308b8352ac5132d96ab58f58b93c39bdae340a2fc5de0d44", size = 2392462, upload-time = "2026-03-21T07:41:05.484Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/8f/1bfa9a6767244b79df82c202c2843b664f9fc1acff9dbe7f982c8627d2fe/httpr-0.4.1-cp314-cp314t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a070723b04c9e41b4b8d6450f97dbf54820288d33efe740525f691d47c4af967", size = 2616728, upload-time = "2026-03-21T07:41:14.327Z" },
+    { url = "https://files.pythonhosted.org/packages/6b/92/ba4b17be7e4060bf36e7472e2afa998eb87eeb168cfb0ce5aec0313b37d3/httpr-0.4.1-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:ece5a1207c654080af757364c7fa0c4bbd25ff910db0f240a4d4b89d4c1c88a6", size = 2705345, upload-time = "2026-03-21T07:41:26.455Z" },
+    { url = "https://files.pythonhosted.org/packages/11/d7/0d9fa9d695e2dde009d01d9380c1dfcbd6c1dc6b6e73c14c5ec615d36bb0/httpr-0.4.1-cp314-cp314t-musllinux_1_2_i686.whl", hash = "sha256:d735b76da08fe88f57b914dbf03a790af7fc555eb2d343ee5faa27f90d0f07da", size = 2650374, upload-time = "2026-03-21T07:41:30.543Z" },
+    { url = "https://files.pythonhosted.org/packages/ea/be/83219b05e6deb73164f3a1293dd1e534e1022bf20256f0908110d35338b8/httpr-0.4.1-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:14e6199419478540f98c66ea84c518623d1fa6a831a977020c3c7e0b68a5171f", size = 2861062, upload-time = "2026-03-21T07:41:35.19Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/af/1539ed1699e7d145f735fd1a9c726ee04c0bbeb092bf113d86320b1e269f/httpr-0.4.1-cp314-cp314t-win32.whl", hash = "sha256:45c89be444b92bfad2e8d217045d07a1db7671b66df57f6bb1372e29db78ac2d", size = 2076326, upload-time = "2026-03-21T07:41:44.579Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/cf/07a68ebbae6397680bd6610fed4ad5658af7b42dabb3cc8b4bdb34efc850/httpr-0.4.1-cp314-cp314t-win_amd64.whl", hash = "sha256:419c4894a4547829636abb0ee98a8d27de4bf96555a354b8bc8c559f56e0e0a7", size = 2336305, upload-time = "2026-03-21T07:41:40.862Z" },
+    { url = "https://files.pythonhosted.org/packages/73/02/b41c7b05d8ed68895b300d7caf2d72c4b45dc535b4e881f2ab58373ff3b6/httpr-0.4.1-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:8ac0781cf3811c4804d8fc8092e535350dd1f9ead1678d06c05bf41c027526b6", size = 2461678, upload-time = "2026-03-21T07:41:23.942Z" },
+    { url = "https://files.pythonhosted.org/packages/99/ca/496a46b119b0c37fe245dd1986248343a62f31bf5a601a8b2bfefb21b3ba/httpr-0.4.1-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:e0eb815d995826c1f0a82f3bad837bc90c53ccdcc3aeced1e8b49afcec31cdec", size = 2287700, upload-time = "2026-03-21T07:41:19.838Z" },
+    { url = "https://files.pythonhosted.org/packages/30/3b/c9c31136156b35b0ad9db04dd2117ec5a13ad885ec51f3b0b3bd4fba43f4/httpr-0.4.1-cp39-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:30889f270a2dbffdfa1575843c021909c2f38ceb576e89f7992a45ade097d262", size = 2394583, upload-time = "2026-03-21T07:41:07.221Z" },
+    { url = "https://files.pythonhosted.org/packages/71/56/11acf0ec67166ed5aa17ae53c563bbe9dc5781527ce03d23dbe7e580c4e8/httpr-0.4.1-cp39-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:81162019e2308af4f0694d154a8286f99ef8cef5f8ef9b08aa6699288e2059cb", size = 2706538, upload-time = "2026-03-21T07:41:27.661Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/9f/94e93f742d302dcb00ff4a11b2da012983e886ad71508bd7f07a51fb71f0/httpr-0.4.1-cp39-abi3-musllinux_1_2_i686.whl", hash = "sha256:ad2b8c324f856e061e5b242cae9eaedaf460c166f1fd7ce456a5872860d3d81a", size = 2652945, upload-time = "2026-03-21T07:41:31.782Z" },
+    { url = "https://files.pythonhosted.org/packages/e6/a0/2986108c3d5ff7ea39587fae0f3eac984d7fc03f1975fc129e1eaa779846/httpr-0.4.1-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:0d61f8c95d18498d90052048f890b611dacf3aa646d5dea68bdaf295d5bdd0c0", size = 2861039, upload-time = "2026-03-21T07:41:36.366Z" },
+    { url = "https://files.pythonhosted.org/packages/94/da/084472a759715208f620424a08322b40569b40239c44a31e74b98e4c9a8a/httpr-0.4.1-cp39-abi3-win32.whl", hash = "sha256:5c6ea2a1151cc665faa6f6dae017a86d380590d5dbd0fd4321dbf1616f8d7660", size = 2077130, upload-time = "2026-03-21T07:41:45.774Z" },
+    { url = "https://files.pythonhosted.org/packages/55/c1/149c9b3071339da353422602c73562062b3f11f2a019cecd20df8bc9f2a0/httpr-0.4.1-cp39-abi3-win_amd64.whl", hash = "sha256:cc2da5229e200e08e7858b55df99ddd33e48fba450f484fde0a035ea627dbf20", size = 2335329, upload-time = "2026-03-21T07:41:42.198Z" },
 ]
 
 [[package]]
@@ -18422,6 +18513,31 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/56/db/b8721d71d945e6a8ac63c0fc900b2067181dbb50805958d4d4661cf7d277/pytz-2026.1.post1.tar.gz", hash = "sha256:3378dde6a0c3d26719182142c56e60c7f9af7e968076f31aae569d72a0358ee1", size = 321088, upload-time = "2026-03-03T07:47:50.683Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/10/99/781fe0c827be2742bcc775efefccb3b048a3a9c6ce9aec0cbf4a101677e5/pytz-2026.1.post1-py2.py3-none-any.whl", hash = "sha256:f2fd16142fda348286a75e1a524be810bb05d444e5a081f37f7affc635035f7a", size = 510489, upload-time = "2026-03-03T07:47:49.167Z" },
+]
+
+[[package]]
+name = "pyvespa"
+version = "1.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "certifi" },
+    { name = "cryptography" },
+    { name = "docker" },
+    { name = "fastcore" },
+    { name = "httpr" },
+    { name = "httpx", extra = ["http2"] },
+    { name = "jinja2" },
+    { name = "lxml" },
+    { name = "python-dateutil" },
+    { name = "requests" },
+    { name = "requests-toolbelt" },
+    { name = "tenacity" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d5/aa/733a6e04652e34cb4c7184b818023d4a7e73a79a78074baa76a84b1290b3/pyvespa-1.1.2.tar.gz", hash = "sha256:da7d591db22d3e3021956a29bf3b4fab33e15cf6ccd71cc8c117d8b3b178781e", size = 153030, upload-time = "2026-03-04T09:08:59.504Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7a/02/9904b061aee06e1ac8e22f6ff619cc1c7c05310689a172c8e89abfddfc9c/pyvespa-1.1.2-py3-none-any.whl", hash = "sha256:3197e7c69c0bde53b663542f6b0a0d7c00420ef3cbbaa90d6af83cef44952ec4", size = 163077, upload-time = "2026-03-04T09:08:57.677Z" },
 ]
 
 [[package]]
