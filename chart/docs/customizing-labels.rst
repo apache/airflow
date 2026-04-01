@@ -37,8 +37,11 @@ Global labels can be set using the ``labels`` parameter in your values file. The
 Component-Specific Labels
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can also set specific labels for individual Airflow components, which will be merged with the global labels. Component-specific labels take precedence over global labels, allowing you to override them as needed.
+You can also set specific labels for individual Airflow components, which will be merged with the global labels.
 
+If the same label key exists in both global and component-specific labels, the component-specific value takes precedence (overrides the global value).
+
+This allows you to customize labels for specific components while still maintaining common global labels across all resources.
 For example, to add specific labels to different components:
 
 .. code-block:: yaml

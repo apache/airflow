@@ -1,0 +1,1 @@
+``workers.hostAliases`` section is now deprecated in favor of ``workers.celery.hostAliases`` and ``workers.kubernetes.hostAliases``. Please update your configuration accordingly.

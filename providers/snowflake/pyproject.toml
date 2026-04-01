@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-snowflake"
-version = "6.11.0"
+version = "6.12.0"
 description = "Provider package apache-airflow-providers-snowflake for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -62,9 +63,11 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.12.0",
     "apache-airflow-providers-common-sql>=1.32.0",
     'pandas>=2.1.2; python_version <"3.13"',
-    'pandas>=2.2.3; python_version >="3.13"',
+    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3; python_version >="3.14"',
     "pyarrow>=16.1.0; python_version < '3.13'",
-    "pyarrow>=18.0.0; python_version >= '3.13'",
+    "pyarrow>=18.0.0; python_version >= '3.13' and python_version < '3.14'",
+    "pyarrow>=22.0.0; python_version >= '3.14'",
     # TODO(potiuk): We should bump the snowflake-connector-python to >=4.0.0 when sqlalchemy>=2.0 is required
     "snowflake-connector-python>=3.16.0",
     "snowflake-sqlalchemy>=1.7.0",
@@ -124,8 +127,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.11.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.11.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.12.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.12.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -99,9 +99,17 @@ def count_versions_between(releases: dict[str, Any], current_version: str, lates
 
 
 def get_status_emoji(constraint_date, latest_date, is_latest_version):
-    """Determine status emoji based on how outdated the package is"""
+    """Determine status emoji based on how outdated the package is.
+
+    All emojis used here (✅, 📢, 🔶, 🚨) are single Python chars with ~2 visual cells,
+    so ljust produces consistent alignment without any offset workarounds.
+
+    Returns a tuple of (formatted_status_string, status_category) where status_category
+    is one of "ok", "new", "warning", "critical".
+    """
+    col_target = 11
     if is_latest_version:
-        return "✅ OK             "  # Package is up to date (15 chars padding)
+        return "✅ OK".ljust(col_target), "ok"
 
     try:
         constraint_dt = datetime.strptime(constraint_date, "%Y-%m-%d")
@@ -109,12 +117,24 @@ def get_status_emoji(constraint_date, latest_date, is_latest_version):
         days_diff = (latest_dt - constraint_dt).days
 
         if days_diff <= 5:
-            return "📢 <5d          "
+            return "📢 <5d".ljust(col_target), "new"
         if days_diff <= 30:
-            return "⚠️ <30d           "
-        return f"🚨 >{days_diff}d".ljust(15)
+            return "🔶 <30d".ljust(col_target), "warning"
+        return f"🚨 >{days_diff}d".ljust(col_target), "critical"
     except Exception:
-        return "📢 N/A           "
+        return "📢 N/A".ljust(col_target), "new"
+
+
+def get_days_stale(latest_release_date: str) -> str:
+    """Return the number of days since the latest release if >365, else empty string."""
+    try:
+        latest_release_dt = datetime.strptime(latest_release_date, "%Y-%m-%d")
+        days_since = (datetime.now() - latest_release_dt).days
+        if days_since > 365:
+            return str(days_since)
+    except Exception:
+        pass
+    return ""
 
 
 def get_max_package_length(packages: list[tuple[str, str]]) -> int:
@@ -218,7 +238,7 @@ def constraints_version_check(
     col_widths, format_str, headers, total_width = get_table_format(packages)
     print_table_header(format_str, headers, total_width)
 
-    outdated_count, skipped_count, explanations = process_packages(
+    outdated_count, skipped_count, explanations, status_counts = process_packages(
         packages=packages,
         constraints_date=constraints_date,
         mode=diff_mode,
@@ -236,6 +256,7 @@ def constraints_version_check(
         outdated_count=outdated_count,
         skipped_count=skipped_count,
         mode=diff_mode,
+        status_counts=status_counts,
     )
     if explain_why and explanations:
         print_explanations(explanations)
@@ -269,7 +290,8 @@ def get_table_format(packages: list[tuple[str, str]]):
         "Constraint Date": 15,
         "Latest Version": 15,
         "Latest Date": 12,
-        "📢 Status": 17,
+        "📢 Status": 12,
+        "# Days Stale": 12,
         "# Versions Behind": 19,
         "PyPI Link": 60,
     }
@@ -280,6 +302,7 @@ def get_table_format(packages: list[tuple[str, str]]):
         f"{{:<{col_widths['Latest Version']}}} | "
         f"{{:<{col_widths['Latest Date']}}} | "
         f"{{:<{col_widths['📢 Status']}}} | "
+        f"{{:<{col_widths['# Days Stale']}}} | "
         f"{{:<{col_widths['# Versions Behind']}}} | "
         f"{{:<{col_widths['PyPI Link']}}}"
     )
@@ -290,6 +313,7 @@ def get_table_format(packages: list[tuple[str, str]]):
         "Latest Version",
         "Latest Date",
         "📢 Status",
+        "# Days Stale",
         "# Versions Behind",
         "PyPI Link",
     ]
@@ -302,9 +326,20 @@ def print_table_header(format_str: str, headers: list[str], total_width: int):
     console_print(f"[magenta]{'=' * total_width}[/]")
 
 
-def print_table_footer(total_width: int, total_pkgs: int, outdated_count: int, skipped_count: int, mode: str):
+def print_table_footer(
+    total_width: int,
+    total_pkgs: int,
+    outdated_count: int,
+    skipped_count: int,
+    mode: str,
+    status_counts: dict[str, int],
+):
     console_print(f"[magenta]{'=' * total_width}[/]")
     console_print(f"[bold cyan]\nTotal packages checked:[/] [white]{total_pkgs}[/]")
+    console_print(f"  [green]✅ Up to date:[/] [white]{status_counts['ok']}[/]")
+    console_print(f"  [yellow]📢 New (<5d):[/] [white]{status_counts['new']}[/]")
+    console_print(f"  [magenta]🔶 Warning (<30d):[/] [white]{status_counts['warning']}[/]")
+    console_print(f"  [red]🚨 Critical (>30d):[/] [white]{status_counts['critical']}[/]")
     console_print(f"[bold yellow]Outdated packages found:[/] [white]{outdated_count}[/]")
     if mode == "diff-constraints":
         console_print(
@@ -351,7 +386,7 @@ def process_packages(
     python_version: str,
     airflow_constraints_mode: str,
     github_repository: str | None,
-) -> tuple[int, int, list[str]]:
+) -> tuple[int, int, list[str], dict[str, int]]:
     @contextmanager
     def preserve_pyproject_file(pyproject_path: Path):
         original_content = pyproject_path.read_text()
@@ -377,6 +412,7 @@ def process_packages(
     outdated_count = 0
     skipped_count = 0
     explanations = []
+    status_counts: dict[str, int] = {"ok": 0, "new": 0, "warning": 0, "critical": 0}
 
     for pkg, pinned_version in packages:
         try:
@@ -389,7 +425,7 @@ def process_packages(
             versions_behind = count_versions_between(releases, pinned_version, latest_version)
             versions_behind_str = str(versions_behind) if versions_behind > 0 else ""
             if should_show_package(releases, latest_version, constraints_date, mode, is_latest_version):
-                print_package_table_row(
+                status_category = print_package_table_row(
                     pkg=pkg,
                     pinned_version=pinned_version,
                     constraint_release_date=constraint_release_date,
@@ -401,6 +437,7 @@ def process_packages(
                     is_latest_version=is_latest_version,
                     versions_behind_str=versions_behind_str,
                 )
+                status_counts[status_category] += 1
                 if not is_latest_version:
                     outdated_count += 1
             else:
@@ -422,7 +459,7 @@ def process_packages(
         except URLError as e:
             console_print(f"[bold red]Error fetching {pkg} from PyPI: {e.reason}[/]")
             continue
-    return outdated_count, skipped_count, explanations
+    return outdated_count, skipped_count, explanations, status_counts
 
 
 def print_package_table_row(
@@ -436,31 +473,38 @@ def print_package_table_row(
     format_str: str,
     is_latest_version: bool,
     versions_behind_str: str,
-):
+) -> str:
     first_newer_date_str = get_first_newer_release_date_str(releases, pinned_version)
-    status = get_status_emoji(
+    status, status_category = get_status_emoji(
         first_newer_date_str or constraint_release_date,
         datetime.now().strftime("%Y-%m-%d"),
         is_latest_version,
     )
+    days_stale_str = get_days_stale(latest_release_date)
     pypi_link = f"https://pypi.org/project/{pkg}/{latest_version}"
-    color = (
-        "green"
-        if is_latest_version
-        else ("yellow" if status.startswith("📢") or status.startswith("⚠️") else "red")
-    )
-    offset = 1 if status.startswith("⚠️") else 0
+    if status_category == "ok":
+        color = "green"
+    elif status_category == "new":
+        color = "yellow"
+    elif status_category == "warning":
+        color = "magenta"
+    elif status_category == "critical":
+        color = "red"
+    else:
+        color = "white"
     string_to_print = format_str.format(
         pkg,
         pinned_version[: col_widths["Constraint Version"]],
         constraint_release_date[: col_widths["Constraint Date"]],
         latest_version[: col_widths["Latest Version"]],
         latest_release_date[: col_widths["Latest Date"]],
-        status[: (col_widths["📢 Status"] + offset)],
+        status[: col_widths["📢 Status"]],
+        days_stale_str,
         versions_behind_str,
         pypi_link,
     )
     console_print(f"[{color}]{string_to_print}[/]")
+    return status_category
 
 
 def explain_package_upgrade(
@@ -490,7 +534,10 @@ def explain_package_upgrade(
         additional_args.extend(
             ["--group", "dev", "--group", "docs", "--group", "docs-gen", "--group", "leveldb"]
         )
-    with preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject:
+    with (
+        preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject,
+        preserve_pyproject_file(AIRFLOW_ROOT_PATH / "uv.lock"),
+    ):
         shell_params = ShellParams(
             github_repository=github_repository,
             python=python_version,

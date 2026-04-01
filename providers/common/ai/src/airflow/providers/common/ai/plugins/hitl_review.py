@@ -31,7 +31,6 @@ from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XComModel
 from airflow.plugins_manager import AirflowPlugin
@@ -46,6 +45,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanFeedbackRequest,
     SessionStatus,
 )
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -284,7 +284,7 @@ async def find_session(
 @hitl_review_app.post(
     "/sessions/feedback",
     response_model=HITLReviewResponse,
-    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 async def submit_feedback(
     body: HumanFeedbackRequest,
@@ -365,7 +365,7 @@ async def submit_feedback(
 @hitl_review_app.post(
     "/sessions/approve",
     response_model=HITLReviewResponse,
-    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 async def approve_session(
     db: SessionDep,
@@ -430,7 +430,7 @@ async def approve_session(
 @hitl_review_app.post(
     "/sessions/reject",
     response_model=HITLReviewResponse,
-    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 async def reject_session(
     db: SessionDep,

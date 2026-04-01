@@ -1,0 +1,1 @@
+``workers.runtimeClassName`` section is now deprecated in favor of ``workers.celery.runtimeClassName`` and ``workers.kubernetes.runtimeClassName``. Please update your configuration accordingly.

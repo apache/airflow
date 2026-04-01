@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1773070394
+source-date-epoch: 1774298846
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 10.15.0
   - 10.14.0
   - 10.13.0
   - 10.12.4
@@ -463,6 +464,7 @@ config:
 
 executors:
   - airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor
+  - airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor.LocalKubernetesExecutor
 
 cli:
   - airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands

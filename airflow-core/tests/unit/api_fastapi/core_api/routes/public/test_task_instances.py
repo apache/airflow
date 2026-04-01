@@ -3644,6 +3644,88 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert logs == audit_log_count
 
+    @pytest.mark.db_test
+    def test_clear_sets_note_on_task_instances(self, test_client, session):
+        """Test that a note is set on cleared task instances when note is provided."""
+        dag_id = "example_python_operator"
+        note_value = "Cleared by automation"
+        payload = {
+            "dry_run": False,
+            "reset_dag_runs": False,
+            "only_failed": True,
+            "only_running": False,
+            "note": note_value,
+        }
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == 1
+        ti_id = response_data["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": note_value, "user_id": "test"})
+
+    @pytest.mark.db_test
+    def test_clear_without_note_does_not_set_note(self, test_client, session):
+        """Test that existing note is preserved on cleared task instances when note is not provided."""
+        dag_id = "example_python_operator"
+        payload = {
+            "dry_run": False,
+            "reset_dag_runs": False,
+            "only_failed": True,
+            "only_running": False,
+        }
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == 1
+        ti_id = response_data["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
+
+    @pytest.mark.db_test
+    def test_clear_dry_run_does_not_set_note(self, test_client, session):
+        """Test that a note is NOT updated when dry_run=True even if note is provided."""
+        dag_id = "example_python_operator"
+        note_value = "Should not be set"
+        payload = {
+            "dry_run": True,
+            "reset_dag_runs": False,
+            "only_failed": True,
+            "only_running": False,
+            "note": note_value,
+        }
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == 1
+        ti_id = response_data["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
+
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
     def test_should_respond_200(self, test_client, session):
@@ -6000,6 +6082,64 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         response_data = response.json()
         for task_id, value in expected_results.items():
             assert sorted(response_data[task_id]) == sorted(value)
+
+    @pytest.mark.parametrize(
+        ("map_index", "new_state"),
+        [
+            pytest.param(0, "failed", id="mapped-ti-map-index-0-failed"),
+            pytest.param(1, "failed", id="mapped-ti-map-index-1-failed"),
+            pytest.param(2, "success", id="mapped-ti-map-index-2-success"),
+        ],
+    )
+    def test_bulk_update_mapped_task_instance_state_is_persisted(
+        self, test_client, session, map_index, new_state
+    ):
+        """Verify that bulk-updating a specific mapped TI actually persists the new state in the DB."""
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.RUNNING, "map_indexes": (0, 1, 2)}],
+        )
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "task_id": self.TASK_ID,
+                                "map_index": map_index,
+                                "new_state": new_state,
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["update"]["success"] == [
+            f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[{map_index}]"
+        ]
+
+        session.expire_all()
+        # Verify only the targeted mapped TI changed state; others remain unchanged.
+        for mi in [0, 1, 2]:
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id == self.TASK_ID,
+                    TaskInstance.map_index == mi,
+                )
+            )
+            assert ti is not None
+            if mi == map_index:
+                assert ti.state == new_state, f"Expected map_index={mi} to be {new_state!r}, got {ti.state!r}"
+            else:
+                assert ti.state == State.RUNNING, (
+                    f"Expected map_index={mi} to remain running, got {ti.state!r}"
+                )
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})
