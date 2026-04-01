@@ -152,8 +152,23 @@ class PowerBITrigger(BasePowerBITrigger):
                 request_body=self.request_body,
             )
 
-            if dataset_refresh_id:
-                self.log.info("Triggered dataset refresh %s", dataset_refresh_id)
+            if not dataset_refresh_id:
+                yield TriggerEvent(
+                    {
+                        "status": "error",
+                        "dataset_refresh_status": None,
+                        "message": "Failed to trigger the dataset refresh.",
+                        "dataset_refresh_id": None,
+                    }
+                )
+                return
+
+            self.log.info("Triggered dataset refresh %s", dataset_refresh_id)
+            # Set the dataset_refresh_id for polling
+            self.dataset_refresh_id = dataset_refresh_id
+
+            # If wait_for_termination is False, return immediately after triggering
+            if not self.wait_for_termination:
                 yield TriggerEvent(
                     {
                         "status": "success",
@@ -163,16 +178,6 @@ class PowerBITrigger(BasePowerBITrigger):
                     }
                 )
                 return
-
-            yield TriggerEvent(
-                {
-                    "status": "error",
-                    "dataset_refresh_status": None,
-                    "message": "Failed to trigger the dataset refresh.",
-                    "dataset_refresh_id": None,
-                }
-            )
-            return
 
         # The dataset refresh is already triggered. Poll for the dataset refresh status.
         @tenacity.retry(

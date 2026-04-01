@@ -188,6 +188,22 @@ with DAG(
     )
     # [END how_to_cloud_gen_ai_batch_api_create_batch_job_with_inlined_requests_task]
 
+    # [START how_to_cloud_gen_ai_batch_api_create_batch_job_with_inlined_requests_deferrable_task]
+    create_batch_job_using_inlined_requests_deferrable = GenAIGeminiCreateBatchJobOperator(
+        task_id="create_batch_job_using_inlined_requests_deferrable_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        model="gemini-3-pro-preview",
+        gemini_api_key=GEMINI_XCOM_API_KEY,
+        create_batch_job_config={
+            "display_name": "deferrable-inlined-requests-batch-job",
+        },
+        input_source=INLINED_REQUESTS_FOR_BATCH_JOB,
+        retrieve_result=True,
+        deferrable=True,
+    )
+    # [END how_to_cloud_gen_ai_batch_api_create_batch_job_with_inlined_requests_deferrable_task]
+
     # [START how_to_cloud_gen_ai_batch_api_create_batch_job_with_file_task]
     create_batch_job_using_file = GenAIGeminiCreateBatchJobOperator(
         task_id="create_batch_job_using_file_task",
@@ -234,6 +250,23 @@ with DAG(
         input_source=UPLOADED_EMBEDDINGS_FILE_NAME,
     )
     # [END how_to_cloud_gen_ai_batch_api_create_embeddings_with_file_task]
+
+    # [START how_to_cloud_gen_ai_batch_api_create_embeddings_with_file_deferrable_task]
+    create_embeddings_job_using_file_deferrable = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+        task_id="create_embeddings_job_using_file_deferrable_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        model="gemini-embedding-001",
+        retrieve_result=True,
+        deferrable=True,
+        gemini_api_key=GEMINI_XCOM_API_KEY,
+        create_embeddings_config={
+            "display_name": "deferrable-file-upload-embeddings-job",
+        },
+        input_source=UPLOADED_EMBEDDINGS_FILE_NAME,
+        results_folder=PATH_TO_SAVE_RESULTS,
+    )
+    # [END how_to_cloud_gen_ai_batch_api_create_embeddings_with_file_deferrable_task]
 
     # [START how_to_cloud_gen_ai_batch_api_get_batch_job_task]
     get_batch_job = GenAIGeminiGetBatchJobOperator(
@@ -318,6 +351,8 @@ with DAG(
             create_batch_job_using_file,
             create_embeddings_job_using_file,
             create_embeddings_job_using_inlined_requests,
+            create_batch_job_using_inlined_requests_deferrable,
+            create_embeddings_job_using_file_deferrable,
         ]
         >> get_batch_job
         >> list_batch_jobs

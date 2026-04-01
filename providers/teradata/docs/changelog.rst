@@ -25,6 +25,60 @@
 Changelog
 ---------
 
+3.5.1
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Migrate teradata connection UI metadata to YAML (#63052)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+
+Misc
+~~~~
+
+* ``Bump min sqlalchemy version to 1.4.54 (#62299)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
+3.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prepare bteq command with subprocess arg list instead of string (#61624)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cleanup some dependencies (#60992)``
+
+3.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add SQLAlchemy to the dev‑dependency group in providers (#60472)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.4.1
 .....
 

@@ -44,7 +44,13 @@ export const DAGWarningsModal: React.FC<ImportDAGErrorModalProps> = ({ error, on
     : "";
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} scrollBehavior="inside" size="xl">
+    <Dialog.Root
+      data-testid="dag-warnings-modal"
+      onOpenChange={onClose}
+      open={open}
+      scrollBehavior="inside"
+      size="xl"
+    >
       <Dialog.Content backdrop>
         <Dialog.Header>
           <HStack fontSize="xl">

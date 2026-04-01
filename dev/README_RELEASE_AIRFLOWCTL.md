@@ -507,7 +507,7 @@ rm -rf dist/*
 4) Build the packages using checked out sources
 
 ```shell
-breeze release-management prepare-airflow-ctl-distributions --distribution-format both
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
 
@@ -539,6 +539,7 @@ present in SVN. This command may also help with verifying installation of the pa
 breeze release-management check-release-files airflow-ctl --version ${VERSION_RC}
 ```
 
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ### Licence check
 
@@ -546,10 +547,13 @@ This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
 
-You can run this command to do it for you:
+You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz -O /tmp/apache-rat-0.18-bin.tar.gz
+echo "315b16536526838237c42b5e6b613d29adc77e25a6e44a866b2b7f8b162e03d3629d49c9faea86ceb864a36b2c42838b8ce43d6f2db544e961f2259e242748f4  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
@@ -561,13 +565,14 @@ rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf $
 Run the check:
 
 ```shell script
-java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-src/.rat-excludes
+java -jar /tmp/apache-rat-0.18/apache-rat-0.18.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
 ```
 
 You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
 
 ```
-INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Apache Creadur RAT 0.18 (Apache Software Foundation)
 INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
 INFO: Excluding MISC collection.
 INFO: Excluding HIDDEN_DIR collection.
@@ -608,6 +613,7 @@ Download the KEYS file from the above link and save it locally.
 You can import the whole KEYS file into gpg by running the following command:
 
 ```shell script
+wget https://dist.apache.org/repos/dist/release/airflow/KEYS
 gpg --import KEYS
 ```
 

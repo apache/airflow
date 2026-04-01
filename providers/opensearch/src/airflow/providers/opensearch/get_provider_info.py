@@ -51,6 +51,11 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.opensearch.hooks.opensearch.OpenSearchHook",
                 "connection-type": "opensearch",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema"],
+                    "relabeling": {"extra": "OpenSearch Configuration"},
+                    "placeholders": {"extra": '{\n  "use_ssl": true,\n  "verify_certs": true\n}'},
+                },
             }
         ],
         "logging": ["airflow.providers.opensearch.log.os_task_handler.OpensearchTaskHandler"],

@@ -77,7 +77,7 @@ def test_docs_inventory_matches_public_api(tmp_path):
 
     extras = {"AirflowParsingContext"}
     # we do not want to document the class for `conf` but a description is present in the docs
-    excluded_from_docs = {"conf"}
+    excluded_from_docs = {"conf", "macros"}
     missing = (public - documented) - excluded_from_docs
     assert not missing, f"Public API items missing in docs: {missing}"
     unexpected = (documented - public) - extras

@@ -544,7 +544,11 @@ class GCSToBigQueryOperator(BaseOperator):
             "allowJaggedRows": self.allow_jagged_rows,
             "encoding": self.encoding,
         }
-        src_fmt_to_param_mapping = {"CSV": "csvOptions", "GOOGLE_SHEETS": "googleSheetsOptions"}
+        src_fmt_to_param_mapping = {
+            "CSV": "csvOptions",
+            "GOOGLE_SHEETS": "googleSheetsOptions",
+            "PARQUET": "parquetOptions",
+        }
         src_fmt_to_configs_mapping = {
             "csvOptions": [
                 "allowJaggedRows",
@@ -557,6 +561,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "columnNameCharacterMap",
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
+            "parquetOptions": ["enumAsString", "enableListInference", "mapTargetType"],
         }
         if self.source_format in src_fmt_to_param_mapping:
             valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[self.source_format]]
@@ -687,7 +692,17 @@ class GCSToBigQueryOperator(BaseOperator):
             "ORC": ["autodetect"],
         }
 
+        # Some source formats have nested configuration options which are not available
+        # at the top level of the load configuration.
+        src_fmt_to_param_mapping = {"PARQUET": "parquetOptions"}
+        src_fmt_to_nested_configs_mapping = {
+            "parquetOptions": ["enumAsString", "enableListInference", "mapTargetType"],
+        }
+
         valid_configs = src_fmt_to_configs_mapping[self.source_format]
+
+        src_fmt_param = src_fmt_to_param_mapping.get(self.source_format)
+        valid_nested_configs = src_fmt_to_nested_configs_mapping[src_fmt_param] if src_fmt_param else None
 
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
@@ -701,7 +716,12 @@ class GCSToBigQueryOperator(BaseOperator):
         }
 
         self.src_fmt_configs = self._validate_src_fmt_configs(
-            self.source_format, self.src_fmt_configs, valid_configs, backward_compatibility_configs
+            self.source_format,
+            self.src_fmt_configs,
+            valid_configs,
+            backward_compatibility_configs,
+            src_fmt_param,
+            valid_nested_configs,
         )
 
         self.configuration["load"].update(self.src_fmt_configs)
@@ -716,29 +736,51 @@ class GCSToBigQueryOperator(BaseOperator):
         src_fmt_configs: dict,
         valid_configs: list[str],
         backward_compatibility_configs: dict | None = None,
+        src_fmt_param: str | None = None,
+        valid_nested_configs: list[str] | None = None,
     ) -> dict:
         """
-        Validate the given src_fmt_configs against a valid configuration for the source format.
+        Validate and format the given src_fmt_configs against a valid configuration for the source format.
 
         Adds the backward compatibility config to the src_fmt_configs.
+
+        Adds nested source format configurations if valid_nested_configs is provided.
 
         :param source_format: File format to export.
         :param src_fmt_configs: Configure optional fields specific to the source format.
         :param valid_configs: Valid configuration specific to the source format
         :param backward_compatibility_configs: The top-level params for backward-compatibility
+        :param src_fmt_param: The source format parameter for nested configurations.
+        Required when valid_nested_configs is provided.
+        :param valid_nested_configs: Valid nested configuration specific to the source format.
         """
+        valid_src_fmt_configs = {}
+
         if backward_compatibility_configs is None:
             backward_compatibility_configs = {}
 
         for k, v in backward_compatibility_configs.items():
             if k not in src_fmt_configs and k in valid_configs:
-                src_fmt_configs[k] = v
+                valid_src_fmt_configs[k] = v
 
-        for k in src_fmt_configs:
-            if k not in valid_configs:
+        if valid_nested_configs is None:
+            valid_nested_configs = []
+
+        if valid_nested_configs:
+            if src_fmt_param is None:
+                raise ValueError("src_fmt_param is required when valid_nested_configs is provided.")
+
+            valid_src_fmt_configs[src_fmt_param] = {}
+
+        for k, v in src_fmt_configs.items():
+            if k in valid_configs:
+                valid_src_fmt_configs[k] = v
+            elif k in valid_nested_configs:
+                valid_src_fmt_configs[src_fmt_param][k] = v
+            else:
                 raise ValueError(f"{k} is not a valid src_fmt_configs for type {source_format}.")
 
-        return src_fmt_configs
+        return valid_src_fmt_configs
 
     def _cleanse_time_partitioning(
         self, destination_dataset_table: str | None, time_partitioning_in: dict | None

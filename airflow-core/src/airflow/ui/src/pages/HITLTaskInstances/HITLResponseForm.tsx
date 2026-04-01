@@ -68,7 +68,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
     hitlDetail.options.length === 2;
 
   const shouldRenderOptionButton =
-    hitlDetail.options.length < 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
+    hitlDetail.options.length <= 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
 
   const isPending = hitlDetail.task_instance.state === "deferred";
 
@@ -137,6 +137,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
             hitlDetail.options.map((option) => (
               <Button
                 colorPalette={isHighlightOption(option, hitlDetail, preloadedHITLOptions) ? "brand" : "gray"}
+                data-testid={`hitl-option-${option}`}
                 disabled={errors || isSubmitting || !isPending || hitlDetail.response_received}
                 key={option}
                 onClick={() => handleSubmit(option)}

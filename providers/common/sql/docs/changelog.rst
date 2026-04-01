@@ -25,6 +25,101 @@
 Changelog
 ---------
 
+1.34.0
+......
+
+Features
+~~~~~~~~
+
+* ``Simplify default rows limit return result (#64183)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Removed logging of rows length in SQLInsertRowsOperator to avoid crash on non materialized rows (#63346)``
+* ``Fix provider YAML validation for common SQL analytics operator (#63393)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky test_run_no_log in DbApiHook by verifying caplog text instead of length. (#63860)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+1.33.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Iceberg support to AnalyticsOperator (#62754)``
+* ``Add @task.analytics Decorator (#62648)``
+* ``Add ObjectStorage support to LLMSQLQueryOperator via DataFusion (#62640)``
+* ``Add 'LLMSQLQueryOperator' and '@task.llm_sql' to common.ai provider (#62599)``
+* ``AIP-99: Add AnalyticsOperator (#62232)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cache DbApiHook.inspector to avoid creating N engines (#62594)``
+
+Misc
+~~~~
+
+* ``Consolidate 'SkipMixin' imports through 'common-compat' layer (#62776)``
+* ``Move determine_kwargs and KeywordParameters to SDK DecoratedOperator (#62746)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix removal of '__str__' method from Datafusion Format enums (#62830)``
+   * ``Explicitly set extra for connections in generic transfer tests (#62581)``
+
+1.32.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``'task-sql-decorator': Introducing the '@task.sql' decorator (#60851)``
+
+Misc
+~~~~
+
+* ``Bump min sqlalchemy version to 1.4.54 (#62299)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Providers ad-hoc 2026-02-20 (#62209)``
+
+1.31.0
+......
+
+Features
+~~~~~~~~
+
+* ``Implement specialized get_first and get_records method in OracleHook to avoid serialization issues with XCom's (#61144)``
+* ``Add rows processor to GenericTransfer (#61143)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.30.4
+......
+
+Misc
+~~~~
+
+* ``Add SQLAlchemy to the dev‑dependency group in providers (#60472)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.30.3
 ......
 

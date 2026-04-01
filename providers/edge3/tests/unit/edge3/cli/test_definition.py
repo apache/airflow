@@ -53,8 +53,8 @@ class TestEdgeCliDefinition:
         assert len(commands) == 1
 
     def test_edge_commands_count(self):
-        """Test that EDGE_COMMANDS contains all 13 subcommands."""
-        assert len(EDGE_COMMANDS) == 13
+        """Test that EDGE_COMMANDS contains all 14 subcommands."""
+        assert len(EDGE_COMMANDS) == 14
 
     @pytest.mark.parametrize(
         "command",
@@ -93,11 +93,20 @@ class TestEdgeCliDefinition:
             "4",
             "--edge-hostname",
             "edge-worker-1",
+            "--team-name",
+            "team_x",
         ]
         args = self.arg_parser.parse_args(params)
         assert args.queues == "queue1,queue2"
         assert args.concurrency == 4
         assert args.edge_hostname == "edge-worker-1"
+        assert args.team_name == "team_x"
+
+    def test_worker_command_args_without_team_name(self):
+        """Test worker command without --team-name defaults to None."""
+        params = ["edge", "worker"]
+        args = self.arg_parser.parse_args(params)
+        assert args.team_name is None
 
     def test_status_command_args(self):
         """Test status command with pid argument."""
@@ -135,7 +144,15 @@ class TestEdgeCliDefinition:
 
     def test_list_workers_command_args(self):
         """Test list-workers command with output format and state filter."""
-        params = ["edge", "list-workers", "--output", "json", "--state", "running", "maintenance"]
+        params = [
+            "edge",
+            "list-workers",
+            "--output",
+            "json",
+            "--state",
+            "running",
+            "maintenance",
+        ]
         args = self.arg_parser.parse_args(params)
         assert args.output == "json"
         assert args.state == ["running", "maintenance"]
@@ -234,3 +251,17 @@ class TestEdgeCliDefinition:
         params = ["edge", "shutdown-all-workers", "--yes"]
         args = self.arg_parser.parse_args(params)
         assert args.yes is True
+
+    def test_set_worker_concurrency_args(self):
+        """Test set-worker-concurrency command with required arguments."""
+        params = [
+            "edge",
+            "set-worker-concurrency",
+            "--edge-hostname",
+            "remote-worker-1",
+            "--concurrency",
+            "16",
+        ]
+        args = self.arg_parser.parse_args(params)
+        assert args.edge_hostname == "remote-worker-1"
+        assert args.concurrency == 16

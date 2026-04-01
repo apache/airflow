@@ -41,6 +41,7 @@ from airflow.sdk.bases.operator import (
 )
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.definitions.template import literal
+from airflow.triggers.base import StartTriggerArgs
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -108,9 +109,18 @@ class MockOperator(BaseOperator):
         super().__init__(**kwargs)
         self.arg1 = arg1
         self.arg2 = arg2
+        if self.start_from_trigger:
+            self.start_trigger_args = StartTriggerArgs(
+                trigger_cls="trigger_cls",
+                next_method="next_method",
+                trigger_kwargs={"arg1": arg1, "arg2": arg2},
+            )
 
 
 class TestBaseOperator:
+    def setup_method(self, method):
+        MockOperator.start_from_trigger = False
+
     # Since we have a custom metaclass, lets double check the behaviour of
     # passing args in the wrong way (args etc)
     def test_kwargs_only(self):
@@ -672,6 +682,41 @@ class TestBaseOperator:
         result = task.render_template(content, context)
         assert result == expected_output
 
+    @pytest.mark.parametrize(
+        ("dag_native", "op_native", "content", "context", "expected_result", "expected_type"),
+        [
+            # Operator overrides DAG
+            (False, True, "{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"], list),
+            (True, False, "{{ foo }}", {"foo": ["bar1", "bar2"]}, "['bar1', 'bar2']", str),
+            # Operator inherits from DAG (None = inherit)
+            (True, None, "{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"], list),
+            (False, None, "{{ foo }}", {"foo": ["bar1", "bar2"]}, "['bar1', 'bar2']", str),
+            # No DAG context
+            (None, None, "{{ foo }}", {"foo": ["bar1", "bar2"]}, "['bar1', 'bar2']", str),
+            (None, True, "{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"], list),
+            # Native rendering preserves various types
+            (None, True, "{{ foo }}", {"foo": 42}, 42, int),
+            (None, True, "{{ foo }}", {"foo": {"key": "value"}}, {"key": "value"}, dict),
+            (None, True, "{{ foo }}", {"foo": True}, True, bool),
+            (None, True, "{{ ds }}", {"ds": date(2018, 12, 6)}, date(2018, 12, 6), date),
+        ],
+    )
+    def test_operator_render_template_as_native_obj(
+        self, dag_native, op_native, content, context, expected_result, expected_type
+    ):
+        """Test operator render_template_as_native_obj overrides DAG settings and preserves types."""
+        if dag_native is not None:
+            with DAG(
+                "test-dag", schedule=None, start_date=DEFAULT_DATE, render_template_as_native_obj=dag_native
+            ):
+                task = BaseOperator(task_id="op1", render_template_as_native_obj=op_native)
+        else:
+            task = BaseOperator(task_id="op1", render_template_as_native_obj=op_native)
+
+        result = task.render_template(content, context)
+        assert result == expected_result
+        assert isinstance(result, expected_type)
+
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
         task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
@@ -764,6 +809,16 @@ class TestBaseOperator:
 
         task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
         assert mock_jinja_env.call_count == 1
+
+    def test_validate_start_from_trigger_kwargs(self):
+        MockOperator.start_from_trigger = True
+
+        with pytest.raises(
+            ValueError,
+            match="MockOperator with task_id 'one' has a callable in trigger kwargs named "
+            "'arg2', which is not allowed when start_from_trigger is enabled.",
+        ):
+            MockOperator(task_id="one", arg1="{{ foo }}", arg2=lambda context, jinja_env: "bar")
 
     def test_params_source(self):
         # Test bug when copying an operator attached to a Dag

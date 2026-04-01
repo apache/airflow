@@ -87,7 +87,7 @@ class TestValidateExecutorFields:
         _validate_executor_fields(dag, bundle_name="some_bundle")
 
         # Should call ExecutorLoader without team_name (defaults to None)
-        mock_lookup.assert_called_once_with("test.executor", team_name=None)
+        mock_lookup.assert_called_once_with("test.executor", team_name=None, validate_teams=False)
 
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
@@ -107,7 +107,7 @@ class TestValidateExecutorFields:
             _validate_executor_fields(dag, bundle_name="test_bundle")
 
         # Should call ExecutorLoader with team from bundle config
-        mock_lookup.assert_called_once_with("team.executor", team_name="test_team")
+        mock_lookup.assert_called_once_with("team.executor", team_name="test_team", validate_teams=False)
 
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
@@ -125,7 +125,7 @@ class TestValidateExecutorFields:
         with conf_vars({("core", "multi_team"): "True"}):
             _validate_executor_fields(dag, bundle_name="test_bundle")
 
-        mock_lookup.assert_called_once_with("test.executor", team_name=None)
+        mock_lookup.assert_called_once_with("test.executor", team_name=None, validate_teams=False)
 
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
     def test_multiple_tasks_with_executors(self, mock_lookup):
@@ -140,8 +140,8 @@ class TestValidateExecutorFields:
 
         # Should be called for each task with executor
         assert mock_lookup.call_count == 2
-        mock_lookup.assert_any_call("executor1", team_name=None)
-        mock_lookup.assert_any_call("executor2", team_name=None)
+        mock_lookup.assert_any_call("executor1", team_name=None, validate_teams=False)
+        mock_lookup.assert_any_call("executor2", team_name=None, validate_teams=False)
 
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
@@ -213,8 +213,8 @@ class TestValidateExecutorFields:
 
         # Should call lookup twice: first for team, then for global
         assert mock_lookup.call_count == 2
-        mock_lookup.assert_any_call("global.executor", team_name="test_team")
-        mock_lookup.assert_any_call("global.executor", team_name=None)
+        mock_lookup.assert_any_call("global.executor", team_name="test_team", validate_teams=False)
+        mock_lookup.assert_any_call("global.executor", team_name=None, validate_teams=False)
 
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
@@ -247,8 +247,8 @@ class TestValidateExecutorFields:
 
         # Should call lookup twice: first for team, then for global fallback
         assert mock_lookup.call_count == 2
-        mock_lookup.assert_any_call("unknown.executor", team_name="test_team")
-        mock_lookup.assert_any_call("unknown.executor", team_name=None)
+        mock_lookup.assert_any_call("unknown.executor", team_name="test_team", validate_teams=False)
+        mock_lookup.assert_any_call("unknown.executor", team_name=None, validate_teams=False)
 
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
     @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
@@ -270,7 +270,38 @@ class TestValidateExecutorFields:
             _validate_executor_fields(dag, bundle_name="test_bundle")
 
         # Should only call lookup once for team-specific executor
-        mock_lookup.assert_called_once_with("team.executor", team_name="test_team")
+        mock_lookup.assert_called_once_with("team.executor", team_name="test_team", validate_teams=False)
+
+    @pytest.mark.usefixtures("clean_executor_loader")
+    def test_validate_executor_fields_does_not_access_database(self):
+        """Regression test: executor validation during DAG parsing must not access the database.
+
+        In Airflow 3, DAG parsing happens in isolated subprocesses where database access
+        is blocked via block_orm_access(). The _validate_executor_fields function must
+        validate executors using only local config (validate_teams=False), without querying
+        the database to verify team names exist. If validate_teams were True, the call chain
+        would reach Team.get_all_team_names() which does a DB query, raising RuntimeError
+        in the parsing subprocess.
+        """
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="t1", executor="LocalExecutor")
+
+        with conf_vars(
+            {
+                ("core", "executor"): "LocalExecutor;team1=CeleryExecutor",
+                ("core", "multi_team"): "True",
+            }
+        ):
+            # Patch _validate_teams_exist_in_database to raise RuntimeError,
+            # simulating what happens in the DAG parsing subprocess where DB is blocked.
+            # If the fix is correct, this should never be called.
+            with patch.object(
+                ExecutorLoader,
+                "_validate_teams_exist_in_database",
+                side_effect=RuntimeError("Direct database access via the ORM is not allowed in Airflow 3.0"),
+            ):
+                # Should succeed without hitting the database
+                _validate_executor_fields(dag)
 
 
 def test_validate_executor_field_executor_not_configured():
@@ -483,6 +514,70 @@ class TestDagBag:
             "AirflowDagDuplicatedIdException: Ignoring DAG"
         )
         assert dagbag.dags == dags_in_bag  # Should not change.
+
+    def test_import_errors_use_relative_path_with_bundle(self, tmp_path):
+        """Import errors should use relative paths when bundle_path is set."""
+        bundle_path = tmp_path / "bundle"
+        bundle_path.mkdir()
+        dag_path = bundle_path / "subdir" / "my_dag.py"
+        dag_path.parent.mkdir(parents=True)
+
+        dag_path.write_text("from airflow.sdk import DAG\nraise ImportError('test error')")
+
+        dagbag = DagBag(
+            dag_folder=os.fspath(dag_path),
+            include_examples=False,
+            bundle_path=bundle_path,
+            bundle_name="test_bundle",
+        )
+
+        expected_relative_path = "subdir/my_dag.py"
+        assert expected_relative_path in dagbag.import_errors
+        # Absolute path should NOT be a key
+        assert os.fspath(dag_path) not in dagbag.import_errors
+        assert "test error" in dagbag.import_errors[expected_relative_path]
+
+    def test_import_errors_use_relative_path_for_bagging_errors(self, tmp_path):
+        """Errors during DAG bagging should use relative paths when bundle_path is set."""
+        bundle_path = tmp_path / "bundle"
+        bundle_path.mkdir()
+
+        def create_dag():
+            from airflow.sdk import dag
+
+            @dag(schedule=None, default_args={"owner": "owner1"})
+            def my_flow():
+                pass
+
+            my_flow()
+
+        source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
+        path1 = bundle_path / "testfile1.py"
+        path2 = bundle_path / "testfile2.py"
+        path1.write_text("".join(source_lines))
+        path2.write_text("".join(source_lines))
+
+        dagbag = DagBag(
+            dag_folder=os.fspath(bundle_path),
+            include_examples=False,
+            bundle_path=bundle_path,
+            bundle_name="test_bundle",
+        )
+
+        # The DAG should load successfully from one file
+        assert "my_flow" in dagbag.dags
+
+        # One file should have a duplicate DAG error - file order is not guaranteed
+        assert len(dagbag.import_errors) == 1
+        error_path = next(iter(dagbag.import_errors.keys()))
+
+        # The error key should be a relative path (not absolute)
+        # and of any of the two test files
+        assert error_path in ("testfile1.py", "testfile2.py")
+        # Absolute paths should NOT be keys
+        assert os.fspath(path1) not in dagbag.import_errors
+        assert os.fspath(path2) not in dagbag.import_errors
+        assert "AirflowDagDuplicatedIdException" in dagbag.import_errors[error_path]
 
     def test_zip_skip_log(self, caplog, test_zip_path):
         """

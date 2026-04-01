@@ -19,13 +19,13 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Mapping
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
-from airflow._shared.secrets_masker import redact
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow._shared.secrets_masker import redact, should_hide_value_for_key
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel, make_partial_model
 
 
 # Response Models
@@ -60,8 +60,13 @@ class ConnectionResponse(BaseModel):
             redacted_dict = redact(extra_dict)
             return json.dumps(redacted_dict)
         except json.JSONDecodeError:
-            # we can't redact fields in an unstructured `extra`
-            return v
+            # Do not return un-redacted extra because this could cause sensitive information to be exposed.
+            # This code path should never been hit as ``Connection._validate_extra`` sure that ``extra`` is
+            # always a valid JSON string. We add this safeguard just in case and to make the coupling
+            # explicit.
+            raise ValueError(
+                "This code path should never happen as persisted Connections (DB layer) should always enforce `extra` as a JSON string."
+            )
 
 
 class ConnectionCollectionResponse(BaseModel):
@@ -129,6 +134,30 @@ class ConnectionHookMetaData(BaseModel):
         if v is None:
             return None
 
+        # Check if extra_fields contains param spec structures (result of SerializedParam.dump())
+        # which have "value" and "schema" keys, or simple dictionary structures
+        has_param_spec_structure = any(
+            isinstance(field_spec, dict) and "value" in field_spec and "schema" in field_spec
+            for field_spec in v.values()
+        )
+
+        if has_param_spec_structure:
+            redacted_extra_fields: dict[str, Any] = {}
+            for field_name, field_spec in v.items():
+                if isinstance(field_spec, dict) and "value" in field_spec and "schema" in field_spec:
+                    if should_hide_value_for_key(field_name) and field_spec.get("value") is not None:
+                        # Mask only the value, preserve everything else including schema.type
+                        redacted_extra_fields[field_name] = {**field_spec, "value": "***"}
+                    else:
+                        # Not sensitive or no value, keep as is
+                        redacted_extra_fields[field_name] = field_spec
+                else:
+                    # Not a param spec structure, apply redact by default
+                    redacted_extra_fields[field_name] = redact(field_spec)
+
+            return redacted_extra_fields
+
+        # For simple dictionary structures, use the standard redact function
         return redact(v)
 
 
@@ -169,3 +198,6 @@ class ConnectionBody(StrictBaseModel):
                 "but encountered non-JSON in `extra` field"
             )
         return v
+
+
+ConnectionBodyPartial = make_partial_model(ConnectionBody)

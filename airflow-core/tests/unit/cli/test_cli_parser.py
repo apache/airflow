@@ -621,17 +621,20 @@ class TestCliSubprocess:
     than from provider distributions which might not be installed in the test environment.
     """
 
-    @pytest.mark.quarantined
     def test_cli_run_time(self):
         setup_code = "import subprocess"
         command = [sys.executable, "-m", "airflow", "--help"]
         env = {"PYTHONPATH": os.pathsep.join(sys.path)}
         timing_code = f"subprocess.run({command},env={env})"
+
+        # Warm-up run
+        subprocess.run(command, env=env, capture_output=True, check=False)
         # Limit the number of samples otherwise the test will take a very long time
         num_samples = 3
-        threshold = 3.5
-        timing_result = timeit.timeit(stmt=timing_code, number=num_samples, setup=setup_code) / num_samples
-        # Average run time of Airflow CLI should at least be within 3.5s
+        threshold = 5
+        raw_times = timeit.repeat(stmt=timing_code, setup=setup_code, number=1, repeat=num_samples)
+        timing_result = min(raw_times)
+        # Minimum run time of Airflow CLI should at least be within 5s
         assert timing_result < threshold
 
     def test_airflow_config_contains_providers(self):

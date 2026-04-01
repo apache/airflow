@@ -230,7 +230,7 @@ class DagBundlesManager(LoggingMixin):
                     self.log.debug("Signed URL template for bundle %s", bundle_name)
             return new_template_, new_params_
 
-        stored = {b.name: b for b in session.query(DagBundleModel).all()}
+        stored = {b.name: b for b in session.scalars(select(DagBundleModel)).all()}
         bundle_to_team = {
             bundle.name: bundle.teams[0].name if len(bundle.teams) == 1 else None
             for bundle in stored.values()
@@ -276,7 +276,9 @@ class DagBundlesManager(LoggingMixin):
                         name,
                         team.name,
                     )
-            elif not team and name in bundle_to_team:
+            elif not team and bundle_to_team.get(name) is not None:
+                # Only remove ownership if a team was previously associated; stored bundles with
+                # no team already map to None in bundle_to_team.
                 # Remove team association
                 self.log.warning(
                     "Removing ownership of team '%s' from Dag bundle '%s'", bundle_to_team[name], name

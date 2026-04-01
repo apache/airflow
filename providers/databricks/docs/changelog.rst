@@ -26,6 +26,126 @@
 Changelog
 ---------
 
+.. note:: **Security fix — TLS verification for Kubernetes TokenRequest API (affects Kubernetes OIDC token federation)**
+
+   The Kubernetes TokenRequest API call made during ``federated_k8s`` authentication now verifies the
+   Kubernetes API server's TLS certificate using the in-cluster CA bundle at
+   ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. Previously, TLS verification was disabled
+   (``verify=False``), which exposed the token exchange to potential man-in-the-middle attacks within the
+   cluster.
+
+   **This is a security fix that enforces what should always have been the behaviour.**
+
+   For all standard Kubernetes deployments (EKS, AKS, GKE, vanilla Kubernetes), the CA bundle is
+   automatically mounted at the standard path by the Kubernetes API server as part of service account
+   token projection — no action is required.
+
+   **Potentially impacted:** Non-compliant or highly customized Kubernetes distributions that do not
+   mount ``ca.crt`` at ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. If you are affected,
+   please open an issue so support for a configurable CA path can be added.
+
+7.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add new hook method (#62822)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typo in 'monitor_databricks_job' (#63651)``
+* ``Enable TLS certificate verification for K8s token exchange in 'DatabricksHook' (#63704)``
+* ``Map Airflow trigger_rule to Databricks run_if in 'DatabricksWorkflowTaskGroup' (#63420)``
+* ``Fix broken import of 'aiofiles' in 'BaseDatabricksHook' (#63518)``
+* ``Fail deferrable runs that terminate before defer (#62917)``
+* ``Fix sql_warehouse_name resolution: handle 'warehouses' API response key (#63286)``
+* ``Handle concurrent create race in DatabricksReposCreateOperator when ignore_existing_repo=True. If create_repo() fails, the operator now re-checks repository existence and proceeds if the repository was created concurrently; otherwise, the original exception is re-raised. Add unit tests covering recovery and failure propagation under concurrent create scenarios. (#62422)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix AIR004* in multiple example DAGs (#62529)``
+* ``Refactor timeout handling in DatabricksSqlHook to use explicit signaling (#62623)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+7.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add validation for table_name and expression_list in DatabricksCopyIntoOperator (#62499)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Raise ValueError instead of KeyError when cancel_previous_runs=True and no job identifier is provided (#62393)``
+
+Misc
+~~~~
+
+* ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage methods to DatabricksHook (#62179)``
+* ``Databricks OIDC token federation for Kubernetes deployment (#61458)``
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Add missing template fields to 'DatabricksWorkflowTaskGroup' (#61865)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``cleanup test_databricks_workflow (#61907)``
+
+7.9.1
+.....
+
+Misc
+~~~~
+
+* ``Cleanup some dependencies (#60992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add direct GCS export to DatabricksSqlOperator with Parquet/Avro support #55128 (#60543)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing fastavro after PR #60732 (#60797)``
+* ``Pin fastavro to minimum 1.10.0 for Python 3.13 compatibility (#60732)``
+* ``Updating Databricks API endpoints to appropriate versions (#60647)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert exclusion of deltalake 1.3.1 as aarch64 binaries are available now (#60611)``
+
 7.8.3
 .....
 

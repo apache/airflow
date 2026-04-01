@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import base64
-import pickle
 from asyncio import Future
 from http.cookies import SimpleCookie
 from typing import Any
@@ -31,7 +29,12 @@ from requests.structures import CaseInsensitiveDict
 from yarl import URL
 
 from airflow.models import Connection
-from airflow.providers.http.triggers.http import HttpEventTrigger, HttpSensorTrigger, HttpTrigger
+from airflow.providers.http.triggers.http import (
+    HttpEventTrigger,
+    HttpResponseSerializer,
+    HttpSensorTrigger,
+    HttpTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 HTTP_PATH = "airflow.providers.http.triggers.http.{}"
@@ -144,10 +147,7 @@ class TestHttpTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)
         assert actual == TriggerEvent(
-            {
-                "status": "success",
-                "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
-            }
+            {"status": "success", "response": HttpResponseSerializer.serialize(response)}
         )
 
     @pytest.mark.asyncio
@@ -252,7 +252,7 @@ class TestHttpEventTrigger:
         assert actual == TriggerEvent(
             {
                 "status": "success",
-                "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                "response": HttpResponseSerializer.serialize(response),
             }
         )
         assert mock_hook.return_value.run.call_count == 2

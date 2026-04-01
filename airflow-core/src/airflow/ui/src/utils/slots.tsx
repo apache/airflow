@@ -18,12 +18,14 @@
  */
 
 /* eslint-disable perfectionist/sort-objects */
+import type { JSX } from "react";
+
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 
 export type Slots = Omit<
   PoolResponse,
-  "description" | "include_deferred" | "name" | "occupied_slots" | "slots"
+  "description" | "include_deferred" | "name" | "occupied_slots" | "slots" | "team_name"
 >;
 export type SlotConfig = {
   color: string;

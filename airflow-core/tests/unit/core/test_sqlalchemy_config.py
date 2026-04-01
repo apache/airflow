@@ -26,7 +26,6 @@ from airflow import settings
 from airflow.exceptions import AirflowConfigException
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
 
 SQL_ALCHEMY_CONNECT_ARGS = {"test": 43503, "dict": {"is": 1, "supported": "too"}}
 
@@ -66,8 +65,6 @@ class TestSqlAlchemySettings:
             isolation_level="READ COMMITTED",
             future=True,
         )
-        if SQLALCHEMY_V_1_4:
-            expected_kwargs["encoding"] = "utf-8"
         mock_create_engine.assert_called_once_with(
             settings.SQL_ALCHEMY_CONN,
             **expected_kwargs,
@@ -99,8 +96,6 @@ class TestSqlAlchemySettings:
                 future=True,
                 **engine_args,
             )
-            if SQLALCHEMY_V_1_4:
-                expected_kwargs["encoding"] = "utf-8"
             mock_create_engine.assert_called_once_with(
                 settings.SQL_ALCHEMY_CONN,
                 **expected_kwargs,

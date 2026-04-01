@@ -24,8 +24,7 @@ from airflow.providers.common.compat.sdk import BaseOperatorLink, BaseSensorOper
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
     from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 BASE_LINK = "https://console.cloud.google.com"

@@ -31,5 +31,7 @@
   "name": "Name",
   "producingTasks": "Producing Tasks",
   "scheduledDags": "Scheduled Dags",
-  "searchPlaceholder": "Search Assets"
+  "scheduling": "Scheduling",
+  "searchPlaceholder": "Search Assets",
+  "taskDependencies": "Task Dependencies"
 }

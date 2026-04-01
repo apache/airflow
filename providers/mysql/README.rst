@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-mysql``
 
-Release: ``6.4.1``
+Release: ``6.5.1``
 
 
 `MySQL <https://www.mysql.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``mysql`` provider. All classes for this provider
 are in ``airflow.providers.mysql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.4.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.5.1/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-mysql``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -54,8 +54,8 @@ Requirements
 PIP package                                 Version required
 ==========================================  =====================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
-``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``mysqlclient``                             ``>=2.2.5; sys_platform != "darwin"``
 ``mysql-connector-python``                  ``>=9.1.0``
 ``aiomysql``                                ``>=0.2.0``
@@ -101,4 +101,4 @@ Extra                       Dependencies
 ==========================  ========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.4.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-mysql/6.5.1/changelog.html>`_.

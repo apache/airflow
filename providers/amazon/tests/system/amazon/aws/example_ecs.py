@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
+from pendulum import duration
 
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates
 from airflow.providers.amazon.aws.operators.ecs import (
@@ -182,6 +183,9 @@ with DAG(
     # [END howto_operator_ecs_run_task]
     # The default is 6 seconds between checks, which is very aggressive, setting to 60s to reduce throttling errors.
     run_task.waiter_delay = 60
+    run_task.retries = 4
+    run_task.retry_exponential_backoff = True
+    run_task.retry_delay = duration(seconds=30)
 
     # [START howto_operator_ecs_deregister_task_definition]
     deregister_task = EcsDeregisterTaskDefinitionOperator(

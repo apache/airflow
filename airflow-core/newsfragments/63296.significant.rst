@@ -1,0 +1,16 @@
+Block path traversal via ``..`` in ``dag_id`` and ``run_id``
+
+DAG IDs and run IDs containing ``..`` are now rejected by default to prevent path traversal.
+A configuration flag ``[core] allow_double_dot_in_ids`` (default: ``False``) is available for
+environments that rely on ``..`` in identifiers.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

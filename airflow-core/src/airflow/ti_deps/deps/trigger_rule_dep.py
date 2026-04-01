@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
+    from airflow.typing_compat import Unpack
 
 
 class _UpstreamTIStates(NamedTuple):
@@ -371,7 +372,8 @@ class TriggerRuleDep(BaseTIDep):
                 upstream = len(upstream_tasks)
                 upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
             else:
-                task_id_counts: Sequence[Row[tuple[str, int]]] = session.execute(
+                # The below type annotation is acceptable on SQLA2.1, but not on 2.0
+                task_id_counts: Sequence[Row[Unpack[tuple[str, int]]]] = session.execute(  # type: ignore[type-arg]
                     select(TaskInstance.task_id, func.count(TaskInstance.task_id))
                     .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                     .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
@@ -617,6 +619,58 @@ class TriggerRuleDep(BaseTIDep):
                     reason=f"No strategy to evaluate trigger rule '{trigger_rule_str}'."
                 )
 
+        def _evaluate_teardown_scope() -> Iterator[TIDepStatus]:
+            """Ensure all tasks between setup(s) and this teardown have completed."""
+            if not task.dag:
+                return
+
+            setup_task_ids = {t.task_id for t in task.upstream_list if t.is_setup}
+
+            all_upstream_ids = task.get_flat_relative_ids(upstream=True)
+            indirect_upstream_ids = all_upstream_ids - task.upstream_task_ids
+
+            if not indirect_upstream_ids:
+                return
+
+            in_scope_ids = set()
+            for setup_id in setup_task_ids:
+                setup_obj = task.dag.get_task(setup_id)
+                in_scope_ids.update(indirect_upstream_ids & setup_obj.get_flat_relative_ids(upstream=False))
+
+            if not in_scope_ids:
+                return
+
+            in_scope_tasks = {tid: task.dag.get_task(tid) for tid in in_scope_ids}
+
+            done = sum(
+                1
+                for x in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+                if _is_relevant_upstream(upstream=x, relevant_ids=in_scope_ids)
+            )
+
+            if not any(t.get_needs_expansion() for t in in_scope_tasks.values()):
+                expected = len(in_scope_tasks)
+            else:
+                expected = (
+                    session.scalar(
+                        select(func.count(TaskInstance.task_id))
+                        .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                        .where(or_(*_iter_upstream_conditions(relevant_tasks=in_scope_tasks)))
+                    )
+                    or 0
+                )
+
+            if done < expected:
+                trigger_rule_str = getattr(task.trigger_rule, "value", task.trigger_rule)
+                yield self._failing_status(
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule_str}' requires all tasks between "
+                        f"setup and teardown to have completed, but found {expected - done} "
+                        f"in-scope task(s) not done. "
+                        f"in_scope_task_ids={in_scope_ids}"
+                    )
+                )
+
         if not task.is_teardown:
             # a teardown cannot have any indirect setups
             if relevant_setups := {t.task_id: t for t in task.get_upstreams_only_setups()}:
@@ -625,5 +679,11 @@ class TriggerRuleDep(BaseTIDep):
                     if not status.passed and changed:
                         # no need to evaluate trigger rule; we've already marked as skipped or failed
                         return
-
-        yield from _evaluate_direct_relatives()
+            yield from _evaluate_direct_relatives()
+        else:
+            has_status = False
+            for status in _evaluate_direct_relatives():
+                has_status = True
+                yield status
+            if not has_status:
+                yield from _evaluate_teardown_scope()

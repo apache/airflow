@@ -19,6 +19,70 @@
 Changelog
 ---------
 
+0.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add SSH auth parameters to GitHook for bastion hosts, custom ports, and passphrases (#63942)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix shell injection in GitHook SSH passphrase askpass script (#64126)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``Docs: Fix Git connection docs to match actual GitHook parameters (#63265)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Prepare providers release 2026-03-09 (#63198)``
+   * ``Add Apache Airflow Provider Registry (#62261)``
+
+0.2.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GitDagBundle re-cloning on every task when prune_dotgit_folder is True (#61847)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+
+0.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix public repository access in GitDagBundle (#61343)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.2.2
+.....
+
+Misc
+~~~~
+
+* ``Git provider should require common-compat >=1.12.0 (#60985)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.2.1
 .....
 

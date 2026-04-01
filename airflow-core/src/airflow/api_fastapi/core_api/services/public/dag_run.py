@@ -35,6 +35,8 @@ from airflow.utils.state import State
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator
 
+    from sqlalchemy import ScalarResult
+
 
 @attrs.define
 class DagRunWaiter:
@@ -57,10 +59,12 @@ class DagRunWaiter:
             task_ids=self.result_task_ids,
             dag_ids=self.dag_id,
         )
-        xcom_results = self.session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index))
+        xcom_results: ScalarResult[tuple[XComModel]] = self.session.scalars(
+            xcom_query.order_by(XComModel.task_id, XComModel.map_index)
+        )
 
-        def _group_xcoms(g: Iterator[XComModel]) -> Any:
-            entries = list(g)
+        def _group_xcoms(g: Iterator[XComModel | tuple[XComModel]]) -> Any:
+            entries = [row[0] if isinstance(row, tuple) else row for row in g]
             if len(entries) == 1 and entries[0].map_index < 0:  # Unpack non-mapped task xcom.
                 return entries[0].value
             return [entry.value for entry in entries]  # Task is mapped; return all xcoms in a list.

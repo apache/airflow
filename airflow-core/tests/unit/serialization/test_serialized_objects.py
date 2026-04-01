@@ -45,11 +45,29 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom_arg import XComArg
+from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
+from airflow.partition_mappers.temporal import (
+    StartOfDayMapper as CoreStartOfDayMapper,
+    StartOfHourMapper as CoreStartOfHourMapper,
+    StartOfMonthMapper as CoreStartOfMonthMapper,
+    StartOfQuarterMapper as CoreStartOfQuarterMapper,
+    StartOfWeekMapper as CoreStartOfWeekMapper,
+    StartOfYearMapper as CoreStartOfYearMapper,
+)
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import BaseOperator
+from airflow.sdk import (
+    BaseOperator,
+    IdentityMapper,
+    StartOfDayMapper,
+    StartOfHourMapper,
+    StartOfMonthMapper,
+    StartOfQuarterMapper,
+    StartOfWeekMapper,
+    StartOfYearMapper,
+)
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -61,7 +79,6 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.deadline import (
     AsyncCallback,
     DeadlineAlert,
-    DeadlineAlertFields,
     DeadlineReference,
 )
 from airflow.sdk.definitions.decorators import task
@@ -77,8 +94,10 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
-from airflow.serialization.encoders import ensure_serialized_asset
+from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedDeadlineAlert
+from airflow.serialization.encoders import ensure_serialized_asset, ensure_serialized_deadline_alert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.helpers import PartitionMapperNotFound
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
@@ -273,6 +292,17 @@ def equal_serialized_asset(a: SerializedAssetBase | BaseAsset, b: SerializedAsse
     return ensure_serialized_asset(a) == ensure_serialized_asset(b)
 
 
+def equal_serialized_deadline_alert(
+    a: DeadlineAlert | SerializedDeadlineAlert,
+    b: DeadlineAlert | SerializedDeadlineAlert,
+) -> bool:
+    """Compare deadline alerts for equality, normalizing to serialized form."""
+    a_ser = ensure_serialized_deadline_alert(a)
+    b_ser = ensure_serialized_deadline_alert(b)
+
+    return a_ser == b_ser
+
+
 class MockLazySelectSequence(LazySelectSequence):
     _data = ["a", "b", "c"]
 
@@ -450,7 +480,7 @@ class MockLazySelectSequence(LazySelectSequence):
                 callback=AsyncCallback("valid.callback.path", kwargs={"arg1": "value1"}),
             ),
             DAT.DEADLINE_ALERT,
-            equals,
+            equal_serialized_deadline_alert,
         ),
     ],
 )
@@ -484,11 +514,12 @@ def test_serialize_deserialize_deadline_alert(reference):
         callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
     )
 
-    serialized = original.serialize_deadline_alert()
+    # Use BaseSerialization like assets do
+    serialized = BaseSerialization.serialize(original)
     assert serialized[Encoding.TYPE] == DAT.DEADLINE_ALERT
     assert set(serialized[Encoding.VAR].keys()) == public_deadline_alert_fields
 
-    deserialized = DeadlineAlert.deserialize_deadline_alert(serialized)
+    deserialized = BaseSerialization.deserialize(serialized)
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
     assert deserialized.interval == original.interval
     assert deserialized.callback == original.callback
@@ -625,6 +656,24 @@ def test_hash_property():
     assert lazy_serialized_dag.hash == SerializedDagModel.hash(data)
 
 
+def test_timetable_property_serialize():
+    data = {
+        "dag": {
+            "timetable": {
+                "__type": "airflow.timetables.trigger.DeltaTriggerTimetable",
+                "__var": {"delta": {"weekday": [6]}, "interval": 0.0},
+            }
+        }
+    }
+    lazy_serialized_dag = LazyDeserializedDAG(data=data)
+    before_get_timetable_property = json.dumps(lazy_serialized_dag.data["dag"]["timetable"]["__var"]["delta"])
+    _ = lazy_serialized_dag.timetable
+    assert (
+        json.dumps(lazy_serialized_dag.data["dag"]["timetable"]["__var"]["delta"])
+        == before_get_timetable_property
+    )
+
+
 @pytest.mark.parametrize(
     ("payload", "expected_cls"),
     [
@@ -712,6 +761,207 @@ def test_encode_timezone():
     assert encode_timezone(FixedTimezone(0)) == "UTC"
     with pytest.raises(ValueError, match="DAG timezone should be a pendulum.tz.Timezone"):
         encode_timezone(object())
+
+
+@pytest.mark.parametrize(
+    ("cls", "args", "encode_type", "encode_var"),
+    [
+        (IdentityMapper, [], "airflow.partition_mappers.identity.IdentityMapper", {}),
+        (
+            StartOfHourMapper,
+            [],
+            "airflow.partition_mappers.temporal.StartOfHourMapper",
+            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
+        ),
+        (
+            StartOfDayMapper,
+            [],
+            "airflow.partition_mappers.temporal.StartOfDayMapper",
+            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
+        ),
+        (
+            StartOfWeekMapper,
+            [],
+            "airflow.partition_mappers.temporal.StartOfWeekMapper",
+            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d (W%V)"},
+        ),
+        (
+            StartOfMonthMapper,
+            [],
+            "airflow.partition_mappers.temporal.StartOfMonthMapper",
+            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
+        ),
+        (
+            StartOfQuarterMapper,
+            [],
+            "airflow.partition_mappers.temporal.StartOfQuarterMapper",
+            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-Q{quarter}"},
+        ),
+        (
+            StartOfYearMapper,
+            [],
+            "airflow.partition_mappers.temporal.StartOfYearMapper",
+            {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
+        ),
+    ],
+)
+def test_encode_partition_mapper(cls, args, encode_type, encode_var):
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = cls(*args)
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: encode_type,
+        Encoding.VAR: encode_var,
+    }
+
+
+@pytest.mark.parametrize(
+    ("sdk_cls", "core_cls"),
+    [
+        (IdentityMapper, CoreIdentityMapper),
+        (StartOfHourMapper, CoreStartOfHourMapper),
+        (StartOfDayMapper, CoreStartOfDayMapper),
+        (StartOfWeekMapper, CoreStartOfWeekMapper),
+        (StartOfMonthMapper, CoreStartOfMonthMapper),
+        (StartOfQuarterMapper, CoreStartOfQuarterMapper),
+        (StartOfYearMapper, CoreStartOfYearMapper),
+    ],
+)
+def test_decode_partition_mapper(sdk_cls, core_cls):
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = sdk_cls()
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+    assert isinstance(core_pm, core_cls)
+
+
+def test_decode_partition_mapper_not_exists():
+    from airflow.serialization.decoders import decode_partition_mapper
+
+    with pytest.raises(
+        PartitionMapperNotFound,
+        match=(
+            "PartitionMapper class 'not_exists' could not be imported or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        ),
+    ):
+        decode_partition_mapper({Encoding.TYPE: "not_exists", Encoding.VAR: {}})
+
+
+def test_encode_product_mapper():
+    from airflow.sdk import IdentityMapper, ProductMapper, StartOfHourMapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = ProductMapper(IdentityMapper(), StartOfHourMapper())
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mappers.product.ProductMapper",
+        Encoding.VAR: {
+            "delimiter": "|",
+            "mappers": [
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.identity.IdentityMapper",
+                    Encoding.VAR: {},
+                },
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfHourMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H:%M:%S",
+                        "output_format": "%Y-%m-%dT%H",
+                    },
+                },
+            ],
+        },
+    }
+
+
+def test_decode_product_mapper():
+    from airflow.partition_mappers.product import ProductMapper as CoreProductMapper
+    from airflow.sdk import ProductMapper, StartOfDayMapper, StartOfHourMapper
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreProductMapper)
+    assert len(core_pm.mappers) == 2
+    assert core_pm.delimiter == "|"
+    assert core_pm.to_downstream("2024-06-15T10:30:00|2024-06-15T10:30:00") == "2024-06-15T10|2024-06-15"
+
+
+def test_encode_chain_mapper():
+    from airflow.sdk import ChainMapper, StartOfDayMapper, StartOfHourMapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mappers.chain.ChainMapper",
+        Encoding.VAR: {
+            "mappers": [
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfHourMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H:%M:%S",
+                        "output_format": "%Y-%m-%dT%H",
+                    },
+                },
+                {
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfDayMapper",
+                    Encoding.VAR: {
+                        "input_format": "%Y-%m-%dT%H",
+                        "output_format": "%Y-%m-%d",
+                    },
+                },
+            ]
+        },
+    }
+
+
+def test_decode_chain_mapper():
+    from airflow.partition_mappers.chain import ChainMapper as CoreChainMapper
+    from airflow.sdk import ChainMapper, StartOfDayMapper, StartOfHourMapper
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
+    encoded_pm = encode_partition_mapper(partition_mapper)
+
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreChainMapper)
+    assert len(core_pm.mappers) == 2
+    assert core_pm.to_downstream("2024-06-15T10:30:00") == "2024-06-15"
+
+
+def test_encode_allowed_key_mapper():
+    from airflow.sdk import AllowedKeyMapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = AllowedKeyMapper(["us", "eu", "apac"])
+    assert encode_partition_mapper(partition_mapper) == {
+        Encoding.TYPE: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
+        Encoding.VAR: {"allowed_keys": ["us", "eu", "apac"]},
+    }
+
+
+def test_decode_allowed_key_mapper():
+    from airflow.partition_mappers.allowed_key import AllowedKeyMapper as CoreAllowedKeyMapper
+    from airflow.sdk import AllowedKeyMapper
+    from airflow.serialization.decoders import decode_partition_mapper
+    from airflow.serialization.encoders import encode_partition_mapper
+
+    partition_mapper = AllowedKeyMapper(["us", "eu", "apac"])
+    encoded_pm = encode_partition_mapper(partition_mapper)
+    core_pm = decode_partition_mapper(encoded_pm)
+
+    assert isinstance(core_pm, CoreAllowedKeyMapper)
+    assert core_pm.allowed_keys == ["us", "eu", "apac"]
 
 
 class TestSerializedBaseOperator:

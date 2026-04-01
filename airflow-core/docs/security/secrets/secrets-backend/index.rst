@@ -78,6 +78,29 @@ the example below.
     $ airflow config get-value secrets backend
     airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
 
+Setting individual backend kwargs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Instead of encoding all kwargs as a JSON blob, you can set each one as a separate environment
+variable using the ``AIRFLOW__SECRETS__BACKEND_KWARG__<KEY>`` prefix:
+
+.. code-block:: bash
+
+    # These two are equivalent:
+    export AIRFLOW__SECRETS__BACKEND_KWARGS='{"role_id": "abc", "secret_id": "xyz"}'
+
+    # or individually (useful for K8s Secrets):
+    export AIRFLOW__SECRETS__BACKEND_KWARG__ROLE_ID=abc
+    export AIRFLOW__SECRETS__BACKEND_KWARG__SECRET_ID=xyz
+
+Per-key variables override the same key from ``BACKEND_KWARGS``. Values are raw strings
+(not JSON-parsed). For workers, use the
+``AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__<KEY>`` prefix.
+
+.. note::
+   These environment variables are masked in logs at startup, the same way
+   ``BACKEND_KWARGS`` is masked.
+
 Worker Specific Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

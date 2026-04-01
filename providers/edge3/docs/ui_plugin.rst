@@ -59,5 +59,9 @@ Via the UI you can also set the status of the worker to "Maintenance" or "Active
 The status and maintenance comments will also be shown in the web UI
 in the "Admin" - "Edge Worker" page.
 
+To be able to use the UI plugin you need to be in role "Admin" or "Op" or have the individual permissions
+"can read on Plugins" and "can read on Jobs" assigned. With these permissions you can view the UI and also
+configure the remote workers.
+
 Note that maintenance mode can also be adjusted via CLI.
 See :ref:`deployment:maintenance` for more details.

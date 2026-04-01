@@ -103,7 +103,7 @@ def get_variables(
         SortParam,
         Depends(
             SortParam(
-                ["key", "id", "_val", "description", "is_encrypted"],
+                ["key", "id", "_val", "description", "is_encrypted", "team_name"],
                 Variable,
             ).dynamic_depends()
         ),

@@ -33,6 +33,7 @@ from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.platform import getuser
 
@@ -597,7 +598,7 @@ class SSHHookAsync(BaseHook):
 
         host_key = extra_options.get("host_key")
         nhkc_raw = extra_options.get("no_host_key_check")
-        no_host_key_check = str(nhkc_raw).lower() == "true" if nhkc_raw is not None else False
+        no_host_key_check = str(nhkc_raw).lower() == "true" if nhkc_raw is not None else True
 
         if host_key is not None and no_host_key_check:
             raise ValueError("Host key check was skipped, but `host_key` value was given")
@@ -615,9 +616,8 @@ class SSHHookAsync(BaseHook):
         Returns an asyncssh SSHClientConnection that can be used to run commands.
         """
         import asyncssh
-        from asgiref.sync import sync_to_async
 
-        conn = await sync_to_async(self.get_connection)(self.ssh_conn_id)
+        conn = await get_async_connection(self.ssh_conn_id)
         if conn.extra is not None:
             self._parse_extras(conn)
 

@@ -137,3 +137,44 @@ class TestFindPathFromDirectory:
                 detected.add(p.relative_to(dags_root).as_posix())
 
         assert detected == {"a/b/subfolder/keep.py"}
+
+    def test_airflowignore_negation_directory_only_patterns_do_not_unignore_files(self, tmp_path):
+        """Directory-only negation patterns should only unignore directories, not files inside them.
+
+        Regression test for https://github.com/apache/airflow/issues/62716
+
+        Patterns:
+          *                     -> ignore everything
+          !abc/                 -> unignore abc dir (for traversal), NOT its contents
+          !abc/def/             -> unignore abc/def dir (for traversal), NOT its contents
+          !abc/def/xyz/         -> unignore abc/def/xyz dir (for traversal), NOT its contents
+          !abc/def/xyz/*        -> unignore contents of abc/def/xyz
+        """
+        dags_root = tmp_path / "dags"
+        (dags_root / "abc" / "def" / "xyz").mkdir(parents=True)
+
+        # files at various levels – only xyz_dag.py should be discovered
+        (dags_root / "root_dag.py").write_text("raise Exception('ignored')\n")
+        (dags_root / "abc" / "abc_dag.py").write_text("raise Exception('ignored')\n")
+        (dags_root / "abc" / "def" / "def_dag.py").write_text("raise Exception('ignored')\n")
+        (dags_root / "abc" / "def" / "xyz" / "xyz_dag.py").write_text("# should be discovered\n")
+
+        (dags_root / ".airflowignore").write_text(
+            "\n".join(
+                [
+                    "*",
+                    "!abc/",
+                    "!abc/def/",
+                    "!abc/def/xyz/",
+                    "!abc/def/xyz/*",
+                ]
+            )
+        )
+
+        detected = set()
+        for raw in find_path_from_directory(dags_root, ".airflowignore", "glob"):
+            p = Path(raw)
+            if p.is_file() and p.suffix == ".py":
+                detected.add(p.relative_to(dags_root).as_posix())
+
+        assert detected == {"abc/def/xyz/xyz_dag.py"}

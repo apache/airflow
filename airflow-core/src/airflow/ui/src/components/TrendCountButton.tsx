@@ -51,6 +51,7 @@ export const TrendCountButton = ({
         borderColor="border.emphasized"
         borderRadius={4}
         borderWidth={1}
+        data-testid="trend-count-button"
         p={3}
         transition="background-color 0.2s"
         width="350px"

@@ -65,6 +65,8 @@ github:
   pull_requests:
     # allow auto-merge
     allow_auto_merge: false
+    # enable updating head branches of pull requests
+    allow_update_branch: true
     # auto-delete head branches after being merged
     del_branch_on_merge: true
 
@@ -169,6 +171,7 @@ github:
     - gyli
     - jroachgolf84
     - Dev-iL
+    - kacpermuda
 
 notifications:
   jobs: jobs@airflow.apache.org

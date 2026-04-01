@@ -55,7 +55,6 @@ class TestPodLauncher:
             "rbac_create",
             "allow_pod_launching",
             "executor",
-            "dedicated_sa",
             "triggerer_enabled",
             "multi_ns",
             "expected_subjects",
@@ -68,29 +67,13 @@ class TestPodLauncher:
                 "CeleryExecutor,KubernetesExecutor",
                 False,
                 False,
-                False,
                 ["release-name-airflow-scheduler", "release-name-airflow-worker"],
-            ),
-            # Dedicated worker SAs
-            (
-                True,
-                True,
-                "CeleryExecutor,KubernetesExecutor",
-                True,
-                False,
-                False,
-                [
-                    "release-name-airflow-scheduler",
-                    "release-name-airflow-worker-kubernetes",
-                    "release-name-airflow-worker-celery",
-                ],
             ),
             # Add triggerer SA if enabled
             (
                 True,
                 True,
                 "CeleryExecutor,KubernetesExecutor",
-                False,
                 True,
                 False,
                 [
@@ -100,9 +83,9 @@ class TestPodLauncher:
                 ],
             ),
             # RoleBinding not created if allowPodLaunching is False
-            (True, False, "CeleryExecutor,KubernetesExecutor", False, False, False, []),
+            (True, False, "CeleryExecutor,KubernetesExecutor", False, False, []),
             # RoleBinding not created if rbac.create is False
-            (False, True, "CeleryExecutor,KubernetesExecutor", False, False, False, []),
+            (False, True, "CeleryExecutor,KubernetesExecutor", False, False, []),
         ],
     )
     def test_pod_launcher_rolebinding(
@@ -110,7 +93,6 @@ class TestPodLauncher:
         rbac_create,
         allow_pod_launching,
         executor,
-        dedicated_sa,
         triggerer_enabled,
         multi_ns,
         expected_subjects,
@@ -120,7 +102,6 @@ class TestPodLauncher:
                 "rbac": {"create": rbac_create},
                 "allowPodLaunching": allow_pod_launching,
                 "executor": executor,
-                "workers": {"useWorkerDedicatedServiceAccounts": dedicated_sa},
                 "triggerer": {"enabled": triggerer_enabled},
                 "multiNamespaceMode": multi_ns,
             },

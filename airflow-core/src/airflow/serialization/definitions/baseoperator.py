@@ -121,6 +121,7 @@ class SerializedBaseOperator(DAGNode):
     priority_weight: int = 1
     queue: str = "default"
 
+    render_template_as_native_obj: bool | None = None
     resources: dict[str, Any] | None = None
     retries: int = 0
     retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
@@ -212,6 +213,7 @@ class SerializedBaseOperator(DAGNode):
                 "pool_slots",
                 "priority_weight",
                 "queue",
+                "render_template_as_native_obj",
                 "resources",
                 "retries",
                 "retry_delay",
@@ -381,7 +383,7 @@ class SerializedBaseOperator(DAGNode):
 
     def iter_mapped_dependants(self) -> Iterator[SerializedMappedOperator | SerializedMappedTaskGroup]:
         """
-        Return mapped nodes that depend on the current task the expansion.
+        Return mapped nodes that depend on the current task for expansion.
 
         For now, this walks the entire DAG to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it

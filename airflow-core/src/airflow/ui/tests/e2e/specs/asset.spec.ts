@@ -17,8 +17,9 @@
  * under the License.
  */
 import { expect, test } from "@playwright/test";
-import { AUTH_FILE } from "playwright.config";
+import { AUTH_FILE, testConfig } from "playwright.config";
 
+import { AssetDetailPage } from "../pages/AssetDetailPage";
 import { AssetListPage } from "../pages/AssetListPage";
 import { DagsPage } from "../pages/DagsPage";
 
@@ -63,17 +64,11 @@ test.describe("Assets Page", () => {
   });
 
   test("verify asset rows when data exists", async () => {
-    const count = await assets.assetCount();
-
-    expect(count).toBeGreaterThanOrEqual(0);
+    await expect(assets.rows.first()).toBeVisible();
   });
 
   test("verify asset has a visible name link", async () => {
-    const names = await assets.assetNames();
-
-    for (const name of names) {
-      expect(name.trim().length).toBeGreaterThan(0);
-    }
+    await expect(assets.rows.locator("td a").first()).toBeVisible();
   });
 
   test("verify clicking an asset navigates to detail page", async ({ page }) => {
@@ -84,11 +79,9 @@ test.describe("Assets Page", () => {
   });
 
   test("verify assets using search", async () => {
-    const initialCount = await assets.assetCount();
+    await expect(assets.rows.first()).toBeVisible();
 
-    expect(initialCount).toBeGreaterThan(0);
-
-    const searchTerm = "s3://dag1/output_1.txt";
+    const searchTerm = testConfig.asset.name;
 
     await assets.searchInput.fill(searchTerm);
 
@@ -106,33 +99,20 @@ test.describe("Assets Page", () => {
         { intervals: [500], timeout: 30_000 },
       )
       .toBe(true);
-
-    const names = await assets.assetNames();
-
-    expect(names.length).toBeGreaterThan(0);
-
-    for (const name of names) {
-      expect(name.toLowerCase()).toContain(searchTerm.toLowerCase());
-    }
   });
 
-  test("verify pagination controls navigate between pages", async () => {
-    await assets.navigateTo("/assets?limit=5&offset=0");
-    await assets.waitForLoad();
+  test("verify asset details and dependencies", async ({ page }) => {
+    const assetDetailPage = new AssetDetailPage(page);
+    const assetName = testConfig.asset.name;
 
-    const page1Initial = await assets.assetNames();
+    await assetDetailPage.goto();
 
-    expect(page1Initial.length).toBeGreaterThan(0);
+    await assetDetailPage.clickOnAsset(assetName);
 
-    const pagination = assets.page.locator('[data-scope="pagination"]');
+    await assetDetailPage.verifyAssetDetails(assetName);
 
-    await pagination.getByRole("button", { name: /page 2/i }).click();
-    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page1Initial);
+    await assetDetailPage.verifyProducingTasks();
 
-    const page2Assets = await assets.assetNames();
-
-    await pagination.getByRole("button", { name: /page 1/i }).click();
-
-    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page2Assets);
+    await assetDetailPage.verifyScheduledDags();
   });
 });

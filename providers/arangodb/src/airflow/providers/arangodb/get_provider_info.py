@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "ArangoDB",
                 "external-doc-url": "https://www.arangodb.com/",
+                "logo": "/docs/integration-logos/ArangoDB.svg",
                 "tags": ["software"],
             }
         ],
@@ -52,6 +53,21 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.arangodb.hooks.arangodb.ArangoDBHook",
                 "connection-type": "arangodb",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port", "extra"],
+                    "relabeling": {
+                        "host": "ArangoDB Host URL or comma separated list of URLs (coordinators in a cluster)",
+                        "schema": "ArangoDB Database",
+                        "login": "ArangoDB Username",
+                        "password": "ArangoDB Password",
+                    },
+                    "placeholders": {
+                        "host": 'eg."http://127.0.0.1:8529" or "http://127.0.0.1:8529,http://127.0.0.1:8530" (coordinators in a cluster)',
+                        "schema": "_system",
+                        "login": "root",
+                        "password": "password",
+                    },
+                },
             }
         ],
     }

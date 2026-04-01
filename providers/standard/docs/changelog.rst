@@ -35,6 +35,106 @@
 Changelog
 ---------
 
+1.12.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Improve error message for non-serializable op_kwargs in PythonVirtualenvOperator (#63270)``
+* ``Fix ExternalTaskSensor to use timeout parameter in deferrable mode (#… (#62556)``
+* ``Add response_timeout to HITLOperator to prevent race with execution_timeout (#63475)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``delete duplicate import in test_hitl.py (#63886)``
+   * ``Fix @task decorator to use identity check instead of truthiness (#63788)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``fix: suppress warning for TYPE_CHECKING-only forward references in TaskFlow (#63053)``
+   * ``docs: add DAG documentation for example_bash_decorator (#62948)``
+   * ``Remove remaining session query usages (#62758)``
+
+1.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix PythonVirtualenvOperator cannot run with pendulum<3 (#62604)``
+
+Misc
+~~~~
+
+* ``Consolidate 'SkipMixin' imports through 'common-compat' layer (#62776)``
+* ``Move SkipMixin and BranchMixIn to Task SDK (#62749)``
+* ``Move determine_kwargs and KeywordParameters to SDK DecoratedOperator (#62746)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage support for HITL operators (#61867)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add note support to TriggerDagRunOperator (#60810)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ASYNC240: replace blocking filesystem calls with anyio (#61616)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit hook to prevent test-only imports in production source (#61713)``
+   * ``Use SQLA's native Uuid/JSON instead of sqlalchemy-utils' types (#61532)``
+   * ``docs: add DAG documentation for example_bash_operator (#61316)``
+   * ``feat : E2E test to verify required action page (#60449)``
+
+1.11.0
+......
+
+.. note::
+    The new feature ``Add support for async callables in ''PythonOperator''`` will only work on Airflow 3.2.
+
+Features
+~~~~~~~~
+
+* ``Add support for async callables in ''PythonOperator'' (#60268)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Fix static check fail in hitl/standard provider (#60708)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add HITL operators to standard provider index docs (#60681)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.10.3
 ......
 

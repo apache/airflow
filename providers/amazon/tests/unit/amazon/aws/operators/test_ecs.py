@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, PropertyMock
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError, WaiterError
 
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
@@ -37,7 +38,7 @@ from airflow.providers.amazon.aws.operators.ecs import (
 from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.providers.amazon.version_compat import NOTSET
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -602,6 +603,41 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs._check_success_task()
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
+    @mock.patch.object(EcsBaseOperator, "client")
+    def test_check_success_task_raises_skip_exception(self, client_mock):
+        self.ecs.arn = "arn"
+        self.ecs.skip_on_exit_code = [2]
+        client_mock.describe_tasks.return_value = {
+            "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 2}]}]
+        }
+        with pytest.raises(AirflowSkipException):
+            self.ecs._check_success_task()
+
+    @mock.patch.object(EcsBaseOperator, "client")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
+    def test_check_success_task_skip_exception_with_logs(self, log_fetcher_mock, client_mock):
+        self.ecs.arn = "arn"
+        self.ecs.skip_on_exit_code = [2]
+        self.ecs.task_log_fetcher = log_fetcher_mock
+        log_fetcher_mock.get_last_log_messages.return_value = ["log1", "log2"]
+        client_mock.describe_tasks.return_value = {
+            "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 2}]}]
+        }
+        with pytest.raises(AirflowSkipException, match="This task is not in success state"):
+            self.ecs._check_success_task()
+
+    @mock.patch.object(EcsBaseOperator, "client")
+    def test_check_success_task_unmatched_exit_code_raises_airflow_exception(self, client_mock):
+        """Exit codes not in skip_on_exit_code raise AirflowException."""
+        self.ecs.arn = "arn"
+        self.ecs.skip_on_exit_code = [2]
+        client_mock.describe_tasks.return_value = {
+            "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 1}]}]
+        }
+        with pytest.raises(AirflowException) as ctx:
+            self.ecs._check_success_task()
+        assert type(ctx.value) is AirflowException
+
     @pytest.mark.parametrize(
         ("launch_type", "tags"),
         [
@@ -851,6 +887,97 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.run_task.return_value = RESPONSE_WITHOUT_NAME
         self.ecs._start_task()
         assert client_mock.describe_tasks.call_count == 0
+
+    @mock.patch.object(EcsBaseOperator, "client")
+    @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended")
+    def test_cleanup_on_post_start_failure(self, wait_mock, client_mock):
+        """
+        Ensure that if an ECS task is started successfully but a subsequent
+        post-start step fails (e.g. DescribeTasks permission denied),
+        the operator attempts best-effort cleanup.
+        """
+        self.set_up_operator(
+            launch_type="FARGATE",
+            capacity_provider_strategy=None,
+            platform_version=None,
+            tags=None,
+            volume_configurations=None,
+            stop_task_on_failure=True,
+        )
+
+        client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
+
+        waiter_error = WaiterError(
+            "AccessDeniedException",
+            "Not authorized to perform ecs:DescribeTasks",
+            {},
+        )
+
+        wait_mock.side_effect = waiter_error
+
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
+
+        with pytest.raises(WaiterError) as exc:
+            self.ecs.execute(mock_context)
+
+        # Original exception must propagate unchanged.
+        assert exc.value is waiter_error
+
+        # Cleanup must be attempted.
+        client_mock.stop_task.assert_called_once_with(
+            cluster="c",
+            task=f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
+            reason=mock.ANY,
+        )
+
+    @mock.patch.object(EcsBaseOperator, "client")
+    @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended")
+    def test_cleanup_failure_does_not_mask_original_exception(self, wait_mock, client_mock):
+        """
+        Ensure that failure during ECS cleanup does not override
+        the original post-start exception.
+        """
+        self.set_up_operator(
+            launch_type="FARGATE",
+            capacity_provider_strategy=None,
+            platform_version=None,
+            tags=None,
+            volume_configurations=None,
+            stop_task_on_failure=True,
+        )
+
+        client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
+
+        waiter_error = WaiterError(
+            "AccessDeniedException",
+            "Not authorized to perform ecs:DescribeTasks",
+            {},
+        )
+        wait_mock.side_effect = waiter_error
+
+        cleanup_error = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "AccessDeniedException",
+                    "Message": "Not authorized to perform ecs:StopTask",
+                }
+            },
+            operation_name="StopTask",
+        )
+        client_mock.stop_task.side_effect = cleanup_error
+
+        mock_ti = mock.MagicMock()
+        mock_context = {"ti": mock_ti, "task_instance": mock_ti}
+
+        with pytest.raises(WaiterError) as exc:
+            self.ecs.execute(mock_context)
+
+        # Original exception must be preserved.
+        assert exc.value is waiter_error
+
+        # Cleanup attempted despite failure.
+        client_mock.stop_task.assert_called_once()
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):

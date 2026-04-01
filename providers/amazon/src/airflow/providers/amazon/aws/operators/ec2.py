@@ -20,6 +20,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from botocore.exceptions import WaiterError
+
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.links.ec2 import (
     EC2InstanceDashboardLink,
@@ -172,6 +174,8 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
     :param config: Dictionary for arbitrary parameters to the boto3 run_instances call.
     :param wait_for_completion: If True, the operator will wait for the instance to be
         in the `running` state before returning.
+    :param terminate_instance_on_failure: If True, attempt to terminate the EC2 instance if the
+        Airflow task fails after the instance has been created. Defaults to True.
     """
 
     aws_hook_class = EC2Hook
@@ -196,6 +200,7 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
         max_attempts: int = 20,
         config: dict | None = None,
         wait_for_completion: bool = False,
+        terminate_instance_on_failure: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -206,6 +211,7 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
         self.max_attempts = max_attempts
         self.config = config or {}
         self.wait_for_completion = wait_for_completion
+        self.terminate_instance_on_failure = terminate_instance_on_failure
 
     @property
     def _hook_parameters(self) -> dict[str, Any]:
@@ -218,31 +224,53 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
             MaxCount=self.max_count,
             **self.config,
         )["Instances"]
+        try:
+            instance_ids = self._on_kill_instance_ids = [instance["InstanceId"] for instance in instances]
+            # Console link is for EC2 dashboard list, not individual instances when more than 1 instance
 
-        instance_ids = self._on_kill_instance_ids = [instance["InstanceId"] for instance in instances]
-        # Console link is for EC2 dashboard list, not individual instances when more than 1 instance
+            EC2InstanceDashboardLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(instance_ids),
+            )
+            for instance_id in instance_ids:
+                self.log.info("Created EC2 instance %s", instance_id)
 
-        EC2InstanceDashboardLink.persist(
-            context=context,
-            operator=self,
-            region_name=self.hook.conn_region_name,
-            aws_partition=self.hook.conn_partition,
-            instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(instance_ids),
-        )
-        for instance_id in instance_ids:
-            self.log.info("Created EC2 instance %s", instance_id)
+                if self.wait_for_completion:
+                    self.hook.get_waiter("instance_running").wait(
+                        InstanceIds=[instance_id],
+                        WaiterConfig={
+                            "Delay": self.poll_interval,
+                            "MaxAttempts": self.max_attempts,
+                        },
+                    )
 
-            if self.wait_for_completion:
-                self.hook.get_waiter("instance_running").wait(
-                    InstanceIds=[instance_id],
-                    WaiterConfig={
-                        "Delay": self.poll_interval,
-                        "MaxAttempts": self.max_attempts,
-                    },
+            # leave "_on_kill_instance_ids" in place for finishing post-processing
+            return instance_ids
+
+        # Best-effort cleanup when post-creation steps fail (e.g. IAM/permission errors).
+        except WaiterError:
+            self.log.exception(
+                "Exception after creation of EC2 instances: %s.",
+                instance_ids,
+            )
+            # terminate_instance_on_failure defaults to True to prevent orphaned EC2 instances.
+            if self.terminate_instance_on_failure:
+                self.log.info(
+                    "Attempting termination of instances: %s.",
+                    instance_ids,
                 )
 
-        # leave "_on_kill_instance_ids" in place for finishing post-processing
-        return instance_ids
+                try:
+                    self.hook.terminate_instances(instance_ids=instance_ids)
+                except Exception:
+                    self.log.exception(
+                        "Failed to terminate EC2 instances: %s after task failure.",
+                        instance_ids,
+                    )
+            raise
 
     def on_kill(self) -> None:
         instance_ids = getattr(self, "_on_kill_instance_ids", [])

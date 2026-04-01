@@ -66,23 +66,47 @@ const createParamStore = () =>
           return {};
         }
 
-        const parsedConf = JSON.parse(confString) as JSON;
+        const parsedConf = JSON.parse(confString) as Record<string, unknown>;
+        const baseDict =
+          Object.keys(state.initialParamDict).length > 0 ? state.initialParamDict : state.paramsDict;
 
-        const updatedParamsDict: ParamsSpec = Object.fromEntries(
-          Object.entries(parsedConf).map(([key, value]) => {
-            const existingParam = state.paramsDict[key];
+        // Preserve a stable ordering of parameters (and thus sections in the trigger form)
+        // by following the order from the initial param dict when available.
+        const updatedParamsDictEntries: Array<[string, ParamSpec]> = [];
+        const inBase = new Set<string>(Object.keys(baseDict));
 
-            return [
+        for (const [key, baseParam] of Object.entries(baseDict)) {
+          if (Object.hasOwn(parsedConf, key)) {
+            updatedParamsDictEntries.push([
+              key,
+              {
+                // eslint-disable-next-line unicorn/no-null
+                description: baseParam.description ?? null,
+                schema: baseParam.schema,
+                value: parsedConf[key],
+              },
+            ]);
+          }
+        }
+
+        // Append any extra keys that exist in the JSON but not in the base dict.
+        for (const [key, value] of Object.entries(parsedConf)) {
+          if (!inBase.has(key)) {
+            const existingParam = state.paramsDict[key] ?? state.initialParamDict[key];
+
+            updatedParamsDictEntries.push([
               key,
               {
                 // eslint-disable-next-line unicorn/no-null
                 description: existingParam?.description ?? null,
                 schema: existingParam?.schema ?? paramPlaceholder.schema,
-                value: value as unknown,
+                value,
               },
-            ];
-          }),
-        );
+            ]);
+          }
+        }
+
+        const updatedParamsDict: ParamsSpec = Object.fromEntries(updatedParamsDictEntries);
 
         return { conf: confString, paramsDict: updatedParamsDict };
       }),

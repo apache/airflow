@@ -79,7 +79,7 @@ class TestTaskInstancesLog:
         dag.clear()
         for ti in dr.task_instances:
             ti.try_number = 2
-            ti.id = str(uuid7())
+            ti.id = uuid7()
             ti.hostname = "localhost"
             session.merge(ti)
         # Commit changes to avoid locks
@@ -104,7 +104,7 @@ class TestTaskInstancesLog:
         dummy_dag.clear()
         for ti in dr2.task_instances:
             ti.try_number = 2
-            ti.id = str(uuid7())
+            ti.id = uuid7()
             ti.hostname = "localhost"
             session.merge(ti)
 

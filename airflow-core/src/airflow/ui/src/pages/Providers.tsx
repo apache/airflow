@@ -96,8 +96,9 @@ export const Providers = () => {
         data={data?.providers ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        modelName={translate("common:admin.Providers")}
+        modelName="common:admin.Providers"
         onStateChange={setTableURLState}
+        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

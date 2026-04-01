@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import json
+import logging
 import os
 from tempfile import gettempdir
 from typing import TYPE_CHECKING
@@ -25,6 +27,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import delete, select
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.jobs.job import Job
 from airflow.models import (
     Connection,
@@ -50,6 +53,7 @@ from airflow.utils.db import (
     create_default_connections,
     reflect_tables,
 )
+from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.compat import (
@@ -62,6 +66,8 @@ from tests_common.test_utils.compat import (
 )
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
+log = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -72,6 +78,23 @@ else:
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.models.dag_favorite import DagFavorite
+
+
+def _retry_db(func):
+    """
+    Retry on transient DB errors.
+
+    Handles MySQL mid-query disconnects (error 2013) in CI.
+    See https://github.com/apache/airflow/issues/62768
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        for attempt in run_with_db_retries(logger=log):
+            with attempt:
+                return func(*args, **kwargs)
+
+    return wrapper
 
 
 def _deactivate_unknown_dags(active_dag_ids, session):
@@ -129,30 +152,24 @@ def initial_db_init():
     from airflow.configuration import conf
     from airflow.utils import db
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-    db.resetdb()
-
-    if AIRFLOW_V_3_0_PLUS:
+    if AIRFLOW_V_3_2_PLUS or not AIRFLOW_V_3_0_PLUS:
         try:
-            from airflow.providers.fab.auth_manager.models.db import FABDBManager
-        except ModuleNotFoundError:
-            # Reasons it might fail: we're in a provider bundle without FAB, or we're on a version of Python
-            # where FAB isn't yet supported
-            pass
-        else:
-            if os.getenv("TEST_GROUP") != "providers":
-                # If we loaded the provider, and we're running core (or running via breeze where TEST_GROUP
-                # isn't specified) run the downgrade+upgrade to ensure migrations are in sync with Model
-                # classes
-                db.downgrade(to_revision="5f2621c13b39")
-                db.upgradedb(to_revision="head")
-            else:
-                # Just create the tables so they are there
-                with create_session() as session:
-                    FABDBManager(session).create_db_from_orm()
-                    session.commit()
+            import airflow.providers.fab.auth_manager.models.db  # noqa: F401
+
+            conf.set(
+                "database",
+                "external_db_managers",
+                "airflow.providers.fab.auth_manager.models.db.FABDBManager",
+            )
+            db.resetdb(use_migration_files=True)
+        except (ModuleNotFoundError, AirflowOptionalProviderFeatureException):
+            db.resetdb()
     else:
+        db.resetdb()
+
+    if not AIRFLOW_V_3_0_PLUS:
         from flask import Flask
 
         from airflow.www.extensions.init_appbuilder import init_appbuilder
@@ -198,6 +215,7 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
     return dagbag
 
 
+@_retry_db
 def clear_db_runs():
     with create_session() as session:
         session.execute(delete(Job))
@@ -212,6 +230,7 @@ def clear_db_runs():
             pass
 
 
+@_retry_db
 def clear_db_backfills():
     from airflow.models.backfill import Backfill, BackfillDagRun
 
@@ -220,6 +239,7 @@ def clear_db_backfills():
         session.execute(delete(Backfill))
 
 
+@_retry_db
 def clear_db_assets():
     with create_session() as session:
         session.execute(delete(AssetEvent))
@@ -251,6 +271,7 @@ def clear_db_assets():
             session.execute(delete(AssetWatcherModel))
 
 
+@_retry_db
 def clear_db_triggers():
     with create_session() as session:
         if AIRFLOW_V_3_2_PLUS:
@@ -260,6 +281,7 @@ def clear_db_triggers():
         session.execute(delete(Trigger))
 
 
+@_retry_db
 def clear_db_dags():
     with create_session() as session:
         if AIRFLOW_V_3_1_PLUS:
@@ -272,6 +294,7 @@ def clear_db_dags():
         session.execute(delete(DagModel))
 
 
+@_retry_db
 def clear_db_deadline():
     with create_session() as session:
         if AIRFLOW_V_3_0_PLUS:
@@ -280,6 +303,16 @@ def clear_db_deadline():
             session.execute(delete(Deadline))
 
 
+@_retry_db
+def clear_db_deadline_alert():
+    with create_session() as session:
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.models.deadline_alert import DeadlineAlert
+
+            session.execute(delete(DeadlineAlert))
+
+
+@_retry_db
 def drop_tables_with_prefix(prefix):
     with create_session() as session:
         metadata = reflect_tables(None, session)
@@ -288,11 +321,13 @@ def drop_tables_with_prefix(prefix):
                 table.drop(session.bind)
 
 
+@_retry_db
 def clear_db_serialized_dags():
     with create_session() as session:
         session.execute(delete(SerializedDagModel))
 
 
+@_retry_db
 def clear_db_pools():
     with create_session() as session:
         session.execute(delete(Pool))
@@ -301,7 +336,6 @@ def clear_db_pools():
 
 def clear_test_connections(add_default_connections_back=True):
     # clear environment variables with AIRFLOW_CONN prefix
-    import os
 
     env_vars_to_remove = [key for key in os.environ.keys() if key.startswith("AIRFLOW_CONN_")]
     for env_var in env_vars_to_remove:
@@ -311,6 +345,7 @@ def clear_test_connections(add_default_connections_back=True):
         create_default_connections_for_tests()
 
 
+@_retry_db
 def clear_db_connections(add_default_connections_back=True):
     with create_session() as session:
         session.execute(delete(Connection))
@@ -318,16 +353,19 @@ def clear_db_connections(add_default_connections_back=True):
             create_default_connections(session)
 
 
+@_retry_db
 def clear_db_variables():
     with create_session() as session:
         session.execute(delete(Variable))
 
 
+@_retry_db
 def clear_db_dag_code():
     with create_session() as session:
         session.execute(delete(DagCode))
 
 
+@_retry_db
 def clear_db_callbacks():
     with create_session() as session:
         if AIRFLOW_V_3_2_PLUS:
@@ -339,32 +377,38 @@ def clear_db_callbacks():
             session.execute(delete(DbCallbackRequest))
 
 
+@_retry_db
 def set_default_pool_slots(slots):
     with create_session() as session:
         default_pool = Pool.get_default_pool(session)
         default_pool.slots = slots
 
 
+@_retry_db
 def clear_rendered_ti_fields():
     with create_session() as session:
         session.execute(delete(RenderedTaskInstanceFields))
 
 
+@_retry_db
 def clear_db_import_errors():
     with create_session() as session:
         session.execute(delete(ParseImportError))
 
 
+@_retry_db
 def clear_db_dag_warnings():
     with create_session() as session:
         session.execute(delete(DagWarning))
 
 
+@_retry_db
 def clear_db_xcom():
     with create_session() as session:
         session.execute(delete(XCom))
 
 
+@_retry_db
 def clear_db_pakl():
     if not AIRFLOW_V_3_2_PLUS:
         return
@@ -374,6 +418,7 @@ def clear_db_pakl():
         session.execute(delete(PartitionedAssetKeyLog))
 
 
+@_retry_db
 def clear_db_apdr():
     if not AIRFLOW_V_3_2_PLUS:
         return
@@ -383,21 +428,25 @@ def clear_db_apdr():
         session.execute(delete(AssetPartitionDagRun))
 
 
+@_retry_db
 def clear_db_logs():
     with create_session() as session:
         session.execute(delete(Log))
 
 
+@_retry_db
 def clear_db_jobs():
     with create_session() as session:
         session.execute(delete(Job))
 
 
+@_retry_db
 def clear_db_task_reschedule():
     with create_session() as session:
         session.execute(delete(TaskReschedule))
 
 
+@_retry_db
 def clear_db_dag_parsing_requests():
     with create_session() as session:
         from airflow.models.dagbag import DagPriorityParsingRequest
@@ -405,6 +454,7 @@ def clear_db_dag_parsing_requests():
         session.execute(delete(DagPriorityParsingRequest))
 
 
+@_retry_db
 def clear_db_dag_bundles():
     with create_session() as session:
         from airflow.models.dagbundle import DagBundleModel
@@ -412,6 +462,7 @@ def clear_db_dag_bundles():
         session.execute(delete(DagBundleModel))
 
 
+@_retry_db
 def clear_db_teams():
     with create_session() as session:
         from airflow.models.team import Team
@@ -419,6 +470,15 @@ def clear_db_teams():
         session.execute(delete(Team))
 
 
+@_retry_db
+def clear_db_revoked_tokens():
+    with create_session() as session:
+        from airflow.models.revoked_token import RevokedToken
+
+        session.execute(delete(RevokedToken))
+
+
+@_retry_db
 def clear_dag_specific_permissions():
     if "FabAuthManager" not in conf.get("core", "auth_manager"):
         return
@@ -468,7 +528,6 @@ def create_default_connections_for_tests():
     For testing purposes, we do not need to have the connections setup in the database, using environment
     variables instead would provide better lookup speeds and is easier too.
     """
-    import os
 
     try:
         from airflow.utils.db import get_default_connections

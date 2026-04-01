@@ -1,0 +1,51 @@
+Add gunicorn support for API server with zero-downtime worker recycling
+
+The API server now supports gunicorn as an alternative server with rolling worker restarts
+to prevent memory accumulation in long-running processes.
+
+**Key Benefits:**
+
+* **Rolling worker restarts**: New workers spawn and pass health checks before old workers
+  are killed, ensuring zero downtime during worker recycling.
+
+* **Memory sharing**: Gunicorn uses preload + fork, so workers share memory via
+  copy-on-write. This significantly reduces total memory usage compared to uvicorn's
+  multiprocess mode where each worker loads everything independently.
+
+* **Correct FIFO signal handling**: Gunicorn's SIGTTOU kills the oldest worker (FIFO),
+  not the newest (LIFO), which is correct for rolling restarts.
+
+**Configuration:**
+
+.. code-block:: ini
+
+    [api]
+    # Use gunicorn instead of uvicorn
+    server_type = gunicorn
+
+    # Enable rolling worker restarts every 12 hours
+    worker_refresh_interval = 43200
+
+    # Restart workers one at a time
+    worker_refresh_batch_size = 1
+
+Or via environment variables:
+
+.. code-block:: bash
+
+    export AIRFLOW__API__SERVER_TYPE=gunicorn
+    export AIRFLOW__API__WORKER_REFRESH_INTERVAL=43200
+
+**Requirements:**
+
+Install the gunicorn extra: ``pip install 'apache-airflow-core[gunicorn]'``
+
+**Note on uvicorn (default):**
+
+The default uvicorn mode does not support rolling worker restarts because:
+
+1. With workers=1, there is no master process to send signals to
+2. uvicorn's SIGTTOU kills the newest worker (LIFO), defeating rolling restart purposes
+3. Each uvicorn worker loads everything independently with no memory sharing
+
+If you need worker recycling or memory-efficient multi-worker deployment, use gunicorn.

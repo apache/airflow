@@ -16,14 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
+import structlog
 from fastapi import HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
+from airflow.api_fastapi.app import get_cookie_path
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import AuthManagerDep, is_safe_url
 from airflow.configuration import conf
+
+log = structlog.get_logger(logger_name=__name__)
 
 auth_router = AirflowRouter(tags=["Login"], prefix="/auth")
 
@@ -40,7 +46,7 @@ def login(request: Request, auth_manager: AuthManagerDep, next: None | str = Non
         raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")
 
     if next:
-        login_url += f"?next={next}"
+        login_url += f"?{urlencode({'next': next})}"
 
     return RedirectResponse(login_url)
 
@@ -55,10 +61,15 @@ def logout(request: Request, auth_manager: AuthManagerDep) -> RedirectResponse:
     if logout_url:
         return RedirectResponse(logout_url)
 
+    # Revoke the current token before deleting the cookie
+    if token_str := request.cookies.get(COOKIE_NAME_JWT_TOKEN):
+        auth_manager.revoke_token(token_str)
+
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     response = RedirectResponse(auth_manager.get_url_login())
     response.delete_cookie(
         key=COOKIE_NAME_JWT_TOKEN,
+        path=get_cookie_path(),
         secure=secure,
         httponly=True,
     )

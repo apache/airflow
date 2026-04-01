@@ -26,10 +26,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped
 
-from airflow.models.base import Base, StringID
-from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.providers.common.compat.sdk import timezone
+from airflow.models.base import StringID
+from airflow.providers.common.compat.sdk import TaskInstanceKey, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
+from airflow.providers.edge3.models.edge_base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -56,6 +56,7 @@ class EdgeJobModel(Base, LoggingMixin):
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime)
     edge_worker: Mapped[str | None] = mapped_column(String(64))
     last_update: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    team_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     def __init__(
         self,
@@ -71,6 +72,7 @@ class EdgeJobModel(Base, LoggingMixin):
         queued_dttm: datetime | None = None,
         edge_worker: str | None = None,
         last_update: datetime | None = None,
+        team_name: str | None = None,
     ):
         self.dag_id = dag_id
         self.task_id = task_id
@@ -84,6 +86,7 @@ class EdgeJobModel(Base, LoggingMixin):
         self.queued_dttm = queued_dttm or timezone.utcnow()
         self.edge_worker = edge_worker
         self.last_update = last_update
+        self.team_name = team_name
         super().__init__()
 
     __table_args__ = (Index("rj_order", state, queued_dttm, queue),)

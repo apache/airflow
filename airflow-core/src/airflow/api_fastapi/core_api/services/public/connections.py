@@ -135,8 +135,8 @@ class BulkConnectionService(BulkService[ConnectionBody]):
     ) -> None:
         """Bulk Update connections."""
         to_update_connection_ids = {connection.connection_id for connection in action.entities}
-        _, matched_connection_ids, not_found_connection_ids = self.categorize_connections(
-            to_update_connection_ids
+        existed_connections_dict, matched_connection_ids, not_found_connection_ids = (
+            self.categorize_connections(to_update_connection_ids)
         )
 
         try:
@@ -152,9 +152,7 @@ class BulkConnectionService(BulkService[ConnectionBody]):
 
             for connection in action.entities:
                 if connection.connection_id in update_connection_ids:
-                    old_connection = self.session.scalar(
-                        select(Connection).filter(Connection.conn_id == connection.connection_id).limit(1)
-                    )
+                    old_connection = existed_connections_dict.get(connection.connection_id)
                     if old_connection is None:
                         raise ValidationError(
                             f"The Connection with connection_id: `{connection.connection_id}` was not found"
@@ -175,8 +173,8 @@ class BulkConnectionService(BulkService[ConnectionBody]):
     ) -> None:
         """Bulk delete connections."""
         to_delete_connection_ids = set(action.entities)
-        _, matched_connection_ids, not_found_connection_ids = self.categorize_connections(
-            to_delete_connection_ids
+        existed_connections_dict, matched_connection_ids, not_found_connection_ids = (
+            self.categorize_connections(to_delete_connection_ids)
         )
 
         try:
@@ -191,9 +189,7 @@ class BulkConnectionService(BulkService[ConnectionBody]):
                 delete_connection_ids = to_delete_connection_ids
 
             for connection_id in delete_connection_ids:
-                existing_connection = self.session.scalar(
-                    select(Connection).where(Connection.conn_id == connection_id).limit(1)
-                )
+                existing_connection = existed_connections_dict.get(connection_id)
                 if existing_connection:
                     self.session.delete(existing_connection)
                     results.success.append(connection_id)

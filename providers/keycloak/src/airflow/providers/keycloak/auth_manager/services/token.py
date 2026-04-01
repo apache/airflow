@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import HTTPException, status
 from keycloak import KeycloakAuthenticationError
 
@@ -37,11 +39,14 @@ def create_token_for(
         tokens = client.token(username, password)
     except KeycloakAuthenticationError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid credentials",
         )
 
-    userinfo = client.userinfo(tokens["access_token"])
+    userinfo_raw: dict | bytes = client.userinfo(tokens["access_token"])
+    # Decode bytes to dict if necessary
+    userinfo: dict = json.loads(userinfo_raw) if isinstance(userinfo_raw, bytes) else userinfo_raw
+
     user = KeycloakAuthManagerUser(
         user_id=userinfo["sub"],
         name=userinfo["preferred_username"],
@@ -77,13 +82,16 @@ def create_client_credentials_token(
         tokens = client.token(grant_type="client_credentials")
     except KeycloakAuthenticationError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Client credentials authentication failed",
         )
 
     # For client_credentials, get the service account user info
     # The token represents the service account associated with the client
-    userinfo = client.userinfo(tokens["access_token"])
+    userinfo_raw: dict | bytes = client.userinfo(tokens["access_token"])
+    # Decode bytes to dict if necessary
+    userinfo: dict = json.loads(userinfo_raw) if isinstance(userinfo_raw, bytes) else userinfo_raw
+
     user = KeycloakAuthManagerUser(
         user_id=userinfo["sub"],
         name=userinfo.get("preferred_username", userinfo.get("clientId", "service-account")),

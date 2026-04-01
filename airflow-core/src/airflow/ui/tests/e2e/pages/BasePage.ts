@@ -18,6 +18,7 @@
  */
 import { expect } from "@playwright/test";
 import type { Page, Locator } from "@playwright/test";
+import { waitForServerReady } from "tests/e2e/utils/health";
 
 /**
  * Base Page Object
@@ -28,7 +29,10 @@ export class BasePage {
 
   public constructor(page: Page) {
     this.page = page;
-    this.welcomeHeading = page.locator('h2.chakra-heading:has-text("Welcome")');
+    this.welcomeHeading = page.getByRole("heading", {
+      level: 2,
+      name: "Welcome",
+    });
   }
 
   public async isLoggedIn(): Promise<boolean> {
@@ -37,9 +41,7 @@ export class BasePage {
 
       return true;
     } catch {
-      const currentUrl = this.page.url();
-
-      return !currentUrl.includes("/login");
+      return !this.page.url().includes("/login");
     }
   }
 
@@ -52,8 +54,12 @@ export class BasePage {
   }
 
   public async navigateTo(path: string): Promise<void> {
-    await this.page.goto(path, {
-      waitUntil: "domcontentloaded",
-    });
+    await this.safeGoto(path, { waitUntil: "domcontentloaded" });
+  }
+
+  /** Health-checked navigation. Subclasses should use this instead of `this.page.goto()`. */
+  protected async safeGoto(path: string, options?: Parameters<Page["goto"]>[1]): Promise<void> {
+    await waitForServerReady(this.page);
+    await this.page.goto(path, options);
   }
 }

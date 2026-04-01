@@ -198,8 +198,14 @@ class TestIngressFlower:
                     "flower": {
                         "enabled": True,
                         "hosts": [
-                            {"name": "*.{{ .Release.Namespace }}.example.com"},
-                            {"name": "{{ .Values.testValues.scalar }}.example.com"},
+                            {
+                                "name": "*.{{ .Release.Namespace }}.example.com",
+                                "tls": {"enabled": True, "secretName": "secret1"},
+                            },
+                            {
+                                "name": "{{ .Values.testValues.scalar }}.example.com",
+                                "tls": {"enabled": True, "secretName": "secret2"},
+                            },
                             {"name": "{{ index .Values.testValues.list 1 }}.example.com"},
                             {"name": "{{ .Values.testValues.dict.key }}.example.com"},
                         ],
@@ -215,6 +221,10 @@ class TestIngressFlower:
             "aa.example.com",
             "cc.example.com",
             "dd.example.com",
+        ]
+        assert jmespath.search("spec.tls[*]", docs[0]) == [
+            {"hosts": ["*.airflow.example.com"], "secretName": "secret1"},
+            {"hosts": ["aa.example.com"], "secretName": "secret2"},
         ]
 
     def test_backend_service_name(self):

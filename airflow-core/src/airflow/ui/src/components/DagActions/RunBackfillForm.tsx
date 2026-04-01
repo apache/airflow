@@ -34,7 +34,7 @@ import { useTogglePause } from "src/queries/useTogglePause";
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
-import type { DagRunTriggerParams } from "../TriggerDag/TriggerDAGForm";
+import type { DagRunTriggerParams } from "../TriggerDag/types";
 import { Alert } from "../ui";
 import { Checkbox } from "../ui/Checkbox";
 import { getInlineMessage } from "./inlineMessage";

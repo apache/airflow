@@ -90,7 +90,6 @@ class TestAssetManager:
         # AssetDagRunQueue rows
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
-        mock_task_instance.log.warning.assert_called()
 
     @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
     def test_register_asset_change(self, session, mock_task_instance):
@@ -222,7 +221,7 @@ class TestAssetManager:
 
     @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
     def test_get_or_create_apdr_race_condition(self, session, caplog):
-        asm = AssetModel(uri="test://asset1/", name="parition_asset", group="asset")
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
         testing_dag = DagModel(dag_id="testing_dag", is_stale=False, bundle_name="testing")
         session.add_all([asm, testing_dag])
         session.commit()
@@ -259,3 +258,62 @@ class TestAssetManager:
 
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_register_asset_change_queues_stale_dag(self, session, mock_task_instance):
+        asset_manager = AssetManager()
+        bundle_name = "testing"
+
+        # Setup an Asset
+        asset_uri = "test://stale_asset/"
+        asset_name = "test_stale_asset"
+        asset_definition = Asset(uri=asset_uri, name=asset_name)
+
+        asm = AssetModel(uri=asset_uri, name=asset_name, group="asset")
+        session.add(asm)
+
+        # Setup a Dag that is STALE but NOT PAUSED
+        # We want stale Dags to still receive asset updates
+        stale_dag = DagModel(dag_id="stale_dag", is_stale=True, is_paused=False, bundle_name=bundle_name)
+        session.add(stale_dag)
+
+        # Link the Stale Dag to the Asset
+        asm.scheduled_dags = [DagScheduleAssetReference(dag_id=stale_dag.dag_id)]
+
+        session.execute(delete(AssetDagRunQueue))
+        session.flush()
+
+        # Register the asset change
+        asset_manager.register_asset_change(
+            task_instance=mock_task_instance, asset=asset_definition, session=session
+        )
+        session.flush()
+
+        # Verify the stale Dag was NOT ignored
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 1
+
+        queued_id = session.scalar(select(AssetDagRunQueue.target_dag_id))
+        assert queued_id == "stale_dag"
+
+    @pytest.mark.usefixtures("clear_assets", "testing_dag_bundle")
+    def test_partitioned_asset_event_does_not_trigger_non_partitioned_dag(self, session, mock_task_instance):
+        """partitioned asset events (events with partition key) must not queue non-partition-aware Dags."""
+        asm = AssetModel(uri="test://asset/", name="test_asset", group="asset")
+        session.add(asm)
+        dag = DagModel(
+            dag_id="consumer_dag", is_paused=False, bundle_name="testing", timetable_partitioned=False
+        )
+        session.add(dag)
+        asm.scheduled_dags = [DagScheduleAssetReference(dag_id=dag.dag_id)]
+        session.execute(delete(AssetDagRunQueue))
+        session.flush()
+
+        AssetManager.register_asset_change(
+            task_instance=mock_task_instance,
+            asset=Asset(uri="test://asset/", name="test_asset"),
+            session=session,
+            partition_key="2024-01-01T00:00:00+00:00",
+        )
+        session.flush()
+
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0

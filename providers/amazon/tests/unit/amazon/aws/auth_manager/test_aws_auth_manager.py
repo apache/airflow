@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import ExitStack
 from typing import TYPE_CHECKING
 from unittest.mock import ANY, Mock, patch
 
 import pytest
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -226,8 +229,16 @@ class TestAwsAuthManager:
         is_authorized = Mock(return_value=True)
         mock_avp_facade.is_authorized = is_authorized
 
-        method: ResourceMethod = "GET"
-        result = auth_manager.is_authorized_backfill(method=method, details=details, user=user)
+        with ExitStack() as stack:
+            stack.enter_context(
+                pytest.warns(
+                    AirflowProviderDeprecationWarning,
+                    match="Use ``is_authorized_dag`` on ``DagAccessEntity.RUN`` instead for a dag level access control.",
+                )
+            )
+
+            method: ResourceMethod = "GET"
+            result = auth_manager.is_authorized_backfill(method=method, details=details, user=user)
 
         is_authorized.assert_called_once_with(
             method=method, entity_type=AvpEntities.BACKFILL, user=expected_user, entity_id=expected_entity_id

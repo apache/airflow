@@ -248,7 +248,8 @@ class CustomObjectLauncher(LoggingMixin):
                 self.body.spec["imagePullSecrets"] = k8s_spec.image_pull_secrets
             for item in ["driver", "executor"]:
                 # Env List
-                self.body.spec[item]["env"] = k8s_spec.env_vars
+                existing_env = self.body.spec[item].get("env") or []
+                self.body.spec[item]["env"] = existing_env + k8s_spec.env_vars
                 self.body.spec[item]["envFrom"] = k8s_spec.env_from
                 # Volumes
                 self.body.spec[item]["volumeMounts"] = k8s_spec.volume_mounts
@@ -309,6 +310,9 @@ class CustomObjectLauncher(LoggingMixin):
                 delta = dt.now() - curr_time
                 if delta.total_seconds() >= startup_timeout:
                     pod_status = self.pod_manager.read_pod(self.pod_spec).status.container_statuses
+                    spark_job_name = self.spark_obj_spec["metadata"]["name"]
+                    self.log.warning("Deleting spark job: %s", spark_job_name)
+                    self.delete_spark_job(spark_job_name=spark_job_name)
                     raise AirflowException(f"Job took too long to start. pod status: {pod_status}")
                 time.sleep(10)
         except Exception as e:

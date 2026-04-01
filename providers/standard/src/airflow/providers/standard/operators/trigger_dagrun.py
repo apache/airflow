@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import inspect
 import json
 import time
 from collections.abc import Sequence
@@ -58,8 +59,7 @@ XCOM_RUN_ID = "trigger_run_id"
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
 
 
 class DagIsPaused(AirflowException):
@@ -89,8 +89,17 @@ class TriggerDagRunLink(BaseOperatorLink):
         trigger_dag_id = operator.trigger_dag_id
         if not AIRFLOW_V_3_0_PLUS:
             from airflow.models.renderedtifields import RenderedTaskInstanceFields
+            from airflow.models.taskinstancekey import TaskInstanceKey as CoreTaskInstanceKey
 
-            if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
+            core_ti_key = CoreTaskInstanceKey(
+                dag_id=ti_key.dag_id,
+                task_id=ti_key.task_id,
+                run_id=ti_key.run_id,
+                try_number=ti_key.try_number,
+                map_index=ti_key.map_index,
+            )
+
+            if template_fields := RenderedTaskInstanceFields.get_templated_fields(core_ti_key):
                 trigger_dag_id: str = template_fields.get("trigger_dag_id", operator.trigger_dag_id)  # type: ignore[no-redef]
 
         # Fetch the correct dag_run_id for the triggerED dag which is
@@ -171,6 +180,7 @@ class TriggerDagRunOperator(BaseOperator):
         failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
         fail_when_dag_is_paused: bool = False,
+        note: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         openlineage_inject_parent_info: bool = True,
         **kwargs,
@@ -193,6 +203,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.skip_when_already_exists = skip_when_already_exists
         self.fail_when_dag_is_paused = fail_when_dag_is_paused
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
+        self.note = note
         self.deferrable = deferrable
         self.logical_date = logical_date
         if logical_date is NOTSET:
@@ -266,7 +277,7 @@ class TriggerDagRunOperator(BaseOperator):
     def _trigger_dag_af_3(self, context, run_id, parsed_logical_date):
         from airflow.providers.common.compat.sdk import DagRunTriggerException
 
-        raise DagRunTriggerException(
+        kwargs_accepted = dict(
             trigger_dag_id=self.trigger_dag_id,
             dag_run_id=run_id,
             conf=self.conf,
@@ -280,8 +291,16 @@ class TriggerDagRunOperator(BaseOperator):
             deferrable=self.deferrable,
         )
 
+        if self.note and "note" in inspect.signature(DagRunTriggerException.__init__).parameters:
+            kwargs_accepted["note"] = self.note
+
+        raise DagRunTriggerException(**kwargs_accepted)
+
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
         try:
+            if self.note:
+                self.log.warning("Parameter 'note' is not supported in Airflow 2.x and will be ignored.")
+
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,

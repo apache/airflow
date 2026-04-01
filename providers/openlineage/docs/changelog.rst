@@ -26,6 +26,101 @@
 Changelog
 ---------
 
+2.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Deadline Alerts to OL events (#63352)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify HLL in extraction precedence (#63723)``
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+2.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add DagRun note to OL events (#62347)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Consume SQL hook lineage in OpenLineage (#62171)``
+* ``feat: Add Dag Edge Labels to OpenLineage event (#62018)``
+* ``feat: Add OpenLineage support for HITL operators (#61867)``
+
+Misc
+~~~~
+
+* ``Bump min sqlalchemy version to 1.4.54 (#62299)``
+* ``Route providers to consume Stats from common compat provider (#61812)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "feat: Add DagRun note to OL events (#62221)" (#62238)``
+   * ``feat: Add DagRun note to OL events (#62221)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Informatica provider (#57610)``
+
+2.10.2
+......
+
+Misc
+~~~~
+
+* ``Move lineage from airflow core to task sdk (#61157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use SQLA's native Uuid/JSON instead of sqlalchemy-utils' types (#61532)``
+   * ``Make code compatible with setuptools v82++ (#61651)``
+
+2.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add AirflowRunFacet to AF3 tasks with externally changed state (#60583)``
+
+Misc
+~~~~
+
+* ``Add SQLAlchemy to the dev‑dependency group in providers (#60472)``
+* ``Option to disable exporting of legacy metric names (#53722)``
+
+Doc-only
+~~~~~~~~
+
+* ``Refresh OpenLineage provider docs (#60462)``
+* ``Add OpenLineage known limitations to troubleshooting page (#61072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move lineage from airflow core to task sdk (#60968)``
+   * ``Revert "Move lineage from airflow core to task sdk (#60968)" (#61151)``
+
 2.10.0
 ......
 
@@ -526,14 +621,14 @@ Misc
 
 * ``Adding uuid6 as a dependency for openlineage (#46653)``
 * ``Remove AirflowContextDeprecationWarning as all context should be clean for Airflow 3 (#46601)``
-* ``Remove Airflow 3 Deprecation Warning dependency in OTel Provoder (#46600)``
+* ``Remove Airflow 3 Deprecation Warning dependency in OTel Provider (#46600)``
 * ``AIP-72: Move Secrets Masker to task SDK (#46375)``
 * ``Add run_after column to DagRun model (#45732)``
 * ``Remove old lineage stuff (#45260)``
 * ``Start porting mapped task to SDK (#45627)``
 * ``chore: Update docstring for DatabaseInfo in OpenLineage provider (#45638)``
 * ``Remove classes from 'typing_compat' that can be imported directly (#45589)``
-* ``udpated 404 hyperlink to gcstogcsoperator (#45311)``
+* ``updated 404 hyperlink to gcstogcsoperator (#45311)``
 * ``pass error for on_task_instance_failed in task sdk (#46941)``
 
 .. Below changes are excluded from the changelog. Move them to

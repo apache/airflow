@@ -37,6 +37,7 @@ from airflow.models import Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -165,11 +166,12 @@ def _get_expected_application_dict_with_labels(task_name="default_yaml"):
     }
 
 
-def _get_expected_application_dict_without_task_context_labels(task_name="default_yaml"):
+def _get_expected_application_dict_without_task_context_labels(task_name="default_yaml", app_name=None):
     """Create expected application dict without task context labels (only original file labels)."""
     original_file_labels = {
         "version": "2.4.5",
     }
+    app_name = app_name or task_name
 
     return {
         "apiVersion": "sparkoperator.k8s.io/v1beta2",
@@ -192,6 +194,7 @@ def _get_expected_application_dict_without_task_context_labels(task_name="defaul
                 "labels": original_file_labels.copy(),
                 "serviceAccount": "spark",
                 "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
+                "env": [{"name": "SPARK_APPLICATION_NAME", "value": app_name}],
             },
             "executor": {
                 "cores": 1,
@@ -199,6 +202,7 @@ def _get_expected_application_dict_without_task_context_labels(task_name="defaul
                 "memory": "512m",
                 "labels": original_file_labels.copy(),
                 "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
+                "env": [{"name": "SPARK_APPLICATION_NAME", "value": app_name}],
             },
         },
     }
@@ -377,7 +381,9 @@ class TestSparkKubernetesOperatorCreateApplication:
         assert isinstance(done_op.name, str)
         assert done_op.name != ""
 
-        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(
+            task_name, app_name=done_op.name
+        )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -423,7 +429,9 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(
+            task_name, app_name=done_op.name
+        )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -466,7 +474,9 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
+        expected_dict = _get_expected_application_dict_without_task_context_labels(
+            task_name, app_name=done_op.name
+        )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
@@ -503,6 +513,8 @@ class TestSparkKubernetesOperatorCreateApplication:
 
         expected_dict = _get_expected_k8s_dict()
         expected_dict["metadata"]["name"] = done_op.name
+        expected_dict["spec"]["driver"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
+        expected_dict["spec"]["executor"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
             **self.call_commons,
@@ -539,6 +551,8 @@ class TestSparkKubernetesOperatorCreateApplication:
 
         expected_dict = _get_expected_k8s_dict()
         expected_dict["metadata"]["name"] = done_op.name
+        expected_dict["spec"]["driver"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
+        expected_dict["spec"]["executor"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         mock_create_namespaced_crd.assert_called_with(
             body=expected_dict,
             **self.call_commons,
@@ -624,9 +638,11 @@ class TestSparkKubernetesOperator:
             task_name, mock_create_job_name, job_spec=job_spec, mock_get_kube_client=mock_get_kube_client
         )
         assert op.launcher.body["spec"]["driver"]["env"] == [
+            {"name": "SPARK_APPLICATION_NAME", "value": "default_env"},
             k8s.V1EnvVar(name="TEST_ENV_1", value="VALUE1"),
         ]
         assert op.launcher.body["spec"]["executor"]["env"] == [
+            {"name": "SPARK_APPLICATION_NAME", "value": "default_env"},
             k8s.V1EnvVar(name="TEST_ENV_1", value="VALUE1"),
         ]
 
@@ -862,7 +878,11 @@ class TestSparkKubernetesOperator:
         op.execute(context)
         label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
         op.find_spark_job(context)
-        mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+        mock_get_kube_client.list_namespaced_pod.assert_called_with(
+            "default",
+            label_selector=label_selector,
+            field_selector=op._get_field_selector(),
+        )
 
     @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook")
     def test_adds_task_context_labels_to_driver_and_executor(
@@ -940,9 +960,287 @@ class TestSparkKubernetesOperator:
         op.execute(context)
 
         label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
-        mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+        mock_get_kube_client.list_namespaced_pod.assert_called_with(
+            "default",
+            label_selector=label_selector,
+            field_selector=op._get_field_selector(),
+        )
 
         mock_create_namespaced_crd.assert_not_called()
+
+    def test_find_spark_job_picks_non_terminating_pod(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        """
+        Verifies that find_spark_job picks a non-terminating Spark driver pod over a terminating pod.
+        """
+
+        task_name = "test_find_spark_job_picks_non_terminating_pod"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+        context = create_context(op)
+
+        # Non-terminating pod should be selected.
+        non_terminating_pod = mock.MagicMock()
+        non_terminating_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        non_terminating_pod.metadata.name = "spark-driver"
+        non_terminating_pod.metadata.labels = {"try_number": "1"}
+        non_terminating_pod.status.phase = PodPhase.RUNNING
+
+        # Terminating pod should not be selected.
+        terminating_pod = mock.MagicMock()
+        terminating_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        terminating_pod.metadata.deletion_timestamp = timezone.datetime(2025, 1, 2, tzinfo=timezone.utc)
+        terminating_pod.metadata.name = "spark-driver"
+        terminating_pod.metadata.labels = {"try_number": "1"}
+        terminating_pod.status.phase = PodPhase.RUNNING
+
+        mock_get_kube_client.list_namespaced_pod.return_value.items = [
+            non_terminating_pod,
+            terminating_pod,
+        ]
+
+        returned_pod = op.find_spark_job(context)
+
+        assert returned_pod is non_terminating_pod
+
+    def test_find_spark_job_picks_pending_pod(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        """
+        Verifies that find_spark_job picks a Pending Spark driver pod over a Running pod.
+        """
+
+        task_name = "test_find_spark_job_prefers_pending_pod"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+        context = create_context(op)
+
+        # Pending pod should be selected.
+        pending_pod = mock.MagicMock()
+        pending_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        pending_pod.metadata.name = "spark-driver"
+        pending_pod.metadata.labels = {"try_number": "1"}
+        pending_pod.status.phase = PodPhase.PENDING
+
+        # Running pod should not be selected.
+        running_pod = mock.MagicMock()
+        running_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        running_pod.metadata.name = "spark-driver"
+        running_pod.metadata.labels = {"try_number": "1"}
+        running_pod.status.phase = PodPhase.RUNNING
+
+        mock_get_kube_client.list_namespaced_pod.return_value.items = [
+            running_pod,
+            pending_pod,
+        ]
+
+        returned_pod = op.find_spark_job(context)
+
+        assert returned_pod is pending_pod
+
+    def test_find_spark_job_picks_succeeded(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        """
+        Verifies that find_spark_job picks a Succeeded Spark driver pod over a pending pod.
+        """
+
+        task_name = "test_find_spark_job_prefers_succeeded_pod"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+        context = create_context(op)
+
+        # Succeeded pod should be selected.
+        succeeded_pod = mock.MagicMock()
+        succeeded_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        succeeded_pod.metadata.name = "spark-driver"
+        succeeded_pod.metadata.labels = {"try_number": "1"}
+        succeeded_pod.status.phase = PodPhase.SUCCEEDED
+
+        # Pending pod should not be selected.
+        pending_pod = mock.MagicMock()
+        pending_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        pending_pod.metadata.name = "spark-driver"
+        pending_pod.metadata.labels = {"try_number": "1"}
+        pending_pod.status.phase = PodPhase.PENDING
+
+        mock_get_kube_client.list_namespaced_pod.return_value.items = [
+            pending_pod,
+            succeeded_pod,
+        ]
+
+        returned_pod = op.find_spark_job(context)
+
+        assert returned_pod is succeeded_pod
+
+    def test_find_spark_job_picks_latest_pod(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        """
+        Verifies that find_spark_job selects the most recently created Spark driver pod
+        when multiple candidate driver pods are present and status does not disambiguate.
+        """
+
+        task_name = "test_find_spark_job_picks_latest_pod"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+
+        context = create_context(op)
+
+        # Latest pod should be selected.
+        new_pod = mock.MagicMock()
+        new_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 3, tzinfo=timezone.utc)
+        new_pod.metadata.name = "spark-driver"
+        new_pod.metadata.labels = {"try_number": "1"}
+        new_pod.status.phase = PodPhase.RUNNING
+
+        # Older pod should not be selected.
+        old_pod = mock.MagicMock()
+        old_pod.metadata.creation_timestamp = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+        old_pod.metadata.name = "spark-driver"
+        old_pod.metadata.labels = {"try_number": "1"}
+        old_pod.status.phase = PodPhase.RUNNING
+
+        mock_get_kube_client.list_namespaced_pod.return_value.items = [
+            old_pod,
+            new_pod,
+        ]
+
+        returned_pod = op.find_spark_job(context)
+
+        assert returned_pod is new_pod
+
+    def test_find_spark_job_tiebreaks_by_name(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        """
+        Verifies that find_spark_job uses pod name as a deterministic tie-breaker
+        when multiple running Spark driver pods share the same creation_timestamp.
+        """
+
+        task_name = "test_find_spark_job_tiebreaks_by_name"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+        context = create_context(op)
+
+        # Use identical creation timestamps to force name-based tie-breaking.
+        ts = timezone.datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+        # Pod with lexicographically smaller name should not be selected.
+        invalid_mock_pod = mock.MagicMock()
+        invalid_mock_pod.metadata.creation_timestamp = ts
+        invalid_mock_pod.metadata.name = "spark-driver-abc"
+        invalid_mock_pod.metadata.labels = {"try_number": "1"}
+        invalid_mock_pod.status.phase = PodPhase.RUNNING
+
+        # Pod with lexicographically greater name should be selected.
+        valid_mock_pod = mock.MagicMock()
+        valid_mock_pod.metadata.creation_timestamp = ts
+        valid_mock_pod.metadata.name = "spark-driver-xyz"
+        valid_mock_pod.metadata.labels = {"try_number": "1"}
+        valid_mock_pod.status.phase = PodPhase.RUNNING
+
+        mock_get_kube_client.list_namespaced_pod.return_value.items = [invalid_mock_pod, valid_mock_pod]
+
+        returned_pod = op.find_spark_job(context)
+
+        assert returned_pod is valid_mock_pod
 
     @pytest.mark.asyncio
     def test_execute_deferrable(
@@ -1237,3 +1535,58 @@ class TestSparkKubernetesLifecycle:
             # And verify delete works
             op.on_kill()
             mock_launcher_cls.return_value.delete_spark_job.assert_called()
+
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    def test_spark_application_name_env_injected(self, mock_client):
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            template_spec={
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
+                "spec": {
+                    "driver": {},
+                    "executor": {},
+                },
+            },
+            reattach_on_restart=False,
+        )
+        op.name = "my-spark-app-abc123"
+
+        with mock.patch.object(op, "get_or_create_spark_crd", return_value=mock.MagicMock()):
+            op._setup_spark_configuration(mock.MagicMock())
+
+        body = op.launcher.body
+        for component in ["driver", "executor"]:
+            env = body["spec"][component].get("env", [])
+            names = [e["name"] for e in env]
+            assert "SPARK_APPLICATION_NAME" in names
+            value = next(e["value"] for e in env if e["name"] == "SPARK_APPLICATION_NAME")
+            assert value == "my-spark-app-abc123"
+
+    @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
+    def test_spark_application_name_env_not_duplicated(self, mock_client):
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            template_spec={
+                "apiVersion": "sparkoperator.k8s.io/v1beta2",
+                "kind": "SparkApplication",
+                "spec": {
+                    "driver": {"env": [{"name": "SPARK_APPLICATION_NAME", "value": "user-defined"}]},
+                    "executor": {"env": [{"name": "SPARK_APPLICATION_NAME", "value": "user-defined"}]},
+                },
+            },
+            reattach_on_restart=False,
+        )
+        op.name = "my-spark-app-abc123"
+
+        with mock.patch.object(op, "get_or_create_spark_crd", return_value=mock.MagicMock()):
+            op._setup_spark_configuration(mock.MagicMock())
+
+        body = op.launcher.body
+        for component in ["driver", "executor"]:
+            env = body["spec"][component].get("env", [])
+            app_name_envs = [e for e in env if e["name"] == "SPARK_APPLICATION_NAME"]
+            assert len(app_name_envs) == 1  # not duplicated
+            assert app_name_envs[0]["value"] == "user-defined"

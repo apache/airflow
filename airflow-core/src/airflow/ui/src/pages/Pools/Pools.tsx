@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton } from "@chakra-ui/react";
+import { Box, HStack, Skeleton, Spacer } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -118,6 +118,7 @@ export const Pools = () => {
             ))}
           </Select.Content>
         </Select.Root>
+        <Spacer />
         <AddPoolButton />
       </HStack>
       <Box mt={4}>
@@ -128,7 +129,7 @@ export const Pools = () => {
           displayMode="card"
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName={translate("common:admin.Pools")}
+          modelName="admin:pools.pool"
           noRowsMessage={translate("pools.noPoolsFound")}
           onStateChange={setTableURLState}
           total={data ? data.total_entries : 0}

@@ -16,14 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from airflow.providers_manager import ProvidersManager
 from airflow.sdk.bases.decorator import TaskDecorator
 from airflow.sdk.definitions.dag import dag
 from airflow.sdk.definitions.decorators.condition import run_if, skip_if
 from airflow.sdk.definitions.decorators.setup_teardown import setup_task, teardown_task
 from airflow.sdk.definitions.decorators.task_group import task_group
+from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Please keep this in sync with the .pyi's __all__.
 __all__ = [
@@ -47,7 +50,7 @@ class TaskDecoratorCollection:
         """Dynamically get provider-registered task decorators, e.g. ``@task.docker``."""
         if name.startswith("__"):
             raise AttributeError(f"{type(self).__name__} has no attribute {name!r}")
-        decorators = ProvidersManager().taskflow_decorators
+        decorators = ProvidersManagerTaskRuntime().taskflow_decorators
         if name not in decorators:
             raise AttributeError(f"task decorator {name!r} not found")
         return decorators[name]

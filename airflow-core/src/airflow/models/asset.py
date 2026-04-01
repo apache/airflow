@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
-import sqlalchemy_jsonfield
+import sqlalchemy as sa
 from sqlalchemy import (
     Column,
     ForeignKey,
@@ -33,15 +33,13 @@ from sqlalchemy import (
     Table,
     delete,
     select,
-    text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
-from airflow.settings import json
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -316,7 +314,7 @@ class AssetModel(Base):
         default=str,
         nullable=False,
     )
-    extra: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    extra: Mapped[dict] = mapped_column(sa.JSON(), nullable=False, default={})
 
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -798,11 +796,11 @@ class AssetEvent(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     asset_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    extra: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    extra: Mapped[dict] = mapped_column(sa.JSON(), nullable=False, default={})
     source_task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default=text("-1"))
+    source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default="-1")
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 

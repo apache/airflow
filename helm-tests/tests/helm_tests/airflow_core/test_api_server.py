@@ -521,7 +521,7 @@ class TestAPIServerDeployment:
         }
 
     def test_api_server_security_context_legacy(self):
-        with pytest.raises(CalledProcessError, match="Additional property securityContext is not allowed"):
+        with pytest.raises(CalledProcessError, match="additional properties 'securityContext' not allowed"):
             render_chart(
                 values={
                     "apiServer": {

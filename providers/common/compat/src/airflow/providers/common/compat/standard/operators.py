@@ -21,15 +21,16 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat._compat_utils import create_module_getattr
 from airflow.providers.common.compat.version_compat import (
-    AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
 )
 
 _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Re-export from sdk (which handles Airflow 2.x/3.x fallbacks)
+    "BaseBranchOperator": "airflow.providers.common.compat.sdk",
     "BaseOperator": "airflow.providers.common.compat.sdk",
     "BaseAsyncOperator": "airflow.providers.common.compat.sdk",
+    "BranchMixIn": "airflow.providers.common.compat.sdk",
     "get_current_context": "airflow.providers.common.compat.sdk",
     "is_async_callable": "airflow.providers.common.compat.sdk",
     # Standard provider items with direct fallbacks
@@ -45,7 +46,7 @@ elif AIRFLOW_V_3_2_PLUS:
     from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
 else:
-    if AIRFLOW_V_3_0_PLUS:
+    if AIRFLOW_V_3_1_PLUS:
         from airflow.sdk import BaseOperator
     else:
         from airflow.models import BaseOperator
@@ -65,16 +66,6 @@ else:
         @property
         def is_async(self) -> bool:
             return True
-
-        if not AIRFLOW_V_3_1_PLUS:
-
-            @property
-            def xcom_push(self) -> bool:
-                return self.do_xcom_push
-
-            @xcom_push.setter
-            def xcom_push(self, value: bool):
-                self.do_xcom_push = value
 
         async def aexecute(self, context):
             raise NotImplementedError()

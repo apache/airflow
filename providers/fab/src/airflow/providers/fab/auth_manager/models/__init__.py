@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import datetime
 
+import packaging.version
+
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
 # Copyright 2013, Daniel Vaz Gaspar
@@ -30,6 +32,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    MetaData,
     Sequence,
     String,
     Table,
@@ -40,12 +43,28 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, backref, declared_attr, relationship
 
+from airflow import __version__ as airflow_version
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+from airflow.models.base import _get_schema, naming_convention
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
 """
+
+metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
+
+if packaging.version.parse(packaging.version.parse(airflow_version).base_version) >= packaging.version.parse(
+    "3.0.0"
+):
+    Model.metadata = metadata
+else:
+    from airflow.models.base import Base
+
+    Model.metadata = Base.metadata
+
+model_metadata = Model.metadata
+
 
 assoc_group_role = Table(
     "ab_group_role",
@@ -61,6 +80,7 @@ assoc_group_role = Table(
     UniqueConstraint("group_id", "role_id"),
     Index("idx_group_id", "group_id"),
     Index("idx_group_role_id", "role_id"),
+    extend_existing=True,
 )
 
 assoc_permission_role = Table(
@@ -87,6 +107,7 @@ assoc_permission_role = Table(
     UniqueConstraint("permission_view_id", "role_id"),
     Index("idx_permission_view_id", "permission_view_id"),
     Index("idx_role_id", "role_id"),
+    extend_existing=True,
 )
 
 assoc_user_role = Table(
@@ -101,6 +122,7 @@ assoc_user_role = Table(
     Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
     Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
     UniqueConstraint("user_id", "role_id"),
+    extend_existing=True,
 )
 
 assoc_user_group = Table(
@@ -115,6 +137,9 @@ assoc_user_group = Table(
     Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
     Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
     UniqueConstraint("user_id", "group_id"),
+    Index("idx_user_id", "user_id"),
+    Index("idx_user_group_id", "group_id"),
+    extend_existing=True,
 )
 
 
@@ -122,6 +147,7 @@ class Action(Model):
     """Represents permission actions such as `can_read`."""
 
     __tablename__ = "ab_permission"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -138,6 +164,7 @@ class Resource(Model):
     """Represents permission object such as `User` or `Dag`."""
 
     __tablename__ = "ab_view_menu"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -163,6 +190,7 @@ class Role(Model):
     """Represents a user role to which permissions can be assigned."""
 
     __tablename__ = "ab_role"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -186,7 +214,7 @@ class Permission(Model):
     """Permission pair comprised of an Action + Resource combo."""
 
     __tablename__ = "ab_permission_view"
-    __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"),)
+    __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"), {"extend_existing": True})
     id: Mapped[int] = mapped_column(
         Integer,
         Sequence("ab_permission_view_id_seq", start=1, increment=1, minvalue=1, cycle=False),
@@ -205,6 +233,7 @@ class Group(Model):
     """Represents an Airflow user group."""
 
     __tablename__ = "ab_group"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -229,20 +258,21 @@ class User(Model, BaseUser):
     """Represents an Airflow user which has roles assigned to it."""
 
     __tablename__ = "ab_user"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(
         Integer,
         Sequence("ab_user_id_seq", start=1, increment=1, minvalue=1, cycle=False),
         primary_key=True,
     )
-    first_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    last_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    first_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(256), nullable=False)
     username: Mapped[str] = mapped_column(
         String(512).with_variant(String(512, collation="NOCASE"), "sqlite"), unique=True, nullable=False
     )
     password: Mapped[str | None] = mapped_column(String(256))
     active: Mapped[bool | None] = mapped_column(Boolean, default=True)
-    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(512), unique=True, nullable=False)
     last_login: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     login_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fail_login_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -343,38 +373,57 @@ class RegisterUser(Model):
     """Represents a user registration."""
 
     __tablename__ = "ab_register_user"
+    __table_args__ = {"extend_existing": True}
 
     id = mapped_column(
         Integer,
         Sequence("ab_register_user_id_seq", start=1, increment=1, minvalue=1, cycle=False),
         primary_key=True,
     )
-    first_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    last_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    first_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(256), nullable=False)
     username: Mapped[str] = mapped_column(
         String(512).with_variant(String(512, collation="NOCASE"), "sqlite"), unique=True, nullable=False
     )
     password: Mapped[str | None] = mapped_column(String(256))
-    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(512), unique=True, nullable=False)
     registration_date: Mapped[datetime.datetime | None] = mapped_column(
         DateTime, default=lambda: datetime.datetime.now(), nullable=True
     )
     registration_hash: Mapped[str | None] = mapped_column(String(256))
 
 
+_idx_ab_user_username = Index("idx_ab_user_username", func.lower(User.__table__.c.username), unique=True)
+_idx_ab_register_user_username = Index(
+    "idx_ab_register_user_username", func.lower(RegisterUser.__table__.c.username), unique=True
+)
+
+
 @event.listens_for(User.__table__, "before_create")
 def add_index_on_ab_user_username_postgres(table, conn, **kw):
+    if conn.dialect.name == "postgresql":
+        if not any(idx.name == "idx_ab_user_username" for idx in table.indexes):
+            Index("idx_ab_user_username", func.lower(table.c.username), unique=True)
+    else:
+        table.indexes.discard(_idx_ab_user_username)
+
+
+@event.listens_for(User.__table__, "after_create")
+def _restore_idx_ab_user_username(table, conn, **kw):
     if conn.dialect.name != "postgresql":
-        return
-    index_name = "idx_ab_user_username"
-    if not any(table_index.name == index_name for table_index in table.indexes):
-        table.indexes.add(Index(index_name, func.lower(table.c.username), unique=True))
+        table.indexes.add(_idx_ab_user_username)
 
 
 @event.listens_for(RegisterUser.__table__, "before_create")
 def add_index_on_ab_register_user_username_postgres(table, conn, **kw):
+    if conn.dialect.name == "postgresql":
+        if not any(idx.name == "idx_ab_register_user_username" for idx in table.indexes):
+            Index("idx_ab_register_user_username", func.lower(table.c.username), unique=True)
+    else:
+        table.indexes.discard(_idx_ab_register_user_username)
+
+
+@event.listens_for(RegisterUser.__table__, "after_create")
+def _restore_idx_ab_register_user_username(table, conn, **kw):
     if conn.dialect.name != "postgresql":
-        return
-    index_name = "idx_ab_register_user_username"
-    if not any(table_index.name == index_name for table_index in table.indexes):
-        table.indexes.add(Index(index_name, func.lower(table.c.username), unique=True))
+        table.indexes.add(_idx_ab_register_user_username)

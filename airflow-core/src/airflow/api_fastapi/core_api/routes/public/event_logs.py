@@ -43,7 +43,11 @@ from airflow.api_fastapi.core_api.datamodels.event_logs import (
     EventLogResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
+from airflow.api_fastapi.core_api.security import (
+    DagAccessEntity,
+    ReadableEventLogsFilterDep,
+    requires_access_dag,
+)
 from airflow.models import Log
 
 event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
@@ -126,6 +130,7 @@ def get_event_logs(
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.run_id, "run_id_pattern"))],
     owner_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.owner, "owner_pattern"))],
     event_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.event, "event_pattern"))],
+    readable_event_logs_filter: ReadableEventLogsFilterDep,
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
     query = select(Log).options(joinedload(Log.task_instance), joinedload(Log.dag_model))
@@ -151,6 +156,8 @@ def get_event_logs(
             run_id_pattern,
             owner_pattern,
             event_pattern,
+            # Permission
+            readable_event_logs_filter,
         ],
         offset=offset,
         limit=limit,

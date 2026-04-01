@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Serialized DAG and BaseOperator."""
+"""Serialized Dag and BaseOperator."""
 
 from __future__ import annotations
 
@@ -23,10 +23,12 @@ from typing import TYPE_CHECKING, Any
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.secrets_masker import redact
+from airflow._shared.template_rendering import truncate_rendered_value
 from airflow.configuration import conf
 from airflow.settings import json
 
 if TYPE_CHECKING:
+    from airflow.partition_mappers.base import PartitionMapper
     from airflow.timetables.base import Timetable as CoreTimetable
 
 
@@ -82,10 +84,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
                 serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
-            return (
-                "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-                f"{rendered[: max_length - 79]!r}... "
-            )
+            return truncate_rendered_value(str(rendered), max_length)
         return serialized
     if not template_field and not isinstance(template_field, tuple):
         # Avoid unnecessary serialization steps for empty fields unless they are tuples
@@ -99,10 +98,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     serialized = str(template_field)
     if len(serialized) > max_length:
         rendered = redact(serialized, name)
-        return (
-            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-            f"{rendered[: max_length - 79]!r}... "
-        )
+        return truncate_rendered_value(str(rendered), max_length)
     return template_field
 
 
@@ -130,6 +126,35 @@ def find_registered_custom_timetable(importable_string: str) -> type[CoreTimetab
     raise TimetableNotRegistered(importable_string)
 
 
+def find_registered_custom_partition_mapper(importable_string: str) -> type[PartitionMapper]:
+    """Find a user-defined custom partition mapper class registered via a plugin."""
+    from airflow import plugins_manager
+
+    partition_mapper_classes = plugins_manager.get_partition_mapper_plugins()
+    with contextlib.suppress(KeyError):
+        return partition_mapper_classes[importable_string]
+    raise PartitionMapperNotFound(importable_string)
+
+
 def is_core_timetable_import_path(importable_string: str) -> bool:
     """Whether an importable string points to a core timetable class."""
     return importable_string.startswith("airflow.timetables.")
+
+
+class PartitionMapperNotFound(ValueError):
+    """Raise when a PartitionMapper cannot be found."""
+
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"PartitionMapper class {self.type_string!r} could not be imported or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        )
+
+
+def is_core_partition_mapper_import_path(importable_string: str) -> bool:
+    """Whether an importable string points to a core partition mapper class."""
+    return importable_string.startswith("airflow.partition_mappers.")

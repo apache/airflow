@@ -30,11 +30,15 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
 from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
@@ -50,6 +54,8 @@ from airflow.models.asset import (
 )
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
@@ -57,6 +63,7 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    clear_task_instances,
     find_relevant_relatives,
 )
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -67,8 +74,21 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, BaseSensorOperator, Metadata, task, task_group
+from airflow.sdk import (
+    DAG,
+    Asset,
+    AssetAlias,
+    BaseOperator,
+    BaseSensorOperator,
+    IdentityMapper,
+    Metadata,
+    PartitionedAssetTimetable,
+    task,
+    task_group,
+)
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
+from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.comms import AssetEventsResult
@@ -83,7 +103,6 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
-from airflow.timetables.simple import IdentityMapper, PartitionedAssetTimetable
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -516,7 +535,7 @@ class TestTaskInstance:
             session.get(TaskInstance, ti.id).try_number += 1
 
         # second run -- still up for retry because retry_delay hasn't expired
-        time_machine.coordinates.shift(3)
+        time_machine.shift(3)
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 2
@@ -525,7 +544,7 @@ class TestTaskInstance:
             session.get(TaskInstance, ti.id).try_number += 1
 
         # third run -- failed
-        time_machine.coordinates.shift(datetime.datetime.resolution)
+        time_machine.shift(datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
         assert ti.try_number == 3
@@ -1322,6 +1341,29 @@ class TestTaskInstance:
         ):
             assert ti.are_dependencies_met()
 
+    def test_are_dependencies_met_does_not_mutate_shared_dep_context(self, dag_maker, session):
+        """Verify that calling are_dependencies_met on an UP_FOR_RESCHEDULE TI does not
+        mutate the caller's DepContext.deps set.  The scheduler shares one DepContext across
+        all TIs in a loop, so mutation would leak ReadyToRescheduleDep into unrelated TIs."""
+        with dag_maker("test_depctx_no_mutation", serialized=True):
+            EmptyOperator(task_id="t")
+
+        dr = dag_maker.create_dagrun(session=session)
+        ti = dr.get_task_instance(task_id="t", session=session)
+        ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
+        session.merge(ti)
+        session.flush()
+
+        dep_context = DepContext(deps=RUNNING_DEPS)
+        original_deps = dep_context.deps.copy()
+
+        ti.task = dr.dag.task_dict[ti.task_id]
+        ti.are_dependencies_met(dep_context=dep_context, session=session)
+
+        assert dep_context.deps == original_deps, (
+            "DepContext.deps was mutated — ReadyToRescheduleDep leaked into the shared set"
+        )
+
     @pytest.mark.parametrize(
         ("downstream_ti_state", "expected_are_dependents_done"),
         [
@@ -1430,6 +1472,22 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
         assert ti_from_deserialized_task.state == State.RUNNING
         assert ti_from_deserialized_task.try_number == 0
+
+    @provide_session
+    def test_external_executor_id_accepts_long_values(self, create_task_instance, session):
+        """Test that external_executor_id can store values exceeding 250 characters."""
+        # Kubernetes pod names and other executor IDs can exceed 250 chars
+        long_executor_id = "k8s-pod-" + "a" * 300  # 308 characters total
+
+        ti = create_task_instance(dag_id="test_long_external_executor_id")
+        ti.external_executor_id = long_executor_id
+        session.merge(ti)
+        session.commit()
+
+        # Verify the value persists without truncation
+        ti.refresh_from_db()
+        assert ti.external_executor_id == long_executor_id
+        assert len(ti.external_executor_id) == 308
 
     def test_check_and_change_state_before_execution_dep_not_met(self, dag_maker):
         with dag_maker(dag_id="test_check_and_change_state_before_execution") as dag:
@@ -1707,7 +1765,9 @@ class TestTaskInstance:
         for ti in dr.get_task_instances(session=session):
             run_task_instance(ti, dag_maker.dag.get_task(ti.task_id), session=session)
 
-        events = dict((tuple(row)) for row in session.execute(select(AssetEvent.source_task_id, AssetEvent)))
+        events: dict[str, AssetEvent] = dict(
+            (str(row[0]), row[1]) for row in session.execute(select(AssetEvent.source_task_id, AssetEvent))
+        )
         assert set(events) == {"write1", "write2"}
 
         assert events["write1"].source_dag_id == dr.dag_id
@@ -2395,7 +2455,7 @@ class TestTaskInstance:
             "try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
-            "id": str(uuid6.uuid7()),
+            "id": uuid6.uuid7(),
             "unixname": "some_unique_unixname",
             "pool": "some_fake_pool_id",
             "pool_slots": 25,
@@ -2543,7 +2603,7 @@ class TestTaskInstance:
         tih = session.scalars(select(TaskInstanceHistory)).all()
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
-        assert str(tih[0].task_instance_id) == try_id
+        assert tih[0].task_instance_id == try_id
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
@@ -2591,6 +2651,164 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     ti.max_tries = expected_max_tries
     ti.refresh_from_task(ser_task)
     assert ti.max_tries == expected_max_tries
+
+
+def test_defer_task_returns_false_when_no_start_from_trigger(create_task_instance):
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task_op",
+    )
+    assert not ti.defer_task(session=session)
+
+
+def test_defer_task_returns_false_when_no_start_trigger_args(create_task_instance):
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task",
+        start_from_trigger=True,
+    )
+    assert not ti.defer_task(session=session)
+
+
+def test_defer_task(create_task_instance):
+    from airflow.models.trigger import Trigger
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+    ti = create_task_instance(
+        dag_id="test_defer_task",
+        task_id="test_defer_task_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={"key": "value"},
+        ),
+    )
+    assert ti.defer_task(session=session)
+
+    # Check that session.add was called with a Trigger
+    assert session.add.call_count == 1
+    trigger_row = session.add.call_args[0][0]
+    assert isinstance(trigger_row, Trigger)
+    assert trigger_row.classpath == "trigger_cls"
+    assert trigger_row.kwargs == {"key": "value"}
+
+    # Check that session.flush was called
+    session.flush.assert_called_once()
+
+    # Check that TaskInstance state was updated
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert ti.trigger_id == trigger_row.id
+    assert ti.next_method == "next_method"
+    assert ti.next_kwargs == {}
+
+    # Check trigger_timeout is set (should be None since no timeout provided)
+    assert ti.trigger_timeout is None
+
+
+def test_defer_task_with_trigger_timeout(create_task_instance):
+    from airflow.models.trigger import Trigger
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+    timeout = datetime.timedelta(hours=1)
+    ti = create_task_instance(
+        dag_id="test_defer_task_with_trigger_timeout",
+        task_id="test_defer_task_with_trigger_timeout_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={"key": "value"},
+            timeout=timeout,
+        ),
+    )
+
+    # Save start_date to calculate expected trigger_timeout
+    now = timezone.utcnow()
+    ti.start_date = now
+
+    ti.defer_task(session=session)
+
+    # Check session interactions
+    assert session.add.call_count == 1
+    trigger_row = session.add.call_args[0][0]
+    assert isinstance(trigger_row, Trigger)
+    session.flush.assert_called_once()
+
+    # TaskInstance fields
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert ti.trigger_id == trigger_row.id
+    assert ti.next_method == "next_method"
+    assert ti.next_kwargs == {}
+
+    # Check trigger_timeout is set correctly (within a small tolerance)
+    expected_timeout = now + timeout
+    assert abs((ti.trigger_timeout - expected_timeout).total_seconds()) < 5
+
+
+@pytest.mark.parametrize(
+    ("initial_state", "initial_try_number", "expected_try_number", "msg"),
+    [
+        (TaskInstanceState.DEFERRED, 1, 2, "try_number should increment if state is not UP_FOR_RESCHEDULE"),
+        (
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            5,
+            5,
+            "try_number should NOT increment if state is UP_FOR_RESCHEDULE",
+        ),
+    ],
+)
+def test_defer_task_try_number_increment_on_state(
+    create_task_instance, initial_state, initial_try_number, expected_try_number, msg
+):
+    """
+    Test that defer_task increments try_number only if the pre-deferral state is not UP_FOR_RESCHEDULE.
+    """
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+
+    ti = create_task_instance(
+        dag_id="test_defer_task_try_number",
+        task_id="test_defer_task_try_number_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={},
+        ),
+    )
+    ti.state = initial_state
+    ti.try_number = initial_try_number
+    ti.defer_task(session=session)
+    assert ti.try_number == expected_try_number, msg
+
+
+class TestTaskInstanceRelationships:
+    @pytest.mark.parametrize(
+        "attr",
+        ["rendered_task_instance_fields", "hitl_detail"],
+    )
+    def test_noload_relationships_raise_without_joinedload(self, dag_maker, session, attr):
+        """Accessing lazy='raise' relationships without joinedload should raise."""
+        from sqlalchemy.exc import InvalidRequestError
+
+        with dag_maker("test_dag", session=session):
+            EmptyOperator(task_id="task_1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task_1")
+        session.merge(ti)
+        session.commit()
+
+        loaded_ti = session.scalar(select(TaskInstance).where(TaskInstance.id == ti.id))
+
+        with pytest.raises(InvalidRequestError):
+            getattr(loaded_ti, attr)
 
 
 class TestTaskInstanceRecordTaskMapXComPush:
@@ -2829,6 +3047,71 @@ class TestMappedTaskInstanceReceiveValue:
             out_lines = [line.strip() for line in f]
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
 
+    def test_xcom_pull_unmapped_task(self, dag_maker, session):
+        """
+        Test that xcom_pull from unmapped task returns single deserialized value.
+
+        For unmapped tasks with map_index < 0, xcom_pull should return the single value,
+        not a LazyXComSelectSequence.
+        """
+
+        with dag_maker(dag_id="test_xcom_unmapped", session=session):
+            upstream = PythonOperator(
+                task_id="unmapped_task",
+                python_callable=lambda: {"key": "value"},
+            )
+            downstream = PythonOperator(
+                task_id="downstream",
+                python_callable=lambda: None,
+            )
+            upstream >> downstream
+
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+
+        # Run upstream task to push xcom
+        dag_maker.run_ti("unmapped_task", dag_run=dag_run, session=session)
+
+        # Get downstream task instance
+        ti_downstream = dag_run.get_task_instance("downstream", session=session)
+        ti_downstream.task = dag_maker.dag.task_dict["downstream"]
+
+        # Pull xcom - should return single dict value, not LazyXComSelectSequence
+        result = ti_downstream.xcom_pull(task_ids="unmapped_task", session=session)
+        assert isinstance(result, dict), f"Expected dict for unmapped task, got {type(result)}"
+        assert result == {"key": "value"}
+
+    def test_xcom_pull_returns_lazy_sequence_for_mapped_xcom(self, dag_maker, session):
+        """
+        Test that xcom_pull returns LazyXComSelectSequence when XComs are mapped (map_index >= 0)
+        and map_indexes is not specified.
+        """
+        from airflow.models.xcom import LazyXComSelectSequence
+
+        with dag_maker(dag_id="test_xcom_mapped_values", session=session):
+
+            @task
+            def push_values(val):
+                return val
+
+            upstream = push_values.expand(val=[2, 4])
+            downstream = PythonOperator(
+                task_id="downstream",
+                python_callable=lambda: None,
+            )
+            upstream >> downstream
+
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+        dag_maker.run_ti(upstream.operator.task_id, map_index=0, dag_run=dag_run, session=session)
+        dag_maker.run_ti(upstream.operator.task_id, map_index=1, dag_run=dag_run, session=session)
+
+        ti_downstream = dag_run.get_task_instance("downstream", session=session)
+        ti_downstream.task = dag_maker.dag.task_dict["downstream"]
+
+        result = ti_downstream.xcom_pull(task_ids=upstream.operator.task_id, session=session)
+        assert isinstance(result, LazyXComSelectSequence), (
+            f"Expected LazyXComSelectSequence for mapped XComs, got {type(result)}"
+        )
+
 
 def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
     backend = os.environ.get("BACKEND")
@@ -3041,7 +3324,9 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
 
     with dag_maker(
         dag_id="asset_event_listener",
-        schedule=PartitionedAssetTimetable(assets=asset, partition_mapper=IdentityMapper()),
+        schedule=PartitionedAssetTimetable(
+            assets=Asset(name="hello"), default_partition_mapper=IdentityMapper()
+        ),
         session=session,
     ):
         EmptyOperator(task_id="hi")
@@ -3062,3 +3347,216 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     assert pakl.asset_partition_dag_run_id == apdr.id
     assert pakl.source_partition_key == "abc123"
     assert pakl.target_dag_id == "asset_event_listener"
+
+
+async def empty_callback_for_deadline():
+    """Used in deadline tests to confirm that Deadlines and DeadlineAlerts function correctly."""
+    pass
+
+
+def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, session):
+    """Test that clearing tasks recalculates all (and only) DAGRUN_QUEUED_AT deadlines."""
+    with dag_maker(
+        dag_id="test_recalculate_deadlines",
+        schedule=datetime.timedelta(days=1),
+    ) as dag:
+        EmptyOperator(task_id="task_1")
+
+    dag_run = dag_maker.create_dagrun()
+    # Set the task to SUCCESS state
+    ti = dag_run.get_task_instance("task_1", session=session)
+    ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+    original_queued_at = timezone.utcnow() - datetime.timedelta(hours=2)
+    dag_run.queued_at = original_queued_at
+    session.flush()
+
+    serialized_dag_id = session.scalar(
+        select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag.dag_id)
+    )
+
+    deadline_configs = [
+        (DeadlineReference.DAGRUN_QUEUED_AT, datetime.timedelta(hours=1)),
+        (DeadlineReference.DAGRUN_QUEUED_AT, datetime.timedelta(hours=2)),
+        (DeadlineReference.FIXED_DATETIME, datetime.timedelta(hours=1)),
+    ]
+
+    for deadline_type, interval in deadline_configs:
+        if deadline_type == DeadlineReference.DAGRUN_QUEUED_AT:
+            reference = DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference()
+            deadline_time = dag_run.queued_at + interval
+        else:  # FIXED_DATETIME
+            future_date = timezone.utcnow() + datetime.timedelta(days=7)
+            reference = DeadlineReference.FIXED_DATETIME(future_date).serialize_reference()
+            deadline_time = future_date + interval
+
+        deadline_alert = DeadlineAlertModel(
+            serialized_dag_id=serialized_dag_id,
+            reference=reference,
+            interval=interval.total_seconds(),
+            callback_def={"path": f"{__name__}.empty_callback_for_deadline", "kwargs": {}},
+        )
+        session.add(deadline_alert)
+        session.flush()
+
+        deadline = Deadline(
+            dagrun_id=dag_run.id,
+            deadline_alert_id=deadline_alert.id,
+            deadline_time=deadline_time,
+            callback=AsyncCallback(empty_callback_for_deadline),
+            dag_id=dag_run.dag_id,
+        )
+        session.add(deadline)
+
+    session.flush()
+
+    deadlines_before = session.scalars(select(Deadline).where(Deadline.dagrun_id == dag_run.id)).all()
+    deadline_times_by_alert = {
+        deadline.deadline_alert_id: deadline.deadline_time for deadline in deadlines_before
+    }
+
+    tis = session.scalars(select(TI).where(TI.dag_id == dag.dag_id, TI.run_id == dag_run.run_id)).all()
+    clear_task_instances(tis, session)
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+    assert dag_run.queued_at > original_queued_at
+
+    deadlines_after = session.scalars(select(Deadline).where(Deadline.dagrun_id == dag_run.id)).all()
+    assert len(deadlines_after) == 3
+
+    # Verify exactly 2 DAGRUN_QUEUED_AT deadlines were recalculated, FIXED_DATETIME was not
+    recalculated_count = 0
+    for deadline in deadlines_after:
+        if deadline.deadline_time != deadline_times_by_alert[deadline.deadline_alert_id]:
+            recalculated_count += 1
+            deadline_alert = session.get(DeadlineAlertModel, deadline.deadline_alert_id)
+            expected_time = dag_run.queued_at + datetime.timedelta(seconds=deadline_alert.interval)
+            assert deadline.deadline_time == expected_time
+
+    assert recalculated_count == 2
+
+
+def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
+    """
+    Test that `get_dagrun()` fetches `DagRun` from DB when the `dag_run`
+    relationship is marked as loaded but unset (`None`).
+    """
+    from sqlalchemy.orm.attributes import set_committed_value
+
+    from airflow.operators.empty import EmptyOperator
+    from airflow.utils.state import State
+
+    with dag_maker(dag_id="test_get_dagrun_loaded_none"):
+        EmptyOperator(task_id="test_task")
+
+    dr = dag_maker.create_dagrun(state=State.RUNNING)
+
+    ti = dr.get_task_instance(task_id="test_task", session=session)
+
+    # Simulate relationship being loaded but unset
+    set_committed_value(ti, "dag_run", None)
+
+    dr_from_ti = ti.get_dagrun(session=session)
+
+    assert dr_from_ti is not None
+    assert dr_from_ti == dr
+
+
+class TestMakeTaskCarrier:
+    """Tests for the _make_task_carrier helper."""
+
+    @pytest.fixture(autouse=True)
+    def sdk_tracer_provider(self):
+        provider = TracerProvider()
+        real_tracer = provider.get_tracer("airflow.models.taskinstance")
+        with (
+            mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+            mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+        ):
+            yield
+
+    def test_make_task_carrier_returns_traceparent(self):
+        carrier = new_task_run_carrier(new_dagrun_trace_carrier())
+        assert isinstance(carrier, dict)
+        assert "traceparent" in carrier
+
+    def test_make_task_carrier_child_of_parent(self):
+        parent_carrier = new_dagrun_trace_carrier()
+        child_carrier = new_task_run_carrier(parent_carrier)
+
+        propagator = TraceContextTextMapPropagator()
+        parent_trace_id = (
+            otel_trace.get_current_span(context=propagator.extract(parent_carrier))
+            .get_span_context()
+            .trace_id
+        )
+        child_trace_id = (
+            otel_trace.get_current_span(context=propagator.extract(child_carrier)).get_span_context().trace_id
+        )
+        assert child_trace_id == parent_trace_id
+        assert child_trace_id != 0
+
+    def test_make_task_carrier_with_none_carrier(self):
+        carrier = new_task_run_carrier(None)
+        assert isinstance(carrier, dict)
+        assert "traceparent" in carrier
+
+
+@pytest.mark.db_test
+def test_insert_mapping_includes_context_carrier(dag_maker, session):
+    """insert_mapping should include a context_carrier with a traceparent derived from the dag run."""
+    provider = TracerProvider()
+    real_tracer = provider.get_tracer("airflow.models.taskinstance")
+    with (
+        mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+        mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+    ):
+        with dag_maker("test_insert_mapping_carrier"):
+            EmptyOperator(task_id="t1")
+        session.flush()
+
+        # Get the scheduler-side operator (has a proper PriorityWeightStrategy, not the enum weight_rule).
+        op = create_scheduler_operator(dag_maker.dag.get_task("t1"))
+
+        # Mock the DagRun to avoid inserting into the dag_run table (schema migrations may be pending).
+        dag_run = mock.MagicMock()
+        dag_run.context_carrier = new_dagrun_trace_carrier()
+
+        mapping = TaskInstance.insert_mapping(
+            run_id="test_run",
+            task=op,
+            map_index=0,
+            dag_version_id=None,
+            dag_run=dag_run,
+        )
+
+    assert "context_carrier" in mapping
+    assert mapping["context_carrier"] is not None
+    assert "traceparent" in mapping["context_carrier"]
+
+
+@pytest.mark.db_test
+def test_clear_task_instances_resets_context_carrier(dag_maker, session):
+    """clear_task_instances should assign fresh context carriers to both the TI and its dag run."""
+    provider = TracerProvider()
+    real_tracer = provider.get_tracer("airflow.models.taskinstance")
+    with (
+        mock.patch("airflow.models.taskinstance.tracer", real_tracer),
+        mock.patch("airflow._shared.observability.traces.tracer", real_tracer),
+    ):
+        with dag_maker("test_clear_carrier"):
+            EmptyOperator(task_id="t1")
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.get_task_instance("t1", session=session)
+        ti.state = TaskInstanceState.SUCCESS
+        # Set an explicit carrier so we can verify it changes.
+        ti.context_carrier = {"traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaa0001-bbbbbbbbbbbbbbbb-01"}
+        session.flush()
+
+        original_ti_traceparent = ti.context_carrier["traceparent"]
+        original_dr_traceparent = dag_run.context_carrier["traceparent"]
+
+        clear_task_instances([ti], session)
+
+    assert ti.context_carrier["traceparent"] != original_ti_traceparent
+    assert dag_run.context_carrier["traceparent"] != original_dr_traceparent

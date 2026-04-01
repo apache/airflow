@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import filecmp
 import shutil
-import subprocess
 import tarfile
 import time
 from pathlib import Path
@@ -29,9 +28,7 @@ from airflow_breeze.utils.run_utils import run_command
 
 
 class AirflowReleaseValidator(ReleaseValidator):
-    APACHE_RAT_JAR_DOWNLOAD_URL = (
-        "https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz"
-    )
+    """Validator for Apache Airflow release candidates."""
 
     def __init__(
         self,
@@ -39,8 +36,18 @@ class AirflowReleaseValidator(ReleaseValidator):
         svn_path: Path,
         airflow_repo_root: Path,
         task_sdk_version: str | None = None,
+        download_gpg_keys: bool = False,
+        update_svn: bool = True,
+        verbose: bool = False,
     ):
-        super().__init__(version, svn_path, airflow_repo_root)
+        super().__init__(
+            version=version,
+            svn_path=svn_path,
+            airflow_repo_root=airflow_repo_root,
+            download_gpg_keys=download_gpg_keys,
+            update_svn=update_svn,
+            verbose=verbose,
+        )
         self.task_sdk_version = task_sdk_version or version
         self.version_without_rc = self._strip_rc_suffix(version)
         self.task_sdk_version_without_rc = self._strip_rc_suffix(self.task_sdk_version)
@@ -70,6 +77,10 @@ class AirflowReleaseValidator(ReleaseValidator):
 
     def get_task_sdk_svn_directory(self) -> Path:
         return self.svn_path / "task-sdk" / self.task_sdk_version
+
+    def get_svn_directories(self) -> list[Path]:
+        """Return both Airflow and Task SDK SVN directories."""
+        return [self.get_svn_directory(), self.get_task_sdk_svn_directory()]
 
     def get_expected_files(self) -> list[str]:
         files = []
@@ -143,153 +154,278 @@ class AirflowReleaseValidator(ReleaseValidator):
         self._print_result(result)
         return result
 
-    def validate_signatures(self):
-        console_print("\n[bold]GPG Signature Verification[/bold]")
-        start_time = time.time()
+    def _compare_archives(self, built_file: Path, svn_file: Path) -> tuple[bool, list[str]]:
+        """Compare two archives by content.
 
-        asc_files = []
-        for svn_dir in [self.get_svn_directory(), self.get_task_sdk_svn_directory()]:
-            if svn_dir.exists():
-                asc_files.extend(svn_dir.glob("*.asc"))
+        Returns:
+            Tuple of (matches, diff_details) where diff_details lists what differs.
+        """
+        diff_details = []
 
-        if not asc_files:
-            return ValidationResult(
-                check_type=CheckType.SIGNATURES,
-                passed=False,
-                message="No .asc files found",
-                duration_seconds=time.time() - start_time,
-            )
+        if built_file.suffix == ".whl":
+            import zipfile
 
-        failed = [
-            f.name
-            for f in asc_files
-            if run_command(["gpg", "--verify", str(f)], check=False, capture_output=True).returncode != 0
-        ]
+            try:
+                with zipfile.ZipFile(built_file) as z1, zipfile.ZipFile(svn_file) as z2:
+                    n1 = set(z1.namelist())
+                    n2 = set(z2.namelist())
+                    only_in_built = {n for n in (n1 - n2)}
+                    only_in_svn = {n for n in (n2 - n1)}
+                    if only_in_built:
+                        diff_details.append(f"Only in built: {', '.join(sorted(only_in_built)[:5])}")
+                    if only_in_svn:
+                        diff_details.append(f"Only in SVN: {', '.join(sorted(only_in_svn)[:5])}")
+                    for n in n1 & n2:
+                        if z1.getinfo(n).CRC != z2.getinfo(n).CRC:
+                            diff_details.append(f"Content differs: {n}")
+                    return (not diff_details, diff_details)
+            except Exception as e:
+                return (False, [f"Error: {e}"])
 
-        message = (
-            f"All {len(asc_files)} signatures verified" if not failed else f"{len(failed)} signatures failed"
-        )
-        result = ValidationResult(
-            check_type=CheckType.SIGNATURES,
-            passed=not failed,
-            message=message,
-            details=failed or None,
-            duration_seconds=time.time() - start_time,
-        )
-        self._print_result(result)
-        return result
+        elif built_file.suffix == ".gz":  # tar.gz
+            try:
+                with tarfile.open(built_file, "r:gz") as t1, tarfile.open(svn_file, "r:gz") as t2:
+                    m1 = {m.name: m for m in t1.getmembers()}
+                    m2 = {m.name: m for m in t2.getmembers()}
+                    only_in_built = {n for n in (set(m1.keys()) - set(m2.keys()))}
+                    only_in_svn = {n for n in (set(m2.keys()) - set(m1.keys()))}
+                    if only_in_built:
+                        diff_details.append(f"Only in built: {', '.join(sorted(only_in_built)[:5])}")
+                    if only_in_svn:
+                        diff_details.append(f"Only in SVN: {', '.join(sorted(only_in_svn)[:5])}")
 
-    def validate_checksums(self):
-        console_print("\n[bold]SHA512 Checksum Verification[/bold]")
-        start_time = time.time()
+                    # First pass: compare sizes (fast, metadata only)
+                    common_names = set(m1.keys()) & set(m2.keys())
+                    size_mismatches = []
+                    for name in common_names:
+                        if m1[name].size != m2[name].size:
+                            size_mismatches.append(name)
+                        elif m1[name].issym() and m2[name].issym():
+                            if m1[name].linkname != m2[name].linkname:
+                                diff_details.append(f"Symlink differs: {name}")
+                        elif m1[name].isdir() != m2[name].isdir():
+                            diff_details.append(f"Type differs: {name}")
 
-        sha512_files = []
-        for svn_dir in [self.get_svn_directory(), self.get_task_sdk_svn_directory()]:
-            if svn_dir.exists():
-                sha512_files.extend(svn_dir.glob("*.sha512"))
+                    if size_mismatches:
+                        for name in size_mismatches[:10]:
+                            diff_details.append(f"Size differs: {name} ({m1[name].size} vs {m2[name].size})")
 
-        if not sha512_files:
-            return ValidationResult(
-                check_type=CheckType.CHECKSUMS,
-                passed=False,
-                message="No .sha512 files found",
-                duration_seconds=time.time() - start_time,
-            )
+                    # If file lists and sizes all match, archives are equivalent
+                    return (not diff_details, diff_details)
+            except Exception as e:
+                return (False, [f"Error: {e}"])
 
-        failed = []
-        for sha_file in sha512_files:
-            expected = sha_file.read_text().split()[0]
-            target_file = sha_file.parent / sha_file.name.replace(".sha512", "")
-
-            if not target_file.exists():
-                failed.append(f"{sha_file.name} (target missing)")
-                continue
-
-            result = run_command(
-                ["shasum", "-a", "512", str(target_file)], check=False, capture_output=True, text=True
-            )
-            if result.returncode != 0 or result.stdout.split()[0] != expected:
-                failed.append(sha_file.name)
-
-        message = (
-            f"All {len(sha512_files)} checksums valid" if not failed else f"{len(failed)} checksums failed"
-        )
-        result = ValidationResult(
-            check_type=CheckType.CHECKSUMS,
-            passed=not failed,
-            message=message,
-            details=failed or None,
-            duration_seconds=time.time() - start_time,
-        )
-        self._print_result(result)
-        return result
+        return (False, ["Unknown archive type"])
 
     def validate_reproducible_build(self):
+        """Build packages from source using git checkout and compare with SVN artifacts."""
         console_print("\n[bold]Reproducible Build Verification[/bold]")
         start_time = time.time()
 
-        dist_dir = self.airflow_repo_root / "dist"
-        if dist_dir.exists():
-            console_print("Cleaning dist directory...")
-            shutil.rmtree(dist_dir)
-        dist_dir.mkdir()
+        tag = self.version
+        repo_root = self.airflow_repo_root
 
-        console_print("Building packages from source...")
-        if not self.build_packages():
+        # Check for uncommitted changes
+        status_result = run_command(
+            ["git", "status", "--porcelain"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if status_result.stdout.strip():
             return ValidationResult(
+                check_type=CheckType.REPRODUCIBLE_BUILD,
+                passed=False,
+                message="Repository has uncommitted changes",
+                details=["Please commit or stash changes before running reproducible build check."],
+                duration_seconds=time.time() - start_time,
+            )
+
+        # Save current branch name (if on a branch) or HEAD commit
+        branch_result = run_command(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        original_branch = branch_result.stdout.strip() if branch_result.returncode == 0 else None
+
+        # Save current HEAD to restore later
+        head_result = run_command(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if head_result.returncode != 0:
+            return ValidationResult(
+                check_type=CheckType.REPRODUCIBLE_BUILD,
+                passed=False,
+                message="Failed to get current HEAD",
+                duration_seconds=time.time() - start_time,
+            )
+        original_head = head_result.stdout.strip()
+
+        # Determine what to display and restore to
+        if original_branch and original_branch != "HEAD":
+            original_ref = original_branch
+            original_display = f"branch '{original_branch}'"
+        else:
+            original_ref = original_head
+            original_display = f"commit {original_head[:12]}"
+
+        # Warn user about branch switch
+        console_print(
+            f"[yellow]WARNING: This check will temporarily switch from {original_display} "
+            f"to tag '{tag}' and should automatically return afterwards.[/yellow]"
+        )
+
+        console_print(f"Checking out tag: {tag}")
+        checkout_result = run_command(
+            ["git", "checkout", tag],
+            cwd=str(repo_root),
+            check=False,
+        )
+        if checkout_result.returncode != 0:
+            return ValidationResult(
+                check_type=CheckType.REPRODUCIBLE_BUILD,
+                passed=False,
+                message=f"Failed to checkout tag {tag}",
+                details=["Hint: Make sure the tag exists. Run 'git fetch --tags' to update."],
+                duration_seconds=time.time() - start_time,
+            )
+
+        # Initialize result variables
+        differences = []
+        verified_count = 0
+        missing_from_svn = []
+        build_failed = False
+
+        try:
+            # Clean dist directory (as per manual release process: rm -rf dist/*)
+            dist_dir = repo_root / "dist"
+            if dist_dir.exists():
+                console_print("Cleaning dist directory...")
+                shutil.rmtree(dist_dir)
+
+            # NOTE: git clean commented out - it removes .venv and other important files
+            # The Docker-based build should handle this in isolation anyway
+            # console_print("Cleaning untracked files (git clean -fdx)...")
+            # run_command(
+            #     ["git", "clean", "-fdx"],
+            #     cwd=str(repo_root),
+            #     check=False,
+            # )
+
+            # Build packages using breeze from the checked-out tag
+            console_print("Building packages from source...")
+            if not self.build_packages():
+                build_failed = True
+            else:
+                # Compare built packages with SVN
+                dist_dir = repo_root / "dist"
+
+                for pattern in ["*.tar.gz", "*.whl"]:
+                    for built_file in dist_dir.glob(pattern):
+                        svn_dir = (
+                            self.get_task_sdk_svn_directory()
+                            if "task_sdk" in built_file.name
+                            else self.get_svn_directory()
+                        )
+                        svn_file = svn_dir / built_file.name
+                        if svn_file.exists():
+                            console_print(f"Verifying {built_file.name}...", end=" ")
+                            # Default to binary comparison
+                            if filecmp.cmp(built_file, svn_file, shallow=False):
+                                verified_count += 1
+                                console_print("[green]OK[/green]")
+                            else:
+                                # Compare archive contents
+                                matches, diff_details = self._compare_archives(built_file, svn_file)
+                                if matches:
+                                    verified_count += 1
+                                    console_print("[green]OK (content match)[/green]")
+                                else:
+                                    differences.append(built_file.name)
+                                    console_print("[red]MISMATCH[/red]")
+                                    for detail in diff_details[:10]:
+                                        console_print(f"  {detail}")
+                                    if len(diff_details) > 10:
+                                        console_print(f"  ... and {len(diff_details) - 10} more differences")
+
+                        else:
+                            missing_from_svn.append(built_file.name)
+                            console_print(
+                                f"[yellow]Note: {built_file.name} not in SVN (may be expected)[/yellow]"
+                            )
+        finally:
+            # Always restore original branch/HEAD, regardless of success or failure
+            console_print(f"Restoring to {original_display}...")
+            restore_result = run_command(
+                ["git", "checkout", original_ref],
+                cwd=str(repo_root),
+                check=False,
+            )
+            if restore_result.returncode == 0:
+                console_print(f"[green]Successfully restored to {original_display}[/green]")
+            else:
+                console_print(
+                    f"[red]WARNING: Failed to restore to {original_display}. "
+                    f"Please manually run: git checkout {original_ref}[/red]"
+                )
+
+        # Return result after restoring HEAD
+        if build_failed:
+            result = ValidationResult(
                 check_type=CheckType.REPRODUCIBLE_BUILD,
                 passed=False,
                 message="Failed to build packages",
                 duration_seconds=time.time() - start_time,
             )
+            self._print_result(result)
+            return result
 
-        differences = []
-        for pattern in ["*.tar.gz", "*.whl"]:
-            for file in dist_dir.glob(pattern):
-                svn_dir = (
-                    self.get_task_sdk_svn_directory() if "task_sdk" in file.name else self.get_svn_directory()
-                )
-                svn_file = svn_dir / file.name
-                if svn_file.exists() and not filecmp.cmp(file, svn_file, shallow=False):
-                    differences.append(file.name)
+        if not differences:
+            message = f"All {verified_count} packages are identical to SVN"
+        else:
+            message = f"{len(differences)} packages differ from SVN"
 
-        message = "All packages are identical" if not differences else f"{len(differences)} packages differ"
+        details = None
+        if differences:
+            details = differences[:]
+        if missing_from_svn and self.verbose:
+            details = details or []
+            details.append(f"Note: {len(missing_from_svn)} built packages not in SVN (may be expected)")
+
         result = ValidationResult(
             check_type=CheckType.REPRODUCIBLE_BUILD,
             passed=not differences,
             message=message,
-            details=differences or None,
+            details=details,
             duration_seconds=time.time() - start_time,
         )
         self._print_result(result)
         return result
 
     def validate_licenses(self):
+        """Run Apache RAT license check on source tarball."""
         console_print("\n[bold]Apache RAT License Verification[/bold]")
         start_time = time.time()
 
-        rat_jar = Path("/tmp/apache-rat-0.17/apache-rat-0.17.jar")
         source_dir = Path("/tmp/apache-airflow-src")
 
-        if not rat_jar.exists():
-            console_print("Downloading Apache RAT...")
-            wget_result = run_command(
-                ["wget", "-qO-", self.APACHE_RAT_JAR_DOWNLOAD_URL],
-                check=False,
-                capture_output=True,
+        # Download Apache RAT with checksum verification
+        rat_jar = self._download_apache_rat()
+        if not rat_jar:
+            return ValidationResult(
+                check_type=CheckType.LICENSES,
+                passed=False,
+                message="Failed to download or verify Apache RAT",
+                duration_seconds=time.time() - start_time,
             )
-            if wget_result.returncode != 0:
-                return ValidationResult(
-                    check_type=CheckType.LICENSES,
-                    passed=False,
-                    message="Failed to download Apache RAT",
-                    duration_seconds=time.time() - start_time,
-                )
-
-            subprocess.run(["tar", "-C", "/tmp", "-xzf", "-"], input=wget_result.stdout, check=True)
-            console_print("[green]Apache RAT downloaded[/green]")
-        else:
-            console_print("[green]Apache RAT already present[/green]")
 
         source_tarball = self.get_svn_directory() / f"apache_airflow-{self.version_without_rc}-source.tar.gz"
         if not source_tarball.exists():
@@ -309,7 +445,7 @@ class AirflowReleaseValidator(ReleaseValidator):
             for member in tar.getmembers():
                 member.name = "/".join(member.name.split("/")[1:])
                 if member.name:
-                    tar.extract(member, source_dir)
+                    tar.extract(member, source_dir, filter="data")
 
         rat_excludes = source_dir / ".rat-excludes"
         console_print("Running Apache RAT...")
@@ -353,6 +489,20 @@ class AirflowReleaseValidator(ReleaseValidator):
         if unknown > 0:
             details.append(f"Unknown licenses: {unknown}")
 
+        # Show verbose RAT output if requested
+        if self.verbose:
+            separator_count = 0
+            for line in result.stdout.splitlines():
+                if line.strip().startswith("**********"):
+                    separator_count += 1
+                if separator_count >= 3:
+                    break
+                console_print(line)
+
+        # Clean up extracted source directory (~500MB)
+        if source_dir.exists():
+            shutil.rmtree(source_dir)
+
         passed = not error_lines and unapproved == 0 and unknown == 0
         message = (
             "All files have approved licenses"
@@ -371,47 +521,57 @@ class AirflowReleaseValidator(ReleaseValidator):
         return result
 
     def build_packages(self) -> bool:
+        """Build Airflow distributions and source tarball."""
         console_print("Building Airflow distributions...")
-        if (
-            run_command(
-                [
-                    "breeze",
-                    "release-management",
-                    "prepare-airflow-distributions",
-                    "--distribution-format",
-                    "both",
-                ],
-                cwd=str(self.airflow_repo_root),
-                check=False,
-                capture_output=True,
-            ).returncode
-            != 0
-        ):
+
+        # Use breeze from the current checkout
+        base_cmd = ["breeze"]
+
+        result = run_command(
+            base_cmd
+            + [
+                "release-management",
+                "prepare-airflow-distributions",
+                "--distribution-format",
+                "both",
+            ],
+            cwd=str(self.airflow_repo_root),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
             console_print("[red]Failed to build Airflow distributions[/red]")
+            if result.stdout:
+                console_print(f"[yellow]STDOUT:[/yellow]\n{result.stdout[-2000:]}")
+            if result.stderr:
+                console_print(f"[yellow]STDERR:[/yellow]\n{result.stderr[-2000:]}")
             return False
 
         console_print("Building Task SDK distributions...")
-        if (
-            run_command(
-                [
-                    "breeze",
-                    "release-management",
-                    "prepare-task-sdk-distributions",
-                    "--distribution-format",
-                    "both",
-                ],
-                cwd=str(self.airflow_repo_root),
-                check=False,
-                capture_output=True,
-            ).returncode
-            != 0
-        ):
+        result = run_command(
+            base_cmd
+            + [
+                "release-management",
+                "prepare-task-sdk-distributions",
+                "--distribution-format",
+                "both",
+            ],
+            cwd=str(self.airflow_repo_root),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
             console_print("[red]Failed to build Task SDK distributions[/red]")
+            if result.stdout:
+                console_print(f"[yellow]STDOUT:[/yellow]\n{result.stdout[-2000:]}")
+            if result.stderr:
+                console_print(f"[yellow]STDERR:[/yellow]\n{result.stderr[-2000:]}")
             return False
 
         console_print("Building source tarball...")
-        cmd = [
-            "breeze",
+        cmd = base_cmd + [
             "release-management",
             "prepare-tarball",
             "--tarball-type",
@@ -422,11 +582,15 @@ class AirflowReleaseValidator(ReleaseValidator):
         if version_suffix := self._get_version_suffix():
             cmd.extend(["--version-suffix", version_suffix])
 
-        if (
-            run_command(cmd, cwd=str(self.airflow_repo_root), check=False, capture_output=True).returncode
-            != 0
-        ):
+        result = run_command(
+            cmd, cwd=str(self.airflow_repo_root), check=False, capture_output=True, text=True
+        )
+        if result.returncode != 0:
             console_print("[red]Failed to build source tarball[/red]")
+            if result.stdout:
+                console_print(f"[yellow]STDOUT:[/yellow]\n{result.stdout[-2000:]}")
+            if result.stderr:
+                console_print(f"[yellow]STDERR:[/yellow]\n{result.stderr[-2000:]}")
             return False
 
         console_print("[green]All packages built successfully[/green]")

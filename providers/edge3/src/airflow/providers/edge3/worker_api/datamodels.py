@@ -26,7 +26,7 @@ from fastapi import Path
 from pydantic import BaseModel, Field
 
 from airflow.executors.workloads import ExecuteTask  # noqa: TCH001
-from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.providers.common.compat.sdk import TaskInstanceKey
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState  # noqa: TCH001
 
 
@@ -121,6 +121,13 @@ class WorkerQueuesBase(BaseModel):
             description="List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues.",
         ),
     ]
+    team_name: Annotated[
+        str | None,
+        Field(
+            None,
+            description="Team name for multi-team setups. If not provided, worker operates without team isolation.",
+        ),
+    ] = None
 
 
 class WorkerQueuesBody(WorkerQueuesBase):
@@ -199,4 +206,11 @@ class WorkerSetStateReturn(BaseModel):
     maintenance_comments: Annotated[
         str | None,
         Field(description="Comments about the maintenance state of the worker."),
+    ] = None
+    concurrency: Annotated[
+        int | None,
+        Field(
+            description="Desired concurrency for the worker set by an administrator. "
+            "None means no remote override; the worker uses its startup value.",
+        ),
     ] = None

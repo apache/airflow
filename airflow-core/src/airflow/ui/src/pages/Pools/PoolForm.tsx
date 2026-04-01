@@ -22,13 +22,16 @@ import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { TeamSelector } from "src/components/TeamSelector.tsx";
 import { Checkbox } from "src/components/ui/Checkbox";
+import { useConfig } from "src/queries/useConfig.tsx";
 
 export type PoolBody = {
   description: string | undefined;
   include_deferred: boolean;
   name: string;
   slots: number;
+  team_name: string;
 };
 
 type PoolFormProps = {
@@ -38,6 +41,8 @@ type PoolFormProps = {
   readonly manageMutate: (poolRequestBody: PoolBody) => void;
   readonly setError: (error: unknown) => void;
 };
+
+const POOL_SLOTS_MIN = -1;
 
 const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: PoolFormProps) => {
   const { t: translate } = useTranslation(["admin", "common"]);
@@ -50,6 +55,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
     defaultValues: initialPool,
     mode: "onChange",
   });
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const onSubmit = (data: PoolBody) => {
     manageMutate(data);
@@ -83,22 +89,41 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
       <Controller
         control={control}
         name="slots"
-        render={({ field }) => (
-          <Field.Root mt={4}>
+        render={({ field, fieldState }) => (
+          <Field.Root invalid={Boolean(fieldState.error)} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
             <Input
-              min={initialPool.slots}
+              min={POOL_SLOTS_MIN}
+              onBlur={field.onBlur}
               onChange={(event) => {
-                const value = event.target.valueAsNumber;
+                const { value: raw, valueAsNumber } = event.target;
 
-                field.onChange(isNaN(value) ? field.value : value);
+                field.onChange(raw === "" ? Number.NaN : valueAsNumber);
               }}
+              ref={field.ref}
               size="sm"
               type="number"
-              value={field.value}
+              value={Number.isFinite(field.value) ? field.value : ""}
             />
+            {fieldState.error ? (
+              <Field.ErrorText>{fieldState.error.message}</Field.ErrorText>
+            ) : (
+              <Field.HelperText>{translate("pools.form.slotsHelperText")}</Field.HelperText>
+            )}
           </Field.Root>
         )}
+        rules={{
+          validate: (value: number) => {
+            if (!Number.isFinite(value)) {
+              return translate("common:validation.mustBeValidNumber");
+            }
+            if (value < POOL_SLOTS_MIN) {
+              return translate("common:validation.mustBeAtLeast", { min: POOL_SLOTS_MIN });
+            }
+
+            return true;
+          },
+        }}
       />
 
       <Controller
@@ -124,6 +149,8 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           </Field.Root>
         )}
       />
+
+      {multiTeamEnabled ? <TeamSelector control={control} /> : undefined}
 
       <ErrorAlert error={error} />
 

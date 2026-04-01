@@ -28,7 +28,6 @@ Create Date: 2025-07-31 19:35:53.150465
 from __future__ import annotations
 
 import sqlalchemy as sa
-import sqlalchemy_jsonfield
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -44,14 +43,12 @@ def upgrade():
     with op.batch_alter_table("deadline", schema=None) as batch_op:
         batch_op.drop_column("callback")
         batch_op.drop_column("callback_kwargs")
-        batch_op.add_column(sa.Column("callback", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=False))
+        batch_op.add_column(sa.Column("callback", sa.JSON(), nullable=False))
 
 
 def downgrade():
     """Replace deadline table's JSON callback with string callback and JSON callback_kwargs."""
     with op.batch_alter_table("deadline", schema=None) as batch_op:
         batch_op.drop_column("callback")
-        batch_op.add_column(
-            sa.Column("callback_kwargs", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=True)
-        )
+        batch_op.add_column(sa.Column("callback_kwargs", sa.JSON(), nullable=True))
         batch_op.add_column(sa.Column("callback", sa.String(length=500), nullable=False))

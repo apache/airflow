@@ -77,8 +77,8 @@ Here is an example configuration with more than 200GB disk space for Docker:
             <img src="images/docker_socket.png" width="640" alt="Docker socket used">
         </div>
 
-Note: If you use Colima, please follow instructions at:
-`Contributors Quick Start Guide </contributing-docs/03b_contributors_quick_start_seasoned_developers.rst>`__
+Note: If you use Colima, please follow instructions in Colima section at:
+`Contributors Quick Start Guide </contributing-docs/03_contributors_quick_start.rst>`__
 
 Docker Compose
 --------------
@@ -173,8 +173,8 @@ Alternative: pipx tool
 
 However, we do not want to be entirely dependent on ``uv`` as it is a software governed by a VC-backed vendor,
 so we always want to provide open-source governed alternatives for our tools. If you can't or do not want to
-use ``uv``, we got you covered. Another too you can use to manage development tools (and ``breeze`` development
-environment is Python-Software-Foundation managed ``pipx``. The ``pipx`` tool is created by the creators
+use ``uv``, we got you covered. Another tool you can use to manage development tools (and ``breeze`` development
+environment) is Python-Software-Foundation managed ``pipx``. The ``pipx`` tool is created by the creators
 of ``pip`` from `Python Packaging Authority <https://www.pypa.io/en/latest/>`_
 
 Note that ``pipx`` >= 1.4.1 should be used.

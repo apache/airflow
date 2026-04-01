@@ -27,10 +27,144 @@
 Changelog
 ---------
 
+10.15.0
+.......
+
 .. warning::
    ``KubernetesJobOperator`` no longer supports setting ``parallelism = 0`` with ``wait_until_job_complete=True``.
    Previously this would create a job that would never complete and always fail the task.
    Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
+
+Features
+~~~~~~~~
+
+* ``Add runtime_class_name to KubernetesPodOperator (#63952)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add application name as env var to driver and executor pods for SparkKubernetesOperator (#64015)``
+* ``Deleting spark job before raising exception "Job took too long to start" in start_spark_job method (#63824) (#63922)``
+* ``Add cancel_on_kill and safe_to_cancel support to KubernetesPodOperator and trigger (#62401)``
+* ``Fix misaligned 'queued_tasks' types in hybrid executors (#63744)``
+* ``Use joinable manager queues (#63789)``
+* ``K8s unicode log read (#63673)``
+* ``K8s executor - ensure pods cleaned up (#61839)``
+* ``Apply verify_ssl=False to returned ApiClient in KubernetesHook (#63478)``
+* ``Fix KubernetesJobOperator failing when pods are deleted after job completion (#63569)``
+* ``Fix KubernetesPodOperator XCom sidecar hang on Alpine (#58931)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix mypy errors in kubernetes, fab, google, and amazon providers (#63947)``
+* ``Relax 'kubernetes_asyncio<<36.0.0' (#64144)``
+* ``Clarify reattach order of 'find_spark_job' in 'SparkKubernetesOperator' (#64186)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+10.14.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add multi-team support for KubernetesExecutor (#61798)``
+* ``Executor Synchronous callback workload (#61153)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fixed an issue that caused a state mismatch (#63061)``
+
+Misc
+~~~~
+
+* ``Bump minimum cryptography to 44.0.3 and paramiko to 3.4.0 (#62723)``
+* ``Move determine_kwargs and KeywordParameters to SDK DecoratedOperator (#62746)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.13.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add Kubernetes Secrets Backend to cncf.kubernetes provider (#61527)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix EKSPodOperator credential refresh errors and improve error handling (#57585) (#58743)``
+* ``fix: pod_override existing init_containers (#62284)``
+* ``fix: Transient error state caused by rate limits from the container registry in 'KubernetesPodOperator' (#62215)``
+
+Misc
+~~~~
+
+* ``[Part 2] Migrate connection UI metadata to YAML for more providers (#62109)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``(doc only) Update 'parallelism' parameter description for KubernetesJobOperator (#62468)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
+10.12.4
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ModuleNotFoundError in kubernetes cleanup cronjob (#61673)``
+* ``Avoid KeyError when Kubernetes omits optional waiting status fields (#60805)``
+* ``Prevent duplicate Spark Kubernetes pods (#61110)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clarify find_spark_job selection logic and intent (#61640)``
+   * ``CI: Upgrade important CI environment (#61417)``
+
+10.12.3
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``AsyncKubernetesHook.watch_pod_events could silently stop emitting events when (#60532)``
+* ``improved the event which is thrown in the event log tab when a pod failes for k8s exec (#60800)``
+* ``Ensure deterministic Spark driver pod selection during reattach. Added unit tests. (#60717)``
+* ``Repair k8 async connection getter (#61138)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.12.2
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle backwards-compatibility for older Google provider (#60730)``
+* ``Kubernetes Pod Operator: Skip async defferal when pod already complete (#58684)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 10.12.1
 .......
@@ -369,7 +503,7 @@ Misc
    * ``Make sure all test version imports come from test_common (#52425)``
    * ``Separate out creation of default Connections for tests and non-tests (#52129)``
    * ``Remove @pytest.mark.db_test for cncf (#52153)``
-   * ``Remove residual occurences of 'merge_conn' from cncf tests (#52064)``
+   * ``Remove residual occurrences of 'merge_conn' from cncf tests (#52064)``
    * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
 
 10.6.0

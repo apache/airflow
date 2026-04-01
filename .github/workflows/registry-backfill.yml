@@ -1,0 +1,266 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Registry Backfill
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      destination:
+        description: >
+          Publish to live or staging S3 bucket
+        required: true
+        type: choice
+        options:
+          - staging
+          - live
+        default: staging
+      providers:
+        description: >
+          Space-separated provider IDs
+          (e.g. 'amazon google databricks')
+        required: true
+        type: string
+      versions:
+        description: >
+          Space-separated versions to backfill
+          (e.g. '9.15.0 9.14.0'). Applied to ALL providers.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      bucket: ${{ steps.destination.outputs.bucket }}
+    steps:
+      - name: "Build provider matrix"
+        id: matrix
+        env:
+          PROVIDERS: ${{ inputs.providers }}
+        run: |
+          MATRIX=$(echo "${PROVIDERS}" \
+            | tr ' ' '\n' | jq -R . \
+            | jq -cs '{"provider": .}')
+          echo "matrix=${MATRIX}" >> "${GITHUB_OUTPUT}"
+
+      - name: "Determine S3 destination"
+        id: destination
+        env:
+          DESTINATION: ${{ inputs.destination }}
+        run: |
+          if [[ "${DESTINATION}" == "live" ]]; then
+            URL="s3://live-docs-airflow-apache-org"
+          else
+            URL="s3://staging-docs-airflow-apache-org"
+          fi
+          echo "bucket=${URL}/registry/" \
+            >> "${GITHUB_OUTPUT}"
+
+  backfill:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    name: "Backfill ${{ matrix.provider }}"
+    if: >
+      contains(fromJSON('[
+        "ashb",
+        "bugraoz93",
+        "eladkal",
+        "ephraimbuddy",
+        "jedcunningham",
+        "jscheffl",
+        "kaxil",
+        "pierrejeambrun",
+        "shahar1",
+        "potiuk",
+        "utkarsharma2",
+        "vincbeck"
+        ]'), github.event.sender.login)
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: "Fetch provider tags"
+        env:
+          VERSIONS: ${{ inputs.versions }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          for VERSION in ${VERSIONS}; do
+            TAG="providers-${PROVIDER}/${VERSION}"
+            echo "Fetching tag: ${TAG}"
+            git fetch origin tag "${TAG}" \
+              2>/dev/null || echo "Tag not found"
+          done
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          python-version: "3.12"
+
+      - name: "Install AWS CLI v2"
+        run: |
+          curl -sSf \
+            "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
+            -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          rm /tmp/awscliv2.zip
+          sudo /tmp/aws/install --update
+          rm -rf /tmp/aws/
+
+      - name: "Configure AWS credentials"
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7  # v6.0.0
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: "Download existing providers.json"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+        run: |
+          aws s3 cp \
+            "${S3_BUCKET}api/providers.json" \
+            dev/registry/providers.json || true
+
+      - name: "Extract version metadata from git tags"
+        env:
+          VERSIONS: ${{ inputs.versions }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          VERSION_ARGS=""
+          for VERSION in ${VERSIONS}; do
+            VERSION_ARGS="${VERSION_ARGS} --version ${VERSION}"
+          done
+          uv run --project dev/registry python dev/registry/extract_versions.py \
+            --provider "${PROVIDER}" ${VERSION_ARGS} || true
+
+      - name: "Run breeze registry backfill"
+        env:
+          VERSIONS: ${{ inputs.versions }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          VERSION_ARGS=""
+          for VERSION in ${VERSIONS}; do
+            VERSION_ARGS="${VERSION_ARGS} --version ${VERSION}"
+          done
+          breeze registry backfill \
+            --provider "${PROVIDER}" ${VERSION_ARGS}
+
+      - name: "Download data files from S3 for build"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+        run: |
+          aws s3 cp \
+            "${S3_BUCKET}api/providers.json" \
+            registry/src/_data/providers.json
+          aws s3 cp \
+            "${S3_BUCKET}api/modules.json" \
+            registry/src/_data/modules.json
+
+      - name: "Setup pnpm"
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320  # v5.0.0
+        with:
+          version: 9
+
+      - name: "Setup Node.js"
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: 'registry/pnpm-lock.yaml'
+
+      - name: "Install Node.js dependencies"
+        working-directory: registry
+        run: pnpm install --frozen-lockfile
+
+      - name: "Build registry site"
+        working-directory: registry
+        env:
+          REGISTRY_PATH_PREFIX: "/registry/"
+        run: pnpm build
+
+      - name: "Sync backfilled version pages to S3"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+          CACHE_CONTROL: "public, max-age=300"
+          VERSIONS: ${{ inputs.versions }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          for VERSION in ${VERSIONS}; do
+            echo "Syncing ${PROVIDER}/${VERSION}..."
+            aws s3 sync \
+              "registry/_site/providers/${PROVIDER}/${VERSION}/" \
+              "${S3_BUCKET}providers/${PROVIDER}/${VERSION}/" \
+              --cache-control "${CACHE_CONTROL}"
+            aws s3 sync \
+              "registry/_site/api/providers/${PROVIDER}/${VERSION}/" \
+              "${S3_BUCKET}api/providers/${PROVIDER}/${VERSION}/" \
+              --cache-control "${CACHE_CONTROL}"
+          done
+
+  publish-versions:
+    needs: [prepare, backfill]
+    runs-on: ubuntu-latest
+    name: "Publish versions.json"
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          python-version: "3.12"
+
+      - name: "Install AWS CLI v2"
+        run: |
+          curl -sSf \
+            "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
+            -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          rm /tmp/awscliv2.zip
+          sudo /tmp/aws/install --update
+          rm -rf /tmp/aws/
+
+      - name: "Configure AWS credentials"
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7  # v6.0.0
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: "Publish version metadata"
+        env:
+          S3_BUCKET: ${{ needs.prepare.outputs.bucket }}
+        run: >
+          breeze registry publish-versions
+          --s3-bucket "${S3_BUCKET}"

@@ -20,7 +20,6 @@ from __future__ import annotations
 import pendulum
 import pytest
 
-from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.sdk import (
     DAG,
     XComArg,
@@ -32,6 +31,7 @@ from airflow.sdk import (
     timezone,
 )
 from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk.exceptions import TaskAlreadyInTaskGroup
 
 from tests_common.test_utils.compat import BashOperator, EmptyOperator, PythonOperator
 
@@ -426,7 +426,7 @@ def test_dag_edges_task_group_structure():
 
 
 def test_duplicate_group_id():
-    from airflow.exceptions import DuplicateTaskIdFound
+    from airflow.sdk.exceptions import DuplicateTaskIdFound
 
     logical_date = pendulum.parse("20200101")
 

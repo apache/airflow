@@ -69,7 +69,9 @@ def restricted_timetable():
     list(zip(EVENT_DATES, EVENT_DATES)),
 )
 def test_dag_run_info_interval(start: pendulum.DateTime, end: pendulum.DateTime):
-    expected_info = DagRunInfo(run_after=end, data_interval=DataInterval(start, end))
+    expected_info = DagRunInfo(
+        run_after=end, data_interval=DataInterval(start, end), partition_date=None, partition_key=None
+    )
     assert DagRunInfo.interval(start, end) == expected_info
 
 

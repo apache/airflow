@@ -27,30 +27,58 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 @pytest.fixture
 def collector():
-    from airflow.lineage.hook import HookLineageCollector
+    from airflow.providers.common.compat.sdk import HookLineageCollector
 
-    # Patch the "inner" function that the compat version will call
-    with mock.patch(
-        "airflow.lineage.hook.get_hook_lineage_collector",
-        return_value=HookLineageCollector(),
-    ):
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+
+    hlc = HookLineageCollector()
+
+    if AIRFLOW_V_3_0_PLUS:
+        from unittest import mock
+
+        patch_target = "airflow.lineage.hook.get_hook_lineage_collector"
+        if AIRFLOW_V_3_2_PLUS:
+            patch_target = "airflow.sdk.lineage.get_hook_lineage_collector"
+
+        with mock.patch(patch_target, return_value=hlc):
+            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+            yield get_hook_lineage_collector()
+    else:
+        from airflow.lineage import hook
         from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
+        hook._hook_lineage_collector = hlc
         yield get_hook_lineage_collector()
+        hook._hook_lineage_collector = None
 
 
 @pytest.fixture
 def noop_collector():
-    from airflow.lineage.hook import NoOpCollector
+    from airflow.providers.common.compat.sdk import NoOpCollector
 
-    # Patch the "inner" function that the compat version will call
-    with mock.patch(
-        "airflow.lineage.hook.get_hook_lineage_collector",
-        return_value=NoOpCollector(),
-    ):
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+
+    noop = NoOpCollector()
+
+    if AIRFLOW_V_3_0_PLUS:
+        from unittest import mock
+
+        patch_target = "airflow.lineage.hook.get_hook_lineage_collector"
+        if AIRFLOW_V_3_2_PLUS:
+            patch_target = "airflow.sdk.lineage.get_hook_lineage_collector"
+
+        with mock.patch(patch_target, return_value=noop):
+            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+            yield get_hook_lineage_collector()
+    else:
+        from airflow.lineage import hook
         from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
+        hook._hook_lineage_collector = noop
         yield get_hook_lineage_collector()
+        hook._hook_lineage_collector = None
 
 
 @pytest.fixture(params=["collector", "noop_collector"])

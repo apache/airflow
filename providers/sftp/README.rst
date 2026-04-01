@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-sftp``
 
-Release: ``5.6.0``
+Release: ``5.7.2``
 
 
 `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``sftp`` provider. All classes for this provider 
 are in ``airflow.providers.sftp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.6.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.7.2/>`_.
 
 Installation
 ------------
@@ -45,20 +45,21 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-sftp``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-==========================================  ==================
+==========================================  ======================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-ssh``            ``>=4.0.0``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
-``paramiko``                                ``>=2.9.0,<4.0.0``
-``asyncssh``                                ``>=2.12.0``
-==========================================  ==================
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``paramiko``                                ``>=3.4.0,<4.0.0``
+``asyncssh``                                ``>=2.12.0; python_version < "3.14"``
+``asyncssh``                                ``>=2.22.0; python_version >= "3.14"``
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -84,12 +85,12 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-=================  ==========================================
-Extra              Dependencies
-=================  ==========================================
-``common.compat``  ``apache-airflow-providers-common-compat``
-``openlineage``    ``apache-airflow-providers-openlineage``
-=================  ==========================================
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``openlineage``  ``apache-airflow-providers-openlineage``
+``sshfs``        ``sshfs>=2023.1.0``
+===============  ========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.6.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.7.2/changelog.html>`_.

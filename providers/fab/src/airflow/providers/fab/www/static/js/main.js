@@ -275,6 +275,17 @@ function filterOpSelected(ele) {
   }
 }
 
+// Apply color scheme from main UI's theme preference (stored by next-themes)
+function applyColorScheme() {
+  const theme = localStorage.getItem("theme");
+  if (theme === "dark" || theme === "light") {
+    document.documentElement.setAttribute("data-color-scheme", theme);
+  }
+}
+
+// Apply immediately to prevent flash of wrong theme
+applyColorScheme();
+
 $(document).ready(() => {
   initializeUITimezone();
 

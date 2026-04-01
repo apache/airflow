@@ -72,12 +72,7 @@ def generate_mprocs_config() -> str:
         else:
             dev_mode = get_env_bool("DEV_MODE")
             api_cmd = "airflow api-server -d" if dev_mode else "airflow api-server"
-
-        procs["api_server"] = {
-            "shell": api_cmd,
-            "restart": "always",
-            "scrollback": 100000,
-        }
+        procs["api_server"] = {"shell": api_cmd, "restart": "always", "scrollback": 100000}
     else:
         # Webserver (Airflow 2.x)
         if get_env_bool("BREEZE_DEBUG_WEBSERVER"):
@@ -119,6 +114,32 @@ def generate_mprocs_config() -> str:
             "scrollback": 100000,
         }
 
+    if get_env("GO_WORKER") != "":
+        env = {}
+        env["AIRFLOW__EDGE__API_URL"] = "http://localhost:8080"
+        env["AIRFLOW__BUNDLES__FOLDER"] = "./bin"
+
+        # Build command with environment cleanup
+        go_worker_cmd_parts = [
+            "export AIRFLOW__API_AUTH__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}",
+            "export AIRFLOW__LOGGING__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}",
+            "unset AIRFLOW__API_AUTH__JWT_SECRET || true",
+            "unset AIRFLOW__DATABASE__SQL_ALCHEMY_CONN || true",
+            "unset AIRFLOW__CELERY__RESULT_BACKEND || true",
+            "unset POSTGRES_HOST_PORT || true",
+            "unset BACKEND || true",
+            "unset POSTGRES_VERSION || true",
+            "export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs",
+            "go run ./cmd/airflow-go-edge-worker/main.go run",
+        ]
+        go_worker_cmd = " && ".join(go_worker_cmd_parts)
+
+        procs["go_worker"] = {
+            "shell": go_worker_cmd,
+            "cwd": "go-sdk",
+            "env": env,
+        }
+
     # Flower (conditional)
     if get_env_bool("INTEGRATION_CELERY") and get_env_bool("CELERY_FLOWER"):
         if get_env_bool("BREEZE_DEBUG_FLOWER"):
@@ -152,11 +173,7 @@ def generate_mprocs_config() -> str:
             ]
             edge_cmd = " && ".join(edge_cmd_parts)
 
-        procs["edge_worker"] = {
-            "shell": edge_cmd,
-            "restart": "always",
-            "scrollback": 100000,
-        }
+        procs["edge_worker"] = {"shell": edge_cmd, "restart": "always", "scrollback": 100000}
 
     # Dag Processor (conditional)
     if get_env_bool("STANDALONE_DAG_PROCESSOR"):
@@ -202,19 +219,23 @@ def main():
     with open(output_path, "w") as f:
         f.write(config)
 
-    # Use rich console for pretty output
-    console = Console()
+    if os.environ.get("VERBOSE", "false") == "true":
+        # Use rich console for pretty output
+        console = Console()
 
-    console.print(
-        f"\n[bold green]✓[/bold green] Generated mprocs configuration at: [cyan]{output_path}[/cyan]"
-    )
+        console.print(
+            f"\n[bold green]✓[/bold green] Generated mprocs configuration at: [cyan]{output_path}[/cyan]"
+        )
 
-    # Display configuration with syntax highlighting
-    syntax = Syntax(config, "yaml", theme="monokai", line_numbers=False)
-    panel = Panel(
-        syntax, title="[bold yellow]Configuration Preview[/bold yellow]", border_style="blue", expand=False
-    )
-    console.print(panel)
+        # Display configuration with syntax highlighting
+        syntax = Syntax(config, "yaml", theme="monokai", line_numbers=False)
+        panel = Panel(
+            syntax,
+            title="[bold yellow]Configuration Preview[/bold yellow]",
+            border_style="blue",
+            expand=False,
+        )
+        console.print(panel)
 
 
 if __name__ == "__main__":

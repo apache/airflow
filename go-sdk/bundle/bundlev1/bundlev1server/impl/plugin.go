@@ -178,8 +178,8 @@ func (g *server) executeTask(ctx context.Context, executeTask *proto.ExecuteTask
 	w := worker.NewWithBundle(dagBundle, slog.Default())
 
 	hclog.Default().
-		Warn("Does viper work", "url", viper.GetString("execution-api-url"), "env", os.Getenv("AIRFLOW__EXECUTION_API_URL"))
-	w, err = w.WithServer(viper.GetString("execution-api-url"))
+		Warn("Does viper work", "url", viper.GetString("execution.api_url"), "env", os.Getenv("AIRFLOW__EXECUTION__API_URL"))
+	w, err = w.WithServer(viper.GetString("execution.api_url"))
 	if err != nil {
 		slog.ErrorContext(ctx, "Error setting ExecutionAPI server for worker", "err", err)
 		return err

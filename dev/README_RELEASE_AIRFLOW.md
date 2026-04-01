@@ -39,6 +39,7 @@
   - [Licence check](#licence-check)
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
+  - [Optional: Automated verification using Breeze](#optional-automated-verification-using-breeze)
 - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
   - [Installing release candidate in your local virtual environment](#installing-release-candidate-in-your-local-virtual-environment)
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
@@ -276,26 +277,12 @@ and mark those as well. You can accomplish this by running the following command
 ./dev/airflow-github needs-categorization 2.3.2 HEAD
 ```
 
-Often you also want to cherry-pick changes related to CI and development tools, to include the latest
-stability fixes in CI and improvements in development tools. Usually you can see the list of such
-changes via (this will exclude already merged changes):
-
-```shell
-git fetch apache
-git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
-git log --oneline --decorate apache/v2-2-stable..apache/main -- Dockerfile* scripts breeze* .github/ setup* dev | grep -vf /tmp/merged
-```
-
-Most of those PRs should be marked with `changelog:skip` label, so that they are excluded from the
-user-facing changelog as they only matter for developers of Airflow. We have a tool
-that allows to easily review the cherry-picked PRs and mark them with the right label - see below.
-
-You also likely want to cherry-pick some of the latest doc changes in order to bring clarification and
+You are likely want to cherry-pick some of the latest doc changes in order to bring clarification and
 explanations added to the documentation. Usually you can see the list of such changes via:
 
 ```shell
 git fetch apache
-git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline apache/v3-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
 git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
 ```
 
@@ -383,13 +370,13 @@ git show --format=tformat:"" --stat --name-only $(cat /tmp/doc-only-changes.txt)
 Then if you see suspicious file (example airflow/sensors/base.py) you can find details on where they came from:
 
 ```shell
-git log apache/v3-1-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
+git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
 ```
 
 And the URL to the PR it comes from:
 
 ```shell
-git log apache/v3-1-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
+git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
     xargs -n 1 git log --oneline --max-count=1 | \
     sed s'/.*(#\([0-9]*\))$/https:\/\/github.com\/apache\/airflow\/pull\/\1/'
 ```
@@ -460,17 +447,35 @@ uv tool install -e ./dev/breeze
     We sync this new branch to the stable branch so that people would continue to backport PRs to the test branch
     while the RC is being voted. The new branch must be in sync with where you cut it off from the test branch.
 
+- Switch to the new branch in .github/workflows/ci-notification.yml `workflow-status` matrix
 - Set the Airflow version in `airflow-core/src/airflow/__init__.py` (without the RC tag).
 - Set the Task SDK version in `task-sdk/src/airflow/sdk/__init__.py` (without the RC tag)
-- Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
+- Those two steps below are temporary - until we finally split task-sdk and airflow-core:
+  - Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
+  - Update the Task SDK version `>=` part in `pyproject.toml` to `==` TASK_SDK_VERSION without RC
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/prek/supported_versions.py` and let prek do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
+- Update the build status badge in `README.md` to point to the new `vX-Y-test` branch (the `3.x` row in the
+  build status table). The `uv run dev/update_github_branch_config.py X Y` script does this automatically.
 - Add entry for default python version to `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py`
   with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
   with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
+- Create `backport-to-vX-Y-test` label:
+
+    ```shell script
+    gh label create 'backport-to-vX-Y-test' --repo apache/airflow --description 'Backport to vX-Y-test' --color 0e8a16
+    ```
+
+- Update `.github/boring-cyborg.yml` and add `backport-to-vX-Y-test` auto-assignment for the new branch.
+- Update `.github/` configuration on `main` to add the new `vX-Y-test` branch (you can use the
+  `uv run dev/update_github_branch_config.py X Y` helper script for this). The following files need updating:
+  - `.github/dependabot.yml` — add `target-branch: vX-Y-test` entries for github-actions, pip, and npm ecosystems.
+  - `.github/workflows/milestone-tag-assistant.yml` — add `vX-Y-test` to the push branches list.
+  - `.github/workflows/basic-tests.yml` — update the release-management dry-run commands to test the new version.
+  - `.github/workflows/ci-notification.yml` — switch the `workflow-status` matrix branch to the new branch.
 - Commit the above changes with the message `Update version to ${VERSION}`.
 - Build the release notes:
 
@@ -496,10 +501,21 @@ uv tool install -e ./dev/breeze
 
 - PR from the 'test' branch to the 'stable' branch
 
-- When the PR is approved, install `dev/breeze` in a virtualenv:
+> [!TIP]
+> **Shortcut for first RC candidates:** When preparing the first RC candidate for a new minor release
+> (e.g., 3.2.0rc1), it is unlikely to be approved on the first attempt — bugs are typically found during
+> RC testing. In this case, the release manager can prepare the RC directly from the `v3-X-test` branch
+> without opening a PR to `v3-X-stable`. This saves the overhead of creating and managing a PR that will
+> likely need additional changes before GA. However, when using this shortcut, the release manager **must**
+> verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
+> check this at:
+> https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml?query=event%3Apush+branch%3Av3-2-test
+> (adjust the branch filter for the relevant `v3-X-test` branch).
+
+- When the PR is approved (or when using the shortcut above), install `dev/breeze` in a virtualenv:
 
     ```shell script
-    pip install -e ./dev/breeze
+    uv pip install -e ./dev/breeze
     ```
 
 - Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC.
@@ -531,6 +547,7 @@ uv tool install -e ./dev/breeze
        --version ${VERSION_RC} \
        --previous-version ${PREVIOUS_VERSION} \
        --task-sdk-version ${TASK_SDK_VERSION_RC} \
+       --sync-branch ${SYNC_BRANCH} \
        --remote-name upstream \
        --dry-run
    ```
@@ -749,9 +766,16 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 
 # Verify the release candidate by PMC members
 
-Note: PMCs can either choose to verify the release themselves or delegate the verification to breeze through
-the new command `breeze release-management validate-rc-by-pmc`. It has been explained in detail in:
-See [Breeze Command to validate RC](breeze/doc/09_release_management_tasks.rst).
+PMC members should perform the manual verification steps below.
+
+Optionally, you can also run the automated Breeze verification via `breeze release-management verify-rc-by-pmc` as a
+cross-check after completing the manual steps (see
+[Optional: Automated verification using Breeze](#optional-automated-verification-using-breeze)).
+
+> [!NOTE]
+> `verify-rc-by-pmc` is **experimental** and can change without notice. If you choose to use it, treat it only as an
+> additional validation step after completing the manual verification below, and compare the results. Do not use it
+> as the sole verification method.
 
 PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
@@ -786,8 +810,8 @@ git fetch apache --tags
 git checkout ${VERSION_RC}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-distributions --distribution-format both
-breeze release-management prepare-task-sdk-distributions --distribution-format both
+breeze release-management prepare-airflow-distributions --distribution-format both --version-suffix ""
+breeze release-management prepare-task-sdk-distributions --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION} --version-suffix ${VERSION_SUFFIX}
 ```
 
@@ -796,8 +820,8 @@ will be done in a docker container.  However, if you have  `hatch` installed loc
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
-breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
-breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch
+breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch --version-suffix ""
+breeze release-management prepare-task-sdk-distributions --distribution-format both --use-local-hatch --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow --version ${VERSION} --version-suffix ${VERSION_SUFFIX}
 ```
 
@@ -877,10 +901,13 @@ present in SVN. This command may also help with verifying installation of the pa
 breeze release-management check-release-files airflow --version ${VERSION_RC}
 ```
 
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ```shell script
 breeze release-management check-release-files task-sdk --version ${TASK_SDK_VERSION_RC}
 ```
+
+You will see commands that you can execute to check installation of the distributions in containers.
 
 ## Licence check
 
@@ -888,10 +915,13 @@ This can be done with the Apache RAT tool.
 
 Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
 
-You can run this command to do it for you:
+You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz -O /tmp/apache-rat-0.18-bin.tar.gz
+echo "315b16536526838237c42b5e6b613d29adc77e25a6e44a866b2b7f8b162e03d3629d49c9faea86ceb864a36b2c42838b8ce43d6f2db544e961f2259e242748f4  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
@@ -903,13 +933,14 @@ rm -rf /tmp/apache-airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf $
 Run the check:
 
 ```shell script
-java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-src/.rat-excludes
+java -jar /tmp/apache-rat-0.18/apache-rat-0.18.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
 ```
 
 You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
 
 ```
-INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Apache Creadur RAT 0.18 (Apache Software Foundation)
 INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
 INFO: Excluding MISC collection.
 INFO: Excluding HIDDEN_DIR collection.
@@ -948,6 +979,7 @@ Make sure you have imported into your GPG the PGP key of the person signing the 
 You can import the whole KEYS file:
 
 ```shell script
+wget https://dist.apache.org/repos/dist/release/airflow/KEYS
 gpg --import KEYS
 ```
 
@@ -974,12 +1006,17 @@ release packages:
 
 ```shell script
 cd ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}
-```
-
-And running this:
-
-
-```shell script
+echo
+echo "Checking Airflow ${VERSION_RC} Signatures"
+echo
+for i in *.asc
+do
+   echo -e "Checking $i\n"; gpg --verify $i
+done
+cd ../task-sdk/${TASK_SDK_VERSION_RC}
+echo
+echo "Checking TaskSDK ${TASK_SDK_VERSION_RC} Signatures"
+echo
 for i in *.asc
 do
    echo -e "Checking $i\n"; gpg --verify $i
@@ -995,32 +1032,74 @@ this is a valid key already.  To suppress the warning you may edit the key's tru
 by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
-Checking apache-airflow-3.0.5rc4.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-3.0.5rc4.tar.gz'
-gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Checking Airflow 3.1.8rc1 Signatures
 
-Checking apache_airflow-3.0.5rc4-py2.py3-none-any.whl.asc
-gpg: assuming signed data in 'apache_airflow-3.0.5rc4-py2.py3-none-any.whl'
-gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Checking apache_airflow-3.1.8-py3-none-any.whl.asc
 
-Checking apache-airflow-3.0.5rc4-source.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-3.0.5rc4-source.tar.gz'
-gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
-gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
-gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
+gpg: assuming signed data in 'apache_airflow-3.1.8-py3-none-any.whl'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow-3.1.8-source.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow-3.1.8-source.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:06 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow-3.1.8.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow-3.1.8.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:06 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow_core-3.1.8-py3-none-any.whl.asc
+
+gpg: assuming signed data in 'apache_airflow_core-3.1.8-py3-none-any.whl'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow_core-3.1.8.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow_core-3.1.8.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+
+Checking TaskSDK 1.1.8rc1 Signatures
+
+Checking apache_airflow_task_sdk-1.1.8-py3-none-any.whl.asc
+
+gpg: assuming signed data in 'apache_airflow_task_sdk-1.1.8-py3-none-any.whl'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
+Checking apache_airflow_task_sdk-1.1.8.tar.gz.asc
+
+gpg: assuming signed data in 'apache_airflow_task_sdk-1.1.8.tar.gz'
+gpg: Signature made Fri 06 Mar 2026 11:13:05 AM CET
+gpg:                using EDDSA key 5055919906242571E5B0CC5A1846E140F733C4B2
+gpg: Good signature from "Rahul Vats <rah.sharma11@gmail.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 5055 9199 0624 2571 E5B0  CC5A 1846 E140 F733 C4B2
 ```
 
 ## SHA512 sum check
@@ -1028,6 +1107,18 @@ Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 Run this:
 
 ```shell script
+cd ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}
+echo
+echo "Checking Airflow ${VERSION_RC} Checksums"
+echo
+for i in *.sha512
+do
+    echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
+done
+cd ../task-sdk/${TASK_SDK_VERSION_RC}
+echo
+echo "Checking TaskSDK ${TASK_SDK_VERSION_RC} Checksums"
+echo
 for i in *.sha512
 do
     echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
@@ -1037,9 +1128,57 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-3.1.3rc4.tar.gz.sha512
-Checking apache_airflow-3.1.3rc4-py2.py3-none-any.whl.sha512
-Checking apache_airflow-3.1.3rc4-source.tar.gz.sha512
+Checking Airflow 3.1.8rc1 Checksums
+
+Checking apache_airflow-3.1.8-py3-none-any.whl.sha512
+Checking apache_airflow-3.1.8-source.tar.gz.sha512
+Checking apache_airflow-3.1.8.tar.gz.sha512
+Checking apache_airflow_core-3.1.8-py3-none-any.whl.sha512
+Checking apache_airflow_core-3.1.8.tar.gz.sha512
+
+Checking TaskSDK 1.1.8rc1 Checksums
+
+Checking apache_airflow_task_sdk-1.1.8-py3-none-any.whl.sha512
+Checking apache_airflow_task_sdk-1.1.8.tar.gz.sha512
+```
+
+## Optional: Automated verification using Breeze
+
+If you want to run the automated cross-check, use `breeze release-management verify-rc-by-pmc`.
+
+What the automation does (high level):
+
+* Validates expected SVN files, signatures, checksums, Apache RAT licenses, and reproducible builds.
+* Uses a detached git worktree for reproducible builds so it can build from the release tag without
+  changing your current checkout (and still use the latest Breeze code).
+* Fails early if the SVN working copy is locked (to avoid hanging on `svn` commands).
+
+If the automation output disagrees with your manual verification, treat the manual results as authoritative and
+report the discrepancy.
+
+For the full command documentation see
+[Breeze Command to verify RC](breeze/doc/09_release_management_tasks.rst).
+
+Example (run all checks):
+
+```shell script
+breeze release-management verify-rc-by-pmc \
+  --distribution airflow \
+  --version ${VERSION_RC} \
+  --task-sdk-version ${TASK_SDK_VERSION_RC} \
+  --path-to-airflow-svn ~/asf-dist/dev/airflow \
+  --verbose
+```
+
+Example (only signatures + checksums):
+
+```shell script
+breeze release-management verify-rc-by-pmc \
+  --distribution airflow \
+  --version ${VERSION_RC} \
+  --task-sdk-version ${TASK_SDK_VERSION_RC} \
+  --path-to-airflow-svn ~/asf-dist/dev/airflow \
+  --checks signatures,checksums
 ```
 
 
@@ -1155,7 +1294,6 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 # start the release process by running the below command
 breeze release-management start-release \
     --version ${VERSION} \
-    --previous-release ${PREVIOUS_RELEASE} \
     --task-sdk-version ${TASK_SDK_VERSION}
 ```
 
@@ -1190,13 +1328,13 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.10 3.11 3.12 3.13
+for PYTHON in 3.10 3.11 3.12 3.13 3.14
 do
-    docker pull apache/airflow:${VERSION_RC}-python${PYTHON}
-    breeze prod-image verify --image-name apache/airflow:${VERSION_RC}-python${PYTHON}
+    docker pull apache/airflow:${VERSION}-python${PYTHON}
+    breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
 done
-docker pull apache/airflow:${VERSION_RC}
-breeze prod-image verify --image-name apache/airflow:${VERSION_RC}
+docker pull apache/airflow:${VERSION}
+breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
 
 ## Publish final documentation
@@ -1367,17 +1505,6 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* LinkedIn: https://www.linkedin.com/company/apache-airflow/
-* Fosstodon: https://fosstodon.org/@airflow
-* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
-
-Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask a PMC member to post.
-
-------------------------------------------------------------------------------------------------------------
-
-Tweet and post on Linkedin about the release:
-
 ```shell
 cat <<EOF
 We've just released Apache Airflow $VERSION 🎉
@@ -1390,6 +1517,17 @@ We've just released Apache Airflow $VERSION 🎉
 Thanks to all the contributors who made this possible.
 EOF
 ```
+
+Post on social media about the release:
+
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+
+Make sure to attach the release image generated with Figma to the post.
+If you don't have access to the account ask a PMC member to post.
+
+------------------------------------------------------------------------------------------------------------
 
 ## Update `main` with the latest release details
 

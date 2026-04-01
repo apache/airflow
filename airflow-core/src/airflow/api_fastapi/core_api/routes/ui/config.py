@@ -36,7 +36,7 @@ config_router = AirflowRouter(tags=["Config"])
 API_CONFIG_KEYS = [
     "enable_swagger_ui",
     "hide_paused_dags_by_default",
-    "page_size",
+    "fallback_page_limit",
     "default_wrap",
     "auto_refresh_interval",
     "require_confirmation_dag_change",

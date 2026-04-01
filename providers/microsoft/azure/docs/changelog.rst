@@ -27,6 +27,96 @@
 Changelog
 ---------
 
+13.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add async hook for Azure Synapse pipelines (#62966)``
+* ``Add Azure Virtual Machines operators, sensor, and trigger (#62391)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Replace the scan of container groups in a resource group with a direct in AzureContainerInstanceHook (#63567)``
+* ``Fix MSGraphSensor does not respect timeout parameter in defer mode (#62241)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
+13.0.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix PowerBIDatasetRefreshOperator to properly respect wait_for_completion flag (#62842)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+13.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate ADLSListOperator from ADLS Gen1 to Gen2 (#61188)``
+
+  .. note::
+     The ``ADLSListOperator`` now uses the ADLS Gen2 API. This change makes the ``file_system_name`` parameter mandatory.
+
+Features
+~~~~~~~~
+
+* ``Add wait_for_termination parameter and fix double-deferral in PowerBIDatasetRefreshOperator (#60369)``
+* ``Azure Message Bus - CommonMessageQueue Interface (#52712) (#61924)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Always apply proxy configuration with MSAL for KiotaRequestAdapterHook in msgraph module (#61199)``
+* ``Add protocol validation to KiotaRequestAdapterHook (#61103)``
+* ``Add missing conn-fields for providers migrated to yaml (#62116)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Migrate connection UI metadata to YAML for some providers (#62011)``
+   * ``Providers wave 2026-02-10 (#61746)``
+
+12.10.3
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BaseAzureServiceBusTrigger importing AIRFLOW_V_3_0_PLUS from wrong module (#60644)``
+* ``Fix unclosed aiohttp ClientSession in AzureDataFactoryAsyncHook (#60650)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+* ``Use common compat get_async_connection in KiotaRequestAdapter (#60871)``
+* ``Use common provider's get_async_connection in other providers (#56791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 12.10.2
 .......
 
@@ -664,7 +754,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
+   * ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environment…" (#40300)``
    * ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
 
 10.1.1

@@ -89,14 +89,14 @@ if TYPE_CHECKING:
     import jinja2
     from typing_extensions import Self
 
+    from airflow.sdk.api.datamodels._generated import DagAttributeTypes
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.serialization.enums import DagAttributeTypes
-    from airflow.task.priority_strategy import PriorityWeightStrategy
+    from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 
     TaskPreExecuteHook = Callable[[Context], None]
@@ -298,7 +298,7 @@ if TYPE_CHECKING:
         retry_delay: timedelta | float = ...,
         retry_exponential_backoff: float = ...,
         priority_weight: int = ...,
-        weight_rule: str | PriorityWeightStrategy = ...,
+        weight_rule: WeightRuleParam = ...,
         sla: timedelta | None = ...,
         map_index_template: str | None = ...,
         max_active_tis_per_dag: int | None = ...,
@@ -549,6 +549,11 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             # Store the args passed to init -- we need them to support task.map serialization!
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
+
+            # Validate trigger kwargs.
+            # Make sure method exists as class can depend on metaclass without extending the BaseOperator.
+            if hasattr(self, "_validate_start_from_trigger_kwargs"):
+                self._validate_start_from_trigger_kwargs()
 
             # Set upstream task defined by XComArgs passed to template fields of the operator.
             # BUT: only do this _ONCE_, not once for each class in the hierarchy
@@ -842,6 +847,18 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     dag=dag,
                 )
                 hello_world_task.execute(context)
+    :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
+        to render templates as native Python types. If False, a Jinja
+        ``Environment`` is used to render templates as string values.
+        If None (default), inherits from the DAG setting.
+    :param start_from_trigger: If True, the operator starts execution directly in the triggerer,
+        skipping the initial worker execution phase. In this mode, templated fields are rendered
+        inside the triggerer instead of the worker. This avoids an extra round trip to a worker,
+        but may increase load on the triggerer, since the DAG must be serialized in order to
+        render templated fields. Use with care for DAGs with many tasks or heavy templating.
+    :param start_trigger_args: Used together with ``start_from_trigger`` to explicitly specify
+        which operator fields should be passed to the trigger. This helps limit the amount of
+        data serialized and sent to the triggerer.
     """
 
     task_id: str
@@ -864,7 +881,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     params: ParamsDict | dict = field(default_factory=ParamsDict)
     default_args: dict | None = None
     priority_weight: int = DEFAULT_PRIORITY_WEIGHT
-    weight_rule: PriorityWeightStrategy | str = field(default=DEFAULT_WEIGHT_RULE)
+    weight_rule: WeightRuleParam = field(default=DEFAULT_WEIGHT_RULE)
     queue: str = DEFAULT_QUEUE
     pool: str = DEFAULT_POOL_NAME
     pool_slots: int = DEFAULT_POOL_SLOTS
@@ -898,6 +915,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     _task_display_name: str | None = None
     logger_name: str | None = None
     allow_nested_operators: bool = True
+    render_template_as_native_obj: bool | None = None
 
     is_setup: bool = False
     is_teardown: bool = False
@@ -1019,7 +1037,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         params: collections.abc.MutableMapping[str, Any] | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
-        weight_rule: str | PriorityWeightStrategy = DEFAULT_WEIGHT_RULE,
+        weight_rule: WeightRuleParam = DEFAULT_WEIGHT_RULE,
         queue: str = DEFAULT_QUEUE,
         pool: str | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
@@ -1053,6 +1071,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_display_name: str | None = None,
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
+        render_template_as_native_obj: bool | None = None,
         **kwargs: Any,
     ):
         # Note: Metaclass handles passing in the Dag/TaskGroup from active context manager, if any
@@ -1179,6 +1198,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._task_display_name = task_display_name
 
         self.allow_nested_operators = allow_nested_operators
+
+        self.render_template_as_native_obj = render_template_as_native_obj
 
         self._logger_name = logger_name
 
@@ -1432,6 +1453,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return
         XComArg.apply_upstream_relationship(self, newvalue)
 
+    def _validate_start_from_trigger_kwargs(self):
+        if self.start_from_trigger and self.start_trigger_args and self.start_trigger_args.trigger_kwargs:
+            for name, val in self.start_trigger_args.trigger_kwargs.items():
+                if callable(val):
+                    raise ValueError(
+                        f"{self.__class__.__name__} with task_id '{self.task_id}' has a callable in trigger kwargs named "
+                        f"'{name}', which is not allowed when start_from_trigger is enabled."
+                    )
+
     def on_kill(self) -> None:
         """
         Override this method to clean up subprocesses when a task instance gets killed.
@@ -1546,7 +1576,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize; required by DAGNode."""
-        from airflow.serialization.enums import DagAttributeTypes
+        from airflow.sdk.api.datamodels._generated import DagAttributeTypes
 
         return DagAttributeTypes.OP, self.task_id
 

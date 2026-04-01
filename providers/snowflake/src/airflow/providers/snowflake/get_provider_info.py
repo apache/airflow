@@ -86,6 +86,55 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook",
                 "connection-type": "snowflake",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["port", "host"],
+                    "relabeling": {},
+                    "placeholders": {
+                        "extra": '{\n  "authenticator": "snowflake oauth",\n  "private_key_file": "private key",\n  "session_parameters": "session parameters",\n  "client_request_mfa_token": "client request mfa token",\n  "client_store_temporary_credential": "client store temporary credential",\n  "grant_type": "refresh_token client_credentials",\n  "token_endpoint": "token endpoint",\n  "refresh_token": "refresh token",\n  "scope": "scope",\n  "proxy_host": "proxy.example.com",\n  "proxy_port": "8080",\n  "proxy_user": "proxy_username",\n  "proxy_password": "proxy_password"\n}\n',
+                        "schema": "snowflake schema",
+                        "login": "snowflake username",
+                        "password": "snowflake password",
+                        "account": "snowflake account name",
+                        "warehouse": "snowflake warehouse name",
+                        "database": "snowflake db name",
+                        "region": "snowflake hosted region",
+                        "role": "snowflake role",
+                        "private_key_file": "Path of snowflake private key (PEM Format)",
+                        "private_key_content": "Content to snowflake private key (PEM format)",
+                        "insecure_mode": "insecure mode",
+                        "proxy_host": "Proxy server hostname",
+                        "proxy_port": "Proxy server port",
+                        "proxy_user": "Proxy username (optional)",
+                        "proxy_password": "Proxy password (optional)",
+                    },
+                },
+                "conn-fields": {
+                    "account": {"label": "Account", "schema": {"type": ["string", "null"]}},
+                    "warehouse": {"label": "Warehouse", "schema": {"type": ["string", "null"]}},
+                    "database": {"label": "Database", "schema": {"type": ["string", "null"]}},
+                    "region": {"label": "Region", "schema": {"type": ["string", "null"]}},
+                    "role": {"label": "Role", "schema": {"type": ["string", "null"]}},
+                    "private_key_file": {
+                        "label": "Private key (Path)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "private_key_content": {
+                        "label": "Private key (Text)",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "insecure_mode": {
+                        "label": "Insecure Mode",
+                        "schema": {"type": ["boolean", "null"]},
+                        "description": "Turns off OCSP certificate checks",
+                    },
+                    "proxy_host": {"label": "Proxy Host", "schema": {"type": ["string", "null"]}},
+                    "proxy_port": {"label": "Proxy Port", "schema": {"type": ["integer", "null"]}},
+                    "proxy_user": {"label": "Proxy User", "schema": {"type": ["string", "null"]}},
+                    "proxy_password": {
+                        "label": "Proxy Password",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                },
             }
         ],
         "triggers": [

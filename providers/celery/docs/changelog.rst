@@ -27,6 +27,97 @@
 Changelog
 ---------
 
+3.17.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set task name for 2.11.X path (#63746)``
+* ``Fix misaligned 'queued_tasks' types in hybrid executors (#63744)``
+* ``Add gc.freeze to minimize memory usage in celery worker (#62212)``
+* ``Warn about hardcoded 24h visibility_timeout that kills long-running Celery tasks (#62869)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Refactor: remove modules that are supposed to be removed in Airflow 3.2 (#62927)``
+* ``Make test_celery_integration runnable (#64153)``
+* ``Update celery provider conf imports to use common compat SDK (#64134)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``remove useless mock db (#63740)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+3.17.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Ensure Celery tasks are registered at worker startup (main) (#63110)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Celery: explicitly specify 'psycopg2' in driverless postgres URLs (#62159)``
+* ``Executor Synchronous callback workload (#61153)``
+* ``Enable multi-team in Celery executor (#62534)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``docs(celery): fix wrong link in cli (#62460)``
+* ``Fix Celery worker crash on macOS due to unpicklable local function (#62655)``
+
+Misc
+~~~~
+
+* ``Insert a team_name similar to team conf for 2.X compat (#61923)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+
+3.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``AIP-67 - Multi Team: Update Celery Executor to support multi team (#60675)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use TaskFormatter for Celery log formatting instead of default Formatter (#61701)``
+* ``Fix Redis import race condition in Celery executor (#61362)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Construct task instances with 'ExecuteTask.make' for celery executor integration tests (#61311)``
+   * ``Update delay-time in celery flaky-test  (#61325)``
+
+3.15.2
+......
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.15.1
 ......
 

@@ -240,7 +240,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             initialization_actions=[
                 self.hook.sdk.wrappers.InitializationAction(
                     uri=init_action.uri,
-                    args=init_action.args,
+                    args=list(init_action.args),
                     timeout=init_action.timeout,
                 )
                 for init_action in self.initialization_actions

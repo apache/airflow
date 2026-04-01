@@ -61,6 +61,14 @@ class DocsPublisher:
                 "Make sure to add version in `provider.yaml` for the package."
             )
             raise RuntimeError(msg)
+
+        # Read version from stable.txt file
+        stable_txt_path = f"{GENERATED_PATH}/_build/docs/{self.package_name}/stable.txt"
+        if os.path.exists(stable_txt_path):
+            with open(stable_txt_path) as f:
+                return f.read().strip()
+
+        # Fallback to reading from source files if stable.txt doesn't exist
         if self.package_name == "apache-airflow":
             return get_airflow_version()
         if self.package_name.startswith("apache-airflow-providers-"):
@@ -103,6 +111,6 @@ class DocsPublisher:
         shutil.copytree(self._build_dir, output_dir)
         if self.is_versioned:
             with open(os.path.join(output_dir, "..", "stable.txt"), "w") as stable_file:
-                stable_file.write(self._current_version)
+                stable_file.write(self._current_version + "\n")
         get_console(output=self.output).print()
         return 0, f"Docs published: {self.package_name}"
