@@ -226,6 +226,16 @@ class TestBaseOperations:
         for call in mock_client.get.call_args_list:
             assert call.kwargs["params"]["limit"] == 2
 
+    @pytest.mark.parametrize("limit", [0, -1])
+    def test_execute_list_rejects_non_positive_limit(self, limit):
+        mock_client = Mock()
+        base_operation = BaseOperations(client=mock_client)
+
+        with pytest.raises(ValueError, match="limit must be a positive integer"):
+            base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=limit)
+
+        mock_client.get.assert_not_called()
+
 
 class TestAssetsOperations:
     asset_id: int = 1

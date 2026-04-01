@@ -28,6 +28,21 @@ import pytest
 
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
 
+SETTINGS_FILE_CUSTOM_ENGINE = """
+from sqlalchemy import create_engine, event
+
+_engine_created = False
+
+def create_metadata_engine(sql_alchemy_conn, *, engine_args, connect_args):
+    global _engine_created
+    _engine_created = True
+    engine = create_engine(
+        sql_alchemy_conn, connect_args=connect_args, **engine_args, future=True,
+    )
+    event.listen(engine, "do_connect", lambda *a, **kw: None)
+    return engine
+"""
+
 SETTINGS_FILE_POLICY = """
 def test_policy(task_instance):
     task_instance.run_as_user = "myself"
@@ -194,6 +209,133 @@ class TestLocalSettings:
             task_instance.owner = "airflow"
             with pytest.raises(AirflowClusterPolicyViolation):
                 settings.task_must_have_owners(task_instance)
+
+
+class TestMetadataEngineHooks:
+    """Tests for the overridable create_metadata_engine / create_async_metadata_engine hooks."""
+
+    def setup_method(self):
+        self.old_modules = dict(sys.modules)
+        from airflow import settings
+
+        self._orig_create_metadata_engine = settings.create_metadata_engine
+        self._orig_create_async_metadata_engine = settings.create_async_metadata_engine
+
+    def teardown_method(self):
+        from airflow import settings
+
+        settings.create_metadata_engine = self._orig_create_metadata_engine
+        settings.create_async_metadata_engine = self._orig_create_async_metadata_engine
+        for mod in [m for m in sys.modules if m not in self.old_modules]:
+            del sys.modules[mod]
+
+    @patch("airflow.settings.create_metadata_engine")
+    @patch("airflow.settings._configure_async_session")
+    def test_configure_orm_delegates_to_create_metadata_engine(self, mock_async_session, mock_create_engine):
+        """configure_orm() must call create_metadata_engine, not create_engine directly."""
+        from airflow import settings
+
+        mock_create_engine.return_value = MagicMock()
+
+        with (
+            patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "false"}),
+            patch("airflow.settings.SQL_ALCHEMY_CONN", "sqlite://"),
+            patch("airflow.settings.Session"),
+            patch("airflow.settings.engine"),
+            patch("airflow.settings.setup_event_handlers"),
+            patch("airflow.settings.mask_secret", create=True),
+            patch("airflow._shared.secrets_masker.mask_secret"),
+        ):
+            settings.configure_orm()
+
+        assert len(mock_create_engine.mock_calls) == 1
+        assert mock_async_session.mock_calls == [call()]
+        call_kwargs = mock_create_engine.call_args
+        assert call_kwargs[0][0] == "sqlite://"
+        assert "engine_args" in call_kwargs[1]
+        assert "connect_args" in call_kwargs[1]
+
+    @patch("airflow.settings.create_async_metadata_engine")
+    def test_configure_async_session_delegates_to_create_async_metadata_engine(
+        self, mock_create_async_engine
+    ):
+        """_configure_async_session() must call create_async_metadata_engine."""
+        from airflow import settings
+
+        mock_create_async_engine.return_value = MagicMock()
+
+        with patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", "sqlite+aiosqlite://"):
+            settings._configure_async_session()
+
+        mock_create_async_engine.assert_called_once()
+        call_kwargs = mock_create_async_engine.call_args
+        assert call_kwargs[0][0] == "sqlite+aiosqlite://"
+        assert "connect_args" in call_kwargs[1]
+
+    @patch("airflow.settings.create_async_metadata_engine")
+    def test_configure_async_session_skips_when_no_async_conn(self, mock_create_async_engine):
+        """_configure_async_session() must not call the hook when SQL_ALCHEMY_CONN_ASYNC is empty."""
+        from airflow import settings
+
+        with patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", ""):
+            settings._configure_async_session()
+
+        assert mock_create_async_engine.mock_calls == []
+
+    @patch("airflow.settings.create_engine")
+    def test_default_create_metadata_engine_forwards_args(self, mock_sa_create_engine):
+        """Default create_metadata_engine must forward all args to sqlalchemy.create_engine."""
+        from airflow import settings
+
+        mock_sa_create_engine.return_value = MagicMock()
+        engine_args = {"pool_size": 5, "pool_recycle": 1800}
+        connect_args = {"timeout": 30}
+
+        settings.create_metadata_engine("sqlite://", engine_args=engine_args, connect_args=connect_args)
+
+        assert mock_sa_create_engine.mock_calls == [
+            call(
+                "sqlite://",
+                connect_args={"timeout": 30},
+                pool_size=5,
+                pool_recycle=1800,
+                future=True,
+            )
+        ]
+
+    @patch("airflow.settings.create_async_engine")
+    def test_default_create_async_metadata_engine_forwards_args(self, mock_sa_create_async):
+        """Default create_async_metadata_engine must forward args to sqlalchemy.create_async_engine."""
+        from airflow import settings
+
+        mock_sa_create_async.return_value = MagicMock()
+        connect_args = {"timeout": 30}
+
+        settings.create_async_metadata_engine("sqlite+aiosqlite://", connect_args=connect_args)
+
+        mock_sa_create_async.assert_called_once_with(
+            "sqlite+aiosqlite://",
+            connect_args={"timeout": 30},
+            future=True,
+        )
+
+    def test_override_via_local_settings(self):
+        """An override in airflow_local_settings.py replaces the default create_metadata_engine."""
+        with SettingsContext(SETTINGS_FILE_CUSTOM_ENGINE, "airflow_local_settings"):
+            from airflow import settings
+
+            settings.import_local_settings()
+
+            import airflow_local_settings
+
+            # Verify the override is wired in
+            assert settings.create_metadata_engine is airflow_local_settings.create_metadata_engine
+            assert not airflow_local_settings._engine_created
+
+            # Actually call the override and verify it runs the custom code
+            engine = settings.create_metadata_engine("sqlite://", engine_args={}, connect_args={})
+            assert airflow_local_settings._engine_created
+            assert engine is not None
 
 
 _local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use relative path:")

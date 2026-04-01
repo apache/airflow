@@ -113,6 +113,7 @@ class FileGroupForCi(Enum):
     HELM_FILES = auto()
     DEPENDENCY_FILES = auto()
     DOC_FILES = auto()
+    TEXT_NON_DOC_FILES = auto()
     UI_FILES = auto()
     SYSTEM_TEST_FILES = auto()
     KUBERNETES_FILES = auto()
@@ -257,6 +258,10 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^chart/values\.json",
             r"^RELEASE_NOTES\.rst",
         ],
+        FileGroupForCi.TEXT_NON_DOC_FILES: [
+            r"^.*\.txt",
+            r"^.*\.md",
+        ],
         FileGroupForCi.UI_FILES: [
             r"^airflow-core/src/airflow/ui/",
             r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/",
@@ -304,7 +309,6 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^helm-tests/tests/.*",
             r"^kubernetes-tests/tests/.*",
             r"^docker-tests/tests/.*",
-            r"^dev/.*",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
             r"^airflow-core/tests/system/",
@@ -589,6 +593,11 @@ class SelectiveChecks:
 
     def _should_run_all_tests_and_versions(self) -> bool:
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
+            if self.only_text_non_doc_files_changed:
+                console_print(
+                    f"[warning]Only text non doc files changed in {self._github_event}, skip full tests[/]"
+                )
+                return False
             console_print(f"[warning]Running everything because event is {self._github_event}[/]")
             return True
         if not self._commit_ref:
@@ -1038,6 +1047,13 @@ class SelectiveChecks:
         return all(Path(file).name == "pyproject.toml" for file in self._files)
 
     @cached_property
+    def only_text_non_doc_files_changed(self) -> bool:
+        text_non_doc_files = set(
+            self._matching_files(FileGroupForCi.TEXT_NON_DOC_FILES, CI_FILE_GROUP_MATCHES)
+        )
+        return len(self._files) > 0 and set(self._files) <= text_non_doc_files
+
+    @cached_property
     def ci_image_build(self) -> bool:
         # in case pyproject.toml changed, CI image should be built - even if no build dependencies
         # changes because some of our tests - those that need CI image might need to be run depending on
@@ -1108,11 +1124,13 @@ class SelectiveChecks:
         test_always_files = self._matching_files(FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES)
         test_ui_files = self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
 
+        text_non_doc_files = self._matching_files(FileGroupForCi.TEXT_NON_DOC_FILES, CI_FILE_GROUP_MATCHES)
         remaining_files = (
             set(all_source_files)
             - set(all_providers_source_files)
             - set(all_providers_distribution_config_files)
             - set(matched_files)
+            - set(text_non_doc_files)
             - set(kubernetes_files)
             - set(system_test_files)
             - set(test_always_files)
@@ -1718,6 +1736,7 @@ class SelectiveChecks:
         return (
             self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH, GithubEvents.WORKFLOW_DISPATCH]
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
+            and not self.only_text_non_doc_files_changed
         ) or CANARY_LABEL in self._pr_labels
 
     @cached_property
