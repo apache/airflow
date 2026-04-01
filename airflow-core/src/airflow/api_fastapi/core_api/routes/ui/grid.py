@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session, joinedload, load_only
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
@@ -65,7 +66,6 @@ from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 log = structlog.get_logger(logger_name=__name__)
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
@@ -115,67 +115,6 @@ def _get_serdag(dag_id, dag_version_id, session) -> SerializedDagModel | None:
             version_number=version.version_number,
         )
     return serdag
-
-
-def _get_grid_run_dag_versions(
-    *,
-    dag_id: str,
-    dag_runs: list[DagRun],
-    session: Session,
-) -> dict[str, list[DagVersion]]:
-    """Fetch DAG version metadata for the selected grid runs without loading every task instance row."""
-    dag_versions_by_run_id: dict[str, list[DagVersion]] = {dag_run.run_id: [] for dag_run in dag_runs}
-    non_bundle_run_ids: list[str] = []
-
-    for dag_run in dag_runs:
-        if dag_run.bundle_version:
-            dag_versions_by_run_id[dag_run.run_id] = (
-                [dag_run.created_dag_version] if dag_run.created_dag_version is not None else []
-            )
-        else:
-            non_bundle_run_ids.append(dag_run.run_id)
-
-    if not non_bundle_run_ids:
-        return dag_versions_by_run_id
-
-    task_instance_versions = (
-        select(
-            TaskInstance.run_id.label("run_id"),
-            TaskInstance.dag_version_id.label("dag_version_id"),
-        )
-        .where(
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id.in_(non_bundle_run_ids),
-            TaskInstance.dag_version_id.is_not(None),
-        )
-        .distinct()
-        .union(
-            select(
-                TaskInstanceHistory.run_id.label("run_id"),
-                TaskInstanceHistory.dag_version_id.label("dag_version_id"),
-            )
-            .where(
-                TaskInstanceHistory.dag_id == dag_id,
-                TaskInstanceHistory.run_id.in_(non_bundle_run_ids),
-                TaskInstanceHistory.dag_version_id.is_not(None),
-            )
-            .distinct()
-        )
-        .subquery()
-    )
-    dag_version_rows = session.execute(
-        select(task_instance_versions.c.run_id, DagVersion)
-        .join(DagVersion, DagVersion.id == task_instance_versions.c.dag_version_id)
-        .options(
-            joinedload(DagVersion.bundle),
-            joinedload(DagVersion.dag_model),
-        )
-        .order_by(task_instance_versions.c.run_id, DagVersion.id)
-    )
-    for run_id, dag_version in dag_version_rows:
-        dag_versions_by_run_id[run_id].append(dag_version)
-
-    return dag_versions_by_run_id
 
 
 @grid_router.get(
@@ -384,11 +323,8 @@ def get_grid_runs(
         return_total_entries=False,
     )
     results = session.execute(dag_runs_select_filter).unique().all()
-    dag_versions_by_run_id = _get_grid_run_dag_versions(
-        dag_id=dag_id,
-        dag_runs=[run for run, _ in results],
-        session=session,
-    )
+    dag_runs = [run for run, _ in results]
+    attach_dag_versions_to_runs(dag_runs, session=session)
     grid_runs = []
     for run, has_missed in results:
         grid_runs.append(
@@ -402,7 +338,7 @@ def get_grid_runs(
                     "run_after": run.run_after,
                     "state": run.state,
                     "run_type": run.run_type,
-                    "dag_versions": dag_versions_by_run_id[run.run_id],
+                    "dag_versions": run.dag_versions,
                     "has_missed_deadline": has_missed,
                 }
             )
