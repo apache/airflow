@@ -346,7 +346,7 @@ class KubernetesExecutor(BaseExecutor):
                         # Use the body directly as the message instead.
                         body = {"message": e.body}
 
-                    headers = e.headers
+                    headers = e.headers or {}
                     retries = self.task_publish_retries[key]
                     # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
                     # In case of a rate limit, wait and do not create new pods for "Retry-After" seconds
