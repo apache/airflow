@@ -58,6 +58,21 @@ export const Header = ({
   // We would still like to show the dagId even if the dag object hasn't loaded yet
   const { dagId } = useParams();
 
+  const nextRunStat =
+    dag?.is_stale === true
+      ? []
+      : [
+          {
+            label: translate("dagDetails.nextRun"),
+            value: Boolean(dag?.next_dagrun_run_after) ? (
+              <DagRunInfo
+                logicalDate={dag?.next_dagrun_logical_date}
+                runAfter={dag?.next_dagrun_run_after as string}
+              />
+            ) : undefined,
+          },
+        ];
+
   const stats = [
     {
       label: translate("dagDetails.schedule"),
@@ -89,6 +104,7 @@ export const Header = ({
           </Link>
         ) : undefined,
     },
+    ...nextRunStat,
     {
       label: translate("dagDetails.maxActiveRuns"),
       value:
@@ -110,18 +126,6 @@ export const Header = ({
     },
   ];
 
-  if (!dag?.is_stale) {
-    stats.splice(2, 0, {
-      label: translate("dagDetails.nextRun"),
-      value: Boolean(dag?.next_dagrun_run_after) ? (
-        <DagRunInfo
-          logicalDate={dag?.next_dagrun_logical_date}
-          runAfter={dag?.next_dagrun_run_after as string}
-        />
-      ) : undefined,
-    });
-  }
-
   return (
     <HeaderCard
       actions={
@@ -136,7 +140,7 @@ export const Header = ({
               />
             )}
             <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />
-            <ParseDagButton dagId={dag.dag_id} fileToken={dag.file_token} />
+            {dag.is_stale ? undefined : <ParseDagButton dagId={dag.dag_id} fileToken={dag.file_token} />}
             <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
           </>
         )

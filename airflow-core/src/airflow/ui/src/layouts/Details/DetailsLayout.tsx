@@ -48,8 +48,6 @@ import {
   dagRunStateFilterKey,
   dagViewKey,
   DEFAULT_DAG_VIEW_KEY,
-  runAfterGteKey,
-  runAfterLteKey,
   runTypeFilterKey,
   showGanttKey,
   triggeringUserFilterKey,
@@ -79,8 +77,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(dagViewKey(dagId), defaultDagView);
   const [limit, setLimit] = useLocalStorage(dagRunsLimitKey(dagId), 10);
-  const [runAfterGte, setRunAfterGte] = useLocalStorage<string | undefined>(runAfterGteKey(dagId), undefined);
-  const [runAfterLte, setRunAfterLte] = useLocalStorage<string | undefined>(runAfterLteKey(dagId), undefined);
   const [runTypeFilter, setRunTypeFilter] = useLocalStorage<DagRunType | undefined>(
     runTypeFilterKey(dagId),
     undefined,
@@ -167,14 +163,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   dagView={dagView}
                   limit={limit}
                   panelGroupRef={panelGroupRef}
-                  runAfterGte={runAfterGte}
-                  runAfterLte={runAfterLte}
                   runTypeFilter={runTypeFilter}
                   setDagRunStateFilter={setDagRunStateFilter}
                   setDagView={setDagView}
                   setLimit={setLimit}
-                  setRunAfterGte={setRunAfterGte}
-                  setRunAfterLte={setRunAfterLte}
                   setRunTypeFilter={setRunTypeFilter}
                   setShowGantt={setShowGantt}
                   setShowVersionIndicatorMode={setShowVersionIndicatorMode}
@@ -190,8 +182,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                     <Grid
                       dagRunState={dagRunStateFilter}
                       limit={limit}
-                      runAfterGte={runAfterGte}
-                      runAfterLte={runAfterLte}
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}
                       showVersionIndicatorMode={showVersionIndicatorMode}

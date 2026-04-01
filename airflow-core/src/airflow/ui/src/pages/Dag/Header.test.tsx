@@ -51,7 +51,7 @@ const mockDag = {
 } as unknown as DAGDetailsResponse;
 
 describe("Header", () => {
-  it("shows a deactivated badge and hides the next run stat for stale dags", () => {
+  it("shows a deactivated badge and hides stale-only next actions for stale dags", () => {
     render(
       <Wrapper>
         <Header dag={mockDag} />
@@ -60,5 +60,6 @@ describe("Header", () => {
 
     expect(screen.getByText("header.status.deactivated")).toBeInTheDocument();
     expect(screen.queryByText("dagDetails.nextRun")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reparse Dag" })).not.toBeInTheDocument();
   });
 });
