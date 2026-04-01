@@ -76,8 +76,8 @@ EXAMPLE_KAFKA_TRANSPORT_CONFIG = {
 EXAMPLE_PARENT_JOB_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
     "spark.openlineage.parentJobNamespace": "default",
-    "spark.openlineage.parentRunId": "01931757-0840-7e16-b642-546fc5a3a5f4",
-    "spark.openlineage.rootParentRunId": "01931757-0840-7aed-9ca9-ee685e24658b",
+    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    "spark.openlineage.rootParentRunId": "01931885-2800-799d-8041-88a263ffa0d8",
     "spark.openlineage.rootParentJobName": "dag_id",
     "spark.openlineage.rootParentJobNamespace": "default",
 }
