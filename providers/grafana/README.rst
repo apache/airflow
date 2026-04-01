@@ -49,3 +49,10 @@ When executing the query, Loki instantly resolves the ``{job="airflow_tasks", da
 3. Loki only decompresses and evaluates the JSON parser on the specific chunks that mathematically *must* contain the target task's logs.
 
 **Operating Philosophy**: By embedding dynamic metadata into the JSON payload rather than stream labels, this provider guarantees full-text indexing performance while keeping Grafana Loki infrastructure costs near zero, ensuring stability regardless of how many millions of tasks Airflow executes.
+
+Upload Chunking Strategy
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Instead of streaming logs line-by-line via HTTP (which would bottleneck the Airflow worker) or sending gigantic multi-gigabyte files in a single request (which causes worker Out-Of-Memory crashes and reverse-proxy ``413 Entity Too Large`` HTTP rejections), the provider natively chunks log payloads by **Byte Size**.
+
+Every time a task finishes, the ``LokiRemoteLogIO`` handler iterates over the local structured JSON file and calculates the string payload length incrementally. Once reaching the standard Promtail sweet spot of ``1 MiB`` per-batch, the payload is immediately POSTed to the Loki API. This guarantees optimal network throughput and 100% compliance with default ingestion limits without sacrificing worker stability.

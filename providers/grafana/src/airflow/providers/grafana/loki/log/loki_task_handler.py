@@ -18,7 +18,6 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 # Attempt to load standard log structures according to Airflow 3 requirements
-from airflow.providers.common.compat.sdk import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler 
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 
@@ -61,6 +60,7 @@ class LokiRemoteLogIO(LoggingMixin):
     host: str = "http://localhost:3100"
     base_log_folder: Path = attrs.field(converter=Path)
     delete_local_copy: bool = False
+    processors: list = attrs.field(factory=list)
     
     @property
     def session(self) -> requests.Session:
@@ -87,52 +87,76 @@ class LokiRemoteLogIO(LoggingMixin):
         if not local_loc.is_file():
             return
 
-        # Read the raw JSON log lines produced by the Airflow 3 Task Supervisor
-        raw_logs = local_loc.read_text().splitlines()
-        
-        # Prepare the payload for Loki (Loki Push API)
         labels = _render_log_labels(ti)
         values = []
-        for line in raw_logs:
-            if not line.strip():
-                continue
-            
-            try:
-                # Log line content from Task Supervisor
-                log_data = json.loads(line)
-                
-                # Inject high-cardinality contextual fields into the JSON payload.
-                log_data["task_id"] = ti.task_id
-                log_data["run_id"] = getattr(ti, "run_id", "")
-                log_data["try_number"] = str(ti.try_number)
-                log_data["map_index"] = str(getattr(ti, "map_index", -1))
+        payload_size = 0
+        MAX_PAYLOAD_SIZE = 1048576  # 1 MiB chunking as per Promtail limits
 
-                # Loki expects Timestamp in nanoseconds as string
-                timestamp_ns = str(int(time.time() * 1e9)) 
-                values.append([timestamp_ns, json.dumps(log_data)])
-            except Exception:
-                pass
-                
-        payload = {
-            "streams": [
-                {
-                    "stream": labels,
-                    "values": values
-                }
-            ]
-        }
-        
-        # Push to Loki using configured reliable session
-        try:
-            resp = self.session.post(f"{self.host}/loki/api/v1/push", json=payload, timeout=(3.0, 15.0))
-            resp.raise_for_status()
-            
-            # Clean up local file just like ElasticsearchRemoteLogIO does
-            if self.delete_local_copy:
+        def _push_chunk():
+            if not values:
+                return True
+            payload = {
+                "streams": [
+                    {
+                        "stream": labels,
+                        "values": values
+                    }
+                ]
+            }
+            try:
+                resp = self.session.post(f"{self.host}/loki/api/v1/push", json=payload, timeout=(3.0, 15.0))
+                resp.raise_for_status()
+                return True
+            except Exception as e:
+                self.log.exception("Failed to upload chunk of logs to Loki: %s", e)
+                return False
+
+        has_error = False
+
+        with open(local_loc, "r") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+
+                try:
+                    # Log line content from Task Supervisor
+                    log_data = json.loads(line)
+                    
+                    # Inject high-cardinality contextual fields into the JSON payload.
+                    log_data["task_id"] = ti.task_id
+                    log_data["run_id"] = getattr(ti, "run_id", "")
+                    log_data["try_number"] = str(ti.try_number)
+                    log_data["map_index"] = str(getattr(ti, "map_index", -1))
+
+                    # Loki expects Timestamp in nanoseconds as string
+                    timestamp_ns = str(int(time.time() * 1e9)) 
+                    log_str = json.dumps(log_data)
+                    values.append([timestamp_ns, log_str])
+                    
+                    # Estimate the byte size of this entry in the payload
+                    payload_size += len(timestamp_ns) + len(log_str) + 10 # 10 bytes overhead per value
+
+                    if payload_size >= MAX_PAYLOAD_SIZE:
+                        if not _push_chunk():
+                            has_error = True
+                        values.clear()
+                        payload_size = 0
+
+                except Exception:
+                    pass
+
+        # Push any remaining logs
+        if values:
+            if not _push_chunk():
+                has_error = True
+
+        # Clean up local file just like ElasticsearchRemoteLogIO does if fully successful
+        if self.delete_local_copy and not has_error:
+            try:
                 import shutil
                 shutil.rmtree(local_loc.parent, ignore_errors=True)
-        except Exception as e:
-            self.log.exception("Failed to upload logs to Loki: %s", e)
+            except Exception:
+                pass
 
     def read(self, _relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
         """Fetch logs from Loki using LogQL for streaming or retrieval."""
@@ -177,6 +201,10 @@ class LokiTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
     LOG_NAME = "Loki"
 
+    @property
+    def log_name(self) -> str:
+        return self.LOG_NAME
+
     def __init__(self, base_log_folder: str, host: str, frontend: str = "", **kwargs):
         super().__init__(base_log_folder=base_log_folder, **kwargs)
         self.host = host
@@ -191,9 +219,13 @@ class LokiTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
         if AIRFLOW_V_3_0_PLUS:
             if AIRFLOW_V_3_2_PLUS:
                 try:
-                    from airflow.logging_config import _ActiveLoggingConfig, get_remote_task_log
-                    if get_remote_task_log() is None:
-                        _ActiveLoggingConfig.set(self.io, None)
+                    from airflow.logging_config import _ActiveLoggingConfig
+                    try:
+                        from airflow.logging_config import get_remote_task_log
+                        if callable(get_remote_task_log) and get_remote_task_log() is None:
+                            _ActiveLoggingConfig.set(self.io, None)
+                    except ImportError:
+                        pass
                 except ImportError:
                     pass
             else:
@@ -204,34 +236,33 @@ class LokiTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
                 except ImportError:
                     pass
                     
+    def _read_remote_logs(self, ti: TaskInstance, try_number: int, metadata: dict | None = None) -> tuple[list[str], list[str]]:
+        """
+        Called by Airflow 3.x FileTaskHandler._read to fetch remote logs.
+        Airflow 3 native FileTaskHandler manages interleaving these with locally streaming worker logs.
+        """
+        return self.io.read("", ti)
+
     def _read(
         self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
     ) -> tuple[list[Any] | str, dict[str, Any]]:
         """
         Implementation of the log read handler invoked by the Web UI.
-        Returns a list of StructuredLogMessage objects in Airflow 3+.
+        In Airflow 3+, we defer to the super() class so it can serve logs from the active worker
+        and intelligently interleave them with `_read_remote_logs`.
         """
+        if AIRFLOW_V_3_0_PLUS:
+            return super()._read(ti, try_number, metadata)
+
+        # Fallback for Airflow 2.x
         metadata = metadata or {"offset": 0}
-        
         headers, messages = self.io.read("", ti)
         
-        structured_messages = []
-        structured_messages.append(StructuredLogMessage(event="::group::Loki logs", sources=headers))
-        for msg in messages:
-            try:
-                log_data = json.loads(msg)
-                if "event" not in log_data and "message" in log_data:
-                    log_data["event"] = log_data.pop("message")
-                structured_messages.append(StructuredLogMessage(**log_data))
-            except Exception:
-                structured_messages.append(StructuredLogMessage(event=msg))
-                
-        structured_messages.append(StructuredLogMessage(event="::endgroup::"))
-
-        # Mark end of log if task is done and no more records
+        # Build raw messages (no StructuredLogMessage required in Airflow 2)
+        log_str = "\n".join(messages)
         metadata["end_of_log"] = True 
         
-        return structured_messages, metadata
+        return [log_str], metadata
 
     @property
     def supports_external_link(self) -> bool:
