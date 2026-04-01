@@ -269,6 +269,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.command) }}
+
+ DEPRECATION WARNING:
+    `workers.command` has been renamed to `workers.celery.command`/`workers.kubernetes.command`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if ne (.Values.workers.args | toJson) (list "bash" "-c" "exec \\\nairflow celery worker\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}" | toJson) }}
 
  DEPRECATION WARNING:
@@ -325,62 +333,6 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not .Values.workers.persistence.enabled }}
-
- DEPRECATION WARNING:
-    `workers.persistence.enabled` has been renamed to `workers.celery.persistence.enabled`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if not (empty .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) }}
-
- DEPRECATION WARNING:
-    `workers.persistence.persistentVolumeClaimRetentionPolicy` has been renamed to `workers.celery.persistence.persistentVolumeClaimRetentionPolicy`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if ne .Values.workers.persistence.size "100Gi" }}
-
- DEPRECATION WARNING:
-    `workers.persistence.size` has been renamed to `workers.celery.persistence.size`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if not (empty .Values.workers.persistence.storageClassName) }}
-
- DEPRECATION WARNING:
-    `workers.persistence.storageClassName` has been renamed to `workers.celery.persistence.storageClassName`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.workers.persistence.fixPermissions }}
-
- DEPRECATION WARNING:
-    `workers.persistence.fixPermissions` has been renamed to `workers.celery.persistence.fixPermissions`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if not (empty .Values.workers.persistence.annotations) }}
-
- DEPRECATION WARNING:
-    `workers.persistence.annotations` has been renamed to `workers.celery.persistence.annotations`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
-{{- if .Values.workers.persistence.securityContexts.container }}
-
- DEPRECATION WARNING:
-    `workers.persistence.securityContexts` has been renamed to `workers.celery.persistence.securityContexts`.
-    Please change your values as support for the old name will be dropped in a future release.
-
-{{- end }}
-
 {{- if not (empty .Values.workers.updateStrategy) }}
 
  DEPRECATION WARNING:
@@ -405,6 +357,38 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.securityContext) }}
+
+ DEPRECATION WARNING:
+    `workers.securityContext` has been renamed to `workers.celery.securityContexts`/`workers.kubernetes.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.securityContexts.pod) }}
+
+ DEPRECATION WARNING:
+    `workers.securityContexts.pod` has been renamed to `workers.celery.securityContexts.pod`/`workers.kubernetes.securityContexts.pod`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.securityContexts.container) }}
+
+ DEPRECATION WARNING:
+    `workers.securityContexts.container` has been renamed to `workers.celery.securityContexts.container`/`workers.kubernetes.securityContexts.container`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.containerLifecycleHooks) }}
+
+ DEPRECATION WARNING:
+    `workers.containerLifecycleHooks` has been renamed to `workers.celery.containerLifecycleHooks`/`workers.kubernetes.containerLifecycleHooks`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if .Values.workers.podDisruptionBudget.enabled }}
 
  DEPRECATION WARNING:
@@ -421,10 +405,10 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if hasKey .Values.workers.podDisruptionBudget.config "minUnavailable" }}
+{{- if hasKey .Values.workers.podDisruptionBudget.config "minAvailable" }}
 
  DEPRECATION WARNING:
-    `workers.podDisruptionBudget.config.minUnavailable` has been renamed to `workers.celery.podDisruptionBudget.config.minUnavailable`.
+    `workers.podDisruptionBudget.config.minAvailable` has been renamed to `workers.celery.podDisruptionBudget.config.minAvailable`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -501,10 +485,186 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not .Values.workers.persistence.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.enabled` has been renamed to `workers.celery.persistence.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.persistentVolumeClaimRetentionPolicy` has been renamed to `workers.celery.persistence.persistentVolumeClaimRetentionPolicy`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne .Values.workers.persistence.size "100Gi" }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.size` has been renamed to `workers.celery.persistence.size`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.persistence.storageClassName) }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.storageClassName` has been renamed to `workers.celery.persistence.storageClassName`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.persistence.fixPermissions }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.fixPermissions` has been renamed to `workers.celery.persistence.fixPermissions`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.persistence.annotations) }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.annotations` has been renamed to `workers.celery.persistence.annotations`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.persistence.securityContexts.container }}
+
+ DEPRECATION WARNING:
+    `workers.persistence.securityContexts` has been renamed to `workers.celery.persistence.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.kerberosSidecar.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.kerberosSidecar.enabled` has been renamed to `workers.celery.kerberosSidecar.enabled`/`workers.kubernetes.kerberosSidecar.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.kerberosSidecar.resources }}
+
+ DEPRECATION WARNING:
+    `workers.kerberosSidecar.resources` has been renamed to `workers.celery.kerberosSidecar.resources`/`workers.kubernetes.kerberosSidecar.resources`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.kerberosSidecar.securityContexts.container }}
+
+ DEPRECATION WARNING:
+    `workers.kerberosSidecar.securityContexts.container` has been renamed to `workers.celery.kerberosSidecar.securityContexts.container`/`workers.kubernetes.kerberosSidecar.securityContexts.container`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.kerberosSidecar.containerLifecycleHooks }}
+
+ DEPRECATION WARNING:
+    `workers.kerberosSidecar.containerLifecycleHooks` has been renamed to `workers.celery.kerberosSidecar.containerLifecycleHooks`/`workers.kubernetes.kerberosSidecar.containerLifecycleHooks`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.kerberosInitContainer.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.kerberosInitContainer.enabled` has been renamed to `workers.celery.kerberosInitContainer.enabled`/`workers.kubernetes.kerberosInitContainer.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.kerberosInitContainer.resources }}
+
+ DEPRECATION WARNING:
+    `workers.kerberosInitContainer.resources` has been renamed to `workers.celery.kerberosInitContainer.resources`/`workers.kubernetes.kerberosInitContainer.resources`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.kerberosInitContainer.securityContexts.container }}
+
+ DEPRECATION WARNING:
+    `workers.kerberosInitContainer.securityContexts.container` has been renamed to `workers.celery.kerberosInitContainer.securityContexts.container`/`workers.kubernetes.kerberosInitContainer.securityContexts.container`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.kerberosInitContainer.containerLifecycleHooks }}
+
+ DEPRECATION WARNING:
+    `workers.kerberosInitContainer.containerLifecycleHooks` has been renamed to `workers.celery.kerberosInitContainer.containerLifecycleHooks`/`workers.kubernetes.kerberosInitContainer.containerLifecycleHooks`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.workers.resources) }}
 
  DEPRECATION WARNING:
     `workers.resources` has been renamed to `workers.celery.resources`/`workers.kubernetes.resources`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.terminationGracePeriodSeconds) 600 }}
+
+ DEPRECATION WARNING:
+    `workers.terminationGracePeriodSeconds` has been renamed to `workers.celery.terminationGracePeriodSeconds`/`workers.kubernetes.terminationGracePeriodSeconds`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.workers.safeToEvict }}
+
+ DEPRECATION WARNING:
+    `workers.safeToEvict` has been renamed to `workers.celery.safeToEvict`/`workers.kubernetes.safeToEvict`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.runtimeClassName) }}
+
+ DEPRECATION WARNING:
+    `workers.runtimeClassName` has been renamed to `workers.celery.runtimeClassName`/`workers.kubernetes.runtimeClassName`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.priorityClassName) }}
+
+ DEPRECATION WARNING:
+    `workers.priorityClassName` has been renamed to `workers.celery.priorityClassName`/`workers.kubernetes.priorityClassName`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.nodeSelector) }}
+
+ DEPRECATION WARNING:
+    `workers.nodeSelector` has been renamed to `workers.celery.nodeSelector`/`workers.kubernetes.nodeSelector`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.extraPorts) }}
+
+ DEPRECATION WARNING:
+    `workers.extraPorts` has been renamed to `workers.celery.extraPorts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.hostAliases) }}
+
+ DEPRECATION WARNING:
+    `workers.hostAliases` has been renamed to `workers.celery.hostAliases`/`workers.kubernetes.hostAliases`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}

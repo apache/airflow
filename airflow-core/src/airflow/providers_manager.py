@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar, cast
 from airflow import DeprecatedImportWarning
 from airflow._shared.module_loading import import_string
 from airflow._shared.providers_discovery import discover_all_providers_from_packages
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -610,26 +610,9 @@ class ProvidersManager(LoggingMixin):
 
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
-        """Lazy initialization of providers configuration information."""
-        self._initialize_providers_configuration()
-
-    def _initialize_providers_configuration(self):
-        """
-        Initialize providers configuration information.
-
-        Should be used if we do not want to trigger caching for ``initialize_providers_configuration`` method.
-        In some cases we might want to make sure that the configuration is initialized, but we do not want
-        to cache the initialization method - for example when we just want to write configuration with
-        providers, but it is used in the context where no providers are loaded yet we will eventually
-        restore the original configuration and we want the subsequent ``initialize_providers_configuration``
-        method to be run in order to load the configuration for providers again.
-        """
+        """Lazy initialization of provider configuration metadata and merge it into ``conf``."""
         self.initialize_providers_list()
         self._discover_config()
-        # Now update conf with the new provider configuration from providers
-        from airflow.configuration import conf
-
-        conf.load_providers_configuration()
 
     @provider_info_cache("plugins")
     def initialize_providers_plugins(self):
@@ -1061,6 +1044,14 @@ class ProvidersManager(LoggingMixin):
                 # inherited from parent hook. This way we add form fields only once for the whole
                 # hierarchy and we add it only from the parent hook that provides those!
                 if "get_connection_form_widgets" in hook_class.__dict__:
+                    warning = AirflowProviderDeprecationWarning(
+                        f"Hook '{hook_class_name}' defines get_connection_form_widgets(). "
+                        "This method is deprecated. Define connection fields declaratively in "
+                        "provider.yaml under 'conn-fields' instead. See "
+                        "https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html"
+                    )
+                    warning.deprecated_provider_since = "3.2.0"
+                    warnings.warn(warning, stacklevel=2)
                     widgets = hook_class.get_connection_form_widgets()
                     if widgets:
                         for widget in widgets.values():
@@ -1075,6 +1066,14 @@ class ProvidersManager(LoggingMixin):
                                 return None
                         self._add_widgets_from_hook(package_name, hook_class, widgets)
                 if "get_ui_field_behaviour" in hook_class.__dict__:
+                    warning = AirflowProviderDeprecationWarning(
+                        f"Hook '{hook_class_name}' defines get_ui_field_behaviour(). "
+                        "This method is deprecated. Define field behaviour declaratively in "
+                        "provider.yaml under 'ui-field-behaviour' instead. See "
+                        "https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html"
+                    )
+                    warning.deprecated_provider_since = "3.2.0"
+                    warnings.warn(warning, stacklevel=2)
                     field_behaviours = hook_class.get_ui_field_behaviour()
                     if field_behaviours:
                         self._add_customized_fields_from_hook(package_name, hook_class, field_behaviours)
@@ -1454,6 +1453,18 @@ class ProvidersManager(LoggingMixin):
 
     @property
     def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        """
+        Return provider configs that have already been initialized.
+
+        .. deprecated:: 3.2.0
+            Use ``provider_configs`` instead.  This property is kept for backwards
+            compatibility and will be removed in a future version.
+        """
+        warnings.warn(
+            "already_initialized_provider_configs is deprecated. Use `provider_configs` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
 
     def _cleanup(self):
@@ -1475,6 +1486,12 @@ class ProvidersManager(LoggingMixin):
         self._executor_without_check_set.clear()
         self._queue_class_name_set.clear()
         self._provider_configs.clear()
+
+        # Imported lazily to avoid a configuration/providers_manager import cycle during cleanup.
+        from airflow.configuration import conf
+
+        conf.invalidate_cache()
+
         self._trigger_info_set.clear()
         self._notification_info_set.clear()
         self._plugins_set.clear()

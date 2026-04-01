@@ -1186,8 +1186,6 @@ class TestAsyncKubernetesHook:
         mock_list_namespaced_event.assert_called_once_with(
             field_selector=f"involvedObject.name={POD_NAME}",
             namespace=NAMESPACE,
-            resource_version=None,
-            resource_version_match=None,
         )
         assert result == mock_events
 
@@ -1595,7 +1593,10 @@ class TestAsyncKubernetesHook:
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
     async def test_read_logs(self, lib_method, kube_config_loader):
-        lib_method.return_value = self.mock_await_result("2023-01-11 Some string logs...")
+        mock_raw_resp = mock.AsyncMock()
+        mock_raw_resp.read = mock.AsyncMock(return_value=b"2023-01-11 Some string logs...")
+        lib_method.return_value = self.mock_await_result(mock_raw_resp)
+
         hook = AsyncKubernetesHook(
             conn_id=None,
             in_cluster=False,
@@ -1618,9 +1619,40 @@ class TestAsyncKubernetesHook:
             follow=False,
             timestamps=True,
             since_seconds=10,
+            _preload_content=False,
         )
         assert len(logs) == 1
         assert "2023-01-11 Some string logs..." in logs
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
+    async def test_read_logs_handles_non_utf8_bytes(self, lib_method, kube_config_loader):
+        """Non-UTF-8 bytes in pod logs are replaced instead of raising UnicodeDecodeError."""
+        raw_bytes = b"2023-01-11 valid line\n2023-01-11 broken \x80\x81 bytes"
+
+        mock_raw_resp = mock.AsyncMock()
+        mock_raw_resp.read = mock.AsyncMock(return_value=raw_bytes)
+        lib_method.return_value = self.mock_await_result(mock_raw_resp)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        logs = await hook.read_logs(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+            container_name=CONTAINER_NAME,
+        )
+
+        assert len(logs) == 2
+        assert "valid line" in logs[0]
+        # Non-UTF-8 bytes replaced with U+FFFD
+        assert "\ufffd" in logs[1]
+        lib_method.assert_called_once()
+        assert lib_method.call_args.kwargs.get("_preload_content") is False
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))

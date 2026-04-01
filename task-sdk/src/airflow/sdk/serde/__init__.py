@@ -31,6 +31,15 @@ import attr
 
 from airflow.sdk._shared.module_loading import import_string, iter_namespace, qualname
 from airflow.sdk._shared.observability.metrics.stats import Stats
+from airflow.sdk._shared.serialization import (
+    CLASSNAME,
+    DATA,
+    OLD_DATA,
+    OLD_DICT,
+    OLD_TYPE,
+    SCHEMA_ID,
+    VERSION,
+)
 from airflow.sdk.configuration import conf
 from airflow.sdk.observability.metrics import stats_utils
 from airflow.sdk.serde.typing import is_pydantic_model
@@ -42,16 +51,6 @@ log = logging.getLogger(__name__)
 
 MAX_RECURSION_DEPTH = sys.getrecursionlimit() - 1
 
-CLASSNAME = "__classname__"
-VERSION = "__version__"
-DATA = "__data__"
-SCHEMA_ID = "__id__"
-CACHE = "__cache__"
-
-OLD_TYPE = "__type"
-OLD_SOURCE = "__source"
-OLD_DATA = "__var"
-OLD_DICT = "dict"
 PYDANTIC_MODEL_QUALNAME = "pydantic.main.BaseModel"
 
 DEFAULT_VERSION = 0

@@ -53,6 +53,8 @@ If release name contains chart name it will be used as a full name.
 {{/* Standard Airflow environment variables */}}
 {{- define "standard_airflow_environment" }}
   # Hard Coded Airflow Envs
+  - name: AIRFLOW_HOME
+    value: {{ .Values.airflowHome }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__FERNET_KEY }}
   - name: AIRFLOW__CORE__FERNET_KEY
     valueFrom:
@@ -60,8 +62,6 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "fernet_key_secret" . }}
         key: fernet-key
   {{- end }}
-  - name: AIRFLOW_HOME
-    value: {{ .Values.airflowHome }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
     valueFrom:
@@ -111,14 +111,12 @@ If release name contains chart name it will be used as a full name.
         key: jwt-secret
   {{- end }}
   {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
-    {{- if or (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND }}
+    {{- if and .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND (or .Values.data.resultBackendSecretName .Values.data.resultBackendConnection) }}
   - name: AIRFLOW__CELERY__RESULT_BACKEND
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
         key: connection
-    {{- end }}
     {{- end }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__BROKER_URL }}
   - name: AIRFLOW__CELERY__BROKER_URL
@@ -128,23 +126,19 @@ If release name contains chart name it will be used as a full name.
         key: connection
     {{- end }}
   {{- end }}
-  {{- if .Values.elasticsearch.enabled }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
+  {{- if and .Values.elasticsearch.enabled .Values.enableBuiltInSecretEnvVars.AIRFLOW__ELASTICSEARCH__HOST }}
   - name: AIRFLOW__ELASTICSEARCH__HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "elasticsearch_secret" . }}
         key: connection
-    {{- end }}
   {{- end }}
-  {{- if .Values.opensearch.enabled }}
-    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__OPENSEARCH__HOST }}
+  {{- if and .Values.opensearch.enabled .Values.enableBuiltInSecretEnvVars.AIRFLOW__OPENSEARCH__HOST }}
   - name: AIRFLOW__OPENSEARCH__HOST
     valueFrom:
       secretKeyRef:
         name: {{ template "opensearch_secret" . }}
         key: connection
-    {{- end }}
   {{- end }}
 {{- end }}
 
@@ -154,10 +148,6 @@ If release name contains chart name it will be used as a full name.
   {{- range $i, $config := .Values.env }}
   - name: {{ $config.name }}
     value: {{ $config.value | quote }}
-    {{- if or (contains "KubernetesExecutor" $.Values.executor) (contains "LocalKubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    value: {{ $config.value | quote }}
-    {{- end }}
   {{- end }}
   # Dynamically created secret envs
   {{- range $i, $config := .Values.secret }}
@@ -167,12 +157,6 @@ If release name contains chart name it will be used as a full name.
         name: {{ $config.secretName }}
         key: {{ default "value" $config.secretKey }}
   {{- end }}
-  {{- if or (contains "LocalKubernetesExecutor" $.Values.executor) (contains "KubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
-    {{- range $i, $config := .Values.secret }}
-  - name: AIRFLOW__KUBERNETES_SECRETS__{{ $config.envName }}
-    value: {{ printf "%s=%s" $config.secretName $config.secretKey }}
-    {{- end }}
-  {{ end }}
   # Extra env
   {{- $Global := . }}
   {{- with .Values.extraEnv }}
@@ -196,7 +180,7 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
-{{/*  Git ssh key volume */}}
+{{/* Git ssh key volume */}}
 {{- define "git_sync_ssh_key_volume" }}
 - name: git-sync-ssh-key
   secret:
@@ -204,7 +188,7 @@ If release name contains chart name it will be used as a full name.
     defaultMode: 288
 {{- end }}
 
-{{/*  Git sync container */}}
+{{/* Git sync container */}}
 {{- define "git_sync_container" }}
 - name: {{ .Values.dags.gitSync.containerName }}{{ if .is_init }}-init{{ end }}
   image: {{ template "git_sync_image" . }}
@@ -212,6 +196,38 @@ If release name contains chart name it will be used as a full name.
   securityContext: {{- include "localContainerSecurityContext" .Values.dags.gitSync | nindent 4 }}
   envFrom: {{- include "custom_git_sync_environment_from" . | default "\n  []" | indent 2 }}
   env:
+    - name: GIT_SYNC_REV
+      value: {{ .Values.dags.gitSync.rev | quote }}
+    - name: GITSYNC_REF
+      value: {{ .Values.dags.gitSync.ref | quote }}
+    - name: GIT_SYNC_BRANCH
+      value: {{ .Values.dags.gitSync.branch | quote }}
+    - name: GIT_SYNC_REPO
+      value: {{ .Values.dags.gitSync.repo | quote }}
+    - name: GITSYNC_REPO
+      value: {{ .Values.dags.gitSync.repo | quote }}
+    - name: GIT_SYNC_DEPTH
+      value: {{ .Values.dags.gitSync.depth | quote }}
+    - name: GITSYNC_DEPTH
+      value: {{ .Values.dags.gitSync.depth | quote }}
+    - name: GIT_SYNC_ROOT
+      value: "/git"
+    - name: GITSYNC_ROOT
+      value: "/git"
+    - name: GIT_SYNC_DEST
+      value: "repo"
+    - name: GITSYNC_LINK
+      value: "repo"
+    - name: GIT_SYNC_ADD_USER
+      value: "true"
+    - name: GITSYNC_ADD_USER
+      value: "true"
+    - name: GITSYNC_PERIOD
+      value: {{ .Values.dags.gitSync.period | quote }}
+    - name: GIT_SYNC_MAX_SYNC_FAILURES
+      value: {{ .Values.dags.gitSync.maxFailures | quote }}
+    - name: GITSYNC_MAX_FAILURES
+      value: {{ .Values.dags.gitSync.maxFailures | quote }}
     {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey }}
     - name: GIT_SSH_KEY_FILE
       value: "/etc/git-secret/ssh"
@@ -258,42 +274,10 @@ If release name contains chart name it will be used as a full name.
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_PASSWORD
     {{- end }}
-    - name: GIT_SYNC_REV
-      value: {{ .Values.dags.gitSync.rev | quote }}
-    - name: GITSYNC_REF
-      value: {{ .Values.dags.gitSync.ref | quote }}
-    - name: GIT_SYNC_BRANCH
-      value: {{ .Values.dags.gitSync.branch | quote }}
-    - name: GIT_SYNC_REPO
-      value: {{ .Values.dags.gitSync.repo | quote }}
-    - name: GITSYNC_REPO
-      value: {{ .Values.dags.gitSync.repo | quote }}
-    - name: GIT_SYNC_DEPTH
-      value: {{ .Values.dags.gitSync.depth | quote }}
-    - name: GITSYNC_DEPTH
-      value: {{ .Values.dags.gitSync.depth | quote }}
-    - name: GIT_SYNC_ROOT
-      value: "/git"
-    - name: GITSYNC_ROOT
-      value: "/git"
-    - name: GIT_SYNC_DEST
-      value: "repo"
-    - name: GITSYNC_LINK
-      value: "repo"
-    - name: GIT_SYNC_ADD_USER
-      value: "true"
-    - name: GITSYNC_ADD_USER
-      value: "true"
     {{- if .Values.dags.gitSync.wait }}
     - name: GIT_SYNC_WAIT
       value: {{ .Values.dags.gitSync.wait | quote }}
     {{- end }}
-    - name: GITSYNC_PERIOD
-      value: {{ .Values.dags.gitSync.period | quote }}
-    - name: GIT_SYNC_MAX_SYNC_FAILURES
-      value: {{ .Values.dags.gitSync.maxFailures | quote }}
-    - name: GITSYNC_MAX_FAILURES
-      value: {{ .Values.dags.gitSync.maxFailures | quote }}
     {{- if .is_init }}
     - name: GIT_SYNC_ONE_TIME
       value: "true"
@@ -464,9 +448,9 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "image_pull_secrets" -}}
-  {{- $secrets := (default (list .Values.registry.secretName) .Values.imagePullSecrets) -}}
+  {{- $secrets := default (list .Values.registry.secretName) .Values.imagePullSecrets -}}
   {{- $secrets = ($secrets | compact | uniq) -}}
-  {{- if and (not $secrets) (or .Values.registry.connection) -}}
+  {{- if and (not $secrets) .Values.registry.connection -}}
     {{- $secrets = append $secrets (printf "%s-registry" (include "airflow.fullname" .)) -}}
   {{- end -}}
   {{- $out := list -}}
@@ -788,8 +772,6 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "registry_docker_config" }}
-  {{- $host := .Values.registry.connection.host }}
-  {{- $email := .Values.registry.connection.email }}
   {{- $user := .Values.registry.connection.user }}
   {{- $pass := .Values.registry.connection.pass }}
 
@@ -798,9 +780,9 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- $data := dict }}
   {{- $_ := set $data "username" $user }}
   {{- $_ := set $data "password" $pass }}
-  {{- $_ := set $data "email" $email }}
+  {{- $_ := set $data "email" .Values.registry.connection.email }}
   {{- $_ := set $data "auth" (printf "%v:%v" $user $pass | b64enc) }}
-  {{- $_ := set $auth $host $data }}
+  {{- $_ := set $auth .Values.registry.connection.host $data }}
   {{- $_ := set $config "auths" $auth }}
   {{ $config | toJson | print }}
 {{- end }}
@@ -847,9 +829,9 @@ fsGroup: {{ $.gid }}
 Set the default value for pod securityContext
 If no value is passed for <node>.securityContexts.pod or <node>.securityContext, defaults to UID in the local node.
 
-    +-----------------------------+      +------------------------+      +-------------+
-    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | <node>.uid  |
-    +-----------------------------+      +------------------------+      +-------------+
+    +-----------------------------+      +------------------------+      +------------+
+    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | <node>.uid |
+    +-----------------------------+      +------------------------+      +------------+
 
 The template can be called like so:
   include "localPodSecurityContext" (list . .Values.schedule)
@@ -870,9 +852,9 @@ runAsUser: {{ .uid }}
 Set the default value for container securityContext
 If no value is passed for <node>.securityContexts.container or <node>.securityContext, defaults to UID in the local node.
 
-    +-----------------------------------+      +------------------------+      +-------------+
-    | <node>.securityContexts.container |  ->  | <node>.securityContext |  ->  | <node>.uid  |
-    +-----------------------------------+      +------------------------+      +-------------+
+    +-----------------------------------+      +------------------------+      +------------+
+    | <node>.securityContexts.container |  ->  | <node>.securityContext |  ->  | <node>.uid |
+    +-----------------------------------+      +------------------------+      +------------+
 
 The template can be called like so:
   include "localContainerSecurityContext" .Values.statsd
@@ -999,23 +981,6 @@ capabilities:
         key: {{ $config.valueFrom.configMapKeyRef.key }}
       {{- end }}
     {{- end }}
-    {{- if or (contains "KubernetesExecutor" $.Values.executor) (contains "LocalKubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    {{- if $config.value }}
-    value: {{ $config.value | quote }}
-    {{- else if $config.valueFrom }}
-    valueFrom:
-      {{- if $config.valueFrom.secretKeyRef }}
-      secretKeyRef:
-        name: {{ $config.valueFrom.secretKeyRef.name }}
-        key: {{ $config.valueFrom.secretKeyRef.key }}
-      {{- else if $config.valueFrom.configMapKeyRef }}
-      configMapKeyRef:
-        name: {{ $config.valueFrom.configMapKeyRef.name }}
-        key: {{ $config.valueFrom.configMapKeyRef.key }}
-      {{- end }}
-    {{- end }}
-    {{- end }}
   {{- end }}
 {{- end }}
 
@@ -1054,11 +1019,10 @@ Usage:
 */}}
 {{- define "airflow.revisionHistoryLimit" -}}
   {{- $result := "" -}}
-  {{- $found := false -}}
   {{- range . -}}
-    {{- if and (not $found) (not (kindIs "invalid" .)) -}}
+    {{- if and (not (kindIs "invalid" .)) -}}
       {{- $result = . -}}
-      {{- $found = true -}}
+      {{- break -}}
     {{- end -}}
   {{- end -}}
   {{- $result -}}

@@ -49,15 +49,15 @@ class OSSRemoteLogIO(LoggingMixin):  # noqa: D101
         path = Path(path)
         if path.is_absolute():
             local_loc = path
-            remote_loc = os.path.join(self.remote_base, path.relative_to(self.base_log_folder))
+            relative_path = str(path.relative_to(self.base_log_folder))
         else:
             local_loc = self.base_log_folder.joinpath(path)
-            remote_loc = os.path.join(self.remote_base, path)
+            relative_path = str(path)
 
         if local_loc.is_file():
             # read log and remove old logs to get just the latest additions
             log = local_loc.read_text()
-            has_uploaded = self.oss_write(log, remote_loc)
+            has_uploaded = self.oss_write(log, relative_path)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
 

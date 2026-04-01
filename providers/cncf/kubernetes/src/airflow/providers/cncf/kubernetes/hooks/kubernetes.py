@@ -52,6 +52,7 @@ from airflow.utils import yaml
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
 
+    from aiohttp import ClientResponse
     from kubernetes.client import V1JobList
     from kubernetes.client.models import CoreV1Event, CoreV1EventList, V1Job, V1Pod
 
@@ -993,18 +994,21 @@ class AsyncKubernetesHook(KubernetesHook):
                 raise KubernetesApiError from e
 
     @generic_api_retry
-    async def delete_pod(self, name: str, namespace: str):
+    async def delete_pod(self, name: str, namespace: str, grace_period_seconds: int | None = None):
         """
         Delete pod's object.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
+        :param grace_period_seconds: Optional duration in seconds the pod needs to terminate gracefully.
         """
         async with self.get_conn() as connection:
             try:
                 v1_api = async_client.CoreV1Api(connection)
                 await v1_api.delete_namespaced_pod(
-                    name=name, namespace=namespace, body=client.V1DeleteOptions()
+                    name=name,
+                    namespace=namespace,
+                    body=client.V1DeleteOptions(grace_period_seconds=grace_period_seconds),
                 )
             except async_client.ApiException as e:
                 # If the pod is already deleted
@@ -1031,14 +1035,26 @@ class AsyncKubernetesHook(KubernetesHook):
         async with self.get_conn() as connection:
             try:
                 v1_api = async_client.CoreV1Api(connection)
-                logs = await v1_api.read_namespaced_pod_log(
-                    name=name,
-                    namespace=namespace,
-                    container=container_name,
-                    follow=False,
-                    timestamps=True,
-                    since_seconds=since_seconds,
-                )
+                # Always retrieve raw bytes and decode with 'replace' to avoid
+                # UnicodeDecodeError when pod output contains non-UTF-8 bytes
+                # (e.g. binary data, truncated multi-byte sequences).
+                # kubernetes_asyncio's default decoding uses strict UTF-8 which
+                # crashes the task in those cases.
+                kwargs: dict[str, Any] = {
+                    "name": name,
+                    "namespace": namespace,
+                    "follow": False,
+                    "timestamps": True,
+                    "_preload_content": False,
+                }
+                if container_name is not None:
+                    kwargs["container"] = container_name
+                if since_seconds is not None:
+                    kwargs["since_seconds"] = since_seconds
+
+                raw_resp: ClientResponse = await v1_api.read_namespaced_pod_log(**kwargs)  # type: ignore  # _preload_content=False makes returning ClientResponse instead of str!
+                raw_bytes = await raw_resp.read()
+                logs = raw_bytes.decode("utf-8", errors="replace")
                 logs_list: list[str] = logs.splitlines()
                 return logs_list
             except HTTPError as e:
@@ -1058,12 +1074,15 @@ class AsyncKubernetesHook(KubernetesHook):
         async with self.get_conn() as connection:
             try:
                 v1_api = async_client.CoreV1Api(connection)
-                events: CoreV1EventList = await v1_api.list_namespaced_event(
-                    field_selector=f"involvedObject.name={name}",
-                    namespace=namespace,
-                    resource_version=resource_version,
-                    resource_version_match="NotOlderThan" if resource_version else None,
-                )
+                kwargs: dict[str, Any] = {
+                    "field_selector": f"involvedObject.name={name}",
+                    "namespace": namespace,
+                }
+                if resource_version is not None:
+                    kwargs["resource_version"] = resource_version
+                    kwargs["resource_version_match"] = "NotOlderThan"
+
+                events: CoreV1EventList = await v1_api.list_namespaced_event(**kwargs)
                 return events
             except HTTPError as e:
                 if hasattr(e, "status") and e.status == 403:

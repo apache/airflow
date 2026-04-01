@@ -25,6 +25,28 @@
 Changelog
 ---------
 
+0.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add TTL cache with single-flight dedup to Keycloak filter_authorized_dag_ids (#63184)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Adds a state param into keycloak login (#64114)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 0.6.0
 .....
 

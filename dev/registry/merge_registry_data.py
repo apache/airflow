@@ -56,7 +56,9 @@ def merge(
     existing_modules: list[dict] = []
     if existing_modules_path.exists():
         existing_modules = json.loads(existing_modules_path.read_text())["modules"]
-    new_modules = json.loads(new_modules_path.read_text())["modules"]
+    new_modules: list[dict] = []
+    if new_modules_path.exists():
+        new_modules = json.loads(new_modules_path.read_text())["modules"]
 
     # IDs being replaced
     new_ids = {p["id"] for p in new_providers}

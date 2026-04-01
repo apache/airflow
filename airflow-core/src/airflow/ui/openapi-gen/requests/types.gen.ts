@@ -138,8 +138,8 @@ export type BackfillResponse = {
     from_date: string;
     to_date: string;
     dag_run_conf: {
-        [key: string]: unknown;
-    };
+    [key: string]: unknown;
+} | null;
     is_paused: boolean;
     reprocess_behavior: ReprocessBehavior;
     max_active_runs: number;
@@ -427,6 +427,7 @@ export type ClearTaskInstancesBody = {
      */
     run_on_latest_version?: boolean;
     prevent_running_task?: boolean;
+    note?: string | null;
 };
 
 /**
@@ -1131,6 +1132,23 @@ export type JsonValue = unknown;
 export type LastAssetEventResponse = {
     id?: number | null;
     timestamp?: string | null;
+};
+
+/**
+ * Materialize asset request.
+ */
+export type MaterializeAssetBody = {
+    dag_run_id?: string | null;
+    data_interval_start?: string | null;
+    data_interval_end?: string | null;
+    logical_date?: string | null;
+    run_after?: string | null;
+    conf?: {
+    [key: string]: unknown;
+} | null;
+    note?: string | null;
+    partition_key?: string | null;
+    bundle_version?: string | null;
 };
 
 /**
@@ -2201,13 +2219,7 @@ export type TeamResponse = {
  */
 export type Theme = {
     tokens: {
-        [key: string]: {
-            [key: string]: {
-                [key: string]: {
-                    [key: string]: OklchColor;
-                };
-            };
-        };
+        [key: string]: ThemeColors;
     };
     globalCss?: {
     [key: string]: {
@@ -2216,6 +2228,10 @@ export type Theme = {
 } | null;
     icon?: string | null;
     icon_dark_mode?: string | null;
+};
+
+export type ThemeColors = {
+    [key: string]: unknown;
 };
 
 /**
@@ -2307,6 +2323,7 @@ export type CreateAssetEventResponse = AssetEventResponse;
 
 export type MaterializeAssetData = {
     assetId: number;
+    requestBody?: MaterializeAssetBody | null;
 };
 
 export type MaterializeAssetResponse = DAGRunResponse;
@@ -3654,12 +3671,12 @@ export type GetGridRunsData = {
 
 export type GetGridRunsResponse = Array<GridRunsResponse>;
 
-export type GetGridTiSummariesData = {
+export type GetGridTiSummariesStreamData = {
     dagId: string;
-    runId: string;
+    runIds?: Array<(string)> | null;
 };
 
-export type GetGridTiSummariesResponse = GridTISummaries;
+export type GetGridTiSummariesStreamResponse = string;
 
 export type GetGanttDataData = {
     dagId: string;
@@ -3675,6 +3692,10 @@ export type GetCalendarData = {
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    partitionDateGt?: string | null;
+    partitionDateGte?: string | null;
+    partitionDateLt?: string | null;
+    partitionDateLte?: string | null;
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
@@ -6933,14 +6954,14 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/grid/ti_summaries/{dag_id}/{run_id}': {
+    '/ui/grid/ti_summaries/{dag_id}': {
         get: {
-            req: GetGridTiSummariesData;
+            req: GetGridTiSummariesStreamData;
             res: {
                 /**
-                 * Successful Response
+                 * NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
                  */
-                200: GridTISummaries;
+                200: string;
                 /**
                  * Bad Request
                  */

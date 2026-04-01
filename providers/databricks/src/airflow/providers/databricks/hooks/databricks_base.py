@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import copy
 import platform
+import ssl
 import time
 from asyncio.exceptions import TimeoutError
 from functools import cached_property
@@ -76,6 +77,7 @@ K8S_TOKEN_SERVICE_URL = "https://kubernetes.default.svc"
 DEFAULT_K8S_AUDIENCE = "https://kubernetes.default.svc"
 DEFAULT_K8S_SERVICE_ACCOUNT_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 DEFAULT_K8S_NAMESPACE_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+K8S_CA_CERT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
 # RFC 8693 token exchange data template
 TOKEN_EXCHANGE_DATA = {
@@ -696,7 +698,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/json",
                         },
                         json=self._build_k8s_token_request_payload(audience, expiration_seconds),
-                        verify=False,  # K8s in-cluster uses self-signed certs
+                        verify=K8S_CA_CERT_PATH,
                         timeout=self.token_timeout_seconds,
                     )
                     resp.raise_for_status()
@@ -751,6 +753,7 @@ class BaseDatabricksHook(BaseHook):
             token_request_url = (
                 f"{K8S_TOKEN_SERVICE_URL}/api/v1/namespaces/{namespace}/serviceaccounts/default/token"
             )
+            ssl_ctx = ssl.create_default_context(cafile=K8S_CA_CERT_PATH)
 
             async for attempt in self._a_get_retry_object():
                 with attempt:
@@ -761,7 +764,7 @@ class BaseDatabricksHook(BaseHook):
                             "Content-Type": "application/json",
                         },
                         json=self._build_k8s_token_request_payload(audience, expiration_seconds),
-                        ssl=False,  # K8s in-cluster uses self-signed certs
+                        ssl=ssl_ctx,
                         timeout=self.token_timeout_seconds,
                     ) as resp:
                         resp.raise_for_status()

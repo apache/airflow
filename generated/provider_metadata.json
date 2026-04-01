@@ -147,6 +147,10 @@
         "5.3.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:33Z"
+        },
+        "5.4.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "alibaba": {
@@ -313,6 +317,10 @@
         "3.3.5": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:33Z"
+        },
+        "3.3.6": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "amazon": {
@@ -671,6 +679,10 @@
         "9.23.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "9.24.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.beam": {
@@ -1007,6 +1019,10 @@
         "3.9.2": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-02-14T13:25:37Z"
+        },
+        "3.9.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.drill": {
@@ -1153,6 +1169,10 @@
         "3.3.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:47Z"
+        },
+        "3.3.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.druid": {
@@ -1331,6 +1351,10 @@
         "4.5.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:55Z"
+        },
+        "4.5.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.flink": {
@@ -1433,6 +1457,10 @@
         "1.8.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:35Z"
+        },
+        "1.8.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.hdfs": {
@@ -1607,6 +1635,10 @@
         "4.11.3": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-02-02T15:39:05Z"
+        },
+        "4.11.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.hive": {
@@ -1869,6 +1901,10 @@
         "9.4.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "9.4.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.iceberg": {
@@ -1919,6 +1955,10 @@
         "2.0.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:33Z"
+        },
+        "2.0.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.impala": {
@@ -2017,6 +2057,10 @@
         "1.9.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:35Z"
+        },
+        "1.9.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.kafka": {
@@ -2135,6 +2179,10 @@
         "1.13.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "1.13.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.kylin": {
@@ -2253,6 +2301,10 @@
         "3.10.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.10.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.livy": {
@@ -2435,6 +2487,10 @@
         "4.5.3": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-02-02T15:39:05Z"
+        },
+        "4.5.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.pig": {
@@ -2545,6 +2601,10 @@
         "4.8.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "4.8.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.pinot": {
@@ -2695,6 +2755,10 @@
         "4.10.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:49Z"
+        },
+        "4.10.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.spark": {
@@ -2913,6 +2977,10 @@
         "5.6.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "6.0.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apache.tinkerpop": {
@@ -2947,6 +3015,10 @@
         "1.1.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "1.1.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "apprise": {
@@ -3037,6 +3109,10 @@
         "2.3.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "2.3.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "arangodb": {
@@ -3139,6 +3215,10 @@
         "2.9.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "2.9.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "asana": {
@@ -3249,6 +3329,10 @@
         "2.11.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "2.11.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "atlassian.jira": {
@@ -3351,6 +3435,10 @@
         "3.3.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.3.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "celery": {
@@ -3585,6 +3673,10 @@
         "3.17.1": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "3.17.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "cloudant": {
@@ -3711,6 +3803,10 @@
         "4.3.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "4.3.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "cncf.kubernetes": {
@@ -4089,6 +4185,10 @@
         "10.14.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "10.15.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "cohere": {
@@ -4171,6 +4271,10 @@
         "1.6.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:33Z"
+        },
+        "1.6.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "common.compat": {
@@ -4273,6 +4377,10 @@
         "1.14.1": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "1.14.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "common.io": {
@@ -4367,6 +4475,10 @@
         "1.7.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "1.7.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "common.messaging": {
@@ -4405,6 +4517,10 @@
         "2.0.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "2.0.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "common.sql": {
@@ -4651,6 +4767,10 @@
         "1.33.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "1.34.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "databricks": {
@@ -4929,6 +5049,10 @@
         "7.11.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:35Z"
+        },
+        "7.12.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "datadog": {
@@ -5051,6 +5175,10 @@
         "3.10.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.10.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "dbt.cloud": {
@@ -5257,6 +5385,10 @@
         "4.7.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "4.8.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "dingding": {
@@ -5367,6 +5499,10 @@
         "3.9.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.9.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "discord": {
@@ -5497,6 +5633,10 @@
         "3.12.0": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.12.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "docker": {
@@ -5743,6 +5883,10 @@
         "4.5.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:35Z"
+        },
+        "4.5.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "edge3": {
@@ -5821,6 +5965,10 @@
         "3.2.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:33Z"
+        },
+        "3.3.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "elasticsearch": {
@@ -6059,6 +6207,10 @@
         "6.5.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-04T17:35:55Z"
+        },
+        "6.5.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "exasol": {
@@ -6257,6 +6409,10 @@
         "4.10.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:37Z"
+        },
+        "4.10.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "fab": {
@@ -6419,6 +6575,10 @@
         "3.5.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:33Z"
+        },
+        "3.6.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "facebook": {
@@ -6549,6 +6709,10 @@
         "3.9.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.9.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "ftp": {
@@ -6703,6 +6867,10 @@
         "3.14.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.14.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "git": {
@@ -6769,6 +6937,10 @@
         "0.2.4": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:40Z"
+        },
+        "0.3.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "github": {
@@ -6891,6 +7063,10 @@
         "2.11.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-02-14T13:25:37Z"
+        },
+        "2.11.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "google": {
@@ -7233,6 +7409,10 @@
         "20.0.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:49Z"
+        },
+        "21.0.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "grpc": {
@@ -7355,6 +7535,10 @@
         "3.9.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.9.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "hashicorp": {
@@ -7529,6 +7713,10 @@
         "4.5.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-02-14T13:25:37Z"
+        },
+        "4.5.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "http": {
@@ -7743,6 +7931,10 @@
         "6.0.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:33Z"
+        },
+        "6.0.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "imap": {
@@ -7889,6 +8081,10 @@
         "3.11.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-02-14T13:25:37Z"
+        },
+        "3.11.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "influxdb": {
@@ -8011,12 +8207,20 @@
         "2.10.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "2.10.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "informatica": {
         "0.1.1": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-04T17:35:57Z"
+        },
+        "0.1.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "jdbc": {
@@ -8187,6 +8391,10 @@
         "5.4.1": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:35Z"
+        },
+        "5.4.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "jenkins": {
@@ -8353,6 +8561,10 @@
         "4.2.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:33Z"
+        },
+        "4.2.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "keycloak": {
@@ -8399,6 +8611,10 @@
         "0.6.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "0.7.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "microsoft.azure": {
@@ -8733,6 +8949,10 @@
         "13.0.1": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:35Z"
+        },
+        "13.1.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "microsoft.mssql": {
@@ -8895,6 +9115,10 @@
         "4.5.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:36Z"
+        },
+        "4.5.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "microsoft.psrp": {
@@ -9029,6 +9253,10 @@
         "3.2.3": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.2.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "microsoft.winrm": {
@@ -9179,6 +9407,10 @@
         "3.14.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:21Z"
+        },
+        "3.14.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "mongo": {
@@ -9337,6 +9569,10 @@
         "5.3.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "5.3.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "mysql": {
@@ -9571,6 +9807,10 @@
         "6.5.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:34Z"
+        },
+        "6.5.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "neo4j": {
@@ -9717,6 +9957,10 @@
         "3.11.3": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.11.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "odbc": {
@@ -9875,6 +10119,10 @@
         "4.12.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:46Z"
+        },
+        "4.12.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "openai": {
@@ -9961,6 +10209,10 @@
         "1.7.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "1.7.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "openfaas": {
@@ -10067,6 +10319,10 @@
         "3.9.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.9.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "openlineage": {
@@ -10261,6 +10517,10 @@
         "2.12.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "2.13.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "opensearch": {
@@ -10359,6 +10619,10 @@
         "1.8.4": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-02-02T15:39:05Z"
+        },
+        "1.8.5": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "opsgenie": {
@@ -10485,6 +10749,10 @@
         "5.10.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "5.10.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "oracle": {
@@ -10683,6 +10951,10 @@
         "4.5.1": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:33Z"
+        },
+        "4.5.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "pagerduty": {
@@ -10833,6 +11105,10 @@
         "5.2.3": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-02-02T15:39:05Z"
+        },
+        "5.2.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "papermill": {
@@ -10987,6 +11263,10 @@
         "3.12.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.12.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "pgvector": {
@@ -11053,6 +11333,10 @@
         "1.7.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:20Z"
+        },
+        "1.7.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:25Z"
         }
     },
     "pinecone": {
@@ -11135,6 +11419,10 @@
         "2.4.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "2.4.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "postgres": {
@@ -11373,6 +11661,10 @@
         "6.6.1": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "6.6.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "presto": {
@@ -11575,6 +11867,10 @@
         "5.11.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:23Z"
+        },
+        "5.11.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "qdrant": {
@@ -11645,6 +11941,10 @@
         "1.5.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:53Z"
+        },
+        "1.5.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "redis": {
@@ -11787,6 +12087,10 @@
         "4.4.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "4.4.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "salesforce": {
@@ -11961,6 +12265,10 @@
         "5.12.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:35Z"
+        },
+        "5.13.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "samba": {
@@ -12095,6 +12403,10 @@
         "4.12.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "4.12.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "segment": {
@@ -12201,6 +12513,10 @@
         "3.9.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.9.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "sendgrid": {
@@ -12315,6 +12631,10 @@
         "4.2.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "4.2.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "sftp": {
@@ -12553,6 +12873,10 @@
         "5.7.1": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:35Z"
+        },
+        "5.7.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "singularity": {
@@ -12663,6 +12987,10 @@
         "3.9.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.9.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "slack": {
@@ -12889,6 +13217,10 @@
         "9.8.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:35Z"
+        },
+        "9.9.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "smtp": {
@@ -13023,6 +13355,10 @@
         "2.4.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:33Z"
+        },
+        "2.4.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "snowflake": {
@@ -13333,6 +13669,10 @@
         "6.11.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "6.12.0": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "sqlite": {
@@ -13491,6 +13831,10 @@
         "4.3.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:38Z"
+        },
+        "4.3.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "ssh": {
@@ -13697,6 +14041,10 @@
         "4.3.2": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "4.3.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "standard": {
@@ -13815,6 +14163,10 @@
         "1.12.1": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-13T17:32:34Z"
+        },
+        "1.12.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "tableau": {
@@ -13973,6 +14325,10 @@
         "5.3.3": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-02-14T13:25:37Z"
+        },
+        "5.3.4": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "telegram": {
@@ -14107,6 +14463,10 @@
         "4.9.2": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "4.9.3": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "teradata": {
@@ -14209,6 +14569,10 @@
         "3.5.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:54Z"
+        },
+        "3.5.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "trino": {
@@ -14427,6 +14791,10 @@
         "6.5.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:30Z"
+        },
+        "6.5.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "vertica": {
@@ -14577,6 +14945,10 @@
         "4.3.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:43Z"
+        },
+        "4.3.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "weaviate": {
@@ -14679,6 +15051,10 @@
         "3.3.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "3.3.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "yandex": {
@@ -14829,6 +15205,10 @@
         "4.4.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-02-14T13:25:37Z"
+        },
+        "4.4.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "ydb": {
@@ -14899,6 +15279,10 @@
         "2.5.0": {
             "associated_airflow_version": "3.1.8",
             "date_released": "2026-03-02T21:08:32Z"
+        },
+        "2.5.1": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     },
     "zendesk": {
@@ -15017,6 +15401,10 @@
         "4.11.1": {
             "associated_airflow_version": "3.1.7",
             "date_released": "2026-01-17T10:59:33Z"
+        },
+        "4.11.2": {
+            "associated_airflow_version": "3.1.8",
+            "date_released": "2026-03-28T11:03:26Z"
         }
     }
 }

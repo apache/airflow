@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pendulum
 import pytest
+import tenacity
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
 
@@ -939,6 +940,21 @@ class TestKubernetesPodOperator:
 
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].termination_message_policy == "File"
+
+    def test_runtime_class_name_correctly_set(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+            runtime_class_name="gvisor",
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.runtime_class_name == "gvisor"
+
+    def test_runtime_class_name_default_value_correctly_set(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.runtime_class_name is None
 
     def test_termination_grace_period_correctly_set(self):
         k = KubernetesPodOperator(
@@ -2749,7 +2765,7 @@ class TestKubernetesPodOperatorAsync:
     @patch(HOOK_CLASS)
     @patch(KUB_OP_PATH.format("pod_manager"))
     def test_async_write_logs_handler_api_exception(
-        self, mock_manager, mocked_hook, mock_extract_xcom, post_complete_action, mocked_client
+        self, mock_manager, mocked_hook, mock_extract_xcom, mocked_client, post_complete_action
     ):
         mocked_client.read_namespaced_pod_log.side_effect = ApiException(status=404)
         mock_manager.await_pod_completion.side_effect = ApiException(status=404)
@@ -2762,8 +2778,69 @@ class TestKubernetesPodOperatorAsync:
             get_logs=True,
             deferrable=True,
         )
+        # Patch tenacity wait to avoid real delays from _write_logs retries
+        k._write_logs.retry.wait = tenacity.wait_none()
         self.run_pod_async(k)
         post_complete_action.assert_not_called()
+
+    @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(HOOK_CLASS)
+    @patch(KUB_OP_PATH.format("pod_manager"))
+    def test_write_logs_retries_on_api_exception(
+        self, mock_manager, mocked_hook, mocked_client, post_complete_action
+    ):
+        """Test that _write_logs retries on ApiException and succeeds on subsequent attempt."""
+        test_logs = b"log line\n"
+        mocked_client.read_namespaced_pod_log.side_effect = [
+            ApiException(status=500),
+            [test_logs],
+        ]
+        mock_manager.await_pod_completion.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+        )
+        mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+        )
+        k = KubernetesPodOperator(
+            task_id="task",
+            get_logs=True,
+            deferrable=True,
+        )
+        # Patch tenacity wait to avoid real delays in tests
+        k._write_logs.retry.wait = tenacity.wait_none()
+        self.run_pod_async(k)
+        assert mocked_client.read_namespaced_pod_log.call_count == 2
+        post_complete_action.assert_called_once()
+
+    @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(HOOK_CLASS)
+    @patch(KUB_OP_PATH.format("pod_manager"))
+    def test_write_logs_gives_up_after_max_retries(
+        self, mock_manager, mocked_hook, mocked_client, post_complete_action, caplog
+    ):
+        """Test that _write_logs gives up after 3 failed attempts and trigger_reentry catches the error."""
+        mocked_client.read_namespaced_pod_log.side_effect = ApiException(status=500)
+        mock_manager.await_pod_completion.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+        )
+        mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+        )
+        k = KubernetesPodOperator(
+            task_id="task",
+            get_logs=True,
+            deferrable=True,
+        )
+        # Patch tenacity wait to avoid real delays in tests
+        k._write_logs.retry.wait = tenacity.wait_none()
+        self.run_pod_async(k)
+        # 3 attempts (stop_after_attempt(3))
+        assert mocked_client.read_namespaced_pod_log.call_count > 1
+        # trigger_reentry catches the error and continues; post_complete_action still called via _clean
+        post_complete_action.assert_called_once()
+        assert "Reading of logs interrupted with error" in caplog.text
 
     @pytest.mark.parametrize(
         ("log_pod_spec_on_failure", "expect_match"),

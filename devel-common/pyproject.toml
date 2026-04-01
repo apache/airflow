@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.15.6",
+    "ruff==0.15.8",
     "semver>=3.0.2",
     "typer-slim>=0.15.1",
     "time-machine[dateutil]>=3.0.0",
@@ -83,7 +83,7 @@ dependencies = [
     # the new pagefind-bin installed
     "pagefind>=1.5.0a3",
     "pagefind-bin>=1.5.0a3",
-    "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.0-py3-none-any.whl",
+    "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.5-py3-none-any.whl",
     "sphinx-argparse>=0.4.0",
     "sphinx-autoapi>=3.8.0",
     "sphinx-autobuild>=2024.10.2",

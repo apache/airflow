@@ -618,7 +618,7 @@ def get_python_requires(provider_id: str) -> str:
     python_requires = "~=3.10"
     provider_details = get_provider_details(provider_id=provider_id)
     for p in provider_details.excluded_python_versions:
-        python_requires += f", !={p}"
+        python_requires += f", !={p}.*"
     return python_requires
 
 
@@ -705,7 +705,7 @@ def get_provider_jinja_context(
     requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     # Most providers require the same python versions, but some may have exclusions
     for excluded_python_version in provider_details.excluded_python_versions:
-        requires_python_version += f",!={excluded_python_version}"
+        requires_python_version += f",!={excluded_python_version}.*"
 
     context: dict[str, Any] = {
         "PROVIDER_ID": provider_details.provider_id,
