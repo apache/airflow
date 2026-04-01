@@ -637,6 +637,7 @@ class MaterializeAssetBody(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
 
 
 class PluginImportErrorResponse(BaseModel):
