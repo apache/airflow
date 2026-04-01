@@ -20,8 +20,7 @@
 ################################
 ## Airflow Webserver HPA
 #################################
-{{- if semverCompare "<3.0.0" .Values.airflowVersion }}
-{{- if and .Values.webserver.enabled .Values.webserver.hpa.enabled }}
+{{- if and .Values.webserver.enabled .Values.webserver.hpa.enabled (semverCompare "<3.0.0" .Values.airflowVersion) }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -33,7 +32,7 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     deploymentName: {{ .Release.Name }}-webserver
-    {{- if or (.Values.labels) (.Values.webserver.labels) }}
+    {{- if or .Values.labels .Values.webserver.labels }}
       {{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
@@ -47,5 +46,4 @@ spec:
   {{- with .Values.webserver.hpa.behavior }}
   behavior: {{- toYaml . | nindent 4 }}
   {{- end }}
-{{- end }}
 {{- end }}

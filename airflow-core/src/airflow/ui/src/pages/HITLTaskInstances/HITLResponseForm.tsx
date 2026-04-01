@@ -68,7 +68,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
     hitlDetail.options.length === 2;
 
   const shouldRenderOptionButton =
-    hitlDetail.options.length < 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
+    hitlDetail.options.length <= 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
 
   const isPending = hitlDetail.task_instance.state === "deferred";
 

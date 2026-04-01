@@ -560,6 +560,26 @@ class TestXComsSetEndpoint:
         assert response.status_code == 200
         assert XComResponse.model_validate_json(response.read()).value == expected_value
 
+    def test_xcom_dag_result(self, client, create_task_instance, session):
+        """
+        Test that the dag_result flag propagates to XComModel.
+        """
+        ti = create_task_instance()
+        client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/return_value",
+            params={"dag_result": True},
+            json=123,
+        )
+
+        dag_result = session.scalar(
+            select(XComModel.dag_result).where(
+                XComModel.task_id == ti.task_id,
+                XComModel.dag_id == ti.dag_id,
+                XComModel.key == "return_value",
+            )
+        )
+        assert dag_result is True
+
 
 class TestXComsDeleteEndpoint:
     def test_xcom_delete_endpoint(self, client, create_task_instance, session):
