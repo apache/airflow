@@ -1,0 +1,1 @@
+Fixed :meth:`~airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.xcom_pull` ignoring the ``default`` parameter when ``map_indexes`` is not specified. Previously, if no XCom was found for a task on the no-map-index path, ``None`` was always appended to the result instead of the caller-supplied ``default`` value.
