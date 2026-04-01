@@ -26,10 +26,7 @@ from sqlalchemy import delete, func, insert, select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
-from airflow.api_fastapi.common.db.common import (
-    SessionDep,
-    paginated_select,
-)
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -362,29 +359,22 @@ def patch_dags(
         session=session,
     )
     dags = session.scalars(dags_select).all()
-    dags_to_update: set[str] = set()
 
-    for current_offset in range(0, total_entries, limit.value):  # type: ignore[arg-type]
-        dags_select, _ = paginated_select(
-            statement=select(DagModel.dag_id),
-            filters=[
-                exclude_stale,
-                paused,
-                dag_id_pattern,
-                tags,
-                owners,
-                editable_dags_filter,
-            ],
-            order_by=None,
-            offset=QueryOffset.depends(current_offset),
-            limit=limit,
-            session=session,
-        )
-        dags_to_update.update(session.scalars(dags_select).all())
+    filtered_dag_ids = apply_filters_to_select(
+        statement=select(DagModel.dag_id),
+        filters=[
+            exclude_stale,
+            paused,
+            dag_id_pattern,
+            tags,
+            owners,
+            editable_dags_filter,
+        ],
+    )
 
     session.execute(
         update(DagModel)
-        .where(DagModel.dag_id.in_(dags_to_update))
+        .where(DagModel.dag_id.in_(filtered_dag_ids))
         .values(is_paused=patch_body.is_paused)
         .execution_options(synchronize_session="fetch")
     )

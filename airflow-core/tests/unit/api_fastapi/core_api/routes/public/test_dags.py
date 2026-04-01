@@ -837,6 +837,19 @@ class TestPatchDags(TestDagEndpoint):
         paused_dag_ids = {dag["dag_id"] for dag in resp_body["dags"] if dag["is_paused"]}
         assert paused_dag_ids == set(expected_paused_ids)
 
+    def test_patch_dags_updates_all_beyond_limit(self, test_client, session):
+        response = test_client.patch(
+            "/dags",
+            json={"is_paused": True},
+            params={"dag_id_pattern": "~", "limit": 1},
+        )
+        assert response.status_code == 200
+        assert len(response.json()["dags"]) == 1
+        paused_dags = session.scalars(
+            select(DagModel.dag_id).where(DagModel.is_paused, ~DagModel.is_stale)
+        ).all()
+        assert set(paused_dags) == {DAG1_ID, DAG2_ID}
+
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_patch_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
         mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
