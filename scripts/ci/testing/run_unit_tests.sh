@@ -82,12 +82,12 @@ function providers_tests() {
     set +e
     if [[ "${TEST_SCOPE}" == "DB" ]]; then
         set -x
-        breeze testing providers-tests --run-in-parallel --run-db-tests-only
+        breeze testing providers-tests --run-db-tests-only --test-type "Providers[fab]"
         RESULT=$?
         set +x
     elif [[ "${TEST_SCOPE}" == "Non-DB" ]]; then
         set -x
-        breeze testing providers-tests --use-xdist --skip-db-tests --no-db-cleanup --backend none
+        breeze testing providers-tests --use-xdist --skip-db-tests --no-db-cleanup --backend none --parallel-test-types "Providers[fab]"
         RESULT=$?
         set +x
     elif [[ "${TEST_SCOPE}" == "All" ]]; then
