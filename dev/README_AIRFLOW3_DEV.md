@@ -72,6 +72,17 @@ If you want to have a fix backported to 3.2.x please add (or request to add) "ba
 When preparing a new 3.2.x release, the release manager will sync the `v3-2-test` branch to `v3-2-stable` and cut the release from the stable branch.
 PRs should **never** target `v3-2-stable` directly unless explicitly instructed by the release manager.
 
+> [!TIP]
+> **Shortcut for first RC candidates:** When preparing the first RC candidate for a new minor release
+> (e.g., 3.2.0rc1), it is unlikely to be approved on the first attempt — bugs are typically found during
+> RC testing. In this case, the release manager can prepare the RC directly from the `v3-X-test` branch
+> without opening a PR to `v3-X-stable`. This saves the overhead of creating and managing a PR that will
+> likely need additional changes before GA. However, when using this shortcut, the release manager **must**
+> verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
+> check this at:
+> https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml?query=event%3Apush+branch%3Av3-2-test
+> (adjust the branch filter for the relevant `v3-X-test` branch).
+
 ## Developing for Airflow 3
 
 PRs should target `main` branch.
