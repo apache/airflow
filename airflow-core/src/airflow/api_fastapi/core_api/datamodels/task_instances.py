@@ -25,11 +25,9 @@ from pydantic import (
     AliasPath,
     AwareDatetime,
     BeforeValidator,
-    Discriminator,
     Field,
     NonNegativeInt,
     StringConstraints,
-    Tag,
     ValidationError,
     field_validator,
     model_validator,
@@ -91,15 +89,6 @@ class TaskInstanceResponse(BaseModel):
     dag_version: DagVersionResponse | None
 
 
-def _task_instance_discriminator(v: Any) -> str:
-    if isinstance(v, NewTaskResponse):
-        return "new"
-    if isinstance(v, dict):
-        return "new" if "id" not in v else "full"
-    # ORM objects and TaskInstanceResponse instances
-    return "full"
-
-
 class TaskInstanceCollectionResponse(BaseModel):
     """
     Task Instance Collection serializer for responses.
@@ -108,12 +97,7 @@ class TaskInstanceCollectionResponse(BaseModel):
     objects for tasks that don't have instances yet.
     """
 
-    task_instances: Iterable[
-        Annotated[
-            Annotated[TaskInstanceResponse, Tag("full")] | Annotated[NewTaskResponse, Tag("new")],
-            Discriminator(_task_instance_discriminator),
-        ]
-    ]
+    task_instances: Iterable[TaskInstanceResponse | NewTaskResponse]
     total_entries: int
 
 
