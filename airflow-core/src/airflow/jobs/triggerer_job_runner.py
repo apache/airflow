@@ -519,7 +519,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = xcom
         elif isinstance(msg, SetXCom):
             self.client.xcoms.set(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
+                msg.dag_id,
+                msg.run_id,
+                msg.task_id,
+                msg.key,
+                msg.value,
+                msg.map_index,
+                dag_result=msg.dag_result,
+                mapped_length=msg.mapped_length,
             )
         elif isinstance(msg, GetDRCount):
             dr_count = self.client.dag_runs.get_count(
