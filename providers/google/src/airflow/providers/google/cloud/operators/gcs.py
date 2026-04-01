@@ -876,10 +876,13 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             temp_input_dir_path = Path(temp_input_dir)
             temp_output_dir_path = Path(temp_output_dir)
 
+            num_downloads = len(blobs_to_transform)
+            download_workers = min(self.max_download_workers, num_downloads) if num_downloads > 0 else 1
+
             self.log.info(
                 "Downloading %d files using %d workers",
-                len(blobs_to_transform),
-                self.max_download_workers,
+                num_downloads,
+                download_workers,
             )
 
             # Get storage client once (storage.Client is thread-safe for concurrent requests).
@@ -897,7 +900,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
                 return blob_name
 
-            with ThreadPoolExecutor(max_workers=self.max_download_workers) as executor:
+            with ThreadPoolExecutor(max_workers=download_workers) as executor:
                 futures = {executor.submit(_download, blob): blob for blob in blobs_to_transform}
 
                 for future in as_completed(futures):
@@ -906,6 +909,10 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         future.result()
                     except GoogleCloudError as e:
                         if not self.download_continue_on_fail:
+                            # Attempt to cancel pending futures to reduce unnecessary work.
+                            # Note: futures already running cannot be cancelled.
+                            for f in futures:
+                                f.cancel()
                             raise
                         self.log.warning("Download failed for %s: %s", blob, e)
 
@@ -935,10 +942,13 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
             upload_candidates = [f for f in temp_output_dir_path.glob("**/*") if f.is_file()]
 
+            num_uploads = len(upload_candidates)
+            upload_workers = min(self.max_upload_workers, num_uploads) if num_uploads > 0 else 1
+
             self.log.info(
                 "Uploading %d files using %d workers",
-                len(upload_candidates),
-                self.max_upload_workers,
+                num_uploads,
+                upload_workers,
             )
 
             destination_hook = GCSHook(
@@ -969,7 +979,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
             files_uploaded: list[str] = []
 
-            with ThreadPoolExecutor(max_workers=self.max_upload_workers) as executor:
+            with ThreadPoolExecutor(max_workers=upload_workers) as executor:
                 futures = {
                     executor.submit(_upload, upload_file): str(upload_file)
                     for upload_file in upload_candidates
@@ -982,6 +992,10 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         files_uploaded.append(uploaded_name)
                     except GoogleCloudError as e:
                         if not self.upload_continue_on_fail:
+                            # Attempt to cancel pending futures to reduce unnecessary work.
+                            # Note: futures already running cannot be cancelled.
+                            for f in futures:
+                                f.cancel()
                             raise
                         self.log.warning("Upload failed for %s: %s", upload_file, e)
 

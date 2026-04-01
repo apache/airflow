@@ -23,7 +23,8 @@ Update .github/ configuration files on ``main`` when a new major/minor
 release branch (vX-Y-test) is created.
 
 Adds the new branch to dependabot, milestone-tag-assistant, basic-tests,
-ci-notification workflows and boring-cyborg auto-labelling.
+ci-notification workflows, boring-cyborg auto-labelling, and the
+README.md build status badge.
 
 Usage::
 
@@ -294,6 +295,37 @@ def update_boring_cyborg(new_branch: str, prev_branch: str) -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# README.md — build status badge
+# ──────────────────────────────────────────────────────────────────────────────
+def update_readme_badge(new_branch: str, prev_branch: str, new_version: str, prev_version: str) -> None:
+    path = REPO_ROOT / "README.md"
+    content = _read(path)
+
+    old_badge = (
+        f"[![GitHub Build {prev_version}"
+        f"](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg"
+        f"?branch={prev_branch})](https://github.com/apache/airflow/actions)"
+    )
+    new_badge = (
+        f"[![GitHub Build {new_version}"
+        f"](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg"
+        f"?branch={new_branch})](https://github.com/apache/airflow/actions)"
+    )
+
+    if new_branch in content:
+        print(f"README.md: {new_branch} badge already present, skipping.")
+        return
+
+    if old_badge not in content:
+        print(f"README.md: could not find existing {prev_branch} badge, skipping.")
+        return
+
+    print(f"README.md: updating 3.x build status badge to {new_branch}...")
+    content = content.replace(old_badge, new_badge)
+    _write(path, content)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # dev/README_RELEASE_AIRFLOW.md
 # ──────────────────────────────────────────────────────────────────────────────
 def update_release_readme(new_branch: str, prev_branch: str) -> None:
@@ -334,6 +366,7 @@ def main() -> None:
     update_basic_tests(new_branch, prev_branch, new_version, prev_version, new_dash, prev_dash)
     update_ci_notification(new_branch, prev_branch)
     update_boring_cyborg(new_branch, prev_branch)
+    update_readme_badge(new_branch, prev_branch, new_version, prev_version)
     update_release_readme(new_branch, prev_branch)
 
     print()
