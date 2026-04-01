@@ -1380,6 +1380,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 before=msg.before,
                 ascending=msg.ascending,
                 limit=msg.limit,
+                extra=msg.extra,
             )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
@@ -1391,6 +1392,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 before=msg.before,
                 ascending=msg.ascending,
                 limit=msg.limit,
+                extra=msg.extra,
             )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result

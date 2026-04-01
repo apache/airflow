@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import datetime
+import json
 import logging
 from collections.abc import Generator
 from typing import TYPE_CHECKING
@@ -27,7 +28,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.types import JSON, Text, TypeDecorator
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.expression import ColumnElement
+from sqlalchemy.types import JSON, NullType, Text, TypeDecorator
 
 from airflow._shared.timezones.timezone import make_naive, utc
 from airflow.configuration import conf
@@ -40,7 +43,6 @@ if TYPE_CHECKING:
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
-    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
@@ -54,6 +56,47 @@ def get_dialect_name(session: Session) -> str | None:
     if (bind := session.get_bind()) is None:
         raise ValueError("No bind/engine is associated with the provided Session")
     return getattr(bind.dialect, "name", None)
+
+
+class JsonContains(ColumnElement):
+    """
+    Dialect-aware JSON containment check.
+
+    Compiles to ``@>`` on PostgreSQL (GIN-indexable), ``JSON_CONTAINS`` on
+    MySQL, and per-key ``JSON_EXTRACT`` comparisons on SQLite.
+    """
+
+    inherit_cache = True
+    type = NullType()
+
+    def __init__(self, column, kv_dict: dict[str, str]):
+        self.column = column
+        self.kv_dict = kv_dict
+
+
+@compiles(JsonContains, "postgresql")
+def _pg_json_contains(element, compiler, **kw):
+    col = compiler.process(element.column, **kw)
+    val = json.dumps(element.kv_dict).replace("'", "''")
+    return f"({col})::jsonb @> '{val}'::jsonb"
+
+
+@compiles(JsonContains, "mysql")
+def _mysql_json_contains(element, compiler, **kw):
+    col = compiler.process(element.column, **kw)
+    val = json.dumps(element.kv_dict).replace("'", "''")
+    return f"JSON_CONTAINS({col}, '{val}') = 1"
+
+
+@compiles(JsonContains)
+def _default_json_contains(element, compiler, **kw):
+    col = compiler.process(element.column, **kw)
+    clauses = []
+    for k, v in element.kv_dict.items():
+        safe_k = k.replace("'", "''")
+        safe_v = v.replace("'", "''")
+        clauses.append(f"JSON_EXTRACT({col}, '$.{safe_k}') = '{safe_v}'")
+    return "(" + " AND ".join(clauses) + ")"
 
 
 class UtcDateTime(TypeDecorator):

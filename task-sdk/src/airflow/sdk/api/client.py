@@ -675,6 +675,7 @@ class AssetEventOperations:
         before: datetime | None = None,
         ascending: bool = True,
         limit: int | None = None,
+        extra: dict[str, str] | None = None,
     ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
         common_params: dict[str, Any] = {}
@@ -685,13 +686,18 @@ class AssetEventOperations:
         common_params["ascending"] = ascending
         if limit:
             common_params["limit"] = limit
+        extra_params: list[tuple[str, str]] = []
+        if extra:
+            extra_params = [("extra", f"{k}={v}") for k, v in extra.items()]
         if name or uri:
             resp = self.client.get(
-                "asset-events/by-asset", params={"name": name, "uri": uri, **common_params}
+                "asset-events/by-asset",
+                params=[*{"name": name, "uri": uri, **common_params}.items(), *extra_params],
             )
         elif alias_name:
             resp = self.client.get(
-                "asset-events/by-asset-alias", params={"name": alias_name, **common_params}
+                "asset-events/by-asset-alias",
+                params=[*{"name": alias_name, **common_params}.items(), *extra_params],
             )
         else:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")

@@ -948,6 +948,7 @@ class GetAssetEventByAsset(BaseModel):
     before: AwareDatetime | None = None
     limit: int | None = None
     ascending: bool = True
+    extra: dict[str, str] | None = None
     type: Literal["GetAssetEventByAsset"] = "GetAssetEventByAsset"
 
 
@@ -957,6 +958,7 @@ class GetAssetEventByAssetAlias(BaseModel):
     before: AwareDatetime | None = None
     limit: int | None = None
     ascending: bool = True
+    extra: dict[str, str] | None = None
     type: Literal["GetAssetEventByAssetAlias"] = "GetAssetEventByAssetAlias"
 
 
