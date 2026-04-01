@@ -1,21 +1,32 @@
-// generated with @7nohe/openapi-react-query-codegen@2.0.0
-import { type Options } from "@hey-api/client-axios";
+// generated with @7nohe/openapi-react-query-codegen@2.1.0
 import { type QueryClient } from "@tanstack/react-query";
 
-import { createTokenAllAdmins, loginAllAdmins } from "../requests/services.gen";
+import type { Options } from "../requests/sdk.gen";
+import { createTokenAllAdmins, loginAllAdmins } from "../requests/sdk.gen";
+import { CreateTokenAllAdminsData, LoginAllAdminsData } from "../requests/types.gen";
 import * as Common from "./common";
 
+/**
+ * Create Token All Admins
+ *
+ * Create a token with no credentials only if ``simple_auth_manager_all_admins`` is True.
+ */
 export const prefetchUseCreateTokenAllAdmins = (
   queryClient: QueryClient,
-  clientOptions: Options<unknown, true> = {},
+  clientOptions: Options<CreateTokenAllAdminsData, true> = {},
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseCreateTokenAllAdminsKeyFn(clientOptions),
     queryFn: () => createTokenAllAdmins({ ...clientOptions }).then((response) => response.data),
   });
+/**
+ * Login All Admins
+ *
+ * Login the user with no credentials.
+ */
 export const prefetchUseLoginAllAdmins = (
   queryClient: QueryClient,
-  clientOptions: Options<unknown, true> = {},
+  clientOptions: Options<LoginAllAdminsData, true> = {},
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseLoginAllAdminsKeyFn(clientOptions),

@@ -32,9 +32,16 @@ from unittest.mock import call, patch
 
 import pandas as pd
 import pytest
+from opentelemetry import trace as otel_trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
+from airflow._shared.observability.traces import OverrideableRandomIdGenerator, new_task_run_carrier
+from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
 from airflow.listeners import hookimpl
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
@@ -80,11 +87,13 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     BundleInfo,
     ConnectionResult,
+    DagResult,
     DagRunStateResult,
     DeferTask,
     DRCount,
     ErrorResponse,
     GetConnection,
+    GetDag,
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
@@ -413,24 +422,30 @@ def test_main_sends_reschedule_task_when_startup_reschedules(
 
 
 def test_task_span_is_child_of_dag_run_span(make_ti_context):
-    """Task span must be a child of the dag run span propagated via context_carrier."""
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-    from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
-    # Build a real SDK provider and exporter so we can inspect finished spans.
+    """Full trace hierarchy: dag_run → task_run.my_task (API server) → worker.my_task (task runner)."""
+    # Single provider shared by all spans so contexts are compatible.
     in_mem_exporter = InMemorySpanExporter()
-    provider = TracerProvider()
+    provider = TracerProvider(id_generator=OverrideableRandomIdGenerator())
     provider.add_span_processor(SimpleSpanProcessor(in_mem_exporter))
 
-    # Create a "dag run" span whose context we will propagate into the task.
+    # Step 1: create the dag run span and capture its carrier.
     dag_run_tracer = provider.get_tracer("dag_run")
     with dag_run_tracer.start_as_current_span("dag_run.test_dag") as dag_run_span:
-        carrier: dict[str, str] = {}
-        TraceContextTextMapPropagator().inject(carrier)
+        dag_run_carrier: dict[str, str] = {}
+        TraceContextTextMapPropagator().inject(dag_run_carrier)
         dag_run_span_ctx = dag_run_span.get_span_context()
 
+    # Step 2: derive the parent task span carrier (child of dag run), as the scheduler does.
+    ti_model_tracer = provider.get_tracer("airflow.models.taskinstance")
+    with mock.patch("airflow.models.taskinstance.tracer", ti_model_tracer):
+        ti_carrier = new_task_run_carrier(dag_run_carrier)
+
+    # Extract the parent task span context (the stable span ID stored in ti_carrier).
+    parent_task_span_ctx = otel_trace.get_current_span(
+        context=TraceContextTextMapPropagator().extract(ti_carrier)
+    ).get_span_context()
+
+    # Step 3: build StartupDetails with ti.context_carrier = ti_carrier.
     what = StartupDetails(
         ti=TaskInstance(
             id=uuid7(),
@@ -439,7 +454,7 @@ def test_task_span_is_child_of_dag_run_span(make_ti_context):
             run_id="test_run",
             try_number=1,
             dag_version_id=uuid7(),
-            context_carrier=carrier,
+            context_carrier=ti_carrier,
         ),
         dag_rel_path="",
         bundle_info=BundleInfo(name="my-bundle", version=None),
@@ -448,27 +463,45 @@ def test_task_span_is_child_of_dag_run_span(make_ti_context):
         sentry_integration="",
     )
 
-    task_tracer = provider.get_tracer("airflow.sdk.execution_time.task_runner")
-    with mock.patch("airflow.sdk.execution_time.task_runner.tracer", task_tracer):
-        with _make_task_span(what) as span:
-            task_span_ctx = span.get_span_context()
+    # Step 4: emit the worker span (task runner side).
+    task_runner_tracer = provider.get_tracer("airflow.sdk.execution_time.task_runner")
+    with mock.patch("airflow.sdk.execution_time.task_runner.tracer", task_runner_tracer):
+        with _make_task_span(what):
+            pass
 
-    # The task span must share the dag run's trace ID.
-    assert task_span_ctx.trace_id == dag_run_span_ctx.trace_id
+    # Step 5: emit the parent task span (API server side, as happens on task completion).
+    mock_ti = mock.MagicMock()
+    mock_ti.dag_id = "test_dag"
+    mock_ti.task_id = "my_task"
+    mock_ti.run_id = "test_run"
+    mock_ti.try_number = 1
+    mock_ti.map_index = -1
+    mock_ti.queued_dttm = None
+    mock_ti.start_date = timezone.utcnow()
+    mock_ti.dag_run.context_carrier = dag_run_carrier
+    mock_ti.context_carrier = ti_carrier
+    api_tracer = provider.get_tracer("airflow.api_fastapi.execution_api.routes.task_instances")
+    with mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.tracer", api_tracer):
+        _emit_task_span(mock_ti, TaskInstanceState.SUCCESS)
 
-    # The task span's parent must be the dag run span.
     finished = in_mem_exporter.get_finished_spans()
+
+    # task_run.my_task: emitted by API server, child of dag run, span_id == parent_task_span_ctx.span_id.
     task_spans = [s for s in finished if s.name == "task_run.my_task"]
     assert len(task_spans) == 1
-    assert task_spans[0].parent is not None
-    assert task_spans[0].parent.span_id == dag_run_span_ctx.span_id
+    task_span = task_spans[0]
+    assert task_span.parent is not None
+    assert task_span.parent.span_id == dag_run_span_ctx.span_id
+    assert task_span.context.span_id == parent_task_span_ctx.span_id
 
-    # Span attributes are set correctly.
-    attrs = task_spans[0].attributes
-    assert attrs["airflow.dag_id"] == "test_dag"
-    assert attrs["airflow.task_id"] == "my_task"
-    assert attrs["airflow.dag_run.run_id"] == "test_run"
-    assert attrs["airflow.task_instance.try_number"] == 1
+    # worker.my_task: created by task runner, child of the parent task span.
+    worker_spans = [s for s in finished if s.name == "worker.my_task"]
+    assert len(worker_spans) == 1
+    assert worker_spans[0].parent is not None
+    assert worker_spans[0].parent.span_id == parent_task_span_ctx.span_id
+
+    # All spans share the same trace ID.
+    assert {s.context.trace_id for s in finished} == {dag_run_span_ctx.trace_id}
 
 
 def test_task_span_no_parent_when_no_context_carrier(make_ti_context):
@@ -2942,6 +2975,29 @@ class TestRuntimeTaskInstance:
             if hasattr(call.kwargs.get("msg"), "rendered_fields")
         )
 
+    def test_get_dag(self, mock_supervisor_comms):
+        """Test that get_dag sends the correct request and returns the dag."""
+        mock_supervisor_comms.send.return_value = DagResult(
+            dag_id="test_dag",
+            is_paused=False,
+            bundle_name="dags-folder",
+            bundle_version="bundle-version",
+            relative_fileloc="dags/example.py",
+            owners="owner_1",
+            tags=["a_tag", "z_tag"],
+            next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+        )
+
+        response = RuntimeTaskInstance.get_dag(
+            dag_id="test_dag",
+        )
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetDag(dag_id="test_dag"),
+        )
+        assert response.dag_id == "test_dag"
+        assert response.is_paused is False
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
@@ -3026,7 +3082,7 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
 
         with mock.patch.object(XCom, "set") as mock_xcom_set:
-            _xcom_push(runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, 7)
+            _xcom_push(runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=7)
             mock_xcom_set.assert_called_once_with(
                 key=BaseXCom.XCOM_RETURN_KEY,
                 value=result,
@@ -3034,6 +3090,7 @@ class TestXComAfterTaskExecution:
                 task_id=runtime_ti.task_id,
                 run_id=runtime_ti.run_id,
                 map_index=runtime_ti.map_index,
+                dag_result=False,
                 _mapped_length=7,
             )
 
@@ -3102,6 +3159,7 @@ class TestXComAfterTaskExecution:
             task_id="pull_task",
             run_id="test_run",
             map_index=-1,
+            dag_result=False,
             _mapped_length=None,
         )
 
@@ -4662,3 +4720,24 @@ class TestTaskInstanceMetrics:
                 tags={**stats_tags, "operator": "PythonOperator"},
             )
             mock_stats.incr.assert_any_call("ti_failures", tags=stats_tags)
+
+
+def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
+    with DAG(dag_id="test_dag_add_result") as dag:
+        task = PythonOperator(task_id="t", python_callable=lambda: 123)
+        dag.add_result(task.output)
+
+    ti = create_runtime_ti(task=task)
+    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    mock_supervisor_comms.send.assert_any_call(
+        SetXCom(
+            key="return_value",
+            value=123,
+            dag_id="test_dag_add_result",
+            run_id="test_run",
+            task_id="t",
+            map_index=-1,
+            dag_result=True,
+        )
+    )

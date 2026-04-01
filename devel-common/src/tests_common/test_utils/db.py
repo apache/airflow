@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import delete, select
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.jobs.job import Job
 from airflow.models import (
     Connection,
@@ -151,30 +152,24 @@ def initial_db_init():
     from airflow.configuration import conf
     from airflow.utils import db
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-    db.resetdb()
-
-    if AIRFLOW_V_3_0_PLUS:
+    if AIRFLOW_V_3_2_PLUS or not AIRFLOW_V_3_0_PLUS:
         try:
-            from airflow.providers.fab.auth_manager.models.db import FABDBManager
-        except ModuleNotFoundError:
-            # Reasons it might fail: we're in a provider bundle without FAB, or we're on a version of Python
-            # where FAB isn't yet supported
-            pass
-        else:
-            if os.getenv("TEST_GROUP") != "providers":
-                # If we loaded the provider, and we're running core (or running via breeze where TEST_GROUP
-                # isn't specified) run the downgrade+upgrade to ensure migrations are in sync with Model
-                # classes
-                db.downgrade(to_revision="5f2621c13b39")
-                db.upgradedb(to_revision="head")
-            else:
-                # Just create the tables so they are there
-                with create_session() as session:
-                    FABDBManager(session).create_db_from_orm()
-                    session.commit()
+            import airflow.providers.fab.auth_manager.models.db  # noqa: F401
+
+            conf.set(
+                "database",
+                "external_db_managers",
+                "airflow.providers.fab.auth_manager.models.db.FABDBManager",
+            )
+            db.resetdb(use_migration_files=True)
+        except (ModuleNotFoundError, AirflowOptionalProviderFeatureException):
+            db.resetdb()
     else:
+        db.resetdb()
+
+    if not AIRFLOW_V_3_0_PLUS:
         from flask import Flask
 
         from airflow.www.extensions.init_appbuilder import init_appbuilder
@@ -341,7 +336,6 @@ def clear_db_pools():
 
 def clear_test_connections(add_default_connections_back=True):
     # clear environment variables with AIRFLOW_CONN prefix
-    import os
 
     env_vars_to_remove = [key for key in os.environ.keys() if key.startswith("AIRFLOW_CONN_")]
     for env_var in env_vars_to_remove:
@@ -534,7 +528,6 @@ def create_default_connections_for_tests():
     For testing purposes, we do not need to have the connections setup in the database, using environment
     variables instead would provide better lookup speeds and is easier too.
     """
-    import os
 
     try:
         from airflow.utils.db import get_default_connections

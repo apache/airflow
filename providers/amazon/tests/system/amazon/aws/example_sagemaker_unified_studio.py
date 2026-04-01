@@ -41,9 +41,15 @@ Prerequisites: The account which runs this test must manually have the following
 3. A project within the SageMaker Unified Studio Domain
 4. A notebook (test_notebook.ipynb) placed in the project's s3 path
 
-This test will emulate a DAG run in the shared MWAA environment inside a SageMaker Unified Studio Project.
-The setup tasks will set up the project and configure the test runner to emulate an MWAA instance.
-Then, the SageMakerNotebookOperator will run a test notebook. This should spin up a SageMaker training job, run the notebook, and exit successfully.
+The test runs in two stages:
+1. run-notebook-explicit: passes domain_id, domain_region, and project_id directly as operator
+   parameters. No environment variables are required. Requires sagemaker-studio>=1.0.25.
+2. setup_mwaa_environment + run-notebook: sets MWAA-style environment variables and runs the
+   notebook using the legacy env-var-based resolution path.
+
+The ordering is intentional: run-notebook-explicit runs BEFORE the env vars are set, so on
+older SDK versions (<1.0.25) that cannot resolve the region from explicit params, the test
+will fail at stage 1 rather than accidentally passing via the env vars.
 """
 
 DAG_ID = "example_sagemaker_unified_studio"
@@ -103,6 +109,7 @@ with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -124,9 +131,35 @@ with DAG(
 
     setup_mwaa_environment = mock_mwaa_environment(mock_mwaa_environment_params)
 
-    # [START howto_operator_sagemaker_unified_studio_notebook]
     notebook_path = "test_notebook.ipynb"  # This should be the path to your .ipynb, .sqlnb, or .vetl file in your project.
 
+    # [START howto_operator_sagemaker_unified_studio_notebook_explicit_params]
+    # Run notebook with domain_id/project_id/domain_region passed explicitly as operator parameters.
+    # No environment variables needed — the SDK resolves the S3 path and region from these params.
+    # Requires sagemaker-studio>=1.0.25.
+    # NOTE: this task runs BEFORE env vars are set intentionally, to prove that explicit params
+    # work without any MWAA-style environment variables present.
+    run_notebook_explicit_params = SageMakerNotebookOperator(
+        task_id="run-notebook-explicit",
+        domain_id=domain_id,
+        project_id=project_id,
+        domain_region=region_name,
+        input_config={"input_path": notebook_path, "input_params": {}},
+        output_config={"output_formats": ["NOTEBOOK"]},  # optional
+        compute={
+            "instance_type": "ml.m5.large",
+            "volume_size_in_gb": 30,
+        },  # optional
+        termination_condition={"max_runtime_in_seconds": 600},  # optional
+        tags={},  # optional
+        wait_for_completion=True,  # optional
+        waiter_delay=5,  # optional
+        deferrable=False,  # optional
+    )
+    # [END howto_operator_sagemaker_unified_studio_notebook_explicit_params]
+
+    # [START howto_operator_sagemaker_unified_studio_notebook]
+    # Run notebook using the legacy env-var-based resolution path (MWAA-style).
     run_notebook = SageMakerNotebookOperator(
         task_id="run-notebook",
         input_config={"input_path": notebook_path, "input_params": {}},
@@ -159,8 +192,11 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
+        # TEST BODY: explicit params first (no env vars set yet)
+        run_notebook_explicit_params,
+        # TEST SETUP: set MWAA-style env vars
         setup_mwaa_environment,
-        # TEST BODY
+        # TEST BODY: legacy env-var-based resolution
         run_notebook,
     )
 

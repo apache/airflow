@@ -20,6 +20,22 @@
 Changelog
 ---------
 
+1.5.4
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Remove version cap from qdrant-client (#63745)``
+* ``Migrate Qdrant connection UI metadata from Python hook to provider.yaml (#62644)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Prepare providers release 2026-03-09 (#63198)``
+   * ``Add Apache Airflow Provider Registry (#62261)``
+
 1.5.3
 .....
 

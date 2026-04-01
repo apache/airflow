@@ -390,19 +390,26 @@ class TestWorker:
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
-    def test_workers_host_aliases(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
-                    "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}],
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]},
+            {"celery": {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]}},
+            {
+                "hostAliases": [{"ip": "192.168.0.1", "hostnames": ["hostname"]}],
+                "celery": {"hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]},
             },
+        ],
+    )
+    def test_workers_host_aliases(self, workers_values):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.2"
-        assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "test.hostname"
+        assert jmespath.search("spec.template.spec.hostAliases", docs[0]) == [
+            {"ip": "127.0.0.2", "hostnames": ["test.hostname"]}
+        ]
 
     @pytest.mark.parametrize(
         ("workers_values", "expected_update_strategy"),
@@ -721,11 +728,17 @@ class TestWorker:
             docs[0],
         ) == {"component": "worker"}
 
-    def test_runtime_class_name_values_are_configurable(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"runtimeClassName": "nvidia"},
+            {"celery": {"runtimeClassName": "nvidia"}},
+            {"runtimeClassName": "test", "celery": {"runtimeClassName": "nvidia"}},
+        ],
+    )
+    def test_runtime_class_name_values_are_configurable(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {"runtimeClassName": "nvidia"},
-            },
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -1269,7 +1282,11 @@ class TestWorker:
         [
             ({}, {}, "false"),
             ({}, {"safeToEvict": True}, "true"),
+            ({}, {"celery": {"safeToEvict": True}}, "true"),
             ({}, {"safeToEvict": False}, "false"),
+            ({}, {"celery": {"safeToEvict": False}}, "false"),
+            ({}, {"safeToEvict": False, "celery": {"safeToEvict": True}}, "true"),
+            ({}, {"safeToEvict": True, "celery": {"safeToEvict": False}}, "false"),
             (
                 {},
                 {
@@ -1282,7 +1299,23 @@ class TestWorker:
                 {},
                 {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": True},
+                },
+                "true",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                     "safeToEvict": False,
+                },
+                "true",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": False},
                 },
                 "true",
             ),
@@ -1298,7 +1331,23 @@ class TestWorker:
                 {},
                 {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": True},
+                },
+                "false",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                     "safeToEvict": False,
+                },
+                "false",
+            ),
+            (
+                {},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": False},
                 },
                 "false",
             ),
@@ -1309,7 +1358,17 @@ class TestWorker:
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {"celery": {"safeToEvict": True}},
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {"safeToEvict": False},
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {"celery": {"safeToEvict": False}},
                 "false",
             ),
             (
@@ -1319,10 +1378,20 @@ class TestWorker:
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {"celery": {"safeToEvict": True}},
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {"safeToEvict": False},
                 "false",
             ),
             (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {"celery": {"safeToEvict": False}},
+                "false",
+            ),
+            (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
@@ -1333,8 +1402,24 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": False},
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                     "safeToEvict": False,
+                },
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": False},
                 },
                 "false",
             ),
@@ -1349,12 +1434,28 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": False},
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                     "safeToEvict": False,
                 },
                 "false",
             ),
             (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": False},
+                },
+                "false",
+            ),
+            (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
@@ -1365,8 +1466,24 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
                 {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": True},
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                     "safeToEvict": True,
+                },
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": True},
                 },
                 "false",
             ),
@@ -1381,8 +1498,24 @@ class TestWorker:
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                 {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
+                    "celery": {"safeToEvict": True},
+                },
+                "true",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
                     "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
                     "safeToEvict": True,
+                },
+                "false",
+            ),
+            (
+                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                {
+                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
+                    "celery": {"safeToEvict": True},
                 },
                 "false",
             ),
@@ -1799,6 +1932,27 @@ class TestWorker:
         )
 
         assert jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0]) == 5
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraPorts": [{"name": "test-extra-port", "containerPort": 10}]},
+            {"celery": {"extraPorts": [{"name": "test-extra-port", "containerPort": 10}]}},
+            {
+                "extraPorts": [{"name": "test", "containerPort": 1}],
+                "celery": {"extraPorts": [{"name": "test-extra-port", "containerPort": 10}]},
+            },
+        ],
+    )
+    def test_overwrite_extra_ports(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].ports[:-1]", docs[0]) == [
+            {"name": "test-extra-port", "containerPort": 10}
+        ]
 
 
 class TestWorkerLogGroomer(LogGroomerTestBase):

@@ -17,47 +17,41 @@
  * under the License.
  */
 import { HStack } from "@chakra-ui/react";
-import type { ApiError } from "openapi-gen/requests/core/ApiError";
-import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/requests/types.gen";
+import type { AxiosError } from "axios";
+
+import type { HttpExceptionResponse, HttpValidationError } from "openapi/requests/types.gen";
 
 import { Alert } from "./Alert";
-
-type ExpandedApiError = {
-  body: HTTPExceptionResponse | HTTPValidationError | undefined;
-} & ApiError;
 
 type Props = {
   readonly error?: unknown;
 };
 
 export const ErrorAlert = ({ error: err }: Props) => {
-  const error = err as ExpandedApiError;
-
-  if (!Boolean(error)) {
+  if (err === undefined || err === null) {
     return undefined;
   }
 
-  const details = error.body?.detail;
-  let detailMessage;
+  const error = err as AxiosError<HttpExceptionResponse | HttpValidationError>;
+  const { message, response } = error;
+  const statusCode = response?.status;
+  const statusText = response?.statusText ?? message;
+  const detail = response?.data.detail;
+  let detailMessage: React.ReactNode;
 
-  if (details !== undefined) {
-    if (typeof details === "string") {
-      detailMessage = details;
-    } else if (Array.isArray(details)) {
-      detailMessage = details.map(
-        (detail) => `
-          ${detail.loc.join(".")} ${detail.msg}`,
-      );
-    } else {
-      detailMessage = Object.keys(details).map((key) => `${key}: ${details[key] as string}`);
-    }
+  if (typeof detail === "string") {
+    detailMessage = detail;
+  } else if (Array.isArray(detail)) {
+    detailMessage = detail.map((entry) => `${entry.loc.join(".")} ${entry.msg}`).join(", ");
   }
 
   return (
     <Alert status="error">
       <HStack align="start" flexDirection="column" gap={2} mt={-1}>
-        {error.status} {error.message}
-        {detailMessage === error.message ? undefined : <span>{detailMessage}</span>}
+        {statusCode} {statusText}
+        {detailMessage !== undefined && detailMessage !== statusText ? (
+          <span>{detailMessage}</span>
+        ) : undefined}
       </HStack>
     </Alert>
   );

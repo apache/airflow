@@ -45,6 +45,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
+    NUMBER_OF_CORE_SLICES,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
@@ -121,6 +122,9 @@ class FileGroupForCi(Enum):
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     BREEZE_INTEGRATION_TEST_FILES = auto()
+    REMOTE_LOGGING_E2E_SHARED_FILES = auto()
+    REMOTE_LOGGING_E2E_S3_FILES = auto()
+    REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -174,6 +178,24 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^dev/breeze/tests/.*_integration\.py",
             r"^dev/breeze/pyproject\.toml",
             r"^dev/breeze/uv\.lock",
+        ],
+        FileGroupForCi.REMOTE_LOGGING_E2E_SHARED_FILES: [
+            r"^airflow-core/src/airflow/config_templates/airflow_local_settings\.py$",
+            r"^airflow-core/src/airflow/logging/.*",
+            r"^airflow-core/src/airflow/logging_config\.py$",
+            r"^airflow-core/src/airflow/api_fastapi/core_api/routes/public/log\.py$",
+            r"^airflow-core/src/airflow/api_fastapi/core_api/datamodels/log\.py$",
+            r"^airflow-core/src/airflow/utils/log/.*",
+            r"^airflow-e2e-tests/.*",
+            r"^shared/logging/.*",
+        ],
+        FileGroupForCi.REMOTE_LOGGING_E2E_S3_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/remote_log_tests/.*",
+            r"^providers/amazon/src/airflow/providers/amazon/aws/log/s3_task_handler\.py$",
+        ],
+        FileGroupForCi.REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/remote_log_elasticsearch_tests/.*",
+            r"^providers/elasticsearch/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow-core/src/airflow/.*\.py",
@@ -925,6 +947,18 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
+    def run_remote_logging_s3_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.REMOTE_LOGGING_E2E_SHARED_FILES) or self._should_be_run(
+            FileGroupForCi.REMOTE_LOGGING_E2E_S3_FILES
+        )
+
+    @cached_property
+    def run_remote_logging_elasticsearch_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.REMOTE_LOGGING_E2E_SHARED_FILES) or self._should_be_run(
+            FileGroupForCi.REMOTE_LOGGING_E2E_ELASTICSEARCH_FILES
+        )
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1027,6 +1061,8 @@ class SelectiveChecks:
             or self.run_helm_tests
             or self.run_task_sdk_integration_tests
             or self.run_airflow_ctl_integration_tests
+            or self.run_remote_logging_s3_e2e_tests
+            or self.run_remote_logging_elasticsearch_e2e_tests
             or self.run_ui_e2e_tests
         )
 
@@ -1199,7 +1235,10 @@ class SelectiveChecks:
         if not self.run_unit_tests:
             return None
         current_test_types = sorted(set(self._get_core_test_types_to_run()))
-        return json.dumps(_get_test_list_as_json([current_test_types]))
+        if len(current_test_types) <= NUMBER_OF_CORE_SLICES:
+            return json.dumps(_get_test_list_as_json([current_test_types]))
+        list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_CORE_SLICES)
+        return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
     def providers_test_types_list_as_strings_in_json(self) -> str:

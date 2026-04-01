@@ -985,6 +985,36 @@ class TestGetMappedTaskInstances:
         assert response.status_code == 404
         assert response.json()["detail"] == "Task id nonexistent_task not found"
 
+    def test_no_duplicate_joins_in_get_mapped_task_instances_query(
+        self, one_task_with_mapped_tis, test_client
+    ):
+        """Regression test for #62027: the get_mapped_task_instances endpoint must not emit duplicate JOINs."""
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.get(
+                "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            )
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 200
+
+        ti_queries = [s for s in executed_statements if "FROM TASK_INSTANCE" in s and "JOIN DAG_RUN" in s]
+        assert ti_queries, "Expected at least one query selecting from task_instance with JOIN dag_run"
+        for q in ti_queries:
+            assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
+            if "JOIN DAG_VERSION" in q:
+                assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
+
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
@@ -1513,6 +1543,41 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             response.json()["detail"]
             == f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}"
         )
+
+    def test_no_duplicate_joins_in_get_task_instances_query(self, test_client, session):
+        """Regression test for #62027: the get_task_instances endpoint must not emit duplicate JOINs.
+
+        Combining explicit join() with joinedload() on the same tables causes SQLAlchemy
+        to emit duplicate JOINs (dag_run twice, dag_version twice). By relying solely on
+        joinedload via eager_load_TI_and_TIH_for_validation, each table must appear
+        exactly once in the SQL emitted by the real endpoint.
+        """
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        self.create_task_instances(session)
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.get("/dags/~/dagRuns/~/taskInstances")
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 200
+
+        # Find all statements that query task_instance joined with dag_run
+        ti_queries = [s for s in executed_statements if "FROM TASK_INSTANCE" in s and "JOIN DAG_RUN" in s]
+        assert ti_queries, "Expected at least one query selecting from task_instance with JOIN dag_run"
+        for q in ti_queries:
+            assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
+            if "JOIN DAG_VERSION" in q:
+                assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
 
     def test_return_TI_only_from_readable_dags(self, test_client, session):
         task_instances = {
@@ -2099,6 +2164,34 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         num_entries_batch3 = len(response_batch3.json()["task_instances"])
         assert num_entries_batch3 == ti_count
         assert len(response_batch3.json()["task_instances"]) == ti_count
+
+    def test_no_duplicate_joins_in_get_task_instances_batch_query(self, test_client, session):
+        """Regression test for #62027: the get_task_instances_batch endpoint must not emit duplicate JOINs."""
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        self.create_task_instances(session)
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(statement.upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.post("/dags/~/dagRuns/~/taskInstances/list", json={})
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 200
+
+        ti_queries = [s for s in executed_statements if "FROM TASK_INSTANCE" in s and "JOIN DAG_RUN" in s]
+        assert ti_queries, "Expected at least one query selecting from task_instance with JOIN dag_run"
+        for q in ti_queries:
+            assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
+            if "JOIN DAG_VERSION" in q:
+                assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
 
 
 class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
@@ -3550,6 +3643,88 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
         assert response.status_code == 200
         assert logs == audit_log_count
+
+    @pytest.mark.db_test
+    def test_clear_sets_note_on_task_instances(self, test_client, session):
+        """Test that a note is set on cleared task instances when note is provided."""
+        dag_id = "example_python_operator"
+        note_value = "Cleared by automation"
+        payload = {
+            "dry_run": False,
+            "reset_dag_runs": False,
+            "only_failed": True,
+            "only_running": False,
+            "note": note_value,
+        }
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == 1
+        ti_id = response_data["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": note_value, "user_id": "test"})
+
+    @pytest.mark.db_test
+    def test_clear_without_note_does_not_set_note(self, test_client, session):
+        """Test that existing note is preserved on cleared task instances when note is not provided."""
+        dag_id = "example_python_operator"
+        payload = {
+            "dry_run": False,
+            "reset_dag_runs": False,
+            "only_failed": True,
+            "only_running": False,
+        }
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == 1
+        ti_id = response_data["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
+
+    @pytest.mark.db_test
+    def test_clear_dry_run_does_not_set_note(self, test_client, session):
+        """Test that a note is NOT updated when dry_run=True even if note is provided."""
+        dag_id = "example_python_operator"
+        note_value = "Should not be set"
+        payload = {
+            "dry_run": True,
+            "reset_dag_runs": False,
+            "only_failed": True,
+            "only_running": False,
+            "note": note_value,
+        }
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=[{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}],
+            update_extras=False,
+        )
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] == 1
+        ti_id = response_data["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
 
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
@@ -5907,6 +6082,64 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         response_data = response.json()
         for task_id, value in expected_results.items():
             assert sorted(response_data[task_id]) == sorted(value)
+
+    @pytest.mark.parametrize(
+        ("map_index", "new_state"),
+        [
+            pytest.param(0, "failed", id="mapped-ti-map-index-0-failed"),
+            pytest.param(1, "failed", id="mapped-ti-map-index-1-failed"),
+            pytest.param(2, "success", id="mapped-ti-map-index-2-success"),
+        ],
+    )
+    def test_bulk_update_mapped_task_instance_state_is_persisted(
+        self, test_client, session, map_index, new_state
+    ):
+        """Verify that bulk-updating a specific mapped TI actually persists the new state in the DB."""
+        self.create_task_instances(
+            session,
+            task_instances=[{"state": State.RUNNING, "map_indexes": (0, 1, 2)}],
+        )
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "task_id": self.TASK_ID,
+                                "map_index": map_index,
+                                "new_state": new_state,
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["update"]["success"] == [
+            f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[{map_index}]"
+        ]
+
+        session.expire_all()
+        # Verify only the targeted mapped TI changed state; others remain unchanged.
+        for mi in [0, 1, 2]:
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == self.DAG_ID,
+                    TaskInstance.run_id == self.RUN_ID,
+                    TaskInstance.task_id == self.TASK_ID,
+                    TaskInstance.map_index == mi,
+                )
+            )
+            assert ti is not None
+            if mi == map_index:
+                assert ti.state == new_state, f"Expected map_index={mi} to be {new_state!r}, got {ti.state!r}"
+            else:
+                assert ti.state == State.RUNNING, (
+                    f"Expected map_index={mi} to remain running, got {ti.state!r}"
+                )
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})
