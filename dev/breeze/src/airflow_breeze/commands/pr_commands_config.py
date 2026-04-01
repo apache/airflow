@@ -49,7 +49,6 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--created-before",
                 "--updated-after",
                 "--updated-before",
-                "--include-drafts",
                 "--pending-approval-only",
                 "--checks-state",
                 "--min-commits-behind",
