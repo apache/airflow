@@ -113,6 +113,7 @@ class AbstractOperator(Templater, DAGNode):
     _on_failure_fail_dagrun = False
     is_setup: bool = False
     is_teardown: bool = False
+    returns_dag_result: bool = False
 
     @property
     def is_async(self) -> bool:
