@@ -51,7 +51,7 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
     vars_to_update = []
     for k, v in var_json.items():
         value, description = v, None
-        if isinstance(v, dict) and v.get("value"):
+        if isinstance(v, dict) and "value" in v:
             value, description = v["value"], v.get("description")
 
         vars_to_update.append(

@@ -1190,13 +1190,17 @@ class TestPodTemplateFile:
             {"ip": "127.0.0.2", "hostnames": ["test.hostname"]}
         ]
 
-    def test_workers_priority_class_name(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"priorityClassName": "test-priority"},
+            {"kubernetes": {"priorityClassName": "test-priority"}},
+            {"priorityClassName": "test", "kubernetes": {"priorityClassName": "test-priority"}},
+        ],
+    )
+    def test_workers_priority_class_name(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {
-                    "priorityClassName": "test-priority",
-                },
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -1259,11 +1263,17 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.terminationGracePeriodSeconds", docs[0]) == 123
 
-    def test_runtime_class_name_values_are_configurable(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"runtimeClassName": "nvidia"},
+            {"kubernetes": {"runtimeClassName": "nvidia"}},
+            {"runtimeClassName": "test", "kubernetes": {"runtimeClassName": "nvidia"}},
+        ],
+    )
+    def test_runtime_class_name_values_are_configurable(self, workers_values):
         docs = render_chart(
-            values={
-                "workers": {"runtimeClassName": "nvidia"},
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )

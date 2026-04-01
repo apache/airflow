@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,27 +16,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+Add dag_result to XComModel.
+
+Revision ID: a4c2d171ae18
+Revises: 1d6611b6ab7c
+Create Date: 2026-03-17 00:23:45.305588
+
+"""
+
 from __future__ import annotations
 
-from cadwyn import VersionChange, endpoint
+import sqlalchemy as sa
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = "a4c2d171ae18"
+down_revision = "1d6611b6ab7c"
+branch_labels = None
+depends_on = None
+airflow_version = "3.3.0"
 
 
-class MovePreviousRunEndpoint(VersionChange):
-    """Add new previous-run endpoint and migrate old endpoint."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        endpoint("/dag-runs/previous", ["GET"]).didnt_exist,
-        endpoint("/dag-runs/{dag_id}/previous", ["GET"]).existed,
-    )
+def upgrade():
+    """Add dag_result to XComModel."""
+    with op.batch_alter_table("xcom", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("dag_result", sa.Boolean, nullable=True))
 
 
-class AddDagRunDetailEndpoint(VersionChange):
-    """Add dag run detail endpoint."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        endpoint("/dag-runs/{dag_id}/{run_id}", ["GET"]).didnt_exist,
-    )
+def downgrade():
+    """Remove dag_result from XComModel."""
+    with op.batch_alter_table("xcom", schema=None) as batch_op:
+        batch_op.drop_column("dag_result")

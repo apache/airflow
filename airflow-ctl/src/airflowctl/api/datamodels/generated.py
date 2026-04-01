@@ -621,6 +621,24 @@ class LastAssetEventResponse(BaseModel):
     timestamp: Annotated[datetime | None, Field(title="Timestamp")] = None
 
 
+class MaterializeAssetBody(BaseModel):
+    """
+    Materialize asset request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
+    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    run_after: Annotated[datetime | None, Field(title="Run After")] = None
+    conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
+    note: Annotated[str | None, Field(title="Note")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+
+
 class PluginImportErrorResponse(BaseModel):
     """
     Plugin Import Error serializer for responses.

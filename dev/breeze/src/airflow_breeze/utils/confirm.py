@@ -141,15 +141,16 @@ def confirm_action(
 class TriageAction(Enum):
     DRAFT = "d"
     COMMENT = "c"
-    CLOSE = "x"
-    REBASE = "b"
-    RERUN = "r"
+    CLOSE = "z"
+    REBASE = "r"
+    RERUN = "f"
     PING = "p"
     OPEN = "o"
-    SHOW = "w"
+    SHOW = "e"
     READY = "m"
     SKIP = "s"
     QUIT = "q"
+    BACK = "ESC"
 
 
 def _show_pr_diff(token: str, github_repository: str, pr_number: int, pr_url: str | None) -> None:
@@ -218,10 +219,10 @@ class ContinueAction(Enum):
 
 
 def prompt_space_continue(
-    message: str = "Press SPACE to continue, [f] to flag as suspicious, [q] to quit",
+    message: str = "Press Enter to continue, \\[f] to flag as suspicious, \\[q] to quit",
     forced_answer: str | None = None,
 ) -> ContinueAction:
-    """Wait for the user to press space/Enter to continue, 'f' to flag, or 'q' to quit.
+    """Wait for the user to press Enter to continue, 'f' to flag, or 'q' to quit.
 
     Used for scrolling through diffs one-by-one without asking yes/no questions.
     """
@@ -246,11 +247,11 @@ def prompt_space_continue(
         if len(ch) > 1:
             continue
 
-        if ch in (" ", "\r", "\n", ""):
+        if ch in ("\r", "\n", ""):
             console_print()
             return ContinueAction.CONTINUE
         if ch.upper() == "F":
-            console_print("flag")
+            console_print("flag as suspicious")
             return ContinueAction.FLAG
         if ch.upper() == "Q":
             console_print("quit")
@@ -267,6 +268,8 @@ def prompt_triage_action(
     token: str | None = None,
     github_repository: str | None = None,
     pr_number: int | None = None,
+    allow_back: bool = False,
+    label_overrides: dict[TriageAction, str] | None = None,
 ) -> TriageAction:
     """Prompt the user to choose a triage action for a flagged PR.
 
@@ -281,6 +284,7 @@ def prompt_triage_action(
     :param token: GitHub token (used by SHOW action to fetch diff)
     :param github_repository: GitHub repository (used by SHOW action to fetch diff)
     :param pr_number: PR number (used by SHOW action to fetch diff)
+    :param allow_back: if True, show Esc/back option to return to TUI (default False)
     """
     import webbrowser
 
@@ -289,14 +293,17 @@ def prompt_triage_action(
         TriageAction.COMMENT: "comment",
         TriageAction.CLOSE: "close",
         TriageAction.REBASE: "rebase",
-        TriageAction.RERUN: "rerun checks",
+        TriageAction.RERUN: "rerun failed checks",
         TriageAction.PING: "ping reviewer",
         TriageAction.OPEN: "open in browser",
         TriageAction.SHOW: "show diff",
+        TriageAction.BACK: "back to TUI",
         TriageAction.READY: "mark as ready",
         TriageAction.SKIP: "skip",
         TriageAction.QUIT: "quit",
     }
+    if label_overrides:
+        _LABELS = {**_LABELS, **label_overrides}
 
     force = forced_answer or get_forced_answer() or os.environ.get("ANSWER")
     if force:
@@ -314,8 +321,11 @@ def prompt_triage_action(
         return default
 
     excluded = exclude or set()
-    available_actions = [a for a in TriageAction if a not in excluded]
+    if not allow_back:
+        excluded = excluded | {TriageAction.BACK}
+    available_actions = [a for a in TriageAction if a not in excluded and a != TriageAction.BACK]
     action_by_key = {a.value.upper(): a for a in available_actions}
+    show_back = TriageAction.BACK not in excluded
 
     while True:
         # Build choice display: uppercase the default letter
@@ -325,9 +335,11 @@ def prompt_triage_action(
             letter = action.value
             label = _LABELS[action]
             if action == default:
-                choices.append(f"\\[{letter.upper()}]{label}")
+                choices.append(f"[bold green]\\[{letter.upper()}]{label}[/]")
             else:
                 choices.append(f"\\[{letter}]{label}")
+        if show_back:
+            choices.append("\\[Esc]back to TUI")
         choices_str = " / ".join(choices)
 
         console_print(f"\n{message}")
@@ -343,6 +355,11 @@ def prompt_triage_action(
         if len(ch) > 1:
             console_print()
             continue
+
+        # Esc key (bare \x1b) returns BACK if available
+        if ch == "\x1b" and TriageAction.BACK not in excluded:
+            console_print("back")
+            return TriageAction.BACK
 
         console_print(ch)
 

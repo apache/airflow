@@ -474,3 +474,9 @@ class TestProvidersMetadataLoading:
             # Validate deprecated_provider_since is set correctly
             assert widgets_warning[0].message.deprecated_provider_since == "3.2.0"
             assert behaviour_warning[0].message.deprecated_provider_since == "3.2.0"
+
+    def test_already_initialized_provider_configs_emits_deprecation_warning(self):
+        """Test that already_initialized_provider_configs emits a DeprecationWarning."""
+        pm = ProvidersManager()
+        with pytest.warns(DeprecationWarning, match="already_initialized_provider_configs.*deprecated"):
+            pm.already_initialized_provider_configs

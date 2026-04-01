@@ -189,7 +189,7 @@ ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test
 ALLOWED_CONSTRAINTS_MODES_CI = [CONSTRAINTS_SOURCE_PROVIDERS, CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS]
 ALLOWED_CONSTRAINTS_MODES_PROD = [CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS, CONSTRAINTS_SOURCE_PROVIDERS]
 
-_FALLBACK_LLM_MODELS = [
+ALLOWED_LLM_MODELS = [
     # Claude models (via claude CLI)
     "claude/claude-opus-4-6",
     "claude/claude-sonnet-4-6",
@@ -204,46 +204,6 @@ _FALLBACK_LLM_MODELS = [
     "codex/o4-mini",
     "codex/gpt-4.1",
 ]
-
-# Model aliases — short names users can type instead of full model IDs
-_CLAUDE_ALIASES = ["claude/sonnet", "claude/opus", "claude/haiku"]
-_CODEX_ALIASES = ["codex/o3", "codex/o4-mini"]
-
-
-def get_allowed_llm_models() -> list[str]:
-    """Return the list of allowed LLM models, reading from cache if available.
-
-    Checks .build/llm_models_cache.json for a cached model list (refreshed at most
-    every 24 hours). Falls back to the hardcoded _FALLBACK_LLM_MODELS.
-    When generating command images for documentation, always uses the hardcoded
-    fallback list to ensure deterministic output.
-    """
-    import json
-    import time
-
-    from airflow_breeze.utils.recording import generating_command_images
-
-    if generating_command_images():
-        return list(_FALLBACK_LLM_MODELS)
-
-    try:
-        from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
-
-        cache_file = BUILD_CACHE_PATH / "llm_models_cache.json"
-        if cache_file.is_file():
-            data = json.loads(cache_file.read_text())
-            # Use cache if less than 24 hours old
-            if time.time() - data.get("timestamp", 0) < 86400:
-                models = data.get("models", [])
-                if models:
-                    return models
-    except Exception:
-        pass
-    return list(_FALLBACK_LLM_MODELS)
-
-
-# For backward compatibility and static option definition
-ALLOWED_LLM_MODELS = get_allowed_llm_models()
 
 ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
 DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]
@@ -281,7 +241,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.0.1"
-UV_VERSION = "0.11.1"
+UV_VERSION = "0.11.2"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
