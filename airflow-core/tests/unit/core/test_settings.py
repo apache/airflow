@@ -248,8 +248,8 @@ class TestMetadataEngineHooks:
         ):
             settings.configure_orm()
 
-        mock_create_engine.assert_called_once()
-        mock_async_session.assert_called_once()
+        assert len(mock_create_engine.mock_calls) == 1
+        assert mock_async_session.mock_calls == [call()]
         call_kwargs = mock_create_engine.call_args
         assert call_kwargs[0][0] == "sqlite://"
         assert "engine_args" in call_kwargs[1]
@@ -280,7 +280,7 @@ class TestMetadataEngineHooks:
         with patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", ""):
             settings._configure_async_session()
 
-        mock_create_async_engine.assert_not_called()
+        assert mock_create_async_engine.mock_calls == []
 
     @patch("airflow.settings.create_engine")
     def test_default_create_metadata_engine_forwards_args(self, mock_sa_create_engine):
@@ -293,13 +293,15 @@ class TestMetadataEngineHooks:
 
         settings.create_metadata_engine("sqlite://", engine_args=engine_args, connect_args=connect_args)
 
-        mock_sa_create_engine.assert_called_once_with(
-            "sqlite://",
-            connect_args={"timeout": 30},
-            pool_size=5,
-            pool_recycle=1800,
-            future=True,
-        )
+        assert mock_sa_create_engine.mock_calls == [
+            call(
+                "sqlite://",
+                connect_args={"timeout": 30},
+                pool_size=5,
+                pool_recycle=1800,
+                future=True,
+            )
+        ]
 
     @patch("airflow.settings.create_async_engine")
     def test_default_create_async_metadata_engine_forwards_args(self, mock_sa_create_async):
