@@ -2073,6 +2073,31 @@ class TestRuntimeTaskInstance:
             ),
         )
 
+
+    def test_xcom_pull_default_respected_when_no_map_indexes(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """Test that ``default`` is returned when map_indexes is not specified and no XCom is found.
+
+        Previously, ``xcoms.append(None)`` was used unconditionally on the no-map-indexes
+        path, so a user-supplied ``default`` was silently ignored.
+        """
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = CustomOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        with patch.object(XCom, "get_all") as mock_get_all:
+            mock_get_all.return_value = None
+            result = runtime_ti.xcom_pull(key="missing_key", task_ids="task_a", default="fallback_value")
+
+        assert result == "fallback_value"
+
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
     ):
