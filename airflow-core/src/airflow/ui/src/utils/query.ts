@@ -17,10 +17,8 @@
  * under the License.
  */
 import { useDagRunServiceGetDagRuns, useDagServiceGetDagDetails } from "openapi/queries";
-import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { useConfig } from "src/queries/useConfig";
-
-export const isFullTaskInstance = (ti: Record<string, unknown>): ti is TaskInstanceResponse => "id" in ti;
 
 export const isStatePending = (state?: TaskInstanceState | null) =>
   state === "deferred" ||

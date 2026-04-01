@@ -29,7 +29,7 @@ import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
-import { isFullTaskInstance, isStatePending, useAutoRefresh } from "src/utils";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
@@ -60,7 +60,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     dagRunId,
     options: {
       refetchInterval: (query) =>
-        query.state.data?.task_instances.some((ti) => isFullTaskInstance(ti) && isStatePending(ti.state))
+        query.state.data?.task_instances.some((ti) => "state" in ti && isStatePending(ti.state))
           ? refetchInterval
           : false,
     },
