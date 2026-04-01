@@ -33,6 +33,7 @@
   - [What do we backport to `v3-2-test` branch?](#what-do-we-backport-to-v3-2-test-branch)
   - [Backporting during pre-release period (before 3.2.0 GA)](#backporting-during-pre-release-period-before-320-ga)
   - [How to backport PR with GitHub Actions](#how-to-backport-pr-with-github-actions)
+  - [How to backport PR with `cherry-picker` CLI](#how-to-backport-pr-with-cherry-picker-cli)
   - [Merging PRs for Airflow 2.11.x](#merging-prs-for-airflow-211x)
   - [Merging PRs for Airflow 3](#merging-prs-for-airflow-3)
 - [Milestones for PR](#milestones-for-pr)
@@ -250,6 +251,8 @@ Use `main` as source of the workflow and copy the commit hash and enter the targ
 The action should create a new PR with the cherry-picked commit and add a comment in the PR when it is
 successful (or when it fails). If automatic backporting fails because of conflicts, you have to revert to
 manual backporting using `cherry-picker` CLI.
+
+## [How to backport PR with `cherry-picker` CLI](README.md#how-to-backport-pr-with-cherry-picker-cli)
 
 ## Merging PRs for Airflow 2.11.x
 
