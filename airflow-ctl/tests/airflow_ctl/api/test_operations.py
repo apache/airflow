@@ -1738,6 +1738,7 @@ class TestXComOperations:
         )
         assert response == self.key
 
+
 class TestTaskInstanceOperations:
     """Test suite for Task Instance operations."""
 
