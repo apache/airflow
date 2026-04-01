@@ -88,6 +88,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
 from airflow.settings import task_instance_mutation_hook
+from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -691,7 +692,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
         :meta private:
         """
-        priority_weight = task.weight_rule.get_weight(
+        weight_rule = task.weight_rule
+        if not hasattr(weight_rule, "get_weight"):
+            weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
+        priority_weight = weight_rule.get_weight(
             TaskInstance(task=task, run_id=run_id, map_index=map_index, dag_version_id=dag_version_id)
         )
         context_carrier = new_task_run_carrier(dag_run.context_carrier)
@@ -872,7 +876,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.queue = task.queue
         self.pool = pool_override or task.pool
         self.pool_slots = task.pool_slots
-        self.priority_weight = self.task.weight_rule.get_weight(self)
+        weight_rule = self.task.weight_rule
+        if not hasattr(weight_rule, "get_weight"):
+            weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
+        self.priority_weight = weight_rule.get_weight(self)
         self.run_as_user = task.run_as_user
         # Do not set max_tries to task.retries here because max_tries is a cumulative
         # value that needs to be stored in the db.
