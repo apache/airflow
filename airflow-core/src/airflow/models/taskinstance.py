@@ -266,7 +266,7 @@ def _get_new_task_ids(
     # always empty.
     current_dag = None
     if dag_run.created_dag_version_id:
-        current_dag = scheduler_dagbag._get_dag(version_id=dag_run.created_dag_version_id, session=session)
+        current_dag = scheduler_dagbag.get_dag(version_id=dag_run.created_dag_version_id, session=session)
     new_task_ids = set(latest_dag.task_ids) - set(current_dag.task_ids) if current_dag else set()
 
     return list(new_task_ids)
