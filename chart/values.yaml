@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-# Default values for airflow.
+# Default values for Airflow.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -32,45 +32,45 @@ nameOverride: ""
 # and being able to use fully fullnameOverride and nameOverride in all resources
 # For new installations - it is recommended to set it to True to follow standard naming conventions
 # For existing installations, this will rename and redeploy your resources with the new names. Be aware that
-# this will recreate your deployment/statefulsets along with their persistent volume claims and data storage
+# this will recreate your Deployment/StatefulSets along with their persistent volume claims and data storage
 # migration may be needed to keep your old data
 #
 # Note:fernet-key,redis-password and broker-url secrets don't use this logic yet,
 # As this may break existing installations due to how they get installed via pre-install hook.
 useStandardNaming: false
 
-# Max number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit
+# Max number of old replicasets to retain. Can be overridden by each Deployment's revisionHistoryLimit
 revisionHistoryLimit: ~
 
-# User and group of airflow user
+# User and group of Airflow user
 uid: 50000
 gid: 0
 
-# Default security context for airflow (deprecated, use `securityContexts` instead)
+# Default security context for Airflow (deprecated, use `securityContexts` instead)
 securityContext: {}
 #  runAsUser: 50000
 #  fsGroup: 0
 #  runAsGroup: 0
 
-# Detailed default security context for airflow deployments
+# Detailed default security context for Airflow Deployments
 securityContexts:
   pod: {}
   containers: {}
 
-# Global container lifecycle hooks for airflow containers
+# Global container lifecycle hooks for Airflow containers
 containerLifecycleHooks: {}
 
 # Airflow home directory
 # Used for mount paths
 airflowHome: /opt/airflow
 
-# Default airflow repository -- overridden by all the specific images below
+# Default Airflow repository -- overridden by all the specific images below
 defaultAirflowRepository: apache/airflow
 
-# Default airflow tag to deploy
+# Default Airflow tag to deploy
 defaultAirflowTag: "3.1.8"
 
-# Default airflow digest. If specified, it takes precedence over tag
+# Default Airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
@@ -126,7 +126,7 @@ images:
     tag: v4.4.2
     pullPolicy: IfNotPresent
 
-# Select certain nodes for airflow pods.
+# Select certain nodes for Airflow pods.
 nodeSelector: {}
 affinity: {}
 tolerations: []
@@ -272,62 +272,62 @@ ingress:
       # The name of a pre-created Secret containing a TLS private key and certificate
       secretName: ""
 
-  # Configs for the Ingress of the statsd Service
+  # Configs for the Ingress of the StatsD Service
   statsd:
     # Enable web ingress resource
     enabled: false
 
-    # Annotations for the statsd Ingress
+    # Annotations for the StatsD Ingress
     annotations: {}
 
-    # The path for the statsd Ingress
+    # The path for the StatsD Ingress
     path: "/metrics"
 
     # The pathType for the above path
     pathType: "ImplementationSpecific"
 
-    # The hostname for the statsd Ingress (deprecated, use `ingress.statsd.hosts` instead)
+    # The hostname for the StatsD Ingress (deprecated, use `ingress.statsd.hosts` instead)
     host: ""
 
-    # The hostnames or hosts configuration for the statsd Ingress (templated)
+    # The hostnames or hosts configuration for the StatsD Ingress (templated)
     hosts: []
     # - name: ""
     #   tls:
-    #     # Enable TLS termination for the statsd Ingress
+    #     # Enable TLS termination for the StatsD Ingress
     #     enabled: false
     #     # The name of a pre-created Secret containing a TLS private key and certificate
     #     secretName: ""
 
-    # The Ingress Class for the statsd Ingress
+    # The Ingress Class for the StatsD Ingress
     ingressClassName: ""
 
-  # Configs for the Ingress of the pgbouncer Service
+  # Configs for the Ingress of the PgBouncer Service
   pgbouncer:
     # Enable web ingress resource
     enabled: false
 
-    # Annotations for the pgbouncer Ingress
+    # Annotations for the PgBouncer Ingress
     annotations: {}
 
-    # The path for the pgbouncer Ingress
+    # The path for the PgBouncer Ingress
     path: "/metrics"
 
     # The pathType for the above path
     pathType: "ImplementationSpecific"
 
-    # The hostname for the pgbouncer Ingress (deprecated, use `ingress.pgbouncer.hosts` instead)
+    # The hostname for the PgBouncer Ingress (deprecated, use `ingress.pgbouncer.hosts` instead)
     host: ""
 
-    # The hostnames or hosts configuration for the pgbouncer Ingress (templated)
+    # The hostnames or hosts configuration for the PgBouncer Ingress (templated)
     hosts: []
     # - name: ""
     #   tls:
-    #     # Enable TLS termination for the pgbouncer Ingress
+    #     # Enable TLS termination for the PgBouncer Ingress
     #     enabled: false
     #     # The name of a pre-created Secret containing a TLS private key and certificate
     #     secretName: ""
 
-    # The Ingress Class for the pgbouncer Ingress
+    # The Ingress Class for the PgBouncer Ingress
     ingressClassName: ""
 
 # Network policy configuration
@@ -338,7 +338,7 @@ networkPolicies:
 # Extra annotations to apply to all Airflow pods (templated)
 airflowPodAnnotations: {}
 
-# Extra annotations to apply to main Airflow configmap
+# Extra annotations to apply to main Airflow ConfigMap
 airflowConfigAnnotations: {}
 
 # 'airflow_local_settings' file as a string (templated)
@@ -376,7 +376,7 @@ rbac:
 executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
-# service account will have access to communicate with the api-server and launch pods/jobs.
+# Service Account will have access to communicate with the api-server and launch pods/jobs.
 # If this is true and using CeleryExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the workers
 # will be able to launch pods/jobs.
 allowPodLaunching: true
@@ -458,8 +458,8 @@ extraSecrets: {}
 
 # Extra ConfigMaps that will be managed by the chart
 # (You can use them with `extraEnv` or `extraEnvFrom` or some of the `extraVolumes` values).
-# The format for configmap data is "key/value" where
-#    * key (templated) is the name of the configmap that will be created
+# The format for ConfigMap data is "key/value" where
+#    * key (templated) is the name of the ConfigMap that will be created
 #    * value: an object with the standard 'data' key.
 #          The value associated with this keys must be a string (templated)
 extraConfigMaps: {}
@@ -471,7 +471,7 @@ extraConfigMaps: {}
 #       AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
 #       AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
 
-# Extra env 'items' that will be added to the definition of airflow containers
+# Extra env 'items' that will be added to the definition of Airflow containers
 # a string is expected (templated).
 # TODO: difference from `env`? This is a templated string. Probably should template `env` and remove this.
 extraEnv: ~
@@ -479,7 +479,7 @@ extraEnv: ~
 #   - name: AIRFLOW__CORE__LOAD_EXAMPLES
 #     value: 'True'
 
-# Extra envFrom 'items' that will be added to the definition of airflow containers
+# Extra envFrom 'items' that will be added to the definition of Airflow containers
 # A string is expected (templated).
 extraEnvFrom: ~
 # extraEnvFrom: |
@@ -782,7 +782,7 @@ workers:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to worker Kubernetes service account.
+    # Annotations to add to worker Kubernetes Service Account.
     annotations: {}
 
   # Allow KEDA autoscaling for Airflow Celery workers
@@ -794,7 +794,7 @@ workers:
     # (deprecated, use `workers.celery.keda.namespaceLabels` instead)
     namespaceLabels: {}
 
-    # How often KEDA polls the airflow DB to report new scale requests to the HPA
+    # How often KEDA polls the Airflow DB to report new scale requests to the HPA
     # (deprecated, use `workers.celery.keda.pollingInterval` instead)
     pollingInterval: 5
 
@@ -1149,10 +1149,10 @@ workers:
   # Additional env variable configuration for Airflow Celery workers and pods created with pod-template-file
   env: []
 
-  # Additional volume claim templates for Airflow Celery workers
+  # Additional volume claim templates for Airflow Celery workers.
+  # Requires mounting of specified volumes under extraVolumeMounts.
   volumeClaimTemplates: []
-  # Remember to mount specified volumes under extraVolumeMounts.
-  # Volume claim templates example:
+  # Volume Claim Templates example:
   # volumeClaimTemplates:
   #   - metadata:
   #       name: data-volume-1
@@ -1542,7 +1542,7 @@ scheduler:
   #  fsGroup: 0
   #  runAsGroup: 0
 
-  # Detailed default security context for scheduler deployments for container and pod level
+  # Detailed default security context for scheduler Deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
@@ -1555,7 +1555,7 @@ scheduler:
 
   # Create ServiceAccount
   serviceAccount:
-    # Affects all executors that launch pods, default value is 'true'
+    # Affects all executors that launch pods
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -1566,23 +1566,23 @@ scheduler:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to scheduler Kubernetes service account.
+    # Annotations to add to scheduler Kubernetes Service Account.
     annotations: {}
 
     # Service Account Token Volume configuration
     # This is only used when `automountServiceAccountToken` is 'false'
-    # and allows manual configuration of the service account token volume
+    # and allows manual configuration of the Service Account token volume
     serviceAccountTokenVolume:
-      # Enable manual service account token volume configuration
+      # Enable manual Service Account token volume configuration
       enabled: false
 
-      # Path where the service account token should be mounted
+      # Path where the Service Account token should be mounted
       mountPath: /var/run/secrets/kubernetes.io/serviceaccount
 
       # Name of the volume
       volumeName: kube-api-access
 
-      # Token expiration in seconds (default: 1 hour)
+      # Token expiration in seconds
       expirationSeconds: 3600
 
       # Audience for the token
@@ -1630,7 +1630,7 @@ scheduler:
   #      mountPath: "{{ .Values.my_custom_path }}"
   #      readOnly: true
 
-  # Select certain nodes for airflow scheduler pods.
+  # Select certain nodes for Airflow scheduler pods.
   nodeSelector: {}
   affinity: {}
   # default scheduler affinity is:
@@ -1648,7 +1648,7 @@ scheduler:
 
   priorityClassName: ~
 
-  # Annotations for scheduler deployment
+  # Annotations for scheduler Deployment
   annotations: {}
 
   # Pod annotations for scheduler pods (templated)
@@ -1784,7 +1784,6 @@ createUserJob:
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -1795,7 +1794,7 @@ createUserJob:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to create user Kubernetes service account.
+    # Annotations to add to create user Kubernetes Service Account.
     annotations: {}
 
   # Launch additional containers into user creation job
@@ -1889,7 +1888,6 @@ migrateDatabaseJob:
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -1900,7 +1898,7 @@ migrateDatabaseJob:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to migrate database job Kubernetes service account.
+    # Annotations to add to migrate database job Kubernetes Service Account.
     annotations: {}
 
   resources: {}
@@ -1949,7 +1947,7 @@ migrateDatabaseJob:
 apiServer:
   enabled: true
 
-  # Number of Airflow API servers in the deployment.
+  # Number of Airflow API servers in the Deployment.
   # Omitted from the Deployment, when HPA is enabled.
   replicas: 1
 
@@ -2001,7 +1999,6 @@ apiServer:
     behavior: {}
 
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -2012,7 +2009,7 @@ apiServer:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to Airflow API server kubernetes service account.
+    # Annotations to add to Airflow API server Kubernetes Service Account.
     annotations: {}
 
   service:
@@ -2043,7 +2040,7 @@ apiServer:
   # Allow overriding Update Strategy for API server
   strategy: ~
 
-  # Detailed default security contexts for Airflow API server deployments for container and pod level
+  # Detailed default security contexts for Airflow API server Deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
@@ -2094,7 +2091,7 @@ apiServer:
   # hostAliases for API server pod
   hostAliases: []
 
-  # Annotations for Airflow API server deployment
+  # Annotations for Airflow API server Deployment
   annotations: {}
 
   # Pod annotations for API server pods (templated)
@@ -2117,12 +2114,12 @@ apiServer:
   #   cpu: 100m
   #   memory: 128Mi
 
-  # Add custom annotations to the `apiServer` configmap
+  # Add custom annotations to the `apiServer` ConfigMap
   configMapAnnotations: {}
 
   # This string (templated) will be mounted into the Airflow API Server
   # as a custom webserver_config.py. You can bake a webserver_config.py into
-  # your image instead or specify a configmap containing the
+  # your image instead or specify a ConfigMap containing the
   # webserver_config.py.
   apiServerConfig: ~
   # apiServerConfig: |
@@ -2161,7 +2158,7 @@ apiServer:
 webserver:
   enabled: true
 
-  # Add custom annotations to the webserver configmap
+  # Add custom annotations to the webserver ConfigMap
   configMapAnnotations: {}
 
   # hostAliases for the webserver pod
@@ -2237,7 +2234,6 @@ webserver:
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -2248,7 +2244,7 @@ webserver:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to webserver Kubernetes service account.
+    # Annotations to add to webserver Kubernetes Service Account.
     annotations: {}
 
   # Webserver pod disruption budget
@@ -2270,7 +2266,7 @@ webserver:
   #  fsGroup: 0
   #  runAsGroup: 0
 
-  # Detailed default security contexts for webserver deployments for container and pod level
+  # Detailed default security contexts for webserver Deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
@@ -2331,7 +2327,7 @@ webserver:
 
   # This string (templated) will be mounted into the Airflow Webserver
   # as a custom webserver_config.py. You can bake a webserver_config.py into
-  # your image instead or specify a configmap containing the
+  # your image instead or specify a ConfigMap containing the
   # webserver_config.py.
   webserverConfig: ~
   # webserverConfig: |
@@ -2379,7 +2375,7 @@ webserver:
     # loadBalancerSourceRanges:
     #   - "10.123.0.0/16"
 
-  # Select certain nodes for airflow webserver pods.
+  # Select certain nodes for Airflow webserver pods.
   nodeSelector: {}
   priorityClassName: ~
 
@@ -2397,7 +2393,7 @@ webserver:
   tolerations: []
   topologySpreadConstraints: []
 
-  # Annotations for webserver deployment
+  # Annotations for webserver Deployment
   annotations: {}
 
   # Pod annotations for webserver pods (templated)
@@ -2422,7 +2418,7 @@ webserver:
 triggerer:
   enabled: true
 
-  # Number of airflow triggerers in the deployment
+  # Number of Airflow triggerers in the Deployment
   replicas: 1
 
   # Max number of old replicasets to retain
@@ -2452,7 +2448,6 @@ triggerer:
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -2463,7 +2458,7 @@ triggerer:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to triggerer Kubernetes service account.
+    # Annotations to add to triggerer Kubernetes Service Account.
     annotations: {}
 
   # When not set, the values defined in the global `securityContext` will be used
@@ -2548,7 +2543,7 @@ triggerer:
   #       mountPath: "{{ .Values.my_custom_path }}"
   #       readOnly: true
 
-  # Select certain nodes for airflow triggerer pods.
+  # Select certain nodes for Airflow triggerer pods.
   nodeSelector: {}
 
   affinity: {}
@@ -2576,7 +2571,7 @@ triggerer:
 
   priorityClassName: ~
 
-  # Annotations for the triggerer deployment
+  # Annotations for the triggerer Deployment
   annotations: {}
 
   # Pod annotations for triggerer pods (templated)
@@ -2646,7 +2641,7 @@ triggerer:
     enabled: false
     namespaceLabels: {}
 
-    # How often KEDA polls the airflow DB to report new scale requests to the HPA
+    # How often KEDA polls the Airflow DB to report new scale requests to the HPA
     pollingInterval: 5
 
     # How many seconds KEDA will wait before scaling to zero.
@@ -2710,7 +2705,7 @@ dagProcessor:
   #     classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
   #     kwargs: {}
 
-  # Number of airflow dag processors in the deployment
+  # Number of Airflow dag processors in the Deployment
   replicas: 1
 
   # Max number of old ReplicaSets to retain
@@ -2739,7 +2734,6 @@ dagProcessor:
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -2750,7 +2744,7 @@ dagProcessor:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to dag processor Kubernetes service account.
+    # Annotations to add to dag processor Kubernetes Service Account.
     annotations: {}
 
   # Dag processor pod disruption budget
@@ -2814,7 +2808,7 @@ dagProcessor:
   #      mountPath: "{{ .Values.my_custom_path }}"
   #      readOnly: true
 
-  # Select certain nodes for airflow dag processor pods.
+  # Select certain nodes for Airflow dag processor pods.
   nodeSelector: {}
 
   affinity: {}
@@ -2833,7 +2827,7 @@ dagProcessor:
 
   priorityClassName: ~
 
-  # Annotations for the dag processor deployment
+  # Annotations for the dag processor Deployment
   annotations: {}
 
   # Pod annotations for dag processor pods (templated)
@@ -2972,7 +2966,6 @@ flower:
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -2983,7 +2976,7 @@ flower:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to worker Kubernetes service account.
+    # Annotations to add to worker Kubernetes Service Account.
     annotations: {}
 
 
@@ -3047,7 +3040,7 @@ flower:
   #      mountPath: "{{ .Values.my_custom_path }}"
   #      readOnly: true
 
-  # Select certain nodes for airflow flower pods.
+  # Select certain nodes for Airflow flower pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -3055,7 +3048,7 @@ flower:
 
   priorityClassName: ~
 
-  # Annotations for the flower deployment
+  # Annotations for the flower Deployment
   annotations: {}
 
   # Pod annotations for flower pods (templated)
@@ -3068,7 +3061,7 @@ flower:
 
 # StatsD settings
 statsd:
-  # Add custom annotations to the statsd configmap
+  # Add custom annotations to the StatsD ConfigMap
   configMapAnnotations: {}
 
   enabled: true
@@ -3108,12 +3101,11 @@ statsd:
   # Annotations to add to the StatsD Deployment.
   annotations: {}
 
-  # Grace period for statsd to finish after SIGTERM is sent from kubernetes
+  # Grace period for StatsD to finish after SIGTERM is sent from Kubernetes
   terminationGracePeriodSeconds: 30
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -3124,7 +3116,7 @@ statsd:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to worker kubernetes service account.
+    # Annotations to add to worker Kubernetes Service Account.
     annotations: {}
 
   uid: 65534
@@ -3135,7 +3127,7 @@ statsd:
   #  fsGroup: 0
   #  runAsGroup: 0
 
-  # Detailed default security context for statsd deployments for container and pod level
+  # Detailed default security context for StatsD Deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
@@ -3178,10 +3170,10 @@ statsd:
   # Pod annotations for StatsD pods (templated)
   podAnnotations: {}
 
-  # Labels specific to statsd objects and pods
+  # Labels specific to StatsD objects and pods
   labels: {}
 
-  # Environment variables to add to statsd container
+  # Environment variables to add to StatsD container
   env: []
 
 # PgBouncer settings
@@ -3208,18 +3200,17 @@ pgbouncer:
   # Can be skipped to allow for other means to get the values, e.g. secrets provider class.
   mountConfigSecret: true
 
-  # Annotations to be added to the PgBouncer deployment
+  # Annotations to be added to the PgBouncer Deployment
   annotations: {}
 
   # Pod annotations for PgBouncer pods (templated)
   podAnnotations: {}
 
-  # Add custom annotations to the pgbouncer certificates secret
+  # Add custom annotations to the PgBouncer certificates secret
   certificatesSecretAnnotations: {}
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -3230,7 +3221,7 @@ pgbouncer:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to worker Kubernetes service account.
+    # Annotations to add to worker Kubernetes Service Account.
     annotations: {}
 
   # Additional network policies as needed
@@ -3255,7 +3246,7 @@ pgbouncer:
   #     users.txt: <base64_encoded users.txt file content>
   #  type: Opaque
 
-  # Add custom annotations to the pgbouncer config secret
+  # Add custom annotations to the PgBouncer config secret
   configSecretAnnotations: {}
 
   # PgBouncer pod disruption budget
@@ -3301,8 +3292,8 @@ pgbouncer:
   # Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html
   extraIni: ~
 
-  # Mount additional volumes into pgbouncer.
-  # Volumes apply to all pgbouncer containers, while volume mounts apply to the pgbouncer
+  # Mount additional volumes into PgBouncer.
+  # Volumes apply to all PgBouncer containers, while volume mounts apply to the PgBouncer
   # container itself. Metrics exporter container has its own mounts.
   extraVolumes: []
   extraVolumeMounts: []
@@ -3319,7 +3310,7 @@ pgbouncer:
   #      mountPath: "{{ .Values.my_custom_path }}"
   #      readOnly: true
 
-  # Launch additional containers into pgbouncer.
+  # Launch additional containers into PgBouncer pod.
   extraContainers: []
 
   # Select certain nodes for PgBouncer pods.
@@ -3332,7 +3323,7 @@ pgbouncer:
 
   uid: 65534
 
-  # Detailed default security context for pgbouncer for container level
+  # Detailed default security context for PgBouncer for container level
   securityContexts:
     pod: {}
     container: {}
@@ -3370,7 +3361,7 @@ pgbouncer:
     # Key containing the PGBouncer connection URI, defaults to 'connection' if not defined
     statsSecretKey: ~
 
-    # Add custom annotations to the pgbouncer stats secret
+    # Add custom annotations to the PgBouncer stats secret
     statsSecretAnnotations: {}
 
     # Detailed default security context for metricsExporterSidecar for container level
@@ -3398,10 +3389,10 @@ pgbouncer:
     #       mountPath: "{{ .Values.my_custom_path }}"
     #       readOnly: true
 
-  # Labels specific to pgbouncer objects and pods
+  # Labels specific to PgBouncer objects and pods
   labels: {}
 
-  # Environment variables to add to pgbouncer container
+  # Environment variables to add to PgBouncer container
   env: []
 
 # Configuration for the redis provisioned by the chart
@@ -3414,7 +3405,6 @@ redis:
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -3425,11 +3415,11 @@ redis:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to worker kubernetes service account.
+    # Annotations to add to worker Kubernetes Service Account.
     annotations: {}
 
   service:
-    # Service type, default: ClusterIP
+    # Service type
     type: "ClusterIP"
 
     # If using ClusterIP service type, custom IP address can be specified
@@ -3517,7 +3507,7 @@ redis:
   podAnnotations: {}
 
 # Auth secret for a private registry (deprecated, use `imagePullSecrets` instead)
-# This is used if pulling airflow images from a private registry
+# This is used if pulling Airflow images from a private registry
 registry:
   # Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry
   # (deprecated, use `imagePullSecrets` instead).
@@ -3603,16 +3593,16 @@ cleanup:
   # To select the last digit of unix epoch time as the starting minute on each deploy:
   #  schedule: '{{- now | unixEpoch | trunc -1 -}}-59/* * * * *'
 
-  # Command to use when running the cleanup cronjob (templated).
+  # Command to use when running the cleanup CronJob (templated).
   command: ~
 
-  # Args to use when running the cleanup cronjob (templated).
+  # Args to use when running the cleanup CronJob (templated).
   args: ["bash", "-c", "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"]
 
   # `jobAnnotations` are annotations on the cleanup CronJob
   jobAnnotations: {}
 
-  # Select certain nodes for airflow cleanup pods.
+  # Select certain nodes for Airflow cleanup pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -3635,7 +3625,6 @@ cleanup:
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -3646,7 +3635,7 @@ cleanup:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to cleanup cronjob kubernetes service account.
+    # Annotations to add to cleanup CronJob Kubernetes Service Account.
     annotations: {}
 
   # When not set, the values defined in the global `securityContext` will be used
@@ -3678,10 +3667,10 @@ databaseCleanup:
   # Run every week on Sunday at midnight (templated).
   schedule: "0 0 * * 0"
 
-  # Command to use when running the database cleanup cronjob (templated).
+  # Command to use when running the database cleanup CronJob (templated).
   command: ~
 
-  # Args to use when running the database cleanup cronjob (templated).
+  # Args to use when running the database cleanup CronJob (templated).
   args:
     - "bash"
     - "-c"
@@ -3713,7 +3702,7 @@ databaseCleanup:
   # `jobAnnotations` are annotations on the database cleanup CronJob
   jobAnnotations: {}
 
-  # Select certain nodes for airflow database cleanup pods.
+  # Select certain nodes for Airflow database cleanup pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -3736,7 +3725,6 @@ databaseCleanup:
 
   # Create ServiceAccount
   serviceAccount:
-    # Default value is 'true'
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
 
@@ -3747,7 +3735,7 @@ databaseCleanup:
     # If not set and `create` is 'true', a name is generated using the release name
     name: ~
 
-    # Annotations to add to database cleanup cronjob kubernetes service account.
+    # Annotations to add to database cleanup CronJob Kubernetes Service Account.
     annotations: {}
 
   env: []
@@ -3990,7 +3978,7 @@ dags:
     # Container level lifecycle hooks
     containerLifecycleHooks: {}
 
-    # Git-Sync liveness service http bind port
+    # Git-Sync liveness service HTTP bind port
     httpPort: 1234
 
     # Setting this to true, will remove readinessProbe usage and configure livenessProbe to
