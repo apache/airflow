@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
 from airflow.providers.common.compat.sdk import BaseOperator
@@ -63,6 +63,8 @@ class SalesforceBulkOperator(BaseOperator):
         values that should trigger a retry.  Defaults to
         ``{"UNABLE_TO_LOCK_ROW", "API_TEMPORARILY_UNAVAILABLE"}``.
     """
+
+    template_fields: Sequence[str] = ("object_name", "payload", "external_id_field")
 
     available_operations = ("insert", "update", "upsert", "delete", "hard_delete")
 
