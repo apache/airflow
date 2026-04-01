@@ -28,7 +28,7 @@ import os
 import sys
 import types
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 if TYPE_CHECKING:
     if sys.version_info >= (3, 12):
@@ -85,6 +85,162 @@ class AirflowPluginException(Exception):
     """Exception when loading plugin."""
 
 
+# ---------------------------------------------------------------------------
+# TypedDicts for AirflowPlugin dict-typed attributes
+# ---------------------------------------------------------------------------
+
+
+class FastAPIAppDict(TypedDict):
+    """
+    Dict structure for entries in ``AirflowPlugin.fastapi_apps``.
+
+    Example::
+
+        fastapi_apps = [
+            {
+                "app": my_fastapi_app,
+                "url_prefix": "/my-plugin",
+                "name": "My Plugin",
+            }
+        ]
+    """
+
+    app: Any  # FastAPI application instance
+    url_prefix: str
+    name: str
+
+
+class _FastAPIRootMiddlewareDictRequired(TypedDict):
+    middleware: Any  # Starlette/ASGI middleware class
+    name: str
+
+
+class FastAPIRootMiddlewareDict(_FastAPIRootMiddlewareDictRequired, total=False):
+    """
+    Dict structure for entries in ``AirflowPlugin.fastapi_root_middlewares``.
+
+    Example::
+
+        fastapi_root_middlewares = [
+            {
+                "middleware": MyMiddleware,
+                "name": "My Middleware",
+                "args": [],
+                "kwargs": {},
+            }
+        ]
+    """
+
+    args: list[Any]
+    kwargs: dict[str, Any]
+
+
+class _ExternalViewDictRequired(TypedDict):
+    name: str
+    href: str
+
+
+class ExternalViewDict(_ExternalViewDictRequired, total=False):
+    """
+    Dict structure for entries in ``AirflowPlugin.external_views``.
+
+    Example::
+
+        external_views = [
+            {
+                "name": "My Dashboard",
+                "href": "https://dashboard.example.com",
+                "destination": "nav",
+                "url_route": "my-dashboard",
+                "icon": "https://example.com/icon.svg",
+                "category": "Tools",
+            }
+        ]
+    """
+
+    icon: str
+    icon_dark_mode: str
+    url_route: str
+    destination: Literal["nav", "dag", "dag_run", "task", "task_instance", "base"]
+    category: str
+
+
+class _ReactAppDictRequired(TypedDict):
+    name: str
+    bundle_url: str
+
+
+class ReactAppDict(_ReactAppDictRequired, total=False):
+    """
+    Dict structure for entries in ``AirflowPlugin.react_apps``.
+
+    Example::
+
+        react_apps = [
+            {
+                "name": "My React App",
+                "bundle_url": "https://assets.example.com/app.umd.js",
+                "destination": "nav",
+                "url_route": "my-react-app",
+                "icon": "https://example.com/icon.svg",
+                "category": "Tools",
+            }
+        ]
+    """
+
+    icon: str
+    icon_dark_mode: str
+    url_route: str
+    destination: Literal["nav", "dag", "dag_run", "task", "task_instance", "base", "dashboard"]
+    category: str
+
+
+class AppBuilderViewDict(TypedDict, total=False):
+    """
+    Dict structure for entries in ``AirflowPlugin.appbuilder_views``.
+
+    Example::
+
+        appbuilder_views = [
+            {
+                "name": "My View",
+                "category": "My Plugin",
+                "view": my_view_instance,
+                "label": "My View Label",
+            }
+        ]
+    """
+
+    name: str
+    category: str
+    view: Any  # Flask-AppBuilder BaseView instance
+    label: str
+
+
+class _AppBuilderMenuItemDictRequired(TypedDict):
+    name: str
+    href: str
+
+
+class AppBuilderMenuItemDict(_AppBuilderMenuItemDictRequired, total=False):
+    """
+    Dict structure for entries in ``AirflowPlugin.appbuilder_menu_items``.
+
+    Example::
+
+        appbuilder_menu_items = [
+            {
+                "name": "My Site",
+                "href": "https://example.com",
+                "category": "Links",
+            }
+        ]
+    """
+
+    category: str
+    label: str
+
+
 class AirflowPlugin:
     """Class used to define AirflowPlugin."""
 
@@ -93,13 +249,13 @@ class AirflowPlugin:
     macros: list[Any] = []
     admin_views: list[Any] = []
     flask_blueprints: list[Any] = []
-    fastapi_apps: list[Any] = []
-    fastapi_root_middlewares: list[Any] = []
-    external_views: list[Any] = []
-    react_apps: list[Any] = []
+    fastapi_apps: list[FastAPIAppDict] = []
+    fastapi_root_middlewares: list[FastAPIRootMiddlewareDict] = []
+    external_views: list[ExternalViewDict] = []
+    react_apps: list[ReactAppDict] = []
     menu_links: list[Any] = []
-    appbuilder_views: list[Any] = []
-    appbuilder_menu_items: list[Any] = []
+    appbuilder_views: list[AppBuilderViewDict] = []
+    appbuilder_menu_items: list[AppBuilderMenuItemDict] = []
 
     # A list of global operator extra links that can redirect users to
     # external systems. These extra links will be available on the
