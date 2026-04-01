@@ -536,13 +536,6 @@ class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
     :class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator`,
     which handles query submission, polling, deferral, and cancellation.
 
-    The operator supports the following authentication methods via the Snowflake connection:
-
-    - **Key pair**: provide ``private_key_file`` or ``private_key_content`` in the connection extras.
-    - **OAuth**: provide ``refresh_token``, ``client_id``, and ``client_secret`` in the connection extras.
-    - **Programmatic Access Token (PAT)**: set ``authenticator`` to ``programmatic_access_token`` in
-      the connection extras and put the PAT value in the connection ``password`` field.
-
     .. seealso::
         `Snowflake EXECUTE NOTEBOOK
         <https://docs.snowflake.com/en/sql-reference/sql/execute-notebook>`_
@@ -553,21 +546,6 @@ class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
         notebook.  Only string values are supported by Snowflake; other
         data types are interpreted as NULL.  Parameters are accessible in
         the notebook via ``sys.argv``.
-    :param snowflake_conn_id: Reference to the Snowflake connection.
-    :param warehouse: Snowflake warehouse name (overrides connection default).
-    :param database: Snowflake database name (overrides connection default).
-    :param schema: Snowflake schema name (overrides connection default).
-    :param role: Snowflake role name (overrides connection default).
-    :param authenticator: Snowflake authenticator type.
-    :param session_parameters: Snowflake session-level parameters.
-    :param poll_interval: Seconds between status checks (default 5). Used only in deferrable mode.
-    :param token_life_time: Lifetime of the JWT token.
-    :param token_renewal_delta: When to renew the JWT token before expiry.
-    :param deferrable: If True, run in deferrable mode (frees the worker
-        slot while waiting).  Defaults to the ``operators.default_deferrable``
-        Airflow config.
-    :param snowflake_api_retry_args: Optional dict of arguments forwarded to
-        ``tenacity.Retrying`` for API call retries.
     """
 
     template_fields: Sequence[str] = tuple(
