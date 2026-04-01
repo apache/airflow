@@ -58,9 +58,9 @@ export class DagsPage extends BasePage {
     this.stateElement = page.getByTestId("dag-run-state");
     this.searchBox = page.getByRole("textbox", { name: /search/i });
     this.searchInput = page.getByPlaceholder("Search DAGs");
-    this.operatorFilter = page.getByRole("combobox").filter({ hasText: /operator/i });
-    this.triggerRuleFilter = page.getByRole("combobox").filter({ hasText: /trigger/i });
-    this.retriesFilter = page.getByRole("combobox").filter({ hasText: /retr/i });
+    this.operatorFilter = page.getByTestId("operator-filter");
+    this.triggerRuleFilter = page.getByTestId("trigger-rule-filter");
+    this.retriesFilter = page.getByTestId("retries-filter");
     // View toggle buttons
     this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
