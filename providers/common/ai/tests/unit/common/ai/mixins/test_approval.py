@@ -295,6 +295,18 @@ class TestDeferForApproval:
 
         assert result == "original"
 
+    def test_approved_no_modifications_rejects_tampered_params_input(self, approval_op):
+        """When allow_modifications=False, tampered params_input with output must be ignored."""
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "reviewer",
+            "params_input": {"output": "tampered output"},
+        }
+
+        result = approval_op.execute_complete({}, generated_output="original", event=event)
+
+        assert result == "original"
+
     def test_event_missing_responded_by_user(self, approval_op):
         event = {"chosen_options": ["Approve"]}
 

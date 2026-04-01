@@ -24,21 +24,21 @@ PR_COMMANDS: dict[str, str | list[str]] = {
 PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze pr auto-triage": [
         {
-            "name": "GitHub parameters",
-            "options": ["--github-token", "--github-repository"],
-        },
-        {
-            "name": "Target selection",
-            "options": ["--pr"],
+            "name": "Mode",
+            "options": ["--mode", "--tui", "--llm-use"],
         },
         {
             "name": "Select people",
             "options": [
                 "--author",
-                "--include-collaborators",
+                "--authors",
                 "--reviews-for-me",
                 "--reviews-for",
             ],
+        },
+        {
+            "name": "Target selection",
+            "options": ["--pr"],
         },
         {
             "name": "Filter options",
@@ -51,7 +51,6 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--updated-before",
                 "--include-drafts",
                 "--pending-approval-only",
-                "--mode",
                 "--checks-state",
                 "--min-commits-behind",
             ],
@@ -63,15 +62,18 @@ PR_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Assessment options",
             "options": [
-                "--check-mode",
                 "--llm-model",
                 "--llm-concurrency",
-                "--clear-llm-cache",
+                "--clear-cache",
             ],
         },
         {
-            "name": "Action options",
-            "options": ["--answer-triage"],
+            "name": "Other",
+            "options": [
+                "--answer-triage",
+                "--github-token",
+                "--github-repository",
+            ],
         },
     ],
 }

@@ -47,12 +47,12 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.partition_mappers.identity import IdentityMapper as CoreIdentityMapper
 from airflow.partition_mappers.temporal import (
-    ToDailyMapper as CoreToDailyMapper,
-    ToHourlyMapper as CoreToHourlyMapper,
-    ToMonthlyMapper as CoreToMonthlyMapper,
-    ToQuarterlyMapper as CoreToQuarterlyMapper,
-    ToWeeklyMapper as CoreToWeeklyMapper,
-    ToYearlyMapper as CoreToYearlyMapper,
+    StartOfDayMapper as CoreStartOfDayMapper,
+    StartOfHourMapper as CoreStartOfHourMapper,
+    StartOfMonthMapper as CoreStartOfMonthMapper,
+    StartOfQuarterMapper as CoreStartOfQuarterMapper,
+    StartOfWeekMapper as CoreStartOfWeekMapper,
+    StartOfYearMapper as CoreStartOfYearMapper,
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -61,12 +61,12 @@ from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import (
     BaseOperator,
     IdentityMapper,
-    ToDailyMapper,
-    ToHourlyMapper,
-    ToMonthlyMapper,
-    ToQuarterlyMapper,
-    ToWeeklyMapper,
-    ToYearlyMapper,
+    StartOfDayMapper,
+    StartOfHourMapper,
+    StartOfMonthMapper,
+    StartOfQuarterMapper,
+    StartOfWeekMapper,
+    StartOfYearMapper,
 )
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -768,39 +768,39 @@ def test_encode_timezone():
     [
         (IdentityMapper, [], "airflow.partition_mappers.identity.IdentityMapper", {}),
         (
-            ToHourlyMapper,
+            StartOfHourMapper,
             [],
-            "airflow.partition_mappers.temporal.ToHourlyMapper",
+            "airflow.partition_mappers.temporal.StartOfHourMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%dT%H"},
         ),
         (
-            ToDailyMapper,
+            StartOfDayMapper,
             [],
-            "airflow.partition_mappers.temporal.ToDailyMapper",
+            "airflow.partition_mappers.temporal.StartOfDayMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d"},
         ),
         (
-            ToWeeklyMapper,
+            StartOfWeekMapper,
             [],
-            "airflow.partition_mappers.temporal.ToWeeklyMapper",
+            "airflow.partition_mappers.temporal.StartOfWeekMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m-%d (W%V)"},
         ),
         (
-            ToMonthlyMapper,
+            StartOfMonthMapper,
             [],
-            "airflow.partition_mappers.temporal.ToMonthlyMapper",
+            "airflow.partition_mappers.temporal.StartOfMonthMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-%m"},
         ),
         (
-            ToQuarterlyMapper,
+            StartOfQuarterMapper,
             [],
-            "airflow.partition_mappers.temporal.ToQuarterlyMapper",
+            "airflow.partition_mappers.temporal.StartOfQuarterMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y-Q{quarter}"},
         ),
         (
-            ToYearlyMapper,
+            StartOfYearMapper,
             [],
-            "airflow.partition_mappers.temporal.ToYearlyMapper",
+            "airflow.partition_mappers.temporal.StartOfYearMapper",
             {"input_format": "%Y-%m-%dT%H:%M:%S", "output_format": "%Y"},
         ),
     ],
@@ -819,12 +819,12 @@ def test_encode_partition_mapper(cls, args, encode_type, encode_var):
     ("sdk_cls", "core_cls"),
     [
         (IdentityMapper, CoreIdentityMapper),
-        (ToHourlyMapper, CoreToHourlyMapper),
-        (ToDailyMapper, CoreToDailyMapper),
-        (ToWeeklyMapper, CoreToWeeklyMapper),
-        (ToMonthlyMapper, CoreToMonthlyMapper),
-        (ToQuarterlyMapper, CoreToQuarterlyMapper),
-        (ToYearlyMapper, CoreToYearlyMapper),
+        (StartOfHourMapper, CoreStartOfHourMapper),
+        (StartOfDayMapper, CoreStartOfDayMapper),
+        (StartOfWeekMapper, CoreStartOfWeekMapper),
+        (StartOfMonthMapper, CoreStartOfMonthMapper),
+        (StartOfQuarterMapper, CoreStartOfQuarterMapper),
+        (StartOfYearMapper, CoreStartOfYearMapper),
     ],
 )
 def test_decode_partition_mapper(sdk_cls, core_cls):
@@ -853,10 +853,10 @@ def test_decode_partition_mapper_not_exists():
 
 
 def test_encode_product_mapper():
-    from airflow.sdk import IdentityMapper, ProductMapper, ToHourlyMapper
+    from airflow.sdk import IdentityMapper, ProductMapper, StartOfHourMapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper(IdentityMapper(), ToHourlyMapper())
+    partition_mapper = ProductMapper(IdentityMapper(), StartOfHourMapper())
     assert encode_partition_mapper(partition_mapper) == {
         Encoding.TYPE: "airflow.partition_mappers.product.ProductMapper",
         Encoding.VAR: {
@@ -867,7 +867,7 @@ def test_encode_product_mapper():
                     Encoding.VAR: {},
                 },
                 {
-                    Encoding.TYPE: "airflow.partition_mappers.temporal.ToHourlyMapper",
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfHourMapper",
                     Encoding.VAR: {
                         "input_format": "%Y-%m-%dT%H:%M:%S",
                         "output_format": "%Y-%m-%dT%H",
@@ -880,11 +880,11 @@ def test_encode_product_mapper():
 
 def test_decode_product_mapper():
     from airflow.partition_mappers.product import ProductMapper as CoreProductMapper
-    from airflow.sdk import ProductMapper, ToDailyMapper, ToHourlyMapper
+    from airflow.sdk import ProductMapper, StartOfDayMapper, StartOfHourMapper
     from airflow.serialization.decoders import decode_partition_mapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ProductMapper(ToHourlyMapper(), ToDailyMapper())
+    partition_mapper = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
     encoded_pm = encode_partition_mapper(partition_mapper)
 
     core_pm = decode_partition_mapper(encoded_pm)
@@ -896,23 +896,23 @@ def test_decode_product_mapper():
 
 
 def test_encode_chain_mapper():
-    from airflow.sdk import ChainMapper, ToDailyMapper, ToHourlyMapper
+    from airflow.sdk import ChainMapper, StartOfDayMapper, StartOfHourMapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+    partition_mapper = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
     assert encode_partition_mapper(partition_mapper) == {
         Encoding.TYPE: "airflow.partition_mappers.chain.ChainMapper",
         Encoding.VAR: {
             "mappers": [
                 {
-                    Encoding.TYPE: "airflow.partition_mappers.temporal.ToHourlyMapper",
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfHourMapper",
                     Encoding.VAR: {
                         "input_format": "%Y-%m-%dT%H:%M:%S",
                         "output_format": "%Y-%m-%dT%H",
                     },
                 },
                 {
-                    Encoding.TYPE: "airflow.partition_mappers.temporal.ToDailyMapper",
+                    Encoding.TYPE: "airflow.partition_mappers.temporal.StartOfDayMapper",
                     Encoding.VAR: {
                         "input_format": "%Y-%m-%dT%H",
                         "output_format": "%Y-%m-%d",
@@ -925,11 +925,11 @@ def test_encode_chain_mapper():
 
 def test_decode_chain_mapper():
     from airflow.partition_mappers.chain import ChainMapper as CoreChainMapper
-    from airflow.sdk import ChainMapper, ToDailyMapper, ToHourlyMapper
+    from airflow.sdk import ChainMapper, StartOfDayMapper, StartOfHourMapper
     from airflow.serialization.decoders import decode_partition_mapper
     from airflow.serialization.encoders import encode_partition_mapper
 
-    partition_mapper = ChainMapper(ToHourlyMapper(), ToDailyMapper(input_format="%Y-%m-%dT%H"))
+    partition_mapper = ChainMapper(StartOfHourMapper(), StartOfDayMapper(input_format="%Y-%m-%dT%H"))
     encoded_pm = encode_partition_mapper(partition_mapper)
 
     core_pm = decode_partition_mapper(encoded_pm)

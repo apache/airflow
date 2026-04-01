@@ -105,6 +105,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
       </HStack>
       <HStack justifyContent="space-between">
         <AttrSelectFilterMulti
+          dataTestId="operator-filter"
           displayPrefix={undefined}
           handleSelect={handleSelectedOperators}
           placeholderText={translate("selectOperator")}
@@ -112,6 +113,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
           values={allOperatorNames}
         />
         <AttrSelectFilterMulti
+          dataTestId="trigger-rule-filter"
           displayPrefix={undefined}
           handleSelect={handleSelectedTriggerRules}
           placeholderText={translate("selectTriggerRules")}
@@ -119,6 +121,7 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
           values={allTriggerRules}
         />
         <AttrSelectFilterMulti
+          dataTestId="retries-filter"
           displayPrefix={translate("retries")}
           handleSelect={handleSelectedRetries}
           placeholderText={translate("selectRetryValues")}

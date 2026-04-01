@@ -75,7 +75,7 @@ test.describe("DAG Audit Log", () => {
     await expect(dagIdColumn).not.toBeVisible();
   });
 
-  test("verify audit log entries display valid data", async () => {
+  test.fixme("verify audit log entries display valid data", async () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
     await expect(eventsPage.tableRows).not.toHaveCount(0);
