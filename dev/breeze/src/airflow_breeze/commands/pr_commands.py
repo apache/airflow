@@ -2670,7 +2670,7 @@ def _llm_progress_status(completed: int, total: int, flagged: int, errors: int) 
 def _collect_llm_results(
     future_to_pr: dict,
     llm_assessments: dict,
-    llm_completed: list[int],
+    llm_completed: set,
     llm_errors: list[int],
     llm_passing: list,
     block: bool = False,
@@ -2692,7 +2692,7 @@ def _collect_llm_results(
 
     done_futures = [f for f in future_to_pr if f.done() and f not in llm_completed]
     for future in done_futures:
-        llm_completed.append(future)
+        llm_completed.add(future)
         pr = future_to_pr[future]
         try:
             assessment = future.result()
@@ -2777,7 +2777,7 @@ class TriageContext:
     # LLM background state
     llm_future_to_pr: dict
     llm_assessments: dict
-    llm_completed: list
+    llm_completed: set
     llm_errors: list[int]
     llm_passing: list
     # LLM durations: PR number → actual execution time in seconds
@@ -8762,7 +8762,7 @@ def _launch_llm_and_build_context(
     """Launch LLM executor for candidates and build a TriageContext."""
     llm_future_to_pr: dict = {}
     llm_assessments: dict[int, PRAssessment] = {}
-    llm_completed: list = []
+    llm_completed: set = set()
     llm_errors: list[int] = []
     llm_passing: list[PRData] = []
     llm_executor = None
@@ -10302,7 +10302,7 @@ def auto_triage(
                 main_failures=main_failures,
                 llm_future_to_pr={},
                 llm_assessments={},
-                llm_completed=[],
+                llm_completed=set(),
                 llm_errors=[],
                 llm_passing=[],
             )
