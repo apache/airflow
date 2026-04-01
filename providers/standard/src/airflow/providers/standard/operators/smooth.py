@@ -29,7 +29,7 @@ class SmoothOperator(BaseOperator):
     """Operator that logs a YouTube link to Sade song "Smooth Operator"."""
 
     ui_color = "#e8f7e4"
-    yt_link: str = "https://www.youtube.com/watch?v=4TYv2PhG89A"
+    yt_link: str = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
