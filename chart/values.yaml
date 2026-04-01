@@ -1062,6 +1062,7 @@ workers:
   # (deprecated, use workers.celery.nodeSelector or/and workers.kubernetes.nodeSelector instead)
   nodeSelector: {}
 
+  # (deprecated, use workers.celery.runtimeClassName and/or workers.kubernetes.runtimeClassName instead)
   runtimeClassName: ~
 
   # (deprecated, use workers.celery.priorityClassName and/or workers.kubernetes.priorityClassName instead)
@@ -1395,6 +1396,8 @@ workers:
     # Select certain nodes for Airflow Celery worker pods
     nodeSelector: {}
 
+    runtimeClassName: ~
+
     priorityClassName: ~
 
     # hostAliases to use in Airflow Celery worker pods
@@ -1480,6 +1483,8 @@ workers:
 
     # Select certain nodes for pods created with pod-template-file
     nodeSelector: {}
+
+    runtimeClassName: ~
 
     priorityClassName: ~
 

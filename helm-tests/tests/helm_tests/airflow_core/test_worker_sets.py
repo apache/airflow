@@ -2516,6 +2516,13 @@ class TestWorkerSets:
                     "sets": [{"name": "set1", "runtimeClassName": "test-class"}],
                 },
             },
+            {
+                "celery": {
+                    "runtimeClassName": "test",
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "runtimeClassName": "test-class"}],
+                },
+            },
         ],
     )
     def test_overwrite_runtime_class_name(self, workers_values):

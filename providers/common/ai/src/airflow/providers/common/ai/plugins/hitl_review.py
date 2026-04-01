@@ -284,7 +284,7 @@ async def find_session(
 @hitl_review_app.post(
     "/sessions/feedback",
     response_model=HITLReviewResponse,
-    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 async def submit_feedback(
     body: HumanFeedbackRequest,
@@ -365,7 +365,7 @@ async def submit_feedback(
 @hitl_review_app.post(
     "/sessions/approve",
     response_model=HITLReviewResponse,
-    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 async def approve_session(
     db: SessionDep,
@@ -430,7 +430,7 @@ async def approve_session(
 @hitl_review_app.post(
     "/sessions/reject",
     response_model=HITLReviewResponse,
-    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.HITL_DETAIL))],
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
 )
 async def reject_session(
     db: SessionDep,
