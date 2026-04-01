@@ -42,6 +42,7 @@ from tests_common.test_utils.db import (
 pytestmark = pytest.mark.db_test
 
 DAG_ID = "test_deadlines_dag"
+DAG_ID_2 = "test_deadlines_dag_2"
 
 # Each run represents a different deadline scenario tested below.
 RUN_EMPTY = "run_empty"  # no deadlines
@@ -50,6 +51,7 @@ RUN_MISSED = "run_missed"  # 1 deadline, missed=True
 RUN_ALERT = "run_alert"  # 1 deadline linked to a DeadlineAlert
 RUN_MULTI = "run_multi"  # 3 deadlines added out-of-order (ordering test)
 RUN_OTHER = "run_other"  # has 1 deadline; used to verify per-run isolation
+RUN_DAG2 = "run_dag2"  # belongs to DAG_ID_2, which is used for cross-dag filter tests
 
 ALERT_NAME = "SLA Breach Alert"
 ALERT_DESCRIPTION = "Fires when SLA is breached"
@@ -195,6 +197,28 @@ def setup(dag_maker, session):
         )
     )
 
+    # Second DAG with two deadlines (for cross-DAG filter verification)
+    with dag_maker(DAG_ID_2, serialized=True, session=session):
+        EmptyOperator(task_id="task")
+
+    run_dag2 = dag_maker.create_dagrun(
+        run_id=RUN_DAG2,
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=timezone.datetime(2024, 11, 7),
+        triggered_by=DagRunTriggeredByType.TEST,
+    )
+    # Two non-missed deadlines in Jan 2025 (avoids disturbing deadline_time filter tests)
+    for dl_time in [timezone.datetime(2025, 1, 10), timezone.datetime(2025, 1, 20)]:
+        session.add(
+            Deadline(
+                deadline_time=dl_time,
+                callback=_cb(),
+                dagrun_id=run_dag2.id,
+                deadline_alert_id=None,
+            )
+        )
+
     dag_maker.sync_dagbag_to_db()
     session.commit()
     yield
@@ -207,10 +231,6 @@ def setup(dag_maker, session):
 
 class TestGetDagRunDeadlines:
     """Tests for GET /dags/{dag_id}/dagRuns/{dag_run_id}/deadlines."""
-
-    # ------------------------------------------------------------------
-    # 200 – happy paths
-    # ------------------------------------------------------------------
 
     def test_no_deadlines_returns_empty_list(self, test_client):
         response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_EMPTY}/deadlines")
@@ -285,10 +305,6 @@ class TestGetDagRunDeadlines:
         assert response.status_code == 200
         assert response.json()["total_entries"] == 1
 
-    # ------------------------------------------------------------------
-    # 404
-    # ------------------------------------------------------------------
-
     @pytest.mark.parametrize(
         ("dag_id", "run_id"),
         [
@@ -300,10 +316,6 @@ class TestGetDagRunDeadlines:
     def test_should_response_404(self, test_client, dag_id, run_id):
         response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}/deadlines")
         assert response.status_code == 404
-
-    # ------------------------------------------------------------------
-    # 401 / 403
-    # ------------------------------------------------------------------
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_EMPTY}/deadlines")
@@ -317,38 +329,36 @@ class TestGetDagRunDeadlines:
 class TestGetDeadlines:
     """Tests for GET /dags/{dag_id}/dagRuns/{dag_run_id}/deadlines with ~ wildcards."""
 
-    # ------------------------------------------------------------------
-    # 200 – happy paths
-    # ------------------------------------------------------------------
-
     def test_returns_all_deadlines(self, test_client):
-        """All deadlines across all runs are returned when both dag_id and dag_run_id are ~."""
+        """All deadlines across all DAGs and runs are returned"""
         response = test_client.get("/dags/~/dagRuns/~/deadlines")
         assert response.status_code == 200
         data = response.json()
-        # Fixture creates: 1 (run_single) + 1 (run_missed) + 1 (run_alert) + 3 (run_multi) + 1 (run_other) = 7
-        assert data["total_entries"] == 7
-        assert len(data["deadlines"]) == 7
-
-    def test_response_includes_dag_and_run_ids(self, test_client):
-        """Each deadline includes dag_id and dag_run_id for linking."""
-        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/~/deadlines", params={"limit": 1})
-        assert response.status_code == 200
-        dl = response.json()["deadlines"][0]
-        assert dl["dag_id"] == DAG_ID
-        assert "dag_run_id" in dl
-        assert "id" in dl
-        assert "deadline_time" in dl
-        assert "missed" in dl
+        # DAG_ID: 7 deadlines (run_single, run_missed, run_alert, 3×run_multi, run_other)
+        # DAG_ID_2: 2 deadlines (run_dag2)
+        assert data["total_entries"] == 9
+        assert len(data["deadlines"]) == 9
+        assert {dl["dag_id"] for dl in data["deadlines"]} == {DAG_ID, DAG_ID_2}
+        for dl in data["deadlines"]:
+            assert "id" in dl
+            assert "dag_run_id" in dl
+            assert "deadline_time" in dl
+            assert "missed" in dl
 
     def test_filter_by_dag_id(self, test_client):
-        """Specifying a dag_id path param (with ~ for dag_run_id) returns only that DAG's deadlines."""
+        """Specifying a dag_id returns only that DAG's deadlines, not other DAGs'."""
         response = test_client.get(f"/dags/{DAG_ID}/dagRuns/~/deadlines")
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 7
         for dl in data["deadlines"]:
             assert dl["dag_id"] == DAG_ID
+
+        # Cross-check: the second DAG's deadlines are isolated
+        dag2_response = test_client.get(f"/dags/{DAG_ID_2}/dagRuns/~/deadlines")
+        assert dag2_response.json()["total_entries"] == 2
+        for dl in dag2_response.json()["deadlines"]:
+            assert dl["dag_id"] == DAG_ID_2
 
     def test_filter_missed_true(self, test_client):
         """Only missed deadlines are returned when missed=true."""
@@ -363,7 +373,8 @@ class TestGetDeadlines:
         response = test_client.get("/dags/~/dagRuns/~/deadlines", params={"missed": "false"})
         assert response.status_code == 200
         data = response.json()
-        assert data["total_entries"] == 6
+        # DAG_ID non-missed: 6; DAG_ID_2 non-missed: 2
+        assert data["total_entries"] == 8
         for dl in data["deadlines"]:
             assert dl["missed"] is False
 
@@ -401,7 +412,7 @@ class TestGetDeadlines:
             "/dags/~/dagRuns/~/deadlines", params={"last_updated_at_lte": "2099-01-01T00:00:00Z"}
         )
         assert response.status_code == 200
-        assert response.json()["total_entries"] == 7
+        assert response.json()["total_entries"] == 9
 
     def test_ordered_by_deadline_time_ascending_by_default(self, test_client):
         """Deadlines are ordered by deadline_time ascending by default."""
@@ -446,10 +457,6 @@ class TestGetDeadlines:
         response = test_client.get(f"/dags/~/dagRuns/{RUN_SINGLE}/deadlines")
         assert response.status_code == 400
 
-    # ------------------------------------------------------------------
-    # 401 / 403
-    # ------------------------------------------------------------------
-
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags/~/dagRuns/~/deadlines")
         assert response.status_code == 401
@@ -461,10 +468,6 @@ class TestGetDeadlines:
 
 class TestGetDagDeadlineAlerts:
     """Tests for GET /dags/{dag_id}/deadlineAlerts."""
-
-    # ------------------------------------------------------------------
-    # 200 – happy paths
-    # ------------------------------------------------------------------
 
     def test_returns_deadline_alerts_for_dag(self, test_client):
         """Returns all deadline alerts defined on the DAG."""
@@ -497,17 +500,9 @@ class TestGetDagDeadlineAlerts:
         assert response.status_code == 200
         assert response.json() == {"deadline_alerts": [], "total_entries": 0}
 
-    # ------------------------------------------------------------------
-    # 404
-    # ------------------------------------------------------------------
-
     def test_should_response_404_for_nonexistent_dag(self, test_client):
         response = test_client.get("/dags/nonexistent_dag/deadlineAlerts")
         assert response.status_code == 404
-
-    # ------------------------------------------------------------------
-    # 401 / 403
-    # ------------------------------------------------------------------
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")

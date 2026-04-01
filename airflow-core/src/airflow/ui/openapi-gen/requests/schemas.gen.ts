@@ -7911,7 +7911,8 @@ export const $DeadlineAlertResponse = {
         },
         interval: {
             type: 'number',
-            title: 'Interval'
+            title: 'Interval',
+            description: 'Interval in seconds between deadline evaluations.'
         },
         created_at: {
             type: 'string',
@@ -7925,11 +7926,11 @@ export const $DeadlineAlertResponse = {
     description: 'DeadlineAlert serializer for responses.'
 } as const;
 
-export const $DeadlineWithDagRunCollectionResponse = {
+export const $DeadlineCollectionResponse = {
     properties: {
         deadlines: {
             items: {
-                '$ref': '#/components/schemas/DeadlineWithDagRunResponse'
+                '$ref': '#/components/schemas/DeadlineResponse'
             },
             type: 'array',
             title: 'Deadlines'
@@ -7941,11 +7942,11 @@ export const $DeadlineWithDagRunCollectionResponse = {
     },
     type: 'object',
     required: ['deadlines', 'total_entries'],
-    title: 'DeadlineWithDagRunCollectionResponse',
-    description: 'Deadline Collection serializer for responses that includes DAG and DAG run identifiers.'
+    title: 'DeadlineCollectionResponse',
+    description: 'Deadline Collection serializer for responses.'
 } as const;
 
-export const $DeadlineWithDagRunResponse = {
+export const $DeadlineResponse = {
     properties: {
         id: {
             type: 'string',
@@ -7999,8 +8000,8 @@ export const $DeadlineWithDagRunResponse = {
     },
     type: 'object',
     required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id'],
-    title: 'DeadlineWithDagRunResponse',
-    description: 'Deadline serializer for responses that includes DAG and DAG run identifiers.'
+    title: 'DeadlineResponse',
+    description: 'Deadline serializer for responses.'
 } as const;
 
 export const $EdgeResponse = {

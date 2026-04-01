@@ -21,33 +21,13 @@ from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import AliasPath, Field, model_validator
+from pydantic import AliasPath, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class DeadlineResponse(BaseModel):
     """Deadline serializer for responses."""
-
-    id: UUID
-    deadline_time: datetime
-    missed: bool
-    created_at: datetime
-    alert_name: str | None = Field(validation_alias=AliasPath("deadline_alert", "name"), default=None)
-    alert_description: str | None = Field(
-        validation_alias=AliasPath("deadline_alert", "description"), default=None
-    )
-
-
-class DeadlineCollectionResponse(BaseModel):
-    """Deadline Collection serializer for responses."""
-
-    deadlines: Iterable[DeadlineResponse]
-    total_entries: int
-
-
-class DeadlineWithDagRunResponse(BaseModel):
-    """Deadline serializer for responses that includes DAG and DAG run identifiers."""
 
     id: UUID
     deadline_time: datetime
@@ -61,10 +41,10 @@ class DeadlineWithDagRunResponse(BaseModel):
     )
 
 
-class DeadlineWithDagRunCollectionResponse(BaseModel):
-    """Deadline Collection serializer for responses that includes DAG and DAG run identifiers."""
+class DeadlineCollectionResponse(BaseModel):
+    """Deadline Collection serializer for responses."""
 
-    deadlines: Iterable[DeadlineWithDagRunResponse]
+    deadlines: Iterable[DeadlineResponse]
     total_entries: int
 
 
@@ -74,24 +54,9 @@ class DeadlineAlertResponse(BaseModel):
     id: UUID
     name: str | None = None
     description: str | None = None
-    reference_type: str
-    interval: float
+    reference_type: str = Field(validation_alias=AliasPath("reference", "reference_type"))
+    interval: float = Field(description="Interval in seconds between deadline evaluations.")
     created_at: datetime
-
-    @model_validator(mode="before")
-    @classmethod
-    def extract_reference_type(cls, data):
-        """Extract reference_type from the JSON reference column when validating from an ORM object."""
-        if not isinstance(data, dict) and hasattr(data, "reference"):
-            return {
-                "id": data.id,
-                "name": data.name,
-                "description": data.description,
-                "reference_type": data.reference.get("reference_type", "") if data.reference else "",
-                "interval": data.interval,
-                "created_at": data.created_at,
-            }
-        return data
 
 
 class DeadlineAlertCollectionResponse(BaseModel):

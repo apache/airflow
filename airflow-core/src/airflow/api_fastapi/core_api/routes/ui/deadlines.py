@@ -37,7 +37,7 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.deadline import (
     DeadlineAlertCollectionResponse,
-    DeadlineWithDagRunCollectionResponse,
+    DeadlineCollectionResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep, requires_access_dag
@@ -92,7 +92,7 @@ def get_deadlines(
     last_updated_at: Annotated[
         RangeFilter, Depends(datetime_range_filter_factory("last_updated_at", Deadline))
     ],
-) -> DeadlineWithDagRunCollectionResponse:
+) -> DeadlineCollectionResponse:
     """
     Get deadlines for a DAG run.
 
@@ -139,7 +139,7 @@ def get_deadlines(
                 f"DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
             )
 
-    return DeadlineWithDagRunCollectionResponse(deadlines=deadlines, total_entries=total_entries)
+    return DeadlineCollectionResponse(deadlines=deadlines, total_entries=total_entries)
 
 
 @deadlines_router.get(

@@ -1937,22 +1937,25 @@ export type DeadlineAlertResponse = {
     name?: string | null;
     description?: string | null;
     reference_type: string;
+    /**
+     * Interval in seconds between deadline evaluations.
+     */
     interval: number;
     created_at: string;
 };
 
 /**
- * Deadline Collection serializer for responses that includes DAG and DAG run identifiers.
+ * Deadline Collection serializer for responses.
  */
-export type DeadlineWithDagRunCollectionResponse = {
-    deadlines: Array<DeadlineWithDagRunResponse>;
+export type DeadlineCollectionResponse = {
+    deadlines: Array<DeadlineResponse>;
     total_entries: number;
 };
 
 /**
- * Deadline serializer for responses that includes DAG and DAG run identifiers.
+ * Deadline serializer for responses.
  */
-export type DeadlineWithDagRunResponse = {
+export type DeadlineResponse = {
     id: string;
     deadline_time: string;
     missed: boolean;
@@ -3571,6 +3574,20 @@ export type GenerateTokenData = {
 
 export type GenerateTokenResponse2 = GenerateTokenResponse;
 
+export type GetPartitionedDagRunsData = {
+    dagId?: string | null;
+    hasCreatedDagRunId?: boolean | null;
+};
+
+export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
+
+export type GetPendingPartitionedDagRunData = {
+    dagId: string;
+    partitionKey: string;
+};
+
+export type GetPendingPartitionedDagRunResponse = PartitionedDagRunDetailResponse;
+
 export type GetDependenciesData = {
     dependencyType?: 'scheduling' | 'data';
     nodeId?: string | null;
@@ -3607,7 +3624,7 @@ export type GetDeadlinesData = {
     orderBy?: Array<(string)>;
 };
 
-export type GetDeadlinesResponse = DeadlineWithDagRunCollectionResponse;
+export type GetDeadlinesResponse = DeadlineCollectionResponse;
 
 export type GetDagDeadlineAlertsData = {
     dagId: string;
@@ -3709,20 +3726,6 @@ export type GetCalendarData = {
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
-
-export type GetPartitionedDagRunsData = {
-    dagId?: string | null;
-    hasCreatedDagRunId?: boolean | null;
-};
-
-export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
-
-export type GetPendingPartitionedDagRunData = {
-    dagId: string;
-    partitionKey: string;
-};
-
-export type GetPendingPartitionedDagRunResponse = PartitionedDagRunDetailResponse;
 
 export type ListTeamsData = {
     limit?: number;
@@ -6816,6 +6819,36 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/partitioned_dag_runs': {
+        get: {
+            req: GetPartitionedDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: PartitionedDagRunCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
+        get: {
+            req: GetPendingPartitionedDagRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: PartitionedDagRunDetailResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/ui/dependencies': {
         get: {
             req: GetDependenciesData;
@@ -6871,7 +6904,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: DeadlineWithDagRunCollectionResponse;
+                200: DeadlineCollectionResponse;
                 /**
                  * Bad Request
                  */
@@ -7021,36 +7054,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/ui/partitioned_dag_runs': {
-        get: {
-            req: GetPartitionedDagRunsData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: PartitionedDagRunCollectionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
-        get: {
-            req: GetPendingPartitionedDagRunData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: PartitionedDagRunDetailResponse;
                 /**
                  * Validation Error
                  */

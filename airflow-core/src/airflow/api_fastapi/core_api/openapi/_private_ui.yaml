@@ -100,6 +100,82 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/partitioned_dag_runs:
+    get:
+      tags:
+      - PartitionedDagRun
+      summary: Get Partitioned Dag Runs
+      description: Return PartitionedDagRuns. Filter by dag_id and/or has_created_dag_run_id.
+      operationId: get_partitioned_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+      - name: has_created_dag_run_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Has Created Dag Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartitionedDagRunCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/pending_partitioned_dag_run/{dag_id}/{partition_key}:
+    get:
+      tags:
+      - PartitionedDagRun
+      summary: Get Pending Partitioned Dag Run
+      description: Return full details for pending PartitionedDagRun.
+      operationId: get_pending_partitioned_dag_run
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: partition_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Partition Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartitionedDagRunDetailResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/config:
     get:
       tags:
@@ -654,7 +730,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeadlineWithDagRunCollectionResponse'
+                $ref: '#/components/schemas/DeadlineCollectionResponse'
         '400':
           content:
             application/json:
@@ -1428,82 +1504,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CalendarTimeRangeCollectionResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /ui/partitioned_dag_runs:
-    get:
-      tags:
-      - PartitionedDagRun
-      summary: Get Partitioned Dag Runs
-      description: Return PartitionedDagRuns. Filter by dag_id and/or has_created_dag_run_id.
-      operationId: get_partitioned_dag_runs
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
-      - name: has_created_dag_run_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Has Created Dag Run Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PartitionedDagRunCollectionResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /ui/pending_partitioned_dag_run/{dag_id}/{partition_key}:
-    get:
-      tags:
-      - PartitionedDagRun
-      summary: Get Pending Partitioned Dag Run
-      description: Return full details for pending PartitionedDagRun.
-      operationId: get_pending_partitioned_dag_run
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: partition_key
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Partition Key
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PartitionedDagRunDetailResponse'
         '422':
           description: Validation Error
           content:
@@ -2319,6 +2319,7 @@ components:
         interval:
           type: number
           title: Interval
+          description: Interval in seconds between deadline evaluations.
         created_at:
           type: string
           format: date-time
@@ -2331,11 +2332,11 @@ components:
       - created_at
       title: DeadlineAlertResponse
       description: DeadlineAlert serializer for responses.
-    DeadlineWithDagRunCollectionResponse:
+    DeadlineCollectionResponse:
       properties:
         deadlines:
           items:
-            $ref: '#/components/schemas/DeadlineWithDagRunResponse'
+            $ref: '#/components/schemas/DeadlineResponse'
           type: array
           title: Deadlines
         total_entries:
@@ -2345,10 +2346,9 @@ components:
       required:
       - deadlines
       - total_entries
-      title: DeadlineWithDagRunCollectionResponse
-      description: Deadline Collection serializer for responses that includes DAG
-        and DAG run identifiers.
-    DeadlineWithDagRunResponse:
+      title: DeadlineCollectionResponse
+      description: Deadline Collection serializer for responses.
+    DeadlineResponse:
       properties:
         id:
           type: string
@@ -2389,9 +2389,8 @@ components:
       - created_at
       - dag_id
       - dag_run_id
-      title: DeadlineWithDagRunResponse
-      description: Deadline serializer for responses that includes DAG and DAG run
-        identifiers.
+      title: DeadlineResponse
+      description: Deadline serializer for responses.
     EdgeResponse:
       properties:
         source_id:
