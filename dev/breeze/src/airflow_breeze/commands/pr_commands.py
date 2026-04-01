@@ -1904,10 +1904,18 @@ def _compute_author_scoring(
 def _fetch_author_profile(token: str, login: str, github_repository: str) -> dict:
     """Fetch author profile info via GraphQL: account age, PR counts, contributed repos.
 
-    Results are cached per login so the same author is only queried once.
+    Results are cached in memory (per session) and on disk (across sessions, 7-day TTL).
     """
     if login in _author_profile_cache:
         return _author_profile_cache[login]
+
+    # Try disk cache before hitting the API
+    from airflow_breeze.utils.pr_cache import get_cached_author_profile
+
+    disk_profile = get_cached_author_profile(github_repository, login)
+    if disk_profile:
+        _author_profile_cache[login] = disk_profile
+        return disk_profile
 
     repo_prefix = f"repo:{github_repository} type:pr author:{login}"
     global_prefix = f"type:pr author:{login}"
@@ -1990,6 +1998,12 @@ def _fetch_author_profile(token: str, login: str, github_repository: str) -> dic
         ),
     }
     _author_profile_cache[login] = profile
+
+    # Persist to disk for reuse across sessions
+    from airflow_breeze.utils.pr_cache import save_author_profile
+
+    save_author_profile(github_repository, login, profile)
+
     return profile
 
 

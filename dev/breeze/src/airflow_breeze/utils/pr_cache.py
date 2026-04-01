@@ -77,6 +77,7 @@ classification_cache = CacheStore("classification_cache")
 triage_cache = CacheStore("triage_cache")
 status_cache = CacheStore("status_cache", ttl_seconds=4 * 3600)
 stats_interaction_cache = CacheStore("stats_interaction_cache")
+author_cache = CacheStore("author_cache", ttl_seconds=7 * 24 * 3600)
 
 
 # Convenience functions for common cache operations
@@ -140,6 +141,16 @@ def get_cached_status(github_repository: str, cache_key: str) -> Any:
 
 def save_status_cache(github_repository: str, cache_key: str, payload: dict | list) -> None:
     status_cache.save(github_repository, cache_key, {"payload": payload})
+
+
+def get_cached_author_profile(github_repository: str, login: str) -> dict | None:
+    """Load a cached author profile. Returns None if missing or expired (7-day TTL)."""
+    return author_cache.get(github_repository, f"author_{login}")
+
+
+def save_author_profile(github_repository: str, login: str, profile: dict) -> None:
+    """Persist an author profile to disk."""
+    author_cache.save(github_repository, f"author_{login}", profile)
 
 
 # PR-keyed caches that store head_sha and should be validated on startup
