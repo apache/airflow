@@ -155,7 +155,7 @@ class TestAssessPrUiDemo:
 
 
 class TestComputeDefaultActionSoftViolations:
-    """Test that soft-only violations (e.g. missing UI demo) suggest comment, not draft."""
+    """Test default action for PRs with UI demo violations."""
 
     @staticmethod
     def _make_pr(**overrides) -> PRData:
@@ -198,13 +198,13 @@ class TestComputeDefaultActionSoftViolations:
             summary=summary,
         )
 
-    def test_soft_violation_only_suggests_comment(self):
-        """A PR with only a soft violation (no CI failures, conflicts, or comments) gets COMMENT."""
+    def test_soft_violation_only_suggests_draft(self):
+        """A PR with only a soft violation (no CI failures, conflicts, or comments) gets DRAFT."""
         pr = self._make_pr()
         assessment = self._make_assessment("PR #123 changes UI code but has no screenshots or demo.")
         action, reason = _compute_default_action(pr, assessment, author_flagged_count={})
-        assert action == TriageAction.COMMENT
-        assert "comment" in reason
+        assert action == TriageAction.DRAFT
+        assert "draft" in reason
 
     def test_soft_violation_with_ci_failures_suggests_draft(self):
         """A PR with a soft violation AND multiple CI failures gets DRAFT (hard issue takes priority)."""

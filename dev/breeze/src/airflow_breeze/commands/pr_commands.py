@@ -2239,9 +2239,6 @@ def _compute_default_action(
     elif not has_ci_failures and not has_conflicts and has_unresolved_comments:
         # CI passes, no conflicts, no LLM issues — only unresolved review comments; just add a comment
         action = TriageAction.COMMENT
-    elif not has_ci_failures and not has_conflicts and not has_unresolved_comments:
-        # Only soft violations (e.g. missing UI demo) — just comment, don't convert to draft
-        action = TriageAction.COMMENT
     else:
         action = TriageAction.DRAFT
 
