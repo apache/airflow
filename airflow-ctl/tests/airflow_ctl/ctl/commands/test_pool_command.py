@@ -174,7 +174,6 @@ class TestPoolExportCommand:
 
         # Verify output message
         captured = capsys.readouterr()
-        expected_output = f"Exported {len(exported_data)} pool(s) to {export_file}"
         out_str = captured.out.replace("\n", "")
         # The output contains rich ANSI codes, so we check for key substrings instead
         assert "Exported" in out_str

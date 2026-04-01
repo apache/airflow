@@ -931,21 +931,19 @@ class PluginsOperations(BaseOperations):
             raise e
 
 
+
 class TaskInstanceOperations(BaseOperations):
     """Task instance operations."""
 
     def get(self, dag_id: str, dag_run_id: str, task_id: str) -> Any:
         """Get a task instance."""
-        try:
-            self.response = self.client.get(f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}")
-            data = self.response.json()
-            if isinstance(data, list):
-                return [TaskInstanceResponse.model_validate(item) for item in data]
-            if "task_instances" in data:
-                return TaskInstanceCollectionResponse.model_validate(data)
-            return TaskInstanceResponse.model_validate(data)
-        except ServerResponseError as e:
-            raise e
+        self.response = self.client.get(f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}")
+        data = self.response.json()
+        if isinstance(data, list):
+            return [TaskInstanceResponse.model_validate(item) for item in data]
+        if "task_instances" in data:
+            return TaskInstanceCollectionResponse.model_validate(data)
+        return TaskInstanceResponse.model_validate(data)
 
     def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
         """List task instances."""
@@ -958,29 +956,21 @@ class TaskInstanceOperations(BaseOperations):
         self, dag_id: str, body: ClearTaskInstancesBody
     ) -> TaskInstanceCollectionResponse | ServerResponseError:
         """Clear task instances."""
-        try:
-            self.response = self.client.post(
-                f"dags/{dag_id}/clearTaskInstances",
-                json=body.model_dump(mode="json", exclude_unset=True),
-            )
-            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
-        except ServerResponseError as e:
-            raise e
+        self.response = self.client.post(
+            f"dags/{dag_id}/clearTaskInstances",
+            json=body.model_dump(mode="json", exclude_unset=True),
+        )
+        return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
 
-    def update(
-        self, dag_id: str, dag_run_id: str, task_id: str, body: PatchTaskInstanceBody
-    ) -> Any:
+    def update(self, dag_id: str, dag_run_id: str, task_id: str, body: PatchTaskInstanceBody) -> Any:
         """Update a task instance."""
-        try:
-            self.response = self.client.patch(
-                f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
-                json=body.model_dump(mode="json", exclude_unset=True),
-            )
-            data = self.response.json()
-            if isinstance(data, list):
-                return [TaskInstanceResponse.model_validate(item) for item in data]
-            if "task_instances" in data:
-                return TaskInstanceCollectionResponse.model_validate(data)
-            return TaskInstanceResponse.model_validate(data)
-        except ServerResponseError as e:
-            raise e
+        self.response = self.client.patch(
+            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+            json=body.model_dump(mode="json", exclude_unset=True),
+        )
+        data = self.response.json()
+        if isinstance(data, list):
+            return [TaskInstanceResponse.model_validate(item) for item in data]
+        if "task_instances" in data:
+            return TaskInstanceCollectionResponse.model_validate(data)
+        return TaskInstanceResponse.model_validate(data)
