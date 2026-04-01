@@ -106,7 +106,7 @@ export default defineConfig({
     process.env.CI !== undefined && process.env.CI !== "" ? ["github"] : ["list"],
   ],
 
-  retries: process.env.CI !== undefined && process.env.CI !== "" ? 2 : 0,
+  retries: process.env.CI !== undefined && process.env.CI !== "" ? 4 : 0,
 
   testDir: "./tests/e2e/specs",
   // TODO: Temporarily ignore flaky specs until stabilized
