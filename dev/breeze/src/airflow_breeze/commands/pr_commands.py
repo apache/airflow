@@ -4036,8 +4036,8 @@ def _run_tui_triage(
         ("sort", "Sort entries"),
         ("fill_pages", "Fill initial pages"),
         ("init_tui", "Initialize TUI"),
-        ("fetch_diff", "Fetch first diff"),
-        ("prefetch", "Prefetch diffs"),
+        ("fetch_diffs", "Fetch diffs"),
+        ("build_overlaps", "Build overlaps"),
     ]
     _tui_tasks: dict[str, TaskID] = {}
     for key, desc in _tui_steps:
@@ -4086,6 +4086,10 @@ def _run_tui_triage(
             # LLM candidates — show as passing with "waiting for LLM" status
             cat = PRCategory.PASSING
         entry = PRListEntry(pr, cat)
+        # Populate cross-references from PR body
+        from airflow_breeze.utils.pr_context import extract_cross_references
+
+        entry.cross_refs = extract_cross_references(pr.body, exclude_number=pr.number) or None
         # Restore cached action for already-triaged PRs
         if cat == PRCategory.ALREADY_TRIAGED and viewer_login and pr.head_sha:
             _cached_cls, cached_act = _get_cached_classification(
@@ -4509,8 +4513,13 @@ def _run_tui_triage(
             _fetch_pr_diff, ctx.token, ctx.github_repository, pr_number
         )
 
+    # File paths index: PR number -> file paths (built from diffs as they arrive)
+    _pr_file_paths: dict[int, list[str]] = {}
+
     def _collect_diff_results(tui_ref: TriageTUI) -> None:
         """Move completed diff futures into the cache and update the TUI if relevant."""
+        from airflow_breeze.utils.pr_context import extract_file_paths_from_diff, find_overlapping_prs
+
         done = [num for num, fut in diff_pending.items() if fut.done()]
         for num in done:
             fut = diff_pending.pop(num)
@@ -4520,6 +4529,23 @@ def _run_tui_triage(
                 result = None
             if result:
                 diff_cache[num] = result
+                # Extract file paths and store for overlap detection
+                paths = extract_file_paths_from_diff(result)
+                if paths:
+                    _pr_file_paths[num] = paths
+                    entry_map = {e.pr.number: e for e in tui_ref.entries}
+                    if num in entry_map:
+                        entry_map[num].file_paths = paths
+                    # Recalculate overlaps for this PR and all PRs that share files with it
+                    affected = {num} | {
+                        pr_num
+                        for pr_num, pr_paths in _pr_file_paths.items()
+                        if pr_num != num and set(paths) & set(pr_paths)
+                    }
+                    for pr_num in affected:
+                        if pr_num in entry_map and pr_num in _pr_file_paths:
+                            overlaps = find_overlapping_prs(_pr_file_paths[pr_num], pr_num, _pr_file_paths)
+                            entry_map[pr_num].overlapping_prs = overlaps or None
             else:
                 # Look up the PR URL for the error message
                 pr_entry = pr_map.get(num)
@@ -4539,27 +4565,59 @@ def _run_tui_triage(
 
     _tui_step_done("init_tui", "ready")
 
-    # Prefetch diff for first PR (blocking, since user sees it immediately)
+    # Fetch all diffs (blocking) so overlaps are ready before the TUI opens
     if entries:
-        first_pr = entries[0].pr
-        _tui_step_start("fetch_diff", f"PR #{first_pr.number}")
-        diff_text = _fetch_pr_diff(ctx.token, ctx.github_repository, first_pr.number)
-        if diff_text:
-            diff_cache[first_pr.number] = diff_text
-            tui.set_diff(first_pr.number, diff_text)
-        else:
-            fallback = f"Could not fetch diff. Review at: {first_pr.url}/files"
-            diff_cache[first_pr.number] = fallback
-            tui.set_diff(first_pr.number, fallback)
-        _tui_step_done("fetch_diff", "loaded")
-        # Prefetch diffs for next few PRs in background
-        _tui_step_start("prefetch")
-        for prefetch_entry in entries[1:4]:
-            _submit_diff_fetch(prefetch_entry.pr.number, prefetch_entry.pr.url)
-        _tui_step_done("prefetch", f"{min(3, len(entries) - 1)} queued")
+        from airflow_breeze.utils.pr_context import extract_file_paths_from_diff, find_overlapping_prs
+
+        _tui_step_start("fetch_diffs", f"0/{len(entries)}")
+        for e in entries:
+            _submit_diff_fetch(e.pr.number, e.pr.url)
+        fetched = 0
+        while diff_pending:
+            done = [num for num, fut in diff_pending.items() if fut.done()]
+            for num in done:
+                fut = diff_pending.pop(num)
+                try:
+                    result = fut.result()
+                except Exception:
+                    result = None
+                if result:
+                    diff_cache[num] = result
+                    paths = extract_file_paths_from_diff(result)
+                    if paths:
+                        _pr_file_paths[num] = paths
+                        entry_map = {e.pr.number: e for e in entries}
+                        if num in entry_map:
+                            entry_map[num].file_paths = paths
+                else:
+                    pr_entry = pr_map.get(num)
+                    fallback_url = pr_entry.url if pr_entry else ""
+                    diff_cache[num] = f"Could not fetch diff. Review at: {fallback_url}/files"
+                fetched += 1
+                _tui_step_start("fetch_diffs", f"{fetched}/{len(entries)}")
+            if diff_pending:
+                import time as _time_mod
+
+                _time_mod.sleep(0.1)
+        # Set diff for first PR in TUI
+        if entries[0].pr.number in diff_cache:
+            tui.set_diff(entries[0].pr.number, diff_cache[entries[0].pr.number])
+        _tui_step_done("fetch_diffs", f"{fetched} loaded")
+
+        # Build overlaps now that all file paths are known
+        _tui_step_start("build_overlaps")
+        entry_map = {e.pr.number: e for e in entries}
+        overlap_count = 0
+        for pr_num, paths in _pr_file_paths.items():
+            if pr_num in entry_map:
+                overlaps = find_overlapping_prs(paths, pr_num, _pr_file_paths)
+                entry_map[pr_num].overlapping_prs = overlaps or None
+                if overlaps:
+                    overlap_count += 1
+        _tui_step_done("build_overlaps", f"{overlap_count} PRs with overlaps")
     else:
-        _tui_step_done("fetch_diff", "no PRs")
-        _tui_step_done("prefetch", "skipped")
+        _tui_step_done("fetch_diffs", "no PRs")
+        _tui_step_done("build_overlaps", "skipped")
 
     _tui_progress.stop()
 
