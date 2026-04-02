@@ -1417,6 +1417,18 @@ class TestDagRunOperations:
         response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
         assert response == self.dag_run_response
 
+    def test_get_accepts_operator_triggered_run_type(self):
+        """Servers on Airflow 3.3+ report runs created by TriggerDagRunOperator as ``operator_triggered``."""
+        payload = json.loads(self.dag_run_response.model_dump_json())
+        payload["run_type"] = "operator_triggered"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+        assert response.run_type == DagRunType.OPERATOR_TRIGGERED
+
     @pytest.mark.parametrize("suppress_error_log", [False, True])
     def test_get_passes_error_log_suppression_extension(self, suppress_error_log):
         def handle_request(request: httpx.Request) -> httpx.Response:
