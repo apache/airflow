@@ -257,7 +257,7 @@ def get_asset_triggered_next_run_info(
     """
     Get next run info for a list of dag_ids.
 
-    Given a list of dag_ids, get string representing how close any that are asset triggered are
+    Given a list of dag_ids, get string representing how close any that are asset triggered are to
     their next run, e.g. "1 of 2 assets updated".
     """
     from airflow.models.asset import AssetDagRunQueue as ADRQ, DagScheduleAssetReference
