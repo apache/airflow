@@ -1062,8 +1062,12 @@ workers:
   # (deprecated, use workers.celery.nodeSelector or/and workers.kubernetes.nodeSelector instead)
   nodeSelector: {}
 
+  # (deprecated, use workers.celery.runtimeClassName and/or workers.kubernetes.runtimeClassName instead)
   runtimeClassName: ~
+
+  # (deprecated, use workers.celery.priorityClassName and/or workers.kubernetes.priorityClassName instead)
   priorityClassName: ~
+
   affinity: {}
   # Default Airflow Celery worker affinity is:
   #  podAntiAffinity:
@@ -1392,6 +1396,10 @@ workers:
     # Select certain nodes for Airflow Celery worker pods
     nodeSelector: {}
 
+    runtimeClassName: ~
+
+    priorityClassName: ~
+
     # hostAliases to use in Airflow Celery worker pods
     # See:
     # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -1475,6 +1483,10 @@ workers:
 
     # Select certain nodes for pods created with pod-template-file
     nodeSelector: {}
+
+    runtimeClassName: ~
+
+    priorityClassName: ~
 
     # hostAliases to use in pods created with pod-template-file
     # See:
@@ -3533,10 +3545,10 @@ databaseCleanup:
   # Run every week on Sunday at midnight (templated).
   schedule: "0 0 * * 0"
   # Command to use when running the database cleanup cronjob (templated).
-  command:
-    - "bash"
+  command: ~
   # Args to use when running the database cleanup cronjob (templated).
   args:
+    - "bash"
     - "-c"
     - >-
       CLEAN_TS=$(date -d "-{{ .Values.databaseCleanup.retentionDays }} days" +"%Y-%m-%dT%H:%M:%S");

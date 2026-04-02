@@ -2375,6 +2375,16 @@ paths:
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
           \ are **not** supported."
+      - name: consuming_asset_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by consuming asset name or URI using pattern matching
+          title: Consuming Asset Pattern
+        description: Filter by consuming asset name or URI using pattern matching
       responses:
         '200':
           description: Successful Response

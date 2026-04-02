@@ -1770,6 +1770,76 @@ def _fetch_single_pr_graphql(token: str, github_repository: str, pr_number: int)
 _author_profile_cache: dict[str, dict] = {}
 
 
+def _compute_author_scoring(
+    repo_total: int,
+    repo_merged: int,
+    repo_closed: int,
+    global_total: int,
+    global_merged: int,
+    global_closed: int,
+    created_at: str,
+    contributed_repos_total: int,
+) -> dict:
+    """Derive scoring fields from raw PR counts.
+
+    Returns a dict with merge rates, contributor tier, and risk level
+    that gets merged into the author profile.
+    """
+    from datetime import datetime, timezone
+
+    repo_merge_rate = repo_merged / repo_total if repo_total > 0 else 0.0
+    global_merge_rate = global_merged / global_total if global_total > 0 else 0.0
+
+    # Account age in days
+    account_age_days = 0
+    if created_at and created_at != "unknown":
+        try:
+            created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            account_age_days = (datetime.now(timezone.utc) - created_dt).days
+        except (ValueError, TypeError):
+            pass
+
+    # Contributor tier based on repo history
+    if repo_merged >= 10:
+        tier = "established"
+    elif repo_merged >= 3:
+        tier = "regular"
+    elif repo_merged >= 1:
+        tier = "occasional"
+    elif repo_total > 0:
+        tier = "attempted"
+    else:
+        tier = "new"
+
+    # Risk level for triage prioritization
+    risk_signals = 0
+    if account_age_days < 30:
+        risk_signals += 2
+    elif account_age_days < 90:
+        risk_signals += 1
+    if repo_total > 0 and repo_merge_rate < 0.3:
+        risk_signals += 2
+    if repo_total == 0 and global_total > 5 and global_merge_rate < 0.2:
+        risk_signals += 1
+    if contributed_repos_total == 0:
+        risk_signals += 1
+
+    if risk_signals >= 3:
+        risk = "high"
+    elif risk_signals >= 1:
+        risk = "medium"
+    else:
+        risk = "low"
+
+    return {
+        "repo_merge_rate": round(repo_merge_rate, 2),
+        "global_merge_rate": round(global_merge_rate, 2),
+        "account_age_days": account_age_days,
+        "contributor_tier": tier,
+        "risk_level": risk,
+    }
+
+
 def _fetch_author_profile(token: str, login: str, github_repository: str) -> dict:
     """Fetch author profile info via GraphQL: account age, PR counts, contributed repos.
 
@@ -1828,18 +1898,35 @@ def _fetch_author_profile(token: str, login: str, github_repository: str) -> dic
                 }
             )
 
+    repo_total = data.get("repoAll", {}).get("issueCount", 0)
+    repo_merged = data.get("repoMerged", {}).get("issueCount", 0)
+    repo_closed = data.get("repoClosed", {}).get("issueCount", 0)
+    global_total = data.get("globalAll", {}).get("issueCount", 0)
+    global_merged = data.get("globalMerged", {}).get("issueCount", 0)
+    global_closed = data.get("globalClosed", {}).get("issueCount", 0)
+
     profile = {
         "login": login,
         "account_age": account_age,
         "created_at": created_at,
-        "repo_total_prs": data.get("repoAll", {}).get("issueCount", 0),
-        "repo_merged_prs": data.get("repoMerged", {}).get("issueCount", 0),
-        "repo_closed_prs": data.get("repoClosed", {}).get("issueCount", 0),
-        "global_total_prs": data.get("globalAll", {}).get("issueCount", 0),
-        "global_merged_prs": data.get("globalMerged", {}).get("issueCount", 0),
-        "global_closed_prs": data.get("globalClosed", {}).get("issueCount", 0),
+        "repo_total_prs": repo_total,
+        "repo_merged_prs": repo_merged,
+        "repo_closed_prs": repo_closed,
+        "global_total_prs": global_total,
+        "global_merged_prs": global_merged,
+        "global_closed_prs": global_closed,
         "contributed_repos": contributed_repos,
         "contributed_repos_total": contrib_total,
+        **_compute_author_scoring(
+            repo_total,
+            repo_merged,
+            repo_closed,
+            global_total,
+            global_merged,
+            global_closed,
+            created_at,
+            contrib_total,
+        ),
     }
     _author_profile_cache[login] = profile
     return profile
@@ -2348,6 +2435,37 @@ def _display_pr_info_panels(
             ),
         ]
 
+        # Scoring: merge rate, tier, risk
+        tier = author_profile.get("contributor_tier", "")
+        risk = author_profile.get("risk_level", "")
+        repo_rate = author_profile.get("repo_merge_rate", 0)
+        global_rate = author_profile.get("global_merge_rate", 0)
+
+        tier_colors = {
+            "established": "green",
+            "regular": "cyan",
+            "occasional": "yellow",
+            "attempted": "red",
+            "new": "red",
+        }
+        tier_color = tier_colors.get(tier, "dim")
+
+        risk_colors = {"low": "green", "medium": "yellow", "high": "red"}
+        risk_color = risk_colors.get(risk, "dim")
+
+        scoring_parts = []
+        if tier:
+            scoring_parts.append(f"Tier: [{tier_color}]{tier}[/]")
+        if repo_rate > 0:
+            rate_color = "green" if repo_rate >= 0.5 else "yellow" if repo_rate >= 0.3 else "red"
+            scoring_parts.append(
+                f"Merge rate: [{rate_color}]{repo_rate:.0%}[/] repo, {global_rate:.0%} global"
+            )
+        if risk:
+            scoring_parts.append(f"Risk: [{risk_color}]{risk}[/]")
+        if scoring_parts:
+            lines.append(" | ".join(scoring_parts))
+
         contributed_repos = author_profile.get("contributed_repos", [])
         contrib_total = author_profile.get("contributed_repos_total", 0)
         if contributed_repos:
@@ -2670,7 +2788,7 @@ def _llm_progress_status(completed: int, total: int, flagged: int, errors: int) 
 def _collect_llm_results(
     future_to_pr: dict,
     llm_assessments: dict,
-    llm_completed: list[int],
+    llm_completed: set,
     llm_errors: list[int],
     llm_passing: list,
     block: bool = False,
@@ -2692,7 +2810,7 @@ def _collect_llm_results(
 
     done_futures = [f for f in future_to_pr if f.done() and f not in llm_completed]
     for future in done_futures:
-        llm_completed.append(future)
+        llm_completed.add(future)
         pr = future_to_pr[future]
         try:
             assessment = future.result()
@@ -2777,7 +2895,7 @@ class TriageContext:
     # LLM background state
     llm_future_to_pr: dict
     llm_assessments: dict
-    llm_completed: list
+    llm_completed: set
     llm_errors: list[int]
     llm_passing: list
     # LLM durations: PR number → actual execution time in seconds
@@ -3918,8 +4036,8 @@ def _run_tui_triage(
         ("sort", "Sort entries"),
         ("fill_pages", "Fill initial pages"),
         ("init_tui", "Initialize TUI"),
-        ("fetch_diff", "Fetch first diff"),
-        ("prefetch", "Prefetch diffs"),
+        ("fetch_diffs", "Fetch diffs"),
+        ("build_overlaps", "Build overlaps"),
     ]
     _tui_tasks: dict[str, TaskID] = {}
     for key, desc in _tui_steps:
@@ -3968,6 +4086,10 @@ def _run_tui_triage(
             # LLM candidates — show as passing with "waiting for LLM" status
             cat = PRCategory.PASSING
         entry = PRListEntry(pr, cat)
+        # Populate cross-references from PR body
+        from airflow_breeze.utils.pr_context import extract_cross_references
+
+        entry.cross_refs = extract_cross_references(pr.body, exclude_number=pr.number) or None
         # Restore cached action for already-triaged PRs
         if cat == PRCategory.ALREADY_TRIAGED and viewer_login and pr.head_sha:
             _cached_cls, cached_act = _get_cached_classification(
@@ -4391,8 +4513,13 @@ def _run_tui_triage(
             _fetch_pr_diff, ctx.token, ctx.github_repository, pr_number
         )
 
+    # File paths index: PR number -> file paths (built from diffs as they arrive)
+    _pr_file_paths: dict[int, list[str]] = {}
+
     def _collect_diff_results(tui_ref: TriageTUI) -> None:
         """Move completed diff futures into the cache and update the TUI if relevant."""
+        from airflow_breeze.utils.pr_context import extract_file_paths_from_diff, find_overlapping_prs
+
         done = [num for num, fut in diff_pending.items() if fut.done()]
         for num in done:
             fut = diff_pending.pop(num)
@@ -4402,6 +4529,23 @@ def _run_tui_triage(
                 result = None
             if result:
                 diff_cache[num] = result
+                # Extract file paths and store for overlap detection
+                paths = extract_file_paths_from_diff(result)
+                if paths:
+                    _pr_file_paths[num] = paths
+                    entry_map = {e.pr.number: e for e in tui_ref.entries}
+                    if num in entry_map:
+                        entry_map[num].file_paths = paths
+                    # Recalculate overlaps for this PR and all PRs that share files with it
+                    affected = {num} | {
+                        pr_num
+                        for pr_num, pr_paths in _pr_file_paths.items()
+                        if pr_num != num and set(paths) & set(pr_paths)
+                    }
+                    for pr_num in affected:
+                        if pr_num in entry_map and pr_num in _pr_file_paths:
+                            overlaps = find_overlapping_prs(_pr_file_paths[pr_num], pr_num, _pr_file_paths)
+                            entry_map[pr_num].overlapping_prs = overlaps or None
             else:
                 # Look up the PR URL for the error message
                 pr_entry = pr_map.get(num)
@@ -4421,27 +4565,59 @@ def _run_tui_triage(
 
     _tui_step_done("init_tui", "ready")
 
-    # Prefetch diff for first PR (blocking, since user sees it immediately)
+    # Fetch all diffs (blocking) so overlaps are ready before the TUI opens
     if entries:
-        first_pr = entries[0].pr
-        _tui_step_start("fetch_diff", f"PR #{first_pr.number}")
-        diff_text = _fetch_pr_diff(ctx.token, ctx.github_repository, first_pr.number)
-        if diff_text:
-            diff_cache[first_pr.number] = diff_text
-            tui.set_diff(first_pr.number, diff_text)
-        else:
-            fallback = f"Could not fetch diff. Review at: {first_pr.url}/files"
-            diff_cache[first_pr.number] = fallback
-            tui.set_diff(first_pr.number, fallback)
-        _tui_step_done("fetch_diff", "loaded")
-        # Prefetch diffs for next few PRs in background
-        _tui_step_start("prefetch")
-        for prefetch_entry in entries[1:4]:
-            _submit_diff_fetch(prefetch_entry.pr.number, prefetch_entry.pr.url)
-        _tui_step_done("prefetch", f"{min(3, len(entries) - 1)} queued")
+        from airflow_breeze.utils.pr_context import extract_file_paths_from_diff, find_overlapping_prs
+
+        _tui_step_start("fetch_diffs", f"0/{len(entries)}")
+        for e in entries:
+            _submit_diff_fetch(e.pr.number, e.pr.url)
+        fetched = 0
+        while diff_pending:
+            done = [num for num, fut in diff_pending.items() if fut.done()]
+            for num in done:
+                fut = diff_pending.pop(num)
+                try:
+                    result = fut.result()
+                except Exception:
+                    result = None
+                if result:
+                    diff_cache[num] = result
+                    paths = extract_file_paths_from_diff(result)
+                    if paths:
+                        _pr_file_paths[num] = paths
+                        entry_map = {e.pr.number: e for e in entries}
+                        if num in entry_map:
+                            entry_map[num].file_paths = paths
+                else:
+                    pr_entry = pr_map.get(num)
+                    fallback_url = pr_entry.url if pr_entry else ""
+                    diff_cache[num] = f"Could not fetch diff. Review at: {fallback_url}/files"
+                fetched += 1
+                _tui_step_start("fetch_diffs", f"{fetched}/{len(entries)}")
+            if diff_pending:
+                import time as _time_mod
+
+                _time_mod.sleep(0.1)
+        # Set diff for first PR in TUI
+        if entries[0].pr.number in diff_cache:
+            tui.set_diff(entries[0].pr.number, diff_cache[entries[0].pr.number])
+        _tui_step_done("fetch_diffs", f"{fetched} loaded")
+
+        # Build overlaps now that all file paths are known
+        _tui_step_start("build_overlaps")
+        entry_map = {e.pr.number: e for e in entries}
+        overlap_count = 0
+        for pr_num, paths in _pr_file_paths.items():
+            if pr_num in entry_map:
+                overlaps = find_overlapping_prs(paths, pr_num, _pr_file_paths)
+                entry_map[pr_num].overlapping_prs = overlaps or None
+                if overlaps:
+                    overlap_count += 1
+        _tui_step_done("build_overlaps", f"{overlap_count} PRs with overlaps")
     else:
-        _tui_step_done("fetch_diff", "no PRs")
-        _tui_step_done("prefetch", "skipped")
+        _tui_step_done("fetch_diffs", "no PRs")
+        _tui_step_done("build_overlaps", "skipped")
 
     _tui_progress.stop()
 
@@ -4489,8 +4665,8 @@ def _run_tui_triage(
         for entry in entries:
             if entry.llm_status in ("in_progress", "pending"):
                 n = entry.pr.number
-                fut = _llm_pr_to_future.get(n)
-                if fut is not None and not fut.done():
+                llm_fut = _llm_pr_to_future.get(n)
+                if llm_fut is not None and not llm_fut.done():
                     _undone_entries.append(entry)
                 elif n in _llm_completed_pr_nums and n not in _llm_result_pr_nums:
                     entry.llm_status = "error"
@@ -4586,7 +4762,7 @@ def _run_tui_triage(
             _apply_refresh_results()
             continue
 
-        # Auto-fetch diff when cursor moves to a different PR (non-blocking)
+        # Auto-fetch diff and author scoring when cursor moves to a different PR
         if tui.cursor_changed() and tui.needs_diff_fetch():
             current_entry = tui.get_selected_entry()
             if current_entry:
@@ -4594,6 +4770,22 @@ def _run_tui_triage(
                 # Prefetch a few PRs ahead of the cursor
                 for i in range(tui.cursor + 1, min(tui.cursor + 4, len(entries))):
                     _submit_diff_fetch(entries[i].pr.number, entries[i].pr.url)
+                # Populate author scoring for the detail panel
+                if current_entry.author_scoring is None:
+                    profile = _fetch_author_profile(
+                        ctx.token, current_entry.pr.author_login, ctx.github_repository
+                    )
+                    current_entry.author_scoring = {
+                        k: profile[k]
+                        for k in (
+                            "repo_merge_rate",
+                            "global_merge_rate",
+                            "account_age_days",
+                            "contributor_tier",
+                            "risk_level",
+                        )
+                        if k in profile
+                    }
 
         if action == TUIAction.QUIT:
             tui.disable_mouse()
@@ -4747,6 +4939,12 @@ def _run_tui_triage(
         if action == TUIAction.SKIP:
             # Already marked as skipped by the TUI
             ctx.stats.total_skipped_action += 1
+            continue
+
+        # Author info overlay
+        if action == TUIAction.ACTION_AUTHOR_INFO:
+            profile = _fetch_author_profile(ctx.token, pr.author_login, ctx.github_repository)
+            tui.render_author_overlay(profile)
             continue
 
         # Direct triage actions from TUI (without entering detailed review)
@@ -8762,7 +8960,7 @@ def _launch_llm_and_build_context(
     """Launch LLM executor for candidates and build a TriageContext."""
     llm_future_to_pr: dict = {}
     llm_assessments: dict[int, PRAssessment] = {}
-    llm_completed: list = []
+    llm_completed: set = set()
     llm_errors: list[int] = []
     llm_passing: list[PRData] = []
     llm_executor = None
@@ -10302,7 +10500,7 @@ def auto_triage(
                 main_failures=main_failures,
                 llm_future_to_pr={},
                 llm_assessments={},
-                llm_completed=[],
+                llm_completed=set(),
                 llm_errors=[],
                 llm_passing=[],
             )
