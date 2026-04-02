@@ -273,9 +273,10 @@ def generate_pages(
     and keeps the current one in the middle of the pager component. When in the last pages,
     the pages won't scroll and just keep moving until the last page. Pager also contains
     <first, previous, ..., next, last> pages.
-    This component takes into account custom parameters such as search, status, and tags
-    which could be added to the pages link in order to maintain the state between
-    client and server. It also allows to make a bookmark on a specific paging state.
+    This component takes into account custom parameters such as search, status, tags,
+    sorting_key, sorting_direction, and lastrun which could be added to the pages link
+    in order to maintain the state between client and server. It also allows to make
+    a bookmark on a specific paging state.
 
     :param current_page: the current page number, 0-indexed
     :param num_of_pages: the total number of pages
