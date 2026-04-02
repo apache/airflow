@@ -64,9 +64,14 @@ def _get_executor_process_title_prefix(team_name: str | None) -> str:
     return f"airflow worker -- LocalExecutor{team_suffix}:"
 
 
-def _safe_exception_for_ipc(e: Exception) -> tuple[str, str]:
-    """Return (exc_type, exc_message) safe to send over multiprocessing.Queue."""
-    return (type(e).__name__, str(e))
+def _safe_exception_for_ipc(e: Exception) -> Exception:
+    """
+    Wrap an exception in a pickle-safe Exception for IPC over multiprocessing.Queue.
+
+    Some exceptions (e.g. httpx.HTTPStatusError) are not picklable and will crash
+    the scheduler if sent raw.
+    """
+    return Exception(f"{type(e).__name__}: {e}")
 
 
 def _run_worker(

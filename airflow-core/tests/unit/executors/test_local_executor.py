@@ -237,7 +237,9 @@ class TestLocalExecutor:
             executor.end()
 
         assert executor.event_buffer[ti.key][0] == State.FAILED
-        assert executor.event_buffer[ti.key][1] == ("UnpicklableError", "non-picklable failure")
+        failure_info = executor.event_buffer[ti.key][1]
+        assert isinstance(failure_info, Exception)
+        assert "UnpicklableError" in str(failure_info)
 
     @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
