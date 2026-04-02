@@ -18,18 +18,18 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.mwaa import MwaaDagRunCompletedTrigger, MwaaTaskCompletedTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
@@ -51,6 +51,8 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         ``{airflow.utils.state.DagRunState.SUCCESS}`` (templated)
     :param failure_states: Collection of DAG Run states that would make this task marked as failed and raise an
         AirflowException, default is ``{airflow.utils.state.DagRunState.FAILED}`` (templated)
+    :param airflow_version: The Airflow major version the MWAA environment runs.
+            This parameter is only used if the local web token method is used to call Airflow API. (templated)
     :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
         module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
@@ -75,6 +77,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         "external_dag_run_id",
         "success_states",
         "failure_states",
+        "airflow_version",
         "deferrable",
         "max_retries",
         "poke_interval",
@@ -88,6 +91,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         external_dag_run_id: str,
         success_states: Collection[str] | None = None,
         failure_states: Collection[str] | None = None,
+        airflow_version: Literal[2, 3] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poke_interval: int = 60,
         max_retries: int = 720,
@@ -104,6 +108,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         self.external_env_name = external_env_name
         self.external_dag_id = external_dag_id
         self.external_dag_run_id = external_dag_run_id
+        self.airflow_version = airflow_version
         self.deferrable = deferrable
         self.poke_interval = poke_interval
         self.max_retries = max_retries
@@ -119,6 +124,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
             env_name=self.external_env_name,
             path=f"/dags/{self.external_dag_id}/dagRuns/{self.external_dag_run_id}",
             method="GET",
+            airflow_version=self.airflow_version,
         )
 
         # If RestApiStatusCode == 200, the RestApiResponse must have the "state" key, otherwise something terrible has
@@ -138,7 +144,10 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         return state in self.success_states
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        return None
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error in MWAA DAG run: {validated_event}")
 
     def execute(self, context: Context):
         if self.deferrable:
@@ -152,7 +161,6 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
-                    end_from_trigger=True,
                 ),
                 method_name="execute_complete",
             )
@@ -180,6 +188,8 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
         ``{airflow.utils.state.TaskInstanceState.SUCCESS}`` (templated)
     :param failure_states: Collection of task instance states that would make this task marked as failed and raise an
         AirflowException, default is ``{airflow.utils.state.TaskInstanceState.FAILED}`` (templated)
+    :param airflow_version: The Airflow major version the MWAA environment runs.
+            This parameter is only used if the local web token method is used to call Airflow API. (templated)
     :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
         module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
@@ -205,6 +215,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
         "external_task_id",
         "success_states",
         "failure_states",
+        "airflow_version",
         "deferrable",
         "max_retries",
         "poke_interval",
@@ -219,6 +230,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
         external_task_id: str,
         success_states: Collection[str] | None = None,
         failure_states: Collection[str] | None = None,
+        airflow_version: Literal[2, 3] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poke_interval: int = 60,
         max_retries: int = 720,
@@ -236,6 +248,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
         self.external_dag_id = external_dag_id
         self.external_dag_run_id = external_dag_run_id
         self.external_task_id = external_task_id
+        self.airflow_version = airflow_version
         self.deferrable = deferrable
         self.poke_interval = poke_interval
         self.max_retries = max_retries
@@ -253,6 +266,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
             env_name=self.external_env_name,
             path=f"/dags/{self.external_dag_id}/dagRuns/{self.external_dag_run_id}/taskInstances/{self.external_task_id}",
             method="GET",
+            airflow_version=self.airflow_version,
         )
         # If RestApiStatusCode == 200, the RestApiResponse must have the "state" key, otherwise something terrible has
         # happened in the API and KeyError would be raised
@@ -271,7 +285,10 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
         return state in self.success_states
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        return None
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error in MWAA task: {validated_event}")
 
     def execute(self, context: Context):
         if self.external_dag_run_id is None:
@@ -279,6 +296,7 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
                 env_name=self.external_env_name,
                 path=f"/dags/{self.external_dag_id}/dagRuns",
                 method="GET",
+                airflow_version=self.airflow_version,
             )
             self.external_dag_run_id = response["RestApiResponse"]["dag_runs"][-1]["dag_run_id"]
 
@@ -294,7 +312,6 @@ class MwaaTaskSensor(AwsBaseSensor[MwaaHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
-                    end_from_trigger=True,
                 ),
                 method_name="execute_complete",
             )

@@ -20,12 +20,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook
 from airflow.providers.amazon.aws.sensors.glue import (
     GlueDataQualityRuleRecommendationRunSensor,
     GlueDataQualityRuleSetEvaluationRunSensor,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 SAMPLE_RESPONSE_GET_DATA_QUALITY_EVALUATION_RUN_SUCCEEDED = {
     "RunId": "12345",

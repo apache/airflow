@@ -27,12 +27,12 @@ from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class CloudFormationCreateStackOperator(AwsBaseOperator[CloudFormationHook]):
     """
-    An operator that creates a AWS CloudFormation stack.
+    An operator that creates an AWS CloudFormation stack.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -68,7 +68,7 @@ class CloudFormationCreateStackOperator(AwsBaseOperator[CloudFormationHook]):
 
 class CloudFormationDeleteStackOperator(AwsBaseOperator[CloudFormationHook]):
     """
-    An operator that deletes a AWS CloudFormation stack.
+    An operator that deletes an AWS CloudFormation stack.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

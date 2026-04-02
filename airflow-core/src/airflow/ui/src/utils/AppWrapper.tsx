@@ -27,7 +27,13 @@ type Props = {
 };
 
 export const AppWrapper = ({ initialEntries }: Props) => {
-  const router = createMemoryRouter(routerConfig, { basename: "/", initialEntries });
+  // Strip the config loader from tests
+  const config = routerConfig.map((route) => ({
+    ...route,
+    loader: undefined,
+  }));
+
+  const router = createMemoryRouter(config, { basename: "/", initialEntries });
 
   return (
     <BaseWrapper>

@@ -57,7 +57,6 @@ class TestDialect:
     def test_unescape_word_with_different_format(self):
         self.test_db_hook.escape_word_format = "[{}]"
         dialect = Dialect(self.test_db_hook)
-        assert not dialect.unescape_word(None)
         assert dialect.unescape_word("table") == "table"
         assert dialect.unescape_word("t@ble") == "t@ble"
         assert dialect.unescape_word("table_name") == "table_name"

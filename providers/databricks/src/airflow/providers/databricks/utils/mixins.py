@@ -20,18 +20,14 @@ from __future__ import annotations
 
 import time
 from logging import Logger
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Protocol,
-)
+from typing import TYPE_CHECKING, Any, Protocol
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, SQLStatementState
 from airflow.providers.databricks.triggers.databricks import DatabricksSQLStatementExecutionTrigger
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class GetHookHasFields(Protocol):

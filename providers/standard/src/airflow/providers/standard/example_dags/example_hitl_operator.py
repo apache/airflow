@@ -32,11 +32,12 @@ from airflow.sdk import DAG, Param, task
 from airflow.sdk.bases.notifier import BaseNotifier
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 # [START hitl_tutorial]
 
 
+# [START hitl_notifier]
 class LocalLogNotifier(BaseNotifier):
     """Simple notifier to demonstrate HITL notification without setup any connection."""
 
@@ -46,10 +47,14 @@ class LocalLogNotifier(BaseNotifier):
         self.message = message
 
     def notify(self, context: Context) -> None:
+        url = HITLOperator.generate_link_to_ui_from_context(
+            context=context,
+            base_url="http://localhost:28080",
+        )
         self.log.info(self.message)
+        self.log.info("Url to respond %s", url)
 
 
-# [START htil_notifer]
 hitl_request_callback = LocalLogNotifier(
     message="""
 [HITL]
@@ -65,7 +70,7 @@ hitl_success_callback = LocalLogNotifier(
     message="{% set task_id = task.task_id -%}{{ ti.xcom_pull(task_ids=task_id) }}"
 )
 hitl_failure_callback = LocalLogNotifier(message="Request to response to '{{ task.subject }}' failed")
-# [END htil_notifer]
+# [END hitl_notifier]
 
 with DAG(
     dag_id="example_hitl_operator",
@@ -95,7 +100,7 @@ with DAG(
     )
     # [END howto_hitl_operator]
 
-    # [START howto_hitl_operator_muliple]
+    # [START howto_hitl_operator_multiple]
     wait_for_multiple_options = HITLOperator(
         task_id="wait_for_multiple_options",
         subject="Please choose option to proceed: ",
@@ -105,7 +110,7 @@ with DAG(
         on_success_callback=hitl_success_callback,
         on_failure_callback=hitl_failure_callback,
     )
-    # [END howto_hitl_operator_muliple]
+    # [END howto_hitl_operator_multiple]
 
     # [START howto_hitl_operator_timeout]
     wait_for_default_option = HITLOperator(
@@ -113,7 +118,7 @@ with DAG(
         subject="Please choose option to proceed: ",
         options=["option 7", "option 8", "option 9"],
         defaults=["option 7"],
-        execution_timeout=datetime.timedelta(seconds=1),
+        response_timeout=datetime.timedelta(seconds=1),
         notifiers=[hitl_request_callback],
         on_success_callback=hitl_success_callback,
         on_failure_callback=hitl_failure_callback,
@@ -127,14 +132,15 @@ with DAG(
         body="""
         Input: {{ ti.xcom_pull(task_ids='wait_for_input')["params_input"]["information"] }}
         Option: {{ ti.xcom_pull(task_ids='wait_for_option')["chosen_options"] }}
-        Multiple Options: {{ ti.xcom_pull(task_ids='wait_for_option')["chosen_options"] }}
-        Timeout Option: {{ ti.xcom_pull(task_ids='wait_for_option')["chosen_options"] }}
+        Multiple Options: {{ ti.xcom_pull(task_ids='wait_for_multiple_options')["chosen_options"] }}
+        Timeout Option: {{ ti.xcom_pull(task_ids='wait_for_default_option')["chosen_options"] }}
         """,
         defaults="Reject",
-        execution_timeout=datetime.timedelta(minutes=1),
+        response_timeout=datetime.timedelta(minutes=5),
         notifiers=[hitl_request_callback],
         on_success_callback=hitl_success_callback,
         on_failure_callback=hitl_failure_callback,
+        assigned_users=[{"id": "1", "name": "airflow"}, {"id": "admin", "name": "admin"}],
     )
     # [END howto_hitl_approval_operator]
 

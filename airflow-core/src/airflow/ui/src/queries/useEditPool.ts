@@ -65,19 +65,23 @@ export const useEditPool = (
 
   const editPool = (editPoolRequestBody: PoolBody) => {
     const updateMask: Array<string> = [];
+    let parsedDescription = undefined;
 
     if (editPoolRequestBody.slots !== initialPool.slots) {
       updateMask.push("slots");
     }
     if (editPoolRequestBody.description !== initialPool.description) {
+      parsedDescription = editPoolRequestBody.description;
       updateMask.push("description");
     }
     if (editPoolRequestBody.include_deferred !== initialPool.include_deferred) {
       updateMask.push("include_deferred");
     }
+    if (editPoolRequestBody.team_name !== initialPool.team_name) {
+      updateMask.push("team_name");
+    }
 
-    const parsedDescription =
-      editPoolRequestBody.description === "" ? undefined : editPoolRequestBody.description;
+    const teamName = editPoolRequestBody.team_name === "" ? undefined : editPoolRequestBody.team_name;
 
     mutate({
       poolName: initialPool.name,
@@ -86,6 +90,7 @@ export const useEditPool = (
         include_deferred: editPoolRequestBody.include_deferred,
         pool: editPoolRequestBody.name,
         slots: editPoolRequestBody.slots,
+        team_name: teamName,
       },
       updateMask,
     });

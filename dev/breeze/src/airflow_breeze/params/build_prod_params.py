@@ -25,10 +25,11 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
+    ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     get_airflow_extras,
 )
 from airflow_breeze.params.common_build_params import CommonBuildParams
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 
 
 @dataclass
@@ -42,6 +43,7 @@ class BuildProdParams(CommonBuildParams):
     additional_runtime_apt_env: str | None = None
     airflow_constraints_mode: str = "constraints"
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    airflow_fallback_no_constraints_installation: bool = False
     cleanup_context: bool = False
     airflow_extras: str = field(default_factory=get_airflow_extras)
     disable_mssql_client_installation: bool = False
@@ -134,10 +136,10 @@ class BuildProdParams(CommonBuildParams):
             extra_build_flags.extend(self.args_for_remote_install)
         elif self.install_airflow_version:
             if not re.match(r"^[0-9.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version):
-                get_console().print(
+                console_print(
                     f"\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}"
                 )
-                get_console().print("[error]Only numerical versions allowed for PROD image here !")
+                console_print("[error]Only numerical versions allowed for PROD image here !")
                 sys.exit()
             extra_build_flags.extend(["--build-arg", "AIRFLOW_INSTALLATION_METHOD=apache-airflow"])
             extra_build_flags.extend(
@@ -226,15 +228,14 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("AIRFLOW_EXTRAS", self.airflow_extras)
         self._req_arg("AIRFLOW_IMAGE_README_URL", self.airflow_image_readme_url)
         self._opt_arg("AIRFLOW_USE_UV", self.use_uv)
-        if self.use_uv:
-            from airflow_breeze.utils.uv_utils import get_uv_timeout
-
-            self._req_arg("UV_HTTP_TIMEOUT", get_uv_timeout(self))
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("DOCKER_CONTEXT_FILES", self.docker_context_files)
         self._req_arg("INSTALL_DISTRIBUTIONS_FROM_CONTEXT", self.install_distributions_from_context)
         self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)
-        self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
+        self._req_arg("BASE_IMAGE", self.python_base_image)
+        self._req_arg(
+            "AIRFLOW_PYTHON_VERSION", ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(self.python, self.python)
+        )
         # optional build args
         self._set_common_opt_args()
         self._opt_arg("ADDITIONAL_RUNTIME_APT_COMMAND", self.additional_runtime_apt_command)
@@ -248,6 +249,9 @@ class BuildProdParams(CommonBuildParams):
         self._opt_arg("RUNTIME_APT_DEPS", self.runtime_apt_deps)
         self._opt_arg(
             "USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS", self.use_constraints_for_context_distributions
+        )
+        self._opt_arg(
+            "AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION", self.airflow_fallback_no_constraints_installation
         )
         build_args = self._to_build_args()
         build_args.extend(self._extra_prod_docker_build_flags())

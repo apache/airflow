@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
 
 from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
 from airflow.providers.redis.triggers.redis_await_message import AwaitMessageTrigger
@@ -35,57 +33,29 @@ class RedisPubSubMessageQueueProvider(BaseMessageQueueProvider):
     """
     Configuration for Redis integration with common-messaging.
 
-    It uses the ``redis+pubsub://`` URI scheme for identifying Redis queues.
+    [START redis_message_queue_provider_description]
 
-    **URI Format**:
-
-    .. code-block:: text
-
-        redis+pubsub://<host>:<port>/<channel_list>
-
-    Where:
-
-    * ``host``: Redis server hostname
-    * ``port``: Redis server port
-    * ``channel_list``: Comma-separated list of Redis channels to subscribe to
-
-    **Examples**:
-
-    .. code-block:: text
-
-        redis+pubsub://localhost:6379/my_channel
-
-    You can also provide ``channels`` directly in kwargs instead of in the URI.
+    * It uses ``redis+pubsub`` as scheme for identifying Redis queues.
+    * For parameter definitions take a look at :class:`~airflow.providers.redis.triggers.redis_await_message.AwaitMessageTrigger`.
 
     .. code-block:: python
 
         from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+        from airflow.sdk import Asset, AssetWatcher
 
-        trigger = MessageQueueTrigger(queue="redis+pubsub://localhost:6379/test")
+        trigger = MessageQueueTrigger(
+            scheme="redis+pubsub",
+            # Additional Redis AwaitMessageTrigger parameters as needed
+            channels=["my_channel"],
+            redis_conn_id="redis_default",
+        )
 
-    For a complete example, see:
-    :mod:`tests.system.redis.example_dag_message_queue_trigger`
+        asset = Asset("redis_queue_asset", watchers=[AssetWatcher(name="redis_watcher", trigger=trigger)])
+
+    [END redis_message_queue_provider_description]
     """
 
-    def queue_matches(self, queue: str) -> bool:
-        return bool(re.match(QUEUE_REGEXP, queue))
+    scheme = "redis+pubsub"
 
     def trigger_class(self) -> type[BaseEventTrigger]:
         return AwaitMessageTrigger  # type: ignore[return-value]
-
-    def trigger_kwargs(self, queue: str, **kwargs) -> dict:
-        # [START extract_channels]
-        # Parse the queue URI
-        parsed = urlparse(queue)
-        # Extract channels (after host and port)
-        # parsed.path starts with a '/', so strip it
-        raw_channels = parsed.path.lstrip("/")
-        channels = raw_channels.split(",") if raw_channels else []
-        # [END extract_channels]
-
-        if not channels and "channels" not in kwargs:
-            raise ValueError(
-                "channels is required in RedisPubSubMessageQueueProvider kwargs or provide them in the queue URI"
-            )
-
-        return {} if "channels" in kwargs else {"channels": channels}

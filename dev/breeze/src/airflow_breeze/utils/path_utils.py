@@ -30,9 +30,9 @@ import tempfile
 from pathlib import Path
 
 from airflow_breeze import NAME
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.functools_cache import clearable_cache
-from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_changed, warn_non_editable
+from airflow_breeze.utils.reinstall import inform_about_self_upgrade, reinstall_breeze, warn_non_editable
 from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
 
 PYPROJECT_TOML_FILE = "pyproject.toml"
@@ -82,37 +82,6 @@ def skip_group_output():
     return in_autocomplete() or in_help() or os.environ.get("SKIP_GROUP_OUTPUT") is not None
 
 
-def get_package_setup_metadata_hash() -> str:
-    """
-    Retrieves hash of setup files from the source of installation of Breeze.
-
-    This is used in order to determine if we need to upgrade Breeze, because some
-    setup files changed. Blake2b algorithm will not be flagged by security checkers
-    as insecure algorithm (in Python 3.9 and above we can use `usedforsecurity=False`
-    to disable it, but for now it's better to use more secure algorithms.
-    """
-    # local imported to make sure that autocomplete works
-    try:
-        from importlib.metadata import distribution
-    except ImportError:
-        from importlib_metadata import distribution  # type: ignore[assignment]
-
-    prefix = "Package config hash: "
-    metadata = distribution("apache-airflow-breeze").metadata
-    try:
-        description = metadata.json["description"]
-    except (AttributeError, KeyError):
-        description = str(metadata["Description"]) if "Description" in metadata else ""
-
-    if isinstance(description, list):
-        description = "\n".join(description)
-
-    for line in description.splitlines(keepends=False):
-        if line.startswith(prefix):
-            return line[len(prefix) :]
-    return "NOT FOUND"
-
-
 def get_pyproject_toml_hash(sources: Path) -> str:
     try:
         the_hash = hashlib.new("blake2b")
@@ -154,15 +123,7 @@ def set_forced_answer_for_upgrade_check():
         set_forced_answer("quit")
 
 
-def process_breeze_readme(breeze_sources: Path, sources_hash: str):
-    breeze_readme = breeze_sources / "README.md"
-    lines = breeze_readme.read_text().splitlines(keepends=True)
-    result_lines = []
-    for line in lines:
-        if line.startswith("Package config hash:"):
-            line = f"Package config hash: {sources_hash}\n"
-        result_lines.append(line)
-    breeze_readme.write_text("".join(result_lines))
+MY_BREEZE_ROOT_PATH = Path(__file__).resolve().parents[1]
 
 
 def reinstall_if_setup_changed() -> bool:
@@ -170,28 +131,16 @@ def reinstall_if_setup_changed() -> bool:
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :return: True if warning was printed.
     """
-    try:
-        package_hash = get_package_setup_metadata_hash()
-    except ModuleNotFoundError as e:
-        if "importlib_metadata" in e.msg:
-            return False
-        if "apache-airflow-breeze" in e.msg:
-            print(
-                """Missing Package `apache-airflow-breeze`. Please install it.\n
-                   Use `uv tool install -e ./dev/breeze or `pipx install -e ./dev/breeze`
-                   to install the package."""
-            )
-            return False
-    sources_hash = get_installation_sources_config_metadata_hash()
-    if sources_hash != package_hash:
-        installation_sources = get_installation_airflow_sources()
-        if installation_sources is not None:
-            breeze_sources = installation_sources / "dev" / "breeze"
-            warn_dependencies_changed()
-            process_breeze_readme(breeze_sources, sources_hash)
-            set_forced_answer_for_upgrade_check()
-            reinstall_breeze(breeze_sources)
-            set_forced_answer(None)
+
+    res = subprocess.run(
+        ["uv", "tool", "upgrade", "apache-airflow-breeze"],
+        cwd=MY_BREEZE_ROOT_PATH,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    if "Modified" in res.stderr:
+        inform_about_self_upgrade()
         return True
     return False
 
@@ -261,7 +210,7 @@ def find_airflow_root_path_to_operate_on() -> Path:
         return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources is None and not skip_breeze_self_upgrade_check():
-        get_console().print(
+        console_print(
             "\n[error]Breeze should only be installed with --editable flag[/]\n\n"
             "[warning]Please go to Airflow sources and run[/]\n\n"
             f"     {NAME} setup self-upgrade --use-current-airflow-sources\n"
@@ -278,13 +227,13 @@ def find_airflow_root_path_to_operate_on() -> Path:
     os.chdir(airflow_sources.as_posix())
     airflow_home_dir = Path(os.environ.get("AIRFLOW_HOME", (Path.home() / "airflow").resolve().as_posix()))
     if airflow_sources.resolve() == airflow_home_dir.resolve():
-        get_console().print(
+        console_print(
             f"\n[error]Your Airflow sources are checked out in {airflow_home_dir} which "
             f"is your also your AIRFLOW_HOME where airflow writes logs and database. \n"
             f"This is a bad idea because Airflow might override and cleanup your checked out "
             f"sources and .git repository.[/]\n"
         )
-        get_console().print("\nPlease check out your Airflow code elsewhere.\n")
+        console_print("\nPlease check out your Airflow code elsewhere.\n")
         sys.exit(1)
     return airflow_sources
 
@@ -300,6 +249,7 @@ AIRFLOW_UI_DIR = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
 # Do not delete it - it is used for old commit retrieval from providers
 AIRFLOW_ORIGINAL_PROVIDERS_DIR = AIRFLOW_ROOT_PATH / "airflow" / "providers"
 AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
+AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / ".last_release_date.txt"
 AIRFLOW_DIST_PATH = AIRFLOW_ROOT_PATH / "dist"
 
 TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
@@ -322,6 +272,7 @@ BUILD_CACHE_PATH = AIRFLOW_ROOT_PATH / ".build"
 GENERATED_PATH = AIRFLOW_ROOT_PATH / "generated"
 CONSTRAINTS_CACHE_PATH = BUILD_CACHE_PATH / "constraints"
 PROVIDER_DEPENDENCIES_JSON_PATH = GENERATED_PATH / "provider_dependencies.json"
+PROVIDER_DEPENDENCIES_JSON_HASH_PATH = GENERATED_PATH / "provider_dependencies.json.sha256sum"
 PROVIDER_METADATA_JSON_PATH = GENERATED_PATH / "provider_metadata.json"
 UI_CACHE_PATH = BUILD_CACHE_PATH / "ui"
 AIRFLOW_TMP_PATH = AIRFLOW_ROOT_PATH / "tmp"
@@ -329,8 +280,47 @@ UI_ASSET_COMPILE_LOCK = UI_CACHE_PATH / ".asset_compile.lock"
 UI_ASSET_OUT_FILE = UI_CACHE_PATH / "asset_compile.out"
 UI_ASSET_OUT_DEV_MODE_FILE = UI_CACHE_PATH / "asset_compile_dev_mode.out"
 UI_ASSET_HASH_PATH = AIRFLOW_ROOT_PATH / ".build" / "ui" / "hash.txt"
+
 UI_NODE_MODULES_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui" / "node_modules"
 UI_DIST_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui" / "dist"
+UI_VITE_MANIFEST_PATH = UI_DIST_PATH / ".vite" / "manifest.json"
+FAST_API_SIMPLE_AUTH_MANAGER_PATH = (
+    AIRFLOW_CORE_SOURCES_PATH / "airflow" / "api_fastapi" / "auth" / "managers" / "simple"
+)
+FAST_API_SIMPLE_AUTH_MANAGER_NODE_MODULES_PATH = FAST_API_SIMPLE_AUTH_MANAGER_PATH / "ui" / "node_modules"
+FAST_API_SIMPLE_AUTH_MANAGER_DIST_PATH = FAST_API_SIMPLE_AUTH_MANAGER_PATH / "ui" / "dist"
+FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH = (
+    FAST_API_SIMPLE_AUTH_MANAGER_DIST_PATH / ".vite" / "manifest.json"
+)
+EDGE_PLUGIN_PATH = (
+    AIRFLOW_PROVIDERS_ROOT_PATH / "edge3" / "src" / "airflow" / "providers" / "edge3" / "plugins" / "www"
+)
+EDGE_PLUGIN_UI_NODE_MODULES_PATH = EDGE_PLUGIN_PATH / "node_modules"
+EDGE_PLUGIN_UI_DIST_PATH = EDGE_PLUGIN_PATH / "dist"
+EDGE_PLUGIN_PREK_HOOK = "compile-edge-assets"
+FAB_AUTH_MANAGER_WWW_PATH = (
+    AIRFLOW_PROVIDERS_ROOT_PATH / "fab" / "src" / "airflow" / "providers" / "fab" / "www"
+)
+FAB_AUTH_MANAGER_WWW_NODE_MODULES_PATH = FAB_AUTH_MANAGER_WWW_PATH / "node_modules"
+FAB_AUTH_MANAGER_WWW_DIST_PATH = FAB_AUTH_MANAGER_WWW_PATH / "static" / "dist"
+FAB_AUTH_MANAGER_WWW_PREK_HOOK = "compile-fab-assets"
+
+COMMON_AI_PLUGIN_PATH = (
+    AIRFLOW_PROVIDERS_ROOT_PATH
+    / "common"
+    / "ai"
+    / "src"
+    / "airflow"
+    / "providers"
+    / "common"
+    / "ai"
+    / "plugins"
+    / "www"
+)
+COMMON_AI_UI_PLUGIN_NODE_MODULES_PATH = COMMON_AI_PLUGIN_PATH / "node_modules"
+COMMON_AI_UI_PLUGIN_DIST_PATH = COMMON_AI_PLUGIN_PATH / "dist"
+COMMON_AI_PLUGIN_PREK_HOOK = "compile-common-ai-provider-assets"
+
 
 DAGS_PATH = AIRFLOW_ROOT_PATH / "dags"
 FILES_PATH = AIRFLOW_ROOT_PATH / "files"
@@ -344,7 +334,29 @@ DOCS_DIR = AIRFLOW_ROOT_PATH / "docs"
 SCRIPTS_CI_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci"
 SCRIPTS_DOCKER_PATH = AIRFLOW_ROOT_PATH / "scripts" / "docker"
 SCRIPTS_CI_DOCKER_COMPOSE_PATH = SCRIPTS_CI_PATH / "docker-compose"
+SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "base.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_BASE_PORTS_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "base-ports.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_CI_TESTS_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "ci-tests.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_DEBUG_PORTS_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "debug-ports.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_DOCKER_SOCKET_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "docker-socket.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_ENABLE_TTY_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "enable-tty.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_FILES_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "files.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_FORWARD_CREDENTIALS_PATH = (
+    SCRIPTS_CI_DOCKER_COMPOSE_PATH / "forward-credentials.yml"
+)
+SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_CELERY_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "integration-celery.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH = (
+    SCRIPTS_CI_DOCKER_COMPOSE_PATH / "integration-kerberos.yml"
+)
+SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local-all-sources.yml"
 SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mount-ui-dist.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "local.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH = (
+    SCRIPTS_CI_DOCKER_COMPOSE_PATH / "providers-and-tests-sources.yml"
+)
+SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "remove-sources.yml"
+SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "tests-sources.yml"
 GENERATED_DOCKER_COMPOSE_ENV_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_docker_compose.env"
 GENERATED_DOCKER_ENV_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_docker.env"
 GENERATED_DOCKER_LOCK_PATH = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated.lock"
@@ -374,7 +386,7 @@ def create_volume_if_missing(volume_name: str):
             capture_output=True,
         )
         if result.returncode != 0:
-            get_console().print(
+            console_print(
                 "[warning]\nMypy Cache volume could not be created. Continuing, but you "
                 "should make sure your docker works.\n\n"
                 f"Error: {result.stdout}\n"
@@ -404,7 +416,7 @@ def create_directories_and_files() -> None:
 
 def cleanup_python_generated_files():
     if get_verbose():
-        get_console().print("[info]Cleaning .pyc and __pycache__")
+        console_print("[info]Cleaning .pyc and __pycache__")
     permission_errors = []
     for path in AIRFLOW_ROOT_PATH.rglob("*.pyc"):
         try:
@@ -424,9 +436,9 @@ def cleanup_python_generated_files():
             permission_errors.append(path)
     if permission_errors:
         if platform.uname().system.lower() == "linux":
-            get_console().print("[warning]There were files that you could not clean-up:\n")
-            get_console().print(permission_errors)
-            get_console().print(
+            console_print("[warning]There were files that you could not clean-up:\n")
+            console_print(permission_errors)
+            console_print(
                 "Please run at earliest convenience:\n"
                 "[warning]breeze ci fix-ownership[/]\n\n"
                 "If you have sudo you can use:\n"
@@ -435,8 +447,34 @@ def cleanup_python_generated_files():
                 "You can also remove those files manually using sudo."
             )
         else:
-            get_console().print("[warnings]There were files that you could not clean-up:\n")
-            get_console().print(permission_errors)
-            get_console().print("You can also remove those files manually using sudo.")
+            console_print("[warnings]There were files that you could not clean-up:\n")
+            console_print(permission_errors)
+            console_print("You can also remove those files manually using sudo.")
     if get_verbose():
-        get_console().print("[info]Cleaned")
+        console_print("[info]Cleaned")
+
+
+def get_main_git_dir_for_worktree() -> Path | None:
+    """
+    Detect if we are in a git worktree and return the main repository's .git directory.
+
+    Git worktrees store a ``.git`` *file* (not a directory) containing a ``gitdir:`` reference
+    pointing to ``<main-repo>/.git/worktrees/<name>``.  This helper resolves that reference
+    (handling both absolute and relative paths) and returns the main ``.git`` directory
+    (i.e. the grandparent of the ``gitdir`` path).
+
+    :return: Absolute path to the main repository's ``.git`` directory, or ``None``
+             if the current checkout is not a worktree.
+    """
+    git_path = AIRFLOW_ROOT_PATH / ".git"
+    if git_path.is_file():
+        git_content = git_path.read_text().strip()
+        if git_content.startswith("gitdir:"):
+            gitdir = Path(git_content.removeprefix("gitdir:").strip())
+            if not gitdir.is_absolute():
+                gitdir = (AIRFLOW_ROOT_PATH / gitdir).resolve()
+            # gitdir points to <main-repo>/.git/worktrees/<name>
+            # .parent.parent gives us <main-repo>/.git
+            main_git_dir = gitdir.parent.parent
+            return main_git_dir if main_git_dir.is_dir() else None
+    return None

@@ -68,7 +68,7 @@ def make_task(name, type_, setup_=False, teardown_=False):
 
 
 @pytest.mark.parametrize(
-    "setup_type, work_type, teardown_type", itertools.product(["classic", "taskflow"], repeat=3)
+    ("setup_type", "work_type", "teardown_type"), itertools.product(["classic", "taskflow"], repeat=3)
 )
 def test_as_teardown(setup_type, work_type, teardown_type):
     """
@@ -101,7 +101,7 @@ def test_as_teardown(setup_type, work_type, teardown_type):
 
 
 @pytest.mark.parametrize(
-    "setup_type, work_type, teardown_type", itertools.product(["classic", "taskflow"], repeat=3)
+    ("setup_type", "work_type", "teardown_type"), itertools.product(["classic", "taskflow"], repeat=3)
 )
 def test_as_teardown_oneline(setup_type, work_type, teardown_type):
     """

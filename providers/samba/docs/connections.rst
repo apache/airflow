@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _howto/connection:samba:
+
 Samba Connection
 =================
 
@@ -42,3 +44,6 @@ Login
 
 Password
     The password of the user that will be used for authentication against the Samba server.
+
+Share Type
+    The share OS type (``posix`` or ``windows``). Used to determine the formatting of file and folder paths.

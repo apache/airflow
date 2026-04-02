@@ -25,7 +25,7 @@ from airflow.providers.trino.assets.trino import sanitize_uri
 
 
 @pytest.mark.parametrize(
-    "original, normalized",
+    ("original", "normalized"),
     [
         pytest.param(
             "trino://example.com:1234/catalog/schema/table",
@@ -51,11 +51,16 @@ def test_sanitize_uri_pass(original: str, normalized: str) -> None:
         pytest.param("trino://", id="blank"),
         pytest.param("trino:///catalog/schema/table", id="no-host"),
         pytest.param("trino://example.com/catalog/table", id="missing-component"),
-        pytest.param("trino://example.com:abcd/catalog/schema/table", id="non-port"),
         pytest.param("trino://example.com/catalog/schema/table/column", id="extra-component"),
     ],
 )
 def test_sanitize_uri_fail(value: str) -> None:
     uri_i = urllib.parse.urlsplit(value)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="URI format trino:// must contain"):
+        sanitize_uri(uri_i)
+
+
+def test_sanitize_uri_fail_non_port() -> None:
+    uri_i = urllib.parse.urlsplit("trino://example.com:abcd/catalog/schema/table")
+    with pytest.raises(ValueError, match="Port could not be cast to integer value as 'abcd'"):
         sanitize_uri(uri_i)

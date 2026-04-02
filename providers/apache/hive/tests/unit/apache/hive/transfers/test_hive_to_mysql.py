@@ -24,15 +24,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.providers.apache.hive.transfers.hive_to_mysql import HiveToMySqlOperator
+from airflow.providers.common.compat.sdk import context_to_airflow_vars
 from airflow.utils import timezone
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.apache.hive import MockHiveServer2Hook, MockMySqlHook, TestHiveEnvironment
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.context import context_to_airflow_vars
-else:
-    from airflow.utils.operator_helpers import context_to_airflow_vars  # type: ignore[no-redef, attr-defined]
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 

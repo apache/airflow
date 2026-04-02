@@ -23,10 +23,3 @@ class LoginResponse(BaseModel):
     """API Token serializer for responses."""
 
     access_token: str
-
-
-class LoginBody(BaseModel):
-    """API Token serializer for requests."""
-
-    username: str
-    password: str

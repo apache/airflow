@@ -7,6 +7,13 @@
     "Providers": "حُزم",
     "Variables": "متغيرات"
   },
+  "allOperators": "جميع المُشغِّلات",
+  "appearance": {
+    "appearance": "المظهر",
+    "darkMode": "الوضع الداكن",
+    "lightMode": "الوضع الفاتح",
+    "systemMode": "اتّباع إعداد النظام"
+  },
   "asset_few": "أصول",
   "asset_many": "أصول",
   "asset_one": "أصل",
@@ -30,6 +37,7 @@
     "requiredActions": "إجراءات مطلوبة",
     "xcoms": "(XComs) إكس كوم"
   },
+  "collapseAllExtra": "طي جميع الJSON الإضافية",
   "collapseDetailsPanel": "طي لوحة التفاصيل",
   "createdAssetEvent_few": "تم إنشاء واقعات أصل",
   "createdAssetEvent_many": "تم إنشاء واقعات أصل",
@@ -45,7 +53,6 @@
   "dag_zero": "لا يوجد أي Dag",
   "dagDetails": {
     "catchup": "إلحاق",
-    "concurrency": "تزامن",
     "dagRunTimeout": "مهلة تشغيل الDag",
     "defaultArgs": "متغيرات افتراضية",
     "description": "وصف",
@@ -53,6 +60,7 @@
     "fileLocation": "موقع الملف",
     "hasTaskConcurrencyLimits": "لديه حدود تزامن المهام",
     "lastExpired": "انتهت صلاحيته آخر مرة في",
+    "lastParseDuration": "مدة التحليل الأخير",
     "lastParsed": "تم تحليله آخر مرة في",
     "latestDagVersion": "آخر إصدار لDag",
     "latestRun": "آخر تشغيل",
@@ -72,6 +80,7 @@
     "dataIntervalEnd": "نهاية فترة البيانات",
     "dataIntervalStart": "بداية فترة البيانات",
     "lastSchedulingDecision": "آخر قرار جدولة",
+    "partitionKey": "مفتاح التقسيم",
     "queuedAt": "في الطابور في",
     "runAfter": "تشغيل بعد",
     "runType": "نوع التشغيل",
@@ -89,18 +98,30 @@
   "dagWarnings": "تحذيرات الDag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
+  "delete": "حذف",
+  "diff": "الفرق",
+  "diffCompareWith": "قارن مع",
+  "diffExit": "إنهاء المقارنة",
+  "diffSelectVersionToCompare": "اختر إصدارًا للمقارنة",
   "direction": "الاتجاه",
   "docs": {
     "documentation": "توثيق",
     "githubRepo": "مستودع GitHub",
     "restApiReference": "مرجع REST API"
   },
+  "download": {
+    "download": "تنزيل",
+    "hotkey": "d",
+    "tooltip": "اضغط على {{hotkey}} لتنزيل السجلات"
+  },
   "duration": "المدة",
+  "edit": "تعديل",
   "endDate": "تاريخ الانتهاء",
   "error": {
     "back": "رجوع",
     "defaultMessage": "حدث خطأ غير متوقع",
     "home": "الصفحة الرئيسية",
+    "invalidUrl": "الصفحة غير موجودة. يرجى التحقق من الرابط والمحاولة مرة أخرى.",
     "notFound": "غير موجود",
     "title": "خطأ"
   },
@@ -110,23 +131,38 @@
     "hotkey": "e",
     "tooltip": "اضغط {{hotkey}} للتوسيع"
   },
+  "expandAllExtra": "توسيع جميع الJSON الإضافية",
   "expression": {
     "all": "الكل",
     "and": "و",
     "any": "أي",
     "or": "أو"
   },
+  "filter": "فلتر",
+  "filters": {
+    "durationFrom": "المدة من",
+    "durationTo": "المدة إلى",
+    "endTime": "وقت الانتهاء",
+    "logicalDateFrom": "من التاريخ المنطقي",
+    "logicalDateTo": "إلى التاريخ المنطقي",
+    "runAfterFrom": "من تشغيل بعد",
+    "runAfterTo": "إلى تشغيل بعد",
+    "selectDateRange": "اختر نطاق التاريخ",
+    "startTime": "وقت البدء"
+  },
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
   "logoutConfirmation": "أنت على وشك تسجيل الخروج.",
   "mapIndex": "فهرس الخريطة",
   "modal": {
+    "add": "إضافة",
     "cancel": "إلغاء",
     "confirm": "تأكيد",
     "delete": {
       "button": "حذف",
       "confirmation": "هل أنت متأكد من أنك تريد حذف {{resourceName}}؟ لا يمكن التراجع عن هذا الإجراء."
-    }
+    },
+    "save": "حفظ"
   },
   "nav": {
     "admin": "إدارة",
@@ -147,19 +183,7 @@
     "placeholder": "أضف ملاحظة...",
     "taskInstance": "مثيل المهمة"
   },
-  "pools": {
-    "deferred": "مؤجل",
-    "open": "مفتوح",
-    "pools_few": "مجمعات",
-    "pools_many": "مجمعات",
-    "pools_one": "مجمع",
-    "pools_other": "مجمعات",
-    "pools_two": "مجمعان",
-    "pools_zero": "لا يوجد أي مجمع",
-    "queued": "في الانتظار",
-    "running": "قيد التشغيل",
-    "scheduled": "مجدول"
-  },
+  "reset": "إعادة تعيين",
   "runId": "معرف التشغيل",
   "runTypes": {
     "asset_triggered": "مُشغل بواسطة الأصل",
@@ -174,7 +198,6 @@
     },
     "tooltip": "اضغط {{hotkey}} للتمرير إلى {{direction}}"
   },
-  "seconds": "ثواني",
   "security": {
     "actions": "إجراءات",
     "permissions": "صلاحيات",
@@ -184,6 +207,7 @@
   },
   "selectLanguage": "اختيار اللغة",
   "showDetailsPanel": "إظهار لوحة التفاصيل",
+  "signedInAs": "تم تسجيل الدخول باسم",
   "source": {
     "hide": "إخفاء المصدر",
     "hotkey": "s",
@@ -202,6 +226,8 @@
     "failed": "فشِل",
     "no_status": "بلا حالة",
     "none": "لا شيء",
+    "open": "مفتوح",
+    "planned": "مخطط",
     "queued": "في الانتظار",
     "removed": "محذوف",
     "restarting": "إعادة التشغيل",
@@ -213,8 +239,6 @@
     "up_for_retry": "جاهز للمحاولة مرة أخرى",
     "upstream_failed": "فشِل في المهام السابقة"
   },
-  "switchToDarkMode": "تبديل إلى الوضع الداكن",
-  "switchToLightMode": "تبديل إلى الوضع الفاتح",
   "table": {
     "completedAt": "اكتمل في",
     "createdAt": "تم الإنشاء في",
@@ -248,6 +272,7 @@
   "task_other": "مهام",
   "task_two": "مهمتان",
   "task_zero": "لا يوجد أي مهمة",
+  "taskGroup": "مجموعة المهام",
   "taskId": "معرف المهمة",
   "taskInstance": {
     "dagVersion": "إصدار الDag",

@@ -49,6 +49,28 @@ via extras and providers.
 When you install Airflow, you need to :doc:`setup the database <setting-up-the-database>` which must
 also be kept updated when Airflow is upgraded.
 
+Local start for development and testing
+'''''''''''''''''''''''''''''''''''''''
+
+You just want to try Apache Airflow without all production complexity? If you have ``pipx`` installed,
+you can install Airflow directly from PyPI with the command below:
+
+.. code-block:: bash
+
+    pipx run apache-airflow standalone
+
+Alternatively similar with Astral ``uv``:
+
+.. code-block:: bash
+
+    uvx apache-airflow standalone
+
+Which starts a minimal system with an auto-generated admin password and SQLite database, so you can
+start using Airflow right away. This is a great way to get familiar with Airflow and try it out
+without the need to set up a complex environment.
+
+Note that the standalone mode is not for production purposes. But it is a simple start for a local development.
+
 Using released sources
 ''''''''''''''''''''''
 
@@ -346,7 +368,7 @@ The requirements that Airflow might need depend on many factors, including (but 
     with more (or less) pods and containers that are needed that might depend on particular choice of
     the technology/cloud/integration of monitoring etc.
   * Technical details of database, hardware, network, etc. that your deployment is running on
-  * The complexity of the code you add to your DAGS, configuration, plugins, settings etc. (note, that
+  * The complexity of the code you add to your Dags, configuration, plugins, settings etc. (note, that
     Airflow runs the code that Dag author and Deployment Manager provide)
   * The number and choice of providers you install and use (Airflow has more than 80 providers) that can
     be installed by choice of the Deployment Manager and using them might require more resources.
@@ -355,7 +377,7 @@ The requirements that Airflow might need depend on many factors, including (but 
   * The number of DagRuns and tasks instances you run with parallel instances of each in consideration
   * How complex are the tasks you run
 
-The above "DAG" characteristics will change over time and even will change depending on the time of the day
+The above "Dag" characteristics will change over time and even will change depending on the time of the day
 or week, so you have to be prepared to continuously monitor the system and adjust the parameters to make
 it works smoothly.
 

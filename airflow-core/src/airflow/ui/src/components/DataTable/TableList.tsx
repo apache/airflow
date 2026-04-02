@@ -31,6 +31,7 @@ type DataTableProps<TData> = {
 };
 
 export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }: DataTableProps<TData>) => {
+  "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
   const { t: translate } = useTranslation("components");
 
   return (
@@ -89,7 +90,7 @@ export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }:
             <Table.Row>
               {/* first row is a normal row */}
               {row.getVisibleCells().map((cell) => (
-                <Table.Cell key={cell.id}>
+                <Table.Cell data-testid={`table-cell-${cell.column.id}`} key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </Table.Cell>
               ))}

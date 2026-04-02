@@ -27,7 +27,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.logging_config import RemoteLogIO
+    from airflow.logging.remote import RemoteLogIO, RemoteLogStreamIO
 
 LOG_LEVEL: str = conf.get_mandatory_value("logging", "LOGGING_LEVEL").upper()
 
@@ -43,16 +43,11 @@ LOG_FORMATTER_CLASS: str = conf.get_mandatory_value(
     "logging", "LOG_FORMATTER_CLASS", fallback="airflow.utils.log.timezone_aware.TimezoneAware"
 )
 
-COLORED_LOG_FORMAT: str = conf.get_mandatory_value("logging", "COLORED_LOG_FORMAT")
-
-COLORED_LOG: bool = conf.getboolean("logging", "COLORED_CONSOLE_LOG")
-
-COLORED_FORMATTER_CLASS: str = conf.get_mandatory_value("logging", "COLORED_FORMATTER_CLASS")
-
 DAG_PROCESSOR_LOG_TARGET: str = conf.get_mandatory_value("logging", "DAG_PROCESSOR_LOG_TARGET")
 
 BASE_LOG_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("logging", "BASE_LOG_FOLDER"))
 
+# This isn't used anymore, but kept for compat of people who might have imported it
 DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -61,32 +56,29 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
             "format": LOG_FORMAT,
             "class": LOG_FORMATTER_CLASS,
         },
-        "airflow_coloured": {
-            "format": COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
-            "class": COLORED_FORMATTER_CLASS if COLORED_LOG else LOG_FORMATTER_CLASS,
-        },
         "source_processor": {
             "format": DAG_PROCESSOR_LOG_FORMAT,
             "class": LOG_FORMATTER_CLASS,
         },
     },
     "filters": {
-        "mask_secrets": {
-            "()": "airflow.sdk.execution_time.secrets_masker.SecretsMasker",
+        "mask_secrets_core": {
+            "()": "airflow._shared.secrets_masker._secrets_masker",
         },
     },
     "handlers": {
         "console": {
-            "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
-            "formatter": "airflow_coloured",
+            "class": "logging.StreamHandler",
+            # "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
+            "formatter": "airflow",
             "stream": "sys.stdout",
-            "filters": ["mask_secrets"],
+            "filters": ["mask_secrets_core"],
         },
         "task": {
             "class": "airflow.utils.log.file_task_handler.FileTaskHandler",
             "formatter": "airflow",
             "base_log_folder": BASE_LOG_FOLDER,
-            "filters": ["mask_secrets"],
+            "filters": ["mask_secrets_core"],
         },
     },
     "loggers": {
@@ -95,7 +87,7 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
             "level": LOG_LEVEL,
             # Set to true here (and reset via set_context) so that if no file is configured we still get logs!
             "propagate": True,
-            "filters": ["mask_secrets"],
+            "filters": ["mask_secrets_core"],
         },
         "flask_appbuilder": {
             "handlers": ["console"],
@@ -106,7 +98,7 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "root": {
         "handlers": ["console"],
         "level": LOG_LEVEL,
-        "filters": ["mask_secrets"],
+        "filters": ["mask_secrets_core"],
     },
 }
 
@@ -127,7 +119,7 @@ if EXTRA_LOGGER_NAMES:
 ##################
 
 REMOTE_LOGGING: bool = conf.getboolean("logging", "remote_logging")
-REMOTE_TASK_LOG: RemoteLogIO | None = None
+REMOTE_TASK_LOG: RemoteLogIO | RemoteLogStreamIO | None = None
 DEFAULT_REMOTE_CONN_ID: str | None = None
 
 
@@ -228,11 +220,14 @@ if REMOTE_LOGGING:
             "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
         )
 
+        # Handle both URI format (wasb://logs) and plain path (e.g., wasb-logs)
+        wasb_remote_base = remote_base_log_folder.removeprefix("wasb://")
+
         REMOTE_TASK_LOG = WasbRemoteLogIO(
             **(
                 {
                     "base_log_folder": BASE_LOG_FOLDER,
-                    "remote_base": remote_base_log_folder,
+                    "remote_base": wasb_remote_base,
                     "delete_local_copy": delete_local_copy,
                     "wasb_container": wasb_log_container,
                 }
@@ -287,17 +282,20 @@ if REMOTE_LOGGING:
         )
         remote_task_handler_kwargs = {}
     elif ELASTICSEARCH_HOST:
-        ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("elasticsearch", "END_OF_LOG_MARK")
-        ELASTICSEARCH_FRONTEND: str = conf.get_mandatory_value("elasticsearch", "frontend")
+        from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchRemoteLogIO
+
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean("elasticsearch", "WRITE_STDOUT")
         ELASTICSEARCH_WRITE_TO_ES: bool = conf.getboolean("elasticsearch", "WRITE_TO_ES")
         ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean("elasticsearch", "JSON_FORMAT")
-        ELASTICSEARCH_JSON_FIELDS: str = conf.get_mandatory_value("elasticsearch", "JSON_FIELDS")
         ELASTICSEARCH_TARGET_INDEX: str = conf.get_mandatory_value("elasticsearch", "TARGET_INDEX")
         ELASTICSEARCH_HOST_FIELD: str = conf.get_mandatory_value("elasticsearch", "HOST_FIELD")
         ELASTICSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value("elasticsearch", "OFFSET_FIELD")
+        ELASTICSEARCH_LOG_ID_TEMPLATE: str = conf.get_mandatory_value("elasticsearch", "LOG_ID_TEMPLATE")
+        ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("elasticsearch", "END_OF_LOG_MARK")
+        ELASTICSEARCH_FRONTEND: str = conf.get_mandatory_value("elasticsearch", "FRONTEND")
+        ELASTICSEARCH_JSON_FIELDS: str = conf.get_mandatory_value("elasticsearch", "JSON_FIELDS")
 
-        ELASTIC_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
+        ELASTICSEARCH_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
             "task": {
                 "class": "airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler",
                 "formatter": "airflow",
@@ -307,15 +305,27 @@ if REMOTE_LOGGING:
                 "frontend": ELASTICSEARCH_FRONTEND,
                 "write_stdout": ELASTICSEARCH_WRITE_STDOUT,
                 "write_to_es": ELASTICSEARCH_WRITE_TO_ES,
-                "target_index": ELASTICSEARCH_TARGET_INDEX,
                 "json_format": ELASTICSEARCH_JSON_FORMAT,
                 "json_fields": ELASTICSEARCH_JSON_FIELDS,
                 "host_field": ELASTICSEARCH_HOST_FIELD,
                 "offset_field": ELASTICSEARCH_OFFSET_FIELD,
             },
         }
+        DEFAULT_LOGGING_CONFIG["handlers"].update(ELASTICSEARCH_REMOTE_HANDLERS)
 
-        DEFAULT_LOGGING_CONFIG["handlers"].update(ELASTIC_REMOTE_HANDLERS)
+        REMOTE_TASK_LOG = ElasticsearchRemoteLogIO(
+            host=ELASTICSEARCH_HOST,
+            target_index=ELASTICSEARCH_TARGET_INDEX,
+            write_stdout=ELASTICSEARCH_WRITE_STDOUT,
+            write_to_es=ELASTICSEARCH_WRITE_TO_ES,
+            offset_field=ELASTICSEARCH_OFFSET_FIELD,
+            host_field=ELASTICSEARCH_HOST_FIELD,
+            base_log_folder=BASE_LOG_FOLDER,
+            delete_local_copy=delete_local_copy,
+            json_format=ELASTICSEARCH_JSON_FORMAT,
+            log_id_template=ELASTICSEARCH_LOG_ID_TEMPLATE,
+        )
+
     elif OPENSEARCH_HOST:
         OPENSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("opensearch", "END_OF_LOG_MARK")
         OPENSEARCH_PORT: str = conf.get_mandatory_value("opensearch", "PORT")

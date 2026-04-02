@@ -48,38 +48,41 @@ class DagRunWaiter:
         async with create_session_async() as session:
             return await session.scalar(select(DagRun).filter_by(dag_id=self.dag_id, run_id=self.run_id))
 
-    def _serialize_xcoms(self) -> dict[str, Any]:
+    async def _serialize_xcoms(self) -> dict[str, Any]:
         xcom_query = XComModel.get_many(
             run_id=self.run_id,
             key=XCOM_RETURN_KEY,
             task_ids=self.result_task_ids,
             dag_ids=self.dag_id,
         )
-        xcom_query = xcom_query.order_by(XComModel.task_id, XComModel.map_index)
+        async with create_session_async() as session:
+            xcom_results = (
+                await session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index))
+            ).all()
 
-        def _group_xcoms(g: Iterator[XComModel]) -> Any:
-            entries = list(g)
+        def _group_xcoms(g: Iterator[XComModel | tuple[XComModel]]) -> Any:
+            entries = [row[0] if isinstance(row, tuple) else row for row in g]
             if len(entries) == 1 and entries[0].map_index < 0:  # Unpack non-mapped task xcom.
                 return entries[0].value
             return [entry.value for entry in entries]  # Task is mapped; return all xcoms in a list.
 
         return {
             task_id: _group_xcoms(g)
-            for task_id, g in itertools.groupby(xcom_query, key=operator.attrgetter("task_id"))
+            for task_id, g in itertools.groupby(xcom_results, key=operator.attrgetter("task_id"))
         }
 
-    def _serialize_response(self, dag_run: DagRun) -> str:
+    async def _serialize_response(self, dag_run: DagRun) -> str:
         resp = {"state": dag_run.state}
         if dag_run.state not in State.finished_dr_states:
             return json.dumps(resp)
         if self.result_task_ids:
-            resp["results"] = self._serialize_xcoms()
+            resp["results"] = await self._serialize_xcoms()
         return json.dumps(resp)
 
     async def wait(self) -> AsyncGenerator[str, None]:
-        yield self._serialize_response(dag_run := await self._get_dag_run())
+        yield await self._serialize_response(dag_run := await self._get_dag_run())
         yield "\n"
         while dag_run.state not in State.finished_dr_states:
             await asyncio.sleep(self.interval)
-            yield self._serialize_response(dag_run := await self._get_dag_run())
+            yield await self._serialize_response(dag_run := await self._get_dag_run())
             yield "\n"

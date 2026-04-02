@@ -21,14 +21,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
 
 
 class TestJenkinsBuildSensor:
     @pytest.mark.parametrize(
-        "build_number, build_state, result",
+        ("build_number", "build_state", "result"),
         [
             (
                 None,
@@ -70,7 +70,7 @@ class TestJenkinsBuildSensor:
             jenkins_mock.get_build_info.assert_called_once_with("a_job_on_jenkins", target_build_number)
 
     @pytest.mark.parametrize(
-        "build_number, build_state, result",
+        ("build_number", "build_state", "result"),
         [
             (
                 1,

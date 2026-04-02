@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, Box } from "@chakra-ui/react";
-import { useCallback, useState, useRef } from "react";
+import { HStack, Text, Box, Link } from "@chakra-ui/react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiBarChart, FiMessageSquare } from "react-icons/fi";
+import { FiBarChart } from "react-icons/fi";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
@@ -30,16 +31,12 @@ import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import DeleteRunButton from "src/pages/DeleteRunButton";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
-import { getDuration, useContainerWidth } from "src/utils";
+import { getDuration } from "src/utils";
 
-export const Header = ({
-  dagRun,
-  isRefreshing,
-}: {
-  readonly dagRun: DAGRunResponse;
-  readonly isRefreshing?: boolean;
-}) => {
+export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
   const [note, setNote] = useState<string | null>(dagRun.note);
 
@@ -51,7 +48,7 @@ export const Header = ({
     dagRunId,
   });
 
-  const onConfirm = useCallback(() => {
+  const onConfirm = () => {
     if (note !== dagRun.note) {
       mutate({
         dagId,
@@ -59,38 +56,32 @@ export const Header = ({
         requestBody: { note },
       });
     }
-  }, [dagId, dagRun.note, dagRunId, mutate, note]);
+  };
 
   const onOpen = () => {
     setNote(dagRun.note ?? "");
   };
 
-  const containerRef = useRef<HTMLDivElement>();
-  const containerWidth = useContainerWidth(containerRef);
-
   return (
-    <Box ref={containerRef}>
+    <Box>
       <HeaderCard
         actions={
           <>
             <EditableMarkdownButton
               header={translate("note.dagRun")}
-              icon={<FiMessageSquare />}
               isPending={isPending}
-              mdContent={note}
+              mdContent={dagRun.note}
               onConfirm={onConfirm}
               onOpen={onOpen}
               placeholder={translate("note.placeholder")}
               setMdContent={setNote}
-              text={Boolean(dagRun.note) ? translate("note.label") : translate("note.add")}
-              withText={containerWidth > 700}
             />
-            <ClearRunButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
-            <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled withText={containerWidth > 700} />
+            <ClearRunButton dagRun={dagRun} isHotkeyEnabled />
+            <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled />
+            <DeleteRunButton dagRun={dagRun} />
           </>
         }
         icon={<FiBarChart />}
-        isRefreshing={isRefreshing}
         state={dagRun.state}
         stats={[
           ...(dagRun.logical_date === null
@@ -101,12 +92,20 @@ export const Header = ({
                   value: <Time datetime={dagRun.logical_date} />,
                 },
               ]),
+          ...(dagRun.partition_key === null
+            ? []
+            : [
+                {
+                  label: translate("dagRun.mappedPartitionKey"),
+                  value: dagRun.partition_key,
+                },
+              ]),
           {
             label: translate("dagRun.runType"),
             value: (
               <HStack>
                 <RunTypeIcon runType={dagRun.run_type} />
-                <Text>{dagRun.run_type}</Text>
+                <Text>{translate(`runTypes.${dagRun.run_type}`)}</Text>
               </HStack>
             ),
           },
@@ -118,7 +117,15 @@ export const Header = ({
             : [
                 {
                   label: translate("dagRun.triggeringUser"),
-                  value: <Text>{dagRun.triggering_user_name}</Text>,
+                  value: (
+                    <Link asChild color="fg.info">
+                      <RouterLink
+                        to={`/dag_runs?${SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN}=${encodeURIComponent(dagRun.triggering_user_name)}`}
+                      >
+                        <Text>{dagRun.triggering_user_name}</Text>
+                      </RouterLink>
+                    </Link>
+                  ),
                 },
               ]),
           {
@@ -133,7 +140,7 @@ export const Header = ({
             ),
           },
         ]}
-        title={<Time datetime={dagRun.run_after} />}
+        title={dagRun.dag_run_id}
       />
     </Box>
   );

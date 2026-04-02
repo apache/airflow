@@ -35,16 +35,19 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils.types import NOTSET, ArgNotSet
+
+try:
+    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+except ImportError:
+    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
 
     from airflow.models import TaskInstance
-
-
-if not AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
@@ -110,7 +113,7 @@ class StackdriverTaskHandler(logging.Handler):
         if name is not NOTSET:
             warnings.warn(
                 "Param `name` is deprecated and will be removed in a future release. "
-                "Please use `gcp_log_name` instead. ",
+                "Please use `gcp_log_name` instead. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
@@ -199,7 +202,7 @@ class StackdriverTaskHandler(logging.Handler):
         :param task_instance: Currently executed task
         """
         self.task_instance_labels = self._task_instance_to_labels(task_instance)
-        self.task_instance_hostname = task_instance.hostname
+        self.task_instance_hostname = task_instance.hostname or "default-hostname"
 
     def read(
         self, task_instance: TaskInstance, try_number: int | None = None, metadata: dict | None = None

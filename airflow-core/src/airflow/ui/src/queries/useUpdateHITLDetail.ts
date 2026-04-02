@@ -23,13 +23,14 @@ import { useTranslation } from "react-i18next";
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
-  useHumanInTheLoopServiceGetHitlDetailsKey,
-  useHumanInTheLoopServiceGetMappedTiHitlDetailKey,
-  useHumanInTheLoopServiceUpdateMappedTiHitlDetail,
+  useTaskInstanceServiceGetHitlDetailsKey,
+  useTaskInstanceServiceGetHitlDetailKey,
+  useTaskInstanceServiceUpdateHitlDetail,
   useTaskInstanceServiceGetTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui/Toaster";
+import { createErrorToaster } from "src/utils";
 import type { HITLResponseParams } from "src/utils/hitl";
 
 export const useUpdateHITLDetail = ({
@@ -45,48 +46,48 @@ export const useUpdateHITLDetail = ({
 }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
-  const { t: translate } = useTranslation(["common", "hitl"]);
+  const { t: translate } = useTranslation("hitl");
   const onSuccess = async () => {
     const queryKeys = [
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
       [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
       [useTaskInstanceServiceGetTaskInstanceKey, { dagId, dagRunId, mapIndex, taskId }],
-      [useHumanInTheLoopServiceGetHitlDetailsKey, { dagIdPattern: dagId, dagRunId }],
-      [useHumanInTheLoopServiceGetMappedTiHitlDetailKey, { dagId, dagRunId }],
+      [useTaskInstanceServiceGetHitlDetailsKey, { dagIdPattern: dagId, dagRunId }],
+      [useTaskInstanceServiceGetHitlDetailKey, { dagId, dagRunId }],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-      title: translate("hitl:response.success", { taskId }),
+      title: translate("response.success", { taskId }),
       type: "success",
     });
   };
 
-  const onError = (_error: Error) => {
-    toaster.create({
-      description: _error.message,
-      title: translate("hitl:response.error"),
-      type: "error",
-    });
+  const onError = (apiError: unknown) => {
+    createErrorToaster(apiError, { titleKey: "hitl:response.error" }, translate);
   };
 
-  const { isPending, mutate } = useHumanInTheLoopServiceUpdateMappedTiHitlDetail({
+  const { isPending, mutate } = useTaskInstanceServiceUpdateHitlDetail({
     onError,
     onSuccess,
   });
 
   const updateHITLResponse = (updateHITLResponseRequestBody: HITLResponseParams) => {
+    const mapIndexValue = mapIndex ?? -1;
+
+    const requestBody = {
+      chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
+      params_input: updateHITLResponseRequestBody.params_input ?? {},
+    };
+
     try {
       mutate({
         dagId,
         dagRunId,
-        mapIndex: mapIndex ?? -1,
-        requestBody: {
-          chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
-          params_input: updateHITLResponseRequestBody.params_input ?? {},
-        },
+        mapIndex: mapIndexValue,
+        requestBody,
         taskId,
       });
     } catch (parseError) {

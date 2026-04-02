@@ -24,14 +24,8 @@ from attrs import Factory, define, field
 from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import BaseFacet, JobFacet, parent_run, sql_job
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-
 from airflow.models.taskinstance import TaskInstanceState
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.openlineage.extractors.base import (
     BaseExtractor,
     DefaultExtractor,
@@ -320,7 +314,7 @@ def test_extraction_without_on_start():
 
 
 @pytest.mark.parametrize(
-    "operator_class, task_state, expected_job_facets",
+    ("operator_class", "task_state", "expected_job_facets"),
     (
         (OperatorWithAllOlMethods, TaskInstanceState.FAILED, FAILED_FACETS),
         (OperatorWithAllOlMethods, TaskInstanceState.RUNNING, JOB_FACETS),
@@ -347,26 +341,32 @@ def test_extraction_without_on_start():
 def test_extractor_manager_calls_appropriate_extractor_method(
     operator_class, task_state, expected_job_facets
 ):
-    extractor_manager = ExtractorManager()
+    # Mocking get_hook_lineage_collector to prevent test pollution from other tests
+    # (e.g. test_serialization_deserialization_basic in common.io)
+    with mock.patch(
+        "airflow.providers.common.compat.lineage.hook.get_hook_lineage_collector"
+    ) as mock_collector:
+        mock_collector.return_value.has_collected = False
+        extractor_manager = ExtractorManager()
 
-    ti = mock.MagicMock()
+        ti = mock.MagicMock()
 
-    metadata = extractor_manager.extract_metadata(
-        dagrun=mock.MagicMock(run_id="dagrun_run_id"),
-        task=operator_class(task_id="task_id"),
-        task_instance_state=task_state,
-        task_instance=ti,
-    )
+        metadata = extractor_manager.extract_metadata(
+            dagrun=mock.MagicMock(run_id="dagrun_run_id"),
+            task=operator_class(task_id="task_id"),
+            task_instance_state=task_state,
+            task_instance=ti,
+        )
 
-    assert metadata.job_facets == expected_job_facets
-    if not expected_job_facets:  # Empty OperatorLineage() is expected
-        assert not metadata.inputs
-        assert not metadata.outputs
-        assert not metadata.run_facets
-    else:
-        assert metadata.inputs == INPUTS
-        assert metadata.outputs == OUTPUTS
-        assert metadata.run_facets == RUN_FACETS
+        assert metadata.job_facets == expected_job_facets
+        if not expected_job_facets:  # Empty OperatorLineage() is expected
+            assert not metadata.inputs
+            assert not metadata.outputs
+            assert not metadata.run_facets
+        else:
+            assert metadata.inputs == INPUTS
+            assert metadata.outputs == OUTPUTS
+            assert metadata.run_facets == RUN_FACETS
 
 
 @mock.patch("airflow.providers.openlineage.conf.custom_extractors")
@@ -439,4 +439,66 @@ def test_default_extractor_uses_wrong_operatorlineage_class():
     operator = OperatorWrongOperatorLineageClass(task_id="task_id")
     # If extractor returns lineage class that can't be changed into OperatorLineage, just return
     # empty OperatorLineage
-    assert ExtractorManager().extract_metadata(mock.MagicMock(), operator, None) == OperatorLineage()
+    assert ExtractorManager().extract_metadata(mock.MagicMock(), operator, None, None) == OperatorLineage()
+
+
+def test_operator_lineage_merge_concatenates_inputs_and_outputs():
+    a = OperatorLineage(
+        inputs=[Dataset(namespace="ns", name="a_in")],
+        outputs=[Dataset(namespace="ns", name="a_out")],
+    )
+    b = OperatorLineage(
+        inputs=[Dataset(namespace="ns", name="b_in")],
+        outputs=[Dataset(namespace="ns", name="b_out")],
+    )
+    result = a.merge(b)
+    assert result == OperatorLineage(
+        inputs=[Dataset(namespace="ns", name="a_in"), Dataset(namespace="ns", name="b_in")],
+        outputs=[Dataset(namespace="ns", name="a_out"), Dataset(namespace="ns", name="b_out")],
+    )
+
+
+def test_operator_lineage_merge_self_facets_take_priority():
+    a = OperatorLineage(
+        run_facets={"shared": "from_self", "only_self": "s"},
+        job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1"), "only_self": "s"},
+    )
+    b = OperatorLineage(
+        run_facets={"shared": "from_other", "only_other": "o"},
+        job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 2"), "only_other": "o"},
+    )
+    result = a.merge(b)
+    assert result.run_facets == {"shared": "from_self", "only_self": "s", "only_other": "o"}
+    assert result.job_facets == {
+        "sql": sql_job.SQLJobFacet(query="SELECT 1"),
+        "only_self": "s",
+        "only_other": "o",
+    }
+
+
+def test_operator_lineage_merge_with_empty_other():
+    a = OperatorLineage(
+        inputs=[Dataset(namespace="ns", name="t")],
+        run_facets={"r": "v"},
+        job_facets={"j": "v"},
+    )
+    result = a.merge(OperatorLineage())
+    assert result == a
+
+
+def test_operator_lineage_merge_into_empty_self():
+    b = OperatorLineage(
+        inputs=[Dataset(namespace="ns", name="t")],
+        run_facets={"r": "v"},
+        job_facets={"j": "v"},
+    )
+    result = OperatorLineage().merge(b)
+    assert result == b
+
+
+def test_operator_lineage_merge_returns_new_instance():
+    a = OperatorLineage(inputs=[Dataset(namespace="ns", name="a")])
+    b = OperatorLineage(inputs=[Dataset(namespace="ns", name="b")])
+    result = a.merge(b)
+    assert result is not a
+    assert result is not b

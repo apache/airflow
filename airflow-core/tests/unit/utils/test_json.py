@@ -45,6 +45,9 @@ class Z:
     def __eq__(self, other):
         return self.x == other.x
 
+    def __hash__(self):
+        return hash(self.x)
+
 
 @dataclass
 class U:

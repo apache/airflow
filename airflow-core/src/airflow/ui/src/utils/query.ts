@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDagServiceGetDagDetails } from "openapi/queries";
+import { useDagRunServiceGetDagRuns, useDagServiceGetDagDetails } from "openapi/queries";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { useConfig } from "src/queries/useConfig";
 
@@ -30,7 +30,14 @@ export const isStatePending = (state?: TaskInstanceState | null) =>
   state === "restarting" ||
   !Boolean(state);
 
-export const useAutoRefresh = ({ dagId, isPaused }: { dagId?: string; isPaused?: boolean }) => {
+// checkPendingRuns=false assumes that the component is already handling pending, setting to true will have useAutoRefresh handle it
+export const useAutoRefresh = ({
+  checkPendingRuns = false,
+  dagId,
+}: {
+  checkPendingRuns?: boolean;
+  dagId?: string;
+}) => {
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number | undefined;
   const { data: dag } = useDagServiceGetDagDetails(
     {
@@ -40,9 +47,29 @@ export const useAutoRefresh = ({ dagId, isPaused }: { dagId?: string; isPaused?:
     { enabled: dagId !== undefined },
   );
 
-  const paused = isPaused ?? dag?.is_paused;
+  const { data: dagRunData } = useDagRunServiceGetDagRuns(
+    {
+      dagId: dagId ?? "~",
+      limit: 1,
+      state: ["running", "queued"],
+    },
+    undefined,
+    // Scale back refetching to 10x longer if there are no pending runs (eg: every 3 secs for active runs, otherwise 30 secs)
+    {
+      enabled: checkPendingRuns,
+      refetchInterval: (query) =>
+        autoRefreshInterval !== undefined &&
+        ((query.state.data?.dag_runs ?? []).length > 0
+          ? autoRefreshInterval * 1000
+          : autoRefreshInterval * 10 * 1000),
+    },
+  );
 
-  const canRefresh = autoRefreshInterval !== undefined && !paused;
+  const pendingRuns = checkPendingRuns ? (dagRunData?.dag_runs ?? []).length >= 1 : true;
+
+  const paused = Boolean(dagId) ? dag?.is_paused : false;
+
+  const canRefresh = autoRefreshInterval !== undefined && !paused && pendingRuns;
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   return (canRefresh ? autoRefreshInterval * 1000 : false) as number | false;

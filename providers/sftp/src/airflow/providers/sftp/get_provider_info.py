@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "SSH File Transfer Protocol (SFTP)",
                 "external-doc-url": "https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/",
+                "how-to-guide": ["/docs/apache-airflow-providers-sftp/sensors/sftp_sensor.rst"],
                 "logo": "/docs/integration-logos/SFTP.png",
                 "tags": ["protocol"],
             }
@@ -56,7 +57,15 @@ def get_provider_info():
             }
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook", "connection-type": "sftp"}
+            {
+                "hook-class-name": "airflow.providers.sftp.hooks.sftp.SFTPHook",
+                "connection-type": "sftp",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema"],
+                    "relabeling": {"login": "Username"},
+                    "placeholders": {},
+                },
+            }
         ],
         "task-decorators": [
             {
@@ -70,4 +79,5 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.sftp.triggers.sftp"],
             }
         ],
+        "filesystems": ["airflow.providers.sftp.fs.sftp"],
     }

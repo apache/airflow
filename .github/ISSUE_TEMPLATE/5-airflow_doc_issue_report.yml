@@ -15,6 +15,10 @@ body:
         Note, you do not need to create an issue if you have a change ready to submit!
 
         You can open a [pull request](https://github.com/apache/airflow/pulls) immediately instead.
+
+        Please note that reporting a doc issue does not guarantee it will be fixed, as prioritization and implementation depend on impact, severity, and community availability.
+        Therefore, please do not request or expect specific timelines or ETAs. Remember that the fastest way to fix documentation issues is to submit a PR yourself.
+
         <br clear='left'/>"
       # yamllint enable rule:line-length
   - type: textarea

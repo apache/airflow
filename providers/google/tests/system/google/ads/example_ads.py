@@ -50,16 +50,23 @@ from airflow.providers.google.ads.operators.ads import GoogleAdsListAccountsOper
 from airflow.providers.google.ads.transfers.ads_to_gcs import GoogleAdsToGcsOperator
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.utils.trigger_rule import TriggerRule
 
-from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+
+from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 # [START howto_google_ads_env_variables]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_PROJECT_ID", "default")
-API_VERSION = "v20"
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+API_VERSION = "v21"
 
 DAG_ID = "google_ads"
+
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
 
 GOOGLE_ADS_CLIENT_ID = "google_ads_client_id"
 GOOGLE_ADS_SERVICE_ACCOUNT_KEY = "google_ads_service_account_key"
@@ -153,6 +160,7 @@ with DAG(
         create_airflow_connection(
             connection_id=connection_id,
             connection_conf={"conn_type": CONNECTION_TYPE, "extra": conn_extra_json},
+            is_composer=IS_COMPOSER,
         )
 
     create_connection_gcloud_for_ads = create_connection_gcloud_for_ads(
@@ -177,6 +185,7 @@ with DAG(
         create_airflow_connection(
             connection_id=connection_id,
             connection_conf={"conn_type": CONNECTION_TYPE, "extra": conn_extra_json},
+            is_composer=IS_COMPOSER,
         )
 
     create_connection_ads_task = create_connection_ads(
@@ -222,13 +231,13 @@ with DAG(
 
     @task(task_id="delete_connection_gloud")
     def delete_connection_gloud(connection_id: str) -> None:
-        delete_airflow_connection(connection_id=connection_id)
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
     delete_connection_gloud_task = delete_connection_gloud(connection_id=CONNECTION_GLOUD_ID)
 
     @task(task_id="delete_connection_ads")
     def delete_connection_ads(connection_id: str) -> None:
-        delete_airflow_connection(connection_id=connection_id)
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
     delete_connection_ads_task = delete_connection_ads(connection_id=CONNECTION_ADS_ID)
 

@@ -65,7 +65,7 @@ class WorkflowsHook(GoogleBaseHook):
         Create a new workflow.
 
         If a workflow with the specified name already exists in the
-        specified project and location, the long running operation will
+        specified project and location, the long-running operation will
         return [ALREADY_EXISTS][google.rpc.Code.ALREADY_EXISTS] error.
 
         :param workflow: Required. Workflow to be created.

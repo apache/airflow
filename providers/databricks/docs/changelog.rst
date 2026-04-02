@@ -26,6 +26,278 @@
 Changelog
 ---------
 
+.. note:: **Security fix — TLS verification for Kubernetes TokenRequest API (affects Kubernetes OIDC token federation)**
+
+   The Kubernetes TokenRequest API call made during ``federated_k8s`` authentication now verifies the
+   Kubernetes API server's TLS certificate using the in-cluster CA bundle at
+   ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. Previously, TLS verification was disabled
+   (``verify=False``), which exposed the token exchange to potential man-in-the-middle attacks within the
+   cluster.
+
+   **This is a security fix that enforces what should always have been the behaviour.**
+
+   For all standard Kubernetes deployments (EKS, AKS, GKE, vanilla Kubernetes), the CA bundle is
+   automatically mounted at the standard path by the Kubernetes API server as part of service account
+   token projection — no action is required.
+
+   **Potentially impacted:** Non-compliant or highly customized Kubernetes distributions that do not
+   mount ``ca.crt`` at ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. If you are affected,
+   please open an issue so support for a configurable CA path can be added.
+
+7.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add new hook method (#62822)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typo in 'monitor_databricks_job' (#63651)``
+* ``Enable TLS certificate verification for K8s token exchange in 'DatabricksHook' (#63704)``
+* ``Map Airflow trigger_rule to Databricks run_if in 'DatabricksWorkflowTaskGroup' (#63420)``
+* ``Fix broken import of 'aiofiles' in 'BaseDatabricksHook' (#63518)``
+* ``Fail deferrable runs that terminate before defer (#62917)``
+* ``Fix sql_warehouse_name resolution: handle 'warehouses' API response key (#63286)``
+* ``Handle concurrent create race in DatabricksReposCreateOperator when ignore_existing_repo=True. If create_repo() fails, the operator now re-checks repository existence and proceeds if the repository was created concurrently; otherwise, the original exception is re-raised. Add unit tests covering recovery and failure propagation under concurrent create scenarios. (#62422)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix AIR004* in multiple example DAGs (#62529)``
+* ``Refactor timeout handling in DatabricksSqlHook to use explicit signaling (#62623)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+7.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add validation for table_name and expression_list in DatabricksCopyIntoOperator (#62499)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Raise ValueError instead of KeyError when cancel_previous_runs=True and no job identifier is provided (#62393)``
+
+Misc
+~~~~
+
+* ``Remove dependency limitations related to FAB's py3.13 incompatibility (#62924)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage methods to DatabricksHook (#62179)``
+* ``Databricks OIDC token federation for Kubernetes deployment (#61458)``
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Add missing template fields to 'DatabricksWorkflowTaskGroup' (#61865)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``cleanup test_databricks_workflow (#61907)``
+
+7.9.1
+.....
+
+Misc
+~~~~
+
+* ``Cleanup some dependencies (#60992)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add direct GCS export to DatabricksSqlOperator with Parquet/Avro support #55128 (#60543)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing fastavro after PR #60732 (#60797)``
+* ``Pin fastavro to minimum 1.10.0 for Python 3.13 compatibility (#60732)``
+* ``Updating Databricks API endpoints to appropriate versions (#60647)``
+
+Misc
+~~~~
+
+* ``Define 'TaskInstanceKey' in task-sdk to support client server separation (#60776)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert exclusion of deltalake 1.3.1 as aarch64 binaries are available now (#60611)``
+
+7.8.3
+.....
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``Limit deltalake again to 1.3.1 due to missing ARM .whl files (#60376)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Made sqlalchemy dependency optional for Databricks provider (#60110)``
+* ``Move over plugins_manager to a shared library (#59956)``
+* ``Limit deltalake again to 1.3.0 due to missing ARM .whl files (#60098)``
+* ``Source databricks provider to use airflow.sdk.configuration.conf (#60021)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Limit deltalake to not include 1.3.0 version (#59977)" (#60005)``
+   * ``Limit deltalake to not include 1.3.0 version (#59977)``
+
+7.8.2
+.....
+
+Misc
+~~~~
+
+* ``'issue-59189:' Updating Databricks provider to point to '2.2/jobs/...' endpoint (#59217)``
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Refactor/sqla2 providers(celery, kubernetes, databricks, mysql) to remove SQLA query usage (#59537)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+7.8.1
+.....
+
+Misc
+~~~~
+
+* ``chore: use OL macros instead of building OL ids from scratch (#59197)``
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.8.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+7.7.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix documentation/provider.yaml consistencies (#57283)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to 14 files in providers (databricks,dbt,docker) (#57994)``
+   * ``Fix mypy static errors in databricks provider (#57768)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+
+7.7.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Databricks provider import error without fab provider (#56702)``
+
+Misc
+~~~~
+
+* ``Migrate databricks provider to ''common.compat'' (#56993)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove 'pytest.importorskip("flask_appbuilder")' from tests (#56679)``
+   * ``Enable PT011 rule to prvoider tests (#56320)``
+
+7.7.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix metadata service check handle 429 (#55462)``
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.7.2
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Databricks sqlalchemy URL construction (#54478)``
+* ``Ensures DatabricksWorkflowOperator updates ACL (if available) when resetting a job. (#47827)``
+
+Misc
+~~~~
+
+* ``Remove airflow.models.DAG (#54383)``
+* ``chore: change openlineage to optional dependency (#54748)``
+* ``Move DagBag to SDK and make it return SDK DAG objects (#53918)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Add CI support for SQLAlchemy 2.0 (#52233)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 7.7.1
 .....
 
@@ -309,8 +581,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
    * ``Revert "Added job_clusters as a templated parameter to CreateDatabricksWorkfl…" (#45035)``
 
@@ -611,11 +881,10 @@ Misc
 * ``fix typos in DatabricksSubmitRunOperator (#36248)``
 * ``Add code snippet formatting in docstrings via Ruff (#36262)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
    * ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
    * ``Prepare 2nd wave of providers in December (#36373)``
 

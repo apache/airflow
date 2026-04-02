@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.10"
 # dependencies = [
-#    "rich>=12.4.4",
+#    "rich>=13.6.0",
 #    "diagrams>=0.23.4",
 # ]
 # ///

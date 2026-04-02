@@ -23,11 +23,11 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class S3ToSFTPOperator(BaseOperator):
@@ -42,6 +42,8 @@ class S3ToSFTPOperator(BaseOperator):
         establishing a connection to the SFTP server.
     :param sftp_path: The sftp remote path. This is the specified file path for
         uploading file to the SFTP server.
+    :param sftp_remote_host: The remote host of the SFTP server. Overrides host in
+        Connection.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -51,6 +53,9 @@ class S3ToSFTPOperator(BaseOperator):
         where the file is downloaded.
     :param s3_key: The targeted s3 key. This is the specified file path for
         downloading the file from S3.
+    :param confirm: specify if the SFTP operation should be confirmed, defaults to True.
+        When True, a stat will be performed on the remote file after upload to verify
+        the file size matches and confirm successful transfer.
     """
 
     template_fields: Sequence[str] = ("s3_key", "sftp_path", "s3_bucket")
@@ -62,7 +67,9 @@ class S3ToSFTPOperator(BaseOperator):
         s3_key: str,
         sftp_path: str,
         sftp_conn_id: str = "ssh_default",
+        sftp_remote_host: str = "",
         aws_conn_id: str | None = "aws_default",
+        confirm: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -70,7 +77,9 @@ class S3ToSFTPOperator(BaseOperator):
         self.sftp_path = sftp_path
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
+        self.sftp_remote_host = sftp_remote_host
         self.aws_conn_id = aws_conn_id
+        self.confirm = confirm
 
     @staticmethod
     def get_s3_key(s3_key: str) -> str:
@@ -80,7 +89,9 @@ class S3ToSFTPOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
-        ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
+
+        # SSHHook will handle a None/"" sftp_remote_host
+        ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id, remote_host=self.sftp_remote_host)
         s3_hook = S3Hook(self.aws_conn_id)
 
         s3_client = s3_hook.get_conn()
@@ -88,4 +99,4 @@ class S3ToSFTPOperator(BaseOperator):
 
         with NamedTemporaryFile("w") as f:
             s3_client.download_file(self.s3_bucket, self.s3_key, f.name)
-            sftp_client.put(f.name, self.sftp_path)
+            sftp_client.put(f.name, self.sftp_path, confirm=self.confirm)

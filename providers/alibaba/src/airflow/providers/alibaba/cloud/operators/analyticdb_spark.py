@@ -22,12 +22,11 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.hooks.analyticdb_spark import AnalyticDBSparkHook, AppState
-from airflow.providers.alibaba.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class AnalyticDBSparkBaseOperator(BaseOperator):

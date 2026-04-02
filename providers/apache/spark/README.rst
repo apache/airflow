@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-apache-spark``
 
-Release: ``5.3.2``
+Release: ``6.0.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Spark <https://spark.apache.org/>`__
 
@@ -37,16 +36,16 @@ This is a provider package for ``apache.spark`` provider. All classes for this p
 are in ``airflow.providers.apache.spark`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.3.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/6.0.0/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-spark``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -54,10 +53,10 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.5.0``
-``pyspark``                                 ``>=3.5.2``
-``grpcio-status``                           ``>=1.59.0``
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``pyspark-client``                          ``>=4.0.0``
+``grpcio-status``                           ``>=1.67.0``
 ==========================================  ==================
 
 Cross provider package dependencies
@@ -80,5 +79,16 @@ Dependent package                                                               
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
 ======================================================================================================================  ===================
 
+Optional dependencies
+----------------------
+
+===================  ===================================================
+Extra                Dependencies
+===================  ===================================================
+``cncf.kubernetes``  ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
+``openlineage``      ``apache-airflow-providers-openlineage``
+``pyspark``          ``pyspark>=4.0.0``
+===================  ===================================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/5.3.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-spark/6.0.0/changelog.html>`_.

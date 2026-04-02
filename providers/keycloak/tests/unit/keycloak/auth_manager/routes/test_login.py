@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import ANY, AsyncMock, Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 
@@ -40,10 +40,12 @@ class TestLoginRouter:
     def test_login_callback(self, mock_get_keycloak_client, mock_get_auth_manager, client):
         code = "code"
         token = "token"
+        state = "state"
         mock_keycloak_client = Mock()
         mock_keycloak_client.token.return_value = {
             "access_token": "access_token",
             "refresh_token": "refresh_token",
+            "id_token": "id_token",
         }
         mock_keycloak_client.userinfo.return_value = {
             "sub": "sub",
@@ -54,7 +56,9 @@ class TestLoginRouter:
         mock_get_auth_manager.return_value = mock_auth_manager
         mock_auth_manager.generate_jwt.return_value = token
         response = client.get(
-            AUTH_MANAGER_FASTAPI_APP_PREFIX + f"/login_callback?code={code}", follow_redirects=False
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + f"/login_callback?code={code}&state={state}",
+            follow_redirects=False,
+            cookies={"_oauth_state": state},
         )
         mock_keycloak_client.token.assert_called_once_with(
             grant_type="authorization_code",
@@ -72,80 +76,36 @@ class TestLoginRouter:
         assert "location" in response.headers
         assert "_token" in response.cookies
         assert response.cookies["_token"] == token
+        assert response.cookies["_id_token"] == "id_token"
 
     def test_login_callback_without_code(self, client):
         response = client.get(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback")
         assert response.status_code == 400
 
-    @patch("airflow.api_fastapi.core_api.security.get_user", new_callable=AsyncMock)
-    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    @pytest.mark.parametrize(
+        ("id_token", "logout_callback_url"),
+        [
+            (None, "/auth/logout_callback"),
+            (
+                "id_token",
+                "/auth/logout_callback",
+            ),
+            (
+                "id_token.real.value",
+                "logout_url?post_logout_redirect_uri=/auth/logout_callback&id_token_hint=id_token.real.value",
+            ),
+        ],
+    )
     @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
-    @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
-    @pytest.mark.asyncio
-    async def test_refresh(
-        self,
-        mock_get_auth_manager,
-        mock_get_keycloak_client,
-        mock_sec_get_auth_manager,
-        mock_get_user,
-        client,
-    ):
-        mock_user = Mock()
-        mock_get_user.return_value = mock_user
-        mock_auth_manager_sec = Mock()
-        mock_sec_get_auth_manager.return_value = mock_auth_manager_sec
-        mock_auth_manager_sec.get_user_from_token = AsyncMock(return_value=mock_user)
-        mock_get_keycloak_client.refresh_token.return_value = {
-            "access_token": "new_access_token",
-            "refresh_token": "new_refresh_token",
-        }
-
-        mock_auth_manager = Mock()
-        mock_get_auth_manager.return_value = mock_auth_manager
-        mock_auth_manager.generate_jwt.return_value = "new_token"
-
-        next_url = "http://localhost:8080"
+    def test_logout(self, mock_get_keycloak_client, id_token, logout_callback_url, client):
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.well_known.return_value = {"end_session_endpoint": "logout_url"}
+        mock_get_keycloak_client.return_value = mock_keycloak_client
         response = client.get(
-            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/refresh",
-            headers={"Authorization": "Bearer refresh_token"},
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/logout",
+            cookies={"_id_token": id_token},
             follow_redirects=False,
-            params={"next": next_url},
         )
-
-        assert response.status_code == 303
-        assert "_token" in response.cookies
-
+        assert response.status_code == 307
         assert "location" in response.headers
-        assert response.headers["location"] == next_url
-
-    # Test when user is None or refresh_token is not set
-    @patch("airflow.api_fastapi.core_api.security.get_user", new_callable=AsyncMock)
-    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
-    @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
-    @pytest.mark.asyncio
-    async def test_refresh_user_none(
-        self,
-        mock_get_auth_manager,
-        mock_get_keycloak_client,
-        mock_sec_get_auth_manager,
-        mock_get_user,
-        client,
-    ):
-        mock_user = None
-        mock_get_user.return_value = mock_user
-        mock_auth_manager_sec = Mock()
-        mock_sec_get_auth_manager.return_value = mock_auth_manager_sec
-        mock_auth_manager_sec.get_user_from_token = AsyncMock(return_value=mock_user)
-
-        next_url = "http://localhost:8080"
-        response = client.get(
-            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/refresh",
-            headers={"Authorization": "Bearer refresh_token"},
-            follow_redirects=False,
-            params={"next": next_url},
-        )
-
-        assert response.status_code == 400
-        assert "_token" not in response.cookies
-        assert "location" not in response.headers
+        assert response.headers["location"] == logout_callback_url

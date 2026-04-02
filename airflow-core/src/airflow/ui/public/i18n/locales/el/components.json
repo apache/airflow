@@ -1,0 +1,134 @@
+{
+  "backfill": {
+    "affected_one": "1 εκτέλεση θα ενεργοποιηθεί.",
+    "affected_other": "{{count}} εκτελέσεις θα ενεργοποιηθούν.",
+    "affectedNone": "Δεν βρέθηκαν εκτελέσεις που να ταιριάζουν με τα κριτήρια.",
+    "allRuns": "Όλες οι Εκτελέσεις",
+    "backwards": "Αντίστροφη Εκτέλεση",
+    "dateRange": "Εύρος Ημερομηνιών",
+    "errorStartDateBeforeEndDate": "Η ημερομηνία έναρξης πρέπει να είναι πριν την ημερομηνία λήξης",
+    "maxRuns": "Μέγιστες Ενεργές Εκτελέσεις",
+    "missingAndErroredRuns": "Εκτελέσεις που λείπουν ή απέτυχαν",
+    "missingRuns": "Εκτελέσεις που λείπουν",
+    "reprocessBehavior": "Συμπεριφορά Επανεπεξεργασίας",
+    "run": "Εκτέλεση Backfill",
+    "selectDescription": "Εκτελέστε αυτό το Dag για ένα εύρος ημερομηνιών",
+    "selectLabel": "Backfill",
+    "title": "Εκτέλεση Backfill",
+    "toaster": {
+      "success": {
+        "description": "Οι εργασίες backfill ενεργοποιήθηκαν με επιτυχία.",
+        "title": "Το Backfill δημιουργήθηκε"
+      }
+    },
+    "tooltip": "Το Backfill απαιτεί πρόγραμμα",
+    "unpause": "Αναίρεση παύσης του {{dag_display_name}} κατά την ενεργοποίηση",
+    "validation": {
+      "datesRequired": "Πρέπει να δοθούν και η ημερομηνία έναρξης και λήξης του διαστήματος δεδομένων.",
+      "startBeforeEnd": "Η ημερομηνία έναρξης πρέπει να είναι μικρότερη ή ίση με την ημερομηνία λήξης."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Το Backfill είναι σε εξέλιξη",
+    "cancel": "Ακύρωση backfill",
+    "pause": "Παύση backfill",
+    "unpause": "Αναίρεση παύσης backfill"
+  },
+  "clipboard": {
+    "copy": "Αντιγραφή"
+  },
+  "close": "Κλείσιμο",
+  "configForm": {
+    "advancedOptions": "Προχωρημένες Επιλογές",
+    "configJson": "Ρυθμίσεις JSON",
+    "invalidJson": "Μη έγκυρη μορφή JSON: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 Σφάλμα",
+    "error_other": "{{count}} Σφάλματα",
+    "errorAndWarning": "1 Σφάλμα και {{warningText}}",
+    "warning_one": "1 Προειδοποίηση",
+    "warning_other": "{{count}} Προειδοποιήσεις"
+  },
+  "durationChart": {
+    "duration": "Διάρκεια (δευτερόλεπτα)",
+    "lastDagRun_one": "Τελευταία Εκτέλεση Dag",
+    "lastDagRun_other": "Τελευταίες {{count}} Εκτελέσεις Dag",
+    "lastTaskInstance_one": "Τελευταία Εκτέλεση Εργασίας",
+    "lastTaskInstance_other": "Τελευταίες {{count}} Εκτελέσεις Εργασίας",
+    "queuedDuration": "Διάρκεια σε Ουρά",
+    "runAfter": "Εκτέλεση Μετά",
+    "runDuration": "Διάρκεια Εκτέλεσης"
+  },
+  "fileUpload": {
+    "files_one": "{{count}} αρχείο",
+    "files_other": "{{count}} αρχεία"
+  },
+  "flexibleForm": {
+    "placeholder": "Επιλέξτε Τιμή",
+    "placeholderArray": "Εισάγετε κάθε συμβολοσειρά σε νέα γραμμή",
+    "placeholderExamples": "Ξεκινήστε να πληκτρολογείτε για να δείτε επιλογές",
+    "placeholderMulti": "Επιλέξτε μία ή περισσότερες τιμές",
+    "validationErrorArrayNotArray": "Η τιμή πρέπει να είναι πίνακας.",
+    "validationErrorArrayNotNumbers": "Όλα τα στοιχεία του πίνακα πρέπει να είναι αριθμοί.",
+    "validationErrorArrayNotObject": "Όλα τα στοιχεία του πίνακα πρέπει να είναι αντικείμενα.",
+    "validationErrorRequired": "Αυτό το πεδίο είναι υποχρεωτικό"
+  },
+  "graph": {
+    "directionDown": "Από Πάνω προς Κάτω",
+    "directionLeft": "Από Δεξιά προς Αριστερά",
+    "directionRight": "Από Αριστερά προς Δεξιά",
+    "directionUp": "Από Κάτω προς Πάνω",
+    "downloadImage": "Λήψη εικόνας γραφήματος",
+    "downloadImageError": "Αποτυχία λήψης εικόνας γραφήματος.",
+    "downloadImageErrorTitle": "Αποτυχία Λήψης",
+    "otherDagRuns": "+Άλλες Εκτελέσεις Dag",
+    "taskCount_one": "{{count}} Εργασία",
+    "taskCount_other": "{{count}} Εργασίες",
+    "taskGroup": "Ομάδα Εργασιών"
+  },
+  "limitedList": "+{{count}} ακόμα",
+  "logs": {
+    "file": "Αρχείο",
+    "location": "γραμμή {{line}} στο {{name}}"
+  },
+  "reparseDag": "Επαναανάλυση Dag",
+  "sortedAscending": "αύξουσα ταξινόμηση",
+  "sortedDescending": "φθίνουσα ταξινόμηση",
+  "sortedUnsorted": "μη ταξινομημένο",
+  "taskTries": "Προσπάθειες Εργασίας",
+  "toggleCardView": "Εμφάνιση κάρτας",
+  "toggleTableView": "Εμφάνιση πίνακα",
+  "triggerDag": {
+    "button": "Ενεργοποίηση",
+    "loading": "Φόρτωση πληροφοριών Dag...",
+    "loadingFailed": "Αποτυχία φόρτωσης πληροφοριών Dag. Παρακαλώ δοκιμάστε ξανά.",
+    "runIdHelp": "Προαιρετικό - θα δημιουργηθεί αν δεν δοθεί",
+    "selectDescription": "Ενεργοποιήστε μία εκτέλεση αυτού του Dag",
+    "selectLabel": "Μονή Εκτέλεση",
+    "title": "Ενεργοποίηση Dag",
+    "toaster": {
+      "success": {
+        "description": "Η εκτέλεση Dag ενεργοποιήθηκε με επιτυχία.",
+        "title": "Η Εκτέλεση Dag Ενεργοποιήθηκε"
+      }
+    },
+    "unpause": "Αναίρεση παύσης του {{dagDisplayName}} κατά την ενεργοποίηση"
+  },
+  "trimText": {
+    "details": "Λεπτομέρειες",
+    "empty": "Κενό",
+    "noContent": "Δεν υπάρχουν διαθέσιμα δεδομένα."
+  },
+  "versionDetails": {
+    "bundleLink": "Σύνδεσμος Πακέτου",
+    "bundleName": "Όνομα Πακέτου",
+    "bundleVersion": "Έκδοση Πακέτου",
+    "createdAt": "Δημιουργήθηκε στις",
+    "versionId": "ID Έκδοσης"
+  },
+  "versionSelect": {
+    "dagVersion": "Έκδοση Dag",
+    "versionCode": "v{{versionCode}}"
+  }
+}

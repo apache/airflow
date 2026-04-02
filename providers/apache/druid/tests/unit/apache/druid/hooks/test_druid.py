@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook, IngestionType
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 @pytest.mark.db_test
@@ -359,7 +359,7 @@ class TestDruidHook:
         assert self.db_hook.get_auth() is None
 
     @pytest.mark.parametrize(
-        "verify_ssl_arg, ca_bundle_path, expected_return_value",
+        ("verify_ssl_arg", "ca_bundle_path", "expected_return_value"),
         [
             (False, None, False),
             (True, None, True),
@@ -509,3 +509,40 @@ class TestDruidDbApiHook:
         assert column == df.columns[0]
         assert result_sets[0][0] == df.row(0)[0]
         assert result_sets[1][0] == df.row(1)[0]
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook().run(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook().get_df(sql, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook().get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters

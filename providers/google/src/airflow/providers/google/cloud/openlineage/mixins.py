@@ -97,7 +97,9 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
         run_facets: dict[str, RunFacet] = {
             "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery")
         }
-        self._client = self.hook.get_client(project_id=self.hook.project_id, location=self.location)
+        self._client = self.hook.get_client(
+            project_id=self.project_id or self.hook.project_id, location=self.location
+        )
         try:
             job_properties = self._client.get_job(job_id=self.job_id)._properties
 

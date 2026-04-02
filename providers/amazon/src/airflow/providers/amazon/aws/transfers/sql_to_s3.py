@@ -25,16 +25,16 @@ from collections import namedtuple
 from collections.abc import Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.version_compat import BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
 
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
 
     from airflow.providers.common.sql.hooks.sql import DbApiHook
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class FILE_FORMAT(enum.Enum):
@@ -183,7 +183,7 @@ class SqlToS3Operator(BaseOperator):
             import numpy as np
             import pandas as pd
         except ImportError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(e)
 
@@ -191,7 +191,7 @@ class SqlToS3Operator(BaseOperator):
             if df[col].dtype.name == "object" and file_format == FILE_FORMAT.PARQUET:
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
-                df[col] = df[col].astype(str)
+                df[col] = cast("pd.Series", df[col].astype(str))  # type: ignore[call-overload]
 
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
@@ -201,13 +201,23 @@ class SqlToS3Operator(BaseOperator):
                     # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
                     # is merged and released as currently NumPy does not consider None as valid for x/y.
                     df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
-                    df[col] = df[col].astype(pd.Int64Dtype())
+                    df[col] = cast("pd.Series", df[col].astype(pd.Int64Dtype()))  # type: ignore[call-overload]
                 elif np.isclose(notna_series, notna_series.astype(int)).all():
                     # set to float dtype that retains floats and supports NaNs
                     # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
                     # is merged and released
                     df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
-                    df[col] = df[col].astype(pd.Float64Dtype())
+                    df[col] = cast("pd.Series", df[col].astype(pd.Float64Dtype()))  # type: ignore[call-overload]
+
+    @staticmethod
+    def _strip_suffixes(
+        path: str,
+    ) -> str:
+        suffixes = [".json.gz", ".csv.gz", ".json", ".csv", ".parquet"]
+        for suffix in sorted(suffixes, key=len, reverse=True):
+            if path.endswith(suffix):
+                return path[: -len(suffix)]
+        return path
 
     def execute(self, context: Context) -> None:
         sql_hook = self._get_hook()
@@ -224,9 +234,15 @@ class SqlToS3Operator(BaseOperator):
         for group_name, df in self._partition_dataframe(df=data_df):
             buf = io.BytesIO()
             self.log.info("Writing data to in-memory buffer")
-            object_key = f"{self.s3_key}_{group_name}" if group_name else self.s3_key
+            clean_key = self._strip_suffixes(self.s3_key)
+            object_key = (
+                f"{clean_key}_{group_name}{file_options.suffix}"
+                if group_name
+                else f"{clean_key}{file_options.suffix}"
+            )
 
-            if self.df_kwargs.get("compression") == "gzip":
+            if self.file_format != FILE_FORMAT.PARQUET and self.df_kwargs.get("compression") == "gzip":
+                object_key += ".gz"
                 df_kwargs = {k: v for k, v in self.df_kwargs.items() if k != "compression"}
                 with gzip.GzipFile(fileobj=buf, mode="wb", filename=object_key) as gz:
                     getattr(df, file_options.function)(gz, **df_kwargs)
@@ -237,6 +253,7 @@ class SqlToS3Operator(BaseOperator):
                     text_buf = io.TextIOWrapper(buf, encoding="utf-8", write_through=True)
                     getattr(df, file_options.function)(text_buf, **self.df_kwargs)
                     text_buf.flush()
+
             buf.seek(0)
 
             self.log.info("Uploading data to S3")
@@ -244,38 +261,55 @@ class SqlToS3Operator(BaseOperator):
                 file_obj=buf, key=object_key, bucket_name=self.s3_bucket, replace=self.replace
             )
 
-    def _partition_dataframe(self, df: pd.DataFrame | pl.DataFrame) -> Iterable[tuple[str, pd.DataFrame]]:
-        """Partition dataframe using pandas groupby() method."""
+    def _partition_dataframe(
+        self, df: pd.DataFrame | pl.DataFrame
+    ) -> Iterable[tuple[str, pd.DataFrame | pl.DataFrame]]:
+        """Partition dataframe using pandas or polars groupby() method."""
         try:
             import secrets
             import string
 
             import numpy as np
+            import pandas as pd
             import polars as pl
         except ImportError:
             pass
 
-        if isinstance(df, pl.DataFrame):
-            df = df.to_pandas()
-
         # if max_rows_per_file argument is specified, a temporary column with a random unusual name will be
         # added to the dataframe. This column is used to dispatch the dataframe into smaller ones using groupby()
-
-        random_column_name = ""
+        random_column_name = None
         if self.max_rows_per_file and not self.groupby_kwargs:
             random_column_name = "".join(secrets.choice(string.ascii_letters) for _ in range(20))
-            df[random_column_name] = np.arange(len(df)) // self.max_rows_per_file
             self.groupby_kwargs = {"by": random_column_name}
+
+        if random_column_name:
+            if isinstance(df, pd.DataFrame):
+                df[random_column_name] = np.arange(len(df)) // self.max_rows_per_file
+            elif isinstance(df, pl.DataFrame):
+                df = df.with_columns(
+                    (pl.int_range(pl.len()) // self.max_rows_per_file).alias(random_column_name)
+                )
+
         if not self.groupby_kwargs:
             yield "", df
             return
-        for group_label in (grouped_df := df.groupby(**self.groupby_kwargs)).groups:
-            yield (
-                cast("str", group_label),
-                grouped_df.get_group(group_label)
-                .drop(random_column_name, axis=1, errors="ignore")
-                .reset_index(drop=True),
-            )
+
+        if isinstance(df, pd.DataFrame):
+            for group_label in (grouped_df := df.groupby(**self.groupby_kwargs)).groups:
+                group_df = grouped_df.get_group(group_label)
+                if random_column_name:
+                    group_df = group_df.drop(random_column_name, axis=1, errors="ignore")
+                yield (
+                    cast("str", group_label[0] if isinstance(group_label, tuple) else group_label),
+                    group_df.reset_index(drop=True),
+                )
+        elif isinstance(df, pl.DataFrame):
+            for group_label, group_df_in in df.group_by(**self.groupby_kwargs):  # type: ignore[assignment]
+                group_df2 = group_df_in.drop(random_column_name) if random_column_name else group_df_in
+                yield (
+                    cast("str", group_label[0] if isinstance(group_label, tuple) else group_label),
+                    group_df2,
+                )
 
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)

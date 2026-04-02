@@ -21,12 +21,23 @@ from unittest import mock
 
 import pytest
 
+from airflow.models import Connection
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 from airflow.providers.opsgenie.notifications.opsgenie import OpsgenieNotifier, send_opsgenie_notification
-from airflow.providers.standard.operators.empty import EmptyOperator
 
 
 class TestOpsgenieNotifier:
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="opsgenie_default",
+                conn_type="opsgenie",
+                host="https://api.opsgenie.com/",
+                password="eb243592-faa2-4ba2-a551q-1afdf565c889",
+            )
+        )
+
     _config = {
         "message": "An example alert message",
         "alias": "Life is too short for no alias",
@@ -74,29 +85,22 @@ class TestOpsgenieNotifier:
     }
 
     @mock.patch.object(OpsgenieAlertHook, "get_conn")
-    @pytest.mark.db_test
-    def test_notifier(self, mock_opsgenie_alert_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
+    def test_notifier(self, mock_opsgenie_alert_hook):
         notifier = send_opsgenie_notification(payload=self._config)
-        notifier({"dag": dag})
-        mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(self.expected_payload_dict)
+        notifier.notify({})
+        args, _ = mock_opsgenie_alert_hook.return_value.create_alert.call_args
+        assert args[0] == self.expected_payload_dict
 
     @mock.patch.object(OpsgenieAlertHook, "get_conn")
-    @pytest.mark.db_test
-    def test_notifier_with_notifier_class(self, mock_opsgenie_alert_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
+    def test_notifier_with_notifier_class(self, mock_opsgenie_alert_hook):
         notifier = OpsgenieNotifier(payload=self._config)
-        notifier({"dag": dag})
-        mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(self.expected_payload_dict)
+        notifier.notify({})
+        args, _ = mock_opsgenie_alert_hook.return_value.create_alert.call_args
+        assert args[0] == self.expected_payload_dict
 
     @mock.patch.object(OpsgenieAlertHook, "get_conn")
-    @pytest.mark.db_test
-    def test_notifier_templated(self, mock_opsgenie_alert_hook, dag_maker):
+    def test_notifier_templated(self, mock_opsgenie_alert_hook, create_dag_without_db):
         dag_id = "test_notifier"
-        with dag_maker(dag_id) as dag:
-            EmptyOperator(task_id="task1")
 
         template_fields = ("message", "alias", "description", "entity", "priority", "note")
         templated_config = {}
@@ -114,7 +118,7 @@ class TestOpsgenieNotifier:
                 templated_expected_payload_dict[key] = value
 
         notifier = OpsgenieNotifier(payload=templated_config)
-        notifier({"dag": dag})
-        mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(
-            templated_expected_payload_dict
-        )
+
+        notifier({"dag": create_dag_without_db(dag_id=dag_id)})
+        args, _ = mock_opsgenie_alert_hook.return_value.create_alert.call_args
+        assert args[0] == templated_expected_payload_dict

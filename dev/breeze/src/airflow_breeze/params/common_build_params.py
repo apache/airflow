@@ -27,11 +27,10 @@ from airflow_breeze.global_constants import (
     ALLOWED_BUILD_PROGRESS,
     ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     get_airflow_version,
 )
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.platforms import get_normalized_platform
 
 
@@ -68,7 +67,6 @@ class CommonBuildParams:
     python_image: str | None = None
     push: bool = False
     python: str = "3.10"
-    uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     dry_run: bool = False
     version_suffix: str | None = None
     verbose: bool = False
@@ -116,7 +114,7 @@ class CommonBuildParams:
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
-        return f"python:{self.python}-slim-{self.debian_version}"
+        return f"debian:{self.debian_version}-slim"
 
     @property
     def airflow_image_repository(self):
@@ -133,7 +131,7 @@ class CommonBuildParams:
 
     def get_cache(self, single_platform: str) -> str:
         if "," in single_platform:
-            get_console().print(
+            console_print(
                 "[error]Cache can only be retrieved for single platform and you "
                 f"tried for {single_platform}[/]"
             )

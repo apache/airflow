@@ -21,6 +21,7 @@ import datetime
 
 import pendulum
 
+from airflow.providers.common.compat.sdk import TriggerRule
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.providers.standard.sensors.filesystem import FileSensor
@@ -30,7 +31,6 @@ from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.sdk import DAG
-from airflow.utils.trigger_rule import TriggerRule
 
 
 # [START example_callables]

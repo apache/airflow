@@ -22,20 +22,17 @@ import boto3
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 from airflow.providers.amazon.aws.links.datasync import DataSyncTaskLink
 from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, get_template_context
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -351,7 +348,9 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
+    def test_return_value(
+        self, mock_get_conn, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -359,10 +358,9 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
 
         self.set_up_operator()
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             from airflow.models.dag_version import DagVersion
 
+            sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
@@ -371,7 +369,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
             )
-            ti = TaskInstance(task=self.datasync, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=self.datasync, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
@@ -384,7 +382,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
-        assert self.datasync.execute(ti.get_template_context()) is not None
+        assert self.datasync.execute(get_template_context(ti, self.datasync)) is not None
         # ### Check mocks:
         mock_get_conn.assert_called()
 
@@ -571,7 +569,9 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
+    def test_return_value(
+        self, mock_get_conn, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -579,12 +579,11 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
 
         self.set_up_operator()
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             from airflow.models.dag_version import DagVersion
 
+            sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
-            ti = TaskInstance(task=self.datasync, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=self.datasync, run_id="test", dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -604,7 +603,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
-        result = self.datasync.execute(ti.get_template_context())
+        result = self.datasync.execute(get_template_context(ti, self.datasync))
         assert result["TaskArn"] == self.task_arn
         # ### Check mocks:
         mock_get_conn.assert_called()
@@ -693,7 +692,9 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
+    def test_return_value(
+        self, mock_get_conn, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -701,12 +702,11 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
 
         self.set_up_operator()
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             from airflow.models.dag_version import DagVersion
 
+            sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
-            ti = TaskInstance(task=self.datasync, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=self.datasync, run_id="test", dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -726,7 +726,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
-        result = self.datasync.execute(ti.get_template_context())
+        result = self.datasync.execute(get_template_context(ti, self.datasync))
         assert result["TaskArn"] == self.task_arn
         # ### Check mocks:
         mock_get_conn.assert_called()
@@ -908,7 +908,9 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
+    def test_return_value(
+        self, mock_get_conn, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -916,12 +918,11 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
 
         self.set_up_operator()
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             from airflow.models.dag_version import DagVersion
 
+            sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
-            ti = TaskInstance(task=self.datasync, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=self.datasync, run_id="test", dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -941,7 +942,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
-        assert self.datasync.execute(ti.get_template_context()) is not None
+        assert self.datasync.execute(get_template_context(ti, self.datasync)) is not None
         # ### Check mocks:
         mock_get_conn.assert_called()
 
@@ -1026,7 +1027,9 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         mock_get_conn.assert_called()
 
     @pytest.mark.db_test
-    def test_return_value(self, mock_get_conn, session, clean_dags_and_dagruns):
+    def test_return_value(
+        self, mock_get_conn, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
@@ -1034,12 +1037,11 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
 
         self.set_up_operator()
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
             from airflow.models.dag_version import DagVersion
 
+            sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
-            ti = TaskInstance(task=self.datasync, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=self.datasync, run_id="test", dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -1059,7 +1061,7 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
-        result = self.datasync.execute(ti.get_template_context())
+        result = self.datasync.execute(get_template_context(ti, self.datasync))
         assert result["TaskArn"] == self.task_arn
         # ### Check mocks:
         mock_get_conn.assert_called()

@@ -23,8 +23,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from tableauserverclient import JWTAuth, Pager, Server, TableauAuth
 
-from airflow.exceptions import AirflowException
-from airflow.providers.tableau.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
@@ -87,7 +86,8 @@ class TableauHook(BaseHook):
         self.tableau_conn_id = tableau_conn_id
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get("site_id", "")
-        self.server = Server(self.conn.host)
+        server_address = f"{self.conn.schema}://{self.conn.host}" if self.conn.schema else self.conn.host
+        self.server = Server(server_address)
         verify: Any = self.conn.extra_dejson.get("verify", True)
         if isinstance(verify, str):
             verify = parse_boolean(verify)

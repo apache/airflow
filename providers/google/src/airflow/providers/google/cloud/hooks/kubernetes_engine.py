@@ -22,7 +22,7 @@ from __future__ import annotations
 import contextlib
 import json
 import time
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator, Sequence
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
@@ -38,9 +38,9 @@ from kubernetes_asyncio import client as async_client
 from kubernetes_asyncio.config.kube_config import FileOrData
 
 from airflow import version
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -498,7 +498,7 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         )
 
     @contextlib.asynccontextmanager
-    async def get_conn(self) -> async_client.ApiClient:
+    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
         kube_client = None
         try:
             kube_client = await self._load_config()

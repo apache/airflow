@@ -103,7 +103,13 @@ class DataplexDataQualityJobTrigger(BaseTrigger):
                 self.polling_interval_seconds,
             )
             await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": self._convert_to_dict(job)})
+        yield TriggerEvent(
+            {
+                "job_id": self.job_id,
+                "job_state": DataScanJob.State(state).name,
+                "job": self._convert_to_dict(job),
+            }
+        )
 
     def _convert_to_dict(self, job: DataScanJob) -> dict:
         """Return a representation of a DataScanJob instance as a dict."""
@@ -185,7 +191,13 @@ class DataplexDataProfileJobTrigger(BaseTrigger):
                 self.polling_interval_seconds,
             )
             await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": self._convert_to_dict(job)})
+        yield TriggerEvent(
+            {
+                "job_id": self.job_id,
+                "job_state": DataScanJob.State(state).name,
+                "job": self._convert_to_dict(job),
+            }
+        )
 
     def _convert_to_dict(self, job: DataScanJob) -> dict:
         """Return a representation of a DataScanJob instance as a dict."""

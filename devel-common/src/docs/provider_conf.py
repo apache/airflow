@@ -145,6 +145,7 @@ extensions.extend(
         "providers_extensions",
         "providers_commits",
         "sphinx_jinja",
+        "generate_erd",
     ]
 )
 
@@ -230,6 +231,11 @@ config_descriptions = retrieve_configuration_description(
 configs, deprecated_options = get_configs_and_deprecations(
     parse_version(PACKAGE_VERSION), config_descriptions
 )
+
+PROVIDERS_RELEASE_DATE_PATH = AIRFLOW_REPO_ROOT_PATH / "providers" / ".last_release_date.txt"
+
+PROVIDERS_RELEASE_DATE = PROVIDERS_RELEASE_DATE_PATH.read_text().strip()
+
 jinja_contexts = {
     "config_ctx": {
         "configs": configs,
@@ -242,6 +248,7 @@ jinja_contexts = {
         "package_name": PACKAGE_NAME,
         "package_name_underscores": PACKAGE_NAME.replace("-", "_"),
         "package_version": PACKAGE_VERSION,
+        "providers_release_date": PROVIDERS_RELEASE_DATE,
     },
 }
 
@@ -355,14 +362,10 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
     from airflow.providers.fab.auth_manager.api_fastapi.openapi import (
         __file__ as fab_auth_manager_fastapi_api_file,
     )
-    from airflow.providers.fab.auth_manager.openapi import __file__ as fab_auth_manager_flask_api_file
     from airflow.providers.keycloak.auth_manager.openapi import (
         __file__ as keycloak_auth_manager_fastapi_api_file,
     )
 
-    fab_auth_manager_flask_api_path = Path(fab_auth_manager_flask_api_file).parent.joinpath(
-        "v1-flask-api.yaml"
-    )
     fab_auth_manager_fastapi_api_path = Path(fab_auth_manager_fastapi_api_file).parent.joinpath(
         "v2-fab-auth-manager-generated.yaml"
     )
@@ -372,15 +375,7 @@ if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_REDOC:
     redoc = [
         {
             "name": "Fab auth manager API",
-            "page": "api-ref/fab-public-api-ref",
-            "spec": fab_auth_manager_flask_api_path.as_posix(),
-            "opts": {
-                "hide-hostname": True,
-            },
-        },
-        {
-            "name": "Fab auth manager token API",
-            "page": "api-ref/fab-token-api-ref",
+            "page": "api-ref/fab-api-ref",
             "spec": fab_auth_manager_fastapi_api_path.as_posix(),
             "opts": {
                 "hide-hostname": True,

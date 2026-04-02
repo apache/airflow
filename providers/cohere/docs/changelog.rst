@@ -20,6 +20,93 @@
 Changelog
 ---------
 
+1.6.4
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+Doc-only
+~~~~~~~~
+
+* ``fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+1.6.3
+.....
+
+Misc
+~~~~
+
+* ``Migrate trino/cohere connection UI metadata to YAML (#62390)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
+1.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pin fastavro to minimum 1.10.0 for Python 3.13 compatibility (#60732)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.6.1
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.6.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.5.4
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Bump 'common.compat' provider to 1.8 for some providers (#57115)``
+* ``Migrate remaining providers to common.compat compatibility layer (#57073)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Prepare release for Oct 2025 wave of providers (#57029)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Prepare release for Sep 2025 2nd wave of providers (#55688)``
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Switch pre-commit to prek (#54258)``
+
 1.5.3
 .....
 
@@ -61,7 +148,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Clarify why 'EmbedByTypeResponseEmbeddings' return type is ommitted (#51517)``
+* ``Clarify why 'EmbedByTypeResponseEmbeddings' return type is omitted (#51517)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

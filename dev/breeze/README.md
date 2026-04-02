@@ -23,6 +23,7 @@
 
 - [Apache Airflow Breeze](#apache-airflow-breeze)
 - [Setting up development env for Breeze](#setting-up-development-env-for-breeze)
+- [Integration tests](#integration-tests)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -128,13 +129,17 @@ uv lock
 
 Note that when you update dependencies/lock them you should commit the changes in `pyproject.toml` and `uv.lock`.
 
+Integration tests
+-----------------
+
+The integration tests for Breeze are located in `dev/breeze/integration_tests` directory.
+They are skipped by default, but you can run them with `integration_tests` marker
+
+```shell
+uv run pytest -m integration_tests
+```
+
+In CI environment (when `CI` environment variable is set) some of the tests are skipped and some of them
+are simulated so that no actual SVN commands are needed.
+
 See [uv documentation](https://docs.astral.sh/uv/getting-started/) for more details on using `uv`.
-
-
-PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
-
----------------------------------------------------------------------------------------------------------
-
-Package config hash: ca0dde3dc813baf255b7f645c73025b9ce0729d24acf33499f15ba62a6d94cb6e665fa84c575fc88b5a20f3a1c73ded735ff2dcfad353d2b91434b03e11a4467
-
----------------------------------------------------------------------------------------------------------

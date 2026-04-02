@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import os
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -26,7 +25,6 @@ import pytest
 from airflow.providers.fab.www import app
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import parse_and_sync_to_db
 from unit.fab.decorators import dont_initialize_flask_app_submodules
 
 
@@ -36,9 +34,6 @@ def minimal_app_for_auth_api():
         skip_all_except=[
             "init_appbuilder",
             "init_api_auth",
-            "init_api_auth_provider",
-            "init_api_connexion",
-            "init_api_error_handlers",
             "init_airflow_session_interface",
             "init_appbuilder_views",
         ]
@@ -46,10 +41,6 @@ def minimal_app_for_auth_api():
     def factory():
         with conf_vars(
             {
-                (
-                    "fab",
-                    "auth_backends",
-                ): "unit.fab.auth_manager.api_endpoints.remote_user_api_auth_backend,airflow.providers.fab.auth_manager.api.auth.backend.session",
                 (
                     "core",
                     "auth_manager",
@@ -72,14 +63,6 @@ def set_auth_role_public(request):
     yield
 
     app.config["AUTH_ROLE_PUBLIC"] = auto_role_public
-
-
-@pytest.fixture(scope="module")
-def dagbag():
-    from airflow.models import DagBag
-
-    parse_and_sync_to_db(os.devnull, include_examples=True)
-    return DagBag(read_dags_from_db=True)
 
 
 @pytest.fixture

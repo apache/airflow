@@ -22,7 +22,7 @@ Database helpers for Airflow REST API.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator, Generator, Sequence
 from typing import TYPE_CHECKING, Annotated, Literal, overload
 
 from fastapi import Depends
@@ -38,12 +38,12 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.core_api.base import OrmClause
 
 
-def _get_session() -> Session:
+def _get_session() -> Generator[Session, None, None]:
     with create_session(scoped=False) as session:
         yield session
 
 
-SessionDep = Annotated[Session, Depends(_get_session)]
+SessionDep = Annotated[Session, Depends(_get_session, scope="function")]
 
 
 def apply_filters_to_select(
@@ -59,7 +59,7 @@ def apply_filters_to_select(
     return statement
 
 
-async def _get_async_session() -> AsyncSession:
+async def _get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with create_session_async() as session:
         yield session
 
@@ -111,11 +111,6 @@ async def paginated_select_async(
     total_entries = None
     if return_total_entries:
         total_entries = await get_query_count_async(statement, session=session)
-
-    # TODO: Re-enable when permissions are handled. Readable / writable entities,
-    # for instance:
-    # readable_dags = get_auth_manager().get_authorized_dag_ids(user=g.user)
-    # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
     statement = apply_filters_to_select(
         statement=statement,
@@ -170,11 +165,6 @@ def paginated_select(
     total_entries = None
     if return_total_entries:
         total_entries = get_query_count(statement, session=session)
-
-    # TODO: Re-enable when permissions are handled. Readable / writable entities,
-    # for instance:
-    # readable_dags = get_auth_manager().get_authorized_dag_ids(user=g.user)
-    # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
     statement = apply_filters_to_select(statement=statement, filters=[order_by, offset, limit])
 

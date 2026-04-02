@@ -70,6 +70,41 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook",
                 "connection-type": "yandexcloud",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "login", "password", "port", "extra"]
+                },
+                "conn-fields": {
+                    "service_account_json": {
+                        "label": "Service account auth JSON",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                        "description": 'Service account auth JSON. Looks like {"id": "...", "service_account_id": "...", "private_key": "..."}. Will be used instead of OAuth token and SA JSON file path field if specified.',
+                    },
+                    "service_account_json_path": {
+                        "label": "Service account auth JSON file path",
+                        "schema": {"type": ["string", "null"]},
+                        "description": 'Service account auth JSON file path. File content looks like {"id": "...", "service_account_id": "...", "private_key": "..."}. Will be used instead of OAuth token if specified.',
+                    },
+                    "oauth": {
+                        "label": "OAuth Token",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                        "description": "User account OAuth token. Either this or service account JSON must be specified.",
+                    },
+                    "folder_id": {
+                        "label": "Default folder ID",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "Optional. If specified, this ID will be used by default when creating nodes and clusters.",
+                    },
+                    "public_ssh_key": {
+                        "label": "Public SSH key",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "Optional. The key will be placed to all created Compute nodes,\n allowing you to have a root shell there.",
+                    },
+                    "endpoint": {
+                        "label": "API endpoint",
+                        "schema": {"type": ["string", "null"]},
+                        "description": "Optional. Specify an API endpoint. Leave blank to use default.",
+                    },
+                },
             }
         ],
         "secrets-backends": ["airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend"],

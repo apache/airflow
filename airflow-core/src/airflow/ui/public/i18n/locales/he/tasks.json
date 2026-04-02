@@ -1,0 +1,10 @@
+{
+  "mapped": "ממופה",
+  "notMapped": "לא ממופה",
+  "retries": "ניסיונות חוזרים",
+  "searchTasks": "חפש משימות",
+  "selectMapped": "בחר ממופה",
+  "selectOperator": "בחר אופרטורים",
+  "selectRetryValues": "בחר ערכי ניסיונות חוזרים",
+  "selectTriggerRules": "בחר כללי טריגר"
+}

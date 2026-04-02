@@ -18,11 +18,73 @@
 from __future__ import annotations
 
 import re
+from typing import Annotated
 
 import pytest
-from fastapi import HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy import select
 
-from airflow.api_fastapi.common.parameters import SortParam
+from airflow.api_fastapi.common.parameters import FilterParam, SortParam, _SearchParam, filter_param_factory
+from airflow.models import DagModel, DagRun, Log
+
+
+class TestFilterParam:
+    def test_filter_param_factory_description(self):
+        app = FastAPI()  # Create a FastAPI app to test OpenAPI generation
+        expected_descriptions = {
+            "dag_id": "Filter by Dag ID Description",
+            "task_id": "Filter by Task ID Description",
+            "map_index": None,  # No description for map_index
+            "run_id": "Filter by Run ID Description",
+        }
+
+        @app.get("/test")
+        def test_route(
+            dag_id: Annotated[
+                FilterParam[str | None],
+                Depends(
+                    filter_param_factory(Log.dag_id, str | None, description="Filter by Dag ID Description")
+                ),
+            ],
+            task_id: Annotated[
+                FilterParam[str | None],
+                Depends(
+                    filter_param_factory(Log.task_id, str | None, description="Filter by Task ID Description")
+                ),
+            ],
+            map_index: Annotated[
+                FilterParam[int | None],
+                Depends(filter_param_factory(Log.map_index, int | None)),
+            ],
+            run_id: Annotated[
+                FilterParam[str | None],
+                Depends(
+                    filter_param_factory(
+                        DagRun.run_id, str | None, description="Filter by Run ID Description"
+                    )
+                ),
+            ],
+        ):
+            return {"message": "test"}
+
+        # Get the OpenAPI spec
+        openapi_spec = app.openapi()
+
+        # Check if the description is in the parameters
+        parameters = openapi_spec["paths"]["/test"]["get"]["parameters"]
+        for param_name, expected_description in expected_descriptions.items():
+            param = next((p for p in parameters if p.get("name") == param_name), None)
+            assert param is not None, f"{param_name} parameter not found in OpenAPI"
+
+            if expected_description is None:
+                assert "description" not in param, (
+                    f"Description should not be present in {param_name} parameter"
+                )
+            else:
+                assert "description" in param, f"Description not found in {param_name} parameter"
+                assert param["description"] == expected_description, (
+                    f"Expected description '{expected_description}', got '{param['description']}'"
+                )
 
 
 class TestSortParam:
@@ -38,3 +100,26 @@ class TestSortParam:
             ),
         ):
             param.to_orm(None)
+
+
+class TestSearchParam:
+    def test_to_orm_single_value(self):
+        """Test search with a single term."""
+        param = _SearchParam(DagModel.dag_id).set_value("example_bash")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True})).lower()
+        assert "dag_id" in sql
+        assert "like" in sql
+
+    def test_to_orm_multiple_values_or(self):
+        """Test search with multiple terms using the pipe | operator."""
+        param = _SearchParam(DagModel.dag_id).set_value("example_bash | example_python")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
+        assert "OR" in sql
+        assert "example_bash" in sql
+        assert "example_python" in sql

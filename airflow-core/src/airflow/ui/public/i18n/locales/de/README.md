@@ -61,7 +61,8 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   Da der Begriff in Airflow 3 neu eingeführt wurde steht er derzeit nicht fest.
   Daher eignet er sich zu der inhaltlich passenden Übersetzung. Um neue
   Benutzer nicht zu verwirren wird der durch Airflow definierte Originalterm in
-  Klammern wenn möglich mitgeführt.
+  Klammern wenn möglich mitgeführt. Einzig in der Navigationsleiste ist der Begriff
+  ohne die englische Referenz um den Text kurz zu halten.
 - `Asset Event` --> `Ereignis zu Datenset (Asset)`: Logische Konsequenz der
   Übersetzung von -->"Asset" ohne einen sperrigen Begriff wie
   "Datenssatz-Ereignis" zu erzeugen.
@@ -120,5 +121,9 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   Bedingungen und zu welchem Zeitpunkt im Dag Lauf dieser Task gestartet werden
   kann.
 - `Try Number` --> `Versuch Nummer`: Direkt Übersetzung ist passend.
+- `XCom` --> `Task Kommunikation (XCom)`: Um die Navigation für neue Benutzer
+  verständlicher zu machen, wurde der Begriff sinngemäß auf Deutsch
+  übersetzt. Zusätzlich ist XCom, da der Begriff oft in Airflow Code und Logs erscheint,
+  nochmals in Klammern angegeben.
 
 (Andere klassische Begriffsübersetzungen nicht im Einzelnen aufgeführt)

@@ -57,10 +57,9 @@ class RedshiftHook(AwsBaseHook):
             - :external+boto3:py:meth:`Redshift.Client.create_cluster`
 
         :param cluster_identifier: A unique identifier for the cluster.
-        :param node_type: The node type to be provisioned for the cluster.
-            Valid Values: ``ds2.xlarge``, ``ds2.8xlarge``, ``dc1.large``,
-            ``dc1.8xlarge``, ``dc2.large``, ``dc2.8xlarge``, ``ra3.xlplus``,
-            ``ra3.4xlarge``, and ``ra3.16xlarge``.
+        :param node_type: The node type to be provisioned for the cluster. Refer
+            https://docs.aws.amazon.com/redshift/latest/mgmt/working-with-clusters.html#rs-node-type-info
+            for the list of available node types.
         :param master_username: The username associated with the admin user account
             for the cluster that is being created.
         :param master_user_password: password associated with the admin user account

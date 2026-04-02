@@ -44,6 +44,14 @@ class TestExecutorLoader:
             with pytest.raises(AirflowConfigException, match=r".*not found in config$"):
                 executor_loader.ExecutorLoader.get_default_executor()
 
+    def test_empty_executor_configured(self):
+        with conf_vars({("core", "executor"): ""}):
+            with pytest.raises(
+                AirflowConfigException,
+                match="The 'executor' key in the 'core' section of the configuration is mandatory and cannot be empty",
+            ):
+                executor_loader.ExecutorLoader.get_default_executor()
+
     @pytest.mark.parametrize(
         "executor_name",
         [
@@ -73,168 +81,238 @@ class TestExecutorLoader:
             assert executor.name.connector_source == ConnectorSource.CUSTOM_PATH
 
     @pytest.mark.parametrize(
-        ("executor_config", "team_executor_config", "expected_executors_list"),
+        ("executor_config", "expected_executors_list"),
         [
             pytest.param(
                 "CeleryExecutor",
-                [],
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                 ],
                 id="one_executor",
             ),
             pytest.param(
-                "CeleryExecutor",
-                [
-                    ("team_a", ["CeleryExecutor"]),
-                    ("team_b", ["LocalExecutor"]),
-                ],
+                "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor",
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
-                        "team_a",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name="team_a",
                     ),
                     ExecutorName(
-                        "airflow.executors.local_executor.LocalExecutor",
-                        "LocalExecutor",
-                        "team_b",
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name="team_b",
                     ),
                 ],
                 id="one_executor_per_team",
             ),
             pytest.param(
                 "CeleryExecutor, LocalExecutor, unit.executors.test_executor_loader.FakeExecutor",
-                [],
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.executors.local_executor.LocalExecutor",
-                        "LocalExecutor",
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        None,
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias=None,
+                        team_name=None,
                     ),
                 ],
                 id="core_executors_and_custom_module_path_executor",
             ),
             pytest.param(
-                "CeleryExecutor, LocalExecutor, unit.executors.test_executor_loader.FakeExecutor",
-                [
-                    ("team_a", ["CeleryExecutor", "unit.executors.test_executor_loader.FakeExecutor"]),
-                    ("team_b", ["unit.executors.test_executor_loader.FakeExecutor"]),
-                ],
+                "=CeleryExecutor,LocalExecutor,unit.executors.test_executor_loader.FakeExecutor;team_a=CeleryExecutor,unit.executors.test_executor_loader.FakeExecutor;team_b=unit.executors.test_executor_loader.FakeExecutor",
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.executors.local_executor.LocalExecutor",
-                        "LocalExecutor",
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        None,
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias=None,
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
-                        "team_a",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name="team_a",
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        None,
-                        "team_a",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias=None,
+                        team_name="team_a",
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        None,
-                        "team_b",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias=None,
+                        team_name="team_b",
                     ),
                 ],
                 id="core_executors_and_custom_module_path_executor_per_team",
             ),
             pytest.param(
                 ("CeleryExecutor, LocalExecutor, fake_exec:unit.executors.test_executor_loader.FakeExecutor"),
-                [],
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.executors.local_executor.LocalExecutor",
-                        "LocalExecutor",
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        "fake_exec",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias="fake_exec",
+                        team_name=None,
                     ),
                 ],
                 id="core_executors_and_custom_module_path_executor_with_aliases",
             ),
             pytest.param(
-                ("CeleryExecutor, LocalExecutor, fake_exec:unit.executors.test_executor_loader.FakeExecutor"),
-                [
-                    (
-                        "team_a",
-                        ["CeleryExecutor", "fake_exec:unit.executors.test_executor_loader.FakeExecutor"],
-                    ),
-                    ("team_b", ["fake_exec:unit.executors.test_executor_loader.FakeExecutor"]),
-                ],
+                (
+                    "=CeleryExecutor,LocalExecutor,fake_exec:unit.executors.test_executor_loader.FakeExecutor;team_a=CeleryExecutor,fake_exec:unit.executors.test_executor_loader.FakeExecutor;team_b=fake_exec:unit.executors.test_executor_loader.FakeExecutor"
+                ),
                 [
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.executors.local_executor.LocalExecutor",
-                        "LocalExecutor",
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        "fake_exec",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias="fake_exec",
+                        team_name=None,
                     ),
                     ExecutorName(
-                        "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        "CeleryExecutor",
-                        "team_a",
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name="team_a",
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        "fake_exec",
-                        "team_a",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias="fake_exec",
+                        team_name="team_a",
                     ),
                     ExecutorName(
-                        "unit.executors.test_executor_loader.FakeExecutor",
-                        "fake_exec",
-                        "team_b",
+                        module_path="unit.executors.test_executor_loader.FakeExecutor",
+                        alias="fake_exec",
+                        team_name="team_b",
                     ),
                 ],
                 id="core_executors_and_custom_module_path_executor_with_aliases_per_team",
             ),
+            pytest.param(
+                "my_local:LocalExecutor, CeleryExecutor",
+                [
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="my_local",
+                        team_name=None,
+                    ),
+                    ExecutorName(
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="CeleryExecutor",
+                        team_name=None,
+                    ),
+                ],
+                id="aliased_core_executor",
+            ),
+            pytest.param(
+                "my_celery:CeleryExecutor, my_local:LocalExecutor",
+                [
+                    ExecutorName(
+                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                        alias="my_celery",
+                        team_name=None,
+                    ),
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="my_local",
+                        team_name=None,
+                    ),
+                ],
+                id="multiple_aliased_core_executors",
+            ),
+            pytest.param(
+                "=GlobalLocal:LocalExecutor;team_a=TeamLocal:LocalExecutor",
+                [
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="GlobalLocal",
+                        team_name=None,
+                    ),
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="TeamLocal",
+                        team_name="team_a",
+                    ),
+                ],
+                id="aliased_core_executor_global_and_team",
+            ),
+            pytest.param(
+                "=LocalExecutor;team_a=TeamLocal:LocalExecutor",
+                [
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name=None,
+                    ),
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="TeamLocal",
+                        team_name="team_a",
+                    ),
+                ],
+                id="core_executor_global_and_aliased_core_executor_team",
+            ),
+            pytest.param(
+                "my_k8s:KubernetesExecutor",
+                [
+                    ExecutorName(
+                        module_path="airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor",
+                        alias="my_k8s",
+                        team_name=None,
+                    ),
+                ],
+                id="aliased_kubernetes_executor",
+            ),
         ],
     )
-    def test_get_hybrid_executors_from_config(
-        self, executor_config, team_executor_config, expected_executors_list
-    ):
-        with conf_vars({("core", "executor"): executor_config}):
-            with mock.patch(
-                "airflow.executors.executor_loader.ExecutorLoader._get_team_executor_configs",
-                return_value=team_executor_config,
-            ):
+    def test_get_hybrid_executors_from_configs(self, executor_config, expected_executors_list):
+        with (
+            mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+        ):
+            with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
                 executors = executor_loader.ExecutorLoader._get_executor_names()
                 assert executors == expected_executors_list
 
@@ -273,8 +351,8 @@ class TestExecutorLoader:
             "LocalExecutor, Ce:ler:yExecutor",
             "LocalExecutor, CeleryExecutor:",
             "LocalExecutor, my_cool_alias:",
-            "LocalExecutor, my_cool_alias:CeleryExecutor",
             "LocalExecutor, module.path.first:alias_second",
+            "LocalExecutor, my_cool_alias:not_a_core_or_module",
         ],
     )
     def test_get_hybrid_executors_from_config_core_executors_bad_config_format(self, executor_config):
@@ -337,6 +415,45 @@ class TestExecutorLoader:
                 LocalExecutor,
             )
 
+    def test_load_executor_aliased_core_executor(self):
+        """Test that a core executor can be aliased and loaded by its custom alias."""
+        with conf_vars({("core", "executor"): "my_local:LocalExecutor"}):
+            executor_loader.ExecutorLoader.init_executors()
+            # Can load by alias
+            executor = executor_loader.ExecutorLoader.load_executor("my_local")
+            assert isinstance(executor, LocalExecutor)
+            assert executor.name.alias == "my_local"
+            assert executor.name.module_path == "airflow.executors.local_executor.LocalExecutor"
+            # Can also load by module path
+            assert isinstance(
+                executor_loader.ExecutorLoader.load_executor(
+                    "airflow.executors.local_executor.LocalExecutor"
+                ),
+                LocalExecutor,
+            )
+            # Can also load by class name
+            assert isinstance(
+                executor_loader.ExecutorLoader.load_executor("LocalExecutor"),
+                LocalExecutor,
+            )
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "my_local:LocalExecutor, LocalExecutor",
+            "alias1:LocalExecutor, alias2:LocalExecutor",
+            "my_local:LocalExecutor, airflow.executors.local_executor.LocalExecutor",
+            "alias1:CeleryExecutor, alias2:CeleryExecutor",
+        ],
+    )
+    def test_aliased_core_executor_duplicate_in_same_team_fails(self, executor_config):
+        """Test that two executors of the same type within the same team always fails (duplicate)."""
+        with conf_vars({("core", "executor"): executor_config}):
+            with pytest.raises(
+                AirflowConfigException, match=r".+Duplicate executors are not yet supported.+"
+            ):
+                executor_loader.ExecutorLoader._get_executor_names()
+
     @mock.patch(
         "airflow.executors.executor_loader.ExecutorLoader._get_executor_names",
         wraps=executor_loader.ExecutorLoader._get_executor_names,
@@ -373,3 +490,367 @@ class TestExecutorLoader:
                     executor_loader.ExecutorLoader.load_executor(executor_loader._executor_names[0]),
                     AwsEcsExecutor,
                 )
+
+    def test_get_executor_names_set_module_variables(self):
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                (
+                    "core",
+                    "executor",
+                ): "=CeleryExecutor,LocalExecutor,fake_exec:unit.executors.test_executor_loader.FakeExecutor;team_a=CeleryExecutor,unit.executors.test_executor_loader.FakeExecutor;team_b=fake_exec:unit.executors.test_executor_loader.FakeExecutor",
+            }
+        ):
+            celery_path = "airflow.providers.celery.executors.celery_executor.CeleryExecutor"
+            local_path = "airflow.executors.local_executor.LocalExecutor"
+            fake_exec_path = "unit.executors.test_executor_loader.FakeExecutor"
+            celery_global = ExecutorName(module_path=celery_path, alias="CeleryExecutor", team_name=None)
+            local_global = ExecutorName(module_path=local_path, alias="LocalExecutor", team_name=None)
+            fake_global = ExecutorName(module_path=fake_exec_path, alias="fake_exec", team_name=None)
+            team_a_celery = ExecutorName(
+                module_path=celery_path,
+                alias="CeleryExecutor",
+                team_name="team_a",
+            )
+            team_a_fake = ExecutorName(
+                module_path=fake_exec_path,
+                team_name="team_a",
+            )
+            team_b_fake = ExecutorName(
+                module_path=fake_exec_path,
+                alias="fake_exec",
+                team_name="team_b",
+            )
+            assert executor_loader._executor_names == []
+            assert executor_loader._alias_to_executors_per_team == {}
+            assert executor_loader._module_to_executors_per_team == {}
+            assert executor_loader._classname_to_executors_per_team == {}
+            assert executor_loader._team_name_to_executors == {}
+            with mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"):
+                executor_loader.ExecutorLoader._get_executor_names()
+            assert executor_loader._executor_names == [
+                celery_global,
+                local_global,
+                fake_global,
+                team_a_celery,
+                team_a_fake,
+                team_b_fake,
+            ]
+            assert executor_loader._alias_to_executors_per_team == {
+                None: {
+                    "CeleryExecutor": celery_global,
+                    "LocalExecutor": local_global,
+                    "fake_exec": fake_global,
+                },
+                "team_a": {"CeleryExecutor": team_a_celery},
+                "team_b": {"fake_exec": team_b_fake},
+            }
+            assert executor_loader._module_to_executors_per_team == {
+                None: {
+                    celery_path: celery_global,
+                    local_path: local_global,
+                    fake_exec_path: fake_global,
+                },
+                "team_a": {
+                    celery_path: team_a_celery,
+                    fake_exec_path: team_a_fake,
+                },
+                "team_b": {
+                    fake_exec_path: team_b_fake,
+                },
+            }
+            assert executor_loader._classname_to_executors_per_team == {
+                None: {
+                    "CeleryExecutor": celery_global,
+                    "LocalExecutor": local_global,
+                    "FakeExecutor": fake_global,
+                },
+                "team_a": {
+                    "CeleryExecutor": team_a_celery,
+                    "FakeExecutor": team_a_fake,
+                },
+                "team_b": {
+                    "FakeExecutor": team_b_fake,
+                },
+            }
+            assert executor_loader._team_name_to_executors == {
+                None: [celery_global, local_global, fake_global],
+                "team_a": [team_a_celery, team_a_fake],
+                "team_b": [team_b_fake],
+            }
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "CeleryExecutor;team1=LocalExecutor;team1=KubernetesExecutor",
+            "CeleryExecutor;team_a=LocalExecutor;team_b=KubernetesExecutor;team_a=CeleryExecutor",
+        ],
+    )
+    def test_duplicate_team_names_should_fail(self, executor_config):
+        """Test that duplicate team names in executor configuration raise an exception."""
+        with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
+            with pytest.raises(
+                AirflowConfigException,
+                match=r"Team '.+' appears more than once in executor configuration",
+            ):
+                executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "CeleryExecutor;LocalExecutor",  # Two separate global teams
+            "CeleryExecutor;KubernetesExecutor;LocalExecutor",  # Three separate global teams
+            "=CeleryExecutor;LocalExecutor",  # Explicit global team followed by another global team
+            "CeleryExecutor;=LocalExecutor",  # Global team followed by explicit global team
+        ],
+    )
+    def test_multiple_global_team_specifications_should_fail(self, executor_config):
+        """Test that multiple global team specifications raise an exception.
+
+        Only one global team specification should be allowed (comma-delimited executors),
+        not multiple semicolon-separated global teams.
+        """
+        with conf_vars({("core", "executor"): executor_config}):
+            with pytest.raises(
+                AirflowConfigException, match=r"Team 'None' appears more than once in executor configuration"
+            ):
+                executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    def test_valid_team_configurations_order_preservation(self):
+        """Test that valid team configurations preserve order and work correctly."""
+        executor_config = "LocalExecutor;team1=CeleryExecutor,KubernetesExecutor;team2=LocalExecutor"
+        expected_configs = [
+            (None, ["LocalExecutor"]),
+            ("team1", ["CeleryExecutor", "KubernetesExecutor"]),
+            ("team2", ["LocalExecutor"]),
+        ]
+
+        with mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"):
+            with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
+                configs = executor_loader.ExecutorLoader._get_team_executor_configs()
+                assert configs == expected_configs
+
+    @pytest.mark.parametrize(
+        ("executor_config", "expected_configs"),
+        [
+            # Single global team with one executor
+            ("CeleryExecutor", [(None, ["CeleryExecutor"])]),
+            # Single global team with multiple comma-delimited executors
+            ("CeleryExecutor,LocalExecutor", [(None, ["CeleryExecutor", "LocalExecutor"])]),
+            (
+                "CeleryExecutor,LocalExecutor,KubernetesExecutor",
+                [(None, ["CeleryExecutor", "LocalExecutor", "KubernetesExecutor"])],
+            ),
+            # Single global team with explicit = prefix
+            ("=CeleryExecutor,LocalExecutor", [(None, ["CeleryExecutor", "LocalExecutor"])]),
+        ],
+    )
+    def test_single_global_team_configurations_work(self, executor_config, expected_configs):
+        """Test that single global team configurations work correctly.
+
+        A single global team can have multiple executors specified as comma-delimited list.
+        """
+        with conf_vars({("core", "executor"): executor_config}):
+            configs = executor_loader.ExecutorLoader._get_team_executor_configs()
+            assert configs == expected_configs
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "team1=CeleryExecutor",
+            "team1=CeleryExecutor;team2=LocalExecutor",
+            "team1=CeleryExecutor;team2=LocalExecutor;team3=KubernetesExecutor",
+            "team_a=CeleryExecutor,LocalExecutor;team_b=KubernetesExecutor",
+        ],
+    )
+    def test_team_only_configurations_should_fail(self, executor_config):
+        """Test that configurations with only team-based executors fail validation."""
+        with conf_vars({("core", "executor"): executor_config}):
+            with pytest.raises(
+                AirflowConfigException, match=r"At least one global executor must be configured"
+            ):
+                executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    def test_team_validation_with_valid_teams_in_config(self):
+        """Test that executor config with valid teams loads successfully."""
+        mock_team_names = {"team_a", "team_b"}
+
+        with patch.object(executor_loader.Team, "get_all_team_names", return_value=mock_team_names):
+            with conf_vars(
+                {
+                    ("core", "executor"): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor",
+                    ("core", "multi_team"): "True",
+                }
+            ):
+                configs = executor_loader.ExecutorLoader._get_team_executor_configs()
+
+                assert len(configs) == 3
+                assert configs[0] == (None, ["CeleryExecutor"])
+                assert configs[1] == ("team_a", ["CeleryExecutor"])
+                assert configs[2] == ("team_b", ["LocalExecutor"])
+
+    def test_team_validation_with_invalid_teams_in_config(self):
+        """Test that executor config with invalid teams fails with clear error."""
+        mock_team_names = {"team_a"}  # team_b and team_c are missing
+
+        with patch.object(executor_loader.Team, "get_all_team_names", return_value=mock_team_names):
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "executor",
+                    ): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor;team_c=KubernetesExecutor",
+                    ("core", "multi_team"): "True",
+                }
+            ):
+                with pytest.raises(AirflowConfigException):
+                    executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    def test_team_validation_skips_global_teams(self):
+        """Test that team validation does not validate global teams."""
+        with patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names:
+            with conf_vars({("core", "executor"): "CeleryExecutor,LocalExecutor"}):
+                configs = executor_loader.ExecutorLoader._get_team_executor_configs()
+
+                assert len(configs) == 1
+                assert configs[0] == (None, ["CeleryExecutor", "LocalExecutor"])
+
+                # No team validation should occur since only global teams are configured
+                mock_get_team_names.assert_not_called()
+
+    def test_get_executor_names_skip_team_validation(self):
+        """Test that get_executor_names can skip team validation."""
+        with patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names:
+            with conf_vars(
+                {("core", "executor"): "=CeleryExecutor;team_a=LocalExecutor", ("core", "multi_team"): "True"}
+            ):
+                # Should not call team validation when validate_teams=False
+                executor_loader.ExecutorLoader.get_executor_names(validate_teams=False)
+                mock_get_team_names.assert_not_called()
+
+    def test_lookup_executor_name_by_str_skips_db_when_validate_teams_false(self):
+        """Regression test: lookup_executor_name_by_str with validate_teams=False must not access the DB.
+
+        During DAG parsing in Airflow 3, database access is blocked. The lookup_executor_name_by_str
+        method is called from _validate_executor_fields during parsing, so it must be able to resolve
+        executor names using only local config without triggering _validate_teams_exist_in_database.
+        """
+        with conf_vars(
+            {("core", "executor"): "=LocalExecutor;team1=CeleryExecutor", ("core", "multi_team"): "True"}
+        ):
+            with patch.object(
+                executor_loader.ExecutorLoader,
+                "_validate_teams_exist_in_database",
+                side_effect=RuntimeError("Direct database access via the ORM is not allowed in Airflow 3.0"),
+            ):
+                # Should succeed without hitting the database
+                result = executor_loader.ExecutorLoader.lookup_executor_name_by_str(
+                    "LocalExecutor", validate_teams=False
+                )
+                assert result.alias == "LocalExecutor"
+
+    def test_get_executor_names_default_validates_teams(self):
+        """Test that get_executor_names validates teams by default."""
+        with patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names:
+            with conf_vars(
+                {("core", "executor"): "=CeleryExecutor;team_a=LocalExecutor", ("core", "multi_team"): "True"}
+            ):
+                # Default behavior should validate teams
+                mock_get_team_names.return_value = {"team_a"}
+                executor_loader.ExecutorLoader.get_executor_names()
+                mock_get_team_names.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "team_a=CeleryExecutor;LocalExecutor",
+            "team_a=CeleryExecutor;team_b=LocalExecutor;CeleryExecutor",
+            "team_a=CeleryExecutor;=LocalExecutor",
+            "team_a=CeleryExecutor;team_b=LocalExecutor;=CeleryExecutor,KubernetesExecutor",
+            "CeleryExecutor,team_a=CeleryExecutor;=LocalExecutor",
+        ],
+    )
+    def test_team_executors_before_global_executors_should_fail(self, executor_config):
+        """Test that configurations with team executors before global executors fail validation.
+
+        Global executors must always be specified before any team-based executors.
+        This ensures the default executor (first in config) is always global.
+        """
+        with mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"):
+            with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
+                with pytest.raises(
+                    AirflowConfigException,
+                    match=r"Global executors must be specified before team-based executors",
+                ):
+                    executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    def test_team_executor_with_multi_team_support_loads_successfully(self):
+        """Test that executors with supports_multi_team=True load successfully for teams."""
+        with conf_vars({("core", "executor"): "LocalExecutor"}):
+            executor = executor_loader.ExecutorLoader.load_executor(
+                ExecutorName(
+                    module_path="airflow.executors.local_executor.LocalExecutor",
+                    alias="LocalExecutor",
+                    team_name="team_a",
+                )
+            )
+            assert executor.team_name == "team_a"
+            assert executor.supports_multi_team is True
+
+    def test_team_executor_without_multi_team_support_fails(self):
+        """Test that executors without supports_multi_team fail when configured for teams."""
+        # Mock the executor class to have supports_multi_team = False
+        with (
+            conf_vars({("core", "executor"): "LocalExecutor"}),
+            mock.patch("airflow.executors.local_executor.LocalExecutor") as mock_executor_cls,
+        ):
+            # Set the class attribute to False
+            mock_executor_cls.supports_multi_team = False
+            mock_executor_cls.__name__ = "LocalExecutor"
+
+            with pytest.raises(
+                AirflowConfigException,
+                match=r".*does not support multi-team functionality.*",
+            ):
+                executor_loader.ExecutorLoader.load_executor(
+                    ExecutorName(
+                        module_path="airflow.executors.local_executor.LocalExecutor",
+                        alias="LocalExecutor",
+                        team_name="team_a",
+                    )
+                )
+
+    def test_global_executor_works_regardless_of_multi_team_support(self):
+        """Test that global executors work regardless of supports_multi_team value."""
+        # Test with an executor that supports multi-team (LocalExecutor)
+        with conf_vars({("core", "executor"): "LocalExecutor"}):
+            executor = executor_loader.ExecutorLoader.load_executor(
+                ExecutorName(
+                    module_path="airflow.executors.local_executor.LocalExecutor",
+                    alias="LocalExecutor",
+                    team_name=None,
+                )
+            )
+            assert executor.team_name is None
+            assert executor.supports_multi_team is True
+
+        # Test with a mocked executor that doesn't support multi-team
+        with (
+            conf_vars({("core", "executor"): "LocalExecutor"}),
+            mock.patch("airflow.executors.local_executor.LocalExecutor") as mock_executor_cls,
+        ):
+            mock_executor_cls.supports_multi_team = False
+            mock_executor_instance = mock.MagicMock()
+            mock_executor_instance.supports_multi_team = False
+            mock_executor_instance.team_name = None
+            mock_executor_cls.return_value = mock_executor_instance
+
+            executor = executor_loader.ExecutorLoader.load_executor(
+                ExecutorName(
+                    module_path="airflow.executors.local_executor.LocalExecutor",
+                    alias="LocalExecutor",
+                    team_name=None,
+                )
+            )
+            assert executor.team_name is None
+            assert executor.supports_multi_team is False

@@ -29,6 +29,7 @@ WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--ref",
                 "--skip-tag-validation",
                 "--apply-commits",
+                "--workflow-branch",
             ],
         },
         {
@@ -44,6 +45,12 @@ WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--exclude-docs",
                 "--site-env",
                 "--skip-write-to-stable-folder",
+            ],
+        },
+        {
+            "name": "Inventory handling",
+            "options": [
+                "--ignore-missing-inventories",
             ],
         },
     ],

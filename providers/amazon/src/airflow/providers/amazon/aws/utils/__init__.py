@@ -23,7 +23,7 @@ from enum import Enum
 from importlib import metadata
 from typing import Any
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import prune_dict
 from airflow.version import version
 

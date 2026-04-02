@@ -22,7 +22,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 @pytest.mark.parametrize(
-    "line,parsed_statements",
+    ("line", "parsed_statements"),
     [
         ("SELECT * FROM table", ["SELECT * FROM table"]),
         ("SELECT * FROM table;", ["SELECT * FROM table;"]),

@@ -19,7 +19,13 @@
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
 
-export type NavigationMode = "run" | "task" | "TI";
+export const NavigationModes = {
+  RUN: "run",
+  TASK: "task",
+  TI: "TI",
+} as const;
+
+export type NavigationMode = (typeof NavigationModes)[keyof typeof NavigationModes];
 
 export type ArrowKey = "ArrowDown" | "ArrowLeft" | "ArrowRight" | "ArrowUp";
 
@@ -31,8 +37,6 @@ export type NavigationIndices = {
 };
 
 export type UseNavigationProps = {
-  enabled?: boolean;
-  onEscapePress?: () => void;
   onToggleGroup?: (taskId: string) => void;
   runs: Array<GridRunsResponse>;
   tasks: Array<GridTask>;
@@ -41,8 +45,7 @@ export type UseNavigationProps = {
 export type UseNavigationReturn = {
   currentIndices: NavigationIndices;
   currentTask: GridTask | undefined;
-  enabled: boolean;
-  handleNavigation: (direction: NavigationDirection, isJump?: boolean) => void;
+  handleNavigation: (direction: NavigationDirection) => void;
   mode: NavigationMode;
   setMode: (mode: NavigationMode) => void;
 };

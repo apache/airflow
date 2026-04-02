@@ -26,7 +26,9 @@ harder to debug the tests and to use your IDE to run them.
 
 That's why we recommend using local virtualenv for development and testing.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Required Software Packages
 --------------------------
@@ -34,7 +36,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.10, 3.11, 3.12, 3.13)
+* Python (One of: 3.10, 3.11, 3.12, 3.13, 3.14)
 * MySQL 5.7+
 * libxml
 * helm (only for helm chart tests)
@@ -70,7 +72,7 @@ The ``uv`` utility is a build frontend tool that is designed to manage python, v
 and testing of Python projects. It is a modern tool that is designed to work with PEP 517/518 compliant projects
 and it is much faster than "reference" ``pip`` tool. It has extensive support to not only create development
 environment but also to manage python versions, development environments, workspaces and Python tools used
-to develop Airflow (via ``uv tool`` command - such as ``pre-commit`` and others, you can also use ``uv tool``
+to develop Airflow (via ``uv tool`` command - such as ``prek`` and others, you can also use ``uv tool``
 to install ``breeze`` - containerized development environment for Airflow that we use to reproduce the
 CI environment locally and to run release-management and certain development tasks.
 
@@ -244,10 +246,10 @@ in editable mode.
 The dependencies for providers are configured in ``providers/PROVIDER/pyproject.toml`` files -
 separately for each provider. You can find there two types of ``dependencies`` - production runtime
 dependencies, and sometimes ``development dependencies`` (in ``dev`` dependency group) which are needed
-to run tests and are installed automatically when you install environment with ``uv-sync``.
+to run tests and are installed automatically when you install environment with ``uv sync``.
 
 If you want to add another dependency to a provider, you should add it to corresponding ``pyproject.toml``,
-add the files to your commit with ``git add`` and run ``pre-commit run`` to update generated dependencies.
+add the files to your commit with ``git add`` and run ``prek`` to update generated dependencies.
 Note that in the future we will remove that step.
 
 For ``uv`` it's simple, you need to run ``uv sync`` in providers directory after you modified

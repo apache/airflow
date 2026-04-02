@@ -13,7 +13,7 @@ coverage
 deltalake
 diagrams
 duckdb
-eralchemy2
+eralchemy
 execnet
 gitdb
 gitpython
@@ -31,7 +31,6 @@ jaraco-classes
 jaraco-context
 jaraco-functools
 jeepney
-joserfc
 jsondiff
 jsonpatch
 jsonpointer

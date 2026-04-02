@@ -22,12 +22,13 @@ Examples
 
 Key Concepts
 ------------
-Defining DAGs
+
+Defining Dags
 ~~~~~~~~~~~~~
 
-Example: Defining a DAG
+Example: Defining a Dag
 
-Use the :func:`airflow.sdk.dag` decorator to convert a Python function into an Airflow DAG. All nested calls to :func:`airflow.sdk.task` within the function will become tasks in the DAG. For full parameters and usage, see the API reference for :func:`airflow.sdk.dag`.
+Use the :func:`airflow.sdk.dag` decorator to convert a Python function into an Airflow Dag. All nested calls to :func:`airflow.sdk.task` within the function will become tasks in the Dag. For full parameters and usage, see the API reference for :func:`airflow.sdk.dag`.
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_dag_decorator.py
    :language: python
@@ -40,10 +41,10 @@ Decorators
 
 Example: Using Task SDK decorators
 
-The Task SDK provides decorators to simplify DAG definitions:
+The Task SDK provides decorators to simplify Dag definitions:
 
 - :func:`airflow.sdk.task_group` groups related tasks into logical TaskGroups.
-- :func:`airflow.sdk.setup` and :func:`airflow.sdk.teardown` define setup and teardown hooks for DAGs or TaskGroups.
+- :func:`airflow.sdk.setup` and :func:`airflow.sdk.teardown` define setup and teardown hooks for Dags or TaskGroups.
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_task_group_decorator.py
    :language: python
@@ -101,16 +102,16 @@ TaskFlow API Tutorial
 This section provides a concise, code-first view. For the full tutorial and context,
 see the `core TaskFlow tutorial <../../airflow-core/docs/tutorial/taskflow.rst>`_.
 
-Step 1: Define the DAG
+Step 1: Define the Dag
 ----------------------
 
-In this step, define your DAG by applying the :func:`airflow.sdk.dag` decorator to a Python function. This registers the DAG with its schedule and default arguments. For more details, see :func:`airflow.sdk.dag`.
+In this step, define your Dag by applying the :func:`airflow.sdk.dag` decorator to a Python function. This registers the Dag with its schedule and default arguments. For more details, see :func:`airflow.sdk.dag`.
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
    :language: python
    :start-after: [START instantiate_dag]
    :end-before: [END instantiate_dag]
-   :caption: Defining the DAG with the :func:`@dag <airflow.sdk.dag>` decorator
+   :caption: Defining the Dag with the :func:`@dag <airflow.sdk.dag>` decorator
 
 Step 2: Write your Tasks
 ------------------------
@@ -146,11 +147,11 @@ Step 3: Build the Flow
    :end-before: [END main_flow]
    :caption: Connecting tasks by invoking them like normal Python functions
 
-Step 4: Invoke the DAG
+Step 4: Invoke the Dag
 ----------------------
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/tutorial_taskflow_api.py
    :language: python
    :start-after: [START dag_invocation]
    :end-before: [END dag_invocation]
-   :caption: Registering the DAG by calling the decorated function
+   :caption: Registering the Dag by calling the decorated function

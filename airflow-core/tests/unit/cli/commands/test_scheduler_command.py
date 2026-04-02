@@ -39,7 +39,7 @@ class TestSchedulerCommand:
         cls.parser = cli_parser.get_parser()
 
     @pytest.mark.parametrize(
-        "executor, expect_serve_logs",
+        ("executor", "expect_serve_logs"),
         [
             ("CeleryExecutor", False),
             ("LocalExecutor", True),
@@ -70,8 +70,7 @@ class TestSchedulerCommand:
         with conf_vars({("core", "executor"): executor}):
             reload(executor_loader)
             scheduler_command.scheduler(args)
-            with pytest.raises(AssertionError):
-                mock_process.assert_has_calls([mock.call(target=serve_logs)])
+            assert mock_process.call_count == 0
 
     @mock.patch("airflow.utils.db.check_and_run_migrations")
     @mock.patch("airflow.utils.db.synchronize_log_template")
@@ -164,3 +163,32 @@ class TestSchedulerCommand:
         )
         mock_process.assert_called_once_with(target=serve_logs)
         mock_process().terminate.assert_called_once_with()
+
+    @mock.patch("airflow.cli.hot_reload.run_with_reloader")
+    def test_scheduler_with_dev_flag(self, mock_reloader):
+        args = self.parser.parse_args(["scheduler", "--dev"])
+        scheduler_command.scheduler(args)
+
+        # Verify that run_with_reloader was called
+        mock_reloader.assert_called_once()
+        # The callback function should be callable
+        assert callable(mock_reloader.call_args[0][0])
+
+    def test_only_idle_requires_positive_num_runs(self):
+        """--only-idle with -n 0 or negative must raise SystemExit."""
+        for n in ("0", "-1"):
+            args = self.parser.parse_args(["scheduler", "--only-idle", "-n", n])
+            with pytest.raises(SystemExit):
+                scheduler_command.scheduler(args)
+
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    def test_only_idle_passes_to_job_runner(self, mock_process, mock_scheduler_job):
+        """SchedulerJobRunner must be called with only_idle=True when --only-idle is used."""
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler", "--only-idle", "-n", "5"])
+        scheduler_command.scheduler(args)
+        mock_scheduler_job.assert_called_once()
+        call_kwargs = mock_scheduler_job.call_args[1]
+        assert call_kwargs["only_idle"] is True
+        assert call_kwargs["num_runs"] == 5

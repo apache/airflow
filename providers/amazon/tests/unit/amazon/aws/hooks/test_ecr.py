@@ -57,7 +57,7 @@ class TestEcrHook:
         assert result[0].password == f"{DEFAULT_ACCOUNT_ID}-auth-token"
 
     @pytest.mark.parametrize(
-        "accounts_id, expected_registry",
+        ("accounts_id", "expected_registry"),
         [
             pytest.param(DEFAULT_ACCOUNT_ID, DEFAULT_ACCOUNT_ID, id="moto-default-account"),
             pytest.param("111100002222", "111100002222", id="custom-account-id"),

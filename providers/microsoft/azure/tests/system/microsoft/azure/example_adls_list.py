@@ -37,7 +37,8 @@ with models.DAG(
     # [START howto_operator_adls_list]
     adls_files = ADLSListOperator(
         task_id="adls_files",
-        path="folder/output/*.parquet",
+        file_system_name="mycontainer",
+        path="folder/output",
         azure_data_lake_conn_id="azure_data_lake_default",
     )
     # [END howto_operator_adls_list]

@@ -24,12 +24,12 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.alibaba.cloud.hooks.maxcompute import MaxComputeHook
 from airflow.providers.alibaba.cloud.links.maxcompute import MaxComputeLogViewLink
-from airflow.providers.alibaba.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
     from odps.models import Instance
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class MaxComputeSQLOperator(BaseOperator):

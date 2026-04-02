@@ -21,7 +21,12 @@ from typing import TYPE_CHECKING, Any
 from flask import Flask
 
 if TYPE_CHECKING:
-    from airflow.models.dagbag import DagBag
+    from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
+
+    if AIRFLOW_V_3_1_PLUS:
+        from airflow.models.dagbag import DBDagBag as DagBag
+    else:
+        from airflow.models.dagbag import DagBag  # type: ignore[no-redef]
 
 
 class AirflowApp(Flask):

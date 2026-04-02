@@ -32,7 +32,7 @@ You can check :doc:`apache-airflow:howto/connection`
 
 The DataprepRunJobGroupOperator will run specified job. Operator required a recipe id. To identify the recipe id please use `API documentation for runJobGroup <https://clouddataprep.com/documentation/api#operation/runJobGroup>`_
 E.g. if the URL is /flows/10?recipe=7, the recipe id is 7. The recipe cannot be created via this operator. It can be created only via UI which is available `here <https://clouddataprep.com/>`_.
-Some of parameters can be override by DAG's body request. How to do it is shown in example dag.
+Some of parameters can be override by Dag's body request. How to do it is shown in example dag.
 
 See following example:
 Set values for these fields:

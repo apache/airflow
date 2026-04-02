@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING
 
 import attrs
 
-from airflow.configuration import conf
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -49,15 +49,15 @@ class OSSRemoteLogIO(LoggingMixin):  # noqa: D101
         path = Path(path)
         if path.is_absolute():
             local_loc = path
-            remote_loc = os.path.join(self.remote_base, path.relative_to(self.base_log_folder))
+            relative_path = str(path.relative_to(self.base_log_folder))
         else:
             local_loc = self.base_log_folder.joinpath(path)
-            remote_loc = os.path.join(self.remote_base, path)
+            relative_path = str(path)
 
         if local_loc.is_file():
             # read log and remove old logs to get just the latest additions
             log = local_loc.read_text()
-            has_uploaded = self.oss_write(log, remote_loc)
+            has_uploaded = self.oss_write(log, relative_path)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
 
@@ -163,9 +163,20 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
     Extends airflow FileTaskHandler and uploads to and reads from OSS remote storage.
     """
 
-    def __init__(self, base_log_folder, oss_log_folder, **kwargs):
+    def __init__(
+        self,
+        base_log_folder: str,
+        oss_log_folder: str,
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+        **kwargs,
+    ) -> None:
         self.log.info("Using oss_task_handler for remote logging...")
-        super().__init__(base_log_folder)
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.log_relative_path = ""
         self._hook = None
         self.closed = False

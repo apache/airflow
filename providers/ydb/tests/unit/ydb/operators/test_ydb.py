@@ -49,8 +49,7 @@ def test_sql_templating(create_task_instance_of_operator):
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
     )
-    ti.render_templates()
-    task: YDBExecuteQueryOperator = ti.task
+    task = ti.render_templates()
     assert task.sql == "SELECT * FROM pet WHERE birth_date BETWEEN '2020-01-01' AND '2020-12-31'"
 
 

@@ -31,6 +31,9 @@ inputs:
   use-uv:
     description: 'Whether to use uv'
     required: true
+  make-mnt-writeable-and-cleanup:
+    description: 'Whether to cleanup /mnt'
+    required: true
 outputs:
   host-python-version:
     description: Python version used in host
@@ -38,9 +41,10 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: "Prepare and cleanup runner"
-      run: ./scripts/ci/prepare_and_cleanup_runner.sh
+    - name: "Make /mnt writeable and cleanup"
       shell: bash
+      run: ./scripts/ci/make_mnt_writeable.sh
+      if: inputs.make-mnt-writeable-and-cleanup == 'true'
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
       id: breeze

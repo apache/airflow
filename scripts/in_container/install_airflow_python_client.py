@@ -19,9 +19,7 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import AIRFLOW_DIST_PATH, click, console, run_command
 
 ALLOWED_DISTRIBUTION_FORMAT = ["wheel", "sdist", "both"]
@@ -79,7 +77,7 @@ def install_airflow_python_client(
     extension = "whl" if distribution_format == "wheel" else "tar.gz"
 
     install_airflow_python_client_cmd = [
-        "/usr/local/bin/uv",
+        "uv",
         "pip",
         "install",
         find_airflow_python_client(extension),

@@ -78,7 +78,7 @@ class ObjectStore:
             return f"{self.fs.protocol}-{self.conn_id or 'env'}"
 
     def serialize(self):
-        from airflow.utils.module_loading import qualname
+        from airflow.sdk._shared.module_loading import qualname
 
         return {
             "protocol": self.protocol,
@@ -119,6 +119,9 @@ class ObjectStore:
             return self.fs == other.fs
         except ValueError:
             return False
+
+    def __hash__(self):
+        return hash((self.conn_id, self.fsid))
 
 
 _STORE_CACHE: dict[str, ObjectStore] = {}

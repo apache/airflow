@@ -24,7 +24,7 @@ from typing import Any
 
 from packaging.version import Version
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 log = logging.getLogger(__name__)
 

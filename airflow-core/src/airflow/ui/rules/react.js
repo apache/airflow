@@ -344,6 +344,9 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      */
     [`${reactHooksNamespace}/rules-of-hooks`]: ERROR,
 
+    // https://github.com/facebook/react/blob/3640f38/compiler/packages/babel-plugin-react-compiler/src/CompilerError.ts#L807-L1111
+    [`${reactHooksNamespace}/todo`]: ERROR,
+
     /**
      * Prevent usage of button elements without an explicit type attribute.
      *
@@ -470,13 +473,6 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * @see [react/jsx-no-comment-textnodes](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-no-comment-textnodes.md)
      */
     [`${reactNamespace}/jsx-no-comment-textnodes`]: ERROR,
-
-    /**
-     * Prevent react contexts from taking non-stable values.
-     *
-     * @see [react/jsx-no-constructed-context-values](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-no-constructed-context-values.md)
-     */
-    [`${reactNamespace}/jsx-no-constructed-context-values`]: ERROR,
 
     /**
      * Disallow problematic leaked values from being rendered.
@@ -619,5 +615,5 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      */
     [`${reactRefreshNamespace}/only-export-components`]: [WARN, { allowConstantExport: true }],
   },
-  settings: { react: { version: "18" } },
+  settings: { react: { version: "19" } },
 });

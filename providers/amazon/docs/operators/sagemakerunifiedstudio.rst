@@ -54,6 +54,14 @@ To create an Amazon SageMaker Unified Studio workflow to orchestrate your notebo
     :end-before: [END howto_operator_sagemaker_unified_studio_notebook]
 
 
+The following example adds domain ID, project ID, and domain name as operator parameters.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_unified_studio.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_unified_studio_notebook_explicit_params]
+    :end-before: [END howto_operator_sagemaker_unified_studio_notebook_explicit_params]
+
 Reference
 ---------
 

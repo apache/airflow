@@ -18,14 +18,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import google.cloud.exceptions
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.run_v2 import Job, Service
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
 from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -35,7 +34,7 @@ if TYPE_CHECKING:
     from google.api_core import operation
     from google.cloud.run_v2.types import Execution
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
@@ -46,6 +45,8 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param job_name: Required. The name of the job to create.
     :param job: Required. The job descriptor containing the configuration of the job to submit.
+    :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+        If not provided, the default one is global endpoint.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -67,6 +68,7 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
         job: dict | Job,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        use_regional_endpoint: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -76,14 +78,20 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
         self.job = job
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.use_regional_endpoint = use_regional_endpoint
 
     def execute(self, context: Context):
         hook: CloudRunHook = CloudRunHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         job = hook.create_job(
-            job_name=self.job_name, job=self.job, region=self.region, project_id=self.project_id
+            job_name=self.job_name,
+            job=self.job,
+            region=self.region,
+            project_id=self.project_id,
+            use_regional_endpoint=self.use_regional_endpoint,
         )
+        self.log.info("Job created")
 
         return Job.to_dict(job)
 
@@ -97,6 +105,8 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
     :param job_name: Required. The name of the job to update.
     :param job: Required. The job descriptor containing the new configuration of the job to update.
         The name field will be replaced by job_name
+    :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+        If not provided, the default one is global endpoint.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -117,6 +127,7 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
         job_name: str,
         job: dict | Job,
         gcp_conn_id: str = "google_cloud_default",
+        use_regional_endpoint: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
@@ -126,6 +137,7 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
         self.job_name = job_name
         self.job = job
         self.gcp_conn_id = gcp_conn_id
+        self.use_regional_endpoint = use_regional_endpoint
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
@@ -133,7 +145,11 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         job = hook.update_job(
-            job_name=self.job_name, job=self.job, region=self.region, project_id=self.project_id
+            job_name=self.job_name,
+            job=self.job,
+            region=self.region,
+            project_id=self.project_id,
+            use_regional_endpoint=self.use_regional_endpoint,
         )
 
         return Job.to_dict(job)
@@ -141,12 +157,14 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
 
 class CloudRunDeleteJobOperator(GoogleCloudBaseOperator):
     """
-    Deletes a job and wait for the the operation to be completed. Pushes the deleted job to xcom.
+    Deletes a job and wait for the operation to be completed. Pushes the deleted job to xcom.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param job_name: Required. The name of the job to delete.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+        If not provided, the default one is global endpoint.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -165,6 +183,7 @@ class CloudRunDeleteJobOperator(GoogleCloudBaseOperator):
         region: str,
         job_name: str,
         gcp_conn_id: str = "google_cloud_default",
+        use_regional_endpoint: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
@@ -173,13 +192,19 @@ class CloudRunDeleteJobOperator(GoogleCloudBaseOperator):
         self.region = region
         self.job_name = job_name
         self.gcp_conn_id = gcp_conn_id
+        self.use_regional_endpoint = use_regional_endpoint
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook: CloudRunHook = CloudRunHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        job = hook.delete_job(job_name=self.job_name, region=self.region, project_id=self.project_id)
+        job = hook.delete_job(
+            job_name=self.job_name,
+            region=self.region,
+            project_id=self.project_id,
+            use_regional_endpoint=self.use_regional_endpoint,
+        )
 
         return Job.to_dict(job)
 
@@ -194,6 +219,8 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
         resources along with active ones.
     :param limit: The number of jobs to list. If left empty,
         all the jobs will be returned.
+    :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+        If not provided, the default one is global endpoint.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -218,6 +245,7 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
         region: str,
         show_deleted: bool = False,
         limit: int | None = None,
+        use_regional_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -229,6 +257,7 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.show_deleted = show_deleted
         self.limit = limit
+        self.use_regional_endpoint = use_regional_endpoint
         if limit is not None and limit < 0:
             raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
 
@@ -237,7 +266,11 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         jobs = hook.list_jobs(
-            region=self.region, project_id=self.project_id, show_deleted=self.show_deleted, limit=self.limit
+            region=self.region,
+            project_id=self.project_id,
+            show_deleted=self.show_deleted,
+            limit=self.limit,
+            use_regional_endpoint=self.use_regional_endpoint,
         )
 
         return [Job.to_dict(job) for job in jobs]
@@ -255,6 +288,8 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param polling_period_seconds: Optional. Control the rate of the poll for the result of deferrable run.
         By default, the trigger will poll every 10 seconds.
     :param timeout_seconds: Optional. The timeout for this request, in seconds.
+    :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+        If not provided, the default one is global endpoint.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -264,6 +299,9 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run the operator in deferrable mode.
+    :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
+        If set to None, a transport is chosen automatically. Use 'rest' if gRPC is not available
+        or fails in your environment (e.g., Docker containers with certain network configurations).
     """
 
     operator_extra_links = (CloudRunJobLoggingLink(),)
@@ -276,6 +314,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         "overrides",
         "polling_period_seconds",
         "timeout_seconds",
+        "transport",
     )
 
     def __init__(
@@ -286,9 +325,11 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         overrides: dict[str, Any] | None = None,
         polling_period_seconds: float = 10,
         timeout_seconds: float | None = None,
+        use_regional_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        transport: Literal["rest", "grpc"] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -301,14 +342,22 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.timeout_seconds = timeout_seconds
         self.deferrable = deferrable
+        self.use_regional_endpoint = use_regional_endpoint
+        self.transport = transport
         self.operation: operation.Operation | None = None
 
     def execute(self, context: Context):
         hook: CloudRunHook = CloudRunHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            transport=self.transport,
         )
         self.operation = hook.execute_job(
-            region=self.region, project_id=self.project_id, job_name=self.job_name, overrides=self.overrides
+            region=self.region,
+            project_id=self.project_id,
+            job_name=self.job_name,
+            overrides=self.overrides,
+            use_regional_endpoint=self.use_regional_endpoint,
         )
 
         if self.operation is None:
@@ -323,7 +372,12 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
             self._fail_if_execution_failed(result)
-            job = hook.get_job(job_name=result.job, region=self.region, project_id=self.project_id)
+            job = hook.get_job(
+                job_name=result.job,
+                region=self.region,
+                project_id=self.project_id,
+                use_regional_endpoint=self.use_regional_endpoint,
+            )
             return Job.to_dict(job)
         self.defer(
             trigger=CloudRunJobFinishedTrigger(
@@ -331,9 +385,11 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
                 job_name=self.job_name,
                 project_id=self.project_id,
                 location=self.region,
+                use_regional_endpoint=self.use_regional_endpoint,
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
                 polling_period_seconds=self.polling_period_seconds,
+                transport=self.transport,
             ),
             method_name="execute_complete",
         )
@@ -351,9 +407,18 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
                 f"Operation failed with error code [{error_code}] and error message [{error_message}]"
             )
 
-        hook: CloudRunHook = CloudRunHook(self.gcp_conn_id, self.impersonation_chain)
+        hook: CloudRunHook = CloudRunHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            transport=self.transport,
+        )
 
-        job = hook.get_job(job_name=event["job_name"], region=self.region, project_id=self.project_id)
+        job = hook.get_job(
+            job_name=event["job_name"],
+            region=self.region,
+            project_id=self.project_id,
+            use_regional_endpoint=self.use_regional_endpoint,
+        )
         return Job.to_dict(job)
 
     def _fail_if_execution_failed(self, execution: Execution):
@@ -383,6 +448,8 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param service_name: Required. The name of the service to create.
     :param service: The service descriptor containing the configuration of the service to submit.
+    :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+        If not provided, the default one is global endpoint.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -402,6 +469,7 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         region: str,
         service_name: str,
         service: dict | Service,
+        use_regional_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -411,6 +479,7 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
         self.region = region
         self.service = service
         self.service_name = service_name
+        self.use_regional_endpoint = use_regional_endpoint
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self._validate_inputs()
@@ -434,6 +503,7 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
                 service_name=self.service_name,
                 region=self.region,
                 project_id=self.project_id,
+                use_regional_endpoint=self.use_regional_endpoint,
             )
         except AlreadyExists:
             self.log.info(
@@ -441,9 +511,13 @@ class CloudRunCreateServiceOperator(GoogleCloudBaseOperator):
                 self.service_name,
                 self.region,
             )
-            return hook.get_service(
-                service_name=self.service_name, region=self.region, project_id=self.project_id
+            service = hook.get_service(
+                service_name=self.service_name,
+                region=self.region,
+                project_id=self.project_id,
+                use_regional_endpoint=self.use_regional_endpoint,
             )
+            return Service.to_dict(service)
         except google.cloud.exceptions.GoogleCloudError as e:
             self.log.error("An error occurred. Exiting.")
             raise e
@@ -458,6 +532,8 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param service_name: Required. The name of the service to create.
+    :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+        If not provided, the default one is global endpoint.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -476,6 +552,7 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
         project_id: str,
         region: str,
         service_name: str,
+        use_regional_endpoint: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -484,6 +561,7 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.region = region
         self.service_name = service_name
+        self.use_regional_endpoint = use_regional_endpoint
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self._validate_inputs()
@@ -506,6 +584,7 @@ class CloudRunDeleteServiceOperator(GoogleCloudBaseOperator):
                 service_name=self.service_name,
                 region=self.region,
                 project_id=self.project_id,
+                use_regional_endpoint=self.use_regional_endpoint,
             )
         except google.cloud.exceptions.NotFound as e:
             self.log.error("An error occurred. Not Found.")

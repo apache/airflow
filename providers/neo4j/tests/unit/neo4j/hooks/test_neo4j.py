@@ -26,7 +26,7 @@ from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 
 class TestNeo4jHookConn:
     @pytest.mark.parametrize(
-        "conn_extra, expected_uri",
+        ("conn_extra", "expected_uri"),
         [
             ({}, "bolt://host:7687"),
             ({"neo4j_scheme": False}, "bolt://host:7687"),
@@ -157,7 +157,7 @@ class TestNeo4jHookConn:
             assert op_result == session.run.return_value.data.return_value
 
     @pytest.mark.parametrize(
-        "conn_extra, should_provide_encrypted, expected_encrypted",
+        ("conn_extra", "should_provide_encrypted", "expected_encrypted"),
         [
             ({}, True, False),
             ({"neo4j_scheme": False, "encrypted": True}, True, True),

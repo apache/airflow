@@ -24,7 +24,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSRemoteLogIO, OSSTaskHandler  # noqa: F401
+from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -162,7 +162,7 @@ class TestOSSTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "delete_local_copy, expected_existence_of_local_copy",
+        ("delete_local_copy", "expected_existence_of_local_copy"),
         [(True, False), (False, True)],
     )
     @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.hook"), new_callable=PropertyMock)
@@ -183,6 +183,27 @@ class TestOSSTaskHandler:
 
         handler.close()
         assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
+
+    @mock.patch(OSS_TASK_HANDLER_STRING.format("OSSRemoteLogIO.oss_write"))
+    def test_upload_passes_relative_path_to_oss_write(self, mock_oss_write, tmp_path):
+        """Test that upload() passes only the relative path to oss_write(), not the full OSS URI."""
+        mock_oss_write.return_value = True
+        log_dir = tmp_path / "dag_id=test" / "run_id=test" / "task_id=test"
+        log_dir.mkdir(parents=True)
+        log_file = log_dir / "attempt=1.log"
+        log_file.write_text("test log content")
+
+        handler = OSSTaskHandler(str(tmp_path), self.oss_log_folder)
+
+        # Test with relative path
+        relative_path = "dag_id=test/run_id=test/task_id=test/attempt=1.log"
+        handler.io.upload(relative_path, self.ti)
+        mock_oss_write.assert_called_once_with("test log content", relative_path)
+
+        # Test with absolute path — should also pass relative portion
+        mock_oss_write.reset_mock()
+        handler.io.upload(str(log_file), self.ti)
+        mock_oss_write.assert_called_once_with("test log content", relative_path)
 
     def test_filename_template_for_backward_compatibility(self):
         # filename_template arg support for running the latest provider on airflow 2

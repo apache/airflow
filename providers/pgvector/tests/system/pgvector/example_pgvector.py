@@ -18,11 +18,9 @@ from __future__ import annotations
 
 import pendulum
 
-try:
-    from airflow.sdk import dag, task
-except ImportError:
-    # Airflow 2 path
-    from airflow.decorators import dag, task  # type: ignore[attr-defined,no-redef]
+# This example uses common.compat for Airflow 2.x/3.x compatibility.
+# If you only need Airflow 3+, you can use: from airflow.sdk import dag, task
+from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.pgvector.hooks.pgvector import PgVectorHook
 from airflow.providers.pgvector.operators.pgvector import PgVectorIngestOperator
 

@@ -111,7 +111,7 @@ Difference between ``KubernetesPodOperator`` and Kubernetes object spec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` can be considered
 a substitute for a Kubernetes object spec definition that is able
-to be run in the Airflow scheduler in the DAG context. If using the operator, there is no need to create the
+to be run in the Airflow scheduler in the Dag context. If using the operator, there is no need to create the
 equivalent YAML/JSON object spec for the Pod you would like to run.
 The YAML file can still be provided with the ``pod_template_file`` or even the Pod Spec constructed in Python via
 the ``full_pod_spec`` parameter which requires a Kubernetes ``V1Pod``.
@@ -154,6 +154,38 @@ Example to fetch and display container log periodically
     :start-after: [START howto_operator_async_log]
     :end-before: [END howto_operator_async_log]
 
+
+Pod cleanup on kill
+^^^^^^^^^^^^^^^^^^^
+
+The ``on_kill_action`` parameter controls what happens to the Kubernetes pod when a
+running task is killed (e.g. manually marked as success or failed from the Airflow UI).
+It accepts the same enum-style string values as ``on_finish_action``:
+
+- ``"delete_pod"`` (default) — the pod is deleted when the task is killed.
+- ``"keep_pod"`` — the pod is left running when the task is killed.
+
+In **sync mode**, ``on_kill_action`` gates the ``on_kill`` callback.
+
+In **deferrable mode**, ``on_kill_action`` is forwarded to the trigger. When the trigger
+is cancelled (e.g. the deferred task is manually marked as success or failed), the action
+is applied. The ``on_finish_action`` parameter is **not** consulted during a kill — it only
+governs cleanup after normal task completion.
+
+If you want to prevent the pod from being deleted when a task is killed (for example,
+for debugging), set ``on_kill_action="keep_pod"``:
+
+.. code-block:: python
+
+    k = KubernetesPodOperator(
+        task_id="long_running_task",
+        image="my-image:latest",
+        on_finish_action="delete_pod",
+        on_kill_action="keep_pod",  # pod will NOT be deleted when the task is killed
+    )
+
+The ``termination_grace_period`` parameter is also respected during cleanup, giving the
+pod time to shut down gracefully before being forcefully terminated.
 
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
@@ -496,7 +528,7 @@ spark_job_template.yaml
 
     * kubernetes: This segment encompasses the task's Kubernetes resource configuration, directly corresponding to the Kubernetes API Documentation. Each resource type includes an example within the template.
 
-  * The designated base image to be utilized is ``gcr.io/spark-operator/spark-py:v3.1.1``.
+  * The designated base image to be utilized is ``apache/spark-py:v3.4.0``.
 
   * Ensure that the Spark code is either embedded within the image, mounted using a persistentVolume, or accessible from an external location such as an S3 bucket.
 
@@ -506,7 +538,7 @@ Next, create the task using the following:
 
     SparkKubernetesOperator(
         task_id="spark_task",
-        image="gcr.io/spark-operator/spark-py:v3.1.1",  # OR custom image using that
+        image="apache/spark-py:v3.4.0",  # OR custom image using that
         code_path="local://path/to/spark/code.py",
         application_file="spark_job_template.yaml",  # OR spark_job_template.json
         dag=dag,

@@ -27,10 +27,7 @@ Create Date: 2024-12-18 19:10:26.962464
 from __future__ import annotations
 
 import sqlalchemy as sa
-import sqlalchemy_jsonfield
 from alembic import op
-
-from airflow.settings import json
 
 revision = "dfee8bd5d574"
 down_revision = "fe199e1abd77"
@@ -42,7 +39,7 @@ airflow_version = "3.1.0"
 def upgrade():
     op.add_column(
         "dag",
-        sa.Column("deadline", sqlalchemy_jsonfield.JSONField(json=json), nullable=True),
+        sa.Column("deadline", sa.JSON(), nullable=True),
     )
 
 

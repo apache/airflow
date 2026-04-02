@@ -57,6 +57,7 @@ export const useAddPool = ({ onSuccessConfirm }: { onSuccessConfirm: () => void 
 
   const addPool = (poolRequestBody: PoolBody) => {
     const parsedDescription = poolRequestBody.description === "" ? undefined : poolRequestBody.description;
+    const teamName = poolRequestBody.team_name === "" ? undefined : poolRequestBody.team_name;
 
     mutate({
       requestBody: {
@@ -64,6 +65,7 @@ export const useAddPool = ({ onSuccessConfirm }: { onSuccessConfirm: () => void 
         include_deferred: poolRequestBody.include_deferred,
         name: poolRequestBody.name,
         slots: poolRequestBody.slots,
+        team_name: teamName,
       },
     });
   };

@@ -16,29 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Heading } from "@chakra-ui/react";
 import { ReactFlowProvider } from "@xyflow/react";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
-import {
-  useHumanInTheLoopServiceGetHitlDetails,
-  useTaskInstanceServiceGetMappedTaskInstance,
-} from "openapi/queries";
+import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
 export const TaskInstance = () => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "common", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
-
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
 
@@ -59,6 +57,7 @@ export const TaskInstance = () => {
   ];
 
   const refetchInterval = useAutoRefresh({ dagId });
+  const parsedMapIndex = parseInt(mapIndex, 10);
 
   const {
     data: taskInstance,
@@ -68,43 +67,23 @@ export const TaskInstance = () => {
     {
       dagId,
       dagRunId: runId,
-      mapIndex: parseInt(mapIndex, 10),
+      mapIndex: parsedMapIndex,
       taskId,
     },
     undefined,
     {
+      enabled: !isNaN(parsedMapIndex),
       refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
     },
   );
 
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
-
-  const { data: hitlDetails } = useHumanInTheLoopServiceGetHitlDetails(
-    {
-      dagIdPattern: dagId,
-      dagRunId: runId,
-    },
-    undefined,
-    {
-      enabled: Boolean(dagId && runId),
-      refetchInterval,
-    },
-  );
-
-  const hasHitlForTask = Boolean(
-    hitlDetails?.hitl_details.find((hitl) => hitl.task_instance.task_id === taskId),
-  );
+  const { summariesByRunId } = useGridTiSummariesStream({ dagId, runIds: runId ? [runId] : [] });
+  const gridTISummaries = summariesByRunId.get(runId);
 
   const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
-  const taskCount = useMemo(
-    () =>
-      Array.isArray(taskInstanceSummary?.child_states)
-        ? taskInstanceSummary.child_states
-            .map((_state: string, count: number) => count)
-            .reduce((acc: number, val: unknown) => acc + (typeof val === "number" ? val : 0), 0)
-        : 0,
-    [taskInstanceSummary],
-  );
+  const taskCount = Object.entries(taskInstanceSummary?.child_states ?? {})
+    .map(([_state, count]) => count)
+    .reduce((sum, val) => sum + val, 0);
   let newTabs = tabs;
 
   if (taskInstance && taskInstance.map_index > -1) {
@@ -121,22 +100,25 @@ export const TaskInstance = () => {
     ];
   }
 
-  const displayTabs = newTabs.filter((tab) => {
-    if (tab.value === "required_actions" && !hasHitlForTask) {
-      return false;
-    }
+  const { tabs: requiredActionTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
+    autoRedirect: true,
+    refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
+  });
 
-    return true;
+  const { tabs: displayTabs } = useHITLReviewTabs({ dagId, dagRunId: runId, taskId }, requiredActionTabs, {
+    mapIndex: parsedMapIndex,
+    refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
   });
 
   return (
     <ReactFlowProvider>
       <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
-        {taskInstance === undefined ? undefined : (
-          <Header
-            isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
-            taskInstance={taskInstance}
-          />
+        {taskInstance === undefined ? (
+          <Heading p={2} size="lg">
+            {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
+          </Heading>
+        ) : (
+          <Header taskInstance={taskInstance} />
         )}
       </DetailsLayout>
     </ReactFlowProvider>

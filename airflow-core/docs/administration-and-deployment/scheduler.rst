@@ -20,11 +20,11 @@
 Scheduler
 ==========
 
-The Airflow scheduler monitors all tasks and dags, then triggers the
+The Airflow scheduler monitors all tasks and Dags, then triggers the
 task instances once their dependencies are complete. Behind the scenes,
 the scheduler spins up a subprocess, which monitors and stays in sync with all
-dags in the specified DAG directory. Once per minute, by default, the scheduler
-collects DAG parsing results and checks whether any active tasks can be triggered.
+Dags in the specified Dag directory. Once per minute, by default, the scheduler
+collects Dag parsing results and checks whether any active tasks can be triggered.
 
 The Airflow scheduler is designed to run as a persistent service in an
 Airflow production environment. To kick it off, all you need to do is
@@ -39,25 +39,25 @@ To start a scheduler, simply run the command:
 
     airflow scheduler
 
-Your dags will start executing once the scheduler is running successfully.
+Your Dags will start executing once the scheduler is running successfully.
 
 .. note::
 
-    The first DAG Run is created based on the minimum ``start_date`` for the tasks in your DAG.
-    Subsequent DAG Runs are created according to your DAG's :doc:`timetable <../authoring-and-scheduling/timetable>`.
+    The first Dag Run is created based on the minimum ``start_date`` for the tasks in your Dag.
+    Subsequent Dag Runs are created according to your Dag's :doc:`timetable <../authoring-and-scheduling/timetable>`.
 
 
-For dags with a cron or timedelta schedule, scheduler won't trigger your tasks until the period it covers has ended e.g., A job with ``schedule`` set as ``@daily`` runs after the day
-has ended. This technique makes sure that whatever data is required for that period is fully available before the DAG is executed.
+For Dags with a cron or timedelta schedule, scheduler won't trigger your tasks until the period it covers has ended e.g., A job with ``schedule`` set as ``@daily`` runs after the day
+has ended. This technique makes sure that whatever data is required for that period is fully available before the Dag is executed.
 In the UI, it appears as if Airflow is running your tasks a day **late**
 
 .. note::
 
-    If you run a DAG on a ``schedule`` of one day, the run with data interval starting on ``2019-11-21`` triggers after ``2019-11-21T23:59``.
+    If you run a Dag on a ``schedule`` of one day, the run with data interval starting on ``2019-11-21`` triggers after ``2019-11-21T23:59``.
 
     **Let's Repeat That**, the scheduler runs your job one ``schedule`` AFTER the start date, at the END of the interval.
 
-    You should refer to :doc:`../core-concepts/dag-run` for details on scheduling a DAG.
+    You should refer to :doc:`../core-concepts/dag-run` for details on scheduling a Dag.
 
 .. note::
     The scheduler is designed for high throughput. This is an informed design decision to achieve scheduling
@@ -85,10 +85,10 @@ not using direct communication or consensus algorithm between schedulers (Raft, 
 consensus tool (Apache Zookeeper, or Consul for instance) we have kept the "operational surface area" to a
 minimum.
 
-The scheduler now uses the serialized DAG representation to make its scheduling decisions and the rough
+The scheduler now uses the serialized Dag representation to make its scheduling decisions and the rough
 outline of the scheduling loop is:
 
-- Check for any dags needing a new DagRun, and create them
+- Check for any Dags needing a new DagRun, and create them
 - Examine a batch of DagRuns for schedulable TaskInstances or complete DagRuns
 - Select schedulable TaskInstances, and whilst respecting Pool limits and other concurrency limits, enqueue
   them for execution
@@ -146,14 +146,14 @@ In order to fine-tune your scheduler, you need to include a number of factors:
     * how much CPU you have available
     * how much networking throughput you have available
 
-* The logic and definition of your DAG structure:
-    * how many dags you have
+* The logic and definition of your Dag structure:
+    * how many Dags you have
     * how complex they are (i.e. how many tasks and dependencies they have)
 
 * The scheduler configuration
    * How many schedulers you have
    * How many task instances scheduler processes in one loop
-   * How many new DAG runs should be created/scheduled per loop
+   * How many new Dag runs should be created/scheduled per loop
    * How often the scheduler should perform cleanup and check for orphaned tasks/adopting them
 
 In order to perform fine-tuning, it's good to understand how Scheduler works under-the-hood.
@@ -164,7 +164,7 @@ How to approach Scheduler's fine-tuning
 """""""""""""""""""""""""""""""""""""""
 
 Airflow gives you a lot of "knobs" to turn to fine tune the performance but it's a separate task,
-depending on your particular deployment, your DAG structure, hardware availability and expectations,
+depending on your particular deployment, your Dag structure, hardware availability and expectations,
 to decide which knobs to turn to get best effect for you. Part of the job when managing the
 deployment is to decide what you are going to optimize for.
 
@@ -190,7 +190,7 @@ What resources might limit Scheduler's performance
 There are several areas of resource usage that you should pay attention to:
 
 * Database connections and Database usage might become a problem as you want to increase performance and
-  process more things in parallel. Airflow is known for being "database-connection hungry" - the more dags
+  process more things in parallel. Airflow is known for being "database-connection hungry" - the more Dags
   you have and the more you want to process in parallel, the more database connections will be opened.
   This is generally not a problem for MySQL as its model of handling connections is thread-based, but this
   might be a problem for Postgres, where connection handling is process-based. It is a general consensus
@@ -233,18 +233,18 @@ However, you can also look at other non-performance-related scheduler configurat
 
 - :ref:`config:scheduler__max_dagruns_to_create_per_loop`
 
-  This changes the number of dags that are locked by each scheduler when
-  creating DAG runs. One possible reason for setting this lower is if you
-  have huge dags (in the order of 10k+ tasks per DAG) and are running multiple schedulers, you won't want one
+  This changes the number of Dags that are locked by each scheduler when
+  creating Dag runs. One possible reason for setting this lower is if you
+  have huge Dags (in the order of 10k+ tasks per Dag) and are running multiple schedulers, you won't want one
   scheduler to do all the work.
 
 - :ref:`config:scheduler__max_dagruns_per_loop_to_schedule`
 
   How many DagRuns should a scheduler examine (and lock) when scheduling
   and queuing tasks. Increasing this limit will allow more throughput for
-  smaller dags but will likely slow down throughput for larger (>500
-  tasks for example) dags. Setting this too high when using multiple
-  schedulers could also lead to one scheduler taking all the DAG runs
+  smaller Dags but will likely slow down throughput for larger (>500
+  tasks for example) Dags. Setting this too high when using multiple
+  schedulers could also lead to one scheduler taking all the Dag runs
   leaving no work for the others.
 
 - :ref:`config:scheduler__use_row_level_locking`
@@ -261,9 +261,9 @@ However, you can also look at other non-performance-related scheduler configurat
   period.
 
 
-- :ref:`config:scheduler__running_metrics_interval`
+- :ref:`config:scheduler__ti_metrics_interval`
 
-  How often (in seconds) should running task instance stats be sent to StatsD
+  How often (in seconds) should task instance (scheduled, queued, running and deferred) stats be sent to StatsD
   (if statsd_on is enabled). This is a *relatively* expensive query to compute
   this, so this should be set to match the same period as your StatsD roll-up
   period.

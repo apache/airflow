@@ -24,15 +24,15 @@ from typing import TYPE_CHECKING
 try:
     from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 except ModuleNotFoundError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(e)
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
-from airflow.providers.teradata.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class AzureBlobStorageToTeradataOperator(BaseOperator):
@@ -54,7 +54,7 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
     :param azure_conn_id: The Airflow WASB connection used for azure blob credentials.
     :param teradata_table: The name of the teradata table to which the data is transferred.(templated)
     :param teradata_conn_id: The connection ID used to connect to Teradata
-        :ref:`Teradata connection <howto/connection:Teradata>`
+        :ref:`Teradata connection <howto/connection:teradata>`
     :param teradata_authorization_name: The name of Teradata Authorization Database Object,
         is used to control who can access an Azure Blob object store.
         Refer to

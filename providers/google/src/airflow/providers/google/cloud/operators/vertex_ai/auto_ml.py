@@ -40,7 +40,7 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class AutoMLTrainingJobBaseOperator(GoogleCloudBaseOperator):
@@ -459,80 +459,6 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
                 self.export_evaluated_data_items_override_destination
             ),
             sync=self.sync,
-        )
-
-        if model:
-            result = Model.to_dict(model)
-            model_id = self.hook.extract_model_id(result)
-            context["ti"].xcom_push(key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, model_id=model_id)
-        else:
-            result = model  # type: ignore
-        context["ti"].xcom_push(key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, training_id=training_id)
-        return result
-
-
-class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
-    """Create Auto ML Video Training job."""
-
-    template_fields = (
-        "parent_model",
-        "dataset_id",
-        "region",
-        "impersonation_chain",
-    )
-    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
-
-    def __init__(
-        self,
-        *,
-        dataset_id: str,
-        prediction_type: str = "classification",
-        model_type: str = "CLOUD",
-        training_filter_split: str | None = None,
-        test_filter_split: str | None = None,
-        region: str,
-        impersonation_chain: str | Sequence[str] | None = None,
-        parent_model: str | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(
-            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
-        )
-        self.dataset_id = dataset_id
-        self.prediction_type = prediction_type
-        self.model_type = model_type
-        self.training_filter_split = training_filter_split
-        self.test_filter_split = test_filter_split
-
-    def execute(self, context: Context):
-        self.hook = AutoMLHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
-        model, training_id = self.hook.create_auto_ml_video_training_job(
-            project_id=self.project_id,
-            region=self.region,
-            display_name=self.display_name,
-            dataset=datasets.VideoDataset(dataset_name=self.dataset_id),
-            prediction_type=self.prediction_type,
-            model_type=self.model_type,
-            labels=self.labels,
-            training_encryption_spec_key_name=self.training_encryption_spec_key_name,
-            model_encryption_spec_key_name=self.model_encryption_spec_key_name,
-            training_fraction_split=self.training_fraction_split,
-            test_fraction_split=self.test_fraction_split,
-            training_filter_split=self.training_filter_split,
-            test_filter_split=self.test_filter_split,
-            model_display_name=self.model_display_name,
-            model_labels=self.model_labels,
-            sync=self.sync,
-            parent_model=self.parent_model,
-            is_default_version=self.is_default_version,
-            model_version_aliases=self.model_version_aliases,
-            model_version_description=self.model_version_description,
         )
 
         if model:

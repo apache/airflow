@@ -36,12 +36,14 @@ written by the community, so you can release and share those providers with othe
 If you want to learn how to build your own custom provider, you can find all the information about it at
 :doc:`/howto/create-custom-providers`.
 
+.. note::
 
-The full list of all the community managed providers is available at
-`Providers Index <https://airflow.apache.org/docs/#providers-packages-docs-apache-airflow-providers-index-html>`_.
+  The full list of all the community managed providers is available at
+  `Providers Index <https://airflow.apache.org/docs/#providers-packages>`_.
 
-You can also see index of all the community provider's operators and hooks in
-:doc:`/operators-and-hooks-ref/index`
+  You can also see index of all the community provider's operators and hooks in
+  :doc:`/operators-and-hooks-ref/index`
+
 
 Extending Airflow core functionality
 ------------------------------------
@@ -63,6 +65,18 @@ Providers can have their own configuration options which allow you to configure 
 
 You can see all community-managed providers with their own configuration in
 :doc:`/core-extensions/configurations`
+
+Command Line Interface
+''''''''''''''''''''''
+
+.. note::
+   The Airflow Core version must be ``3.2.0`` or newer to be able to use CLI commands provided by providers.
+
+Providers can add their own custom CLI commands to Airflow CLI. Those commands will be available
+once you install the provider package.
+
+You can see all community-managed providers with their own CLI commands in
+:doc:`/core-extensions/cli-commands`.
 
 Custom connections
 ''''''''''''''''''

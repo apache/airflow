@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "ODBC",
                 "external-doc-url": "https://github.com/mkleehammer/pyodbc/wiki",
+                "how-to-guide": ["/docs/apache-airflow-providers-odbc/operators.rst"],
                 "logo": "/docs/integration-logos/ODBC.png",
                 "tags": ["protocol"],
             }

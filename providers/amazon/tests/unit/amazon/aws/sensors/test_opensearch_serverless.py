@@ -20,11 +20,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestOpenSearchServerlessCollectionActiveSensor:
@@ -58,7 +58,7 @@ class TestOpenSearchServerlessCollectionActiveSensor:
         assert op.hook._config.read_timeout == 42
 
     @pytest.mark.parametrize(
-        "collection_name, collection_id, expected_pass",
+        ("collection_name", "collection_id", "expected_pass"),
         [
             pytest.param("name", "id", False, id="both_provided_fails"),
             pytest.param("name", None, True, id="only_name_provided_passes"),

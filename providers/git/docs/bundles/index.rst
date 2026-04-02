@@ -35,6 +35,8 @@ Example of using the GitDagBundle:
              "subdir": "dags",
              "tracking_ref": "main",
              "refresh_interval": 3600
+             "submodules": False,
+             "prune_dotgit_folder": True
          }
      }
     ]'

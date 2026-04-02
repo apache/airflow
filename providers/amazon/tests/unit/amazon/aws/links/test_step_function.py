@@ -36,7 +36,7 @@ class TestStateMachineDetailsLink(BaseAwsLinksTestCase):
     link_class = StateMachineDetailsLink
 
     @pytest.mark.parametrize(
-        "state_machine_arn, expected_url",
+        ("state_machine_arn", "expected_url"),
         [
             pytest.param("", "", id="empty-arn"),
             pytest.param(None, "", id="arn-not-set"),
@@ -70,7 +70,7 @@ class TestStateMachineExecutionsDetailsLink(BaseAwsLinksTestCase):
     link_class = StateMachineExecutionsDetailsLink
 
     @pytest.mark.parametrize(
-        "execution_arn, expected_url",
+        ("execution_arn", "expected_url"),
         [
             pytest.param("", "", id="empty-arn"),
             pytest.param(None, "", id="arn-not-set"),

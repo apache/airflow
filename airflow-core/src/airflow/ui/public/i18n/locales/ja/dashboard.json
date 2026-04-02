@@ -1,0 +1,45 @@
+{
+  "favorite": {
+    "favoriteDags_one": "先頭 {{count}} 件のお気に入り Dag",
+    "favoriteDags_other": "先頭 {{count}} 件のお気に入り Dag",
+    "noDagRuns": "この Dag はまだ実行されていません",
+    "noFavoriteDags": "まだお気に入りがありません。お気に入りに追加するには、Dag の隣にある星型のアイコンをクリックしてください"
+  },
+  "group": "グループ",
+  "health": {
+    "dagProcessor": "Dag プロセッサ",
+    "health": "健康状態",
+    "healthy": "正常",
+    "lastHeartbeat": "最終ハートビート",
+    "metaDatabase": "メタデータベース",
+    "scheduler": "スケジューラ",
+    "status": "状態",
+    "triggerer": "Triggerer",
+    "unhealthy": "異常"
+  },
+  "history": "履歴",
+  "importErrors": {
+    "dagImportError_one": "Dag 取り込みエラー",
+    "dagImportError_other": "Dag 取り込みエラー",
+    "searchByFile": "ファイルで検索",
+    "timestamp": "タイムスタンプ"
+  },
+  "managePools": "プールの管理",
+  "noAssetEvents": "アセットイベントが見つかりません",
+  "poolSlots": "プールスロット",
+  "sortBy": {
+    "newestFirst": "新しい順",
+    "oldestFirst": "古い順"
+  },
+  "source": "ソース",
+  "stats": {
+    "activeDags": "アクティブな Dag",
+    "failedDags": "失敗した Dag",
+    "queuedDags": "待機中の Dag",
+    "requiredActions": "必要なアクション",
+    "runningDags": "実行中の Dag",
+    "stats": "統計"
+  },
+  "uri": "Uri",
+  "welcome": "ようこそ"
+}

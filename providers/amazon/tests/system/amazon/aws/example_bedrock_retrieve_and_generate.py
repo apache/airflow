@@ -27,6 +27,7 @@ from urllib.request import urlretrieve
 import boto3
 from botocore.exceptions import ClientError
 from opensearchpy import (
+    AuthenticationException,
     AuthorizationException,
     AWSV4SignerAuth,
     OpenSearch,
@@ -41,7 +42,6 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateDataSourceOperator,
     BedrockCreateKnowledgeBaseOperator,
     BedrockIngestDataOperator,
-    BedrockInvokeModelOperator,
     BedrockRaGOperator,
     BedrockRetrieveOperator,
 )
@@ -54,8 +54,8 @@ from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
 from airflow.providers.amazon.aws.utils import get_botocore_version
-from airflow.providers.standard.operators.empty import EmptyOperator
 
+from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -65,8 +65,12 @@ else:
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
-    from airflow.sdk import Label  # type: ignore[attr-defined,no-redef]
-from airflow.utils.trigger_rule import TriggerRule
+    from airflow.utils.edgemodifier import Label  # type: ignore[attr-defined,no-redef]
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
@@ -76,8 +80,8 @@ from system.amazon.aws.utils import SystemTestContextBuilder
 #   the Amazon Bedrock console and may take up to 24 hours to apply:
 #######################################################################
 
-CLAUDE_MODEL_ID = "anthropic.claude-v2"
 TITAN_MODEL_ID = "amazon.titan-embed-text-v1"
+CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
@@ -261,7 +265,7 @@ def create_vector_index(index_name: str, collection_id: str, region: str):
             response = oss_client.indices.create(index=index_name, body=json.dumps(index_config))
             log.info("Creating index: %s.", response)
             break
-        except AuthorizationException as e:
+        except (AuthorizationException, AuthenticationException) as e:
             # Index creation can take up to a minute and there is no (apparent?) way to check the current state.
             log.info(
                 "Access denied; policy permissions have likely not yet propagated, %s tries remaining.",
@@ -443,7 +447,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -476,15 +479,6 @@ with DAG(
         collection_name=vector_store_name,
     )
     # [END howto_sensor_opensearch_collection_active]
-
-    PROMPT = "What color is an orange?"
-    # [START howto_operator_invoke_claude_model]
-    invoke_claude_completions = BedrockInvokeModelOperator(
-        task_id="invoke_claude_completions",
-        model_id=CLAUDE_MODEL_ID,
-        input_data={"max_tokens_to_sample": 4000, "prompt": f"\n\nHuman: {PROMPT}\n\nAssistant:"},
-    )
-    # [END howto_operator_invoke_claude_model]
 
     # [START howto_operator_bedrock_create_knowledge_base]
     create_knowledge_base = BedrockCreateKnowledgeBaseOperator(
@@ -581,7 +575,6 @@ with DAG(
         create_vector_index(index_name=index_name, collection_id=collection, region=region_name),
         copy_data_to_s3(bucket=bucket_name),
         # TEST BODY
-        invoke_claude_completions,
         create_knowledge_base,
         await_knowledge_base,
         create_data_source,

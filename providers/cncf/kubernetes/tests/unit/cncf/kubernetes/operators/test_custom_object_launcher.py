@@ -28,12 +28,12 @@ from kubernetes.client import (
     V1PodStatus,
 )
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import (
     CustomObjectLauncher,
     SparkJobSpec,
     SparkResources,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 @pytest.fixture
@@ -213,9 +213,42 @@ class TestCustomObjectLauncher:
             ]
         )
 
+    def test_get_body_initializes_metadata_when_missing(self, mock_launcher):
+        mock_launcher.template_body["spark"].pop("metadata", None)
+        body = mock_launcher.get_body()
+        assert isinstance(body["metadata"], dict)
+        assert body["metadata"]["name"] == mock_launcher.name
+        assert body["metadata"]["namespace"] == mock_launcher.namespace
+
+    def test_get_body_replaces_non_dict_metadata(self, mock_launcher):
+        mock_launcher.template_body["spark"]["metadata"] = "not-a-dict"
+        body = mock_launcher.get_body()
+        assert isinstance(body["metadata"], dict)
+        assert body["metadata"]["name"] == mock_launcher.name
+        assert body["metadata"]["namespace"] == mock_launcher.namespace
+
+    def test_get_body_preserves_existing_metadata_labels(self, mock_launcher):
+        mock_launcher.template_body["spark"]["metadata"] = {"labels": {"team": "data"}}
+        body = mock_launcher.get_body()
+        assert body["metadata"]["labels"]["team"] == "data"
+        assert body["metadata"]["name"] == mock_launcher.name
+        assert body["metadata"]["namespace"] == mock_launcher.namespace
+
     @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
     def test_start_spark_job_no_error(self, mock_pod_manager, mock_launcher):
         mock_launcher.start_spark_job()
+
+    @patch(
+        "airflow.providers.cncf.kubernetes.operators.custom_object_launcher.CustomObjectLauncher.delete_spark_job"
+    )
+    def test_start_spark_job_deletes_on_timeout(self, mock_delete_spark_job, mock_launcher):
+        mock_launcher.spark_job_not_running = MagicMock(return_value=True)
+        mock_launcher.check_pod_start_failure = MagicMock()
+
+        with pytest.raises(AirflowException):
+            mock_launcher.start_spark_job(startup_timeout=0)
+
+        mock_delete_spark_job.assert_called_once_with(spark_job_name=mock_launcher.name)
 
     @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
     def test_check_pod_start_failure_no_error(self, mock_pod_manager, mock_launcher):

@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.10"
 # dependencies = [
-#    "rich>=12.4.4",
+#    "rich>=13.6.0",
 #    "diagrams>=0.23.4",
 # ]
 # ///
@@ -193,7 +193,7 @@ def generate_task_lifecycle_diagram():
         cond_fail_mark >> Edge(label="NO") >> cond_clear_mark
         cond_fail_mark >> Edge(label="YES") >> state_failed
         cond_clear_mark >> Edge(label="NO") >> cond_task_error
-        cond_clear_mark >> Edge(label="YES") >> state_restarting >> state_up_for_retry
+        cond_clear_mark >> Edge(label="YES") >> state_restarting >> state_none
         cond_task_error >> Edge(label="NO") >> cond_task_complete_2
         cond_task_error >> Edge(label="YES") >> cond_retriable
         cond_retriable >> Edge(label="NO") >> state_failed

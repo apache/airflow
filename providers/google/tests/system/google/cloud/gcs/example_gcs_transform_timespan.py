@@ -33,7 +33,12 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSTimeSpanFileTransformOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
@@ -52,6 +57,8 @@ SOURCE_GCP_CONN_ID = DESTINATION_GCP_CONN_ID = "google_cloud_default"
 FILE_NAME = "example_upload.txt"
 SOURCE_PREFIX = "timespan_source"
 DESTINATION_PREFIX = "timespan_destination"
+DESTINATION_PREFIX_PARALLEL = "timespan_destination_parallel"
+
 UPLOAD_FILE_PATH = f"gcs/{FILE_NAME}"
 
 TRANSFORM_SCRIPT_PATH = str(Path(__file__).parent / "resources" / "transform_timespan.py")
@@ -96,6 +103,19 @@ with DAG(
         destination_gcp_conn_id=DESTINATION_GCP_CONN_ID,
         transform_script=["python", TRANSFORM_SCRIPT_PATH],
     )
+
+    gcs_timespan_transform_files_parallel = GCSTimeSpanFileTransformOperator(
+        task_id="gcs_timespan_transform_files_parallel",
+        source_bucket=BUCKET_NAME_SRC,
+        source_prefix=SOURCE_PREFIX,
+        source_gcp_conn_id=SOURCE_GCP_CONN_ID,
+        destination_bucket=BUCKET_NAME_DST,
+        destination_prefix=DESTINATION_PREFIX_PARALLEL,
+        destination_gcp_conn_id=DESTINATION_GCP_CONN_ID,
+        transform_script=["python", TRANSFORM_SCRIPT_PATH],
+        max_download_workers=2,
+        max_upload_workers=2,
+    )
     # [END howto_operator_gcs_timespan_file_transform_operator_Task]
 
     delete_bucket_src = GCSDeleteBucketOperator(
@@ -116,6 +136,7 @@ with DAG(
         copy_file,
         # TEST BODY
         gcs_timespan_transform_files_task,
+        gcs_timespan_transform_files_parallel,
         # TEST TEARDOWN
         [delete_bucket_src, delete_bucket_dst, check_openlineage_events],
     )

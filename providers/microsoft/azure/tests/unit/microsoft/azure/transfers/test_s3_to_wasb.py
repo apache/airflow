@@ -124,7 +124,7 @@ class TestS3ToAzureBlobStorageOperator:
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
     @pytest.mark.parametrize(  # Please see line 37 above for args used for parametrization
-        "s3_existing_files,wasb_existing_files,returned_files,s3_prefix,blob_prefix,replace",
+        ("s3_existing_files", "wasb_existing_files", "returned_files", "s3_prefix", "blob_prefix", "replace"),
         [
             # s3_existing files, wasb_existing_files, returned_files, s3_prefix, wasb_prefix, replace
             (MOCK_FILES, [], MOCK_FILES, PREFIX, PREFIX, False),  # Task 1 from above
@@ -161,7 +161,7 @@ class TestS3ToAzureBlobStorageOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
     @pytest.mark.parametrize(
-        "azure_file_exists,returned_files,replace",
+        ("azure_file_exists", "returned_files", "replace"),
         [
             # azure_file_exists, returned_files, replace
             (False, ["TEST1.csv"], False),  # Task 4 from above
@@ -189,7 +189,7 @@ class TestS3ToAzureBlobStorageOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
     @pytest.mark.parametrize(
-        "wasb_existing_files,returned_files",
+        ("wasb_existing_files", "returned_files"),
         [
             # wasb_existing_files, returned_files
             ([], ["TEST1.csv"]),  # Task 8 from above

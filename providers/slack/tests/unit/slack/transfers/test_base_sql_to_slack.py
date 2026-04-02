@@ -21,8 +21,8 @@ from unittest import mock
 import pandas as pd
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.slack.transfers.base_sql_to_slack import BaseSqlToSlackOperator
 
 

@@ -21,8 +21,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestEmrServerlessApplicationSensor:
@@ -46,7 +46,7 @@ class TestEmrServerlessApplicationSensor:
 
 class TestPokeReturnValue(TestEmrServerlessApplicationSensor):
     @pytest.mark.parametrize(
-        "state, expected_result",
+        ("state", "expected_result"),
         [
             ("CREATING", False),
             ("STARTING", False),

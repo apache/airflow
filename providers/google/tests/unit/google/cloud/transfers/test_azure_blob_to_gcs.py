@@ -18,7 +18,11 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
+
+pytestmark = pytest.mark.filterwarnings("ignore::FutureWarning")
 
 WASB_CONN_ID = "wasb_default"
 GCP_CONN_ID = "google_cloud_default"
@@ -57,10 +61,17 @@ class TestAzureBlobStorageToGCSTransferOperator:
         assert operator.impersonation_chain == IMPERSONATION_CHAIN
         assert operator.task_id == TASK_ID
 
+    @pytest.mark.parametrize(
+        ("unwrap_single", "expected"),
+        [
+            (True, f"gs://{BUCKET_NAME}/{OBJECT_NAME}"),
+            (False, [f"gs://{BUCKET_NAME}/{OBJECT_NAME}"]),
+        ],
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.WasbHook")
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.tempfile")
-    def test_execute(self, mock_temp, mock_hook_gcs, mock_hook_wasb):
+    def test_execute(self, mock_temp, mock_hook_gcs, mock_hook_wasb, unwrap_single, expected):
         op = AzureBlobStorageToGCSOperator(
             wasb_conn_id=WASB_CONN_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -71,10 +82,11 @@ class TestAzureBlobStorageToGCSTransferOperator:
             filename=FILENAME,
             gzip=GZIP,
             impersonation_chain=IMPERSONATION_CHAIN,
+            unwrap_single=unwrap_single,
             task_id=TASK_ID,
         )
 
-        op.execute(context=None)
+        result = op.execute(context=None)
         mock_hook_wasb.assert_called_once_with(wasb_conn_id=WASB_CONN_ID)
 
         mock_hook_wasb.return_value.get_file.assert_called_once_with(
@@ -91,6 +103,7 @@ class TestAzureBlobStorageToGCSTransferOperator:
             gzip=GZIP,
             filename=mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name,
         )
+        assert result == expected
 
     @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.WasbHook")
     def test_execute_single_file_transfer_openlineage(self, mock_hook_wasb):

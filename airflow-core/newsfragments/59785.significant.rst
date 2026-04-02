@@ -1,0 +1,10 @@
+Modify the information returned by ``DagBag``
+
+**New behavior:**
+- ``DagBag`` now uses ``Path.relative_to`` for consistent cross-platform behavior.
+- ``FileLoadStat`` now has two additional nullable fields: ``bundle_path`` and ``bundle_name``.
+
+**Backward compatibility:**
+``FileLoadStat`` will no longer produce paths beginning with ``/`` with the meaning of "relative to the dags folder".
+This is a breaking change for any custom code that performs string-based path manipulations relying on this behavior.
+Users are advised to update such code to use ``pathlib.Path``.

@@ -20,8 +20,7 @@
       "all": "الكل",
       "paused": "متوقف"
     },
-    "runIdPatternFilter": "بحث تشغيلات الDag",
-    "triggeringUserNameFilter": "البحث حسب المستخدم صاحب الاطلاق"
+    "runIdPatternFilter": "بحث تشغيلات الDag"
   },
   "ownerLink": "رابط المالك لـ{{owner}}",
   "runAndTaskActions": {
@@ -34,6 +33,10 @@
       "buttonTooltip": "اضغط shift+c للمسح",
       "error": "حدث خطأ أثناء المسح {{type}}",
       "title": "مسح {{type}}"
+    },
+    "confirmationDialog": {
+      "description": "المهمة حاليًا في حالة {{state}} وقد بدأها المستخدم {{user}} في {{time}}. \nلا يمكن للمستخدم مسح هذه المهمة حتى تنتهي من التشغيل أو يقوم مستخدم بإلغاء تحديد خيار \"منع إعادة التشغيل إذا كانت المهمة قيد التشغيل\" في مربع حوار مسح المهمة.",
+      "title": "لا يمكن مسح مثيل المهمة"
     },
     "delete": {
       "button": "حذف {{type}}",
@@ -62,6 +65,7 @@
       "future": "المستقبل",
       "onlyFailed": "مسح المهام الفاشلة فقط",
       "past": "الماضي",
+      "preventRunningTasks": "منع إعادة التشغيل إذا كانت المهمة قيد التشغيل",
       "queueNew": "إضافة مهام جديدة للانتظار",
       "runOnLatestVersion": "تشغيل بآخر إصدار الحزمة",
       "upstream": "المهام السابقة"

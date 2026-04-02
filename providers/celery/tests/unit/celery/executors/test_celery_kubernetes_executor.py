@@ -22,10 +22,10 @@ from unittest import mock
 import pytest
 
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
-from airflow.configuration import conf
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+from airflow.providers.common.compat.sdk import conf
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -143,7 +143,7 @@ class TestCeleryKubernetesExecutor:
             k8s_executor_mock.queue_task_instance.assert_not_called()
 
     @pytest.mark.parametrize(
-        "celery_has, k8s_has, cke_has",
+        ("celery_has", "k8s_has", "cke_has"),
         [
             (True, True, True),
             (False, True, True),
@@ -164,7 +164,7 @@ class TestCeleryKubernetesExecutor:
         if not celery_has:
             k8s_executor_mock.has_task.assert_called_once_with(ti)
 
-    @pytest.mark.parametrize("num_k8s, num_celery", [(1, 0), (0, 1), (2, 1)])
+    @pytest.mark.parametrize(("num_k8s", "num_celery"), [(1, 0), (0, 1), (2, 1)])
     def test_adopt_tasks(self, num_k8s, num_celery):
         celery_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()

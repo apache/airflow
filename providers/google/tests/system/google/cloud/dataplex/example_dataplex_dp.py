@@ -49,7 +49,12 @@ from airflow.providers.google.cloud.operators.dataplex import (
     DataplexRunDataProfileScanOperator,
 )
 from airflow.providers.google.cloud.sensors.dataplex import DataplexDataProfileJobStatusSensor
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -235,7 +240,7 @@ with DAG(
         project_id=PROJECT_ID,
         region=REGION,
         data_scan_id=DATA_SCAN_ID,
-        job_id="{{ task_instance.xcom_pull('run_data_scan_async') }}",
+        job_id=run_data_scan_async.output,
     )
     # [END howto_dataplex_data_scan_job_state_sensor]
     # [START howto_dataplex_get_data_profile_job_operator]

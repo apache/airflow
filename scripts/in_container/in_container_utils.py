@@ -57,7 +57,7 @@ def run_command(cmd: list[str], github_actions: bool, **kwargs) -> subprocess.Co
     with ci_group(
         f"Running command: {' '.join([shlex.quote(arg) for arg in cmd])}", github_actions=github_actions
     ):
-        result = subprocess.run(cmd, **kwargs)
+        result = subprocess.run(cmd, **kwargs)  # noqa: PLW1510 - check is handled below and added by callers
     if result.returncode != 0 and github_actions and kwargs.get("check", False):
         console.print(f"[red]Command failed: {' '.join([shlex.quote(entry) for entry in cmd])}[/]")
         console.print("[red]Please unfold the above group and to investigate the issue[/]")
@@ -122,8 +122,7 @@ def get_provider_id_from_path(file_path: Path) -> str | None:
             for providers_root_candidate in parent.parents:
                 if providers_root_candidate.name == "providers":
                     return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
-            else:
-                return None
+            return None
     return None
 
 

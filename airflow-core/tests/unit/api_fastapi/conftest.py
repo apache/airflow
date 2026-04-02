@@ -74,11 +74,16 @@ def test_client(request):
             token = auth_manager._get_token_signer(
                 expiration_time_in_seconds=(time_after - time_very_before).total_seconds()
             ).generate(
-                auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin")),
+                auth_manager.serialize_user(
+                    SimpleAuthManagerUser(username="test", role="admin", teams=["team1"])
+                ),
             )
-        yield TestClient(
-            app, headers={"Authorization": f"Bearer {token}"}, base_url=f"{BASE_URL}{get_api_path(request)}"
-        )
+        with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
+            yield TestClient(
+                app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=f"{BASE_URL}{get_api_path(request)}",
+            )
 
 
 @pytest.fixture
@@ -101,9 +106,12 @@ def unauthorized_test_client(request):
         token = auth_manager._get_token_signer().generate(
             auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
         )
-        yield TestClient(
-            app, headers={"Authorization": f"Bearer {token}"}, base_url=f"{BASE_URL}{get_api_path(request)}"
-        )
+        with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
+            yield TestClient(
+                app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=f"{BASE_URL}{get_api_path(request)}",
+            )
 
 
 @pytest.fixture
@@ -119,6 +127,7 @@ def client(request):
 
 @pytest.fixture
 def configure_git_connection_for_dag_bundle(session):
+    clear_db_connections(False)
     # Git connection is required for the bundles to have a url.
     connection = Connection(
         conn_id="git_default",

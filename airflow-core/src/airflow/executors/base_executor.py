@@ -27,18 +27,16 @@ from typing import TYPE_CHECKING, Any
 
 import pendulum
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
-from airflow.stats import Stats
-from airflow.traces import NO_TRACE_ID
-from airflow.traces.tracer import DebugTrace, Trace, add_debug_span, gen_context
-from airflow.traces.utils import gen_span_id_from_ti_key
+from airflow.models.callback import CallbackKey
+from airflow.observability.metrics import stats_utils
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.thread_safe_dict import ThreadSafeDict
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -53,6 +51,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.executors.workloads.types import WorkloadKey
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -97,6 +96,43 @@ class RunningRetryAttemptType:
         return True
 
 
+class ExecutorConf:
+    """
+    This class is used to fetch configuration for an executor for a particular team_name.
+
+    It wraps the implementation of the configuration.get() to look for the particular section and key
+    prefixed with the team_name. This makes it easy for child classes (i.e. concrete executors) to fetch
+    configuration values for a particular team_name without having to worry about passing through the
+    team_name for every call to get configuration.
+
+    Currently config only supports environment variables for team specific configuration.
+    """
+
+    def __init__(self, team_name: str | None = None) -> None:
+        self.team_name: str | None = team_name
+
+    def get(self, *args, **kwargs) -> str | None:
+        return conf.get(*args, **kwargs, team_name=self.team_name)
+
+    def getboolean(self, *args, **kwargs) -> bool:
+        return conf.getboolean(*args, **kwargs, team_name=self.team_name)
+
+    def getjson(self, *args, **kwargs):
+        return conf.getjson(*args, **kwargs, team_name=self.team_name)
+
+    def getint(self, *args, **kwargs):
+        return conf.getint(*args, **kwargs, team_name=self.team_name)
+
+    def getsection(self, section: str) -> dict[str, str | int | float | bool] | None:
+        return conf.getsection(section, team_name=self.team_name)
+
+    def has_option(self, *args, **kwargs) -> bool:
+        return conf.has_option(*args, **kwargs, team_name=self.team_name)
+
+    def get_mandatory_value(self, *args, **kwargs) -> str:
+        return conf.get_mandatory_value(*args, **kwargs, team_name=self.team_name)
+
+
 class BaseExecutor(LoggingMixin):
     """
     Base class to inherit for concrete executors such as Celery, Kubernetes, Local, etc.
@@ -104,10 +140,10 @@ class BaseExecutor(LoggingMixin):
     :param parallelism: how many jobs should run at one time.
     """
 
-    active_spans = ThreadSafeDict()
-
     supports_ad_hoc_ti_run: bool = False
-    supports_sentry: bool = False
+    supports_callbacks: bool = False
+    supports_multi_team: bool = False
+    sentry_integration: str = ""
 
     is_local: bool = False
     is_production: bool = True
@@ -137,7 +173,9 @@ class BaseExecutor(LoggingMixin):
 
         return generator
 
-    def __init__(self, parallelism: int = PARALLELISM, team_id: str | None = None):
+    def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
+        stats_factory = stats_utils.get_stats_factory(Stats)
+        Stats.initialize(factory=stats_factory)
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args
@@ -145,11 +183,13 @@ class BaseExecutor(LoggingMixin):
         get_signing_args()
 
         self.parallelism: int = parallelism
-        self.team_id: str | None = team_id
+        self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
-        self.running: set[TaskInstanceKey] = set()
-        self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
+        self.queued_callbacks: dict[str, workloads.ExecuteCallback] = {}
+        self.running: set[WorkloadKey] = set()
+        self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
+        self.conf = ExecutorConf(team_name)
 
         if self.parallelism <= 0:
             raise ValueError("parallelism is set to 0 or lower")
@@ -163,14 +203,14 @@ class BaseExecutor(LoggingMixin):
         :meta private:
         """
 
-        self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
+        self.attempts: dict[WorkloadKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(parallelism={self.parallelism})"
-
-    @classmethod
-    def set_active_spans(cls, active_spans: ThreadSafeDict):
-        cls.active_spans = active_spans
+        _repr = f"{self.__class__.__name__}(parallelism={self.parallelism}"
+        if self.team_name:
+            _repr += f", team_name={self.team_name!r}"
+        _repr += ")"
+        return _repr
 
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
@@ -180,10 +220,47 @@ class BaseExecutor(LoggingMixin):
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
     def queue_workload(self, workload: workloads.All, session: Session) -> None:
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload
+        if isinstance(workload, workloads.ExecuteTask):
+            ti = workload.ti
+            self.queued_tasks[ti.key] = workload
+        elif isinstance(workload, workloads.ExecuteCallback):
+            if not self.supports_callbacks:
+                raise NotImplementedError(
+                    f"{type(self).__name__} does not support ExecuteCallback workloads. "
+                    f"Set supports_callbacks = True and implement callback handling in _process_workloads(). "
+                    f"See LocalExecutor or CeleryExecutor for reference implementation."
+                )
+            self.queued_callbacks[workload.callback.id] = workload
+        else:
+            raise ValueError(
+                f"Un-handled workload type {type(workload).__name__!r} in {type(self).__name__}. "
+                f"Workload must be one of: ExecuteTask, ExecuteCallback."
+            )
+
+    def _get_workloads_to_schedule(self, open_slots: int) -> list[tuple[WorkloadKey, workloads.All]]:
+        """
+        Select and return the next batch of workloads to schedule, respecting priority policy.
+
+        Priority Policy: Callbacks are scheduled before tasks (callbacks complete existing work).
+        Callbacks are processed in FIFO order. Tasks are sorted by priority_weight (higher priority first).
+
+        :param open_slots: Number of available execution slots
+        """
+        workloads_to_schedule: list[tuple[WorkloadKey, workloads.All]] = []
+
+        if self.queued_callbacks:
+            for key, workload in self.queued_callbacks.items():
+                if len(workloads_to_schedule) >= open_slots:
+                    break
+                workloads_to_schedule.append((key, workload))
+
+        if open_slots > len(workloads_to_schedule) and self.queued_tasks:
+            for task_key, task_workload in self.order_queued_tasks_by_priority():
+                if len(workloads_to_schedule) >= open_slots:
+                    break
+                workloads_to_schedule.append((task_key, task_workload))
+
+        return workloads_to_schedule
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         """
@@ -218,20 +295,26 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
-    @add_debug_span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         open_slots = self.parallelism - len(self.running)
 
-        num_running_tasks = len(self.running)
-        num_queued_tasks = len(self.queued_tasks)
+        num_running_workloads = len(self.running)
+        num_queued_workloads = len(self.queued_tasks) + len(self.queued_callbacks)
 
-        self._emit_metrics(open_slots, num_running_tasks, num_queued_tasks)
+        self._emit_metrics(open_slots, num_running_workloads, num_queued_workloads)
         self.trigger_tasks(open_slots)
 
         # Calling child class sync method
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
+
+    def _get_metric_name(self, metric_base_name: str) -> str:
+        return (
+            f"{metric_base_name}.{self.__class__.__name__}"
+            if len(ExecutorLoader.get_executor_names()) > 1
+            else metric_base_name
+        )
 
     def _emit_metrics(self, open_slots, num_running_tasks, num_queued_tasks):
         """
@@ -243,34 +326,10 @@ class BaseExecutor(LoggingMixin):
         If only one executor is configured, the metric names will not be changed.
         """
         name = self.__class__.__name__
-        multiple_executors_configured = len(ExecutorLoader.get_executor_names()) > 1
-        if multiple_executors_configured:
-            metric_suffix = name
 
-        open_slots_metric_name = (
-            f"executor.open_slots.{metric_suffix}" if multiple_executors_configured else "executor.open_slots"
-        )
-        queued_tasks_metric_name = (
-            f"executor.queued_tasks.{metric_suffix}"
-            if multiple_executors_configured
-            else "executor.queued_tasks"
-        )
-        running_tasks_metric_name = (
-            f"executor.running_tasks.{metric_suffix}"
-            if multiple_executors_configured
-            else "executor.running_tasks"
-        )
-
-        span = Trace.get_current_span()
-        if span.is_recording():
-            span.add_event(
-                name="executor",
-                attributes={
-                    open_slots_metric_name: open_slots,
-                    queued_tasks_metric_name: num_queued_tasks,
-                    running_tasks_metric_name: num_running_tasks,
-                },
-            )
+        open_slots_metric_name = self._get_metric_name("executor.open_slots")
+        queued_tasks_metric_name = self._get_metric_name("executor.queued_tasks")
+        running_tasks_metric_name = self._get_metric_name("executor.running_tasks")
 
         self.log.debug("%s running task instances for executor %s", num_running_tasks, name)
         self.log.debug("%s in queue for executor %s", num_queued_tasks, name)
@@ -308,22 +367,21 @@ class BaseExecutor(LoggingMixin):
         return sorted(
             self.queued_tasks.items(),
             key=lambda x: x[1].ti.priority_weight,
-            reverse=True,
+            reverse=False,
         )
 
-    @add_debug_span
     def trigger_tasks(self, open_slots: int) -> None:
         """
-        Initiate async execution of the queued tasks, up to the number of available slots.
+        Initiate async execution of queued workloads (tasks and callbacks), up to the number of available slots.
+
+        Callbacks are prioritized over tasks to complete existing work before starting new work.
 
         :param open_slots: Number of open slots
         """
-        sorted_queue = self.order_queued_tasks_by_priority()
+        workloads_to_schedule = self._get_workloads_to_schedule(open_slots)
         workload_list = []
 
-        for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, item = sorted_queue.pop(0)
-
+        for key, workload in workloads_to_schedule:
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed
             # externally and not yet been marked as failed.
@@ -337,31 +395,8 @@ class BaseExecutor(LoggingMixin):
             if key in self.attempts:
                 del self.attempts[key]
 
-            if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
-                ti = item.ti
+            workload_list.append(workload)
 
-                # If it's None, then the span for the current id hasn't been started.
-                if self.active_spans is not None and self.active_spans.get("ti:" + str(ti.id)) is None:
-                    if isinstance(ti, workloads.TaskInstance):
-                        parent_context = Trace.extract(ti.parent_context_carrier)
-                    else:
-                        parent_context = Trace.extract(ti.dag_run.context_carrier)
-                    # Start a new span using the context from the parent.
-                    # Attributes will be set once the task has finished so that all
-                    # values will be available (end_time, duration, etc.).
-
-                    span = Trace.start_child_span(
-                        span_name=f"{ti.task_id}",
-                        parent_context=parent_context,
-                        component="task",
-                        start_as_current=False,
-                    )
-                    self.active_spans.set("ti:" + str(ti.id), span)
-                    # Inject the current context into the carrier.
-                    carrier = Trace.inject()
-                    ti.context_carrier = carrier
-
-                workload_list.append(item)
         if workload_list:
             self._process_workloads(workload_list)
 
@@ -394,24 +429,6 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        trace_id = Trace.get_current_span().get_span_context().trace_id
-        if trace_id != NO_TRACE_ID:
-            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with DebugTrace.start_span(
-                span_name="fail",
-                component="BaseExecutor",
-                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
-            ) as span:
-                span.set_attributes(
-                    {
-                        "dag_id": key.dag_id,
-                        "run_id": key.run_id,
-                        "task_id": key.task_id,
-                        "try_number": key.try_number,
-                        "error": True,
-                    }
-                )
-
         self.change_state(key, TaskInstanceState.FAILED, info)
 
     def success(self, key: TaskInstanceKey, info=None) -> None:
@@ -421,23 +438,6 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        trace_id = Trace.get_current_span().get_span_context().trace_id
-        if trace_id != NO_TRACE_ID:
-            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with DebugTrace.start_span(
-                span_name="success",
-                component="BaseExecutor",
-                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
-            ) as span:
-                span.set_attributes(
-                    {
-                        "dag_id": key.dag_id,
-                        "run_id": key.run_id,
-                        "task_id": key.task_id,
-                        "try_number": key.try_number,
-                    }
-                )
-
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 
     def queued(self, key: TaskInstanceKey, info=None) -> None:
@@ -458,24 +458,25 @@ class BaseExecutor(LoggingMixin):
         """
         self.change_state(key, TaskInstanceState.RUNNING, info, remove_running=False)
 
-    def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
+    def get_event_buffer(self, dag_ids=None) -> dict[WorkloadKey, EventBufferValueType]:
         """
         Return and flush the event buffer.
 
         In case dag_ids is specified it will only return and flush events
         for the given dag_ids. Otherwise, it returns and flushes all events.
+        Note: Callback events (with string keys) are always included regardless of dag_ids filter.
 
         :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
         """
-        cleared_events: dict[TaskInstanceKey, EventBufferValueType] = {}
+        cleared_events: dict[WorkloadKey, EventBufferValueType] = {}
         if dag_ids is None:
             cleared_events = self.event_buffer
             self.event_buffer = {}
         else:
-            for ti_key in list(self.event_buffer.keys()):
-                if ti_key.dag_id in dag_ids:
-                    cleared_events[ti_key] = self.event_buffer.pop(ti_key)
+            for key in list(self.event_buffer.keys()):
+                if isinstance(key, CallbackKey) or key.dag_id in dag_ids:
+                    cleared_events[key] = self.event_buffer.pop(key)
 
         return cleared_events
 
@@ -528,20 +529,25 @@ class BaseExecutor(LoggingMixin):
 
     @property
     def slots_available(self):
-        """Number of new tasks this executor instance can accept."""
-        return self.parallelism - len(self.running) - len(self.queued_tasks)
+        """Number of new workloads (tasks and callbacks) this executor instance can accept."""
+        return self.parallelism - len(self.running) - len(self.queued_tasks) - len(self.queued_callbacks)
 
     @property
     def slots_occupied(self):
-        """Number of tasks this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks)
+        """Number of workloads (tasks and callbacks) this executor instance is currently managing."""
+        return len(self.running) + len(self.queued_tasks) + len(self.queued_callbacks)
 
     def debug_dump(self):
         """Get called in response to SIGUSR2 by the scheduler."""
         self.log.info(
-            "executor.queued (%d)\n\t%s",
+            "executor.queued_tasks (%d)\n\t%s",
             len(self.queued_tasks),
             "\n\t".join(map(repr, self.queued_tasks.items())),
+        )
+        self.log.info(
+            "executor.queued_callbacks (%d)\n\t%s",
+            len(self.queued_callbacks),
+            "\n\t".join(map(repr, self.queued_callbacks.items())),
         )
         self.log.info("executor.running (%d)\n\t%s", len(self.running), "\n\t".join(map(repr, self.running)))
         self.log.info(

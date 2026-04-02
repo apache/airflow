@@ -76,10 +76,12 @@ class AirflowStateRunFacet(RunFacet):
     Attributes:
         dagRunState: This indicates the final status of the entire DAG run (e.g., "success", "failed").
         tasksState: A dictionary mapping task IDs to their respective states. (e.g., "failed", "skipped").
+        tasksDuration: A dictionary mapping task IDs to it's duration in seconds.
     """
 
     dagRunState: str
-    tasksState: dict[str, str]
+    tasksState: dict[str, str | None]
+    tasksDuration: dict[str, float]
 
 
 @define

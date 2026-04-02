@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagReportService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GridService, HumanInTheLoopService, ImportErrorService, JobService, LoginService, MonitorService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -10,11 +10,11 @@ import * as Common from "./common";
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.dagIds
 * @param data.onlyActive
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -33,8 +33,8 @@ export const prefetchUseAssetServiceGetAssets = (queryClient: QueryClient, { dag
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.orderBy
+* @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name`
 * @returns AssetAliasCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -61,29 +61,35 @@ export const prefetchUseAssetServiceGetAssetAlias = (queryClient: QueryClient, {
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
 * @param data.assetId
 * @param data.sourceDagId
 * @param data.sourceTaskId
 * @param data.sourceRunId
 * @param data.sourceMapIndex
+* @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.timestampGte
+* @param data.timestampGt
 * @param data.timestampLte
+* @param data.timestampLt
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, { assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGte, timestampLte }: {
+export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, { assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
   limit?: number;
+  namePattern?: string;
   offset?: number;
   orderBy?: string[];
   sourceDagId?: string;
   sourceMapIndex?: number;
   sourceRunId?: string;
   sourceTaskId?: string;
+  timestampGt?: string;
   timestampGte?: string;
+  timestampLt?: string;
   timestampLte?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGte, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, limit, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGte, timestampLte }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, limit, namePattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.
@@ -152,7 +158,7 @@ export const prefetchUseAssetServiceNextRunAssets = (queryClient: QueryClient, {
 * @param data.dagId
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
 * @returns BackfillCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -177,7 +183,7 @@ export const prefetchUseBackfillServiceGetBackfill = (queryClient: QueryClient, 
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
 * @param data.dagId
 * @param data.active
 * @returns BackfillCollectionResponse Successful Response
@@ -207,8 +213,8 @@ export const prefetchUseConnectionServiceGetConnection = (queryClient: QueryClie
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
-* @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id, team_name, connection_id`
+* @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @returns ConnectionCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -260,46 +266,86 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (queryClient: Quer
 * @param data.limit
 * @param data.offset
 * @param data.runAfterGte
+* @param data.runAfterGt
 * @param data.runAfterLte
+* @param data.runAfterLt
 * @param data.logicalDateGte
+* @param data.logicalDateGt
 * @param data.logicalDateLte
+* @param data.logicalDateLt
 * @param data.startDateGte
+* @param data.startDateGt
 * @param data.startDateLte
+* @param data.startDateLt
 * @param data.endDateGte
+* @param data.endDateGt
 * @param data.endDateLte
+* @param data.endDateLt
+* @param data.durationGte
+* @param data.durationGt
+* @param data.durationLte
+* @param data.durationLt
 * @param data.updatedAtGte
+* @param data.updatedAtGt
 * @param data.updatedAtLte
+* @param data.updatedAtLt
+* @param data.confContains
 * @param data.runType
 * @param data.state
-* @param data.orderBy
-* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagVersion
+* @param data.bundleVersion
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
+* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.partitionKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.consumingAssetPattern Filter by consuming asset name or URI using pattern matching
 * @returns DAGRunCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagRunServiceGetDagRuns = (queryClient: QueryClient, { dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, triggeringUserNamePattern, updatedAtGte, updatedAtLte }: {
+export const prefetchUseDagRunServiceGetDagRuns = (queryClient: QueryClient, { bundleVersion, confContains, consumingAssetPattern, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
+  bundleVersion?: string;
+  confContains?: string;
+  consumingAssetPattern?: string;
   dagId: string;
+  dagIdPattern?: string;
+  dagVersion?: number[];
+  durationGt?: number;
+  durationGte?: number;
+  durationLt?: number;
+  durationLte?: number;
+  endDateGt?: string;
   endDateGte?: string;
+  endDateLt?: string;
   endDateLte?: string;
   limit?: number;
+  logicalDateGt?: string;
   logicalDateGte?: string;
+  logicalDateLt?: string;
   logicalDateLte?: string;
   offset?: number;
   orderBy?: string[];
+  partitionKeyPattern?: string;
+  runAfterGt?: string;
   runAfterGte?: string;
+  runAfterLt?: string;
   runAfterLte?: string;
   runIdPattern?: string;
   runType?: string[];
+  startDateGt?: string;
   startDateGte?: string;
+  startDateLt?: string;
   startDateLte?: string;
   state?: string[];
   triggeringUserNamePattern?: string;
+  updatedAtGt?: string;
   updatedAtGte?: string;
+  updatedAtLt?: string;
   updatedAtLte?: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, triggeringUserNamePattern, updatedAtGte, updatedAtLte }), queryFn: () => DagRunService.getDagRuns({ dagId, endDateGte, endDateLte, limit, logicalDateGte, logicalDateLte, offset, orderBy, runAfterGte, runAfterLte, runIdPattern, runType, startDateGte, startDateLte, state, triggeringUserNamePattern, updatedAtGte, updatedAtLte }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({ bundleVersion, confContains, consumingAssetPattern, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }), queryFn: () => DagRunService.getDagRuns({ bundleVersion, confContains, consumingAssetPattern, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
-* 🚧 This is an experimental endpoint and may change or be removed without notice.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -316,7 +362,7 @@ export const prefetchUseDagRunServiceWaitDagRunUntilFinished = (queryClient: Que
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagRunServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }), queryFn: () => DagRunService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) });
 /**
 * Experimental: Wait for a dag run to complete, and return task results if requested.
-* 🚧 This is an experimental endpoint and may change or be removed without notice.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
@@ -358,17 +404,6 @@ export const prefetchUseDagStatsServiceGetDagStats = (queryClient: QueryClient, 
   dagIds?: string[];
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }), queryFn: () => DagStatsService.getDagStats({ dagIds }) });
 /**
-* Get Dag Reports
-* Get DAG report.
-* @param data The data for the request.
-* @param data.subdir
-* @returns unknown Successful Response
-* @throws ApiError
-*/
-export const prefetchUseDagReportServiceGetDagReports = (queryClient: QueryClient, { subdir }: {
-  subdir: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }), queryFn: () => DagReportService.getDagReports({ subdir }) });
-/**
 * Get Config
 * @param data The data for the request.
 * @param data.section
@@ -409,7 +444,7 @@ export const prefetchUseConfigServiceGetConfigs = (queryClient: QueryClient) => 
 * @param data.warningType
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
 * @returns DAGWarningCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -429,34 +464,49 @@ export const prefetchUseDagWarningServiceListDagWarnings = (queryClient: QueryCl
 * @param data.tags
 * @param data.tagsMatchMode
 * @param data.owners
-* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.excludeStale
 * @param data.paused
+* @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
+* @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+* @param data.assetDependency Filter Dags by asset dependency (name or URI)
 * @param data.dagRunStartDateGte
+* @param data.dagRunStartDateGt
 * @param data.dagRunStartDateLte
+* @param data.dagRunStartDateLt
 * @param data.dagRunEndDateGte
+* @param data.dagRunEndDateGt
 * @param data.dagRunEndDateLte
+* @param data.dagRunEndDateLt
 * @param data.dagRunState
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
 * @param data.isFavorite
+* @param data.timetableType
 * @returns DAGCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }: {
+  assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
   dagDisplayNamePattern?: string;
   dagIdPattern?: string;
+  dagRunEndDateGt?: string;
   dagRunEndDateGte?: string;
+  dagRunEndDateLt?: string;
   dagRunEndDateLte?: string;
+  dagRunStartDateGt?: string;
   dagRunStartDateGte?: string;
+  dagRunStartDateLt?: string;
   dagRunStartDateLte?: string;
   dagRunState?: string[];
   excludeStale?: boolean;
+  hasAssetSchedule?: boolean;
+  hasImportErrors?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
@@ -466,7 +516,8 @@ export const prefetchUseDagServiceGetDags = (queryClient: QueryClient, { bundleN
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsKeyFn({ bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDags({ bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGte, dagRunEndDateLte, dagRunStartDateGte, dagRunStartDateLte, dagRunState, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
+  timetableType?: string[];
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }), queryFn: () => DagService.getDags({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagRunEndDateGt, dagRunEndDateGte, dagRunEndDateLt, dagRunEndDateLte, dagRunStartDateGt, dagRunStartDateGte, dagRunStartDateLt, dagRunStartDateLte, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, timetableType }) });
 /**
 * Get Dag
 * Get basic information about a DAG.
@@ -495,8 +546,8 @@ export const prefetchUseDagServiceGetDagDetails = (queryClient: QueryClient, { d
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
-* @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
+* @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @returns DAGTagCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -517,19 +568,24 @@ export const prefetchUseDagServiceGetDagTags = (queryClient: QueryClient, { limi
 * @param data.tagsMatchMode
 * @param data.owners
 * @param data.dagIds
-* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.excludeStale
 * @param data.paused
+* @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
 * @param data.lastDagRunState
 * @param data.bundleName
 * @param data.bundleVersion
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
 * @param data.isFavorite
+* @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+* @param data.assetDependency Filter Dags by asset dependency (name or URI)
+* @param data.hasPendingActions
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }: {
+  assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
   dagDisplayNamePattern?: string;
@@ -537,6 +593,9 @@ export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { bundl
   dagIds?: string[];
   dagRunsLimit?: number;
   excludeStale?: boolean;
+  hasAssetSchedule?: boolean;
+  hasImportErrors?: boolean;
+  hasPendingActions?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
@@ -546,7 +605,7 @@ export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { bundl
   paused?: boolean;
   tags?: string[];
   tagsMatchMode?: "any" | "all";
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagIdPattern, dagIds, dagRunsLimit, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode }) });
 /**
 * Get Latest Run Info
 * Get latest run.
@@ -574,7 +633,7 @@ export const prefetchUseEventLogServiceGetEventLog = (queryClient: QueryClient, 
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`
 * @param data.dagId
 * @param data.taskId
 * @param data.runId
@@ -586,14 +645,21 @@ export const prefetchUseEventLogServiceGetEventLog = (queryClient: QueryClient, 
 * @param data.includedEvents
 * @param data.before
 * @param data.after
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.ownerPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.eventPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @returns EventLogCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseEventLogServiceGetEventLogs = (queryClient: QueryClient, { after, before, dagId, event, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, runId, taskId, tryNumber }: {
+export const prefetchUseEventLogServiceGetEventLogs = (queryClient: QueryClient, { after, before, dagId, dagIdPattern, event, eventPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, runId, runIdPattern, taskId, taskIdPattern, tryNumber }: {
   after?: string;
   before?: string;
   dagId?: string;
+  dagIdPattern?: string;
   event?: string;
+  eventPattern?: string;
   excludedEvents?: string[];
   includedEvents?: string[];
   limit?: number;
@@ -601,10 +667,13 @@ export const prefetchUseEventLogServiceGetEventLogs = (queryClient: QueryClient,
   offset?: number;
   orderBy?: string[];
   owner?: string;
+  ownerPattern?: string;
   runId?: string;
+  runIdPattern?: string;
   taskId?: string;
+  taskIdPattern?: string;
   tryNumber?: number;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, dagId, event, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, runId, taskId, tryNumber }), queryFn: () => EventLogService.getEventLogs({ after, before, dagId, event, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, runId, taskId, tryNumber }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, dagId, dagIdPattern, event, eventPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, runId, runIdPattern, taskId, taskIdPattern, tryNumber }), queryFn: () => EventLogService.getEventLogs({ after, before, dagId, dagIdPattern, event, eventPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerPattern, runId, runIdPattern, taskId, taskIdPattern, tryNumber }) });
 /**
 * Get Extra Links
 * Get extra links for task instance.
@@ -662,53 +731,89 @@ export const prefetchUseTaskInstanceServiceGetTaskInstance = (queryClient: Query
 * @param data.dagRunId
 * @param data.taskId
 * @param data.runAfterGte
+* @param data.runAfterGt
 * @param data.runAfterLte
+* @param data.runAfterLt
 * @param data.logicalDateGte
+* @param data.logicalDateGt
 * @param data.logicalDateLte
+* @param data.logicalDateLt
 * @param data.startDateGte
+* @param data.startDateGt
 * @param data.startDateLte
+* @param data.startDateLt
 * @param data.endDateGte
+* @param data.endDateGt
 * @param data.endDateLte
+* @param data.endDateLt
 * @param data.updatedAtGte
+* @param data.updatedAtGt
 * @param data.updatedAtLte
+* @param data.updatedAtLt
 * @param data.durationGte
+* @param data.durationGt
 * @param data.durationLte
+* @param data.durationLt
 * @param data.state
 * @param data.pool
+* @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.queue
+* @param data.queueNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.executor
 * @param data.versionNumber
+* @param data.tryNumber
+* @param data.operator
+* @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.mapIndex
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (queryClient: QueryClient, { dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskId, updatedAtGte, updatedAtLte, versionNumber }: {
+export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (queryClient: QueryClient, { dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   dagId: string;
   dagRunId: string;
+  durationGt?: number;
   durationGte?: number;
+  durationLt?: number;
   durationLte?: number;
+  endDateGt?: string;
   endDateGte?: string;
+  endDateLt?: string;
   endDateLte?: string;
   executor?: string[];
   limit?: number;
+  logicalDateGt?: string;
   logicalDateGte?: string;
+  logicalDateLt?: string;
   logicalDateLte?: string;
+  mapIndex?: number[];
   offset?: number;
+  operator?: string[];
+  operatorNamePattern?: string;
   orderBy?: string[];
   pool?: string[];
+  poolNamePattern?: string;
   queue?: string[];
+  queueNamePattern?: string;
+  runAfterGt?: string;
   runAfterGte?: string;
+  runAfterLt?: string;
   runAfterLte?: string;
+  startDateGt?: string;
   startDateGte?: string;
+  startDateLt?: string;
   startDateLte?: string;
   state?: string[];
   taskId: string;
+  tryNumber?: number[];
+  updatedAtGt?: string;
   updatedAtGte?: string;
+  updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({ dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskId, updatedAtGte, updatedAtLte, versionNumber }), queryFn: () => TaskInstanceService.getMappedTaskInstances({ dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskId, updatedAtGte, updatedAtLte, versionNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }), queryFn: () => TaskInstanceService.getMappedTaskInstances({ dagId, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) });
 /**
 * Get Task Instance Dependencies
 * Get dependencies blocking task from getting scheduled.
@@ -804,55 +909,97 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (queryClient:
 * @param data.dagRunId
 * @param data.taskId
 * @param data.runAfterGte
+* @param data.runAfterGt
 * @param data.runAfterLte
+* @param data.runAfterLt
 * @param data.logicalDateGte
+* @param data.logicalDateGt
 * @param data.logicalDateLte
+* @param data.logicalDateLt
 * @param data.startDateGte
+* @param data.startDateGt
 * @param data.startDateLte
+* @param data.startDateLt
 * @param data.endDateGte
+* @param data.endDateGt
 * @param data.endDateLte
+* @param data.endDateLt
 * @param data.updatedAtGte
+* @param data.updatedAtGt
 * @param data.updatedAtLte
+* @param data.updatedAtLt
 * @param data.durationGte
+* @param data.durationGt
 * @param data.durationLte
-* @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.durationLt
+* @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.taskGroupId Filter by exact task group ID. Returns all tasks within the specified task group.
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.state
 * @param data.pool
+* @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.queue
+* @param data.queueNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @param data.executor
 * @param data.versionNumber
+* @param data.tryNumber
+* @param data.operator
+* @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.mapIndex
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTaskInstanceServiceGetTaskInstances = (queryClient: QueryClient, { dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskDisplayNamePattern, taskId, updatedAtGte, updatedAtLte, versionNumber }: {
+export const prefetchUseTaskInstanceServiceGetTaskInstances = (queryClient: QueryClient, { dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   dagId: string;
+  dagIdPattern?: string;
   dagRunId: string;
+  durationGt?: number;
   durationGte?: number;
+  durationLt?: number;
   durationLte?: number;
+  endDateGt?: string;
   endDateGte?: string;
+  endDateLt?: string;
   endDateLte?: string;
   executor?: string[];
   limit?: number;
+  logicalDateGt?: string;
   logicalDateGte?: string;
+  logicalDateLt?: string;
   logicalDateLte?: string;
+  mapIndex?: number[];
   offset?: number;
+  operator?: string[];
+  operatorNamePattern?: string;
   orderBy?: string[];
   pool?: string[];
+  poolNamePattern?: string;
   queue?: string[];
+  queueNamePattern?: string;
+  runAfterGt?: string;
   runAfterGte?: string;
+  runAfterLt?: string;
   runAfterLte?: string;
+  runIdPattern?: string;
+  startDateGt?: string;
   startDateGte?: string;
+  startDateLt?: string;
   startDateLte?: string;
   state?: string[];
   taskDisplayNamePattern?: string;
+  taskGroupId?: string;
   taskId?: string;
+  tryNumber?: number[];
+  updatedAtGt?: string;
   updatedAtGte?: string;
+  updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskDisplayNamePattern, taskId, updatedAtGte, updatedAtLte, versionNumber }), queryFn: () => TaskInstanceService.getTaskInstances({ dagId, dagRunId, durationGte, durationLte, endDateGte, endDateLte, executor, limit, logicalDateGte, logicalDateLte, offset, orderBy, pool, queue, runAfterGte, runAfterLte, startDateGte, startDateLte, state, taskDisplayNamePattern, taskId, updatedAtGte, updatedAtLte, versionNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }), queryFn: () => TaskInstanceService.getTaskInstances({ dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskGroupId, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) });
 /**
 * Get Task Instance Try Details
 * Get task instance details by try number.
@@ -935,6 +1082,89 @@ export const prefetchUseTaskInstanceServiceGetExternalLogUrl = (queryClient: Que
   tryNumber: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetExternalLogUrlKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getExternalLogUrl({ dagId, dagRunId, mapIndex, taskId, tryNumber }) });
 /**
+* Get Hitl Detail
+* Get a Human-in-the-loop detail of a specific task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @returns HITLDetail Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTaskInstanceServiceGetHitlDetail = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => TaskInstanceService.getHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
+/**
+* Get Hitl Detail Try Detail
+* Get a Human-in-the-loop detail of a specific task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.tryNumber
+* @returns HITLDetailHistory Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTaskInstanceServiceGetHitlDetailTryDetail = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, tryNumber }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+  tryNumber: number;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailTryDetailKeyFn({ dagId, dagRunId, mapIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getHitlDetailTryDetail({ dagId, dagRunId, mapIndex, taskId, tryNumber }) });
+/**
+* Get Hitl Details
+* Get Human-in-the-loop details.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
+* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.taskId
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.mapIndex
+* @param data.state
+* @param data.responseReceived
+* @param data.respondedByUserId
+* @param data.respondedByUserName
+* @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.createdAtGte
+* @param data.createdAtGt
+* @param data.createdAtLte
+* @param data.createdAtLt
+* @returns HITLDetailCollection Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTaskInstanceServiceGetHitlDetails = (queryClient: QueryClient, { bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }: {
+  bodySearch?: string;
+  createdAtGt?: string;
+  createdAtGte?: string;
+  createdAtLt?: string;
+  createdAtLte?: string;
+  dagId: string;
+  dagIdPattern?: string;
+  dagRunId: string;
+  limit?: number;
+  mapIndex?: number;
+  offset?: number;
+  orderBy?: string[];
+  respondedByUserId?: string[];
+  respondedByUserName?: string[];
+  responseReceived?: boolean;
+  state?: string[];
+  subjectSearch?: string;
+  taskId?: string;
+  taskIdPattern?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetHitlDetailsKeyFn({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }), queryFn: () => TaskInstanceService.getHitlDetails({ bodySearch, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, dagIdPattern, dagRunId, limit, mapIndex, offset, orderBy, respondedByUserId, respondedByUserName, responseReceived, state, subjectSearch, taskId, taskIdPattern }) });
+/**
 * Get Import Error
 * Get an import error.
 * @param data The data for the request.
@@ -951,27 +1181,33 @@ export const prefetchUseImportErrorServiceGetImportError = (queryClient: QueryCl
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
+* @param data.filenamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @returns ImportErrorCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseImportErrorServiceGetImportErrors = (queryClient: QueryClient, { limit, offset, orderBy }: {
+export const prefetchUseImportErrorServiceGetImportErrors = (queryClient: QueryClient, { filenamePattern, limit, offset, orderBy }: {
+  filenamePattern?: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ limit, offset, orderBy }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ filenamePattern, limit, offset, orderBy }), queryFn: () => ImportErrorService.getImportErrors({ filenamePattern, limit, offset, orderBy }) });
 /**
 * Get Jobs
 * Get all jobs.
 * @param data The data for the request.
 * @param data.isAlive
 * @param data.startDateGte
+* @param data.startDateGt
 * @param data.startDateLte
+* @param data.startDateLt
 * @param data.endDateGte
+* @param data.endDateGt
 * @param data.endDateLte
+* @param data.endDateLt
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dag_id, state, job_type, start_date, end_date, latest_heartbeat, executor_class, hostname, unixname`
 * @param data.jobState
 * @param data.jobType
 * @param data.hostname
@@ -979,8 +1215,10 @@ export const prefetchUseImportErrorServiceGetImportErrors = (queryClient: QueryC
 * @returns JobCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseJobServiceGetJobs = (queryClient: QueryClient, { endDateGte, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGte, startDateLte }: {
+export const prefetchUseJobServiceGetJobs = (queryClient: QueryClient, { endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }: {
+  endDateGt?: string;
   endDateGte?: string;
+  endDateLt?: string;
   endDateLte?: string;
   executorClass?: string;
   hostname?: string;
@@ -990,9 +1228,11 @@ export const prefetchUseJobServiceGetJobs = (queryClient: QueryClient, { endDate
   limit?: number;
   offset?: number;
   orderBy?: string[];
+  startDateGt?: string;
   startDateGte?: string;
+  startDateLt?: string;
   startDateLte?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseJobServiceGetJobsKeyFn({ endDateGte, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGte, startDateLte }), queryFn: () => JobService.getJobs({ endDateGte, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGte, startDateLte }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseJobServiceGetJobsKeyFn({ endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }), queryFn: () => JobService.getJobs({ endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }) });
 /**
 * Get Plugins
 * @param data The data for the request.
@@ -1028,8 +1268,8 @@ export const prefetchUsePoolServiceGetPool = (queryClient: QueryClient, { poolNa
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
-* @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, pool, name`
+* @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @returns PoolCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -1088,18 +1328,44 @@ export const prefetchUseXcomServiceGetXcomEntry = (queryClient: QueryClient, { d
 * @param data.mapIndex
 * @param data.limit
 * @param data.offset
+* @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+* @param data.mapIndexFilter
+* @param data.logicalDateGte
+* @param data.logicalDateGt
+* @param data.logicalDateLte
+* @param data.logicalDateLt
+* @param data.runAfterGte
+* @param data.runAfterGt
+* @param data.runAfterLte
+* @param data.runAfterLt
 * @returns XComCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseXcomServiceGetXcomEntries = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }: {
+export const prefetchUseXcomServiceGetXcomEntries = (queryClient: QueryClient, { dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }: {
+  dagDisplayNamePattern?: string;
   dagId: string;
   dagRunId: string;
   limit?: number;
+  logicalDateGt?: string;
+  logicalDateGte?: string;
+  logicalDateLt?: string;
+  logicalDateLte?: string;
   mapIndex?: number;
+  mapIndexFilter?: number;
   offset?: number;
+  runAfterGt?: string;
+  runAfterGte?: string;
+  runAfterLt?: string;
+  runAfterLte?: string;
+  runIdPattern?: string;
   taskId: string;
+  taskIdPattern?: string;
   xcomKey?: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }), queryFn: () => XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }) });
+  xcomKeyPattern?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, taskId, taskIdPattern, xcomKey, xcomKeyPattern }) });
 /**
 * Get Tasks
 * Get tasks for DAG.
@@ -1143,8 +1409,8 @@ export const prefetchUseVariableServiceGetVariable = (queryClient: QueryClient, 
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy
-* @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted, team_name`
+* @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @returns VariableCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -1179,7 +1445,7 @@ export const prefetchUseDagVersionServiceGetDagVersion = (queryClient: QueryClie
 * @param data.versionNumber
 * @param data.bundleName
 * @param data.bundleVersion
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, version_number, bundle_name, bundle_version`
 * @returns DAGVersionCollectionResponse Successful Response
 * @throws ApiError
 */
@@ -1192,73 +1458,6 @@ export const prefetchUseDagVersionServiceGetDagVersions = (queryClient: QueryCli
   orderBy?: string[];
   versionNumber?: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }), queryFn: () => DagVersionService.getDagVersions({ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }) });
-/**
-* Get Hitl Detail
-* Get a Human-in-the-loop detail of a specific task instance.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.dagRunId
-* @param data.taskId
-* @returns HITLDetail Successful Response
-* @throws ApiError
-*/
-export const prefetchUseHumanInTheLoopServiceGetHitlDetail = (queryClient: QueryClient, { dagId, dagRunId, taskId }: {
-  dagId: string;
-  dagRunId: string;
-  taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailKeyFn({ dagId, dagRunId, taskId }), queryFn: () => HumanInTheLoopService.getHitlDetail({ dagId, dagRunId, taskId }) });
-/**
-* Get Mapped Ti Hitl Detail
-* Get a Human-in-the-loop detail of a specific task instance.
-* @param data The data for the request.
-* @param data.dagId
-* @param data.dagRunId
-* @param data.taskId
-* @param data.mapIndex
-* @returns HITLDetail Successful Response
-* @throws ApiError
-*/
-export const prefetchUseHumanInTheLoopServiceGetMappedTiHitlDetail = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId }: {
-  dagId: string;
-  dagRunId: string;
-  mapIndex: number;
-  taskId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetMappedTiHitlDetailKeyFn({ dagId, dagRunId, mapIndex, taskId }), queryFn: () => HumanInTheLoopService.getMappedTiHitlDetail({ dagId, dagRunId, mapIndex, taskId }) });
-/**
-* Get Hitl Details
-* Get Human-in-the-loop details.
-* @param data The data for the request.
-* @param data.limit
-* @param data.offset
-* @param data.orderBy
-* @param data.dagId
-* @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.dagRunId
-* @param data.taskId
-* @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.state
-* @param data.responseReceived
-* @param data.userId
-* @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-* @returns HITLDetailCollection Successful Response
-* @throws ApiError
-*/
-export const prefetchUseHumanInTheLoopServiceGetHitlDetails = (queryClient: QueryClient, { bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }: {
-  bodySearch?: string;
-  dagId?: string;
-  dagIdPattern?: string;
-  dagRunId?: string;
-  limit?: number;
-  offset?: number;
-  orderBy?: string[];
-  responseReceived?: boolean;
-  state?: string[];
-  subjectSearch?: string;
-  taskId?: string;
-  taskIdPattern?: string;
-  userId?: string[];
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseHumanInTheLoopServiceGetHitlDetailsKeyFn({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }), queryFn: () => HumanInTheLoopService.getHitlDetails({ bodySearch, dagId, dagIdPattern, dagRunId, limit, offset, orderBy, responseReceived, state, subjectSearch, taskId, taskIdPattern, userId }) });
 /**
 * Get Health
 * @returns HealthInfoResponse Successful Response
@@ -1286,25 +1485,10 @@ export const prefetchUseLoginServiceLogin = (queryClient: QueryClient, { next }:
 /**
 * Logout
 * Logout the user.
-* @param data The data for the request.
-* @param data.next
 * @returns unknown Successful Response
 * @throws ApiError
 */
-export const prefetchUseLoginServiceLogout = (queryClient: QueryClient, { next }: {
-  next?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceLogoutKeyFn({ next }), queryFn: () => LoginService.logout({ next }) });
-/**
-* Refresh
-* Refresh the authentication token.
-* @param data The data for the request.
-* @param data.next
-* @returns unknown Successful Response
-* @throws ApiError
-*/
-export const prefetchUseLoginServiceRefresh = (queryClient: QueryClient, { next }: {
-  next?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceRefreshKeyFn({ next }), queryFn: () => LoginService.refresh({ next }) });
+export const prefetchUseLoginServiceLogout = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceLogoutKeyFn(), queryFn: () => LoginService.logout() });
 /**
 * Get Auth Menus
 * @returns MenuItemCollectionResponse Successful Response
@@ -1312,16 +1496,51 @@ export const prefetchUseLoginServiceRefresh = (queryClient: QueryClient, { next 
 */
 export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(), queryFn: () => AuthLinksService.getAuthMenus() });
 /**
+* Get Current User Info
+* Convienently get the current authenticated user information.
+* @returns AuthenticatedMeResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseAuthLinksServiceGetCurrentUserInfo = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseAuthLinksServiceGetCurrentUserInfoKeyFn(), queryFn: () => AuthLinksService.getCurrentUserInfo() });
+/**
+* Get Partitioned Dag Runs
+* Return PartitionedDagRuns. Filter by dag_id and/or has_created_dag_run_id.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.hasCreatedDagRunId
+* @returns PartitionedDagRunCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUsePartitionedDagRunServiceGetPartitionedDagRuns = (queryClient: QueryClient, { dagId, hasCreatedDagRunId }: {
+  dagId?: string;
+  hasCreatedDagRunId?: boolean;
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UsePartitionedDagRunServiceGetPartitionedDagRunsKeyFn({ dagId, hasCreatedDagRunId }), queryFn: () => PartitionedDagRunService.getPartitionedDagRuns({ dagId, hasCreatedDagRunId }) });
+/**
+* Get Pending Partitioned Dag Run
+* Return full details for pending PartitionedDagRun.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.partitionKey
+* @returns PartitionedDagRunDetailResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUsePartitionedDagRunServiceGetPendingPartitionedDagRun = (queryClient: QueryClient, { dagId, partitionKey }: {
+  dagId: string;
+  partitionKey: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn({ dagId, partitionKey }), queryFn: () => PartitionedDagRunService.getPendingPartitionedDagRun({ dagId, partitionKey }) });
+/**
 * Get Dependencies
 * Dependencies graph.
 * @param data The data for the request.
 * @param data.nodeId
+* @param data.dependencyType
 * @returns BaseGraphResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDependenciesServiceGetDependencies = (queryClient: QueryClient, { nodeId }: {
+export const prefetchUseDependenciesServiceGetDependencies = (queryClient: QueryClient, { dependencyType, nodeId }: {
+  dependencyType?: "scheduling" | "data";
   nodeId?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }), queryFn: () => DependenciesService.getDependencies({ nodeId }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ dependencyType, nodeId }), queryFn: () => DependenciesService.getDependencies({ dependencyType, nodeId }) });
 /**
 * Historical Metrics
 * Return cluster activity historical metrics.
@@ -1343,47 +1562,124 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (queryClient: QueryC
 */
 export const prefetchUseDashboardServiceDagStats = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseDashboardServiceDagStatsKeyFn(), queryFn: () => DashboardService.dagStats() });
 /**
+* Get Deadlines
+* Get deadlines for a DAG run.
+*
+* This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
+* DAGs and DAG runs.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
+* @param data.missed
+* @param data.deadlineTimeGte
+* @param data.deadlineTimeGt
+* @param data.deadlineTimeLte
+* @param data.deadlineTimeLt
+* @param data.lastUpdatedAtGte
+* @param data.lastUpdatedAtGt
+* @param data.lastUpdatedAtLte
+* @param data.lastUpdatedAtLt
+* @returns DeadlineCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseDeadlinesServiceGetDeadlines = (queryClient: QueryClient, { dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy }: {
+  dagId: string;
+  dagRunId: string;
+  deadlineTimeGt?: string;
+  deadlineTimeGte?: string;
+  deadlineTimeLt?: string;
+  deadlineTimeLte?: string;
+  lastUpdatedAtGt?: string;
+  lastUpdatedAtGte?: string;
+  lastUpdatedAtLt?: string;
+  lastUpdatedAtLte?: string;
+  limit?: number;
+  missed?: boolean;
+  offset?: number;
+  orderBy?: string[];
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy }), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy }) });
+/**
+* Get Dag Deadline Alerts
+* Get all deadline alerts defined on a DAG.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+* @returns DeadlineAlertCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseDeadlinesServiceGetDagDeadlineAlerts = (queryClient: QueryClient, { dagId, limit, offset, orderBy }: {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy }) });
+/**
 * Structure Data
 * Get Structure Data.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.includeUpstream
 * @param data.includeDownstream
+* @param data.depth
 * @param data.root
 * @param data.externalDependencies
 * @param data.versionNumber
 * @returns StructureDataResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseStructureServiceStructureData = (queryClient: QueryClient, { dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }: {
+export const prefetchUseStructureServiceStructureData = (queryClient: QueryClient, { dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }: {
   dagId: string;
+  depth?: number;
   externalDependencies?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string;
   versionNumber?: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseStructureServiceStructureDataKeyFn({ dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }), queryFn: () => StructureService.structureData({ dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseStructureServiceStructureDataKeyFn({ dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }), queryFn: () => StructureService.structureData({ dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }) });
 /**
 * Get Dag Structure
 * Return dag structure for grid view.
 * @param data The data for the request.
 * @param data.dagId
+* @param data.includeUpstream
+* @param data.includeDownstream
+* @param data.depth
+* @param data.root
 * @param data.offset
 * @param data.limit
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
 * @param data.runAfterGte
+* @param data.runAfterGt
 * @param data.runAfterLte
+* @param data.runAfterLt
+* @param data.runType
+* @param data.state
+* @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @returns GridNodeResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseGridServiceGetDagStructure = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+export const prefetchUseGridServiceGetDagStructure = (queryClient: QueryClient, { dagId, depth, includeDownstream, includeUpstream, limit, offset, orderBy, root, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }: {
   dagId: string;
+  depth?: number;
+  includeDownstream?: boolean;
+  includeUpstream?: boolean;
   limit?: number;
   offset?: number;
   orderBy?: string[];
+  root?: string;
+  runAfterGt?: string;
   runAfterGte?: string;
+  runAfterLt?: string;
   runAfterLte?: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }), queryFn: () => GridService.getDagStructure({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) });
+  runType?: string[];
+  state?: string[];
+  triggeringUser?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetDagStructureKeyFn({ dagId, depth, includeDownstream, includeUpstream, limit, offset, orderBy, root, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }), queryFn: () => GridService.getDagStructure({ dagId, depth, includeDownstream, includeUpstream, limit, offset, orderBy, root, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }) });
 /**
 * Get Grid Runs
 * Get info about a run for the grid.
@@ -1391,44 +1687,63 @@ export const prefetchUseGridServiceGetDagStructure = (queryClient: QueryClient, 
 * @param data.dagId
 * @param data.offset
 * @param data.limit
-* @param data.orderBy
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
 * @param data.runAfterGte
+* @param data.runAfterGt
 * @param data.runAfterLte
+* @param data.runAfterLt
+* @param data.runType
+* @param data.state
+* @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 * @returns GridRunsResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseGridServiceGetGridRuns = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGte, runAfterLte }: {
+export const prefetchUseGridServiceGetGridRuns = (queryClient: QueryClient, { dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }: {
   dagId: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
+  runAfterGt?: string;
   runAfterGte?: string;
+  runAfterLt?: string;
   runAfterLte?: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGte, runAfterLte }) });
+  runType?: string[];
+  state?: string[];
+  triggeringUser?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridRunsKeyFn({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }), queryFn: () => GridService.getGridRuns({ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }) });
 /**
-* Get Grid Ti Summaries
-* Get states for TIs / "groups" of TIs.
+* Get Grid Ti Summaries Stream
+* Stream TI summaries for multiple Dag runs as NDJSON (one JSON line per run).
 *
-* Essentially this is to know what color to put in the squares in the grid.
+* Each line is a serialized ``GridTISummaries`` object emitted as soon as that
+* run's task instances have been processed, so the client can render columns
+* progressively without waiting for all runs to complete.
 *
-* The tricky part here is that we aggregate the state for groups and mapped tasks.
-*
-* We don't add all the TIs for mapped TIs -- we only add one entry for the mapped task and
-* its state is an aggregate of its TI states.
-*
-* And for task groups, we add a "task" for that which is not really a task but is just
-* an entry that represents the group (so that we can show a filled in box when the group
-* is not expanded) and its state is an agg of those within it.
+* The serialized Dag structure is loaded once and reused for all runs that
+* share the same ``dag_version_id``, avoiding repeated deserialization.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.runIds
+* @returns string NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
+* @throws ApiError
+*/
+export const prefetchUseGridServiceGetGridTiSummariesStream = (queryClient: QueryClient, { dagId, runIds }: {
+  dagId: string;
+  runIds?: string[];
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, runIds }), queryFn: () => GridService.getGridTiSummariesStream({ dagId, runIds }) });
+/**
+* Get Gantt Data
+* Get all task instance tries for Gantt chart.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runId
-* @returns GridTISummaries Successful Response
+* @returns GanttResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseGridServiceGetGridTiSummaries = (queryClient: QueryClient, { dagId, runId }: {
+export const prefetchUseGanttServiceGetGanttData = (queryClient: QueryClient, { dagId, runId }: {
   dagId: string;
   runId: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId }), queryFn: () => GridService.getGridTiSummaries({ dagId, runId }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, runId }), queryFn: () => GanttService.getGanttData({ dagId, runId }) });
 /**
 * Get Calendar
 * Get calendar data for a DAG including historical and planned DAG runs.
@@ -1436,13 +1751,39 @@ export const prefetchUseGridServiceGetGridTiSummaries = (queryClient: QueryClien
 * @param data.dagId
 * @param data.granularity
 * @param data.logicalDateGte
+* @param data.logicalDateGt
 * @param data.logicalDateLte
+* @param data.logicalDateLt
+* @param data.partitionDateGte
+* @param data.partitionDateGt
+* @param data.partitionDateLte
+* @param data.partitionDateLt
 * @returns CalendarTimeRangeCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseCalendarServiceGetCalendar = (queryClient: QueryClient, { dagId, granularity, logicalDateGte, logicalDateLte }: {
+export const prefetchUseCalendarServiceGetCalendar = (queryClient: QueryClient, { dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }: {
   dagId: string;
   granularity?: "hourly" | "daily";
+  logicalDateGt?: string;
   logicalDateGte?: string;
+  logicalDateLt?: string;
   logicalDateLte?: string;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGte, logicalDateLte }), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGte, logicalDateLte }) });
+  partitionDateGt?: string;
+  partitionDateGte?: string;
+  partitionDateLt?: string;
+  partitionDateLte?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseCalendarServiceGetCalendarKeyFn({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }), queryFn: () => CalendarService.getCalendar({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }) });
+/**
+* List Teams
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
+* @returns TeamCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTeamsServiceListTeams = (queryClient: QueryClient, { limit, offset, orderBy }: {
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseTeamsServiceListTeamsKeyFn({ limit, offset, orderBy }), queryFn: () => TeamsService.listTeams({ limit, offset, orderBy }) });

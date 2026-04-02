@@ -16,20 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
+import { Box, Button, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button } from "src/components/ui";
+import { TeamSelector } from "src/components/TeamSelector.tsx";
 import { Checkbox } from "src/components/ui/Checkbox";
+import { useConfig } from "src/queries/useConfig.tsx";
 
 export type PoolBody = {
   description: string | undefined;
   include_deferred: boolean;
   name: string;
   slots: number;
+  team_name: string;
 };
 
 type PoolFormProps = {
@@ -40,8 +42,10 @@ type PoolFormProps = {
   readonly setError: (error: unknown) => void;
 };
 
+const POOL_SLOTS_MIN = -1;
+
 const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: PoolFormProps) => {
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
   const {
     control,
     formState: { isDirty, isValid },
@@ -51,6 +55,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
     defaultValues: initialPool,
     mode: "onChange",
   });
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const onSubmit = (data: PoolBody) => {
     manageMutate(data);
@@ -84,12 +89,41 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
       <Controller
         control={control}
         name="slots"
-        render={({ field }) => (
-          <Field.Root mt={4}>
+        render={({ field, fieldState }) => (
+          <Field.Root invalid={Boolean(fieldState.error)} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
-            <Input {...field} min={initialPool.slots} size="sm" type="number" />
+            <Input
+              min={POOL_SLOTS_MIN}
+              onBlur={field.onBlur}
+              onChange={(event) => {
+                const { value: raw, valueAsNumber } = event.target;
+
+                field.onChange(raw === "" ? Number.NaN : valueAsNumber);
+              }}
+              ref={field.ref}
+              size="sm"
+              type="number"
+              value={Number.isFinite(field.value) ? field.value : ""}
+            />
+            {fieldState.error ? (
+              <Field.ErrorText>{fieldState.error.message}</Field.ErrorText>
+            ) : (
+              <Field.HelperText>{translate("pools.form.slotsHelperText")}</Field.HelperText>
+            )}
           </Field.Root>
         )}
+        rules={{
+          validate: (value: number) => {
+            if (!Number.isFinite(value)) {
+              return translate("common:validation.mustBeValidNumber");
+            }
+            if (value < POOL_SLOTS_MIN) {
+              return translate("common:validation.mustBeAtLeast", { min: POOL_SLOTS_MIN });
+            }
+
+            return true;
+          },
+        }}
       />
 
       <Controller
@@ -109,12 +143,14 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.includeDeferred")}</Field.Label>
-            <Checkbox checked={field.value} colorPalette="blue" onChange={field.onChange} size="sm">
+            <Checkbox checked={field.value} colorPalette="brand" onChange={field.onChange} size="sm">
               {translate("pools.form.checkbox")}
             </Checkbox>
           </Field.Root>
         )}
       />
+
+      {multiTeamEnabled ? <TeamSelector control={control} /> : undefined}
 
       <ErrorAlert error={error} />
 
@@ -122,13 +158,13 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         <HStack w="full">
           {isDirty ? (
             <Button onClick={handleReset} variant="outline">
-              {translate("formActions.reset")}
+              {translate("common:reset")}
             </Button>
           ) : undefined}
           <Spacer />
           <Button
-            colorPalette="blue"
-            disabled={!isValid || isPending}
+            colorPalette="brand"
+            disabled={!isValid || isPending || !isDirty}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> {translate("formActions.save")}

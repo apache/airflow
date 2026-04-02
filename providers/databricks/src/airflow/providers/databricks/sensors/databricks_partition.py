@@ -27,22 +27,12 @@ from typing import TYPE_CHECKING, Any
 
 from databricks.sql.utils import ParamEscaper
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class DatabricksPartitionSensor(BaseSensorOperator):
@@ -198,9 +188,10 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         formatted_opts = ""
         if opts:
             output_list = []
-            for partition_col, partition_value in opts.items():
-                if escape_key:
-                    partition_col = self.escaper.escape_item(partition_col)
+            for partition_col_raw, partition_value in opts.items():
+                partition_col = (
+                    self.escaper.escape_item(partition_col_raw) if escape_key else partition_col_raw
+                )
                 if partition_col in partition_columns:
                     if isinstance(partition_value, list):
                         output_list.append(f"""{partition_col} in {tuple(partition_value)}""")

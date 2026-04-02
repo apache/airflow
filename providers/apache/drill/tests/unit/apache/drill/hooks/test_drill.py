@@ -24,7 +24,7 @@ import pytest
 from airflow.providers.apache.drill.hooks.drill import DrillHook
 
 
-@pytest.mark.parametrize("host, expect_error", [("host_with?", True), ("good_host", False)])
+@pytest.mark.parametrize(("host", "expect_error"), [("host_with?", True), ("good_host", False)])
 def test_get_host(host, expect_error):
     with (
         patch("airflow.providers.apache.drill.hooks.drill.DrillHook.get_connection") as mock_get_connection,
@@ -67,7 +67,7 @@ class TestDrillHook:
         self.db_hook = TestDrillHook
 
     @pytest.mark.parametrize(
-        "host, port, conn_type, extra_dejson, expected_uri",
+        ("host", "port", "conn_type", "extra_dejson", "expected_uri"),
         [
             (
                 "host",
@@ -191,3 +191,40 @@ class TestDrillHook:
         db_hook = self.db_hook()
         with pytest.raises(NotImplementedError, match=r"There is no INSERT statement in Drill."):
             db_hook.insert_rows(table="my_table", rows=[("a",)])
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    def test_run_hook_lineage(self, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook().run(sql)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+        assert call_kw["cur"] is self.cur
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df")
+    def test_get_df_hook_lineage(self, mock_get_pandas_df, mock_send_lineage):
+        sql = "SELECT 1"
+        self.db_hook().get_df(sql, df_type="pandas")
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] is None
+
+    @patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook._get_pandas_df_by_chunks")
+    def test_get_df_by_chunks_hook_lineage(self, mock_get_pandas_df_by_chunks, mock_send_lineage):
+        sql = "SELECT 1"
+        parameters = ("x",)
+        self.db_hook().get_df_by_chunks(sql, parameters=parameters, chunksize=1)
+
+        mock_send_lineage.assert_called_once()
+        call_kw = mock_send_lineage.call_args.kwargs
+        assert call_kw["context"] is not None
+        assert call_kw["sql"] == sql
+        assert call_kw["sql_parameters"] == parameters

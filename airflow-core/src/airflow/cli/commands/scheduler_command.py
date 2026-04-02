@@ -23,21 +23,26 @@ from argparse import Namespace
 from contextlib import contextmanager
 from multiprocessing import Process
 
-from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
+from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
 
 log = logging.getLogger(__name__)
 
 
+@enable_memray_trace(component=MemrayTraceComponents.scheduler)
 def _run_scheduler_job(args) -> None:
-    job_runner = SchedulerJobRunner(job=Job(), num_runs=args.num_runs)
+    job_runner = SchedulerJobRunner(
+        job=Job(),
+        num_runs=args.num_runs,
+        only_idle=args.only_idle,
+    )
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
     with _serve_logs(args.skip_serve_logs), _serve_health_check(enable_health_check):
         run_job(job=job_runner.job, execute_callable=job_runner._execute)
@@ -47,7 +52,16 @@ def _run_scheduler_job(args) -> None:
 @providers_configuration_loaded
 def scheduler(args: Namespace):
     """Start Airflow Scheduler."""
-    print(settings.HEADER)
+    cli_utils.print_banner()
+
+    if args.only_idle and args.num_runs <= 0:
+        raise SystemExit("The --only-idle flag requires --num-runs to be set to a positive number.")
+
+    if cli_utils.should_enable_hot_reload(args):
+        from airflow.cli.hot_reload import run_with_reloader
+
+        run_with_reloader(lambda: _run_scheduler_job(args), process_name="scheduler")
+        return
 
     run_command_with_daemon_option(
         args=args,
@@ -62,9 +76,9 @@ def _serve_logs(skip_serve_logs: bool = False):
     from airflow.utils.serve_logs import serve_logs
 
     sub_proc = None
-    executor_class, _ = ExecutorLoader.import_default_executor_cls()
-    if executor_class.serve_logs:
-        if skip_serve_logs is False:
+    if skip_serve_logs is False:
+        executor_class, _ = ExecutorLoader.import_default_executor_cls()
+        if executor_class.serve_logs:
             sub_proc = Process(target=serve_logs)
             sub_proc.start()
     try:

@@ -23,17 +23,18 @@ import { LuFileWarning } from "react-icons/lu";
 import { useImportErrorServiceGetImportErrors } from "openapi/queries/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
+import { StatsCard } from "src/components/StatsCard";
 
 import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
-import { StatsCard } from "./StatsCard";
 
 export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { t: translate } = useTranslation("dashboard");
+  const { i18n, t: translate } = useTranslation("dashboard");
 
-  const { data, error, isLoading } = useImportErrorServiceGetImportErrors();
+  const isRTL = i18n.dir() === "rtl";
+
+  const { data, error, isLoading } = useImportErrorServiceGetImportErrors({ limit: 1 });
   const importErrorsCount = data?.total_entries ?? 0;
-  const importErrors = data?.import_errors ?? [];
 
   if (isLoading) {
     return <Skeleton height="9" width="225px" />;
@@ -54,7 +55,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           onClick={onOpen}
           title={translate("importErrors.dagImportError", { count: importErrorsCount })}
         >
-          <LuFileWarning size="0.5rem" />
+          <LuFileWarning size={8} />
           {importErrorsCount}
         </StateBadge>
       ) : (
@@ -63,11 +64,12 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           count={importErrorsCount}
           icon={<LuFileWarning />}
           isLoading={isLoading}
+          isRTL={isRTL}
           label={translate("importErrors.dagImportError", { count: importErrorsCount })}
           onClick={onOpen}
         />
       )}
-      <DAGImportErrorsModal importErrors={importErrors} onClose={onClose} open={open} />
+      <DAGImportErrorsModal onClose={onClose} open={open} />
     </Box>
   );
 };

@@ -15,7 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Connect your project to Gitpod
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -125,4 +127,4 @@ To start Airflow in development mode:
 Next Steps
 ---------
 
-For typical development tasks, refer to the `Quick Start Guide <../03_contributors_quick_start.rst>`_.
+For typical development tasks, refer to the `Quick Start Guide <../03b_contributors_quick_start_seasoned_developers.rst>`_.

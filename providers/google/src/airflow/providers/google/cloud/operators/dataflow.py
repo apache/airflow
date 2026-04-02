@@ -27,8 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 from googleapiclient.errors import HttpError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
@@ -43,7 +42,7 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CheckJobRunning(Enum):
@@ -132,6 +131,7 @@ class DataflowConfiguration:
         Supported only by:
         :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
     :param service_account: Run the job as a specific service account, instead of the default GCE robot.
+    :param max_num_workers: Maximum amount of workers that will be used for Dataflow job execution.
     """
 
     template_fields: Sequence[str] = ("job_name", "location")
@@ -152,6 +152,7 @@ class DataflowConfiguration:
         multiple_jobs: bool | None = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
         service_account: str | None = None,
+        max_num_workers: int | None = None,
     ) -> None:
         self.job_name = job_name
         self.append_job_name = append_job_name
@@ -166,6 +167,7 @@ class DataflowConfiguration:
         self.multiple_jobs = multiple_jobs
         self.check_if_running = check_if_running
         self.service_account = service_account
+        self.max_num_workers = max_num_workers
 
 
 class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
@@ -583,6 +585,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     def hook(self) -> DataflowHook:
         hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
+            poll_sleep=self.poll_sleep,
             drain_pipeline=self.drain_pipeline,
             cancel_timeout=self.cancel_timeout,
             wait_until_finished=self.wait_until_finished,

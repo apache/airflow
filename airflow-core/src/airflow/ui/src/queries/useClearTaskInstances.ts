@@ -22,14 +22,16 @@ import { useTranslation } from "react-i18next";
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
+  UseGanttServiceGetGanttDataKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
+  useTaskInstanceServiceGetTaskInstancesKey,
   useTaskInstanceServicePostClearTaskInstances,
-  UseGridServiceGetGridRunsKeyFn,
-  UseGridServiceGetGridTiSummariesKeyFn,
 } from "openapi/queries";
+import type { ApiError } from "openapi/requests";
 import type { ClearTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
+import { gridQueryKeys } from "./gridViewQueryKeys";
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
 import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
 
@@ -45,10 +47,41 @@ export const useClearTaskInstances = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation("dags");
 
-  const onError = (error: Error) => {
+  const onError = (error: unknown) => {
+    let detail: string;
+    let description: string;
+
+    // Get status from error
+    const status =
+      (error as { status?: number }).status ?? (error as { response?: { status?: number } }).response?.status;
+
+    // Skip 403 errors as they are handled by MutationCache
+    if (status === 403) {
+      return;
+    }
+
+    // Narrow the type safely
+    if (typeof error === "object" && error !== null) {
+      const apiError = error as ApiError;
+
+      description = typeof apiError.message === "string" ? apiError.message : "";
+      const apiErrorWithDetail = apiError as unknown as { body?: { detail?: unknown } };
+
+      detail = typeof apiErrorWithDetail.body?.detail === "string" ? apiErrorWithDetail.body.detail : "";
+
+      if (detail.includes("AirflowClearRunningTaskException")) {
+        description = detail;
+      }
+    } else {
+      // Fallback for completely unknown errors
+      description = translate("common:error.defaultMessage");
+    }
+
     toaster.create({
-      description: error.message,
-      title: translate("dags:runAndTaskActions.clear.error", { type: translate("taskInstance_one") }),
+      description,
+      title: translate("dags:runAndTaskActions.clear.error", {
+        type: translate("common:taskInstance_one"),
+      }),
       type: "error",
     });
   };
@@ -82,13 +115,16 @@ export const useClearTaskInstances = ({
       ...taskInstanceKeys,
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
+      [useTaskInstanceServiceGetTaskInstancesKey],
       [useClearTaskInstancesDryRunKey, dagId],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
-      UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
-      UseGridServiceGetGridTiSummariesKeyFn({ dagId, runId: dagRunId }, [{ dagId, runId: dagRunId }]),
+      UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all([
+      ...gridQueryKeys(variables.dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    ]);
 
     onSuccessConfirm();
   };
@@ -96,5 +132,8 @@ export const useClearTaskInstances = ({
   return useTaskInstanceServicePostClearTaskInstances({
     onError,
     onSuccess,
+    // This function uses the mutation function of React
+    // For showing the error toast immediately, set retry to 0
+    retry: 0,
   });
 };

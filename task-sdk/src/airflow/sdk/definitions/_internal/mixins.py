@@ -31,8 +31,6 @@ if TYPE_CHECKING:
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
-# TODO: Should this all just live on DAGNode?
-
 
 class DependencyMixin:
     """Mixing implementing common dependency setting methods like >> and <<."""
@@ -131,7 +129,7 @@ class ResolveMixin:
         """
         Find underlying XCom references this contains.
 
-        This is used by the DAG parser to recursively find task dependencies.
+        This is used by the Dag parser to recursively find task dependencies.
 
         :meta private:
         """

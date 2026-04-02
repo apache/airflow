@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetDagReportsData, GetDagReportsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, UpdateMappedTiHitlDetailData, UpdateMappedTiHitlDetailResponse, GetMappedTiHitlDetailData, GetMappedTiHitlDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, RefreshData, RefreshResponse, GetAuthMenusResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetCalendarData, GetCalendarResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailTryDetailData, GetHitlDetailTryDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GenerateTokenData, GenerateTokenResponse2, GetPartitionedDagRunsData, GetPartitionedDagRunsResponse, GetPendingPartitionedDagRunData, GetPendingPartitionedDagRunResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, GetDeadlinesData, GetDeadlinesResponse, GetDagDeadlineAlertsData, GetDagDeadlineAlertsResponse, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesStreamData, GetGridTiSummariesStreamResponse, GetGanttDataData, GetGanttDataResponse, GetCalendarData, GetCalendarResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -12,11 +12,11 @@ export class AssetService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.dagIds
      * @param data.onlyActive
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
      * @returns AssetCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -48,8 +48,8 @@ export class AssetService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.orderBy
+     * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name`
      * @returns AssetAliasCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -102,14 +102,17 @@ export class AssetService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
      * @param data.assetId
      * @param data.sourceDagId
      * @param data.sourceTaskId
      * @param data.sourceRunId
      * @param data.sourceMapIndex
+     * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.timestampGte
+     * @param data.timestampGt
      * @param data.timestampLte
+     * @param data.timestampLt
      * @returns AssetEventCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -126,8 +129,11 @@ export class AssetService {
                 source_task_id: data.sourceTaskId,
                 source_run_id: data.sourceRunId,
                 source_map_index: data.sourceMapIndex,
+                name_pattern: data.namePattern,
                 timestamp_gte: data.timestampGte,
-                timestamp_lte: data.timestampLte
+                timestamp_gt: data.timestampGt,
+                timestamp_lte: data.timestampLte,
+                timestamp_lt: data.timestampLt
             },
             errors: {
                 401: 'Unauthorized',
@@ -166,6 +172,7 @@ export class AssetService {
      * Materialize an asset by triggering a DAG run that produces it.
      * @param data The data for the request.
      * @param data.assetId
+     * @param data.requestBody
      * @returns DAGRunResponse Successful Response
      * @throws ApiError
      */
@@ -176,7 +183,10 @@ export class AssetService {
             path: {
                 asset_id: data.assetId
             },
+            body: data.requestBody,
+            mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -208,7 +218,6 @@ export class AssetService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
-                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -288,7 +297,6 @@ export class AssetService {
             errors: {
                 401: 'Unauthorized',
                 403: 'Forbidden',
-                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
@@ -412,7 +420,7 @@ export class BackfillService {
      * @param data.dagId
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      * @returns BackfillCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -448,6 +456,7 @@ export class BackfillService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -580,7 +589,7 @@ export class BackfillService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      * @param data.dagId
      * @param data.active
      * @returns BackfillCollectionResponse Successful Response
@@ -693,8 +702,8 @@ export class ConnectionService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
-     * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id, team_name, connection_id`
+     * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @returns ConnectionCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -971,20 +980,40 @@ export class DagRunService {
      * @param data.limit
      * @param data.offset
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
+     * @param data.durationGte
+     * @param data.durationGt
+     * @param data.durationLte
+     * @param data.durationLt
      * @param data.updatedAtGte
+     * @param data.updatedAtGt
      * @param data.updatedAtLte
+     * @param data.updatedAtLt
+     * @param data.confContains
      * @param data.runType
      * @param data.state
-     * @param data.orderBy
-     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagVersion
+     * @param data.bundleVersion
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.partitionKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.consumingAssetPattern Filter by consuming asset name or URI using pattern matching
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -999,20 +1028,40 @@ export class DagRunService {
                 limit: data.limit,
                 offset: data.offset,
                 run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
                 logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
+                duration_gte: data.durationGte,
+                duration_gt: data.durationGt,
+                duration_lte: data.durationLte,
+                duration_lt: data.durationLt,
                 updated_at_gte: data.updatedAtGte,
+                updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
+                updated_at_lt: data.updatedAtLt,
+                conf_contains: data.confContains,
                 run_type: data.runType,
                 state: data.state,
+                dag_version: data.dagVersion,
+                bundle_version: data.bundleVersion,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
-                triggering_user_name_pattern: data.triggeringUserNamePattern
+                triggering_user_name_pattern: data.triggeringUserNamePattern,
+                dag_id_pattern: data.dagIdPattern,
+                partition_key_pattern: data.partitionKeyPattern,
+                consuming_asset_pattern: data.consumingAssetPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -1054,7 +1103,7 @@ export class DagRunService {
     
     /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
-     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -1116,7 +1165,7 @@ export class DagRunService {
 export class ExperimentalService {
     /**
      * Experimental: Wait for a dag run to complete, and return task results if requested.
-     * 🚧 This is an experimental endpoint and may change or be removed without notice.
+     * 🚧 This is an experimental endpoint and may change or be removed without notice.Successful response are streamed as newline-delimited JSON (NDJSON). Each line is a JSON object representing the DAG run state.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.dagRunId
@@ -1213,33 +1262,6 @@ export class DagStatsService {
     
 }
 
-export class DagReportService {
-    /**
-     * Get Dag Reports
-     * Get DAG report.
-     * @param data The data for the request.
-     * @param data.subdir
-     * @returns unknown Successful Response
-     * @throws ApiError
-     */
-    public static getDagReports(data: GetDagReportsData): CancelablePromise<GetDagReportsResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/dagReports',
-            query: {
-                subdir: data.subdir
-            },
-            errors: {
-                400: 'Bad Request',
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-}
-
 export class ConfigService {
     /**
      * Get Config
@@ -1326,7 +1348,7 @@ export class DagWarningService {
      * @param data.warningType
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
      * @returns DAGWarningCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1361,20 +1383,28 @@ export class DagService {
      * @param data.tags
      * @param data.tagsMatchMode
      * @param data.owners
-     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.excludeStale
      * @param data.paused
+     * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
+     * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+     * @param data.assetDependency Filter Dags by asset dependency (name or URI)
      * @param data.dagRunStartDateGte
+     * @param data.dagRunStartDateGt
      * @param data.dagRunStartDateLte
+     * @param data.dagRunStartDateLt
      * @param data.dagRunEndDateGte
+     * @param data.dagRunEndDateGt
      * @param data.dagRunEndDateLte
+     * @param data.dagRunEndDateLt
      * @param data.dagRunState
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
      * @param data.isFavorite
+     * @param data.timetableType
      * @returns DAGCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1392,16 +1422,24 @@ export class DagService {
                 dag_display_name_pattern: data.dagDisplayNamePattern,
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
+                has_import_errors: data.hasImportErrors,
                 last_dag_run_state: data.lastDagRunState,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
+                has_asset_schedule: data.hasAssetSchedule,
+                asset_dependency: data.assetDependency,
                 dag_run_start_date_gte: data.dagRunStartDateGte,
+                dag_run_start_date_gt: data.dagRunStartDateGt,
                 dag_run_start_date_lte: data.dagRunStartDateLte,
+                dag_run_start_date_lt: data.dagRunStartDateLt,
                 dag_run_end_date_gte: data.dagRunEndDateGte,
+                dag_run_end_date_gt: data.dagRunEndDateGt,
                 dag_run_end_date_lte: data.dagRunEndDateLte,
+                dag_run_end_date_lt: data.dagRunEndDateLt,
                 dag_run_state: data.dagRunState,
                 order_by: data.orderBy,
-                is_favorite: data.isFavorite
+                is_favorite: data.isFavorite,
+                timetable_type: data.timetableType
             },
             errors: {
                 401: 'Unauthorized',
@@ -1422,7 +1460,7 @@ export class DagService {
      * @param data.tags
      * @param data.tagsMatchMode
      * @param data.owners
-     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.excludeStale
      * @param data.paused
      * @returns DAGCollectionResponse Successful Response
@@ -1617,8 +1655,8 @@ export class DagService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
-     * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
+     * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @returns DAGTagCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1651,15 +1689,19 @@ export class DagService {
      * @param data.tagsMatchMode
      * @param data.owners
      * @param data.dagIds
-     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.excludeStale
      * @param data.paused
+     * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
      * @param data.isFavorite
+     * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
+     * @param data.assetDependency Filter Dags by asset dependency (name or URI)
+     * @param data.hasPendingActions
      * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1679,11 +1721,15 @@ export class DagService {
                 dag_display_name_pattern: data.dagDisplayNamePattern,
                 exclude_stale: data.excludeStale,
                 paused: data.paused,
+                has_import_errors: data.hasImportErrors,
                 last_dag_run_state: data.lastDagRunState,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
                 order_by: data.orderBy,
-                is_favorite: data.isFavorite
+                is_favorite: data.isFavorite,
+                has_asset_schedule: data.hasAssetSchedule,
+                asset_dependency: data.assetDependency,
+                has_pending_actions: data.hasPendingActions
             },
             errors: {
                 422: 'Validation Error'
@@ -1745,7 +1791,7 @@ export class EventLogService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`
      * @param data.dagId
      * @param data.taskId
      * @param data.runId
@@ -1757,6 +1803,11 @@ export class EventLogService {
      * @param data.includedEvents
      * @param data.before
      * @param data.after
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.ownerPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.eventPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @returns EventLogCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1778,7 +1829,12 @@ export class EventLogService {
                 excluded_events: data.excludedEvents,
                 included_events: data.includedEvents,
                 before: data.before,
-                after: data.after
+                after: data.after,
+                dag_id_pattern: data.dagIdPattern,
+                task_id_pattern: data.taskIdPattern,
+                run_id_pattern: data.runIdPattern,
+                owner_pattern: data.ownerPattern,
+                event_pattern: data.eventPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -1933,7 +1989,7 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static deleteTaskInstance(data: DeleteTaskInstanceData): CancelablePromise<DeleteTaskInstanceResponse> {
@@ -1965,25 +2021,43 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.updatedAtGte
+     * @param data.updatedAtGt
      * @param data.updatedAtLte
+     * @param data.updatedAtLt
      * @param data.durationGte
+     * @param data.durationGt
      * @param data.durationLte
+     * @param data.durationLt
      * @param data.state
      * @param data.pool
+     * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.queue
+     * @param data.queueNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.executor
      * @param data.versionNumber
+     * @param data.tryNumber
+     * @param data.operator
+     * @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.mapIndex
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1998,22 +2072,40 @@ export class TaskInstanceService {
             },
             query: {
                 run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
                 logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 updated_at_gte: data.updatedAtGte,
+                updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
+                updated_at_lt: data.updatedAtLt,
                 duration_gte: data.durationGte,
+                duration_gt: data.durationGt,
                 duration_lte: data.durationLte,
+                duration_lt: data.durationLt,
                 state: data.state,
                 pool: data.pool,
+                pool_name_pattern: data.poolNamePattern,
                 queue: data.queue,
+                queue_name_pattern: data.queueNamePattern,
                 executor: data.executor,
                 version_number: data.versionNumber,
+                try_number: data.tryNumber,
+                operator: data.operator,
+                operator_name_pattern: data.operatorNamePattern,
+                map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy
@@ -2230,26 +2322,47 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.updatedAtGte
+     * @param data.updatedAtGt
      * @param data.updatedAtLte
+     * @param data.updatedAtLt
      * @param data.durationGte
+     * @param data.durationGt
      * @param data.durationLte
-     * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.durationLt
+     * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.taskGroupId Filter by exact task group ID. Returns all tasks within the specified task group.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.pool
+     * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.queue
+     * @param data.queueNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @param data.executor
      * @param data.versionNumber
+     * @param data.tryNumber
+     * @param data.operator
+     * @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.mapIndex
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2264,28 +2377,50 @@ export class TaskInstanceService {
             query: {
                 task_id: data.taskId,
                 run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
                 run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
                 logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 updated_at_gte: data.updatedAtGte,
+                updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
+                updated_at_lt: data.updatedAtLt,
                 duration_gte: data.durationGte,
+                duration_gt: data.durationGt,
                 duration_lte: data.durationLte,
+                duration_lt: data.durationLt,
                 task_display_name_pattern: data.taskDisplayNamePattern,
+                task_group_id: data.taskGroupId,
+                dag_id_pattern: data.dagIdPattern,
+                run_id_pattern: data.runIdPattern,
                 state: data.state,
                 pool: data.pool,
+                pool_name_pattern: data.poolNamePattern,
                 queue: data.queue,
+                queue_name_pattern: data.queueNamePattern,
                 executor: data.executor,
                 version_number: data.versionNumber,
+                try_number: data.tryNumber,
+                operator: data.operator,
+                operator_name_pattern: data.operatorNamePattern,
+                map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy
             },
             errors: {
+                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
@@ -2438,6 +2573,7 @@ export class TaskInstanceService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -2596,6 +2732,163 @@ export class TaskInstanceService {
         });
     }
     
+    /**
+     * Update Hitl Detail
+     * Update a Human-in-the-loop detail.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @param data.requestBody
+     * @returns HITLDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public static updateHitlDetail(data: UpdateHitlDetailData): CancelablePromise<UpdateHitlDetailResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                map_index: data.mapIndex
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                409: 'Conflict',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Hitl Detail
+     * Get a Human-in-the-loop detail of a specific task instance.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @returns HITLDetail Successful Response
+     * @throws ApiError
+     */
+    public static getHitlDetail(data: GetHitlDetailData): CancelablePromise<GetHitlDetailResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                map_index: data.mapIndex
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Hitl Detail Try Detail
+     * Get a Human-in-the-loop detail of a specific task instance.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskId
+     * @param data.mapIndex
+     * @param data.tryNumber
+     * @returns HITLDetailHistory Successful Response
+     * @throws ApiError
+     */
+    public static getHitlDetailTryDetail(data: GetHitlDetailTryDetailData): CancelablePromise<GetHitlDetailTryDetailResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails/tries/{try_number}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_id: data.taskId,
+                map_index: data.mapIndex,
+                try_number: data.tryNumber
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Hitl Details
+     * Get Human-in-the-loop details.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.limit
+     * @param data.offset
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.taskId
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.mapIndex
+     * @param data.state
+     * @param data.responseReceived
+     * @param data.respondedByUserId
+     * @param data.respondedByUserName
+     * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.createdAtGte
+     * @param data.createdAtGt
+     * @param data.createdAtLte
+     * @param data.createdAtLt
+     * @returns HITLDetailCollection Successful Response
+     * @throws ApiError
+     */
+    public static getHitlDetails(data: GetHitlDetailsData): CancelablePromise<GetHitlDetailsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/hitlDetails',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId
+            },
+            query: {
+                limit: data.limit,
+                offset: data.offset,
+                order_by: data.orderBy,
+                dag_id_pattern: data.dagIdPattern,
+                task_id: data.taskId,
+                task_id_pattern: data.taskIdPattern,
+                map_index: data.mapIndex,
+                state: data.state,
+                response_received: data.responseReceived,
+                responded_by_user_id: data.respondedByUserId,
+                responded_by_user_name: data.respondedByUserName,
+                subject_search: data.subjectSearch,
+                body_search: data.bodySearch,
+                created_at_gte: data.createdAtGte,
+                created_at_gt: data.createdAtGt,
+                created_at_lte: data.createdAtLte,
+                created_at_lt: data.createdAtLt
+            },
+            errors: {
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
 }
 
 export class ImportErrorService {
@@ -2629,7 +2922,8 @@ export class ImportErrorService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
+     * @param data.filenamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @returns ImportErrorCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2640,7 +2934,8 @@ export class ImportErrorService {
             query: {
                 limit: data.limit,
                 offset: data.offset,
-                order_by: data.orderBy
+                order_by: data.orderBy,
+                filename_pattern: data.filenamePattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -2659,12 +2954,16 @@ export class JobService {
      * @param data The data for the request.
      * @param data.isAlive
      * @param data.startDateGte
+     * @param data.startDateGt
      * @param data.startDateLte
+     * @param data.startDateLt
      * @param data.endDateGte
+     * @param data.endDateGt
      * @param data.endDateLte
+     * @param data.endDateLt
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dag_id, state, job_type, start_date, end_date, latest_heartbeat, executor_class, hostname, unixname`
      * @param data.jobState
      * @param data.jobType
      * @param data.hostname
@@ -2679,9 +2978,13 @@ export class JobService {
             query: {
                 is_alive: data.isAlive,
                 start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
                 start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
                 end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt,
                 limit: data.limit,
                 offset: data.offset,
                 order_by: data.orderBy,
@@ -2832,8 +3135,8 @@ export class PoolService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
-     * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, pool, name`
+     * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @returns PoolCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3006,6 +3309,41 @@ export class XcomService {
     }
     
     /**
+     * Delete Xcom Entry
+     * Delete an XCom entry.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.taskId
+     * @param data.dagRunId
+     * @param data.xcomKey
+     * @param data.mapIndex
+     * @returns void Successful Response
+     * @throws ApiError
+     */
+    public static deleteXcomEntry(data: DeleteXcomEntryData): CancelablePromise<DeleteXcomEntryResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}',
+            path: {
+                dag_id: data.dagId,
+                task_id: data.taskId,
+                dag_run_id: data.dagRunId,
+                xcom_key: data.xcomKey
+            },
+            query: {
+                map_index: data.mapIndex
+            },
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
      * Get Xcom Entries
      * Get all XCom entries.
      *
@@ -3018,6 +3356,19 @@ export class XcomService {
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
+     * @param data.xcomKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.dagDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
+     * @param data.mapIndexFilter
+     * @param data.logicalDateGte
+     * @param data.logicalDateGt
+     * @param data.logicalDateLte
+     * @param data.logicalDateLt
+     * @param data.runAfterGte
+     * @param data.runAfterGt
+     * @param data.runAfterLte
+     * @param data.runAfterLt
      * @returns XComCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3034,7 +3385,20 @@ export class XcomService {
                 xcom_key: data.xcomKey,
                 map_index: data.mapIndex,
                 limit: data.limit,
-                offset: data.offset
+                offset: data.offset,
+                xcom_key_pattern: data.xcomKeyPattern,
+                dag_display_name_pattern: data.dagDisplayNamePattern,
+                run_id_pattern: data.runIdPattern,
+                task_id_pattern: data.taskIdPattern,
+                map_index_filter: data.mapIndexFilter,
+                logical_date_gte: data.logicalDateGte,
+                logical_date_gt: data.logicalDateGt,
+                logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
+                run_after_gte: data.runAfterGte,
+                run_after_gt: data.runAfterGt,
+                run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt
             },
             errors: {
                 400: 'Bad Request',
@@ -3226,8 +3590,8 @@ export class VariableService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
-     * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted, team_name`
+     * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @returns VariableCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3302,7 +3666,7 @@ export class DagParsingService {
      * Request re-parsing a DAG file.
      * @param data The data for the request.
      * @param data.fileToken
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static reparseDagFile(data: ReparseDagFileData): CancelablePromise<ReparseDagFileResponse> {
@@ -3362,7 +3726,7 @@ export class DagVersionService {
      * @param data.versionNumber
      * @param data.bundleName
      * @param data.bundleVersion
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, version_number, bundle_name, bundle_version`
      * @returns DAGVersionCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3385,180 +3749,6 @@ export class DagVersionService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-}
-
-export class HumanInTheLoopService {
-    /**
-     * Update Hitl Detail
-     * Update a Human-in-the-loop detail.
-     * @param data The data for the request.
-     * @param data.dagId
-     * @param data.dagRunId
-     * @param data.taskId
-     * @param data.requestBody
-     * @returns HITLDetailResponse Successful Response
-     * @throws ApiError
-     */
-    public static updateHitlDetail(data: UpdateHitlDetailData): CancelablePromise<UpdateHitlDetailResponse> {
-        return __request(OpenAPI, {
-            method: 'PATCH',
-            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}',
-            path: {
-                dag_id: data.dagId,
-                dag_run_id: data.dagRunId,
-                task_id: data.taskId
-            },
-            body: data.requestBody,
-            mediaType: 'application/json',
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                404: 'Not Found',
-                409: 'Conflict',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Get Hitl Detail
-     * Get a Human-in-the-loop detail of a specific task instance.
-     * @param data The data for the request.
-     * @param data.dagId
-     * @param data.dagRunId
-     * @param data.taskId
-     * @returns HITLDetail Successful Response
-     * @throws ApiError
-     */
-    public static getHitlDetail(data: GetHitlDetailData): CancelablePromise<GetHitlDetailResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}',
-            path: {
-                dag_id: data.dagId,
-                dag_run_id: data.dagRunId,
-                task_id: data.taskId
-            },
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                404: 'Not Found',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Update Mapped Ti Hitl Detail
-     * Update a Human-in-the-loop detail.
-     * @param data The data for the request.
-     * @param data.dagId
-     * @param data.dagRunId
-     * @param data.taskId
-     * @param data.mapIndex
-     * @param data.requestBody
-     * @returns HITLDetailResponse Successful Response
-     * @throws ApiError
-     */
-    public static updateMappedTiHitlDetail(data: UpdateMappedTiHitlDetailData): CancelablePromise<UpdateMappedTiHitlDetailResponse> {
-        return __request(OpenAPI, {
-            method: 'PATCH',
-            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
-            path: {
-                dag_id: data.dagId,
-                dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                map_index: data.mapIndex
-            },
-            body: data.requestBody,
-            mediaType: 'application/json',
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                404: 'Not Found',
-                409: 'Conflict',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Get Mapped Ti Hitl Detail
-     * Get a Human-in-the-loop detail of a specific task instance.
-     * @param data The data for the request.
-     * @param data.dagId
-     * @param data.dagRunId
-     * @param data.taskId
-     * @param data.mapIndex
-     * @returns HITLDetail Successful Response
-     * @throws ApiError
-     */
-    public static getMappedTiHitlDetail(data: GetMappedTiHitlDetailData): CancelablePromise<GetMappedTiHitlDetailResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/hitlDetails/{dag_id}/{dag_run_id}/{task_id}/{map_index}',
-            path: {
-                dag_id: data.dagId,
-                dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                map_index: data.mapIndex
-            },
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                404: 'Not Found',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Get Hitl Details
-     * Get Human-in-the-loop details.
-     * @param data The data for the request.
-     * @param data.limit
-     * @param data.offset
-     * @param data.orderBy
-     * @param data.dagId
-     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.dagRunId
-     * @param data.taskId
-     * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.state
-     * @param data.responseReceived
-     * @param data.userId
-     * @param data.subjectSearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.bodySearch SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @returns HITLDetailCollection Successful Response
-     * @throws ApiError
-     */
-    public static getHitlDetails(data: GetHitlDetailsData = {}): CancelablePromise<GetHitlDetailsResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/hitlDetails/',
-            query: {
-                limit: data.limit,
-                offset: data.offset,
-                order_by: data.orderBy,
-                dag_id: data.dagId,
-                dag_id_pattern: data.dagIdPattern,
-                dag_run_id: data.dagRunId,
-                task_id: data.taskId,
-                task_id_pattern: data.taskIdPattern,
-                state: data.state,
-                response_received: data.responseReceived,
-                user_id: data.userId,
-                subject_search: data.subjectSearch,
-                body_search: data.bodySearch
-            },
-            errors: {
-                401: 'Unauthorized',
-                403: 'Forbidden',
                 422: 'Validation Error'
             }
         });
@@ -3623,43 +3813,15 @@ export class LoginService {
     /**
      * Logout
      * Logout the user.
-     * @param data The data for the request.
-     * @param data.next
      * @returns unknown Successful Response
      * @throws ApiError
      */
-    public static logout(data: LogoutData = {}): CancelablePromise<LogoutResponse> {
+    public static logout(): CancelablePromise<LogoutResponse> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v2/auth/logout',
-            query: {
-                next: data.next
-            },
             errors: {
-                307: 'Temporary Redirect',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Refresh
-     * Refresh the authentication token.
-     * @param data The data for the request.
-     * @param data.next
-     * @returns unknown Successful Response
-     * @throws ApiError
-     */
-    public static refresh(data: RefreshData = {}): CancelablePromise<RefreshResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/auth/refresh',
-            query: {
-                next: data.next
-            },
-            errors: {
-                307: 'Temporary Redirect',
-                422: 'Validation Error'
+                307: 'Temporary Redirect'
             }
         });
     }
@@ -3679,6 +3841,88 @@ export class AuthLinksService {
         });
     }
     
+    /**
+     * Get Current User Info
+     * Convienently get the current authenticated user information.
+     * @returns AuthenticatedMeResponse Successful Response
+     * @throws ApiError
+     */
+    public static getCurrentUserInfo(): CancelablePromise<GetCurrentUserInfoResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/auth/me'
+        });
+    }
+    
+    /**
+     * Generate Token
+     * Generate a JWT token for the authenticated user.
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns GenerateTokenResponse Successful Response
+     * @throws ApiError
+     */
+    public static generateToken(data: GenerateTokenData): CancelablePromise<GenerateTokenResponse2> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/ui/auth/token',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+}
+
+export class PartitionedDagRunService {
+    /**
+     * Get Partitioned Dag Runs
+     * Return PartitionedDagRuns. Filter by dag_id and/or has_created_dag_run_id.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.hasCreatedDagRunId
+     * @returns PartitionedDagRunCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static getPartitionedDagRuns(data: GetPartitionedDagRunsData = {}): CancelablePromise<GetPartitionedDagRunsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/partitioned_dag_runs',
+            query: {
+                dag_id: data.dagId,
+                has_created_dag_run_id: data.hasCreatedDagRunId
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Pending Partitioned Dag Run
+     * Return full details for pending PartitionedDagRun.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.partitionKey
+     * @returns PartitionedDagRunDetailResponse Successful Response
+     * @throws ApiError
+     */
+    public static getPendingPartitionedDagRun(data: GetPendingPartitionedDagRunData): CancelablePromise<GetPendingPartitionedDagRunResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}',
+            path: {
+                dag_id: data.dagId,
+                partition_key: data.partitionKey
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
 }
 
 export class DependenciesService {
@@ -3687,6 +3931,7 @@ export class DependenciesService {
      * Dependencies graph.
      * @param data The data for the request.
      * @param data.nodeId
+     * @param data.dependencyType
      * @returns BaseGraphResponse Successful Response
      * @throws ApiError
      */
@@ -3695,7 +3940,8 @@ export class DependenciesService {
             method: 'GET',
             url: '/ui/dependencies',
             query: {
-                node_id: data.nodeId
+                node_id: data.nodeId,
+                dependency_type: data.dependencyType
             },
             errors: {
                 404: 'Not Found',
@@ -3746,6 +3992,93 @@ export class DashboardService {
     
 }
 
+export class DeadlinesService {
+    /**
+     * Get Deadlines
+     * Get deadlines for a DAG run.
+     *
+     * This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
+     * DAGs and DAG runs.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.limit
+     * @param data.offset
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
+     * @param data.missed
+     * @param data.deadlineTimeGte
+     * @param data.deadlineTimeGt
+     * @param data.deadlineTimeLte
+     * @param data.deadlineTimeLt
+     * @param data.lastUpdatedAtGte
+     * @param data.lastUpdatedAtGt
+     * @param data.lastUpdatedAtLte
+     * @param data.lastUpdatedAtLt
+     * @returns DeadlineCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDeadlines(data: GetDeadlinesData): CancelablePromise<GetDeadlinesResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/deadlines',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId
+            },
+            query: {
+                limit: data.limit,
+                offset: data.offset,
+                order_by: data.orderBy,
+                missed: data.missed,
+                deadline_time_gte: data.deadlineTimeGte,
+                deadline_time_gt: data.deadlineTimeGt,
+                deadline_time_lte: data.deadlineTimeLte,
+                deadline_time_lt: data.deadlineTimeLt,
+                last_updated_at_gte: data.lastUpdatedAtGte,
+                last_updated_at_gt: data.lastUpdatedAtGt,
+                last_updated_at_lte: data.lastUpdatedAtLte,
+                last_updated_at_lt: data.lastUpdatedAtLt
+            },
+            errors: {
+                400: 'Bad Request',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Dag Deadline Alerts
+     * Get all deadline alerts defined on a DAG.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.limit
+     * @param data.offset
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+     * @returns DeadlineAlertCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static getDagDeadlineAlerts(data: GetDagDeadlineAlertsData): CancelablePromise<GetDagDeadlineAlertsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/dags/{dag_id}/deadlineAlerts',
+            path: {
+                dag_id: data.dagId
+            },
+            query: {
+                limit: data.limit,
+                offset: data.offset,
+                order_by: data.orderBy
+            },
+            errors: {
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+}
+
 export class StructureService {
     /**
      * Structure Data
@@ -3754,6 +4087,7 @@ export class StructureService {
      * @param data.dagId
      * @param data.includeUpstream
      * @param data.includeDownstream
+     * @param data.depth
      * @param data.root
      * @param data.externalDependencies
      * @param data.versionNumber
@@ -3768,6 +4102,7 @@ export class StructureService {
                 dag_id: data.dagId,
                 include_upstream: data.includeUpstream,
                 include_downstream: data.includeDownstream,
+                depth: data.depth,
                 root: data.root,
                 external_dependencies: data.externalDependencies,
                 version_number: data.versionNumber
@@ -3787,11 +4122,20 @@ export class GridService {
      * Return dag structure for grid view.
      * @param data The data for the request.
      * @param data.dagId
+     * @param data.includeUpstream
+     * @param data.includeDownstream
+     * @param data.depth
+     * @param data.root
      * @param data.offset
      * @param data.limit
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
+     * @param data.runType
+     * @param data.state
+     * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
      */
@@ -3803,11 +4147,20 @@ export class GridService {
                 dag_id: data.dagId
             },
             query: {
+                include_upstream: data.includeUpstream,
+                include_downstream: data.includeDownstream,
+                depth: data.depth,
+                root: data.root,
                 offset: data.offset,
                 limit: data.limit,
                 order_by: data.orderBy,
                 run_after_gte: data.runAfterGte,
-                run_after_lte: data.runAfterLte
+                run_after_gt: data.runAfterGt,
+                run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
+                run_type: data.runType,
+                state: data.state,
+                triggering_user: data.triggeringUser
             },
             errors: {
                 400: 'Bad Request',
@@ -3824,9 +4177,14 @@ export class GridService {
      * @param data.dagId
      * @param data.offset
      * @param data.limit
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
      * @param data.runAfterGte
+     * @param data.runAfterGt
      * @param data.runAfterLte
+     * @param data.runAfterLt
+     * @param data.runType
+     * @param data.state
+     * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
      */
@@ -3842,7 +4200,12 @@ export class GridService {
                 limit: data.limit,
                 order_by: data.orderBy,
                 run_after_gte: data.runAfterGte,
-                run_after_lte: data.runAfterLte
+                run_after_gt: data.runAfterGt,
+                run_after_lte: data.runAfterLte,
+                run_after_lt: data.runAfterLt,
+                run_type: data.runType,
+                state: data.state,
+                triggering_user: data.triggeringUser
             },
             errors: {
                 400: 'Bad Request',
@@ -3853,35 +4216,60 @@ export class GridService {
     }
     
     /**
-     * Get Grid Ti Summaries
-     * Get states for TIs / "groups" of TIs.
+     * Get Grid Ti Summaries Stream
+     * Stream TI summaries for multiple Dag runs as NDJSON (one JSON line per run).
      *
-     * Essentially this is to know what color to put in the squares in the grid.
+     * Each line is a serialized ``GridTISummaries`` object emitted as soon as that
+     * run's task instances have been processed, so the client can render columns
+     * progressively without waiting for all runs to complete.
      *
-     * The tricky part here is that we aggregate the state for groups and mapped tasks.
-     *
-     * We don't add all the TIs for mapped TIs -- we only add one entry for the mapped task and
-     * its state is an aggregate of its TI states.
-     *
-     * And for task groups, we add a "task" for that which is not really a task but is just
-     * an entry that represents the group (so that we can show a filled in box when the group
-     * is not expanded) and its state is an agg of those within it.
+     * The serialized Dag structure is loaded once and reused for all runs that
+     * share the same ``dag_version_id``, avoiding repeated deserialization.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.runIds
+     * @returns string NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
+     * @throws ApiError
+     */
+    public static getGridTiSummariesStream(data: GetGridTiSummariesStreamData): CancelablePromise<GetGridTiSummariesStreamResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/grid/ti_summaries/{dag_id}',
+            path: {
+                dag_id: data.dagId
+            },
+            query: {
+                run_ids: data.runIds
+            },
+            errors: {
+                400: 'Bad Request',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+}
+
+export class GanttService {
+    /**
+     * Get Gantt Data
+     * Get all task instance tries for Gantt chart.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.runId
-     * @returns GridTISummaries Successful Response
+     * @returns GanttResponse Successful Response
      * @throws ApiError
      */
-    public static getGridTiSummaries(data: GetGridTiSummariesData): CancelablePromise<GetGridTiSummariesResponse> {
+    public static getGanttData(data: GetGanttDataData): CancelablePromise<GetGanttDataResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/ui/grid/ti_summaries/{dag_id}/{run_id}',
+            url: '/ui/gantt/{dag_id}/{run_id}',
             path: {
                 dag_id: data.dagId,
                 run_id: data.runId
             },
             errors: {
-                400: 'Bad Request',
                 404: 'Not Found',
                 422: 'Validation Error'
             }
@@ -3898,7 +4286,13 @@ export class CalendarService {
      * @param data.dagId
      * @param data.granularity
      * @param data.logicalDateGte
+     * @param data.logicalDateGt
      * @param data.logicalDateLte
+     * @param data.logicalDateLt
+     * @param data.partitionDateGte
+     * @param data.partitionDateGt
+     * @param data.partitionDateLte
+     * @param data.partitionDateLt
      * @returns CalendarTimeRangeCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3912,7 +4306,40 @@ export class CalendarService {
             query: {
                 granularity: data.granularity,
                 logical_date_gte: data.logicalDateGte,
-                logical_date_lte: data.logicalDateLte
+                logical_date_gt: data.logicalDateGt,
+                logical_date_lte: data.logicalDateLte,
+                logical_date_lt: data.logicalDateLt,
+                partition_date_gte: data.partitionDateGte,
+                partition_date_gt: data.partitionDateGt,
+                partition_date_lte: data.partitionDateLte,
+                partition_date_lt: data.partitionDateLt
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+}
+
+export class TeamsService {
+    /**
+     * List Teams
+     * @param data The data for the request.
+     * @param data.limit
+     * @param data.offset
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
+     * @returns TeamCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static listTeams(data: ListTeamsData = {}): CancelablePromise<ListTeamsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/teams',
+            query: {
+                limit: data.limit,
+                offset: data.offset,
+                order_by: data.orderBy
             },
             errors: {
                 422: 'Validation Error'

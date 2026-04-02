@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
@@ -25,14 +26,14 @@ from airflow.api_fastapi.execution_api.datamodels.variable import (
     VariablePostBody,
     VariableResponse,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
 from airflow.models.variable import Variable
 
 
 async def has_variable_access(
     request: Request,
-    variable_key: str = Path(),
-    token=JWTBearerDep,
+    variable_key: Annotated[str, Path(min_length=1)],
+    token=CurrentTIToken,
 ):
     """Check if the task has access to the variable."""
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
@@ -55,16 +56,19 @@ log = logging.getLogger(__name__)
 
 
 @router.get(
-    "/{variable_key}",
+    "/{variable_key:path}",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def get_variable(variable_key: str) -> VariableResponse:
+def get_variable(
+    variable_key: Annotated[str, Path(min_length=1)],
+    team_name: Annotated[str | None, Depends(get_team_name_dep)],
+) -> VariableResponse:
     """Get an Airflow Variable."""
     try:
-        variable_value = Variable.get(variable_key)
+        variable_value = Variable.get(variable_key, team_name=team_name)
     except KeyError:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -78,27 +82,34 @@ def get_variable(variable_key: str) -> VariableResponse:
 
 
 @router.put(
-    "/{variable_key}",
+    "/{variable_key:path}",
     status_code=status.HTTP_201_CREATED,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def put_variable(variable_key: str, body: VariablePostBody):
+def put_variable(
+    variable_key: Annotated[str, Path(min_length=1)],
+    body: VariablePostBody,
+    team_name: Annotated[str | None, Depends(get_team_name_dep)],
+):
     """Set an Airflow Variable."""
-    Variable.set(key=variable_key, value=body.value, description=body.description)
+    Variable.set(key=variable_key, value=body.value, description=body.description, team_name=team_name)
     return {"message": "Variable successfully set"}
 
 
 @router.delete(
-    "/{variable_key}",
+    "/{variable_key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def delete_variable(variable_key: str):
+def delete_variable(
+    variable_key: Annotated[str, Path(min_length=1)],
+    team_name: Annotated[str | None, Depends(get_team_name_dep)],
+):
     """Delete an Airflow Variable."""
-    Variable.delete(key=variable_key)
+    Variable.delete(key=variable_key, team_name=team_name)

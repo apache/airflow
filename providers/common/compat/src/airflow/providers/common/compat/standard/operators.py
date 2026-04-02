@@ -19,33 +19,63 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat._compat_utils import create_module_getattr
+from airflow.providers.common.compat.version_compat import (
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+)
+
+_IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
+    # Re-export from sdk (which handles Airflow 2.x/3.x fallbacks)
+    "BaseBranchOperator": "airflow.providers.common.compat.sdk",
+    "BaseOperator": "airflow.providers.common.compat.sdk",
+    "BaseAsyncOperator": "airflow.providers.common.compat.sdk",
+    "BranchMixIn": "airflow.providers.common.compat.sdk",
+    "get_current_context": "airflow.providers.common.compat.sdk",
+    "is_async_callable": "airflow.providers.common.compat.sdk",
+    # Standard provider items with direct fallbacks
+    "PythonOperator": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
+    "ShortCircuitOperator": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
+    "_SERIALIZERS": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
+}
+
 if TYPE_CHECKING:
-    from airflow.providers.standard.operators.python import (
-        _SERIALIZERS,
-        PythonOperator,
-        ShortCircuitOperator,
-        get_current_context,
-    )
+    from airflow.sdk.bases.decorator import is_async_callable
+    from airflow.sdk.bases.operator import BaseAsyncOperator
+elif AIRFLOW_V_3_2_PLUS:
+    from airflow.sdk.bases.decorator import is_async_callable
+    from airflow.sdk.bases.operator import BaseAsyncOperator
 else:
-    try:
-        from airflow.providers.standard.operators.python import (
-            _SERIALIZERS,
-            PythonOperator,
-            ShortCircuitOperator,
-            get_current_context,
-        )
-    except ModuleNotFoundError:
-        from airflow.operators.python import (
-            _SERIALIZERS,
-            PythonOperator,
-            ShortCircuitOperator,
-        )
+    if AIRFLOW_V_3_1_PLUS:
+        from airflow.sdk import BaseOperator
+    else:
+        from airflow.models import BaseOperator
 
-    try:
-        from airflow.sdk import get_current_context
-    except (ImportError, ModuleNotFoundError):
-        from airflow.providers.standard.operators.python import get_current_context
+    def is_async_callable(func) -> bool:
+        """Detect if a callable is an async function."""
+        import inspect
+        from functools import partial
 
-from airflow.providers.common.compat.version_compat import BaseOperator
+        while isinstance(func, partial):
+            func = func.func
+        return inspect.iscoroutinefunction(func)
 
-__all__ = ["BaseOperator", "PythonOperator", "_SERIALIZERS", "ShortCircuitOperator", "get_current_context"]
+    class BaseAsyncOperator(BaseOperator):
+        """Stub for Airflow < 3.2 that raises a clear error."""
+
+        @property
+        def is_async(self) -> bool:
+            return True
+
+        async def aexecute(self, context):
+            raise NotImplementedError()
+
+        def execute(self, context):
+            raise RuntimeError(
+                "Async operators require Airflow 3.2+. Upgrade Airflow or use a synchronous callable."
+            )
+
+
+__getattr__ = create_module_getattr(import_map=_IMPORT_MAP)
+
+__all__ = sorted(_IMPORT_MAP.keys())

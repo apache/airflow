@@ -22,11 +22,13 @@ import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceStateCount } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
 
 type MetricSectionProps = {
+  readonly capped?: boolean;
   readonly endDate?: string;
   readonly kind: string;
   readonly runs: number;
@@ -35,18 +37,27 @@ type MetricSectionProps = {
   readonly total: number;
 };
 
-export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: MetricSectionProps) => {
-  // Calculate the given state as a percentage of total and draw a bar
-  // in state's color with width as state's percentage and remaining width filed as gray
-  const statePercent = total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
-  const stateWidth = total === 0 ? 0 : (runs / total) * BAR_WIDTH;
+export const MetricSection = ({
+  capped = false,
+  endDate,
+  kind,
+  runs,
+  startDate,
+  state,
+  total,
+}: MetricSectionProps) => {
+  const stateWidth = capped ? BAR_WIDTH : total === 0 ? 0 : (runs / total) * BAR_WIDTH;
   const remainingWidth = BAR_WIDTH - stateWidth;
+  const statePercent = capped ? undefined : total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
 
-  const searchParams = new URLSearchParams(`?state=${state}&start_date=${startDate}`);
+  const stateParam = kind === "task_instances" ? SearchParamsKeys.TASK_STATE : SearchParamsKeys.STATE;
+  const searchParams = new URLSearchParams(
+    `?${stateParam}=${state}&${SearchParamsKeys.START_DATE}=${startDate}`,
+  );
   const { t: translate } = useTranslation();
 
   if (endDate !== undefined) {
-    searchParams.append("end_date", endDate);
+    searchParams.append(SearchParamsKeys.END_DATE, endDate);
   }
 
   return (
@@ -56,12 +67,13 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
           <RouterLink to={`/${kind}?${searchParams.toString()}`}>
             {/* eslint-disable-next-line unicorn/no-null */}
             <StateBadge fontSize="md" state={state === "no_status" ? null : state}>
-              {runs}
+              {}
+              {capped ? `${runs}+` : runs}
             </StateBadge>
           </RouterLink>
           <Text>{translate(`states.${state}`)}</Text>
         </HStack>
-        <Text color="fg.muted"> {statePercent}% </Text>
+        {statePercent === undefined ? undefined : <Text color="fg.muted"> {statePercent}% </Text>}
       </Flex>
       <HStack gap={0} mt={2}>
         <Box

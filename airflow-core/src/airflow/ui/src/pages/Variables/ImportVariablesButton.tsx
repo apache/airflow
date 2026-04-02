@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure, VStack } from "@chakra-ui/react";
+import { Button, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 
-import { Button, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 
 import ImportVariablesForm from "./ImportVariablesForm";
 
@@ -34,7 +34,7 @@ const ImportVariablesButton = ({ disabled }: Props) => {
 
   return (
     <>
-      <Button colorPalette="blue" disabled={disabled} onClick={onOpen}>
+      <Button colorPalette="brand" disabled={disabled} onClick={onOpen}>
         <FiUploadCloud /> {translate("variables.import.title")}
       </Button>
 

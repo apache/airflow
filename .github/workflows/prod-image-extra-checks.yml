@@ -59,27 +59,6 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: read
 jobs:
-  myssql-client-image:
-    uses: ./.github/workflows/prod-image-build.yml
-    with:
-      runners: ${{ inputs.runners }}
-      platform: ${{ inputs.platform }}
-      build-type: "MySQL Client"
-      upload-image-artifact: "false"
-      upload-package-artifact: "false"
-      install-mysql-client-type: "mysql"
-      python-versions: ${{ inputs.python-versions }}
-      default-python-version: "${{ inputs.default-python-version }}"
-      branch: ${{ inputs.branch }}
-      # Always build images during the extra checks and never push them
-      push-image: "false"
-      use-uv: "true"
-      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-      constraints-branch: ${{ inputs.constraints-branch }}
-      docker-cache: ${{ inputs.docker-cache }}
-      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
-      prod-image-build: "true"
-
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
@@ -88,7 +67,7 @@ jobs:
       build-type: "pip"
       upload-image-artifact: "false"
       upload-package-artifact: "false"
-      install-mysql-client-type: "mysql"
+      install-mysql-client-type: "mariadb"
       python-versions: ${{ inputs.python-versions }}
       default-python-version: "${{ inputs.default-python-version }}"
       branch: ${{ inputs.branch }}

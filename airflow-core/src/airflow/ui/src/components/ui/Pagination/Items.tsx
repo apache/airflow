@@ -26,7 +26,8 @@ export const Items = (props: React.HTMLAttributes<HTMLElement>) => (
     {({ pages }) =>
       pages.map((page, index) =>
         page.type === "ellipsis" ? (
-          <Ellipsis index={index} key={page.type} {...props} />
+          // eslint-disable-next-line react/no-array-index-key
+          <Ellipsis index={index} key={`${page.type}-${index}`} {...props} />
         ) : (
           <Item key={page.value} type="page" value={page.value} {...props} />
         ),

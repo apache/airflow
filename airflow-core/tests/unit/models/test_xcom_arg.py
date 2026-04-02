@@ -21,7 +21,7 @@ import pytest
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.types import NOTSET
+from airflow.serialization.definitions.notset import NOTSET
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -123,9 +123,8 @@ class TestXComArgBuild:
     def test_xcom_key_getitem_not_str(self, dag_maker):
         python_op = build_python_op(dag_maker)
         actual = XComArg(python_op)
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="XComArg only supports str lookup, received int"):
             actual[1]
-        assert str(ctx.value) == "XComArg only supports str lookup, received int"
 
     def test_xcom_key_getitem(self, dag_maker):
         python_op = build_python_op(dag_maker)
@@ -182,7 +181,7 @@ class TestXComArgRuntime:
 
 
 @pytest.mark.parametrize(
-    "fillvalue, expected_results",
+    ("fillvalue", "expected_results"),
     [
         (NOTSET, {("a", 1), ("b", 2), ("c", 3)}),
         (None, {("a", 1), ("b", 2), ("c", 3), (None, 4)}),
@@ -190,7 +189,7 @@ class TestXComArgRuntime:
 )
 def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
     results = set()
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as dag:
 
         @dag.task
         def push_letters():
@@ -212,13 +211,13 @@ def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert sorted(ti.task_id for ti in decision.schedulable_tis) == ["push_letters", "push_numbers"]
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        dag_maker.run_ti(task_id=ti.task_id, map_index=ti.map_index, dag_run=dr, session=session)
     session.commit()
 
     # Run "pull".
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert sorted(ti.task_id for ti in decision.schedulable_tis) == ["pull"] * len(expected_results)
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        dag_maker.run_ti(task_id=ti.task_id, map_index=ti.map_index, dag_run=dr, session=session)
 
     assert results == expected_results

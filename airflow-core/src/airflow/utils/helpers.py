@@ -23,20 +23,24 @@ import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
 from functools import cache
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import urljoin
 
 from lazy_object_proxy import Proxy
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils.types import NOTSET
+from airflow.serialization.definitions.notset import is_arg_set
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     import jinja2
+    from typing_extensions import TypeIs
 
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk.definitions.context import Context
+
+    CT = TypeVar("CT", str, datetime)
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")
 GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
@@ -57,14 +61,18 @@ def validate_key(k: str, max_length: int = 250):
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
             f"dots and underscores exclusively"
         )
+    if ".." in k and not conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
+        raise AirflowException(
+            f"The key {k!r} must not contain consecutive dots ('..') to prevent path traversal"
+        )
 
 
-def ask_yesno(question: str, default: bool | None = None) -> bool:
+def ask_yesno(question: str, default: bool | None = None, output_fn=print) -> bool:
     """Get a yes or no answer from the user."""
     yes = {"yes", "y"}
     no = {"no", "n"}
 
-    print(question)
+    output_fn(question)
     while True:
         choice = input().lower()
         if choice == "" and default is not None:
@@ -73,10 +81,10 @@ def ask_yesno(question: str, default: bool | None = None) -> bool:
             return True
         if choice in no:
             return False
-        print("Please respond with y/yes or n/no.")
+        output_fn("Please respond with y/yes or n/no.")
 
 
-def prompt_with_timeout(question: str, timeout: int, default: bool | None = None) -> bool:
+def prompt_with_timeout(question: str, timeout: int, default: bool | None = None, output_fn=print) -> bool:
     """Ask the user a question and timeout if they don't respond."""
 
     def handler(signum, frame):
@@ -85,12 +93,20 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
     signal.signal(signal.SIGALRM, handler)
     signal.alarm(timeout)
     try:
-        return ask_yesno(question, default)
+        return ask_yesno(question, default, output_fn=output_fn)
     finally:
         signal.alarm(0)
 
 
-def is_container(obj: Any) -> bool:
+@overload
+def is_container(obj: None | int | Iterable[int] | range) -> TypeIs[Iterable[int]]: ...
+
+
+@overload
+def is_container(obj: None | CT | Iterable[CT]) -> TypeIs[Iterable[CT]]: ...
+
+
+def is_container(obj) -> bool:
     """Test if an object is a container (iterable) but not a string."""
     if isinstance(obj, Proxy):
         # Proxy of any object is considered a container because it implements __iter__
@@ -147,29 +163,6 @@ def log_filename_template_renderer() -> Callable[..., str]:
     return f_str_format
 
 
-def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
-    """
-    Given task instance, try_number, filename_template, return the rendered log filename.
-
-    :param ti: task instance
-    :param try_number: try_number of the task
-    :param filename_template: filename template, which can be jinja template or
-        python string template
-    """
-    filename_template, filename_jinja_template = parse_template_string(filename_template)
-    if filename_jinja_template:
-        jinja_context = ti.get_template_context()
-        jinja_context["try_number"] = try_number
-        return render_template_to_string(filename_jinja_template, jinja_context)
-
-    return filename_template.format(
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        logical_date=ti.logical_date.isoformat(),
-        try_number=try_number,
-    )
-
-
 def convert_camel_to_snake(camel_str: str) -> str:
     """Convert CamelCase to snake_case."""
     return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r"_\1", camel_str).lower()
@@ -204,7 +197,7 @@ def build_airflow_dagrun_url(dag_id: str, run_id: str) -> str:
     http://localhost:8080/dags/hi/runs/manual__2025-02-23T18:27:39.051358+00:00_RZa1at4Q
     """
     baseurl = conf.get("api", "base_url", fallback="/")
-    return urljoin(baseurl, f"dags/{dag_id}/runs/{run_id}")
+    return urljoin(baseurl.rstrip("/") + "/", f"dags/{dag_id}/runs/{run_id}")
 
 
 # The 'template' argument is typed as Any because the jinja2.Template is too
@@ -239,11 +232,6 @@ def render_template(template: Any, context: MutableMapping[str, Any], *, native:
     return "".join(nodes)
 
 
-def render_template_to_string(template: jinja2.Template, context: Context) -> str:
-    """Shorthand to ``render_template(native=False)`` with better typing support."""
-    return render_template(template, cast("MutableMapping[str, Any]", context), native=False)
-
-
 def exactly_one(*args) -> bool:
     """
     Return True if exactly one of args is "truthy", and False otherwise.
@@ -265,13 +253,7 @@ def at_most_one(*args) -> bool:
 
     If user supplies an iterable, we raise ValueError and force them to unpack.
     """
-
-    def is_set(val):
-        if val is NOTSET:
-            return False
-        return bool(val)
-
-    return sum(map(is_set, args)) in (0, 1)
+    return sum(is_arg_set(a) and bool(a) for a in args) in (0, 1)
 
 
 def prune_dict(val: Any, mode="strict"):
@@ -317,32 +299,25 @@ def prune_dict(val: Any, mode="strict"):
     return val
 
 
+__deprecated_imports = {
+    "render_template_as_native": "airflow.sdk.definitions.context",
+    "render_template_to_string": "airflow.sdk.definitions.context",
+    "prevent_duplicates": "airflow.sdk.definitions.mappedoperator",
+}
+
+
 def __getattr__(name: str):
     """Provide backward compatibility for moved functions in this module."""
-    if name == "render_template_as_native":
-        import warnings
+    try:
+        modpath = __deprecated_imports[name]
+    except KeyError:
+        raise AttributeError(f"module '{__name__}' has no attribute '{name}'") from None
 
-        from airflow.sdk.definitions.context import render_template_as_native
+    import warnings
 
-        warnings.warn(
-            "airflow.utils.helpers.render_template_as_native is deprecated. "
-            "Use airflow.sdk.definitions.context.render_template_as_native instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return render_template_as_native
-
-    if name == "prevent_duplicates":
-        import warnings
-
-        from airflow.sdk.definitions.mappedoperator import prevent_duplicates
-
-        warnings.warn(
-            "airflow.utils.helpers.prevent_duplicates is deprecated. "
-            "Use airflow.sdk.definitions.mappedoperator.prevent_duplicates instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return prevent_duplicates
-
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+    warnings.warn(
+        f"{__name__}.{name} is deprecated. Use {modpath}.{name} instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(__import__(modpath), name)

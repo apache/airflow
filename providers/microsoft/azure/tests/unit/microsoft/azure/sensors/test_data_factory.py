@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -55,7 +55,7 @@ class TestAzureDataFactoryPipelineRunStatusSensor:
         assert self.sensor.poke_interval == self.config["poke_interval"]
 
     @pytest.mark.parametrize(
-        "pipeline_run_status, expected_status",
+        ("pipeline_run_status", "expected_status"),
         [
             (AzureDataFactoryPipelineRunStatus.SUCCEEDED, True),
             (AzureDataFactoryPipelineRunStatus.FAILED, "exception"),

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -30,9 +30,9 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerCreateEnvironmentOperator,
     CloudComposerDeleteEnvironmentOperator,
@@ -40,10 +40,19 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerListEnvironmentsOperator,
     CloudComposerListImageVersionsOperator,
     CloudComposerRunAirflowCLICommandOperator,
+    CloudComposerTriggerDAGRunOperator,
     CloudComposerUpdateEnvironmentOperator,
 )
-from airflow.providers.google.cloud.sensors.cloud_composer import CloudComposerDAGRunSensor
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.providers.google.cloud.sensors.cloud_composer import (
+    CloudComposerDAGRunSensor,
+    CloudComposerExternalTaskSensor,
+)
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -59,7 +68,7 @@ ENVIRONMENT_ID_ASYNC = f"test-deferrable-{DAG_ID}-{ENV_ID}".replace("_", "-")
 
 ENVIRONMENT = {
     "config": {
-        "software_config": {"image_version": "composer-2-airflow-2"},
+        "software_config": {"image_version": "composer-3-airflow-2"},
         "node_config": {
             "service_account": f"{PROJECT_NUMBER}-compute@developer.gserviceaccount.com",
         },
@@ -213,6 +222,43 @@ with DAG(
     )
     # [END howto_sensor_dag_run_deferrable_mode]
 
+    # [START howto_operator_trigger_dag_run]
+    trigger_dag_run = CloudComposerTriggerDAGRunOperator(
+        task_id="trigger_dag_run",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID,
+        composer_dag_id="airflow_monitoring",
+    )
+    # [END howto_operator_trigger_dag_run]
+
+    # [START howto_sensor_external_task]
+    external_task_sensor = CloudComposerExternalTaskSensor(
+        task_id="external_task_sensor",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID,
+        composer_external_dag_id="airflow_monitoring",
+        composer_external_task_id="echo",
+        allowed_states=["success"],
+        execution_range=[datetime.now() - timedelta(1), datetime.now()],
+    )
+    # [END howto_sensor_external_task]
+
+    # [START howto_sensor_external_task_deferrable_mode]
+    defer_external_task_sensor = CloudComposerExternalTaskSensor(
+        task_id="defer_external_task_sensor",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID_ASYNC,
+        composer_external_dag_id="airflow_monitoring",
+        composer_external_task_id="echo",
+        allowed_states=["success"],
+        execution_range=[datetime.now() - timedelta(1), datetime.now()],
+        deferrable=True,
+    )
+    # [END howto_sensor_external_task_deferrable_mode]
+
     # [START howto_operator_delete_composer_environment]
     delete_env = CloudComposerDeleteEnvironmentOperator(
         task_id="delete_env",
@@ -245,6 +291,8 @@ with DAG(
         [update_env, defer_update_env],
         [run_airflow_cli_cmd, defer_run_airflow_cli_cmd],
         [dag_run_sensor, defer_dag_run_sensor],
+        trigger_dag_run,
+        [external_task_sensor, defer_external_task_sensor],
         # TEST TEARDOWN
         [delete_env, defer_delete_env],
     )

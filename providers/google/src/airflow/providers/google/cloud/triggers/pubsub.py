@@ -26,10 +26,16 @@ from typing import Any
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.triggers.base import TriggerEvent
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.triggers.base import BaseEventTrigger
+else:
+    from airflow.triggers.base import BaseTrigger as BaseEventTrigger  # type: ignore
 
 
-class PubsubPullTrigger(BaseTrigger):
+class PubsubPullTrigger(BaseEventTrigger):
     """
     Initialize the Pubsub Pull Trigger with needed parameters.
 
@@ -86,26 +92,22 @@ class PubsubPullTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        try:
-            while True:
-                if pulled_messages := await self.hook.pull(
-                    project_id=self.project_id,
-                    subscription=self.subscription,
-                    max_messages=self.max_messages,
-                    return_immediately=True,
-                ):
-                    if self.ack_messages:
-                        await self.message_acknowledgement(pulled_messages)
+        while True:
+            if pulled_messages := await self.hook.pull(
+                project_id=self.project_id,
+                subscription=self.subscription,
+                max_messages=self.max_messages,
+                return_immediately=True,
+            ):
+                if self.ack_messages:
+                    await self.message_acknowledgement(pulled_messages)
 
-                    messages_json = [ReceivedMessage.to_dict(m) for m in pulled_messages]
+                messages_json = [ReceivedMessage.to_dict(m) for m in pulled_messages]
 
-                    yield TriggerEvent({"status": "success", "message": messages_json})
-                    return
-                self.log.info("Sleeping for %s seconds.", self.poke_interval)
-                await asyncio.sleep(self.poke_interval)
-        except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e)})
-            return
+                yield TriggerEvent({"status": "success", "message": messages_json})
+                return
+            self.log.info("Sleeping for %s seconds.", self.poke_interval)
+            await asyncio.sleep(self.poke_interval)
 
     async def message_acknowledgement(self, pulled_messages):
         await self.hook.acknowledge(

@@ -31,7 +31,12 @@ from airflow.providers.google.cloud.operators.translate import (
     TranslateTextBatchOperator,
     TranslateTextOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 DAG_ID = "gcp_translate_text"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

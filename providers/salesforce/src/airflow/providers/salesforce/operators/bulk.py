@@ -16,18 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
-from airflow.providers.salesforce.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from typing import Literal
 
     from simple_salesforce.bulk import SFBulkHandler
 
-    from airflow.providers.salesforce.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SalesforceBulkOperator(BaseOperator):
@@ -45,8 +45,10 @@ class SalesforceBulkOperator(BaseOperator):
     :param external_id_field: unique identifier field for upsert operations
     :param batch_size: number of records to assign for each batch in the job
     :param use_serial: Process batches in serial mode
-    :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:SalesforceHook>`.
+    :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:salesforce>`.
     """
+
+    template_fields: Sequence[str] = ("object_name", "payload", "external_id_field")
 
     available_operations = ("insert", "update", "upsert", "delete", "hard_delete")
 

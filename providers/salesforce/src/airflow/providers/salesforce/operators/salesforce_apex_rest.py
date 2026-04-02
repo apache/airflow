@@ -18,11 +18,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
-from airflow.providers.salesforce.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.salesforce.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SalesforceApexRestOperator(BaseOperator):
@@ -36,7 +36,7 @@ class SalesforceApexRestOperator(BaseOperator):
     :param endpoint: The REST endpoint for the request.
     :param method: HTTP method for the request (default GET)
     :param payload: A dict of parameters to send in a POST / PUT request
-    :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:SalesforceHook>`.
+    :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:salesforce>`.
     """
 
     def __init__(

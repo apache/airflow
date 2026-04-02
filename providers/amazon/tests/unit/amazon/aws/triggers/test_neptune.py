@@ -22,7 +22,6 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.triggers.neptune import (
     NeptuneClusterAvailableTrigger,
     NeptuneClusterInstancesAvailableTrigger,
@@ -125,5 +124,6 @@ class TestNeptuneClusterInstancesAvailableTrigger:
             db_cluster_id=CLUSTER_ID, waiter_delay=1, waiter_max_attempts=2
         )
 
-        with pytest.raises(AirflowException):
-            await trigger.run().asend(None)
+        event = await trigger.run().asend(None)
+        assert event.payload["status"] == "error"
+        assert "message" in event.payload

@@ -37,8 +37,8 @@ import botocore.client
 import botocore.exceptions
 import botocore.waiter
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
@@ -386,8 +386,7 @@ class BatchClientHook(AwsBaseHook):
             )
             if job_status in match_status:
                 return True
-        else:
-            raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
+        raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
 
     def get_job_description(self, job_id: str) -> dict:
         """
@@ -426,10 +425,9 @@ class BatchClientHook(AwsBaseHook):
                     "check Amazon Provider AWS Connection documentation for more details.",
                     str(err),
                 )
-        else:
-            raise AirflowException(
-                f"AWS Batch job ({job_id}) description error: exceeded status_retries ({self.status_retries})"
-            )
+        raise AirflowException(
+            f"AWS Batch job ({job_id}) description error: exceeded status_retries ({self.status_retries})"
+        )
 
     @staticmethod
     def parse_job_description(job_id: str, response: dict) -> dict:
@@ -478,8 +476,20 @@ class BatchClientHook(AwsBaseHook):
                 p.get("container", {}).get("logConfiguration", {})
                 for p in job_node_properties.get("nodeRangeProperties", {})
             ]
-            # one stream name per attempt
-            stream_names = [a.get("container", {}).get("logStreamName") for a in job_desc.get("attempts", [])]
+            # one stream name per attempt — handles both single-node and multi-node schemas
+            stream_names = []
+            for attempt in job_desc.get("attempts", []):
+                # Single-node: attempts[].container.logStreamName
+                container_stream = attempt.get("container", {}).get("logStreamName")
+                if container_stream:
+                    stream_names.append(container_stream)
+                    continue
+                # Multi-node: attempts[].taskProperties[].containers[].logStreamName
+                for task_prop in attempt.get("taskProperties", []):
+                    for container in task_prop.get("containers", []):
+                        task_stream = container.get("logStreamName")
+                        if task_stream:
+                            stream_names.append(task_stream)
         elif job_container_desc:
             log_configs = [job_container_desc.get("logConfiguration", {})]
             stream_name = job_container_desc.get("logStreamName")

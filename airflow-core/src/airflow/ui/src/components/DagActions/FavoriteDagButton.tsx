@@ -16,49 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { useCallback, useMemo } from "react";
+import { IconButton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
 
-import { useDagServiceGetDagsUi } from "openapi/queries";
-import { useFavoriteDag } from "src/queries/useFavoriteDag";
-import { useUnfavoriteDag } from "src/queries/useUnfavoriteDag";
-
-import ActionButton from "../ui/ActionButton";
+import { Tooltip } from "src/components/ui";
+import { useToggleFavoriteDag } from "src/queries/useToggleFavoriteDag";
 
 type FavoriteDagButtonProps = {
   readonly dagId: string;
-  readonly withText?: boolean;
+  readonly isFavorite?: boolean;
 };
 
-export const FavoriteDagButton = ({ dagId, withText = true }: FavoriteDagButtonProps) => {
+export const FavoriteDagButton = ({ dagId, isFavorite = false }: FavoriteDagButtonProps) => {
   const { t: translate } = useTranslation("dags");
-  const { data: favorites } = useDagServiceGetDagsUi({ isFavorite: true });
+  const { isLoading, toggleFavorite } = useToggleFavoriteDag(dagId);
 
-  const isFavorite = useMemo(
-    () => favorites?.dags.some((fav) => fav.dag_id === dagId) ?? false,
-    [favorites, dagId],
-  );
-
-  const { mutate: favoriteDag } = useFavoriteDag();
-  const { mutate: unfavoriteDag } = useUnfavoriteDag();
-
-  const onToggle = useCallback(() => {
-    const mutationFn = isFavorite ? unfavoriteDag : favoriteDag;
-
-    mutationFn({ dagId });
-  }, [dagId, isFavorite, favoriteDag, unfavoriteDag]);
+  const label = isFavorite ? translate("unfavoriteDag") : translate("favoriteDag");
 
   return (
-    <Box>
-      <ActionButton
-        actionName={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
-        icon={<FiStar style={{ fill: isFavorite ? "blue" : "none" }} />}
-        onClick={onToggle}
-        text={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
-        withText={withText}
-      />
-    </Box>
+    <Tooltip content={label}>
+      <IconButton
+        aria-label={label}
+        colorPalette="brand"
+        loading={isLoading}
+        onClick={() => toggleFavorite(isFavorite)}
+        size="md"
+        variant="ghost"
+      >
+        <FiStar
+          style={{
+            fill: isFavorite ? "var(--chakra-colors-brand-solid)" : "none",
+            stroke: "var(--chakra-colors-brand-solid)",
+          }}
+        />
+      </IconButton>
+    </Tooltip>
   );
 };

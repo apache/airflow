@@ -28,9 +28,7 @@ Create Date: 2024-12-05 22:08:38.997054
 from __future__ import annotations
 
 import sqlalchemy as sa
-import sqlalchemy_jsonfield
 from alembic import op
-from sqlalchemy_utils import UUIDType
 
 from airflow.migrations.db_types import StringID
 from airflow.models import ID_LEN
@@ -46,12 +44,12 @@ airflow_version = "3.0.0"
 def upgrade():
     op.create_table(
         "deadline",
-        sa.Column("id", UUIDType(binary=False), nullable=False),
+        sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("dag_id", StringID(length=ID_LEN), nullable=True),
         sa.Column("dagrun_id", sa.Integer(), nullable=True),
         sa.Column("deadline", sa.DateTime(), nullable=False),
         sa.Column("callback", sa.String(length=500), nullable=False),
-        sa.Column("callback_kwargs", sqlalchemy_jsonfield.jsonfield.JSONField(), nullable=True),
+        sa.Column("callback_kwargs", sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint("id", name=op.f("deadline_pkey")),
         sa.ForeignKeyConstraint(columns=("dagrun_id",), refcolumns=["dag_run.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(columns=("dag_id",), refcolumns=["dag.dag_id"], ondelete="CASCADE"),

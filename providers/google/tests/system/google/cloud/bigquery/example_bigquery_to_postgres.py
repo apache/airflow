@@ -55,13 +55,20 @@ from airflow.providers.google.cloud.operators.compute import (
 from airflow.providers.google.cloud.transfers.bigquery_to_postgres import BigQueryToPostgresOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.trigger_rule import TriggerRule
 
-from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+
+from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
 DAG_ID = "bigquery_to_postgres"
+
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
 
 REGION = "us-west2"
 ZONE = REGION + "-a"
@@ -237,6 +244,7 @@ with DAG(
                 "password": DB_USER_PASSWORD,
                 "port": DB_PORT,
             },
+            is_composer=IS_COMPOSER,
         )
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID, ip_address=get_public_ip_task)
@@ -316,7 +324,7 @@ with DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        delete_airflow_connection(connection_id=connection_id)
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 

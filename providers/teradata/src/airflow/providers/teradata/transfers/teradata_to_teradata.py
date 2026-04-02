@@ -21,15 +21,11 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
-from airflow.providers.teradata.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class TeradataToTeradataOperator(BaseOperator):
@@ -42,7 +38,7 @@ class TeradataToTeradataOperator(BaseOperator):
 
     :param dest_teradata_conn_id: destination Teradata connection.
     :param destination_table: destination table to insert rows.
-    :param source_teradata_conn_id: :ref:`Source Teradata connection <howto/connection:Teradata>`.
+    :param source_teradata_conn_id: :ref:`Source Teradata connection <howto/connection:teradata>`.
     :param sql: SQL query to execute against the source Teradata database
     :param sql_params: Parameters to use in sql query.
     :param rows_chunk: number of rows per chunk to commit.

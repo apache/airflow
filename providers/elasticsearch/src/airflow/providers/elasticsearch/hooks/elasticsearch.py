@@ -25,8 +25,8 @@ from urllib import parse
 
 from elasticsearch import Elasticsearch
 
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.elasticsearch.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
@@ -86,7 +86,7 @@ class ElasticsearchSQLCursor:
         self.body["query"] = statement
         if params:
             self.body["params"] = params
-        self.response = self.es.sql.query(body=self.body)
+        self.response = self.es.sql.query(**self.body)
         if self.cursor:
             self.body["cursor"] = self.cursor
         else:
@@ -135,7 +135,7 @@ class ESConnection:
         netloc = f"{host}:{port}"
         self.url = parse.urlunparse((scheme, netloc, "/", None, None, None))
         if user and password:
-            self.es = Elasticsearch(self.url, http_auth=(user, password), **kwargs)
+            self.es = Elasticsearch(self.url, basic_auth=(user, password), **kwargs)
         else:
             self.es = Elasticsearch(self.url, **kwargs)
 
@@ -266,5 +266,5 @@ class ElasticsearchPythonHook(BaseHook):
         :returns: dict: The response 'hits' object from Elasticsearch
         """
         es_client = self.get_conn
-        result = es_client.search(index=index, body=query)
+        result = es_client.search(index=index, **query)
         return result["hits"]

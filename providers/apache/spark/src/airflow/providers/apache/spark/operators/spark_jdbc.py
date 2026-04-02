@@ -23,7 +23,7 @@ from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SparkJDBCOperator(SparkSubmitOperator):
@@ -37,7 +37,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
         :ref:`howto/operator:SparkJDBCOperator`
 
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
-    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark-submit>`
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>`
         as configured in Airflow administration
     :param spark_conf: Any additional Spark configuration properties
     :param spark_py_files: Additional python files used (.zip, .egg, or .py)

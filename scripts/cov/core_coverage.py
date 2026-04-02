@@ -16,12 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 from cov_runner import run_tests
-
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 source_files = [
     "airflow-core/src/airflow/executors",
@@ -48,6 +43,7 @@ files_not_fully_covered = [
     "airflow-core/src/airflow/models/backfill.py",
     "airflow-core/src/airflow/models/base.py",
     "airflow-core/src/airflow/models/baseoperator.py",
+    "airflow-core/src/airflow/models/callback.py",
     "airflow-core/src/airflow/models/connection.py",
     "airflow-core/src/airflow/models/crypto.py",
     "airflow-core/src/airflow/models/dag.py",

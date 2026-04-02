@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import socket
 from collections.abc import Sequence
@@ -27,9 +28,8 @@ from typing import Any
 
 import paramiko
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
-from airflow.providers.sftp.version_compat import BaseOperator
 
 
 class SFTPOperation:
@@ -144,23 +144,24 @@ class SFTPOperator(BaseOperator):
 
         file_msg = None
         try:
-            if self.ssh_conn_id:
-                if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
-                    self.log.info("ssh_conn_id is ignored when sftp_hook is provided.")
-                else:
-                    self.log.info("sftp_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.")
-                    self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
-
-            if not self.sftp_hook:
-                raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
-
             if self.remote_host is not None:
                 self.log.info(
                     "remote_host is provided explicitly. "
                     "It will replace the remote_host which was defined "
                     "in sftp_hook or predefined in connection of ssh_conn_id."
                 )
-                self.sftp_hook.remote_host = self.remote_host
+
+            if self.ssh_conn_id:
+                if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
+                    self.log.info("ssh_conn_id is ignored when sftp_hook is provided.")
+                else:
+                    self.log.info("sftp_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.")
+                    self.sftp_hook = SFTPHook(
+                        ssh_conn_id=self.ssh_conn_id, remote_host=self.remote_host or ""
+                    )
+
+            if not self.sftp_hook:
+                raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
 
             if self.operation.lower() in (SFTPOperation.GET, SFTPOperation.PUT):
                 for _local_filepath, _remote_filepath in zip(local_filepath_array, remote_filepath_array):
@@ -206,10 +207,18 @@ class SFTPOperator(BaseOperator):
                 for _remote_filepath in remote_filepath_array:
                     file_msg = f"{_remote_filepath}"
                     self.log.info("Starting to delete %s", file_msg)
-                    if self.sftp_hook.isdir(_remote_filepath):
-                        self.sftp_hook.delete_directory(_remote_filepath, include_files=True)
-                    else:
-                        self.sftp_hook.delete_file(_remote_filepath)
+                    try:
+                        if self.sftp_hook.isdir(_remote_filepath):
+                            self.sftp_hook.delete_directory(_remote_filepath, include_files=True)
+                        else:
+                            self.sftp_hook.delete_file(_remote_filepath)
+                    except OSError as exc:
+                        if self._is_missing_path_error(exc):
+                            self.log.warning(
+                                "Remote path %s does not exist. Skipping delete.", _remote_filepath
+                            )
+                            continue
+                        raise
 
         except Exception as e:
             raise AirflowException(
@@ -217,6 +226,16 @@ class SFTPOperator(BaseOperator):
             )
 
         return self.local_filepath
+
+    @staticmethod
+    def _is_missing_path_error(exc: Exception) -> bool:
+        if isinstance(exc, FileNotFoundError):
+            return True
+        if isinstance(exc, OSError) and exc.errno == errno.ENOENT:
+            return True
+        if exc.args and isinstance(exc.args[0], int) and exc.args[0] == errno.ENOENT:
+            return True
+        return False
 
     def get_openlineage_facets_on_start(self):
         """

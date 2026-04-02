@@ -1,0 +1,13 @@
+Easily allow setting level of individual loggers
+
+Add ``namespace_levels`` config option (``AIRFLOW__LOGGING__NAMESPACE_LEVELS``) to set log
+levels for individual named loggers, independent of the global ``logging_level``.
+
+This is particularly useful for debugging. For example, it allows enabling debug
+logging for ``botocore`` while keeping ``sqlalchemy.engine`` quiet::
+
+    AIRFLOW__LOGGING__NAMESPACE_LEVELS='botocore=debug sqlalchemy.engine=error'
+
+The format is whitespace- or comma-separated ``<logger>=<level>`` pairs. Logger names are
+visible in task logs as the ``source`` attribute, or in the ``[]`` after the message in the
+console log appearance.

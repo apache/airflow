@@ -8,3 +8,4 @@
 /.coverage
 /apache_airflow_client.egg-info/
 /.idea
+*.iml

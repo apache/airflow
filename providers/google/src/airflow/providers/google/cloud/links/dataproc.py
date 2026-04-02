@@ -25,21 +25,12 @@ from typing import TYPE_CHECKING, Any
 import attr
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
 from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
-from airflow.providers.google.version_compat import (
-    AIRFLOW_V_3_0_PLUS,
-    BaseOperator,
-    BaseOperatorLink,
-)
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.utils.context import Context
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models.xcom import XCom  # type: ignore[no-redef]
+    from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
+    from airflow.providers.google.version_compat import BaseOperator
 
 
 def __getattr__(name: str) -> Any:
@@ -50,7 +41,7 @@ def __getattr__(name: str) -> Any:
         warnings.warn(
             (
                 "DATAPROC_JOB_LOG_LINK has been deprecated and will be removed in the next MAJOR release."
-                " Please use DATAPROC_JOB_LINK instead"
+                " Please use DATAPROC_JOB_LINK instead. Planned removal date: October 5, 2026."
             ),
             AirflowProviderDeprecationWarning,
             stacklevel=2,

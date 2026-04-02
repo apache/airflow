@@ -100,7 +100,7 @@ KWARGS = {
 
 
 @pytest.mark.parametrize(
-    "func,args,kwargs,expected",
+    ("func", "args", "kwargs", "expected"),
     [
         (callable1, (), KWARGS, ("20200101",)),
         (
@@ -131,14 +131,12 @@ def test_make_kwargs_callable_conflict():
     args = ["20200101"]
     kwargs = {"ds_nodash": "20200101"}
 
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(ValueError, match="ds_nodash"):
         kwargs_callable(*args, **kwargs)
-
-    assert "ds_nodash" in str(exc_info)
 
 
 @pytest.mark.parametrize(
-    "func,args,kwargs,expected",
+    ("func", "args", "kwargs", "expected"),
     [
         (callable10, (1, 2), {"ds_nodash": 1}, {"ds_nodash": 1}),
         (callable11, (1, 2), {"ds_nodash": 1}, {"ds_nodash": 1}),

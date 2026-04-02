@@ -114,28 +114,27 @@ DETERMINISTIC
 BEGIN
     DECLARE unix_time_ms BIGINT;
     DECLARE time_hex CHAR(12);
-    DECLARE rand_hex CHAR(24);
-    DECLARE uuid CHAR(36);
+    DECLARE rand_hex CHAR(20);   -- 10 bytes => 20 hex chars
 
-    -- Convert the passed timestamp to milliseconds since epoch
-    SET unix_time_ms = UNIX_TIMESTAMP(p_timestamp) * 1000;
+    -- milliseconds since epoch (truncation is fine for ms precision)
+    SET unix_time_ms = FLOOR(UNIX_TIMESTAMP(p_timestamp) * 1000);
     SET time_hex = LPAD(HEX(unix_time_ms), 12, '0');
-    SET rand_hex = CONCAT(
-        LPAD(HEX(FLOOR(RAND() * POW(2,32))), 8, '0'),
-        LPAD(HEX(FLOOR(RAND() * POW(2,32))), 8, '0')
-    );
-    SET rand_hex = CONCAT(SUBSTRING(rand_hex, 1, 4), '7', SUBSTRING(rand_hex, 6));
-    SET rand_hex = CONCAT(SUBSTRING(rand_hex, 1, 12), '8', SUBSTRING(rand_hex, 14));
 
-    SET uuid = LOWER(CONCAT(
+    -- 10 random bytes (CSPRNG), 20 hex chars
+    SET rand_hex = HEX(RANDOM_BYTES(10));
+
+    -- set version nibble to 7 (first of next 4 hex)
+    SET rand_hex = CONCAT('7', SUBSTRING(rand_hex, 2));
+    -- set variant (first hex of next 4) to 8..b; using '8' keeps the top bits 10
+    SET rand_hex = CONCAT(SUBSTRING(rand_hex, 1, 4), '8', SUBSTRING(rand_hex, 6));
+
+    RETURN LOWER(CONCAT(
         SUBSTRING(time_hex, 1, 8), '-',
         SUBSTRING(time_hex, 9, 4), '-',
         SUBSTRING(rand_hex, 1, 4), '-',
         SUBSTRING(rand_hex, 5, 4), '-',
-        SUBSTRING(rand_hex, 9)
+        SUBSTRING(rand_hex, 9, 12)
     ));
-
-    RETURN uuid;
 END;
 """
 
@@ -256,20 +255,20 @@ def upgrade():
     elif dialect_name == "sqlite":
         from uuid6 import uuid7
 
-        stmt = text("SELECT COUNT(*) FROM task_instance WHERE id IS NULL")
         conn = op.get_bind()
-        task_instances = conn.execute(stmt).scalar()
-        uuid_values = [str(uuid7()) for _ in range(task_instances)]
 
-        # Ensure `uuid_values` is a list or iterable with the UUIDs for the update.
-        stmt = text("""
-            UPDATE task_instance
-            SET id = :uuid
-            WHERE id IS NULL
-        """)
+        stmt = text("SELECT rowid FROM task_instance WHERE id IS NULL")
+        rows = conn.execute(stmt).fetchall()
 
-        for uuid_value in uuid_values:
-            conn.execute(stmt.bindparams(uuid=uuid_value))
+        update_stmt = text("UPDATE task_instance SET id = :uuid WHERE rowid = :rowid")
+
+        for row in rows:
+            conn.execute(
+                update_stmt.bindparams(
+                    uuid=str(uuid7()),
+                    rowid=row.rowid,
+                )
+            )
 
         with op.batch_alter_table("task_instance") as batch_op:
             batch_op.drop_constraint("task_instance_pkey", type_="primary")

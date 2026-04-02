@@ -39,7 +39,7 @@ This is why Airflow has the following user types:
 
 * Deployment Managers - overall responsible for the Airflow installation, security and configuration
 * Authenticated UI users - users that can access Airflow UI and API and interact with it
-* Dag authors - responsible for creating dags and submitting them to Airflow
+* Dag authors - responsible for creating Dags and submitting them to Airflow
 
 You can see more on how the user types influence Airflow's architecture in :doc:`/core-concepts/overview`,
 including, seeing the diagrams of less and more complex deployments.
@@ -61,10 +61,10 @@ model.
 Dag authors
 ...........
 
-They can create, modify, and delete DAG files. The
-code in DAG files is executed on workers and in the DAG Processor.
+They can create, modify, and delete Dag files. The
+code in Dag files is executed on workers and in the Dag Processor.
 Therefore, Dag authors can create and change code executed on workers
-and the DAG Processor and potentially access the credentials that the DAG
+and the Dag Processor and potentially access the credentials that the Dag
 code uses to access external systems. Dag authors have full access
 to the metadata database.
 
@@ -78,7 +78,10 @@ Non-authenticated UI users
 ..........................
 
 Airflow doesn't support unauthenticated users by default. If allowed, potential vulnerabilities
-must be assessed and addressed by the Deployment Manager. However, there are exceptions to this. The ``/health`` endpoint responsible to get health check updates should be publicly accessible. This is because other systems would want to retrieve that information. Another exception is the ``/login`` endpoint, as the users are expected to be unauthenticated to use it.
+must be assessed and addressed by the Deployment Manager. However, there are exceptions to this.
+The ``/health`` endpoint responsible to get health check updates should be publicly accessible.
+This is because other systems would want to retrieve that information. Another exception is the
+``/login`` endpoint, as the users are expected to be unauthenticated to use it.
 
 Capabilities of authenticated UI users
 --------------------------------------
@@ -86,7 +89,7 @@ Capabilities of authenticated UI users
 The capabilities of **Authenticated UI users** can vary depending on
 what roles have been configured by the Deployment Manager or Admin users
 as well as what permissions those roles have. Permissions on roles can be
-scoped as tightly as a single DAG, for example, or as broad as Admin.
+scoped as tightly as a single Dag, for example, or as broad as Admin.
 Below are four general categories to help conceptualize some of the
 capabilities authenticated users may have:
 
@@ -103,24 +106,25 @@ sensitive information accessible through connection configuration.
 They also have the ability to create a API Server Denial of Service
 situation and should be trusted not to misuse this capability.
 
-Only admin users have access to audit logs.
+Only admin users have access to audit logs by default.
 
 Operations users
 ................
 
 The primary difference between an operator and admin is the ability to manage and grant permissions
-to other users, and access audit logs - only admins are able to do this. Otherwise assume they have the same access as an admin.
+to other users, and access audit logs - only admins are able to do this. Otherwise assume they have
+the same access as an admin.
 
 Connection configuration users
 ..............................
 
-They configure connections and potentially execute code on workers during DAG execution. Trust is
+They configure connections and potentially execute code on workers during Dag execution. Trust is
 required to prevent misuse of these privileges. They have full write-only access
 to sensitive credentials stored in connections and can modify them, but cannot view them.
 Access to write sensitive information through connection configuration
 should be trusted not to be abused. They also have the ability to configure connections wrongly
 that might create a API Server Denial of Service situations and specify insecure connection options
-which might create situations where executing dags will lead to arbitrary Remote Code Execution
+which might create situations where executing Dags will lead to arbitrary Remote Code Execution
 for some providers - either community released or custom ones.
 
 Those users should be highly trusted not to misuse this capability.
@@ -131,8 +135,18 @@ Those users should be highly trusted not to misuse this capability.
    been changed in Airflow 3 to improve security of the accidental spilling of credentials of the connection configuration
    users. Previously - in Airflow 2 - the **Connection configuration users** had deliberately access to view the
    sensitive information and could either reveal it by using Inspect capabilities of the browser or they were plain visible in
-   case of the sensitive credentials stored in configuration extras. Airflow 3 and later versions include security
-   improvement to mask those sensitive credentials at the API level.
+   case of the sensitive credentials stored in configuration extras. Airflow 3 and later versions mask these sensitive credentials
+   at the API level and do not return them in clear text.
+
+About Sensitive information
+...........................
+
+Sensitive information consists of connection details, variables, and configuration. In versions later than Airflow 3.0
+sensitive information will not be exposed to users via API, UI, and ``airflowctl``.
+However, ``task-sdk`` still provides access to sensitive information (e.g., Use SDK API Client to get
+Variables with task-specific ``JWT`` token). Local CLI will only return keys except when using ``--show_values``.
+Sensitive information has been masked in logs, UI, and API outputs. In case of Dag author expose sensitive
+information in other way (e.g., via environment variables), those values will not be masked.
 
 Audit log users
 ...............
@@ -142,30 +156,59 @@ They can view audit events for the whole Airflow installation.
 Regular users
 .............
 
-They can view and interact with the UI and API. They are able to view and edit dags,
-task instances, and DAG runs, and view task logs.
+They can view and interact with the UI and API. They are able to view and edit Dags,
+task instances, and Dag runs, and view task logs.
 
 Viewer users
 ............
 
-They can view information related to dags, in a read only fashion, task logs, and other relevant details.
-This role is suitable for users who require read-only access without the ability to trigger or modify dags.
+They can view information related to Dags, in a read only fashion, task logs, and other relevant details.
+This role is suitable for users who require read-only access without the ability to trigger or modify Dags.
 
 Viewers also do not have permission to access audit logs.
 
-For more information on the capabilities of authenticated UI users, see :doc:`apache-airflow-providers-fab:auth-manager/access-control`.
+For more information on the capabilities of authenticated UI users, see
+:doc:`apache-airflow-providers-fab:auth-manager/access-control`.
 
 Capabilities of Dag authors
 ---------------------------
 
-Dag authors are able to create or edit code - via Python files placed in a dag bundle - that will be executed
+Dag authors are able to create or edit code - via Python files placed in a Dag bundle - that will be executed
 in a number of circumstances. The code to execute is neither verified, checked nor sand-boxed by Airflow
 (that would be very difficult if not impossible to do), so effectively Dag authors can execute arbitrary
 code on the workers (part of Celery Workers for Celery Executor, local processes run by scheduler in case
-of Local Executor, Task Kubernetes POD in case of Kubernetes Executor), in the DAG Processor
+of Local Executor, Task Kubernetes POD in case of Kubernetes Executor), in the Dag Processor
 and in the Triggerer.
 
-There are several consequences of this model chosen by Airflow, that deployment managers need to be aware of:
+Dag authors are responsible for the code they write and submit to Airflow, and they should be trusted to
+verify that what they implement is safe code that will not cause any harm to the Airflow installation and
+will not open way for security vulnerabilities. Since Dag Authors are writing Python code, they can easily write
+code that will access sensitive information stored in Airflow or send it outside - but also to open up new
+security vulnerabilities. Good example is writing a code that will pass non-sanitized UI user input (such as parameter,
+variables, connection configuration) to any code in Operators and Hooks, or third party libraries without properly
+sanitizing it first. This can open up windows for Remote Code Execution, Denial of Service vulnerabilities or similar.
+Dag authors should be trusted not to write such code and to verify that the code they write is safe and does
+not open new security vulnerabilities.
+
+Limiting Dag Author access to subset of Dags
+--------------------------------------------
+
+Airflow does not have multi-tenancy or multi-team features to provide isolation between different groups of users when
+it comes to task execution. While, in Airflow 3.0 and later, Dag Authors cannot directly access database and cannot run
+arbitrary queries on the database, they still have access to all Dags in the Airflow installation and they can
+modify any of those Dags - no matter which Dag the task code is executed for. This means that Dag authors can
+modify state of any task instance of any Dag, and there are no finer-grained access controls to limit that access.
+
+There is a work in progress on multi-team feature in Airflow that will allow to have some isolation between different
+groups of users and potentially limit access of Dag authors to only a subset of Dags, but currently there is no
+such feature in Airflow and you can assume that all Dag authors have access to all Dags and can modify their state.
+
+
+Security contexts for Dag author submitted code
+-----------------------------------------------
+
+There are several consequences of this model chosen by Airflow, that deployment managers need to be aware of in
+terms of how those capabilities of Dag authors map to executed code in different security contexts in Airflow:
 
 Local executor
 ..............
@@ -199,15 +242,16 @@ enforcement mechanisms that would allow to isolate tasks that are using deferrab
 each other and arbitrary code from various tasks can be executed in the same process/machine. Deployment
 Manager must trust that Dag authors will not abuse this capability.
 
-DAG files not needed for Scheduler and API Server
+Dag files not needed for Scheduler and API Server
 .................................................
 
 The Deployment Manager might isolate the code execution provided by Dag authors - particularly in
 Scheduler and API Server by making sure that the Scheduler and API Server don't even
-have access to the DAG Files. Generally speaking - no Dag author provided code should ever be
+have access to the Dag Files. Generally speaking - no Dag author provided code should ever be
 executed in the Scheduler or API Server process. This means the deployment manager can exclude credentials
-needed for dag bundles on the Scheduler and API Server - but the bundles must still be configured on those
+needed for Dag bundles on the Scheduler and API Server - but the bundles must still be configured on those
 components.
+
 
 Allowing Dag authors to execute selected code in Scheduler and API Server
 .........................................................................
@@ -216,9 +260,9 @@ There are a number of functionalities that allow the Dag author to use pre-regis
 executed in the Scheduler or API Server process - for example they can choose custom Timetables, UI plugins,
 Connection UI Fields, Operator extra links, macros, listeners - all of those functionalities allow the
 Dag author to choose the code that will be executed in the Scheduler or API Server process. However this
-should not be arbitrary code that Dag author can add dag bundles. All those functionalities are
+should not be arbitrary code that Dag author can add Dag bundles. All those functionalities are
 only available via ``plugins`` and ``providers`` mechanisms where the code that is executed can only be
-provided by installed packages (or in case of plugins it can also be added to PLUGINS folder where DAG
+provided by installed packages (or in case of plugins it can also be added to PLUGINS folder where Dag
 authors should not have write access to). PLUGINS_FOLDER is a legacy mechanism coming from Airflow 1.10
 - but we recommend using entrypoint mechanism that allows the Deployment Manager to - effectively -
 choose and register the code that will be executed in those contexts. Dag author has no access to
@@ -232,11 +276,30 @@ The Deployment Manager might decide to introduce additional control mechanisms t
 executing arbitrary code. This is all fully in hands of the Deployment Manager and it is discussed in the
 following chapter.
 
-Access to all dags
-........................................................................
+Access to all Dags
+..................
 
-All Dag authors have access to all dags in the Airflow deployment. This means that they can view, modify,
-and update any dag without restrictions at any time.
+All Dag authors have access to all Dags in the Airflow deployment. This means that they can view, modify,
+and update any Dag without restrictions at any time.
+
+Custom RBAC limitations
+-----------------------
+
+While RBAC defined in Airflow might limit access for certain UI users to certain Dags and features, when
+it comes to custom roles and permissions, some permissions might override individual access to Dags or lack
+of those. For example - audit log permission allows the user who has it to see logs of all Dags, even if
+they don't have access to those Dags explicitly. This is something that the Deployment Manager
+should be aware of when creating custom RBAC roles.
+
+Triggering Dags via Assets
+--------------------------
+
+Triggering Dags via Assets is a feature that allows an asset materialization to trigger a Dag. This feature
+is designed to allow triggering Dags without giving users specific access to triggering the Dags manually.
+The "Trigger Dag" permission only affects triggering dags manually via the UI or API, but it does not affect
+triggering Dags via Assets. Dag authors explicitly allow for specific assets to trigger the Dags and
+they give anyone who has capability to create those assets to trigger the Dags via Assets.
+
 
 Responsibilities of Deployment Managers
 ---------------------------------------
@@ -265,11 +328,11 @@ Limiting Dag author capabilities
 .................................
 
 The Deployment Manager might also use additional mechanisms to prevent Dag authors from executing
-arbitrary code - for example they might introduce tooling around DAG submission that would allow
+arbitrary code - for example they might introduce tooling around Dag submission that would allow
 to review the code before it is deployed, statically-check it and add other ways to prevent malicious
-code to be submitted. The way submitting code to a DAG bundle is done and protected is completely
+code to be submitted. The way submitting code to a Dag bundle is done and protected is completely
 up to the Deployment Manager - Airflow does not provide any tooling or mechanisms around it and it
-expects that the Deployment Manager will provide the tooling to protect access to DAG bundles and
+expects that the Deployment Manager will provide the tooling to protect access to Dag bundles and
 make sure that only trusted code is submitted there.
 
 Airflow does not implement any of those feature natively, and delegates it to the deployment managers
@@ -288,7 +351,7 @@ Examples of fine-grained access control include (but are not limited to):
 *  Limiting login permissions: Restricting the accounts that users can log in with, allowing only specific
    accounts or roles belonging to access the Airflow system.
 
-*  Access restrictions to views or dags: Controlling user access to certain views or specific dags,
+*  Access restrictions to views or Dags: Controlling user access to certain views or specific Dags,
    ensuring that users can only view or interact with authorized components.
 
 Future: multi-tenancy isolation

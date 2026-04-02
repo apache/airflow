@@ -24,8 +24,8 @@ from sqlalchemy.orm import Session
 from airflow.models.dagbag import DBDagBag
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 
 def create_dag_bag() -> DBDagBag:
@@ -45,7 +45,7 @@ def dag_bag_from_app(request: Request) -> DBDagBag:
 
 def get_latest_version_of_dag(
     dag_bag: DBDagBag, dag_id: str, session: Session, include_reason: bool = False
-) -> DAG:
+) -> SerializedDAG:
     dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:
         if include_reason:
@@ -60,7 +60,7 @@ def get_latest_version_of_dag(
     return dag
 
 
-def get_dag_for_run(dag_bag: DBDagBag, dag_run: DagRun, session: Session) -> DAG:
+def get_dag_for_run(dag_bag: DBDagBag, dag_run: DagRun, session: Session) -> SerializedDAG:
     dag = dag_bag.get_dag_for_run(dag_run, session=session)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_run.dag_id}` was not found")
@@ -69,10 +69,24 @@ def get_dag_for_run(dag_bag: DBDagBag, dag_run: DagRun, session: Session) -> DAG
 
 def get_dag_for_run_or_latest_version(
     dag_bag: DBDagBag, dag_run: DagRun | None, dag_id: str | None, session: Session
-) -> DAG:
-    dag: DAG | None = None
+) -> SerializedDAG:
+    """
+    Retrieve the serialized DAG for a specific run, or the latest version if no run is given.
+
+    When a dag_run is provided, we prefer the exact DAG version the run was created with
+    (``created_dag_version_id``) so that task group lookups, operator metadata, etc. match
+    the DAG structure at the time of the run.
+
+    This is necessary because ``get_dag_for_run`` delegates to ``_version_from_dag_run``
+    which, for unversioned bundles (e.g. ``LocalDagBundle``), falls back to the *latest*
+    ``DagVersion``.
+    """
+    dag: SerializedDAG | None = None
     if dag_run:
-        dag = dag_bag.get_dag_for_run(dag_run, session=session)
+        if dag_run.created_dag_version_id:
+            dag = dag_bag.get_dag(dag_run.created_dag_version_id, session=session)
+        if not dag:
+            dag = dag_bag.get_dag_for_run(dag_run, session=session)
     elif dag_id:
         dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
     if not dag:

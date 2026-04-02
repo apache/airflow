@@ -17,19 +17,17 @@
 
 from __future__ import annotations
 
-import contextlib
-import importlib
 import logging
 from collections.abc import MutableMapping
 from functools import cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionHookFieldBehavior,
     ConnectionHookMetaData,
     StandardHookFields,
 )
-from airflow.sdk import Param
+from airflow.serialization.definitions.param import SerializedParam
 
 if TYPE_CHECKING:
     from airflow.providers_manager import ConnectionFormWidgetInfo, HookInfo
@@ -50,8 +48,12 @@ class HookMetaService:
         ):
             pass
 
+        def __call__(self, form, field):
+            """No-op call to satisfy WTForms validator protocol."""
+            return None
+
     class MockEnum:
-        """Mock for wtforms.validators.Optional."""
+        """Mock for wtforms.validators.AnyOf."""
 
         def __init__(self, allowed_values):
             self.allowed_values = allowed_values
@@ -70,6 +72,7 @@ class HookMetaService:
             description: str = "",
             default: str | None = None,
             widget=None,
+            source: Literal["dag", "task"] | None = None,
         ):
             type: str | list[str] = [self.param_type, "null"]
             enum = {}
@@ -80,10 +83,11 @@ class HookMetaService:
                 for v in validators:
                     if isinstance(v, HookMetaService.MockEnum):
                         enum = {"enum": v.allowed_values}
-            self.param = Param(
+            self.param = SerializedParam(
                 default=default,
                 title=label,
                 description=description or None,
+                source=source or None,
                 type=type,
                 **format,
                 **enum,
@@ -132,68 +136,63 @@ class HookMetaService:
             """Mock for wtforms.validators.any_of."""
             return HookMetaService.MockEnum(allowed_values)
 
-        with contextlib.ExitStack() as stack:
+        # Before importing ProvidersManager, we need to mock all FAB and WTForms
+        # dependencies to avoid ImportErrors when FAB is not installed.
+        import sys
+        from importlib.util import find_spec
+        from unittest.mock import MagicMock
+
+        for mod_name in [
+            "wtforms",
+            "wtforms.csrf",
+            "wtforms.fields",
+            "wtforms.fields.simple",
+            "wtforms.validators",
+            "flask_babel",
+            "flask_appbuilder",
+            "flask_appbuilder.fieldwidgets",
+        ]:
             try:
-                importlib.import_module("wtforms")
-                stack.enter_context(mock.patch("wtforms.StringField", HookMetaService.MockStringField))
-                stack.enter_context(mock.patch("wtforms.fields.StringField", HookMetaService.MockStringField))
-                stack.enter_context(
-                    mock.patch("wtforms.fields.simple.StringField", HookMetaService.MockStringField)
-                )
+                if not find_spec(mod_name):
+                    raise ModuleNotFoundError
+            except ModuleNotFoundError:
+                sys.modules[mod_name] = MagicMock()
 
-                stack.enter_context(mock.patch("wtforms.IntegerField", HookMetaService.MockIntegerField))
-                stack.enter_context(
-                    mock.patch("wtforms.fields.IntegerField", HookMetaService.MockIntegerField)
-                )
-                stack.enter_context(mock.patch("wtforms.PasswordField", HookMetaService.MockPasswordField))
-                stack.enter_context(mock.patch("wtforms.BooleanField", HookMetaService.MockBooleanField))
-                stack.enter_context(
-                    mock.patch("wtforms.fields.BooleanField", HookMetaService.MockBooleanField)
-                )
-                stack.enter_context(
-                    mock.patch("wtforms.fields.simple.BooleanField", HookMetaService.MockBooleanField)
-                )
-                stack.enter_context(mock.patch("wtforms.validators.Optional", HookMetaService.MockOptional))
-                stack.enter_context(mock.patch("wtforms.validators.any_of", mock_any_of))
-            except ImportError:
-                pass
-
-            try:
-                importlib.import_module("flask_babel")
-                stack.enter_context(mock.patch("flask_babel.lazy_gettext", mock_lazy_gettext))
-            except ImportError:
-                pass
-
-            try:
-                importlib.import_module("flask_appbuilder")
-                stack.enter_context(
-                    mock.patch(
-                        "flask_appbuilder.fieldwidgets.BS3TextFieldWidget", HookMetaService.MockAnyWidget
-                    )
-                )
-                stack.enter_context(
-                    mock.patch(
-                        "flask_appbuilder.fieldwidgets.BS3TextAreaFieldWidget", HookMetaService.MockAnyWidget
-                    )
-                )
-                stack.enter_context(
-                    mock.patch(
-                        "flask_appbuilder.fieldwidgets.BS3PasswordFieldWidget", HookMetaService.MockAnyWidget
-                    )
-                )
-            except ImportError:
-                pass
-
+        # We conditionally inject mock classes for missing dependencies
+        # to ensure `ProvidersManager` can initialize hook connection widgets
+        # without crashing when FAB/WTForms are not installed.
+        if "wtforms.StringField" not in sys.modules:
+            # Only apply mocks if the actual module wasn't loaded beforehand.
+            # This avoids thread-safety issues caused by `unittest.mock.patch` mutating global states.
+            with (
+                mock.patch("wtforms.StringField", HookMetaService.MockStringField),
+                mock.patch("wtforms.fields.StringField", HookMetaService.MockStringField),
+                mock.patch("wtforms.fields.simple.StringField", HookMetaService.MockStringField),
+                mock.patch("wtforms.IntegerField", HookMetaService.MockIntegerField),
+                mock.patch("wtforms.fields.IntegerField", HookMetaService.MockIntegerField),
+                mock.patch("wtforms.PasswordField", HookMetaService.MockPasswordField),
+                mock.patch("wtforms.BooleanField", HookMetaService.MockBooleanField),
+                mock.patch("wtforms.fields.BooleanField", HookMetaService.MockBooleanField),
+                mock.patch("wtforms.fields.simple.BooleanField", HookMetaService.MockBooleanField),
+                mock.patch("flask_babel.lazy_gettext", mock_lazy_gettext),
+                mock.patch("flask_appbuilder.fieldwidgets.BS3TextFieldWidget", HookMetaService.MockAnyWidget),
+                mock.patch(
+                    "flask_appbuilder.fieldwidgets.BS3TextAreaFieldWidget", HookMetaService.MockAnyWidget
+                ),
+                mock.patch(
+                    "flask_appbuilder.fieldwidgets.BS3PasswordFieldWidget", HookMetaService.MockAnyWidget
+                ),
+                mock.patch("wtforms.validators.Optional", HookMetaService.MockOptional),
+                mock.patch("wtforms.validators.any_of", mock_any_of),
+                # Prevent poisoning the global ProvidersManager singleton with mocks
+                mock.patch("airflow.providers_manager.ProvidersManager._instance", None),
+                mock.patch("airflow.providers_manager.ProvidersManager.initialized", return_value=False),
+            ):
+                pm = ProvidersManager()
+                return pm.hooks, pm.connection_form_widgets, pm.field_behaviours  # Will init providers hooks
+        else:
             pm = ProvidersManager()
-            pm._cleanup()  # Remove any cached hooks with non mocked FAB
-            pm._init_airflow_core_hooks()  # Initialize core hooks
             return pm.hooks, pm.connection_form_widgets, pm.field_behaviours  # Will init providers hooks
-
-        return (
-            {},
-            {},
-            {},
-        )  # Make mypy happy, should never been reached https://github.com/python/mypy/issues/7726
 
     @staticmethod
     def _make_standard_fields(field_behaviour: dict | None) -> StandardHookFields | None:
@@ -226,12 +225,58 @@ class HookMetaService:
         result: dict[str, MutableMapping] = {}
         for key, form_widget in form_widgets.items():
             hook_key = key.split("__")[1]
-            if isinstance(form_widget.field, HookMetaService.MockBaseField):
-                hook_widgets = result.get(hook_key, {})
+            hook_widgets = result.get(hook_key, {})
+
+            if isinstance(form_widget.field, dict):
+                # yaml path, form widgets read from yaml and already present in SerializedParam.dump() format
+                hook_widgets[form_widget.field_name] = form_widget.field
+            elif isinstance(form_widget.field, HookMetaService.MockBaseField):
+                # legacy path, form widgets created using mocked WTForms fields, need to convert to SerializedParam.dump()
                 hook_widgets[form_widget.field_name] = form_widget.field.param.dump()
-                result[hook_key] = hook_widgets
+            elif type(form_widget.field).__name__ == "UnboundField":
+                # handle real WTForms fields gracefully without needing mock patches
+                field_class_name = getattr(form_widget.field.field_class, "__name__", "")
+                param_type = "string"
+                param_format = None
+                if field_class_name == "BooleanField":
+                    param_type = "boolean"
+                elif field_class_name == "IntegerField":
+                    param_type = "integer"
+                elif field_class_name == "PasswordField":
+                    param_format = "password"
+
+                label = (
+                    form_widget.field.args[0]
+                    if len(form_widget.field.args) > 0
+                    else form_widget.field.kwargs.get("label")
+                )
+                validators = form_widget.field.kwargs.get("validators", [])
+                description = form_widget.field.kwargs.get("description", "")
+                default = form_widget.field.kwargs.get("default", None)
+
+                enum = {}
+                for v in validators:
+                    if type(v).__name__ == "AnyOf":
+                        enum["enum"] = getattr(v, "values", [])
+
+                types = [param_type, "null"]
+                format_dict = {"format": param_format} if param_format else {}
+
+                param = SerializedParam(
+                    default=default,
+                    title=str(label) if label is not None else None,
+                    description=str(description) if description else None,
+                    source=None,
+                    type=types,
+                    **format_dict,
+                    **enum,
+                ).dump()
+                hook_widgets[form_widget.field_name] = param
             else:
                 log.error("Unknown form widget in %s: %s", hook_key, form_widget)
+                continue
+
+            result[hook_key] = hook_widgets
         return result
 
     @staticmethod

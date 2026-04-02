@@ -28,7 +28,7 @@ import pytest_asyncio
 from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
     GKEHook,
@@ -393,7 +393,7 @@ class TestGKEHook:
         assert operation_mock.call_count == 2
 
     @pytest.mark.parametrize(
-        "cluster_obj, expected_result",
+        ("cluster_obj", "expected_result"),
         [
             (CLUSTER_TEST_AUTOPROVISIONING, True),
             (CLUSTER_TEST_AUTOSCALED, True),
@@ -451,7 +451,7 @@ class TestGKEKubernetesHookDeployments:
         return self.credentials
 
     @pytest.mark.parametrize(
-        "api_client, expected_client",
+        ("api_client", "expected_client"),
         [
             (None, mock.MagicMock()),
             (mock_client := mock.MagicMock(), mock_client),  # type: ignore[name-defined]
@@ -529,9 +529,12 @@ class TestGKEKubernetesAsyncHook:
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
     async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
         caplog.set_level(logging.INFO)
-        self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
+        # As logs are read in raw mode, need to mock the response object plus read method
+        response_mock = mock.AsyncMock()
+        response_mock.read.return_value = b"Test string #1\nTest string #2\n"
+        self.make_mock_awaitable(read_namespaced_pod_log, result=response_mock)
 
-        await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
+        logs = await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
 
         get_conn_mock.assert_called_once_with()
         read_namespaced_pod_log.assert_called_with(
@@ -539,9 +542,10 @@ class TestGKEKubernetesAsyncHook:
             namespace=POD_NAMESPACE,
             follow=False,
             timestamps=True,
+            _preload_content=False,
         )
-        assert "Test string #1" in caplog.text
-        assert "Test string #2" in caplog.text
+        assert "Test string #1" in logs
+        assert "Test string #2" in logs
 
 
 @pytest_asyncio.fixture
@@ -629,7 +633,7 @@ class TestGKEKubernetesHookPod:
         return self.credentials
 
     @pytest.mark.parametrize(
-        "disable_tcp_keepalive, expected",
+        ("disable_tcp_keepalive", "expected"),
         (
             (True, False),
             (None, True),

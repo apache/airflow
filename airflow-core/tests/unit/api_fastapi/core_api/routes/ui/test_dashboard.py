@@ -18,15 +18,18 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest import mock
 
 import pendulum
 import pytest
 
-from airflow.models import DagBag
+from airflow.models.dag import DagModel
+from airflow.models.dagbag import DBDagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -34,9 +37,7 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(autouse=True, scope="module")
 def examples_dag_bag():
-    # Speed up: We don't want example dags for this module
-
-    return DagBag(include_examples=False, read_dags_from_db=True)
+    return DBDagBag()
 
 
 @pytest.fixture(autouse=True)
@@ -206,18 +207,44 @@ def make_multiple_dags(dag_maker, session):
         start_date=date,
     )
 
+    with dag_maker(
+        dag_id="no_dag_runs",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+
+    with dag_maker(
+        dag_id="stale_dag",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+
+    date = dag_maker.dag.start_date
+    dag_maker.create_dagrun(
+        run_id="run_1",
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.SCHEDULED,
+        logical_date=date,
+        start_date=date,
+    )
     dag_maker.sync_dagbag_to_db()
+
+    session.get(DagModel, "stale_dag").is_stale = True
+    session.commit()
 
 
 class TestHistoricalMetricsDataEndpoint:
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             (
                 {"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"},
                 {
                     "dag_run_states": {"failed": 1, "queued": 1, "running": 1, "success": 1},
-                    "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 3},
                     "task_instance_states": {
                         "deferred": 0,
                         "failed": 2,
@@ -233,13 +260,13 @@ class TestHistoricalMetricsDataEndpoint:
                         "up_for_retry": 0,
                         "upstream_failed": 0,
                     },
+                    "state_count_limit": 1000,
                 },
             ),
             (
                 {"start_date": "2023-02-02T00:00", "end_date": "2023-06-02T00:00"},
                 {
                     "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},
-                    "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 0},
                     "task_instance_states": {
                         "deferred": 0,
                         "failed": 2,
@@ -255,13 +282,13 @@ class TestHistoricalMetricsDataEndpoint:
                         "up_for_retry": 0,
                         "upstream_failed": 0,
                     },
+                    "state_count_limit": 1000,
                 },
             ),
             (
                 {"start_date": "2023-02-02T00:00"},
                 {
                     "dag_run_states": {"failed": 1, "queued": 1, "running": 1, "success": 0},
-                    "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 2},
                     "task_instance_states": {
                         "deferred": 0,
                         "failed": 2,
@@ -277,15 +304,41 @@ class TestHistoricalMetricsDataEndpoint:
                         "up_for_retry": 0,
                         "upstream_failed": 0,
                     },
+                    "state_count_limit": 1000,
                 },
             ),
         ],
     )
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
     def test_should_response_200(self, test_client, params, expected):
-        response = test_client.get("/dashboard/historical_metrics_data", params=params)
+        with assert_queries_count(4):
+            response = test_client.get("/dashboard/historical_metrics_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
+
+    @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
+    def test_state_counts_are_capped(self, test_client):
+        """State counts are capped at STATE_COUNT_CAP; fixture creates 4 dag runs and 8 TIs."""
+        with mock.patch("airflow.api_fastapi.core_api.routes.ui.dashboard.STATE_COUNT_CAP", 1):
+            response = test_client.get(
+                "/dashboard/historical_metrics_data",
+                params={"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"},
+            )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["state_count_limit"] == 1
+
+        dr_states = data["dag_run_states"]
+        assert dr_states["success"] == 1
+        assert dr_states["failed"] == 1
+        assert dr_states["running"] == 1
+        assert dr_states["queued"] == 1
+
+        ti_states = data["task_instance_states"]
+        assert ti_states["success"] == 1
+        assert ti_states["failed"] == 1
+        assert ti_states["no_status"] == 1
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -303,10 +356,11 @@ class TestHistoricalMetricsDataEndpoint:
 class TestDagStatsEndpoint:
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_multiple_dags")
     def test_should_response_200_multiple_dags(self, test_client):
-        response = test_client.get("/dashboard/dag_stats")
+        with assert_queries_count(3):
+            response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
-            "active_dag_count": 3,
+            "active_dag_count": 4,
             "failed_dag_count": 1,
             "running_dag_count": 1,
             "queued_dag_count": 1,
@@ -314,7 +368,8 @@ class TestDagStatsEndpoint:
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
     def test_should_response_200_single_dag(self, test_client):
-        response = test_client.get("/dashboard/dag_stats")
+        with assert_queries_count(3):
+            response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
             "active_dag_count": 1,
@@ -325,7 +380,8 @@ class TestDagStatsEndpoint:
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_failed_dag_runs")
     def test_should_response_200_failed_dag(self, test_client):
-        response = test_client.get("/dashboard/dag_stats")
+        with assert_queries_count(3):
+            response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
             "active_dag_count": 1,
@@ -336,7 +392,8 @@ class TestDagStatsEndpoint:
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_queued_dag_runs")
     def test_should_response_200_queued_dag(self, test_client):
-        response = test_client.get("/dashboard/dag_stats")
+        with assert_queries_count(3):
+            response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
             "active_dag_count": 1,
@@ -347,7 +404,8 @@ class TestDagStatsEndpoint:
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns")
     def test_should_response_200_no_dag_runs(self, test_client):
-        response = test_client.get("/dashboard/dag_stats")
+        with assert_queries_count(3):
+            response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
             "active_dag_count": 0,

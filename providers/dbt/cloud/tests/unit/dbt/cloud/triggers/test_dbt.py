@@ -35,6 +35,7 @@ class TestDbtCloudRunJobTrigger:
     CONN_ID = "dbt_cloud_default"
     ACCOUNT_ID = 12340
     END_TIME = time.time() + 60 * 60 * 24 * 7
+    EXECUTION_DEADLINE = time.time() + 60 * 60 * 24 * 7
     POLL_INTERVAL = 3.0
 
     def test_serialization(self):
@@ -43,8 +44,10 @@ class TestDbtCloudRunJobTrigger:
             conn_id=self.CONN_ID,
             poll_interval=self.POLL_INTERVAL,
             end_time=self.END_TIME,
+            execution_deadline=self.EXECUTION_DEADLINE,
             run_id=self.RUN_ID,
             account_id=self.ACCOUNT_ID,
+            hook_params={"retry_delay": 10},
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger"
@@ -53,7 +56,9 @@ class TestDbtCloudRunJobTrigger:
             "account_id": self.ACCOUNT_ID,
             "conn_id": self.CONN_ID,
             "end_time": self.END_TIME,
+            "execution_deadline": self.EXECUTION_DEADLINE,
             "poll_interval": self.POLL_INTERVAL,
+            "hook_params": {"retry_delay": 10},
         }
 
     @pytest.mark.asyncio
@@ -77,7 +82,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (DbtCloudJobRunStatus.SUCCESS.value, "success", "Job run 1234 has completed successfully."),
         ],
@@ -109,7 +114,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (DbtCloudJobRunStatus.CANCELLED.value, "cancelled", "Job run 1234 has been cancelled."),
         ],
@@ -141,7 +146,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (DbtCloudJobRunStatus.ERROR.value, "error", "Job run 1234 has failed."),
         ],
@@ -217,15 +222,75 @@ class TestDbtCloudRunJobTrigger:
             {
                 "status": "error",
                 "message": f"Job run {self.RUN_ID} has not reached a terminal status "
-                f"after {end_time} seconds.",
+                f"within the configured timeout.",
                 "run_id": self.RUN_ID,
             }
         )
         assert expected == actual
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")
+    async def test_dbt_job_run_timeout_with_final_status_check(self, mock_get_job_status):
+        """Assert that a final status check prevents false timeout when job completes near timeout."""
+        mock_get_job_status.return_value = DbtCloudJobRunStatus.SUCCESS.value
+        # Simulate: first is_still_running call returns True (job running),
+        # then the timeout check fires, but the final is_still_running call returns False
+        # (job just completed). The trigger should yield success, not a timeout error.
+        end_time = time.time()  # Already expired
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=end_time,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+        )
+        with mock.patch.object(trigger, "is_still_running", new_callable=AsyncMock) as mock_running:
+            # First call: still running; second call (final check): no longer running
+            mock_running.side_effect = [True, False]
+            generator = trigger.run()
+            actual = await generator.asend(None)
+        expected = TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Job run {self.RUN_ID} has completed successfully.",
+                "run_id": self.RUN_ID,
+            }
+        )
+        assert expected == actual
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger.is_still_running")
+    async def test_dbt_job_run_execution_timeout(self, mocked_is_still_running):
+        """Assert that run emits timeout event after execution_deadline elapsed"""
+        mocked_is_still_running.return_value = True
+
+        execution_deadline = time.time()
+
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=time.time() + 60,
+            execution_deadline=execution_deadline,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+        )
+
+        generator = trigger.run()
+        actual = await generator.asend(None)
+
+        expected = TriggerEvent(
+            {
+                "status": "timeout",
+                "message": f"Job run {self.RUN_ID} has timed out.",
+                "run_id": self.RUN_ID,
+            }
+        )
+
+        assert expected == actual
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_response, expected_status",
+        ("mock_response", "expected_status"),
         [
             (DbtCloudJobRunStatus.SUCCESS.value, False),
         ],
@@ -250,7 +315,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_response, expected_status",
+        ("mock_response", "expected_status"),
         [
             (DbtCloudJobRunStatus.RUNNING.value, True),
         ],
@@ -273,7 +338,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_response, expected_status",
+        ("mock_response", "expected_status"),
         [
             (DbtCloudJobRunStatus.QUEUED.value, True),
         ],

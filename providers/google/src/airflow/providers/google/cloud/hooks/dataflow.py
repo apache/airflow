@@ -49,14 +49,14 @@ from google.cloud.dataflow_v1beta3.types import (
 from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
 from googleapiclient.discovery import Resource, build
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
+from airflow.providers.common.compat.sdk import AirflowException, timeout
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
-from airflow.providers.google.version_compat import timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -708,7 +708,7 @@ class DataflowHook(GoogleBaseHook):
 
         if on_new_job_id_callback:
             warnings.warn(
-                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
+                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
@@ -885,7 +885,7 @@ class DataflowHook(GoogleBaseHook):
 
         if on_new_job_id_callback:
             warnings.warn(
-                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
+                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
@@ -1005,7 +1005,7 @@ class DataflowHook(GoogleBaseHook):
         success_code = 0
 
         with self.provide_authorized_gcloud():
-            proc = subprocess.run(cmd, capture_output=True)
+            proc = subprocess.run(cmd, check=False, capture_output=True)
 
         if proc.returncode != success_code:
             stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
@@ -1067,7 +1067,7 @@ class DataflowHook(GoogleBaseHook):
         if variables:
             warnings.warn(
                 "The variables parameter has been deprecated. You should pass project_id using "
-                "the project_id parameter.",
+                "the project_id parameter. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )
@@ -1076,7 +1076,7 @@ class DataflowHook(GoogleBaseHook):
             location = DEFAULT_DATAFLOW_LOCATION
             warnings.warn(
                 "The location argument will be become mandatory in future versions, "
-                f"currently, it defaults to {DEFAULT_DATAFLOW_LOCATION}, please set the location explicitly.",
+                f"currently, it defaults to {DEFAULT_DATAFLOW_LOCATION}, please set the location explicitly. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )

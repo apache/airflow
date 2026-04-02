@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import concurrent
 import concurrent.futures
 import datetime
 import itertools
@@ -99,10 +98,23 @@ def should_be_refreshed(pkg_name: str, refresh_airflow_inventories: bool) -> boo
     return False
 
 
-def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = False) -> list[str]:
+def is_airflow_package(pkg_name: str) -> bool:
+    """
+    Check if the package name is an Airflow package.
+    This includes the main Airflow package and any provider packages.
+    """
+    return pkg_name.startswith("apache-airflow") or pkg_name in ["helm-chart", "docker-stack", "task-sdk"]
+
+
+def fetch_inventories(
+    clean_build: bool,
+    refresh_airflow_inventories: bool = False,
+    fail_on_missing_third_party: bool = False,
+    clean_inventory_cache: bool = False,
+) -> list[str]:
     """Fetch all inventories for Airflow documentation packages and store in cache."""
-    if clean_build:
-        shutil.rmtree(CACHE_PATH)
+    if clean_inventory_cache:
+        shutil.rmtree(CACHE_PATH, ignore_errors=True)
         print()
         print("[yellow]Inventory Cache cleaned!")
         print()
@@ -165,21 +177,56 @@ def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = Fal
     failed, success = list(failed), list(success)
     print(f"Result: {len(success)} success, {len(failed)} failed")
     if failed:
-        terminate = False
+        missing_third_party: list[str] = []
+        missing_airflow_packages = False
         print("Failed packages:")
         for pkg_no, (pkg_name, _) in enumerate(failed, start=1):
             print(f"{pkg_no}. {pkg_name}")
-            if not terminate and not pkg_name.startswith("apache-airflow"):
-                # For solve situation that newly created Community Provider doesn't upload inventory yet.
-                # And we terminate execution only if any error happen during fetching
-                # third party intersphinx inventories.
-                terminate = True
-        if terminate:
-            print("Terminate execution.")
+            if not is_airflow_package(pkg_name):
+                cached_path = CACHE_PATH / pkg_name / "objects.inv"
+                if fail_on_missing_third_party:
+                    print(
+                        f"[yellow]Missing {pkg_name} inventory is not for an Airflow package: "
+                        f"it will terminate the execution."
+                    )
+                    missing_third_party.append(pkg_name)
+                elif cached_path.exists():
+                    print(
+                        f"[yellow]Using cached inventory for {pkg_name} "
+                        f"(download failed but cached version exists)."
+                    )
+                else:
+                    print(f"[yellow]No inventory available for {pkg_name}, cross-references will be broken.")
+                    missing_third_party.append(pkg_name)
+            else:
+                print(
+                    f"[yellow]Missing {pkg_name} inventory is for an Airflow package, "
+                    f"it will be built from sources."
+                )
+                missing_airflow_packages = True
+        # Write marker file for CI to detect missing third-party inventories
+        marker_file = CACHE_PATH / ".missing_third_party_inventories"
+        if missing_third_party:
+            marker_file.write_text("\n".join(missing_third_party) + "\n")
+        elif marker_file.exists():
+            marker_file.unlink()
+        if fail_on_missing_third_party and missing_third_party:
+            print(
+                "[red]Terminate execution[/]\n\n"
+                "[yellow]Some non-airflow inventories are missing. If missing inventory is really "
+                "an Airflow package, please add it to the `is_airflow_package` in `fetch_inventories.py`."
+            )
             raise SystemExit(1)
-
+        if missing_airflow_packages:
+            print(f"[yellow]Failed to fetch those airflow inventories - building them first: {failed}.")
     return [pkg_name for pkg_name, status in failed]
 
 
 if __name__ == "__main__":
-    fetch_inventories(clean_build=len(sys.argv) > 1 and sys.argv[1] == "clean")
+    if len(sys.argv) > 1 and sys.argv[1] == "clean":
+        print("[bright_blue]Cleaning inventory cache before fetching inventories")
+        clean_inventory_cache = True
+    else:
+        print("[bright_blue]Just fetching inventories without cleaning cache")
+        clean_inventory_cache = False
+    fetch_inventories(clean_build=False, clean_inventory_cache=clean_inventory_cache)

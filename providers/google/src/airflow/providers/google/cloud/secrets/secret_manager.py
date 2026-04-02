@@ -23,7 +23,7 @@ from collections.abc import Sequence
 
 from google.auth.exceptions import DefaultCredentialsError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,
@@ -149,22 +149,24 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         prefix = self.connections_prefix + self.sep
         return _SecretManagerClient.is_valid_secret_name(prefix)
 
-    def get_conn_value(self, conn_id: str) -> str | None:
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
         Get serialized representation of Connection.
 
         :param conn_id: connection id
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         """
         if self.connections_prefix is None:
             return None
 
         return self._get_secret(self.connections_prefix, conn_id)
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Get Airflow Variable from Environment Variable.
 
         :param key: Variable Key
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
         if self.variables_prefix is None:

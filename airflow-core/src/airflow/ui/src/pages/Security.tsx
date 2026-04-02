@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { ProgressBar } from "src/components/ui";
@@ -37,6 +37,20 @@ export const Security = () => {
 
   const link = authLinks?.extra_menu_items.find((mi) => mi.text.toLowerCase().replace(" ", "-") === page);
 
+  const navigate = useNavigate();
+
+  const onLoad = () => {
+    const iframe: HTMLIFrameElement | null = document.querySelector("#security-iframe");
+
+    if (iframe?.contentWindow) {
+      const base = new URL(document.baseURI).pathname.replace(/\/$/u, ""); // Remove trailing slash if exists
+
+      if (!iframe.contentWindow.location.pathname.startsWith(`${base}/auth/`)) {
+        void navigate("/");
+      }
+    }
+  };
+
   if (!link) {
     if (isLoading) {
       return (
@@ -51,7 +65,17 @@ export const Security = () => {
 
   return (
     <Box flexGrow={1} m={-3}>
-      <iframe sandbox={SANDBOX} src={link.href} style={{ height: "100%", width: "100%" }} title={link.text} />
+      {
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+        <iframe
+          id="security-iframe"
+          onLoad={onLoad}
+          sandbox={SANDBOX}
+          src={link.href}
+          style={{ height: "100%", width: "100%" }}
+          title={link.text}
+        />
+      }
     </Box>
   );
 };

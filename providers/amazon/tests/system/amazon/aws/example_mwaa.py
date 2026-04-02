@@ -28,12 +28,13 @@ from airflow.providers.amazon.aws.sensors.mwaa import MwaaDagRunSensor, MwaaTask
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG, chain, task
+    from airflow.sdk import DAG, chain, task, timezone
 else:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 
 from system.amazon.aws.utils import SystemTestContextBuilder
@@ -95,7 +96,9 @@ def test_iam_fallback(role_to_assume_arn, mwaa_env_name):
 
     mwaa_hook = MwaaHook()
     mwaa_hook.conn = session.client("mwaa")
-    response = mwaa_hook.invoke_rest_api(env_name=mwaa_env_name, path="/dags", method="GET")
+    response = mwaa_hook.invoke_rest_api(
+        env_name=mwaa_env_name, path="/dags", method="GET", airflow_version=3
+    )
     return "dags" in response["RestApiResponse"]
 
 
@@ -103,7 +106,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -116,8 +118,10 @@ with DAG(
     trigger_dag_run = MwaaTriggerDagRunOperator(
         task_id="trigger_dag_run",
         env_name=env_name,
+        logical_date=datetime.now(timezone.utc).isoformat(),
         trigger_dag_id=trigger_dag_id,
         wait_for_completion=True,
+        airflow_version=3,
     )
     # [END howto_operator_mwaa_trigger_dag_run]
 
@@ -144,8 +148,10 @@ with DAG(
     trigger_dag_run_dont_wait = MwaaTriggerDagRunOperator(
         task_id="trigger_dag_run_dont_wait",
         env_name=env_name,
+        logical_date=datetime.now(timezone.utc).isoformat(),
         trigger_dag_id=trigger_dag_id,
         wait_for_completion=False,
+        airflow_version=3,
     )
 
     wait_for_task_concurrent = MwaaTaskSensor(

@@ -23,9 +23,9 @@ import boto3
 import tenacity
 from tenacity import before_log, before_sleep_log
 
-from airflow.exceptions import AirflowSkipException
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
+from airflow.providers.common.compat.sdk import AirflowSkipException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -36,7 +36,11 @@ else:
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
-from airflow.utils.trigger_rule import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -181,7 +185,6 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]

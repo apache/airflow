@@ -28,7 +28,25 @@ Those are all the commands available in the ``ci`` group:
 .. image:: ./images/output_ci.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci.svg
   :width: 100%
-  :alt: Breeze ci commands
+  :alt: Breeze ci com
+
+
+Running ci upgrade
+------------------
+
+Airflow maintainers can use the ``breeze ci upgrade`` command to perform automated upgrades of important
+CI dependencies. This command updates prek hooks, chart dependencies, and other critical CI environment
+components. It can automatically create a pull request with the changes.
+
+The command checks if you are on the correct branch (main or a version test branch like v2-10-test) with a
+clean repository. If not, it will offer to reset your repository to the latest state from apache/airflow.
+
+These are all available flags of ``upgrade`` command:
+
+.. image:: ./images/output_ci_upgrade.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_upgrade.svg
+  :width: 100%
+  :alt: Breeze ci upgrade
 
 
 Running resource check
@@ -113,6 +131,24 @@ These are all available flags of ``get-workflow-info`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_get-workflow-info.svg
   :width: 100%
   :alt: Breeze ci get-workflow-info
+
+Milestone Tag Assistant
+-----------------------
+
+The bot will only be triggered when a new push event occurs on the ``main`` or ``v3-1-test`` branches. It will leave a comment in the corresponding PR (similar to how the current ``automatic-backport`` bot behaves) and set the milestone if it matches the rules below, and it will skip if the PRs that already have a milestone set.
+
+There are two cases for the current rules:
+- **CI-related**: no need to set milestone
+- **Patch release**: default to the **latest patch-release milestone**
+  - has a label like ``backport-to-v3-1-test``
+  - is merged to ``v3-1-test`` version branch
+
+If it cannot determine which milestone should be added, it also adds a comment to remind the committer who merged the PR to add the corresponding milestone. This automation ensures that all PRs that should be included in the patch release are properly tagged, making the release manager's life easier.
+
+.. image:: ./images/output_ci_set-milestone.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_milestone-tag-assistant.svg
+  :width: 100%
+  :alt: Milestone Tag Assistant
 
 -----
 

@@ -25,7 +25,7 @@ from airflow.utils.docs import get_docs_url
 
 class TestGetDocsUrl:
     @pytest.mark.parametrize(
-        "version, page, expected_url",
+        ("version", "page", "expected_url"),
         [
             (
                 "2.0.0.dev0",

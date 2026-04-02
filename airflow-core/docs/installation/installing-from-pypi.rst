@@ -21,10 +21,34 @@ Installation from PyPI
 This page describes installations using the ``apache-airflow`` package `published in
 PyPI <https://pypi.org/project/apache-airflow/>`__.
 
-Installation tools
-''''''''''''''''''
+Installation via ``pipx`` or ``uv`` as tool
+'''''''''''''''''''''''''''''''''''''''''''
 
-Only ``pip`` installation is currently officially supported.
+For a local development and testing environment, you can install and run Apache Airflow directly from PyPI.
+
+If you use ``pipx`` you can run directly from PyPI with the command below:
+
+.. code-block:: bash
+
+    pipx run "apache-airflow==|version|" standalone
+
+Via Astral ``uv`` it is possible to install from PyPI using:
+
+.. code-block:: bash
+
+    uv tool install "apache-airflow==|version|"
+
+Additionally to jump-start using it you can also use the shortcut via ``uvx`` command and directly run it without installing it first:
+
+.. code-block:: bash
+
+    uvx apache-airflow standalone
+
+
+Installation in your environment
+''''''''''''''''''''''''''''''''
+
+Only ``pip`` and ``uv`` installation is currently officially supported.
 
 .. note::
 
@@ -33,7 +57,8 @@ Only ``pip`` installation is currently officially supported.
   ``pip`` - especially when it comes to constraint vs. requirements management.
   Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install Airflow
   using those tools you should use the constraints and convert them to appropriate
-  format and workflow that your tool requires.
+  format and workflow that your tool requires. Uv follows ``pip`` approach
+  with ``uv pip`` so it should work similarly.
 
 
 Typical command to install Airflow from scratch in a reproducible way from PyPI looks like below:

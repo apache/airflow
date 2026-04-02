@@ -25,9 +25,8 @@ import pytest
 from confluent_kafka import Producer
 
 # Import Operator
+from airflow.models.connection import Connection
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-
-from tests_common.test_utils.config import conf_vars
 
 log = logging.getLogger(__name__)
 
@@ -49,23 +48,29 @@ def _basic_message_tester(message, test=None) -> Any:
     assert message.value().decode(encoding="utf-8") == test
 
 
+@pytest.fixture(autouse=True)
+def kafka_consumer_connections(create_connection_without_db):
+    """Create Kafka consumer connections for testing purpose."""
+    connections = [
+        Connection(
+            conn_id="operator.consumer.test.integration.test_1",
+            uri="kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_1&enable.auto.commit=False&auto.offset.reset=beginning",
+        ),
+        Connection(
+            conn_id="operator.consumer.test.integration.test_2",
+            uri="kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_2&enable.auto.commit=False&auto.offset.reset=beginning",
+        ),
+        Connection(
+            conn_id="operator.consumer.test.integration.test_3",
+            uri="kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_3&enable.auto.commit=False&auto.offset.reset=beginning",
+        ),
+    ]
+
+    for conn in connections:
+        create_connection_without_db(conn)
+
+
 @pytest.mark.integration("kafka")
-@conf_vars(
-    {
-        (
-            "connections",
-            "operator.consumer.test.integration.test_1",
-        ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_1&enable.auto.commit=False&auto.offset.reset=beginning",
-        (
-            "connections",
-            "operator.consumer.test.integration.test_2",
-        ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_2&enable.auto.commit=False&auto.offset.reset=beginning",
-        (
-            "connections",
-            "operator.consumer.test.integration.test_3",
-        ): "kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_3&enable.auto.commit=False&auto.offset.reset=beginning",
-    }
-)
 class TestConsumeFromTopic:
     """
     test ConsumeFromTopicOperator

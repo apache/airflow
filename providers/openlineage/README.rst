@@ -23,11 +23,11 @@
 
 Package ``apache-airflow-providers-openlineage``
 
-Release: ``2.6.1``
+Release: ``2.13.0``
 
-Release Date: ``|PypiReleaseDate|``
 
-`OpenLineage <https://openlineage.io/>`__
+`OpenLineage <https://openlineage.io/docs/>`__ is an open framework for data lineage collection.
+At its core it is an extensible specification that systems can use to interoperate with lineage metadata.
 
 
 Provider package
@@ -37,16 +37,16 @@ This is a provider package for ``openlineage`` provider. All classes for this pr
 are in ``airflow.providers.openlineage`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.6.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.13.0/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-openlineage``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -54,12 +54,12 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-sql``     ``>=1.20.0``
-``apache-airflow-providers-common-compat``  ``>=1.4.0``
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-sql``     ``>=1.32.0``
+``apache-airflow-providers-common-compat``  ``>=1.14.0``
 ``attrs``                                   ``>=22.2``
-``openlineage-integration-common``          ``>=1.36.0``
-``openlineage-python``                      ``>=1.36.0``
+``openlineage-integration-common``          ``>=1.41.0``
+``openlineage-python``                      ``>=1.41.0``
 ==========================================  ==================
 
 Cross provider package dependencies
@@ -82,5 +82,14 @@ Dependent package                                                               
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
 ==================================================================================================================  =================
 
+Optional dependencies
+----------------------
+
+==============  ======================
+Extra           Dependencies
+==============  ======================
+``sqlalchemy``  ``sqlalchemy>=1.4.54``
+==============  ======================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.6.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.13.0/changelog.html>`_.

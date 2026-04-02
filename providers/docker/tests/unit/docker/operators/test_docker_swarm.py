@@ -26,7 +26,7 @@ from docker import APIClient, types
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 
 
@@ -37,9 +37,9 @@ class TestDockerSwarmOperator:
 
         def _client_tasks_side_effect():
             for _ in range(2):
-                yield [{"Status": {"State": "pending"}}]
+                yield [{"ServiceID": "some_id", "Status": {"State": "pending"}}]
             while True:
-                yield [{"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}]
+                yield [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
 
         def _client_service_logs_effect():
             service_logs = [
@@ -138,9 +138,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -157,7 +155,7 @@ class TestDockerSwarmOperator:
 
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     @pytest.mark.parametrize(
-        "auto_remove,expected_remove_call", [("success", False), ("force", True), ("never", False)]
+        ("auto_remove", "expected_remove_call"), [("success", False), ("force", True), ("never", False)]
     )
     def test_auto_remove_failed(
         self, types_mock, docker_api_client_patcher, auto_remove, expected_remove_call
@@ -194,9 +192,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -272,9 +268,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -322,9 +316,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -362,9 +354,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -440,7 +430,7 @@ class TestDockerSwarmOperator:
 
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     @pytest.mark.parametrize(
-        "service_prefix,expected_prefix",
+        ("service_prefix", "expected_prefix"),
         [
             (None, "airflow-"),  # Default case
             ("airflow", "airflow-"),
@@ -456,9 +446,7 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [
-            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
-        ]
+        client_mock.tasks.return_value = [{"ServiceID": "some_id", "Status": {"State": "complete"}}]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj

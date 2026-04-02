@@ -48,7 +48,7 @@ to run a query in Amazon Athena.
 
 In the following example, we query an existing Athena table and send the results to
 an existing Amazon S3 bucket.  For more examples of how to use this operator, please
-see the `Sample DAG <https://github.com/apache/airflow/blob/|version|/providers/amazon/tests/system/amazon/aws/example_athena.py>`__.
+see the `Sample Dag <https://github.com/apache/airflow/blob/|version|/providers/amazon/tests/system/amazon/aws/example_athena.py>`__.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena.py
     :language: python

@@ -18,17 +18,19 @@
 Cluster Policies
 ================
 
-If you want to check or mutate dags or Tasks on a cluster-wide level, then a Cluster Policy will let you do
-that. They have three main purposes:
+If you want to check or mutate Dags or Tasks on a cluster-wide level, then a Cluster Policy will let you do
+it. They also let you apply cluster-wide settings to Dags based on the dag_id or other properties.
 
-* Checking that dags / tasks meet a certain standard
-* Setting default arguments on dags / tasks
+Common use-cases include:
+
+* Checking that Dags / tasks meet a certain standard
+* Setting default arguments on Dags / tasks
 * Performing custom routing logic
 
 There are three main types of cluster policy:
 
 * ``dag_policy``: Takes a :class:`~airflow.models.dag.DAG` parameter called ``dag``. Runs at load time of the
-  DAG from DagBag :class:`~airflow.models.dagbag.DagBag`.
+  Dag from DagBag :class:`~airflow.models.dagbag.DagBag`.
 * ``task_policy``: Takes a :class:`~airflow.models.baseoperator.BaseOperator` parameter called ``task``. The
   policy gets executed when the task is created during parsing of the task from DagBag at load time. This
   means that the whole task definition can be altered in the task policy. It does not relate to a specific
@@ -36,19 +38,19 @@ There are three main types of cluster policy:
   executed in the future.
 * ``task_instance_mutation_hook``: Takes a :class:`~airflow.models.taskinstance.TaskInstance` parameter called
   ``task_instance``. The ``task_instance_mutation_hook`` applies not to a task but to the instance of a task that
-  relates to a particular DagRun. It is executed in a "worker", not in the dag file processor, just before the
+  relates to a particular DagRun. It is executed in a "worker", not in the Dag file processor, just before the
   task instance is executed. The policy is only applied to the currently executed run (i.e. instance) of that
   task.
 
-The DAG and Task cluster policies can raise the  :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
-exception to indicate that the dag/task they were passed is not compliant and should not be loaded.
+The Dag and Task cluster policies can raise the  :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
+exception to indicate that the Dag/task they were passed is not compliant and should not be loaded.
 
 They can also raise the :class:`~airflow.exceptions.AirflowClusterPolicySkipDag` exception
-when skipping that DAG is needed intentionally. Unlike :class:`~airflow.exceptions.AirflowClusterPolicyViolation`,
+when skipping that Dag is needed intentionally. Unlike :class:`~airflow.exceptions.AirflowClusterPolicyViolation`,
 this exception is not displayed on the Airflow web UI (Internally, it's not recorded on ``import_error`` table on meta database.)
 
-Any extra attributes set by a cluster policy take priority over those defined in your DAG file; for example,
-if you set an ``sla`` on your Task in the DAG file, and then your cluster policy also sets an ``sla``, the
+Any extra attributes set by a cluster policy take priority over those defined in your Dag file; for example,
+if you set an ``sla`` on your Task in the Dag file, and then your cluster policy also sets an ``sla``, the
 cluster policy's value will take precedence.
 
 .. _administration-and-deployment:cluster-policies-define:
@@ -124,10 +126,10 @@ Available Policy Functions
 Examples
 --------
 
-DAG policies
+Dag policies
 ~~~~~~~~~~~~
 
-This policy checks if each DAG has at least one tag defined:
+This policy checks if each Dag has at least one tag defined:
 
 .. literalinclude:: /../tests/unit/cluster_policies/__init__.py
       :language: python
@@ -140,7 +142,7 @@ This policy checks if each DAG has at least one tag defined:
 
 .. note::
 
-    DAG policies are applied after the DAG has been completely loaded, so overriding the ``default_args`` parameter has no effect. If you want to override the default operator settings, use task policies instead.
+    Dag policies are applied after the Dag has been completely loaded, so overriding the ``default_args`` parameter has no effect. If you want to override the default operator settings, use task policies instead.
 
 Task policies
 ~~~~~~~~~~~~~
@@ -183,3 +185,47 @@ Here's an example of re-routing tasks that are on their second (or greater) retr
         :end-before: [END example_task_mutation_hook]
 
 Note that since priority weight is determined dynamically using weight rules, you cannot alter the ``priority_weight`` of a task instance within the mutation hook.
+
+
+Metadata Engine Hooks
+---------------------
+
+In addition to cluster policies, ``airflow_local_settings.py`` can override how Airflow creates its metadata
+database engines. This is useful when you need per-connection logic that cannot be expressed through static
+configuration — for example, injecting short-lived JWT tokens or IAM credentials via a SQLAlchemy
+``do_connect`` event handler.
+
+Two functions can be overridden:
+
+* ``create_metadata_engine(sql_alchemy_conn, *, engine_args, connect_args) -> Engine`` — called by
+  ``configure_orm()`` to create the synchronous metadata engine.
+* ``create_async_metadata_engine(sql_alchemy_conn_async, *, connect_args) -> AsyncEngine`` — called by
+  ``_configure_async_session()`` to create the asynchronous metadata engine.
+
+The default implementations call ``sqlalchemy.create_engine`` / ``sqlalchemy.ext.asyncio.create_async_engine``
+with the same arguments Airflow has always used, so there is **no behavioral change** unless you provide an
+override.
+
+Example: registering a ``do_connect`` handler that refreshes a JWT token before every new physical connection:
+
+.. code-block:: python
+
+    # airflow_local_settings.py
+    from sqlalchemy import create_engine, event
+
+
+    def _refresh_jwt(dbapi_connection, connection_record):
+        """Called before every physical connection (including after pool recycle)."""
+        token = my_token_provider.get_token()
+        dbapi_connection.execute(f"SET SESSION AUTHORIZATION '{token}'")
+
+
+    def create_metadata_engine(sql_alchemy_conn, *, engine_args, connect_args):
+        engine = create_engine(
+            sql_alchemy_conn,
+            connect_args=connect_args,
+            **engine_args,
+            future=True,
+        )
+        event.listen(engine, "do_connect", _refresh_jwt)
+        return engine

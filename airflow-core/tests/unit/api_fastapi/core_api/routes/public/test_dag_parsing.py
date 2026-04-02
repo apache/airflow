@@ -19,8 +19,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from airflow.models import DagBag
-from airflow.models.dagbag import DagPriorityParsingRequest
+from airflow.models.dagbag import DagPriorityParsingRequest, DBDagBag
 
 from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.db import clear_db_dag_parsing_requests, clear_db_logs, parse_and_sync_to_db
@@ -46,8 +45,7 @@ class TestDagParsingEndpoint:
 
     def test_201_and_400_requests(self, url_safe_serializer, session, test_client):
         parse_and_sync_to_db(EXAMPLE_DAG_FILE)
-        dagbag = DagBag(read_dags_from_db=True)
-        test_dag = dagbag.get_dag(TEST_DAG_ID)
+        test_dag = DBDagBag(load_op_links=False).get_latest_version_of_dag(TEST_DAG_ID, session=session)
 
         # grab the token
         token = test_client.get(f"/dags/{TEST_DAG_ID}").json()["file_token"]
@@ -58,7 +56,7 @@ class TestDagParsingEndpoint:
         assert response.status_code == 201
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert len(parsing_requests) == 1
-        assert parsing_requests[0].bundle_name == test_dag.get_bundle_name()
+        assert parsing_requests[0].bundle_name == "dags-folder"
         assert parsing_requests[0].relative_fileloc == test_dag.relative_fileloc
         _check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
 
@@ -67,7 +65,7 @@ class TestDagParsingEndpoint:
         assert response.status_code == 409
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert len(parsing_requests) == 1
-        assert parsing_requests[0].bundle_name == test_dag.get_bundle_name()
+        assert parsing_requests[0].bundle_name == "dags-folder"
         assert parsing_requests[0].relative_fileloc == test_dag.relative_fileloc
         _check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
 

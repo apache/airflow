@@ -100,6 +100,7 @@ def test_cli_assets_details(parser: ArgumentParser, stdout_capture) -> None:
         "group": "asset",
         "extra": {},
         "aliases": [],
+        "watchers": [],
         "last_asset_event": None,
     }
 
@@ -115,7 +116,10 @@ def test_cli_assets_alias_details(parser: ArgumentParser, stdout_capture) -> Non
     # No good way to statically compare these.
     undeterministic = {"id": None}
 
-    assert alias_detail_list[0] | undeterministic == undeterministic | {"name": "example-alias", "group": ""}
+    assert alias_detail_list[0] | undeterministic == undeterministic | {
+        "name": "example-alias",
+        "group": "asset",
+    }
 
 
 @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
@@ -153,7 +157,8 @@ def test_cli_assets_materialize(mock_hasattr, parser: ArgumentParser, stdout_cap
         "duration": None,
         "last_scheduling_decision": None,
         "note": None,
-        "run_type": "manual",
+        "partition_key": None,
+        "run_type": "asset_materialization",
         "start_date": None,
         "state": "queued",
         "triggered_by": "cli",
@@ -191,7 +196,8 @@ def test_cli_assets_materialize_with_view_url_template(parser: ArgumentParser, s
         "duration": None,
         "last_scheduling_decision": None,
         "note": None,
-        "run_type": "manual",
+        "partition_key": None,
+        "run_type": "asset_materialization",
         "start_date": None,
         "state": "queued",
         "triggered_by": "cli",

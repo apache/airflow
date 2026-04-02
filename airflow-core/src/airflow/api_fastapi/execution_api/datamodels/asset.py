@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from pydantic.types import JsonValue
+
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
@@ -26,7 +28,7 @@ class AssetResponse(BaseModel):
     name: str
     uri: str
     group: str
-    extra: dict | None = None
+    extra: dict[str, JsonValue] | None = None
 
 
 class AssetAliasResponse(BaseModel):

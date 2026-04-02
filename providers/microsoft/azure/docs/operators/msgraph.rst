@@ -80,6 +80,10 @@ Below is an example of using this operator to create an item schedule in Fabric.
     :start-after: [START howto_operator_ms_fabric_create_item_schedule]
     :end-before: [END howto_operator_ms_fabric_create_item_schedule]
 
+Cross-References
+----------------
+
+* :doc:`Microsoft Graph Filesystem </filesystems/msgraph>` - For file operations using ObjectStoragePath
 
 Reference
 ---------

@@ -41,6 +41,10 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.zendesk.hooks.zendesk.ZendeskHook",
                 "connection-type": "zendesk",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "extra"],
+                    "relabeling": {"host": "Zendesk domain", "login": "Zendesk email"},
+                },
             }
         ],
     }

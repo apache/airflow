@@ -33,12 +33,11 @@ from typing import TYPE_CHECKING, Any, cast
 from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoServiceError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_sync_default_azure_credential,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.kusto.data.response import KustoResponseDataSet
@@ -75,7 +74,7 @@ class AzureDataExplorerHook(BaseHook):
         instance and use it for all queries.
 
     :param azure_data_explorer_conn_id: Reference to the
-        :ref:`Azure Data Explorer connection<howto/connection:adx>`.
+        :ref:`Azure Data Explorer connection<howto/connection:azure_data_explorer>`.
     """
 
     conn_name_attr = "azure_data_explorer_conn_id"

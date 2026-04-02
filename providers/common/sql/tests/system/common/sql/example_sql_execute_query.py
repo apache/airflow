@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.sdk import task
 from airflow.utils.timezone import datetime
 
 AIRFLOW_DB_METADATA_TABLE = "ab_role"
@@ -54,6 +55,15 @@ with DAG(
         return_last=False,
     )
     # [END howto_operator_sql_execute_query]
+
+    # [START howto_decorator_sql_execute_query]
+    @task.sql(split_statements=True, return_last=False)
+    def execute_query_taskflow():
+        return f"SELECT 1; SELECT * FROM {AIRFLOW_DB_METADATA_TABLE} LIMIT 1;"
+
+    execute_query_taskflow()
+
+    # [END howto_decorator_sql_execute_query]
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

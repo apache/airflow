@@ -23,9 +23,10 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { renderDuration } from "src/utils";
 
 dayjs.extend(duration);
 
@@ -38,26 +39,18 @@ export const RecentRuns = ({
 }) => {
   const { t: translate } = useTranslation();
 
-  // Because of the styling (`row-reverse`), we need to reverse the runs so that the most recent run is on the right.
-  const reversedRuns = [...latestRuns].reverse();
-
-  if (!reversedRuns.length) {
+  if (!latestRuns.length) {
     return undefined;
   }
 
-  const runsWithDuration = reversedRuns.map((run) => ({
-    ...run,
-    duration: dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds(),
-  }));
-
   const max = Math.max.apply(
     undefined,
-    runsWithDuration.map((run) => run.duration),
+    latestRuns.map((run) => run.duration ?? 0),
   );
 
   return (
-    <Flex alignItems="flex-end" flexDirection="row-reverse" pb={1}>
-      {runsWithDuration.map((run) => (
+    <Flex alignItems="flex-end" flexDirection="row-reverse" gap={[0.5, 0.5, 0.5, 1]} pb={1}>
+      {latestRuns.map((run) => (
         <Tooltip
           content={
             <Box>
@@ -78,11 +71,11 @@ export const RecentRuns = ({
                 </Text>
               )}
               <Text>
-                {translate("duration")}: {getDuration(run.start_date, run.end_date)}
+                {translate("duration")}: {renderDuration(run.duration)}
               </Text>
             </Box>
           }
-          key={run.dag_run_id}
+          key={run.run_id}
           positioning={{
             offset: {
               crossAxis: 5,
@@ -91,16 +84,20 @@ export const RecentRuns = ({
             placement: "bottom-start",
           }}
         >
-          <Link to={`/dags/${run.dag_id}/runs/${run.dag_run_id}/`}>
-            <Box px={1}>
-              <Box
-                bg={`${run.state}.solid`}
-                borderRadius="4px"
-                height={`${(run.duration / max) * BAR_HEIGHT}px`}
-                minHeight={1}
-                width="4px"
-              />
-            </Box>
+          <Link to={`/dags/${run.dag_id}/runs/${run.run_id}/`}>
+            <Flex
+              alignItems="center"
+              bg={`${run.state}.solid`}
+              borderRadius="4px"
+              flexDir="column"
+              fontSize="12px"
+              height={`${run.duration === null ? 1 : (run.duration / max) * BAR_HEIGHT}px`}
+              justifyContent="flex-end"
+              minHeight="12px"
+              width="12px"
+            >
+              <StateIcon color="white" state={run.state} />
+            </Flex>
           </Link>
         </Tooltip>
       ))}

@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Column, String
-from sqlalchemy_utils import JSONType
+from datetime import datetime
+
+import sqlalchemy as sa
+from sqlalchemy import Boolean, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow.models.base import Base, StringID
+from airflow.models.team import dag_bundle_team_association_table
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -40,12 +44,13 @@ class DagBundleModel(Base, LoggingMixin):
     """
 
     __tablename__ = "dag_bundle"
-    name = Column(StringID(), primary_key=True)
-    active = Column(Boolean, default=True)
-    version = Column(String(200), nullable=True)
-    last_refreshed = Column(UtcDateTime, nullable=True)
-    signed_url_template = Column(String(200), nullable=True)
-    template_params = Column(JSONType, nullable=True)
+    name: Mapped[str] = mapped_column(StringID(length=250), primary_key=True, nullable=False)
+    active: Mapped[bool | None] = mapped_column(Boolean, default=True, nullable=True)
+    version: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    last_refreshed: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    signed_url_template: Mapped[str | None] = mapped_column(Text, nullable=True)
+    template_params: Mapped[dict | None] = mapped_column(sa.JSON(), nullable=True)
+    teams = relationship("Team", secondary=dag_bundle_team_association_table, back_populates="dag_bundles")
 
     def __init__(self, *, name: str, version: str | None = None):
         super().__init__()
@@ -63,6 +68,9 @@ class DagBundleModel(Base, LoggingMixin):
             from itsdangerous import BadSignature, URLSafeSerializer
 
             from airflow.configuration import conf
+
+            if not self.signed_url_template:
+                return None
 
             serializer = URLSafeSerializer(conf.get_mandatory_value("core", "fernet_key"))
             payload = serializer.loads(self.signed_url_template)

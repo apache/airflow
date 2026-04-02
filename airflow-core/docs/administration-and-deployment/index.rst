@@ -18,7 +18,7 @@
 Administration and Deployment
 =====================================
 
-This section contains information about deploying dags into production and the administration of Airflow deployments.
+This section contains information about deploying Dags into production and the administration of Airflow deployments.
 
 .. toctree::
     :maxdepth: 2

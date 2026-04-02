@@ -20,14 +20,21 @@ from __future__ import annotations
 import inspect
 from collections import abc
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import computed_field, field_validator, model_validator
 
+from airflow._shared.module_loading import qualname
 from airflow.api_fastapi.common.types import TimeDeltaWithValidation
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.serialization.serialized_objects import encode_priority_weight_strategy
-from airflow.task.priority_strategy import PriorityWeightStrategy
+from airflow.task.priority_strategy import (
+    get_weight_rule_from_priority_weight_strategy,
+    validate_and_load_priority_weight_strategy,
+)
+
+if TYPE_CHECKING:
+    from airflow.serialization.definitions.param import SerializedParamsDict
+    from airflow.task.priority_strategy import PriorityWeightStrategy
 
 
 def _get_class_ref(obj) -> dict[str, str | None]:
@@ -62,7 +69,7 @@ class TaskResponse(BaseModel):
     pool_slots: float | None
     execution_timeout: TimeDeltaWithValidation | None
     retry_delay: TimeDeltaWithValidation | None
-    retry_exponential_backoff: bool
+    retry_exponential_backoff: float
     priority_weight: float | None
     weight_rule: str | None
     ui_color: str | None
@@ -89,15 +96,19 @@ class TaskResponse(BaseModel):
             return None
         if isinstance(wr, str):
             return wr
-        return encode_priority_weight_strategy(wr)
+        strat_type = type(validate_and_load_priority_weight_strategy(wr))
+        try:
+            return get_weight_rule_from_priority_weight_strategy(strat_type)
+        except KeyError:
+            return qualname(strat_type)
 
     @field_validator("params", mode="before")
     @classmethod
-    def get_params(cls, params: abc.MutableMapping | None) -> dict | None:
+    def get_params(cls, params: SerializedParamsDict | None) -> dict | None:
         """Convert params attribute to dict representation."""
         if params is None:
             return None
-        return {param_name: param_val.dump() for param_name, param_val in params.items()}
+        return {k: v.dump() for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field  # type: ignore[prop-decorator]

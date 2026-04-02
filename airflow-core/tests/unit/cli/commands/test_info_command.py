@@ -50,7 +50,7 @@ class TestPiiAnonymizer:
         assert self.instance.process_path(home_path) == "${HOME}/airflow/config"
 
     @pytest.mark.parametrize(
-        "before, after",
+        ("before", "after"),
         [
             (
                 "postgresql+psycopg2://postgres:airflow@postgres/airflow",
@@ -113,7 +113,7 @@ class TestAirflowInfo:
             "plugins_folder",
             "base_log_folder",
             "remote_base_log_folder",
-            "dags_folder",
+            "dag_bundle_names",
             "sql_alchemy_conn",
         }
         assert self.unique_items(instance._airflow_info) == expected

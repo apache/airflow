@@ -44,6 +44,32 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.hashicorp.hooks.vault.VaultHook",
                 "connection-type": "vault",
+                "ui-field-behaviour": {"hidden-fields": ["extra"]},
+                "conn-fields": {
+                    "auth_type": {"label": "Auth type", "schema": {"type": ["string", "null"]}},
+                    "auth_mount_point": {"label": "Auth mount point", "schema": {"type": ["string", "null"]}},
+                    "kv_engine_version": {
+                        "label": "KV engine version",
+                        "schema": {"type": ["integer", "null"], "default": 2, "enum": [1, 2]},
+                        "description": "Must be 1 or 2.",
+                    },
+                    "kubernetes_role": {"label": "Kubernetes role", "schema": {"type": ["string", "null"]}},
+                    "kubernetes_jwt_path": {
+                        "label": "Kubernetes jwt path",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "jwt_role": {"label": "JWT role", "schema": {"type": ["string", "null"]}},
+                    "jwt_token": {"label": "JWT token", "schema": {"type": ["string", "null"]}},
+                    "jwt_token_path": {"label": "JWT token path", "schema": {"type": ["string", "null"]}},
+                    "token_path": {"label": "Token path", "schema": {"type": ["string", "null"]}},
+                    "gcp_key_path": {"label": "GCP key path", "schema": {"type": ["string", "null"]}},
+                    "gcp_scopes": {"label": "GCP scopes", "schema": {"type": ["string", "null"]}},
+                    "azure_tenant_id": {"label": "Azure tenant ID", "schema": {"type": ["string", "null"]}},
+                    "azure_resource": {"label": "Azure resource", "schema": {"type": ["string", "null"]}},
+                    "radius_host": {"label": "Radius host", "schema": {"type": ["string", "null"]}},
+                    "radius_port": {"label": "Radius port", "schema": {"type": ["integer", "null"]}},
+                    "use_tls": {"label": "Use TLS", "schema": {"type": ["boolean", "null"], "default": True}},
+                },
             }
         ],
         "secrets-backends": ["airflow.providers.hashicorp.secrets.vault.VaultBackend"],

@@ -34,11 +34,7 @@ except ImportError:
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
 
-try:
-    from airflow.sdk.definitions.context import Context
-except ImportError:
-    # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context
+from tests_common.test_utils.compat import Context
 
 MESSAGE = "Test Message"
 MESSAGE_LIST = [f"{MESSAGE} {n}" for n in range(10)]
@@ -250,7 +246,7 @@ class TestAdminClientHook:
         mock_sb_admin_client.assert_has_calls(expected_calls)
 
     @pytest.mark.parametrize(
-        "mock_subscription_name, mock_topic_name",
+        ("mock_subscription_name", "mock_topic_name"),
         [("subscription_1", None), (None, "topic_1")],
     )
     @mock.patch(f"{MODULE}.AdminClientHook")
@@ -310,7 +306,7 @@ class TestMessageHook:
         )
 
     @pytest.mark.parametrize(
-        "mock_message, mock_batch_flag",
+        ("mock_message", "mock_batch_flag"),
         [
             (MESSAGE, True),
             (MESSAGE, False),
@@ -526,7 +522,7 @@ class TestMessageHook:
         assert len(received_messages) == 2
 
     @pytest.mark.parametrize(
-        "mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time",
+        ("mock_subscription_name", "mock_topic_name", "mock_max_count", "mock_wait_time"),
         [("subscription_1", None, None, None), (None, "topic_1", None, None)],
     )
     @mock.patch(f"{MODULE}.MessageHook.get_conn")

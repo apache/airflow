@@ -342,14 +342,8 @@ class TestCreateUserJob:
         spec = jmespath.search("spec", docs[0])
         assert "ttlSecondsAfterFinished" not in spec
 
-    @pytest.mark.parametrize(
-        "airflow_version, expected_arg",
-        [
-            ("1.10.14", "airflow create_user"),
-            ("2.0.2", "airflow users create"),
-        ],
-    )
-    def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
+    @pytest.mark.parametrize("airflow_version", ["2.11.0", "3.0.0"])
+    def test_default_command_and_args_airflow_version(self, airflow_version):
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,
@@ -358,10 +352,10 @@ class TestCreateUserJob:
         )
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
-        assert [
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
             "bash",
             "-c",
-            f'exec \\\n{expected_arg} "$@"',
+            'exec \\\nairflow users create "$@"',
             "--",
             "-r",
             "Admin",
@@ -375,7 +369,7 @@ class TestCreateUserJob:
             "user",
             "-p",
             "admin",
-        ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        ]
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
@@ -402,7 +396,7 @@ class TestCreateUserJob:
     def test_default_user_overrides(self):
         docs = render_chart(
             values={
-                "webserver": {
+                "createUserJob": {
                     "defaultUser": {
                         "role": "SomeRole",
                         "username": "jdoe",
@@ -454,6 +448,100 @@ class TestCreateUserJob:
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    @pytest.mark.parametrize(
+        "restart_policy",
+        [
+            "OnFailure",
+            "Never",
+        ],
+    )
+    def test_restart_policy(self, restart_policy):
+        docs = render_chart(
+            values={"createUserJob": {"restartPolicy": restart_policy}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert restart_policy == jmespath.search("spec.template.spec.restartPolicy", docs[0])
+
+    def test_should_not_create_job_when_createuserjob_disabled(self):
+        """Test that job is not created when createUserJob.enabled is false."""
+        docs = render_chart(
+            values={"createUserJob": {"enabled": False}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 0
+
+    def test_should_create_job_when_createuserjob_enabled(self):
+        """Test that job is created when both createUserJob.enabled and defaultUser.enabled are true."""
+        docs = render_chart(
+            values={"createUserJob": {"enabled": True}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 1
+        assert docs[0]["kind"] == "Job"
+
+    def test_should_not_create_job_when_deprecated_default_user_disabled(self):
+        """Setting webserver.defaultUser.enabled=false must suppress job even with createUserJob.enabled default."""
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "defaultUser": {
+                        "enabled": False,
+                        "role": "Admin",
+                        "username": "admin",
+                        "email": "admin@example.com",
+                        "firstName": "admin",
+                        "lastName": "user",
+                        "password": "admin",
+                    }
+                }
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 0
+
+    def test_should_create_job_when_deprecated_default_user_enabled(self):
+        """Setting webserver.defaultUser.enabled=true should create the job."""
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "defaultUser": {
+                        "enabled": True,
+                        "role": "Admin",
+                        "username": "admin",
+                        "email": "admin@example.com",
+                        "firstName": "admin",
+                        "lastName": "user",
+                        "password": "admin",
+                    }
+                }
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 1
+        assert docs[0]["kind"] == "Job"
+
+    def test_deprecated_default_user_enabled_overrides_createuserjob_disabled(self):
+        """webserver.defaultUser.enabled=true takes precedence over createUserJob.enabled=false."""
+        docs = render_chart(
+            values={
+                "createUserJob": {"enabled": False},
+                "webserver": {
+                    "defaultUser": {
+                        "enabled": True,
+                        "role": "Admin",
+                        "username": "admin",
+                        "email": "admin@example.com",
+                        "firstName": "admin",
+                        "lastName": "user",
+                        "password": "admin",
+                    }
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 1
+        assert docs[0]["kind"] == "Job"
 
 
 class TestCreateUserJobServiceAccount:

@@ -34,7 +34,12 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEStartKueueInsideClusterOperator,
     GKEStartKueueJobOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "kubernetes_engine_kueue"
@@ -103,7 +108,7 @@ with DAG(
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         cluster_name=CLUSTER_NAME,
-        kueue_version="v0.6.2",
+        kueue_version="v0.16.4",
     )
     # [END howto_operator_gke_install_kueue]
 

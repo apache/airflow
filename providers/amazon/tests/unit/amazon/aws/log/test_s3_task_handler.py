@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import logging
 import os
 from unittest import mock
 
@@ -27,16 +28,22 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
-from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+try:
+    from airflow.sdk.timezone import datetime
+except ImportError:
+    from airflow.utils.timezone import datetime  # type: ignore[attr-defined,no-redef]
 
 
 @pytest.fixture(autouse=True)
@@ -47,8 +54,14 @@ def s3mock():
 
 @pytest.mark.db_test
 class TestS3RemoteLogIO:
+    def clear_db(self):
+        clear_db_dags()
+        clear_db_runs()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
+
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory, session):
+    def setup_tests(self, create_log_template, tmp_path_factory, session, testing_dag_bundle):
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
             self.remote_log_base = "s3://bucket/remote/log/location"
             self.remote_log_location = "s3://bucket/remote/log/location/1.log"
@@ -64,8 +77,7 @@ class TestS3RemoteLogIO:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            scheduler_dag = sync_dag_to_db(self.dag)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=date,
@@ -73,6 +85,7 @@ class TestS3RemoteLogIO:
                 run_type="manual",
             )
         else:
+            scheduler_dag = self.dag
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 execution_date=date,
@@ -86,7 +99,7 @@ class TestS3RemoteLogIO:
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
-            self.ti = TaskInstance(task=task, dag_version_id=dag_version.id)
+            self.ti = create_task_instance(task=task, dag_version_id=dag_version.id)
         else:
             self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
@@ -99,10 +112,9 @@ class TestS3RemoteLogIO:
         self.conn.create_bucket(Bucket="bucket")
         yield
 
-        self.dag.clear()
+        scheduler_dag.clear()
 
-        session.query(DagRun).delete()
-        session.query(DagModel).delete()
+        self.clear_db()
         if self.s3_task_handler.handler:
             with contextlib.suppress(Exception):
                 os.remove(self.s3_task_handler.handler.baseFilename)
@@ -128,27 +140,33 @@ class TestS3RemoteLogIO:
             with pytest.raises(ConnectionError, match="Fake: Failed to connect"):
                 subject.s3_log_exists(self.remote_log_location)
 
-    def test_s3_read_when_log_missing(self):
+    def test_s3_read_when_log_missing(self, caplog):
         url = "s3://bucket/foo"
-        with mock.patch.object(self.subject.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             result = self.subject.s3_read(url, return_error=True)
-            msg = (
-                f"Could not read logs from {url} with error: An error occurred (404) when calling the "
-                f"HeadObject operation: Not Found"
-            )
-            assert result == msg
-            mock_error.assert_called_once_with(msg, exc_info=True)
+        msg = (
+            f"Could not read logs from {url} with error: An error occurred (404) when calling the "
+            f"HeadObject operation: Not Found"
+        )
+        assert result == msg
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.exc_info is not None
 
-    def test_read_raises_return_error(self):
+    def test_read_raises_return_error(self, caplog):
         url = "s3://nonexistentbucket/foo"
-        with mock.patch.object(self.subject.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             result = self.subject.s3_read(url, return_error=True)
             msg = (
                 f"Could not read logs from {url} with error: An error occurred (NoSuchBucket) when "
                 f"calling the HeadObject operation: The specified bucket does not exist"
             )
-            assert result == msg
-            mock_error.assert_called_once_with(msg, exc_info=True)
+        assert result == msg
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.exc_info is not None
 
     def test_write(self):
         with mock.patch.object(self.subject.log, "error") as mock_error:
@@ -166,17 +184,27 @@ class TestS3RemoteLogIO:
 
         assert body == b"previous \ntext"
 
-    def test_write_raises(self):
+    def test_write_raises(self, caplog):
         url = "s3://nonexistentbucket/foo"
-        with mock.patch.object(self.subject.log, "error") as mock_error:
+        with caplog.at_level(logging.ERROR):
             self.subject.write("text", url)
-            mock_error.assert_called_once_with("Could not write logs to %s", url, exc_info=True)
+        assert len(caplog.records) == 1
+        rec = caplog.records[0]
+        assert rec.levelno == logging.ERROR
+        assert rec.message == f"Could not write logs to {url}"
+        assert rec.exc_info is not None
 
 
 @pytest.mark.db_test
 class TestS3TaskHandler:
+    def clear_db(self):
+        clear_db_dags()
+        clear_db_runs()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
+
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory, session):
+    def setup_tests(self, create_log_template, tmp_path_factory, session, testing_dag_bundle):
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
             self.remote_log_base = "s3://bucket/remote/log/location"
             self.remote_log_location = "s3://bucket/remote/log/location/1.log"
@@ -191,8 +219,7 @@ class TestS3TaskHandler:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            scheduler_dag = sync_dag_to_db(self.dag)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=date,
@@ -200,6 +227,7 @@ class TestS3TaskHandler:
                 run_type="manual",
             )
         else:
+            scheduler_dag = self.dag
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 execution_date=date,
@@ -213,7 +241,7 @@ class TestS3TaskHandler:
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
-            self.ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+            self.ti = create_task_instance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:
             self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
@@ -226,9 +254,9 @@ class TestS3TaskHandler:
         self.conn.create_bucket(Bucket="bucket")
         yield
 
-        self.dag.clear()
+        scheduler_dag.clear()
 
-        session.query(DagRun).delete()
+        self.clear_db()
         if self.s3_task_handler.handler:
             with contextlib.suppress(Exception):
                 os.remove(self.s3_task_handler.handler.baseFilename)
@@ -242,6 +270,8 @@ class TestS3TaskHandler:
         assert not self.s3_task_handler.upload_on_close
         mock_open.assert_not_called()
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_set_context_not_raw(self):
         mock_open = mock.mock_open()
         with mock.patch("airflow.providers.amazon.aws.log.s3_task_handler.open", mock_open):
@@ -251,6 +281,8 @@ class TestS3TaskHandler:
         mock_open.assert_called_once_with(os.path.join(self.local_log_location, "1.log"), "w")
         mock_open().write.assert_not_called()
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_read(self):
         # Test what happens when we have two log files to read
         self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\nLine 2\n")
@@ -296,6 +328,8 @@ class TestS3TaskHandler:
             assert expected in actual
             assert metadata[0] == {"end_of_log": True, "log_pos": 0}
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
     def test_close(self):
         self.s3_task_handler.set_context(self.ti)
         assert self.s3_task_handler.upload_on_close
@@ -314,7 +348,7 @@ class TestS3TaskHandler:
             boto3.resource("s3").Object("bucket", self.remote_log_key).get()
 
     @pytest.mark.parametrize(
-        "delete_local_copy, expected_existence_of_local_copy",
+        ("delete_local_copy", "expected_existence_of_local_copy"),
         [(True, False), (False, True)],
     )
     def test_close_with_delete_local_logs_conf(self, delete_local_copy, expected_existence_of_local_copy):

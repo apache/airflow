@@ -26,10 +26,11 @@ from typing import TYPE_CHECKING, Any
 from google.cloud.container_v1.types import Operation
 from packaging.version import parse as parse_version
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
     GKEKubernetesAsyncHook,
@@ -113,7 +114,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
 
         if should_delete_pod is not None:
             warnings.warn(
-                "`should_delete_pod` parameter is deprecated, please use `on_finish_action`",
+                "`should_delete_pod` parameter is deprecated, please use `on_finish_action`. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
@@ -293,7 +294,7 @@ class GKEJobTrigger(BaseTrigger):
     @property
     def pod_name(self):
         warnings.warn(
-            "`pod_name` parameter is deprecated, please use `pod_names`",
+            "`pod_name` parameter is deprecated, please use `pod_names`. Planned removal date: October 5, 2026.",
             AirflowProviderDeprecationWarning,
             stacklevel=2,
         )

@@ -20,15 +20,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
-from airflow.providers.neo4j.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class Neo4jOperator(BaseOperator):

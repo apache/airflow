@@ -28,7 +28,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import BatchPredictionJob, Model, explain
 from google.cloud.aiplatform_v1 import JobServiceAsyncClient, JobServiceClient, JobState, types
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
@@ -110,7 +110,7 @@ class BatchPredictionJobHook(GoogleBaseHook, OperationHelper):
         :param project_id: Required. Project to run training in.
         :param region: Required. Location to run training in.
         :param job_display_name: Required. The user-defined name of the BatchPredictionJob. The name can be
-            up to 128 characters long and can be consist of any UTF-8 characters.
+            up to 128 characters long and can consist of any UTF-8 characters.
         :param model_name: Required. A fully-qualified model resource name or model ID.
         :param instances_format: Required. The format in which instances are provided. Must be one of the
             formats listed in `Model.supported_input_storage_formats`. Default is "jsonl" when using
@@ -267,7 +267,7 @@ class BatchPredictionJobHook(GoogleBaseHook, OperationHelper):
         :param project_id: Required. Project to run training in.
         :param region: Required. Location to run training in.
         :param job_display_name: Required. The user-defined name of the BatchPredictionJob. The name can be
-            up to 128 characters long and can be consist of any UTF-8 characters.
+            up to 128 characters long and can consist of any UTF-8 characters.
         :param model_name: Required. A fully-qualified model resource name or model ID.
         :param instances_format: Required. The format in which instances are provided. Must be one of the
             formats listed in `Model.supported_input_storage_formats`. Default is "jsonl" when using

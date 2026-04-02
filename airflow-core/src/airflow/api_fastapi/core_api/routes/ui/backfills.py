@@ -20,6 +20,7 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -31,11 +32,11 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollectionResponse, BackfillResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
-from airflow.api_fastapi.core_api.security import requires_access_backfill, requires_access_dag
+from airflow.api_fastapi.core_api.security import ReadableBackfillsFilterDep, requires_access_backfill
 from airflow.models.backfill import Backfill
 
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
@@ -46,7 +47,6 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_backfill(method="GET")),
-        Depends(requires_access_dag(method="GET")),
     ],
 )
 def list_backfills_ui(
@@ -56,6 +56,7 @@ def list_backfills_ui(
         SortParam,
         Depends(SortParam(["id"], Backfill).dynamic_depends()),
     ],
+    readable_backfills_filter: ReadableBackfillsFilterDep,
     session: SessionDep,
     dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Backfill.dag_id, str | None))],
     active: Annotated[
@@ -64,14 +65,17 @@ def list_backfills_ui(
     ],
 ) -> BackfillCollectionResponse:
     select_stmt, total_entries = paginated_select(
-        statement=select(Backfill),
-        filters=[dag_id, active],
+        statement=select(Backfill).options(joinedload(Backfill.dag_model)),
+        filters=[dag_id, active, readable_backfills_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
-    backfills = session.scalars(select_stmt)
+    backfills = [
+        BackfillResponse(**row._mapping) if not isinstance(row, Backfill) else row
+        for row in session.scalars(select_stmt)
+    ]
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,
