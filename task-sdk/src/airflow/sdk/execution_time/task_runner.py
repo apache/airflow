@@ -415,7 +415,7 @@ class RuntimeTaskInstance(TaskInstance):
                 )
 
                 if values is None:
-                    xcoms.append(None)
+                    xcoms.append(default)
                 else:
                     xcoms.extend(values)
             # For single task pulling from unmapped task, return single value
