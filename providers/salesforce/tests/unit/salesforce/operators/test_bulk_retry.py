@@ -60,7 +60,7 @@ class TestSalesforceBulkOperatorRetry:
         assert bulk_mock.__getattr__("Contact").insert.call_count == 1
 
     def test_transient_failure_is_retried(self):
-        op = _make_op(max_retries=2, retry_delay=0)
+        op = _make_op(max_retries=2, bulk_retry_delay=0)
 
         first_result = [_transient_failure(), _success()]
         second_result = [_success()]
@@ -82,7 +82,7 @@ class TestSalesforceBulkOperatorRetry:
         assert retry_call == mock.call(mock.ANY, [{"FirstName": "Ada"}])
 
     def test_permanent_failure_is_not_retried(self):
-        op = _make_op(max_retries=3, retry_delay=0)
+        op = _make_op(max_retries=3, bulk_retry_delay=0)
         result = [_permanent_failure(), _success()]
 
         run_mock = mock.MagicMock()
@@ -98,7 +98,7 @@ class TestSalesforceBulkOperatorRetry:
         assert final[0] == _permanent_failure()
 
     def test_retries_stop_after_max_retries(self):
-        op = _make_op(max_retries=2, retry_delay=0)
+        op = _make_op(max_retries=2, bulk_retry_delay=0)
 
         always_transient = [_transient_failure()]
         run_mock = mock.MagicMock(return_value=always_transient)
@@ -115,7 +115,7 @@ class TestSalesforceBulkOperatorRetry:
         assert final[0]["success"] is False
 
     def test_retry_delay_is_respected(self):
-        op = _make_op(max_retries=1, retry_delay=30.0)
+        op = _make_op(max_retries=1, bulk_retry_delay=30.0)
 
         run_mock = mock.MagicMock(return_value=[_success()])
 
@@ -130,7 +130,7 @@ class TestSalesforceBulkOperatorRetry:
         sleep_mock.assert_called_once_with(30.0)
 
     def test_custom_transient_error_codes(self):
-        op = _make_op(max_retries=1, retry_delay=0, transient_error_codes=["MY_CUSTOM_ERROR"])
+        op = _make_op(max_retries=1, bulk_retry_delay=0, transient_error_codes=["MY_CUSTOM_ERROR"])
         assert op.transient_error_codes == frozenset({"MY_CUSTOM_ERROR"})
 
         custom_failure = {"success": False, "errors": [{"statusCode": "MY_CUSTOM_ERROR", "message": "custom"}]}
@@ -148,7 +148,7 @@ class TestSalesforceBulkOperatorRetry:
         assert final[0] == _success()
 
     def test_api_temporarily_unavailable_is_retried(self):
-        op = _make_op(max_retries=1, retry_delay=0)
+        op = _make_op(max_retries=1, bulk_retry_delay=0)
         failure = _transient_failure("API_TEMPORARILY_UNAVAILABLE")
         run_mock = mock.MagicMock(return_value=[_success()])
 
@@ -164,7 +164,7 @@ class TestSalesforceBulkOperatorRetry:
         assert final[0] == _success()
 
     def test_mixed_failures_only_retries_transient(self):
-        op = _make_op(max_retries=1, retry_delay=0)
+        op = _make_op(max_retries=1, bulk_retry_delay=0)
         payload = [{"FirstName": "A"}, {"FirstName": "B"}, {"FirstName": "C"}]
         initial = [_transient_failure(), _permanent_failure(), _success()]
 
