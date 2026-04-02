@@ -40,7 +40,7 @@ log = structlog.get_logger(logger_name=__name__)
 
 
 def execute_workload(workload: ExecuteTask) -> None:
-    from airflow.sdk.execution_time.supervisor import supervise_workload
+    from airflow.executors.base_executor import BaseExecutor
     from airflow.sdk.log import configure_logging
     from airflow.settings import dispose_orm
 
@@ -50,7 +50,7 @@ def execute_workload(workload: ExecuteTask) -> None:
 
     log.info("Executing workload", workload=workload)
 
-    supervise_workload(
+    BaseExecutor.run_workload(
         workload,
         # Include the output of the task to stdout too, so that in process logs can be read from via the
         # kubeapi as pod logs.

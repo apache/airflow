@@ -790,10 +790,10 @@ def test_execute_workload_ignores_already_running_task():
     mock_app.current_task = mock_current_task
 
     with (
-        mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise,
+        mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload") as mock_run_workload,
         mock.patch.object(celery_executor_utils, "app", mock_app),
     ):
-        mock_supervise.side_effect = TaskAlreadyRunningError("Task already running")
+        mock_run_workload.side_effect = TaskAlreadyRunningError("Task already running")
 
         workload_json = """
         {
