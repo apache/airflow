@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
 from airflow.providers.salesforce.operators.bulk import SalesforceBulkOperator
 
 
@@ -80,7 +78,7 @@ class TestSalesforceBulkOperatorRetry:
         assert final[0] == _success()
         assert final[1] == _success()
         assert run_mock.call_count == 2
-        _, retry_call = run_mock.call_args_list
+        retry_call = run_mock.call_args_list[1]
         assert retry_call == mock.call(mock.ANY, [{"FirstName": "Ada"}])
 
     def test_permanent_failure_is_not_retried(self):
@@ -180,7 +178,6 @@ class TestSalesforceBulkOperatorRetry:
                     result=initial,
                 )
 
-        _, retry_call = run_mock.call_args_list[0], run_mock.call_args_list[-1]
         run_mock.assert_called_once_with(mock.ANY, [{"FirstName": "A"}])
         assert final[0] == _success()
         assert final[1] == _permanent_failure()
