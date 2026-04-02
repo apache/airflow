@@ -37,7 +37,10 @@ def _transient_failure(status_code="UNABLE_TO_LOCK_ROW"):
 
 
 def _permanent_failure():
-    return {"success": False, "errors": [{"statusCode": "REQUIRED_FIELD_MISSING", "message": "missing", "fields": ["Name"]}]}
+    return {
+        "success": False,
+        "errors": [{"statusCode": "REQUIRED_FIELD_MISSING", "message": "missing", "fields": ["Name"]}],
+    }
 
 
 def _success():
@@ -53,7 +56,7 @@ class TestSalesforceBulkOperatorRetry:
         bulk_mock.__getattr__("Contact").insert.return_value = [_success(), _success()]
 
         with mock.patch("airflow.providers.salesforce.operators.bulk.SalesforceHook") as hook_cls:
-            hook_cls.return_value.get_conn.return_value.__getattr__.return_value = bulk_mock
+            hook_cls.return_value.get_conn.return_value.bulk = bulk_mock
             result = op.execute(context={})
 
         assert result == [_success(), _success()]
@@ -133,7 +136,10 @@ class TestSalesforceBulkOperatorRetry:
         op = _make_op(max_retries=1, bulk_retry_delay=0, transient_error_codes=["MY_CUSTOM_ERROR"])
         assert op.transient_error_codes == frozenset({"MY_CUSTOM_ERROR"})
 
-        custom_failure = {"success": False, "errors": [{"statusCode": "MY_CUSTOM_ERROR", "message": "custom"}]}
+        custom_failure = {
+            "success": False,
+            "errors": [{"statusCode": "MY_CUSTOM_ERROR", "message": "custom"}],
+        }
         run_mock = mock.MagicMock(return_value=[_success()])
 
         with mock.patch.object(op, "_run_operation", run_mock):
