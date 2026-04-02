@@ -25,7 +25,7 @@ import type { GanttTaskInstance } from "openapi/requests/types.gen";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
 import { isStatePending } from "src/utils";
-import { formatDate, renderDuration } from "src/utils/datetimeUtils";
+import { renderDuration } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
@@ -41,9 +41,10 @@ export type GanttDataItem = {
 
 type GanttSegmentLinkParams = {
   dagId: string;
-  data: Array<GanttDataItem>;
   item: GanttDataItem;
   location: Location;
+  /** Precomputed map from taskId → max try number; build once with `buildMaxTryByTaskId`. */
+  maxTryByTaskId: Map<string, number>;
   runId: string;
 };
 
@@ -214,28 +215,34 @@ export const buildGanttRowSegments = (
 };
 
 export const computeGanttTimeRangeMs = ({
-  data,
+  ganttItems,
   selectedRun,
   selectedTimezone,
 }: {
-  data: Array<GanttDataItem>;
+  ganttItems: Array<GanttDataItem>;
   selectedRun?: GridRunsResponse;
   selectedTimezone: string;
 }): { maxMs: number; minMs: number } => {
   const isActivePending = selectedRun !== undefined && isStatePending(selectedRun.state);
-  const effectiveEndDate = isActivePending
-    ? dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss")
-    : selectedRun?.end_date;
+  // Compute the effective end timestamp directly in milliseconds to avoid the
+  // string-format → new Date() round-trip which is browser-inconsistent.
+  const effectiveEndMs = isActivePending
+    ? dayjs().tz(selectedTimezone).valueOf()
+    : selectedRun?.end_date !== null && selectedRun?.end_date !== undefined
+      ? dayjs(selectedRun.end_date).valueOf()
+      : Date.now();
 
-  if (data.length === 0) {
-    const minMs = new Date(formatDate(selectedRun?.start_date, selectedTimezone)).getTime();
-    const maxMs = new Date(formatDate(effectiveEndDate, selectedTimezone)).getTime();
+  if (ganttItems.length === 0) {
+    const minMs =
+      selectedRun?.start_date !== null && selectedRun?.start_date !== undefined
+        ? dayjs(selectedRun.start_date).valueOf()
+        : Date.now();
 
-    return { maxMs, minMs };
+    return { maxMs: effectiveEndMs, minMs };
   }
 
-  const maxTime = data.reduce((max, item) => Math.max(max, item.x[1]), -Infinity);
-  const minTime = data.reduce((min, item) => Math.min(min, item.x[0]), Infinity);
+  const maxTime = ganttItems.reduce((max, item) => Math.max(max, item.x[1]), -Infinity);
+  const minTime = ganttItems.reduce((min, item) => Math.min(min, item.x[0]), Infinity);
   const totalDuration = maxTime - minTime;
 
   return {
@@ -244,11 +251,27 @@ export const computeGanttTimeRangeMs = ({
   };
 };
 
+/**
+ * Precompute the maximum try number for each task in O(n).
+ * Pass the result to `getGanttSegmentTo` to avoid an O(n) scan per segment.
+ */
+export const buildMaxTryByTaskId = (ganttItems: Array<GanttDataItem>): Map<string, number> => {
+  const map = new Map<string, number>();
+
+  for (const item of ganttItems) {
+    const current = map.get(item.taskId) ?? 0;
+
+    map.set(item.taskId, Math.max(current, item.tryNumber ?? 1));
+  }
+
+  return map;
+};
+
 export const getGanttSegmentTo = ({
   dagId,
-  data,
   item,
   location,
+  maxTryByTaskId,
   runId,
 }: GanttSegmentLinkParams): To | undefined => {
   if (!runId) {
@@ -267,10 +290,7 @@ export const getGanttSegmentTo = ({
   });
 
   const searchParams = new URLSearchParams(location.search);
-  const tryNumbersForTask = data
-    .filter((row: GanttDataItem) => row.taskId === taskId)
-    .map((row: GanttDataItem) => row.tryNumber ?? 1);
-  const maxTryForTask = tryNumbersForTask.length > 0 ? Math.max(...tryNumbersForTask) : 1;
+  const maxTryForTask = maxTryByTaskId.get(taskId) ?? 1;
   const isOlderTry = tryNumber !== undefined && tryNumber < maxTryForTask;
 
   if (isOlderTry) {

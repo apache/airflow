@@ -137,7 +137,7 @@ export const Gantt = ({
   const rowSegments = buildGanttRowSegments(flatNodes, ganttDataItems);
 
   const { maxMs, minMs } = computeGanttTimeRangeMs({
-    data: ganttDataItems,
+    ganttItems: ganttDataItems,
     selectedRun,
     selectedTimezone,
   });

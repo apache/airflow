@@ -28,6 +28,7 @@ import {
   type GanttDataItem,
   buildGanttRowSegments,
   buildGanttTimeAxisTicks,
+  buildMaxTryByTaskId,
   GANTT_TIME_AXIS_TICK_COUNT,
   gridSummariesToTaskIdMap,
   transformGanttData,
@@ -71,6 +72,32 @@ describe("gridSummariesToTaskIdMap", () => {
     expect(map.get("a")).toBe(summaries[0]);
     expect(map.get("b")).toBe(summaries[1]);
     expect(map.size).toBe(2);
+  });
+});
+
+describe("buildMaxTryByTaskId", () => {
+  it("returns the maximum try number for each task", () => {
+    const items: Array<GanttDataItem> = [
+      { taskId: "t1", tryNumber: 1, x: [0, 1], y: "t1" },
+      { taskId: "t1", tryNumber: 3, x: [0, 1], y: "t1" },
+      { taskId: "t1", tryNumber: 2, x: [0, 1], y: "t1" },
+      { taskId: "t2", tryNumber: 1, x: [0, 1], y: "t2" },
+    ];
+    const map = buildMaxTryByTaskId(items);
+
+    expect(map.get("t1")).toBe(3);
+    expect(map.get("t2")).toBe(1);
+  });
+
+  it("defaults to 1 when tryNumber is undefined", () => {
+    const items: Array<GanttDataItem> = [{ taskId: "t1", x: [0, 1], y: "t1" }];
+    const map = buildMaxTryByTaskId(items);
+
+    expect(map.get("t1")).toBe(1);
+  });
+
+  it("returns an empty map for empty input", () => {
+    expect(buildMaxTryByTaskId([]).size).toBe(0);
   });
 });
 

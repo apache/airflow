@@ -21,7 +21,7 @@
 import { Badge, Box, Flex, Text } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { RefObject } from "react";
-import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
@@ -40,6 +40,7 @@ import {
   type GanttDataItem,
   GANTT_TIME_AXIS_TICK_COUNT,
   buildGanttTimeAxisTicks,
+  buildMaxTryByTaskId,
   getGanttSegmentTo,
   gridSummariesToTaskIdMap,
 } from "./utils";
@@ -125,6 +126,8 @@ export const GanttTimeline = ({
   }, []);
 
   const summaryByTaskId = gridSummariesToTaskIdMap(gridSummaries);
+  // Precompute max try per task once (O(n)) so getGanttSegmentTo can do O(1) lookups.
+  const maxTryByTaskId = useMemo(() => buildMaxTryByTaskId(ganttDataItems), [ganttDataItems]);
   const spanMs = Math.max(1, maxMs - minMs);
 
   // Derive tick count from available width so labels never overlap.
@@ -290,9 +293,9 @@ export const GanttTimeline = ({
                     const { leftPct, widthPct } = segmentLayout(segment);
                     const to = getGanttSegmentTo({
                       dagId,
-                      data: ganttDataItems,
                       item: segment,
                       location,
+                      maxTryByTaskId,
                       runId,
                     });
                     const tooltipInstance = toTooltipSummary(segment, node, gridSummary);

@@ -20,7 +20,7 @@
  */
 import { Box, Flex, HStack, IconButton, useDisclosure } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PropsWithChildren, ReactNode, RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
@@ -128,6 +128,14 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     `version_indicator_display_mode`,
     VersionIndicatorOptions.ALL,
   );
+
+  // Reset to grid when there is no runId. Remove this when we do gantt averages
+  useEffect(() => {
+    if (!Boolean(runId) && dagView === "gantt") {
+      setDagView("grid");
+    }
+  }, [runId, dagView, setDagView]);
+
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
