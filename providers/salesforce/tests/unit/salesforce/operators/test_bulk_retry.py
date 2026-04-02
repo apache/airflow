@@ -64,9 +64,7 @@ class TestSalesforceBulkOperatorRetry:
         bulk_mock = mock.MagicMock()
         bulk_mock.__getattr__("Contact").insert.return_value = [_success(), _success()]
 
-        with mock.patch(
-            "airflow.providers.salesforce.operators.bulk.SalesforceHook"
-        ) as hook_cls:
+        with mock.patch("airflow.providers.salesforce.operators.bulk.SalesforceHook") as hook_cls:
             hook_cls.return_value.get_conn.return_value.bulk = bulk_mock
             result = op.execute(context={})
 
@@ -134,9 +132,7 @@ class TestSalesforceBulkOperatorRetry:
         run_mock = mock.MagicMock(return_value=[_success()])
 
         with mock.patch.object(op, "_run_operation", run_mock):
-            with mock.patch(
-                "airflow.providers.salesforce.operators.bulk.time.sleep"
-            ) as sleep_mock:
+            with mock.patch("airflow.providers.salesforce.operators.bulk.time.sleep") as sleep_mock:
                 op._retry_transient_failures(
                     bulk=mock.MagicMock(),
                     payload=[{"FirstName": "Ada"}],
@@ -146,9 +142,7 @@ class TestSalesforceBulkOperatorRetry:
         sleep_mock.assert_called_once_with(30.0)
 
     def test_custom_transient_error_codes(self):
-        op = _make_op(
-            max_retries=1, bulk_retry_delay=0, transient_error_codes=["MY_CUSTOM_ERROR"]
-        )
+        op = _make_op(max_retries=1, bulk_retry_delay=0, transient_error_codes=["MY_CUSTOM_ERROR"])
         assert op.transient_error_codes == frozenset({"MY_CUSTOM_ERROR"})
 
         custom_failure = {
