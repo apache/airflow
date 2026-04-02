@@ -116,6 +116,17 @@ class ObjectStoragePath(ProxyUPath):
         # to the underlying fsspec filesystem, which doesn't understand it
         self._conn_id = storage_options.pop("conn_id", None)
         super().__init__(*args, protocol=protocol, **storage_options)
+        # ProxyUPath delegates all operations to self.__wrapped__, which was
+        # constructed with empty storage_options (conn_id stripped above).
+        # Pre-populating __wrapped__._fs_cached with the Airflow-authenticated
+        # filesystem fixes every delegated method (exists, mkdir, iterdir, glob,
+        # walk, rename, read_bytes, write_bytes, …) in one place rather than
+        # requiring individual overrides for each one.
+        if self._conn_id is not None:
+            try:
+                self.__wrapped__._fs_cached = attach(self.protocol or "file", self._conn_id).fs
+            except (ImportError, ModuleNotFoundError):
+                pass  # Provider package not installed; will fail naturally when the path is used
 
     @classmethod_or_method  # type: ignore[arg-type]
     def _from_upath(cls_or_self, upath, /):
@@ -127,6 +138,15 @@ class ObjectStoragePath(ProxyUPath):
         obj = object.__new__(cls)
         obj.__wrapped__ = upath
         obj._conn_id = getattr(cls_or_self, "_conn_id", None) if is_instance else None
+        # If the wrapped UPath has not yet had its fs cached (e.g. when _from_upath is
+        # called as a classmethod with a fresh UPath), inject the authenticated fs now.
+        # Child UPaths produced by __wrapped__ operations (iterdir, glob, etc.) already
+        # inherit _fs_cached from the parent UPath, so the hasattr check is a no-op for them.
+        if obj._conn_id is not None and not hasattr(upath, "_fs_cached"):
+            try:
+                obj.__wrapped__._fs_cached = attach(upath.protocol or "file", obj._conn_id).fs
+            except (ImportError, ModuleNotFoundError):
+                pass  # Provider package not installed; will fail naturally when the path is used
         return obj
 
     @property
