@@ -1,0 +1,1 @@
+Clarify that Task SDK documentation is not published via the release ``publish-docs`` workflow yet; align ``dev/README_RELEASE_AIRFLOW.md`` examples with ``contributing-docs/11_documentation_building.rst``.
