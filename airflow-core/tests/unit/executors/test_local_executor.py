@@ -195,6 +195,50 @@ class TestLocalExecutor:
             assert executor.event_buffer[ti.key][0] == State.SUCCESS
         assert executor.event_buffer[fail_ti.key][0] == State.FAILED
 
+    @skip_non_fork_mp_start
+    @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
+    def test_non_picklable_exception_does_not_crash_executor(self, mock_supervise):
+        class UnpicklableError(Exception):
+            def __reduce__(self):
+                raise TypeError("cannot pickle")
+
+        mock_supervise.side_effect = UnpicklableError("non-picklable failure")
+        executor = LocalExecutor(parallelism=1)
+        ti = TaskInstanceDTO(
+            id=uuid7(),
+            dag_version_id=uuid7(),
+            task_id="non_picklable_error_task",
+            dag_id="mydag",
+            run_id="run1",
+            try_number=1,
+            state="queued",
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+            map_index=-1,
+            start_date=timezone.utcnow(),
+        )
+
+        executor.start()
+        try:
+            executor.queue_workload(
+                workloads.ExecuteTask(
+                    token="",
+                    ti=ti,
+                    dag_rel_path="some/path",
+                    log_path=None,
+                    bundle_info=dict(name="hi", version="hi"),
+                ),
+                session=mock.MagicMock(spec=Session),
+            )
+            executor._process_workloads(list(executor.queued_tasks.values()))
+        finally:
+            # This should not raise even when worker hits an unpicklable exception.
+            executor.end()
+
+        assert executor.event_buffer[ti.key][0] == State.FAILED
+        assert executor.event_buffer[ti.key][1] == ("UnpicklableError", "non-picklable failure")
+
     @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
     @mock.patch("airflow.executors.base_executor.Stats.gauge")

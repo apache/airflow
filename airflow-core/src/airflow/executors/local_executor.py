@@ -30,7 +30,6 @@ import multiprocessing
 import multiprocessing.sharedctypes
 import os
 import sys
-import traceback
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
 
@@ -63,6 +62,11 @@ def _get_executor_process_title_prefix(team_name: str | None) -> str:
     """
     team_suffix = f" [{team_name}]" if team_name else ""
     return f"airflow worker -- LocalExecutor{team_suffix}:"
+
+
+def _safe_exception_for_ipc(e: Exception) -> tuple[str, str]:
+    """Return (exc_type, exc_message) safe to send over multiprocessing.Queue."""
+    return (type(e).__name__, str(e))
 
 
 def _run_worker(
@@ -107,8 +111,8 @@ def _run_worker(
                 output.put((workload.ti.key, TaskInstanceState.SUCCESS, None))
             except Exception as e:
                 log.exception("Task execution failed.")
-                safe_exc = Exception(f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}")
-                output.put((workload.ti.key, TaskInstanceState.FAILED, safe_exc))
+                exc_info = _safe_exception_for_ipc(e)
+                output.put((workload.ti.key, TaskInstanceState.FAILED, exc_info))
 
         elif isinstance(workload, workloads.ExecuteCallback):
             output.put((workload.callback.id, CallbackState.RUNNING, None))
@@ -117,8 +121,8 @@ def _run_worker(
                 output.put((workload.callback.id, CallbackState.SUCCESS, None))
             except Exception as e:
                 log.exception("Callback execution failed")
-                safe_exc = Exception(f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}")
-                output.put((workload.callback.id, CallbackState.FAILED, safe_exc))
+                exc_info = _safe_exception_for_ipc(e)
+                output.put((workload.callback.id, CallbackState.FAILED, exc_info))
 
         else:
             raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
@@ -298,9 +302,9 @@ class LocalExecutor(BaseExecutor):
 
     def _read_results(self):
         while not self.result_queue.empty():
-            key, state, exc = self.result_queue.get()
+            key, state, exc_info = self.result_queue.get()
 
-            self.change_state(key, state)
+            self.change_state(key, state, info=exc_info)
 
     def end(self) -> None:
         """End the executor."""
