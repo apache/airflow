@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-27T19:04:41.304277104Z"
+exclude-newer = "2026-03-30T10:47:15.148565Z"
 exclude-newer-span = "P4D"
 
 [manifest]
@@ -1774,7 +1774,7 @@ requires-dist = [
     { name = "rich-argparse", specifier = ">=1.0.0" },
     { name = "setproctitle", specifier = ">=1.3.3" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.48" },
-    { name = "starlette", specifier = ">=0.45.0,<1" },
+    { name = "starlette", specifier = ">=0.45.0" },
     { name = "statsd", marker = "extra == 'statsd'", specifier = ">=3.3.0" },
     { name = "structlog", specifier = ">=25.4.0" },
     { name = "svcs", specifier = ">=25.1.0" },
@@ -2645,7 +2645,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiobotocore", extras = ["boto3"], marker = "extra == 'aiobotocore'", specifier = ">=2.26.0" },
+    { name = "aiobotocore", marker = "extra == 'aiobotocore'", specifier = ">=2.26.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-apache-hive", marker = "extra == 'apache-hive'", editable = "providers/apache/hive" },
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'cncf-kubernetes'", editable = "providers/cncf/kubernetes" },
@@ -4581,6 +4581,9 @@ dependencies = [
 kerberos = [
     { name = "kerberos" },
 ]
+oauth = [
+    { name = "authlib" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -4588,6 +4591,7 @@ dev = [
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-task-sdk" },
+    { name = "authlib" },
     { name = "kerberos" },
     { name = "requests-kerberos" },
 ]
@@ -4599,6 +4603,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "authlib", marker = "extra == 'oauth'", specifier = ">=1.0.0" },
     { name = "blinker", specifier = ">=1.6.2" },
     { name = "cachetools", specifier = ">=6.0" },
     { name = "flask", specifier = ">=2.2.1" },
@@ -4618,7 +4623,7 @@ requires-dist = [
     { name = "werkzeug", marker = "python_full_version >= '3.14'", specifier = ">=3.1.6" },
     { name = "wtforms", specifier = ">=3.0" },
 ]
-provides-extras = ["kerberos"]
+provides-extras = ["kerberos", "oauth"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4626,6 +4631,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "authlib", specifier = ">=1.0.0" },
     { name = "kerberos", specifier = ">=1.3.0" },
     { name = "requests-kerberos", specifier = ">=0.14.0" },
 ]

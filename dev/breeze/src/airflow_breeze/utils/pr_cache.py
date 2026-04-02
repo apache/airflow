@@ -76,6 +76,7 @@ review_cache = CacheStore("review_cache")
 classification_cache = CacheStore("classification_cache")
 triage_cache = CacheStore("triage_cache")
 status_cache = CacheStore("status_cache", ttl_seconds=4 * 3600)
+stats_interaction_cache = CacheStore("stats_interaction_cache")
 
 
 # Convenience functions for common cache operations

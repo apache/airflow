@@ -440,6 +440,16 @@ Example usage
      # Verbose mode — show individual skip reasons during filtering
      breeze pr auto-triage --verbose
 
+PR statistics
+"""""""""""""
+
+The ``breeze pr stats`` command produces aggregate statistics of open PRs grouped by area label.
+
+.. image:: ./images/output_pr_stats.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_pr_stats.svg
+  :width: 100%
+  :alt: Breeze PR stats
+
 -----
 
 Next step: Follow the `Advanced breeze topics <14_advanced_breeze_topics.rst>`__ instructions to learn how to manage GitHub

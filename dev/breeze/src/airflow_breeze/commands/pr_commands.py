@@ -10951,3 +10951,709 @@ def auto_triage(
     import os as _os
 
     _os._exit(0)
+
+
+# ---------------------------------------------------------------------------
+# breeze pr stats — aggregate statistics of open PRs by area
+# ---------------------------------------------------------------------------
+
+_AGE_BUCKET_LABELS = ["<1w", "1-2w", "2-4w", ">1m"]
+
+_AGE_BUCKET_THRESHOLDS: list[tuple[int, str]] = [
+    (7, "<1w"),
+    (14, "1-2w"),
+    (28, "2-4w"),
+]
+
+
+_DRAFT_AGE_BUCKET_LABELS = ["<1w", "1-2w", "2-4w", ">1m"]
+
+
+@dataclass
+class _AreaStats:
+    """Aggregated statistics for a single area label."""
+
+    total: int = 0
+    drafts: int = 0
+    non_drafts: int = 0
+    contributors: int = 0  # non-collaborator authors
+    triaged_waiting: int = 0
+    triaged_responded: int = 0
+    ready_for_review: int = 0
+    triager_drafted: int = 0
+    draft_age_buckets: dict[str, int] = field(
+        default_factory=lambda: {b: 0 for b in _DRAFT_AGE_BUCKET_LABELS}
+    )
+    age_buckets: dict[str, int] = field(default_factory=lambda: {b: 0 for b in _AGE_BUCKET_LABELS})
+
+
+def _compute_age_bucket(last_interaction_iso: str) -> str:
+    """Map an ISO-8601 datetime string to an age bucket label."""
+    from datetime import datetime, timezone
+
+    try:
+        dt = datetime.fromisoformat(last_interaction_iso.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return ">1m"
+    delta = datetime.now(tz=timezone.utc) - dt
+    days = delta.total_seconds() / 86400
+    for threshold_days, label in _AGE_BUCKET_THRESHOLDS:
+        if days < threshold_days:
+            return label
+    return ">1m"
+
+
+def _fetch_all_open_prs(token: str, github_repository: str, batch_size: int = 100) -> list[PRData]:
+    """Fetch all open PRs from the repository, paginating through all results."""
+    console = get_console()
+    all_prs: list[PRData] = []
+    after_cursor: str | None = None
+    page = 0
+
+    while True:
+        page += 1
+        prs, has_next_page, end_cursor, total_count = _fetch_prs_graphql(
+            token,
+            github_repository,
+            labels=(),
+            exclude_labels=(),
+            filter_user=None,
+            sort="created-desc",
+            batch_size=batch_size,
+            after_cursor=after_cursor,
+            quiet=page > 1,
+        )
+        all_prs.extend(prs)
+        if page == 1:
+            console.print(f"[info]Total open PRs: {total_count}[/]")
+        else:
+            console.print(f"[info]  Fetched page {page}: {len(all_prs)}/{total_count} PRs[/]")
+
+        if not has_next_page:
+            break
+        after_cursor = end_cursor
+
+    return all_prs
+
+
+@dataclass
+class _PRInteractionData:
+    """Interaction data for a single PR."""
+
+    last_interaction: str  # ISO-8601 datetime of last author interaction
+    drafted_by_triager_at: str  # ISO-8601 datetime when triager converted to draft, or ""
+
+
+def _fetch_pr_interaction_data(
+    token: str, github_repository: str, prs: list[PRData], viewer_login: str
+) -> dict[int, _PRInteractionData]:
+    """Fetch interaction data for each PR: last author activity and triager draft conversion.
+
+    Uses a file-based cache keyed by PR number and ``updated_at`` — if a PR hasn't
+    been updated since the last run, the cached data is reused.
+    """
+    from airflow_breeze.utils.pr_cache import stats_interaction_cache
+
+    if not prs:
+        return {}
+
+    owner, repo = github_repository.split("/", 1)
+    result: dict[int, _PRInteractionData] = {}
+
+    # Check cache — only fetch PRs whose updated_at changed since last cache write
+    uncached_prs: list[PRData] = []
+    for pr in prs:
+        cached = stats_interaction_cache.get(
+            github_repository, f"pr_{pr.number}", match={"updated_at": pr.updated_at}
+        )
+        if cached and "last_interaction" in cached:
+            result[pr.number] = _PRInteractionData(
+                last_interaction=cached["last_interaction"],
+                drafted_by_triager_at=cached.get("drafted_by_triager_at", ""),
+            )
+        else:
+            uncached_prs.append(pr)
+
+    console = get_console()
+    cache_hits = len(prs) - len(uncached_prs)
+    console.print(
+        f"[info]Fetching PR interaction data: {cache_hits}/{len(prs)} cached, "
+        f"{len(uncached_prs)} to fetch...[/]"
+    )
+
+    if not uncached_prs:
+        return result
+
+    chunk_size = _COMMITS_BEHIND_BATCH_SIZE  # reuse existing batch constant (20)
+
+    for chunk_start in range(0, len(uncached_prs), chunk_size):
+        chunk = uncached_prs[chunk_start : chunk_start + chunk_size]
+
+        pr_fields = []
+        for pr in chunk:
+            alias = f"pr{pr.number}"
+            pr_fields.append(
+                f"    {alias}: pullRequest(number: {pr.number}) {{\n"
+                f"      comments(last: 10) {{\n"
+                f"        nodes {{ author {{ login }} createdAt }}\n"
+                f"      }}\n"
+                f"      commits(last: 1) {{\n"
+                f"        nodes {{ commit {{ committedDate }} }}\n"
+                f"      }}\n"
+                f"      timelineItems(last: 10, itemTypes: CONVERT_TO_DRAFT_EVENT) {{\n"
+                f"        nodes {{\n"
+                f"          ... on ConvertToDraftEvent {{\n"
+                f"            createdAt\n"
+                f"            actor {{ login }}\n"
+                f"          }}\n"
+                f"        }}\n"
+                f"      }}\n"
+                f"    }}"
+            )
+
+        query = (
+            f'query {{\n  repository(owner: "{owner}", name: "{repo}") {{\n'
+            + "\n".join(pr_fields)
+            + "\n  }\n}"
+        )
+
+        try:
+            data = _graphql_request(token, query, {})
+        except SystemExit:
+            # On API failure, fall back to updated_at for this chunk
+            for pr in chunk:
+                result[pr.number] = _PRInteractionData(
+                    last_interaction=pr.updated_at or pr.created_at,
+                    drafted_by_triager_at="",
+                )
+            continue
+
+        repo_data = data.get("repository", {})
+        for pr in chunk:
+            alias = f"pr{pr.number}"
+            pr_data = repo_data.get(alias) or {}
+
+            # Start with PR creation as the baseline
+            latest = pr.created_at
+
+            # Check last commit date
+            commits = pr_data.get("commits", {}).get("nodes", [])
+            if commits:
+                commit_date = commits[0].get("commit", {}).get("committedDate", "")
+                if commit_date and commit_date > latest:
+                    latest = commit_date
+
+            # Check last comment from the PR author
+            comments = pr_data.get("comments", {}).get("nodes", [])
+            for comment in reversed(comments):
+                comment_author = (comment.get("author") or {}).get("login", "")
+                if comment_author == pr.author_login:
+                    comment_date = comment.get("createdAt", "")
+                    if comment_date and comment_date > latest:
+                        latest = comment_date
+                    break
+
+            # Check if the triager (viewer) converted this PR to draft
+            drafted_by_triager_at = ""
+            timeline_nodes = pr_data.get("timelineItems", {}).get("nodes", [])
+            for event in reversed(timeline_nodes):
+                actor = (event.get("actor") or {}).get("login", "")
+                if actor == viewer_login:
+                    drafted_by_triager_at = event.get("createdAt", "")
+                    break
+
+            result[pr.number] = _PRInteractionData(
+                last_interaction=latest,
+                drafted_by_triager_at=drafted_by_triager_at,
+            )
+            # Cache the result keyed by updated_at so it invalidates on any PR change
+            stats_interaction_cache.save(
+                github_repository,
+                f"pr_{pr.number}",
+                {
+                    "updated_at": pr.updated_at,
+                    "last_interaction": latest,
+                    "drafted_by_triager_at": drafted_by_triager_at,
+                },
+            )
+
+        if chunk_start + chunk_size < len(uncached_prs):
+            console.print(
+                f"[info]  Fetched interactions: "
+                f"{min(chunk_start + chunk_size, len(uncached_prs))}/{len(uncached_prs)}[/]"
+            )
+
+    return result
+
+
+def _aggregate_stats_by_area(
+    prs: list[PRData],
+    triage_classification: dict[str, set[int]],
+    interaction_data: dict[int, _PRInteractionData],
+) -> dict[str, _AreaStats]:
+    """Aggregate PR statistics grouped by area: labels."""
+    waiting = triage_classification.get("waiting", set())
+    responded = triage_classification.get("responded", set())
+    area_stats: dict[str, _AreaStats] = {}
+
+    for pr in prs:
+        # Extract area labels
+        areas = [label.removeprefix("area:") for label in pr.labels if label.startswith("area:")]
+        if not areas:
+            areas = ["(no area)"]
+
+        pr_data = interaction_data.get(pr.number)
+        last_interaction = pr_data.last_interaction if pr_data else pr.created_at
+        drafted_at = pr_data.drafted_by_triager_at if pr_data else ""
+
+        age_bucket = _compute_age_bucket(last_interaction)
+        is_ready = _READY_FOR_REVIEW_LABEL in pr.labels
+        is_triaged_waiting = pr.number in waiting
+        is_triaged_responded = pr.number in responded
+
+        is_contributor = pr.author_association not in _COLLABORATOR_ASSOCIATIONS
+
+        for area in areas:
+            stats = area_stats.setdefault(area, _AreaStats())
+            stats.total += 1
+            if pr.is_draft:
+                stats.drafts += 1
+            else:
+                stats.non_drafts += 1
+            if is_contributor:
+                stats.contributors += 1
+            if is_triaged_waiting:
+                stats.triaged_waiting += 1
+            if is_triaged_responded:
+                stats.triaged_responded += 1
+            if is_ready:
+                stats.ready_for_review += 1
+            stats.age_buckets[age_bucket] += 1
+            if drafted_at:
+                stats.triager_drafted += 1
+                draft_bucket = _compute_age_bucket(drafted_at)
+                stats.draft_age_buckets[draft_bucket] += 1
+
+    return area_stats
+
+
+def _compute_totals(
+    prs: list[PRData],
+    triage_classification: dict[str, set[int]],
+    interaction_data: dict[int, _PRInteractionData],
+) -> _AreaStats:
+    """Compute totals across all PRs (unique counts, not sum of per-area)."""
+    waiting = triage_classification.get("waiting", set())
+    responded = triage_classification.get("responded", set())
+    totals = _AreaStats()
+    for pr in prs:
+        totals.total += 1
+        if pr.is_draft:
+            totals.drafts += 1
+        else:
+            totals.non_drafts += 1
+        if pr.author_association not in _COLLABORATOR_ASSOCIATIONS:
+            totals.contributors += 1
+        if pr.number in waiting:
+            totals.triaged_waiting += 1
+        if pr.number in responded:
+            totals.triaged_responded += 1
+        if _READY_FOR_REVIEW_LABEL in pr.labels:
+            totals.ready_for_review += 1
+        pr_data = interaction_data.get(pr.number)
+        last_interaction = pr_data.last_interaction if pr_data else pr.created_at
+        drafted_at = pr_data.drafted_by_triager_at if pr_data else ""
+        totals.age_buckets[_compute_age_bucket(last_interaction)] += 1
+        if drafted_at:
+            totals.triager_drafted += 1
+            totals.draft_age_buckets[_compute_age_bucket(drafted_at)] += 1
+    return totals
+
+
+def _pct(numerator: int, denominator: int) -> str:
+    """Format a percentage, returning '-' when the denominator is zero."""
+    return f"{100 * numerator / denominator:.0f}%" if denominator else "-"
+
+
+def _render_stats_tables(
+    area_stats: dict[str, _AreaStats],
+    totals: _AreaStats,
+    github_repository: str,
+    closed_stats: dict[str, _ClosedTriagedAreaStats],
+    closed_since_date: str,
+) -> None:
+    """Render two tables: triaged final-state and triaged still-open."""
+    console = get_console()
+    closed_totals = closed_stats.get("__total__", _ClosedTriagedAreaStats())
+
+    # Collect all area names across both open and closed stats
+    all_areas = set(area_stats.keys()) | {k for k in closed_stats if k != "__total__"}
+    sorted_area_names = sorted(
+        all_areas, key=lambda a: (a == "(no area)", -(area_stats.get(a, _AreaStats()).total))
+    )
+
+    # ── Table 1: Triaged PRs — Final State (closed/merged) ──────────
+    t1 = Table(
+        title=f"Triaged PRs — Final State since {closed_since_date} ({github_repository})",
+        title_style="bold",
+        show_lines=True,
+        show_footer=True,
+    )
+    t1.add_column("Area", style="bold cyan", min_width=12, footer="Area")
+    t1.add_column("Triaged\nTotal", justify="right", style="yellow", footer="Triaged\nTotal")
+    t1.add_column("Closed", justify="right", style="red", footer="Closed")
+    t1.add_column("%Closed", justify="right", footer="%Closed")
+    t1.add_column("Merged", justify="right", style="green", footer="Merged")
+    t1.add_column("%Merged", justify="right", footer="%Merged")
+    t1.add_column("Responded", justify="right", footer="Responded")
+    t1.add_column("%Responded", justify="right", footer="%Responded")
+
+    for area in sorted_area_names:
+        cs = closed_stats.get(area, _ClosedTriagedAreaStats())
+        if cs.total == 0:
+            continue
+        t1.add_row(
+            area,
+            str(cs.total),
+            str(cs.closed),
+            cs.pct_closed,
+            str(cs.merged),
+            cs.pct_merged,
+            str(cs.responded_before_close),
+            cs.pct_responded,
+        )
+
+    t1.add_row(
+        "[bold white]TOTAL[/]",
+        f"[bold white]{closed_totals.total}[/]",
+        f"[bold white]{closed_totals.closed}[/]",
+        f"[bold white]{closed_totals.pct_closed}[/]",
+        f"[bold white]{closed_totals.merged}[/]",
+        f"[bold white]{closed_totals.pct_merged}[/]",
+        f"[bold white]{closed_totals.responded_before_close}[/]",
+        f"[bold white]{closed_totals.pct_responded}[/]",
+        style="on grey7",
+        end_section=True,
+    )
+
+    console.print()
+    console.print(t1)
+
+    # ── Table 2: Triaged PRs — Still Open ────────────────────────────
+    t2 = Table(
+        title=f"Triaged PRs — Still Open ({github_repository})",
+        title_style="bold",
+        show_lines=True,
+        show_footer=True,
+    )
+    t2.add_column("Area", style="bold cyan", min_width=12, footer="Area")
+    t2.add_column("Total", justify="right", footer="Total")
+    t2.add_column("Draft", justify="right", footer="Draft")
+    t2.add_column("%Draft", justify="right", footer="%Draft")
+    t2.add_column("Non-Draft", justify="right", footer="Non-Draft")
+    t2.add_column("Contrib.", justify="right", footer="Contrib.")
+    t2.add_column("%Contrib.", justify="right", footer="%Contrib.")
+    t2.add_column("Triaged", justify="right", style="yellow", footer="Triaged")
+    t2.add_column("Responded", justify="right", style="green", footer="Responded")
+    t2.add_column("%Responded", justify="right", footer="%Responded")
+    t2.add_column("Ready", justify="right", style="bold green", footer="Ready")
+    t2.add_column("%Ready", justify="right", footer="%Ready")
+    t2.add_column("Drafted\nby triager", justify="right", style="magenta", footer="Drafted\nby triager")
+    for bucket in _DRAFT_AGE_BUCKET_LABELS:
+        t2.add_column(f"Drafted\n{bucket}", justify="right", style="magenta dim", footer=f"Drafted\n{bucket}")
+    for bucket in _AGE_BUCKET_LABELS:
+        t2.add_column(f"Author resp\n{bucket}", justify="right", style="dim", footer=f"Author resp\n{bucket}")
+
+    for area in sorted_area_names:
+        s = area_stats.get(area)
+        if not s or s.total == 0:
+            continue
+        triaged = s.triaged_waiting + s.triaged_responded
+        t2.add_row(
+            area,
+            str(s.total),
+            str(s.drafts),
+            _pct(s.drafts, s.total),
+            str(s.non_drafts),
+            str(s.contributors),
+            _pct(s.contributors, s.total),
+            str(triaged),
+            str(s.triaged_responded),
+            _pct(s.triaged_responded, triaged),
+            str(s.ready_for_review),
+            _pct(s.ready_for_review, s.total),
+            str(s.triager_drafted),
+            *[str(s.draft_age_buckets.get(b, 0)) for b in _DRAFT_AGE_BUCKET_LABELS],
+            *[str(s.age_buckets.get(b, 0)) for b in _AGE_BUCKET_LABELS],
+        )
+
+    total_triaged = totals.triaged_waiting + totals.triaged_responded
+    t2.add_row(
+        "[bold white]TOTAL[/]",
+        f"[bold white]{totals.total}[/]",
+        f"[bold white]{totals.drafts}[/]",
+        f"[bold white]{_pct(totals.drafts, totals.total)}[/]",
+        f"[bold white]{totals.non_drafts}[/]",
+        f"[bold white]{totals.contributors}[/]",
+        f"[bold white]{_pct(totals.contributors, totals.total)}[/]",
+        f"[bold white]{total_triaged}[/]",
+        f"[bold white]{totals.triaged_responded}[/]",
+        f"[bold white]{_pct(totals.triaged_responded, total_triaged)}[/]",
+        f"[bold white]{totals.ready_for_review}[/]",
+        f"[bold white]{_pct(totals.ready_for_review, totals.total)}[/]",
+        f"[bold white]{totals.triager_drafted}[/]",
+        *[f"[bold white]{totals.draft_age_buckets.get(b, 0)}[/]" for b in _DRAFT_AGE_BUCKET_LABELS],
+        *[f"[bold white]{totals.age_buckets.get(b, 0)}[/]" for b in _AGE_BUCKET_LABELS],
+        style="on grey7",
+        end_section=True,
+    )
+
+    console.print()
+    console.print(t2)
+
+    # ── Legend ────────────────────────────────────────────────────────
+    legend_lines = [
+        "[bold]Column legend:[/]",
+        "  [bold]Contrib.[/]      = PRs by non-collaborator contributors",
+        "  [yellow]Triaged[/]       = PRs where a triage comment was posted",
+        "  [green]Responded[/]     = author replied after the triage comment",
+        "  [bold green]Ready[/]         = PRs with the [bold]'ready for maintainer review'[/] label",
+        "  [magenta]Drafted by triager[/] = PRs converted to draft by the triager",
+        "",
+        "[bold]Author resp[/] columns show time since the PR author's last interaction "
+        "(comment, commit, or PR creation).",
+        "[bold magenta]Drafted[/] columns show time since the triager converted the PR to draft.",
+    ]
+    console.print(Panel("\n".join(legend_lines), border_style="dim", expand=False))
+    console.print()
+
+
+_CLOSED_TRIAGED_SINCE = "2026-03-11"
+
+_CLOSED_PRS_SEARCH_QUERY = """
+query($query: String!, $first: Int!, $after: String) {
+  search(query: $query, type: ISSUE, first: $first, after: $after) {
+    issueCount
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    nodes {
+      ... on PullRequest {
+        number
+        author { login }
+        authorAssociation
+        state
+        mergedAt
+        closedAt
+        labels(first: 20) {
+          nodes { name }
+        }
+        comments(last: 20) {
+          nodes { author { login } body createdAt }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+@dataclass
+class _ClosedTriagedAreaStats:
+    """Per-area stats for triaged PRs that reached a final state."""
+
+    closed: int = 0
+    merged: int = 0
+    responded_before_close: int = 0
+    contributors: int = 0  # non-collaborator authors
+
+    @property
+    def total(self) -> int:
+        return self.closed + self.merged
+
+    @property
+    def pct_closed(self) -> str:
+        return f"{100 * self.closed / self.total:.0f}%" if self.total else "-"
+
+    @property
+    def pct_merged(self) -> str:
+        return f"{100 * self.merged / self.total:.0f}%" if self.total else "-"
+
+    @property
+    def pct_responded(self) -> str:
+        return f"{100 * self.responded_before_close / self.total:.0f}%" if self.total else "-"
+
+    @property
+    def pct_contributors(self) -> str:
+        return f"{100 * self.contributors / self.total:.0f}%" if self.total else "-"
+
+
+def _fetch_closed_triaged_prs(
+    token: str, github_repository: str, viewer_login: str, since: str
+) -> dict[str, _ClosedTriagedAreaStats]:
+    """Fetch closed/merged PRs since *since* that had a triage comment.
+
+    Returns a dict mapping area label (or "(no area)") to stats.
+    Also includes a "__total__" key with aggregate counts.
+    """
+    console = get_console()
+    console.print(f"[info]Fetching closed/merged triaged PRs since {since}...[/]")
+
+    search_query = (
+        f"repo:{github_repository} type:pr is:closed closed:>={since} "
+        f"commenter:{viewer_login} sort:updated-desc"
+    )
+
+    area_stats: dict[str, _ClosedTriagedAreaStats] = {}
+    total_stats = _ClosedTriagedAreaStats()
+    after_cursor: str | None = None
+
+    while True:
+        variables: dict = {"query": search_query, "first": 100}
+        if after_cursor:
+            variables["after"] = after_cursor
+
+        try:
+            data = _graphql_request(token, _CLOSED_PRS_SEARCH_QUERY, variables)
+        except SystemExit:
+            break
+
+        search_data = data["search"]
+        for node in search_data.get("nodes") or []:
+            if not node:
+                continue
+            comments = (node.get("comments") or {}).get("nodes") or []
+            author_login = (node.get("author") or {}).get("login", "")
+
+            # Check if any comment from viewer contains the triage marker
+            triage_comment_date = ""
+            for comment in reversed(comments):
+                commenter = (comment.get("author") or {}).get("login", "")
+                body = comment.get("body", "")
+                if commenter == viewer_login and _TRIAGE_COMMENT_MARKER in body:
+                    triage_comment_date = comment.get("createdAt", "")
+                    break
+
+            if not triage_comment_date:
+                continue
+
+            # Determine state: MERGED or CLOSED
+            is_merged = node.get("state") == "MERGED" or bool(node.get("mergedAt"))
+            is_contributor = node.get("authorAssociation", "") not in _COLLABORATOR_ASSOCIATIONS
+
+            # Extract area labels
+            labels = [n["name"] for n in (node.get("labels") or {}).get("nodes") or []]
+            areas = [lbl.removeprefix("area:") for lbl in labels if lbl.startswith("area:")]
+            if not areas:
+                areas = ["(no area)"]
+
+            # Check if author responded after triage
+            author_responded = False
+            for comment in comments:
+                commenter = (comment.get("author") or {}).get("login", "")
+                comment_date = comment.get("createdAt", "")
+                if commenter == author_login and comment_date > triage_comment_date:
+                    author_responded = True
+                    break
+
+            # Update per-area stats
+            for area in areas:
+                stats = area_stats.setdefault(area, _ClosedTriagedAreaStats())
+                if is_merged:
+                    stats.merged += 1
+                else:
+                    stats.closed += 1
+                if author_responded:
+                    stats.responded_before_close += 1
+                if is_contributor:
+                    stats.contributors += 1
+
+            # Update totals
+            if is_merged:
+                total_stats.merged += 1
+            else:
+                total_stats.closed += 1
+            if author_responded:
+                total_stats.responded_before_close += 1
+            if is_contributor:
+                total_stats.contributors += 1
+
+        page_info = search_data.get("pageInfo", {})
+        if not page_info.get("hasNextPage", False):
+            break
+        after_cursor = page_info.get("endCursor")
+
+    area_stats["__total__"] = total_stats
+    console.print(
+        f"[info]Found {total_stats.total} triaged PRs in final state "
+        f"({total_stats.closed} closed, {total_stats.merged} merged) since {since}.[/]"
+    )
+    return area_stats
+
+
+@pr_group.command(name="stats", help="Show statistics of open PRs grouped by area label.")
+@option_github_token
+@option_github_repository
+@click.option(
+    "--batch-size",
+    type=int,
+    default=100,
+    show_default=True,
+    help="Number of PRs to fetch per GraphQL page.",
+)
+@click.option(
+    "--clear-cache",
+    is_flag=True,
+    default=False,
+    help="Clear cached interaction data before fetching.",
+)
+def stats(github_token: str | None, github_repository: str, batch_size: int, clear_cache: bool) -> None:
+    """Produce aggregate statistics of open PRs, split by area."""
+    from airflow_breeze.utils.pr_cache import stats_interaction_cache
+
+    token = _resolve_github_token(github_token)
+    if not token:
+        console_print("[error]GitHub token is required. Use --github-token or set GITHUB_TOKEN.[/]")
+        sys.exit(1)
+
+    console = get_console()
+
+    if clear_cache:
+        import shutil
+
+        cache_dir = stats_interaction_cache.cache_dir(github_repository)
+        shutil.rmtree(cache_dir, ignore_errors=True)
+        console.print("[info]Cleared interaction cache.[/]")
+
+    # Step 1: Fetch all open PRs
+    all_prs = _fetch_all_open_prs(token, github_repository, batch_size)
+    if not all_prs:
+        console.print("[warning]No open PRs found.[/]")
+        return
+
+    # Step 2: Resolve viewer login and classify triage status
+    viewer_login = _resolve_viewer_login(token)
+    console.print(f"[info]Classifying triage status (viewer: {viewer_login})...[/]")
+    triage_classification = _classify_already_triaged_prs(token, github_repository, all_prs, viewer_login)
+
+    # Step 3: Fetch interaction data (last author activity + triager draft conversion)
+    interaction_data = _fetch_pr_interaction_data(token, github_repository, all_prs, viewer_login)
+
+    # Step 4: Aggregate by area
+    area_stats = _aggregate_stats_by_area(all_prs, triage_classification, interaction_data)
+
+    # Step 5: Compute totals (unique PR counts)
+    totals = _compute_totals(all_prs, triage_classification, interaction_data)
+
+    # Step 6: Fetch closed/merged triaged PRs since March 11, 2026
+    closed_stats = _fetch_closed_triaged_prs(token, github_repository, viewer_login, _CLOSED_TRIAGED_SINCE)
+
+    # Step 7: Render
+    _render_stats_tables(
+        area_stats,
+        totals,
+        github_repository,
+        closed_stats=closed_stats,
+        closed_since_date=_CLOSED_TRIAGED_SINCE,
+    )
