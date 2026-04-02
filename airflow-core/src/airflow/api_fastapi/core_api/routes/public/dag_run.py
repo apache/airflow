@@ -566,7 +566,6 @@ def wait_dag_run_until_finished(
         run_id=dag_run_id,
         interval=interval,
         result_task_ids=result_task_ids,
-        session=session,
     )
     return StreamingResponse(waiter.wait())
 

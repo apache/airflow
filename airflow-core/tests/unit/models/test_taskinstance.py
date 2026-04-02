@@ -2653,6 +2653,26 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     assert ti.max_tries == expected_max_tries
 
 
+@pytest.mark.parametrize(
+    ("weight_rule", "expected_weight"),
+    [
+        pytest.param("downstream", 10 + 5, id="downstream-sums-descendants"),
+        pytest.param("upstream", 10, id="upstream-no-ancestors"),
+        pytest.param("absolute", 10, id="absolute-self-only"),
+    ],
+)
+def test_refresh_from_task_with_non_serialized_operator(weight_rule, expected_weight):
+    """Regression: TaskInstance must work with non-serialized operators whose weight_rule is a WeightRule enum."""
+    with DAG(dag_id="test_dag"):
+        root = EmptyOperator(task_id="root", priority_weight=10, weight_rule=weight_rule)
+        child = EmptyOperator(task_id="child", priority_weight=5)
+        root >> child
+
+    ti = TI(root, run_id=None, dag_version_id=mock.MagicMock())
+
+    assert ti.priority_weight == expected_weight
+
+
 def test_defer_task_returns_false_when_no_start_from_trigger(create_task_instance):
     session = mock.MagicMock()
     ti = create_task_instance(

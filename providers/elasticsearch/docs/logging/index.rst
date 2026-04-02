@@ -93,6 +93,100 @@ Additionally, in the ``elasticsearch_configs`` section, you can pass any paramet
     api_key = "SOMEAPIKEY"
     verify_certs = True
 
+.. _elasticsearch-document-schema:
+
+Expected Elasticsearch document schema
+'''''''''''''''''''''''''''''''''''''''
+
+When using an external log shipper (Fluent Bit, Fluentd, Logstash, etc.) to index task logs into
+Elasticsearch, each document must contain certain fields for Airflow to retrieve and render logs correctly.
+
+**Required fields**
+
+``log_id``
+    Identifies which task instance a log line belongs to. The value must match the
+    ``[elasticsearch] log_id_template`` setting.
+
+``offset``
+    A monotonically increasing integer that defines the ordering of log lines within a single task attempt.
+    The field name can be customized with the ``offset_field`` handler parameter.
+
+``event``
+    The log message text. This is the primary field used by Airflow 3 to display log content.
+    If ``event`` is absent, Airflow falls back to the ``message`` field automatically, which preserves
+    compatibility with Airflow 2.x log formats.
+
+**Optional fields**
+
+The following fields are recognized and displayed by the Airflow UI when present:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 60 20
+
+   * - Field
+     - Description
+     - Notes
+   * - ``timestamp``
+     - ISO-8601 timestamp of the log line.
+     - ``@timestamp`` is mapped to ``timestamp`` automatically.
+   * - ``level``
+     - Log level (e.g. ``INFO``, ``WARNING``, ``ERROR``).
+     - ``levelname`` is mapped to ``level`` automatically.
+   * - ``chan``
+     - The logging channel name.
+     -
+   * - ``logger``
+     - The logger name that produced the record.
+     -
+   * - ``error_detail``
+     - Structured traceback written by the Airflow 3 task supervisor.
+     - Empty values are ignored.
+   * - ``message``
+     - Log message text (Airflow 2.x convention).
+     - Used as fallback when ``event`` is absent.
+   * - ``host``
+     - The hostname of the worker that produced the log. Used to group log lines by source.
+     - Field name can be customized with the ``host_field`` handler parameter.
+
+**Field mappings**
+
+Airflow applies the following automatic mappings when reading documents, so your log shipper can use
+either form:
+
+- ``@timestamp`` → ``timestamp``
+- ``levelname`` → ``level``
+- ``message`` → ``event`` (only when ``event`` is not present)
+
+**Minimal document example**
+
+The smallest document that will render correctly in the Airflow UI:
+
+.. code-block:: json
+
+    {
+      "log_id": "my_dag-my_task-manual__2025-06-01T00:00:00+00:00-0-1",
+      "offset": 1,
+      "event": "Task execution started"
+    }
+
+**Full document example**
+
+A document using all recognized fields:
+
+.. code-block:: json
+
+    {
+      "log_id": "my_dag-my_task-manual__2025-06-01T00:00:00+00:00-0-1",
+      "offset": 1,
+      "event": "Task execution started",
+      "timestamp": "2025-06-01T00:00:01.123Z",
+      "level": "INFO",
+      "chan": "task",
+      "logger": "airflow.task",
+      "host": "worker-01"
+    }
+
 .. _log-link-elasticsearch:
 
 Elasticsearch External Link
