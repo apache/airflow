@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-31T12:32:05.665822Z"
+exclude-newer = "2026-03-31T12:39:25.237972Z"
 exclude-newer-span = "P4D"
 
 [manifest]
@@ -2538,7 +2538,7 @@ dependencies = [
     { name = "jsonpath-ng" },
     { name = "marshmallow" },
     { name = "pyathena" },
-    { name = "redshift-connector", version = "2.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
+    { name = "redshift-connector", version = "2.1.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
     { name = "redshift-connector", version = "2.1.13", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
     { name = "sagemaker-studio" },
     { name = "watchtower" },
@@ -2645,7 +2645,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiobotocore", marker = "extra == 'aiobotocore'", specifier = ">=2.26.0" },
+    { name = "aiobotocore", marker = "extra == 'aiobotocore'", specifier = ">=3.0.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-apache-hive", marker = "extra == 'apache-hive'", editable = "providers/apache/hive" },
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'cncf-kubernetes'", editable = "providers/cncf/kubernetes" },
@@ -18803,7 +18803,7 @@ wheels = [
 
 [[package]]
 name = "redshift-connector"
-version = "2.1.3"
+version = "2.1.7"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version == '3.13.*'",
@@ -18823,7 +18823,7 @@ dependencies = [
     { name = "setuptools", marker = "python_full_version < '3.14'" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/71/39/bcf305288ef786ce8b8f75b16be88a7a7538982a5825fbe7fbffcdf2da69/redshift_connector-2.1.3-py3-none-any.whl", hash = "sha256:be168c5294ed0bc626e2edb09230ff117ca752b9d0a85923d8356ba8fe5f208d", size = 129985, upload-time = "2024-07-31T21:11:58.16Z" },
+    { url = "https://files.pythonhosted.org/packages/18/49/ae951d699d11f64fa5ad2cac0d09c8a3090b222a34b8a2b5d9d03e04a875/redshift_connector-2.1.7-py3-none-any.whl", hash = "sha256:99c0eef62b5c38283275a33056740949ad45a0e1c0d9da7a8f7fe674cf290d8b", size = 138746, upload-time = "2025-05-27T19:04:42.334Z" },
 ]
 
 [[package]]
