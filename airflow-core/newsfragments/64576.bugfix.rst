@@ -1,1 +1,0 @@
-Fixed ``xcom_pull()`` ignoring the ``default`` parameter on the no-``map_indexes`` code path, where ``None`` was always appended instead of the caller-supplied default value.
