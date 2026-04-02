@@ -107,8 +107,8 @@ body:
     attributes:
       label: Apache Airflow Provider(s)
       description: >
-        Provider(s) that the issue report is about (you can choose more than one).Select "None" if
-        the issue category isn't "Providers".
+        Provider(s) that the issue report is about (you can choose more than one). If the issue
+        category isn't "Providers", you can leave this field empty.
       multiple: true
       options:
         - airbyte
