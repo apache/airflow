@@ -85,16 +85,20 @@ def users_create(args):
 
 
 def _find_user(args):
+    with get_application_builder() as appbuilder:
+        return _find_user_with_appbuilder(args, appbuilder)
+
+
+def _find_user_with_appbuilder(args, appbuilder):
     if not args.username and not args.email:
         raise SystemExit("Missing args: must supply one of --username or --email")
 
     if args.username and args.email:
         raise SystemExit("Conflicting args: must supply either --username or --email, but not both")
 
-    with get_application_builder() as appbuilder:
-        user = appbuilder.sm.find_user(username=args.username, email=args.email)
-        if not user:
-            raise SystemExit(f'User "{args.username or args.email}" does not exist')
+    user = appbuilder.sm.find_user(username=args.username, email=args.email)
+    if not user:
+        raise SystemExit(f'User "{args.username or args.email}" does not exist')
     return user
 
 
@@ -102,9 +106,9 @@ def _find_user(args):
 @providers_configuration_loaded
 def user_reset_password(args):
     """Reset user password user from DB."""
-    user = _find_user(args)
     password = _create_password(args)
     with get_application_builder() as appbuilder:
+        user = _find_user_with_appbuilder(args, appbuilder)
         if appbuilder.sm.reset_password(user.id, password):
             print(f'User "{user.username}" password reset successfully')
         else:
