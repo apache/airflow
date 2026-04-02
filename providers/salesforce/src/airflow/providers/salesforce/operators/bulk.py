@@ -102,13 +102,13 @@ class SalesforceBulkOperator(BaseOperator):
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:
-          if self.max_retries < 0:
-              raise ValueError(f"'max_retries' must be a non-negative integer, got {self.max_retries!r}.")
+        if self.max_retries < 0:
+            raise ValueError(f"'max_retries' must be a non-negative integer, got {self.max_retries!r}.")
 
-          if self.retry_delay < 0:
-              raise ValueError(f"'retry_delay' must be a non-negative number, got {self.retry_delay!r}.")
+        if self.retry_delay < 0:
+            raise ValueError(f"'retry_delay' must be a non-negative number, got {self.retry_delay!r}.")
 
-          if not self.object_name:
+        if not self.object_name:
             raise ValueError("The required parameter 'object_name' cannot have an empty value.")
 
         if self.operation not in self.available_operations:
@@ -116,7 +116,6 @@ class SalesforceBulkOperator(BaseOperator):
                 f"Operation {self.operation!r} not found! "
                 f"Available operations are {self.available_operations}."
             )
-
     def _run_operation(self, bulk: SFBulkHandler, payload: list) -> list:
         """Submit *payload* through the configured Bulk API operation and return the result list."""
         obj = bulk.__getattr__(self.object_name)
