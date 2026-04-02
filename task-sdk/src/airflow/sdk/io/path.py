@@ -125,8 +125,8 @@ class ObjectStoragePath(ProxyUPath):
         if self._conn_id is not None:
             try:
                 self.__wrapped__._fs_cached = attach(self.protocol or "file", self._conn_id).fs
-            except (ImportError, ModuleNotFoundError):
-                pass  # Provider package not installed; will fail naturally when the path is used
+            except Exception:
+                pass  # Provider not available or scheme unregistered; will fail naturally when the path is used
 
     @classmethod_or_method  # type: ignore[arg-type]
     def _from_upath(cls_or_self, upath, /):
@@ -145,8 +145,8 @@ class ObjectStoragePath(ProxyUPath):
         if obj._conn_id is not None and not hasattr(upath, "_fs_cached"):
             try:
                 obj.__wrapped__._fs_cached = attach(upath.protocol or "file", obj._conn_id).fs
-            except (ImportError, ModuleNotFoundError):
-                pass  # Provider package not installed; will fail naturally when the path is used
+            except Exception:
+                pass  # Provider not available or scheme unregistered; will fail naturally when the path is used
         return obj
 
     @property

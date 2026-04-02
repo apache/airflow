@@ -303,7 +303,9 @@ class TestConnIdCredentialResolution:
         """rmdir() must use self.fs (Airflow-attached) not __wrapped__.fs (unauthenticated)."""
         fake_fs_with_conn.mkdir("bucket/empty_dir")
         p = ObjectStoragePath("ffs2://my_conn@bucket/empty_dir", conn_id="my_conn")
-        p.rmdir(recursive=False)
+        # upath's rmdir(recursive=False) calls next(self.iterdir()) without a default,
+        # which raises StopIteration on empty dirs — a upath bug. Use the default (recursive=True).
+        p.rmdir()
         assert not fake_fs_with_conn.exists("bucket/empty_dir")
 
     def test_conn_id_in_uri_works_for_exists(self, fake_fs_with_conn):
