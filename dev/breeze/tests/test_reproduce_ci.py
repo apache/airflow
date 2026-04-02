@@ -101,7 +101,7 @@ def test_build_local_reproduction_commands_fetches_pull_request_ref(pr_ref_kind,
     )
 
     assert [command.comment for command in commands] == [
-        f"Check out the same code as CI (pull request {pr_ref_kind} ref)",
+        f"Fetch the same code as CI (pull request {pr_ref_kind} ref)",
         None,
         "Build the CI image locally",
         None,
@@ -112,7 +112,7 @@ def test_build_local_reproduction_commands_fetches_pull_request_ref(pr_ref_kind,
         "https://github.com/someone/airflow.git",
         github_ref,
     ]
-    assert commands[1].argv == ["git", "checkout", "FETCH_HEAD"]
+    assert commands[1].argv == ["git", "checkout", "merge-sha"]
 
 
 def test_build_local_reproduction_commands_builds_ci_image_for_default_repo(monkeypatch):
@@ -248,6 +248,17 @@ class TestBuildReproductionCommandFromContext:
         result = build_reproduction_command_from_context(ctx)
         assert "--force" not in result.argv
         assert "--no-force" not in result.argv
+
+    def test_flag_pair_prefers_long_form(self):
+        @click.command("my-cmd")
+        @click.option("-f", "--force/--no-force", default=False)
+        def cmd(**kwargs):
+            pass
+
+        ctx = _invoke_and_get_context(cmd, ["-f"])
+        result = build_reproduction_command_from_context(ctx)
+        assert "--force" in result.argv
+        assert "-f" not in result.argv
 
     def test_string_option_emitted_when_explicit(self):
         @click.command("my-cmd")

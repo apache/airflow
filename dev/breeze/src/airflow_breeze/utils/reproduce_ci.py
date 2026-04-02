@@ -142,6 +142,7 @@ def build_reproduction_command_from_context(
 
 def build_checkout_reproduction_commands(github_repository: str) -> list[ReproductionCommand]:
     """Build git commands needed to reproduce the current CI checkout locally."""
+    current_commit_sha = os.environ.get("GITHUB_SHA") or os.environ.get("COMMIT_SHA") or commit_sha()
     github_ref = os.environ.get("GITHUB_REF", "")
     github_ref_parts = github_ref.split("/")
     if len(github_ref_parts) == 4 and github_ref_parts[:2] == ["refs", "pull"]:
@@ -154,14 +155,13 @@ def build_checkout_reproduction_commands(github_repository: str) -> list[Reprodu
                     f"https://github.com/{github_repository}.git",
                     github_ref,
                 ],
-                comment=f"Check out the same code as CI (pull request {pull_request_ref_kind} ref)",
+                comment=f"Fetch the same code as CI (pull request {pull_request_ref_kind} ref)",
             ),
             ReproductionCommand(
-                argv=["git", "checkout", "FETCH_HEAD"],
+                argv=["git", "checkout", current_commit_sha],
             ),
         ]
 
-    current_commit_sha = os.environ.get("GITHUB_SHA") or os.environ.get("COMMIT_SHA") or commit_sha()
     if not current_commit_sha or current_commit_sha == "COMMIT_SHA_NOT_FOUND":
         return []
     return [
