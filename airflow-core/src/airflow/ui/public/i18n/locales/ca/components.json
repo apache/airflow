@@ -22,7 +22,6 @@
         "title": "Reompliment generat"
       }
     },
-    "tooltip": "El reompliment necessita una programació",
     "unpause": "Reactivar {{dag_display_name}} a l'executar",
     "validation": {
       "datesRequired": "S'ha de proporcionar tant la data d'inici com la data de finalització.",

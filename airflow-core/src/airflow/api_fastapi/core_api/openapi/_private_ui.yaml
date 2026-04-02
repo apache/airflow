@@ -2051,6 +2051,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_periodic:
+          type: boolean
+          title: Timetable Periodic
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -2128,6 +2131,11 @@ components:
         is_favorite:
           type: boolean
           title: Is Favorite
+        is_backfillable:
+          type: boolean
+          title: Is Backfillable
+          description: Whether this DAG's schedule supports backfilling.
+          readOnly: true
         file_token:
           type: string
           title: File Token
@@ -2150,6 +2158,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_periodic
       - tags
       - max_active_tasks
       - max_active_runs
@@ -2166,6 +2175,7 @@ components:
       - latest_dag_runs
       - pending_actions
       - is_favorite
+      - is_backfillable
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
