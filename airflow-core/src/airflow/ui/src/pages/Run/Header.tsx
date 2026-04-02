@@ -36,6 +36,8 @@ import DeleteRunButton from "src/pages/DeleteRunButton";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { getDuration } from "src/utils";
 
+import { DeadlineStatus } from "./DeadlineStatus";
+
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
   const [note, setNote] = useState<string | null>(dagRun.note);
@@ -138,6 +140,10 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
                 maxItems={4}
               />
             ),
+          },
+          {
+            label: translate("dag:deadlineStatus.label"),
+            value: <DeadlineStatus dagId={dagId} dagRunId={dagRunId} />,
           },
         ]}
         title={dagRun.dag_run_id}

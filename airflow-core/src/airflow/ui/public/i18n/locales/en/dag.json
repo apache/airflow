@@ -7,6 +7,11 @@
   },
   "calendar": {
     "daily": "Daily",
+    "deadlines": {
+      "missed": "Missed",
+      "pending": "Pending",
+      "title": "Deadlines in Period"
+    },
     "hourly": "Hourly",
     "legend": {
       "less": "Less",
@@ -39,6 +44,20 @@
     "noCode": "No Code Found",
     "parseDuration": "Parse Duration:",
     "parsedAt": "Parsed at:"
+  },
+  "deadlineAlerts": {
+    "count_one": "{{count}} deadline",
+    "count_other": "{{count}} deadlines",
+    "interval": "Interval",
+    "referenceType": "Calculated from",
+    "title": "Deadline Alerts",
+    "unnamed": "Unnamed Alert"
+  },
+  "deadlineStatus": {
+    "label": "Deadline",
+    "met": "Met",
+    "missed": "Missed",
+    "upcoming": "Upcoming"
   },
   "extraLinks": "Extra Links",
   "grid": {
@@ -92,6 +111,11 @@
     "charts": {
       "assetEvent_one": "Created Asset Event",
       "assetEvent_other": "Created Asset Events"
+    },
+    "deadlines": {
+      "pending": "Pending Deadlines",
+      "recentlyMissed": "Recently Missed Deadlines",
+      "title": "Deadlines"
     },
     "failedLogs": {
       "hideLogs": "Hide Logs",

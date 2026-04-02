@@ -38,6 +38,8 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { DagDeadlines } from "./DagDeadlines";
+
 const FailedLogs = lazy(() => import("./FailedLogs"));
 
 const defaultHour = "24";
@@ -146,6 +148,7 @@ export const Overview = () => {
           />
         ) : undefined}
       </HStack>
+      {dagId === undefined ? undefined : <DagDeadlines dagId={dagId} />}
       <Suspense fallback={<Skeleton height="100px" width="full" />}>
         <FailedLogs failedTasks={failedTasks} />
       </Suspense>
