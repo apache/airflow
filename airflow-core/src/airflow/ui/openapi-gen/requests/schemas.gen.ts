@@ -9007,13 +9007,153 @@ export const $TeamResponse = {
 } as const;
 
 export const $Theme = {
-    additionalProperties: true,
-    type: 'object'
+    properties: {
+        tokens: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/ThemeColors'
+                    },
+                    propertyNames: {
+                        const: 'colors'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Tokens'
+        },
+        globalCss: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        additionalProperties: true,
+                        type: 'object'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Globalcss'
+        },
+        icon: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon'
+        },
+        icon_dark_mode: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Icon Dark Mode'
+        }
+    },
+    type: 'object',
+    title: 'Theme',
+    description: "JSON to modify Chakra's theme."
 } as const;
 
 export const $ThemeColors = {
-    additionalProperties: true,
-    type: 'object'
+    properties: {
+        brand: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        additionalProperties: {
+                            '$ref': '#/components/schemas/OklchColor'
+                        },
+                        propertyNames: {
+                            const: 'value'
+                        },
+                        type: 'object'
+                    },
+                    propertyNames: {
+                        enum: ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Brand'
+        },
+        gray: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        additionalProperties: {
+                            '$ref': '#/components/schemas/OklchColor'
+                        },
+                        propertyNames: {
+                            const: 'value'
+                        },
+                        type: 'object'
+                    },
+                    propertyNames: {
+                        enum: ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Gray'
+        },
+        black: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/OklchColor'
+                    },
+                    propertyNames: {
+                        const: 'value'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Black'
+        },
+        white: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/OklchColor'
+                    },
+                    propertyNames: {
+                        const: 'value'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'White'
+        }
+    },
+    type: 'object',
+    title: 'ThemeColors',
+    description: 'Color tokens for the UI theme. All fields are optional; at least one must be provided.'
 } as const;
 
 export const $TokenType = {

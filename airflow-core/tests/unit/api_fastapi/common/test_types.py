@@ -147,7 +147,7 @@ class TestThemeColors:
 
     def test_serialization_excludes_none_fields(self):
         colors = ThemeColors.model_validate({"brand": _BRAND_SCALE})
-        dumped = colors.model_dump()
+        dumped = colors.model_dump(exclude_none=True)
         assert "brand" in dumped
         assert "gray" not in dumped
         assert "black" not in dumped
@@ -200,7 +200,7 @@ class TestTheme:
     def test_serialization_round_trip(self):
         """Verify None color fields are excluded and OklchColor values are serialized as strings."""
         theme = Theme.model_validate({"tokens": {"colors": {"brand": _BRAND_SCALE}}})
-        dumped = theme.model_dump()
+        dumped = theme.model_dump(exclude_none=True)
         colors = dumped["tokens"]["colors"]
         assert "brand" in colors
         assert "gray" not in colors
@@ -231,6 +231,6 @@ class TestTheme:
     def test_theme_serialization_excludes_none_tokens(self):
         """When tokens is None it must not appear in the serialized output."""
         theme = Theme.model_validate({"globalCss": {"a": {"color": "red"}}})
-        dumped = theme.model_dump()
+        dumped = theme.model_dump(exclude_none=True)
         assert "tokens" not in dumped
         assert dumped == {"globalCss": {"a": {"color": "red"}}}

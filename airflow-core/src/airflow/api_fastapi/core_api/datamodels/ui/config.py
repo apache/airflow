@@ -16,12 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+from pydantic import ConfigDict, field_serializer
+
 from airflow.api_fastapi.common.types import Theme, UIAlert
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class ConfigResponse(BaseModel):
     """configuration serializer."""
+
+    model_config = ConfigDict(json_schema_mode_override="validation")
 
     fallback_page_limit: int
     auto_refresh_interval: int
@@ -36,3 +40,9 @@ class ConfigResponse(BaseModel):
     external_log_name: str | None = None
     theme: Theme | None
     multi_team: bool
+
+    @field_serializer("theme")
+    def serialize_theme(self, theme: Theme | None) -> dict | None:
+        if theme is None:
+            return None
+        return theme.model_dump(exclude_none=True)

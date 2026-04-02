@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from pydantic import (
     AfterValidator,
@@ -208,10 +208,6 @@ class ThemeColors(BaseModel):
             raise ValueError("At least one color token must be provided: brand, gray, black, or white")
         return self
 
-    @model_serializer(mode="wrap")
-    def serialize_model(self, handler: Any) -> dict:
-        return {k: v for k, v in handler(self).items() if v is not None}
-
 
 class Theme(BaseModel):
     """JSON to modify Chakra's theme."""
@@ -220,7 +216,3 @@ class Theme(BaseModel):
     globalCss: dict[str, dict] | None = None
     icon: ThemeIconType = None
     icon_dark_mode: ThemeIconType = None
-
-    @model_serializer(mode="wrap")
-    def serialize_model(self, handler: Any) -> dict:
-        return {k: v for k, v in handler(self).items() if v is not None}

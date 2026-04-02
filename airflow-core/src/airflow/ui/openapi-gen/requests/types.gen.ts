@@ -2212,12 +2212,42 @@ export type TeamResponse = {
     name: string;
 };
 
+/**
+ * JSON to modify Chakra's theme.
+ */
 export type Theme = {
-    [key: string]: unknown;
+    tokens?: {
+    [key: string]: ThemeColors;
+} | null;
+    globalCss?: {
+    [key: string]: {
+        [key: string]: unknown;
+    };
+} | null;
+    icon?: string | null;
+    icon_dark_mode?: string | null;
 };
 
+/**
+ * Color tokens for the UI theme. All fields are optional; at least one must be provided.
+ */
 export type ThemeColors = {
-    [key: string]: unknown;
+    brand?: {
+    [key: string]: {
+        [key: string]: OklchColor;
+    };
+} | null;
+    gray?: {
+    [key: string]: {
+        [key: string]: OklchColor;
+    };
+} | null;
+    black?: {
+    [key: string]: OklchColor;
+} | null;
+    white?: {
+    [key: string]: OklchColor;
+} | null;
 };
 
 /**
