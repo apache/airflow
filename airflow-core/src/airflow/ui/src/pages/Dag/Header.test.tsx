@@ -21,7 +21,7 @@ import { render, screen } from "@testing-library/react";
 import type { DAGDetailsResponse } from "openapi-gen/requests/types.gen";
 import { describe, expect, it } from "vitest";
 
-import "src/i18n/config";
+import i18n from "src/i18n/config";
 import { MOCK_DAG } from "src/mocks/handlers/dag";
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -58,8 +58,8 @@ describe("Header", () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText("header.status.deactivated")).toBeInTheDocument();
-    expect(screen.queryByText("dagDetails.nextRun")).not.toBeInTheDocument();
+    expect(screen.getByText(i18n.t("dag:header.status.deactivated"))).toBeInTheDocument();
+    expect(screen.queryByText(i18n.t("dag:dagDetails.nextRun"))).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reparse Dag" })).not.toBeInTheDocument();
   });
 });
