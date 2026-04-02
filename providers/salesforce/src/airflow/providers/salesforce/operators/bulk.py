@@ -58,7 +58,7 @@ class SalesforceBulkOperator(BaseOperator):
         transient error code such as ``UNABLE_TO_LOCK_ROW`` or
         ``API_TEMPORARILY_UNAVAILABLE``.  Set to ``0`` (the default) to disable
         automatic retries.
-    :param retry_delay: Seconds to wait before each retry attempt.  Defaults to ``5``.
+    :param bulk_retry_delay: Seconds to wait before each retry attempt within the Bulk API retry loop. Defaults to ``5``.
     :param transient_error_codes: Collection of Salesforce error ``statusCode``
         values that should trigger a retry.  Defaults to
         ``{"UNABLE_TO_LOCK_ROW", "API_TEMPORARILY_UNAVAILABLE"}``.
@@ -79,7 +79,7 @@ class SalesforceBulkOperator(BaseOperator):
         use_serial: bool = False,
         salesforce_conn_id: str = "salesforce_default",
         max_retries: int = 0,
-        retry_delay: float = 5.0,
+        bulk_retry_delay: float = 5.0,
         transient_error_codes: Iterable[str] = _DEFAULT_TRANSIENT_ERROR_CODES,
         **kwargs,
     ) -> None:
@@ -92,7 +92,7 @@ class SalesforceBulkOperator(BaseOperator):
         self.use_serial = use_serial
         self.salesforce_conn_id = salesforce_conn_id
         self.max_retries = max_retries
-        self.retry_delay = retry_delay
+        self.bulk_retry_delay = bulk_retry_delay
         if isinstance(transient_error_codes, str):
             raise ValueError(
                 "'transient_error_codes' must be a non-string iterable of strings, "
@@ -105,8 +105,8 @@ class SalesforceBulkOperator(BaseOperator):
         if self.max_retries < 0:
             raise ValueError(f"'max_retries' must be a non-negative integer, got {self.max_retries!r}.")
 
-        if self.retry_delay < 0:
-            raise ValueError(f"'retry_delay' must be a non-negative number, got {self.retry_delay!r}.")
+        if self.bulk_retry_delay < 0:
+            raise ValueError(f"'bulk_retry_delay' must be a non-negative number, got {self.bulk_retry_delay!r}.")
 
         if not self.object_name:
             raise ValueError("The required parameter 'object_name' cannot have an empty value.")
@@ -164,9 +164,9 @@ class SalesforceBulkOperator(BaseOperator):
                 len(retry_indices),
                 attempt,
                 self.max_retries,
-                self.retry_delay,
+                self.bulk_retry_delay,
             )
-            time.sleep(self.retry_delay)
+            time.sleep(self.bulk_retry_delay)
 
             retry_result = self._run_operation(bulk, [payload[i] for i in retry_indices])
 
