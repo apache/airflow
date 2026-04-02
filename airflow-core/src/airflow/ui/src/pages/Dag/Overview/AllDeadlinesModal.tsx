@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Separator, Skeleton, VStack } from "@chakra-ui/react";
+import { Heading, HStack, Separator, Skeleton, VStack } from "@chakra-ui/react";
+import { useState } from "react";
 
 import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Dialog } from "src/components/ui";
+import { Pagination } from "src/components/ui/Pagination";
 
 import { DeadlineRow } from "./DeadlineRow";
 
-const MODAL_LIMIT = 100;
+const PAGE_LIMIT = 10;
 
 type AllDeadlinesModalProps = {
   readonly dagId: string;
@@ -47,6 +49,9 @@ export const AllDeadlinesModal = ({
   startDate,
   title,
 }: AllDeadlinesModalProps) => {
+  const [page, setPage] = useState(1);
+  const offset = (page - 1) * PAGE_LIMIT;
+
   const { data, error, isLoading } = useDeadlinesServiceGetDeadlines(
     missed
       ? {
@@ -54,16 +59,18 @@ export const AllDeadlinesModal = ({
           dagRunId: "~",
           lastUpdatedAtGte: startDate,
           lastUpdatedAtLte: endDate,
-          limit: MODAL_LIMIT,
+          limit: PAGE_LIMIT,
           missed: true,
+          offset,
           orderBy: ["-last_updated_at"],
         }
       : {
           dagId,
           dagRunId: "~",
           deadlineTimeGte: endDate,
-          limit: MODAL_LIMIT,
+          limit: PAGE_LIMIT,
           missed: false,
+          offset,
           orderBy: ["deadline_time"],
         },
     undefined,
@@ -71,24 +78,30 @@ export const AllDeadlinesModal = ({
   );
 
   const deadlines = data?.deadlines ?? [];
+  const totalEntries = data?.total_entries ?? 0;
+
+  const onOpenChange = () => {
+    setPage(1);
+    onClose();
+  };
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="md">
+    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="sm">
       <Dialog.Content>
         <Dialog.Header>
           <Heading size="sm">{title}</Heading>
         </Dialog.Header>
         <Dialog.CloseTrigger />
-        <Dialog.Body pb={6}>
+        <Dialog.Body pb={2}>
           <ErrorAlert error={error} />
           {isLoading ? (
             <VStack>
-              {Array.from({ length: 5 }).map((_, idx) => (
+              {Array.from({ length: PAGE_LIMIT }).map((_, idx) => (
                 // eslint-disable-next-line react/no-array-index-key
                 <Skeleton height="36px" key={idx} width="100%" />
               ))}
             </VStack>
-          ) : deadlines.length === 0 ? undefined : (
+          ) : (
             <VStack gap={0} separator={<Separator />}>
               {deadlines.map((dl) => (
                 <DeadlineRow deadline={dl} key={dl.id} />
@@ -96,6 +109,21 @@ export const AllDeadlinesModal = ({
             </VStack>
           )}
         </Dialog.Body>
+        {totalEntries > PAGE_LIMIT ? (
+          <Pagination.Root
+            count={totalEntries}
+            onPageChange={(event) => setPage(event.page)}
+            p={3}
+            page={page}
+            pageSize={PAGE_LIMIT}
+          >
+            <HStack justify="center">
+              <Pagination.PrevTrigger />
+              <Pagination.Items />
+              <Pagination.NextTrigger />
+            </HStack>
+          </Pagination.Root>
+        ) : undefined}
       </Dialog.Content>
     </Dialog.Root>
   );

@@ -115,7 +115,8 @@
     "deadlines": {
       "pending": "Pending Deadlines",
       "recentlyMissed": "Recently Missed Deadlines",
-      "title": "Deadlines"
+      "title": "Deadlines",
+      "viewAll": "View all {{count}}"
     },
     "failedLogs": {
       "hideLogs": "Hide Logs",
