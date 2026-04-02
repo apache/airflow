@@ -595,7 +595,7 @@ class TestDagRunOperatorAF2:
         with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
             with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
                 task = TriggerDagRunOperator(
-                    task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, note="Test note"
+                    task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, note="Test note", run_after=None
                 )
             mock_warning = mock.patch.object(task.log, "warning").start()
             dag_maker.sync_dagbag_to_db()
@@ -604,11 +604,30 @@ class TestDagRunOperatorAF2:
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
             dagrun = dag_maker.session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
+            unsupported_params = ["note"]
             assert mock_warning.mock_calls == [
-                mock.call("Parameter 'note' is not supported in Airflow 2.x and will be ignored.")
+                mock.call(
+                    "The following parameters are not supported in Airflow 2.x and will be ignored: %s",
+                    ", ".join(unsupported_params),
+                )
             ]
             assert dagrun.run_type == DagRunType.MANUAL
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.logical_date)
+
+    def test_trigger_dagrun_does_not_warn_for_default_unsupported_params(
+        self, dag_maker, mock_supervisor_comms
+    ):
+        """Test TriggerDagRunOperator does not warn for unsupported params when they are not provided."""
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+                task = TriggerDagRunOperator(task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID)
+            mock_warning = mock.patch.object(task.log, "warning").start()
+            dag_maker.sync_dagbag_to_db()
+            parse_and_sync_to_db(self.f_name)
+            dag_maker.create_dagrun()
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+            mock_warning.assert_not_called()
 
     def test_explicitly_provided_trigger_run_id_is_saved_as_attr(self, dag_maker, session):
         with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
