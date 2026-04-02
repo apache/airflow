@@ -26,6 +26,7 @@ from unittest import mock
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
+from upath import UPath
 
 from airflow.sdk import Asset, ObjectStoragePath
 from airflow.sdk._shared.module_loading import qualname
@@ -230,7 +231,7 @@ class TestAttach:
 
 class TestConnIdCredentialResolution:
     """
-    Regression tests for https://github.com/apache/airflow/issues/64524
+    Regression tests for https://github.com/apache/airflow/issues/64632
 
     When ObjectStoragePath was migrated from CloudPath to ProxyUPath (3.2.0),
     methods like exists(), mkdir(), is_dir(), is_file() were delegated to
@@ -317,8 +318,6 @@ class TestConnIdCredentialResolution:
 
     def test_from_upath_injects_fs_when_no_cache(self, fake_fs_with_conn):
         """_from_upath must inject authenticated fs into a fresh UPath with no _fs_cached."""
-        from upath import UPath
-
         # Simulate _from_upath called as an instance method with a fresh UPath that has
         # no _fs_cached set (e.g. cwd() / home() or a cross-protocol _from_upath call).
         p_instance = ObjectStoragePath("ffs2://my_conn@bucket/root", conn_id="my_conn")
