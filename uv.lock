@@ -12,7 +12,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-29T18:25:19.975988101Z"
+exclude-newer = "2026-03-29T18:29:55.51454679Z"
 exclude-newer-span = "P4D"
 
 [manifest]
@@ -827,7 +827,7 @@ all = [
     { name = "apache-airflow-providers-airbyte" },
     { name = "apache-airflow-providers-alibaba" },
     { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "python3-saml", "s3fs"] },
-    { name = "apache-airflow-providers-apache-cassandra" },
+    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*'" },
     { name = "apache-airflow-providers-apache-drill" },
     { name = "apache-airflow-providers-apache-druid" },
     { name = "apache-airflow-providers-apache-flink" },
@@ -1353,8 +1353,8 @@ requires-dist = [
     { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], marker = "extra == 'aiobotocore'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["python3-saml"], marker = "extra == 'amazon-aws-auth'", editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["s3fs"], marker = "extra == 's3fs'", editable = "providers/amazon" },
+    { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-cassandra", marker = "python_full_version != '3.14.*' and extra == 'apache-cassandra'", editable = "providers/apache/cassandra" },
-    { name = "apache-airflow-providers-apache-cassandra", marker = "extra == 'all'", editable = "providers/apache/cassandra" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'all'", editable = "providers/apache/drill" },
     { name = "apache-airflow-providers-apache-drill", marker = "extra == 'apache-drill'", editable = "providers/apache/drill" },
     { name = "apache-airflow-providers-apache-druid", marker = "extra == 'all'", editable = "providers/apache/druid" },
@@ -1394,7 +1394,7 @@ requires-dist = [
     { name = "apache-airflow-providers-atlassian-jira", marker = "extra == 'atlassian-jira'", editable = "providers/atlassian/jira" },
     { name = "apache-airflow-providers-celery", marker = "extra == 'all'", editable = "providers/celery" },
     { name = "apache-airflow-providers-celery", marker = "extra == 'celery'", editable = "providers/celery" },
-    { name = "apache-airflow-providers-cloudant", marker = "python_full_version != '3.9.*' and extra == 'all'", editable = "providers/cloudant" },
+    { name = "apache-airflow-providers-cloudant", marker = "extra == 'all'", editable = "providers/cloudant" },
     { name = "apache-airflow-providers-cloudant", marker = "extra == 'cloudant'", editable = "providers/cloudant" },
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'all'", editable = "providers/cncf/kubernetes" },
     { name = "apache-airflow-providers-cncf-kubernetes", marker = "extra == 'cncf-kubernetes'", editable = "providers/cncf/kubernetes" },

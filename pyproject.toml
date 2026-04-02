@@ -108,7 +108,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.cassandra" = [
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
 ]
 "apache.drill" = [
     "apache-airflow-providers-apache-drill>=2.8.1"
@@ -168,7 +168,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-celery>=3.8.3"
 ]
 "cloudant" = [
-    "apache-airflow-providers-cloudant>=4.0.1",
+    "apache-airflow-providers-cloudant>=4.0.1"
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=9.0.0"
@@ -237,7 +237,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-google>=10.24.0"
 ]
 "grafana" = [
-    "apache-airflow-providers-grafana>=1.0.0" # Set from local provider pyproject.toml
+    "apache-airflow-providers-grafana>=1.0.0"
 ]
 "grpc" = [
     "apache-airflow-providers-grpc>=3.7.0"
@@ -401,7 +401,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
-    "apache-airflow-providers-apache-cassandra>=3.7.0",
+    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
     "apache-airflow-providers-apache-flink>=1.6.0",
@@ -421,7 +421,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-asana>=2.7.0",
     "apache-airflow-providers-atlassian-jira>=2.7.1",
     "apache-airflow-providers-celery>=3.8.3",
-    "apache-airflow-providers-cloudant>=4.0.1; python_version !=\"3.9\"",
+    "apache-airflow-providers-cloudant>=4.0.1",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-ai>=0.1.0", # Set from local provider pyproject.toml
@@ -444,7 +444,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-github>=2.8.0",
     "apache-airflow-providers-google>=10.24.0",
-    "apache-airflow-providers-grafana>=1.0.0", # Set from local provider pyproject.toml
+    "apache-airflow-providers-grafana>=1.0.0",
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
