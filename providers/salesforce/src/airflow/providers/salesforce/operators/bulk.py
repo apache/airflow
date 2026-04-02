@@ -93,11 +93,22 @@ class SalesforceBulkOperator(BaseOperator):
         self.salesforce_conn_id = salesforce_conn_id
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        if isinstance(transient_error_codes, str):
+            raise ValueError(
+                "'transient_error_codes' must be a non-string iterable of strings, "
+                f"got {transient_error_codes!r}. Wrap it in a list: [{transient_error_codes!r}]"
+            )
         self.transient_error_codes = frozenset(transient_error_codes)
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:
-        if not self.object_name:
+          if self.max_retries < 0:
+              raise ValueError(f"'max_retries' must be a non-negative integer, got {self.max_retries!r}.")
+
+          if self.retry_delay < 0:
+              raise ValueError(f"'retry_delay' must be a non-negative number, got {self.retry_delay!r}.")
+
+          if not self.object_name:
             raise ValueError("The required parameter 'object_name' cannot have an empty value.")
 
         if self.operation not in self.available_operations:
