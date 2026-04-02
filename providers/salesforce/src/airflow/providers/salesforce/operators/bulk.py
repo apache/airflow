@@ -106,7 +106,9 @@ class SalesforceBulkOperator(BaseOperator):
             raise ValueError(f"'max_retries' must be a non-negative integer, got {self.max_retries!r}.")
 
         if self.bulk_retry_delay < 0:
-            raise ValueError(f"'bulk_retry_delay' must be a non-negative number, got {self.bulk_retry_delay!r}.")
+            raise ValueError(
+                  f"'bulk_retry_delay' must be a non-negative number, got {self.bulk_retry_delay!r}."
+              )
 
         if not self.object_name:
             raise ValueError("The required parameter 'object_name' cannot have an empty value.")
@@ -116,28 +118,26 @@ class SalesforceBulkOperator(BaseOperator):
                 f"Operation {self.operation!r} not found! "
                 f"Available operations are {self.available_operations}."
             )
+
     def _run_operation(self, bulk: SFBulkHandler, payload: list) -> list:
         """Submit *payload* through the configured Bulk API operation and return the result list."""
         obj = bulk.__getattr__(self.object_name)
         if self.operation == "upsert":
-            return list(
-                obj.upsert(
-                    data=payload,
-                    external_id_field=self.external_id_field,
-                    batch_size=self.batch_size,
-                    use_serial=self.use_serial,
-                )
-            )
-        return list(
-            getattr(obj, self.operation)(
+            return obj.upsert(
                 data=payload,
+                external_id_field=self.external_id_field,
                 batch_size=self.batch_size,
                 use_serial=self.use_serial,
             )
+        return getattr(obj, self.operation)(
+            data=payload,
+            batch_size=self.batch_size,
+            use_serial=self.use_serial,
         )
 
     def _retry_transient_failures(self, bulk: SFBulkHandler, payload: list, result: list) -> list:
-        """Re-submit records that failed with a transient error, up to *max_retries* times.
+        """
+        Re-submit records that failed with a transient error, up to *max_retries* times.
 
         Salesforce Bulk API results are ordered identically to the input payload, so
         failed records are located by index and their retry results are written back
@@ -168,7 +168,7 @@ class SalesforceBulkOperator(BaseOperator):
             )
             time.sleep(self.bulk_retry_delay)
 
-            retry_result = self._run_operation(bulk, [payload[i] for i in retry_indices])
+            retry_result = list(self._run_operation(bulk, [payload[i] for i in retry_indices]))
 
             for list_pos, original_idx in enumerate(retry_indices):
                 final[original_idx] = retry_result[list_pos]
