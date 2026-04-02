@@ -21,13 +21,13 @@ name: Common AI
 description: |
   AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
-state: not-ready
+state: ready
 lifecycle: incubation
 source-date-epoch: 1770463465
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.0.1
+  - 0.1.0
 
 integrations:
   - integration-name: Common AI
@@ -35,6 +35,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-common-ai/operators/agent.rst
       - /docs/apache-airflow-providers-common-ai/operators/llm.rst
+      - /docs/apache-airflow-providers-common-ai/operators/llm_file_analysis.rst
       - /docs/apache-airflow-providers-common-ai/operators/llm_branch.rst
       - /docs/apache-airflow-providers-common-ai/operators/llm_sql.rst
       - /docs/apache-airflow-providers-common-ai/operators/llm_schema_compare.rst
@@ -288,6 +289,7 @@ operators:
     python-modules:
       - airflow.providers.common.ai.operators.agent
       - airflow.providers.common.ai.operators.llm
+      - airflow.providers.common.ai.operators.llm_file_analysis
       - airflow.providers.common.ai.operators.llm_branch
       - airflow.providers.common.ai.operators.llm_sql
       - airflow.providers.common.ai.operators.llm_schema_compare
@@ -297,6 +299,8 @@ task-decorators:
     name: agent
   - class-name: airflow.providers.common.ai.decorators.llm.llm_task
     name: llm
+  - class-name: airflow.providers.common.ai.decorators.llm_file_analysis.llm_file_analysis_task
+    name: llm_file_analysis
   - class-name: airflow.providers.common.ai.decorators.llm_branch.llm_branch_task
     name: llm_branch
   - class-name: airflow.providers.common.ai.decorators.llm_sql.llm_sql_task

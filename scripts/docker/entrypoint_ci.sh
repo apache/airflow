@@ -136,6 +136,13 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
 
+    if [[ ${GO_WORKER=} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Starting go worker${COLOR_RESET}"
+        echo
+        export AIRFLOW__SCHEDULER__GO_WORKER=True
+    fi
+
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 
@@ -279,7 +286,7 @@ function determine_airflow_to_use() {
         # via the Python script. --no-cache is needed - otherwise there is possibility of
         # overriding temporary environments by multiple parallel processes
         local constraint_file="/tmp/constraints-from-lock.txt"
-        uv export --frozen --no-hashes --no-emit-project --no-editable --no-header \
+        uv export --frozen --no-hashes --no-emit-project --no-emit-workspace --no-editable --no-header \
             --no-annotate > "${constraint_file}" 2>/dev/null || true
         uv run --no-cache /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint "${constraint_file}"
@@ -406,8 +413,26 @@ function check_force_lowest_dependencies() {
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
-        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
-            --no-python-downloads --no-managed-python
+
+        local sync_successful="false"
+        for attempt in 1 2 3; do
+            echo "Attempt ${attempt} of syncing to lowest dependencies"
+            set -x
+            if UV_LOCK_TIMEOUT=200 uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
+                --no-python-downloads --no-managed-python; then
+                set +x
+                sync_successful="true"
+                break
+            fi
+            set +x
+            echo "Sleeping 30s"
+            sleep 30
+            echo "Attempt ${attempt} failed. Retrying..."
+        done
+        if [[ "${sync_successful}" != "true" ]]; then
+            echo "${COLOR_RED}Failed to sync lowest dependencies after 3 attempts.${COLOR_RESET}"
+            exit 1
+        fi
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"

@@ -152,6 +152,8 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self._plugins_set: set[PluginInfo] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._init_airflow_core_hooks()
+        # Populated by initialize_provider_configs(); holds provider-contributed config sections.
+        self._provider_configs: dict[str, dict[str, Any]] = {}
 
     def _init_airflow_core_hooks(self):
         """Initialize the hooks dict with default hooks from Airflow core."""
@@ -217,6 +219,18 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         """Lazy initialization of providers taskflow decorators."""
         self.initialize_providers_list()
         self._discover_taskflow_decorators()
+
+    @provider_info_cache("provider_configs")
+    def initialize_provider_configs(self):
+        """Lazy initialization of provider configuration metadata and merge it into SDK ``conf``."""
+        self.initialize_providers_list()
+        self._discover_config()
+
+    def _discover_config(self) -> None:
+        """Retrieve all configs defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if config := provider.data.get("config"):
+                self._provider_configs[provider_package] = config
 
     def _discover_hooks_from_connection_types(
         self,
@@ -597,6 +611,27 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self.initialize_providers_plugins()
         return sorted(self._plugins_set, key=lambda x: x.plugin_class)
 
+    @property
+    def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        self.initialize_provider_configs()
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
+    @property
+    def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        """
+        Return provider configs that have already been initialized.
+
+        .. deprecated:: 3.2.0
+            Use ``provider_configs`` instead.  This property is kept for backwards
+            compatibility and will be removed in a future version.
+        """
+        warnings.warn(
+            "already_initialized_provider_configs is deprecated. Use `provider_configs` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
     def _cleanup(self):
         self._initialized_cache.clear()
         self._provider_dict.clear()
@@ -608,6 +643,12 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self._asset_uri_handlers.clear()
         self._asset_factories.clear()
         self._asset_to_openlineage_converters.clear()
+        self._provider_configs.clear()
+
+        # Imported lazily to preserve SDK conf lazy initialization and avoid a configuration/runtime cycle.
+        from airflow.sdk.configuration import conf
+
+        conf.invalidate_cache()
 
         self._initialized = False
         self._initialization_stack_trace = None

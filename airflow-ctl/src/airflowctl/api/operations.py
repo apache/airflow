@@ -193,6 +193,9 @@ class BaseOperations:
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
 
     def execute_list(self, *, path, data_model, offset=0, limit=50, params=None):
+        if limit <= 0:
+            raise ValueError(f"limit must be a positive integer, got {limit}")
+
         shared_params = {"limit": limit, **(params or {})}
 
         def safe_validate(content: bytes) -> BaseModel:
@@ -608,32 +611,33 @@ class DagRunOperations(BaseOperations):
         dag_id: str | None = None,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """
-        List all dag runs.
+        List dag runs (at most `limit` results).
 
         Args:
             state: Filter dag runs by state
             start_date: Filter dag runs by start date (optional)
             end_date: Filter dag runs by end date (optional)
-            state: Filter dag runs by state
-            limit: Limit the number of results
+            limit: Limit the number of results returned
             dag_id: The DAG ID to filter by. If None, retrieves dag runs for all DAGs (using "~").
         """
         # Use "~" for all DAGs if dag_id is not specified
         if not dag_id:
             dag_id = "~"
 
-        params: dict[str, object] = {
-            "state": state,
+        params: dict[str, Any] = {
+            "state": str(state),
             "limit": limit,
         }
         if start_date is not None:
-            params["start_date"] = start_date
+            params["start_date"] = start_date.isoformat()
         if end_date is not None:
-            params["end_date"] = end_date
+            params["end_date"] = end_date.isoformat()
 
-        return super().execute_list(
-            path=f"/dags/{dag_id}/dagRuns", data_model=DAGRunCollectionResponse, params=params
-        )
+        try:
+            self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
+            return DAGRunCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
 
 
 class JobsOperations(BaseOperations):

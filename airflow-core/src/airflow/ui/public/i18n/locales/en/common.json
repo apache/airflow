@@ -28,6 +28,7 @@
   },
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
+  "consumingAsset": "Consuming Asset",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
   "dag_one": "Dag",
@@ -103,6 +104,12 @@
     "notFound": "Page Not Found",
     "title": "Error"
   },
+  "errors": {
+    "forbidden": {
+      "description": "You do not have permission to perform this action.",
+      "title": "Access Denied"
+    }
+  },
   "expand": {
     "collapse": "Collapse",
     "expand": "Expand",
@@ -125,6 +132,7 @@
     "logicalDateTo": "Logical Date To",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
+    "searchAsset": "Search Asset",
     "selectDateRange": "Select Date Range",
     "startTime": "Start Time"
   },
@@ -172,6 +180,7 @@
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
+    "asset_materialization": "Asset Materialization",
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
     "manual": "Manual",
@@ -192,6 +201,7 @@
     "users": "Users"
   },
   "selectLanguage": "Select Language",
+  "selected": "Selected",
   "showDetailsPanel": "Show Details Panel",
   "signedInAs": "Signed in as",
   "source": {
@@ -292,11 +302,25 @@
     "utc": "UTC (Coordinated Universal Time)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Bulk Clear {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully cleared. Keys: {{keys}}",
+        "title": "Bulk Clear {{resourceName}} Request Submitted"
+      }
+    },
     "bulkDelete": {
       "error": "Bulk Delete {{resourceName}} Request Failed",
       "success": {
         "description": "{{count}} {{resourceName}} have been successfully deleted. Keys: {{keys}}",
         "title": "Bulk Delete {{resourceName}} Request Submitted"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Bulk Update {{resourceName}} Request Failed",
+      "success": {
+        "description": "{{count}} {{resourceName}} have been successfully updated. Keys: {{keys}}",
+        "title": "Bulk Update {{resourceName}} Request Submitted"
       }
     },
     "create": {
@@ -312,10 +336,6 @@
         "description": "{{resourceName}} has been successfully deleted.",
         "title": "Delete {{resourceName}} Request Submitted"
       }
-    },
-    "forbidden": {
-      "description": "You do not have permission to perform this action.",
-      "title": "Access Denied"
     },
     "import": {
       "error": "Import {{resourceName}} Request Failed",
@@ -348,6 +368,10 @@
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "user": "User",
+  "validation": {
+    "mustBeAtLeast": "Must be at least {{min}}.",
+    "mustBeValidNumber": "Must be a valid number."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",

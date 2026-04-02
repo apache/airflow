@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-amazon"
-version = "9.23.0"
+version = "9.24.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -59,7 +60,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.13.0",
+    "apache-airflow-providers-common-compat>=1.13.0",  # use next version
     "apache-airflow-providers-common-sql>=1.32.0",
     "apache-airflow-providers-http",
     # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
@@ -72,13 +73,13 @@ dependencies = [
     "watchtower>=3.3.1,<4",
     "jsonpath_ng>=1.5.3",
     "redshift_connector>=2.1.3",
-    "asgiref>=2.3.0",
+    "asgiref>=2.3.0; python_version < '3.14'",
+    "asgiref>=3.11.1; python_version >= '3.14'",
     "PyAthena>=3.10.0",
     "jmespath>=0.7.0",
     # Do not change sagemaker-studio versions without approval from AWS.
-    "sagemaker-studio>=1.0.9",
-    # Sagemaker studio in Python 3.13 requires version >=1.1.0 and Pydynamodb >=0.7.5
-    "pydynamodb>=0.8.1; python_version >= '3.13'",
+    # Capping sagemaker-studio under 1.1.0 temporarily until the NotebookOperator params are released to newer versions
+    "sagemaker-studio>=1.0.25,<1.1.0",
     "marshmallow>=3",
 ]
 
@@ -89,7 +90,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native async support and we move away from aio aiobotocore
 "aiobotocore" = [
-    "aiobotocore[boto3]>=2.26.0",
+    "aiobotocore>=2.26.0",
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=7.2.0",
@@ -131,7 +132,8 @@ dependencies = [
 ]
 "pandas" = [
     'pandas>=2.1.2; python_version <"3.13"',
-    'pandas>=2.2.3; python_version >="3.13"',
+    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3; python_version >="3.14"',
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"
@@ -216,8 +218,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.23.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.23.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.24.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.24.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

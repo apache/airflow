@@ -44,6 +44,36 @@ Changelog
    mount ``ca.crt`` at ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. If you are affected,
    please open an issue so support for a configurable CA path can be added.
 
+7.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add new hook method (#62822)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typo in 'monitor_databricks_job' (#63651)``
+* ``Enable TLS certificate verification for K8s token exchange in 'DatabricksHook' (#63704)``
+* ``Map Airflow trigger_rule to Databricks run_if in 'DatabricksWorkflowTaskGroup' (#63420)``
+* ``Fix broken import of 'aiofiles' in 'BaseDatabricksHook' (#63518)``
+* ``Fail deferrable runs that terminate before defer (#62917)``
+* ``Fix sql_warehouse_name resolution: handle 'warehouses' API response key (#63286)``
+* ``Handle concurrent create race in DatabricksReposCreateOperator when ignore_existing_repo=True. If create_repo() fails, the operator now re-checks repository existence and proceeds if the repository was created concurrently; otherwise, the original exception is re-raised. Add unit tests covering recovery and failure propagation under concurrent create scenarios. (#62422)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix AIR004* in multiple example DAGs (#62529)``
+* ``Refactor timeout handling in DatabricksSqlHook to use explicit signaling (#62623)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 7.11.0
 ......
 

@@ -28,28 +28,28 @@
             "description": "Provide a name to substitute for the full names of resources",
             "type": "string",
             "default": "",
-            "x-docsSection": null
+            "x-docsSection": "Common"
         },
         "revisionHistoryLimit": {
-            "description": "Global number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit",
+            "description": "Global number of old ReplicaSets to retain. Can be overridden by each deployment's `revisionHistoryLimit`",
             "type": [
                 "integer",
                 "null"
             ],
             "default": null,
-            "x-docsSection": null
+            "x-docsSection": "Kubernetes"
         },
         "nameOverride": {
             "description": "Override the name of the chart",
             "type": "string",
             "default": "",
-            "x-docsSection": null
+            "x-docsSection": "Common"
         },
         "useStandardNaming": {
             "description": "Use standard naming for all resources using airflow.fullname template",
             "type": "boolean",
             "default": false,
-            "x-docsSection": null
+            "x-docsSection": "Common"
         },
         "uid": {
             "description": "User of airflow user.",
@@ -1743,10 +1743,10 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
-                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated). Use workers.celery.command and/or workers.kubernetes.command to separate value between Celery workers and pod-template-file.",
+                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated) (deprecated, use ``workers.celery.command`` and/or ``workers.kubernetes.command`` instead).",
                     "type": [
                         "array",
                         "null"
@@ -1802,11 +1802,12 @@
                             "default": 60
                         },
                         "command": {
-                            "description": "Command for livenessProbe (deprecated, use `workers.celery.livenessProbe.command` instead)",
+                            "description": "Command for LivenessProbe (deprecated, use `workers.celery.livenessProbe.command` instead)",
                             "type": [
                                 "array",
                                 "null"
                             ],
+                            "default": null,
                             "items": {
                                 "type": "string"
                             }
@@ -2063,17 +2064,17 @@
                     }
                 },
                 "kerberosSidecar": {
-                    "description": "Kerberos sidecar for Airflow Celery workers and pods created with pod-template-file. Use `workers.celery.kerberosSidecar` and/or `workers.kubernetes.kerberosSidecar` to separate value between Celery workers and pod-template-file",
+                    "description": "Kerberos sidecar for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.kerberosSidecar`` and/or ``workers.kubernetes.kerberosSidecar`` instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable Kerberos sidecar.",
+                            "description": "Enable Kerberos sidecar (deprecated, use ``workers.celery.kerberosSidecar.enabled`` and/or ``workers.kubernetes.kerberosSidecar.enabled`` instead).",
                             "type": "boolean",
                             "default": false
                         },
                         "resources": {
-                            "description": "Resources on kerberos sidecar.",
+                            "description": "Resources on kerberos sidecar (deprecated, use ``workers.celery.kerberosSidecar.resources`` and/or ``workers.kubernetes.kerberosSidecar.resources`` instead).",
                             "type": "object",
                             "default": {},
                             "examples": [
@@ -2091,7 +2092,7 @@
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         },
                         "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the kerberos sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "description": "Container Lifecycle Hooks definition for the kerberos sidecar (deprecated, use ``workers.celery.kerberosSidecar.containerLifecycleHooks`` and/or ``workers.kubernetes.kerberosSidecar.containerLifecycleHooks`` instead). If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                             "default": {},
@@ -2120,12 +2121,12 @@
                             ]
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the kerberos sidecar. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the kerberos sidecar (deprecated, use ``workers.celery.kerberosSidecar.securityContexts`` and/or ``workers.kubernetes.kerberosSidecar.securityContexts`` instead). If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the kerberos sidecar.",
+                                    "description": "Container security context definition for the kerberos sidecar (deprecated, use ``workers.celery.kerberosSidecar.securityContexts.container`` and/or ``workers.kubernetes.kerberosSidecar.securityContexts.container`` instead).",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -2146,17 +2147,17 @@
                     }
                 },
                 "kerberosInitContainer": {
-                    "description": "Kerberos init container for Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Kerberos init container for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.kerberosInitContainer`` and/or ``workers.kubernetes.kerberosInitContainer`` instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable Kerberos init container.",
+                            "description": "Enable Kerberos init container (deprecated, use ``workers.celery.kerberosInitContainer.enabled`` and/or ``workers.kubernetes.kerberosInitContainer.enabled`` instead).",
                             "type": "boolean",
                             "default": false
                         },
                         "resources": {
-                            "description": "Resources on kerberos init container.",
+                            "description": "Resources on kerberos init container (deprecated, use ``workers.celery.kerberosInitContainer.resources`` and/or ``workers.kubernetes.kerberosInitContainer.resources`` instead).",
                             "type": "object",
                             "default": {},
                             "examples": [
@@ -2174,7 +2175,7 @@
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         },
                         "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the kerberos init container. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "description": "Container Lifecycle Hooks definition for the kerberos init container (deprecated, use ``workers.celery.kerberosInitContainer.containerLifecycleHooks`` and/or ``workers.kubernetes.kerberosInitContainer.containerLifecycleHooks`` instead). If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                             "default": {},
@@ -2203,12 +2204,12 @@
                             ]
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the kerberos init container. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the kerberos init container (deprecated, use ``workers.celery.kerberosInitContainer.securityContexts`` and/or ``workers.kubernetes.kerberosInitContainer.securityContexts`` instead). If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
                                 "container": {
-                                    "description": "Container security context definition for the kerberos init container.",
+                                    "description": "Container security context definition for the kerberos init container (deprecated, use ``workers.celery.kerberosInitContainer.securityContexts.container`` and/or ``workers.kubernetes.kerberosInitContainer.securityContexts.container`` instead).",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                                     "default": {},
@@ -2264,7 +2265,7 @@
                     }
                 },
                 "resources": {
-                    "description": "Resource configuration for Airflow Celery workers and pods created with pod-template-file (deprecated, use `workers.celery.resources` or/and `workers.kubernetes.resources` instead).",
+                    "description": "Resource configuration for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.resources`` or/and ``workers.kubernetes.resources`` instead).",
                     "type": "object",
                     "default": {},
                     "examples": [
@@ -2282,12 +2283,12 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
                 "terminationGracePeriodSeconds": {
-                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file. Use ``workers.celery.terminationGracePeriodSeconds`` and/or ``workers.kubernetes.terminationGracePeriodSeconds`` to separate value between Celery workers and pod-template-file",
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes. It is used by Airflow Celery workers and pod-template-file (deprecated, use ``workers.celery.terminationGracePeriodSeconds`` or/and ``workers.kubernetes.terminationGracePeriodSeconds`` instead).",
                     "type": "integer",
                     "default": 600
                 },
                 "safeToEvict": {
-                    "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down. It is used by Airflow Celery workers and pod-template-file.",
+                    "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down. It is used by Airflow Celery workers and pod-template-file (deprecated, use ``workers.celery.safeToEvict`` or/and ``workers.kubernetes.safeToEvict`` instead).",
                     "type": "boolean",
                     "default": false
                 },
@@ -2308,7 +2309,7 @@
                     }
                 },
                 "extraPorts": {
-                    "description": "Expose additional ports of Airflow Celery worker container.",
+                    "description": "Expose additional ports of Airflow Celery worker container (deprecated, use `workers.celery.extraPorts` instead).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2332,7 +2333,7 @@
                     }
                 },
                 "nodeSelector": {
-                    "description": "Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file. Use ``workers.celery.nodeSelector`` and/or ``workers.kubernetes.nodeSelector`` to separate value between Celery workers and pod-template-file.",
+                    "description": "Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.nodeSelector`` or/and ``workers.kubernetes.nodeSelector`` instead).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2340,7 +2341,7 @@
                     }
                 },
                 "runtimeClassName": {
-                    "description": "Specify runtime for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify runtime for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.runtimeClassName`` and/or ``workers.kubernetes.runtimeClassName`` instead).",
                     "type": [
                         "string",
                         "null"
@@ -2348,7 +2349,7 @@
                     "default": null
                 },
                 "priorityClassName": {
-                    "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.priorityClassName`` and/or ``workers.kubernetes.priorityClassName`` instead).",
                     "type": [
                         "string",
                         "null"
@@ -2380,7 +2381,7 @@
                     }
                 },
                 "hostAliases": {
-                    "description": "Specify HostAliases for Airflow Celery worker pods and pods created with pod-template-file.",
+                    "description": "Specify HostAliases for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.hostAliases`` and/or ``workers.kubernetes.hostAliases`` instead).",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
                     },
@@ -2439,7 +2440,7 @@
                     "description": "Configuration for Airflow Celery worker log groomer sidecar"
                 },
                 "securityContext": {
-                    "description": "Security context for the Airflow Celery worker pods and pods created with pod-template-file (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.securityContexts`` and/or ``workers.kubernetes.securityContexts`` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -2452,7 +2453,7 @@
                     ]
                 },
                 "containerLifecycleHooks": {
-                    "description": "Container Lifecycle Hooks definition for Airflow Celery workers and pods created with pod-template-file. If not set, the values from global `containerLifecycleHooks` will be used. Use `workers.celery.containerLifecycleHooks` and/or `workers.kubernetes.containerLifecycleHooks` to separate value between Celery workers and pod-template-file.",
+                    "description": "Container Lifecycle Hooks definition for Airflow Celery workers and pods created with pod-template-file (deprecated, use ``workers.celery.containerLifecycleHooks`` and/or ``workers.kubernetes.containerLifecycleHooks`` instead). If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                     "default": {},
@@ -2481,12 +2482,12 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the Airflow Celery workers and pod-template-file. If not set, the values from global `securityContexts` will be used. Use workers.celery.securityContexts and/or workers.kubernetes.securityContexts to separate value between Celery workers and pod-template-file.",
+                    "description": "Security context definition for the Airflow Celery workers and pod-template-file (deprecated, use ``workers.celery.securityContexts`` and/or ``workers.kubernetes.securityContexts`` instead). If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
                         "pod": {
-                            "description": "Pod security context definition.",
+                            "description": "Pod security context definition (deprecated, use ``workers.celery.securityContexts.pod`` and/or ``workers.kubernetes.securityContexts.pod`` instead).",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                             "default": {},
@@ -2500,7 +2501,7 @@
                             ]
                         },
                         "container": {
-                            "description": "Container security context definition.",
+                            "description": "Container security context definition (deprecated, use ``workers.celery.securityContexts.container`` and/or ``workers.kubernetes.securityContexts.container`` instead).",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
@@ -2686,7 +2687,7 @@
                                 "null"
                             ],
                             "default": null,
-                            "x-docsSection": null
+                            "x-docsSection": "Kubernetes"
                         },
                         "command": {
                             "description": "Command to use when running Airflow Celery workers (templated).",
@@ -2756,11 +2757,12 @@
                                     "default": null
                                 },
                                 "command": {
-                                    "description": "Command for livenessProbe",
+                                    "description": "Command for LivenessProbe",
                                     "type": [
                                         "array",
                                         "null"
                                     ],
+                                    "default": null,
                                     "items": {
                                         "type": "string"
                                     }
@@ -3284,6 +3286,22 @@
                             ],
                             "default": null
                         },
+                        "safeToEvict": {
+                            "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
+                            "type": [
+                                "boolean",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "extraPorts": {
+                            "description": "Expose additional ports of Airflow Celery worker container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
+                            }
+                        },
                         "nodeSelector": {
                             "description": "Select certain nodes for Airflow Celery worker pods.",
                             "type": "object",
@@ -3291,6 +3309,43 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "runtimeClassName": {
+                            "description": "Specify runtime for Airflow Celery worker pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "priorityClassName": {
+                            "description": "Specify priority for Airflow Celery worker pods.",
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "hostAliases": {
+                            "description": "Specify HostAliases for Airflow Celery worker pods.",
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                            },
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                {
+                                    "ip": "127.0.0.2",
+                                    "hostnames": [
+                                        "test.hostname.one"
+                                    ]
+                                },
+                                {
+                                    "ip": "127.0.0.3",
+                                    "hostnames": [
+                                        "test.hostname.two"
+                                    ]
+                                }
+                            ]
                         }
                     }
                 },
@@ -3573,6 +3628,14 @@
                             ],
                             "default": null
                         },
+                        "safeToEvict": {
+                            "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
+                            "type": [
+                                "boolean",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "nodeSelector": {
                             "description": "Select certain nodes for pods created with pod-template-file.",
                             "type": "object",
@@ -3580,6 +3643,44 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "runtimeClassName": {
+                            "description": "Specify runtime for pods created with pod-template-file.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "priorityClassName": {
+                            "description": "Specify priority for pods created with pod-template-file.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "hostAliases": {
+                            "description": "Specify HostAliases for pods created with pod-template-file.",
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                            },
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                {
+                                    "ip": "127.0.0.2",
+                                    "hostnames": [
+                                        "test.hostname.one"
+                                    ]
+                                },
+                                {
+                                    "ip": "127.0.0.3",
+                                    "hostnames": [
+                                        "test.hostname.two"
+                                    ]
+                                }
+                            ]
                         }
                     }
                 }
@@ -3644,11 +3745,12 @@
                             "default": 60
                         },
                         "command": {
-                            "description": "Command for livenessProbe",
+                            "description": "Command for LivenessProbe",
                             "type": [
                                 "array",
                                 "null"
                             ],
+                            "default": null,
                             "items": {
                                 "type": [
                                     "string",
@@ -3684,11 +3786,12 @@
                             "default": 10
                         },
                         "command": {
-                            "description": "Command for livenessProbe",
+                            "description": "Command for LivenessProbe",
                             "type": [
                                 "array",
                                 "null"
                             ],
+                            "default": null,
                             "items": {
                                 "type": [
                                     "string",
@@ -3704,13 +3807,13 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running the Airflow scheduler (templated).",
@@ -4241,11 +4344,12 @@
                             "default": 60
                         },
                         "command": {
-                            "description": "Command for livenessProbe",
+                            "description": "Command for LivenessProbe",
                             "type": [
                                 "array",
                                 "null"
                             ],
+                            "default": null,
                             "items": {
                                 "type": [
                                     "string",
@@ -4261,13 +4365,13 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running the Airflow triggerer (templated).",
@@ -4903,11 +5007,12 @@
                             "default": 60
                         },
                         "command": {
-                            "description": "Command for livenessProbe",
+                            "description": "Command for LivenessProbe",
                             "type": [
                                 "array",
                                 "null"
                             ],
+                            "default": null,
                             "items": {
                                 "type": [
                                     "string",
@@ -4923,13 +5028,13 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running the Airflow dag processor (templated).",
@@ -5477,7 +5582,8 @@
                     "enum": [
                         "OnFailure",
                         "Never"
-                    ]
+                    ],
+                    "default": "OnFailure"
                 },
                 "labels": {
                     "description": "Labels to add to the create user job objects and pods.",
@@ -5826,7 +5932,8 @@
                     "enum": [
                         "OnFailure",
                         "Never"
-                    ]
+                    ],
+                    "default": "OnFailure"
                 },
                 "labels": {
                     "description": "Labels to add to the migrate database job objects and pods.",
@@ -6219,13 +6326,13 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running the Airflow API server (templated).",
@@ -6990,13 +7097,13 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running the Airflow webserver (templated).",
@@ -7754,13 +7861,13 @@
                     }
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use when running flower (templated).",
@@ -8267,13 +8374,13 @@
                     }
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
@@ -8612,13 +8719,13 @@
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Number of old replicasets to retain.",
+                    "description": "Number of old ReplicaSets to retain.",
                     "type": [
                         "integer",
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "command": {
                     "description": "Command to use for PgBouncer (templated).",
@@ -10119,7 +10226,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "successfulJobsHistoryLimit": {
                     "description": "The successful jobs history limit specifies the number of finished jobs to retain.",
@@ -10128,7 +10235,7 @@
                         "null"
                     ],
                     "default": null,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 }
             }
         },
@@ -10195,9 +10302,7 @@
                     "items": {
                         "type": "string"
                     },
-                    "default": [
-                        "bash"
-                    ]
+                    "default": null
                 },
                 "args": {
                     "description": "Args to use when running the database cleanup cronjob (templated).",
@@ -10209,6 +10314,7 @@
                         "type": "string"
                     },
                     "default": [
+                        "bash",
                         "-c",
                         "CLEAN_TS=$(date -d \"-{{ .Values.databaseCleanup.retentionDays }} days\" +\"%Y-%m-%dT%H:%M:%S\"); echo \"Cleaning up metadata DB entries older than ${CLEAN_TS}\"; exec airflow db clean --clean-before-timestamp \"${CLEAN_TS}\" --yes {{- if .Values.databaseCleanup.skipArchive }} --skip-archive{{ end }} {{- if .Values.databaseCleanup.verbose }} --verbose{{ end }} {{- with .Values.databaseCleanup.batchSize }} --batch-size {{ . }}{{ end }} {{- with .Values.databaseCleanup.tables }} --tables {{ . | join \",\" }}{{ end }}"
                     ]
@@ -10459,7 +10565,7 @@
                         "null"
                     ],
                     "default": 1,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 },
                 "successfulJobsHistoryLimit": {
                     "description": "The successful jobs history limit specifies the number of finished jobs to retain.",
@@ -10468,7 +10574,7 @@
                         "null"
                     ],
                     "default": 1,
-                    "x-docsSection": null
+                    "x-docsSection": "Kubernetes"
                 }
             }
         },

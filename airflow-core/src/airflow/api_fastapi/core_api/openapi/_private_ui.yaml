@@ -587,9 +587,15 @@ paths:
     get:
       tags:
       - Deadlines
-      summary: Get Dag Run Deadlines
-      description: Get all deadlines for a specific DAG run.
-      operationId: get_dag_run_deadlines
+      summary: Get Deadlines
+      description: 'Get deadlines for a DAG run.
+
+
+        This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve
+        Deadlines for all
+
+        DAGs and DAG runs.'
+      operationId: get_deadlines
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -631,13 +637,93 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, deadline_time,
-            created_at, alert_name`'
+            created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`'
           default:
           - deadline_time
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, deadline_time,
-          created_at, alert_name`'
+          created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`'
+      - name: missed
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Missed
+      - name: deadline_time_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Gte
+      - name: deadline_time_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Gt
+      - name: deadline_time_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Lte
+      - name: deadline_time_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Lt
+      - name: last_updated_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Gte
+      - name: last_updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Gt
+      - name: last_updated_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Lte
+      - name: last_updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Lt
       responses:
         '200':
           description: Successful Response
@@ -645,6 +731,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeadlineCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/{dag_id}/deadlineAlerts:
+    get:
+      tags:
+      - Deadlines
+      summary: Get Dag Deadline Alerts
+      description: Get all deadline alerts defined on a DAG.
+      operationId: get_dag_deadline_alerts
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, created_at,
+            name, interval`'
+          default:
+          - created_at
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, created_at, name,
+          interval`'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeadlineAlertCollectionResponse'
         '404':
           content:
             application/json:
@@ -1129,35 +1289,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/grid/ti_summaries/{dag_id}/{run_id}:
+  /ui/grid/ti_summaries/{dag_id}:
     get:
       tags:
       - Grid
-      summary: Get Grid Ti Summaries
-      description: 'Get states for TIs / "groups" of TIs.
+      summary: Get Grid Ti Summaries Stream
+      description: 'Stream TI summaries for multiple Dag runs as NDJSON (one JSON
+        line per run).
 
 
-        Essentially this is to know what color to put in the squares in the grid.
+        Each line is a serialized ``GridTISummaries`` object emitted as soon as that
+
+        run''s task instances have been processed, so the client can render columns
+
+        progressively without waiting for all runs to complete.
 
 
-        The tricky part here is that we aggregate the state for groups and mapped
-        tasks.
+        The serialized Dag structure is loaded once and reused for all runs that
 
-
-        We don''t add all the TIs for mapped TIs -- we only add one entry for the
-        mapped task and
-
-        its state is an aggregate of its TI states.
-
-
-        And for task groups, we add a "task" for that which is not really a task but
-        is just
-
-        an entry that represents the group (so that we can show a filled in box when
-        the group
-
-        is not expanded) and its state is an agg of those within it.'
-      operationId: get_grid_ti_summaries
+        share the same ``dag_version_id``, avoiding repeated deserialization.'
+      operationId: get_grid_ti_summaries_stream
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -1168,19 +1319,24 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: run_id
-        in: path
-        required: true
+      - name: run_ids
+        in: query
+        required: false
         schema:
-          type: string
-          title: Run Id
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Run Ids
       responses:
         '200':
-          description: Successful Response
+          description: "NDJSON stream \u2014 one ``GridTISummaries`` JSON object per\
+            \ line, one per Dag run"
           content:
-            application/json:
+            application/x-ndjson:
               schema:
-                $ref: '#/components/schemas/GridTISummaries'
+                type: string
         '400':
           content:
             application/json:
@@ -1305,6 +1461,42 @@ paths:
             format: date-time
           - type: 'null'
           title: Logical Date Lt
+      - name: partition_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Gte
+      - name: partition_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Gt
+      - name: partition_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Lte
+      - name: partition_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Lt
       responses:
         '200':
           description: Successful Response
@@ -2089,6 +2281,57 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
+    DeadlineAlertCollectionResponse:
+      properties:
+        deadline_alerts:
+          items:
+            $ref: '#/components/schemas/DeadlineAlertResponse'
+          type: array
+          title: Deadline Alerts
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - deadline_alerts
+      - total_entries
+      title: DeadlineAlertCollectionResponse
+      description: DeadlineAlert Collection serializer for responses.
+    DeadlineAlertResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        reference_type:
+          type: string
+          title: Reference Type
+        interval:
+          type: number
+          title: Interval
+          description: Interval in seconds between deadline evaluations.
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - reference_type
+      - interval
+      - created_at
+      title: DeadlineAlertResponse
+      description: DeadlineAlert serializer for responses.
     DeadlineCollectionResponse:
       properties:
         deadlines:
@@ -2122,6 +2365,12 @@ components:
           type: string
           format: date-time
           title: Created At
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
         alert_name:
           anyOf:
           - type: string
@@ -2138,6 +2387,8 @@ components:
       - deadline_time
       - missed
       - created_at
+      - dag_id
+      - dag_run_id
       title: DeadlineResponse
       description: Deadline serializer for responses.
     EdgeResponse:
@@ -3241,30 +3492,7 @@ components:
       properties:
         tokens:
           additionalProperties:
-            additionalProperties:
-              additionalProperties:
-                additionalProperties:
-                  $ref: '#/components/schemas/OklchColor'
-                propertyNames:
-                  const: value
-                type: object
-              propertyNames:
-                enum:
-                - '50'
-                - '100'
-                - '200'
-                - '300'
-                - '400'
-                - '500'
-                - '600'
-                - '700'
-                - '800'
-                - '900'
-                - '950'
-              type: object
-            propertyNames:
-              const: brand
-            type: object
+            $ref: '#/components/schemas/ThemeColors'
           propertyNames:
             const: colors
           type: object
@@ -3292,6 +3520,9 @@ components:
       - tokens
       title: Theme
       description: JSON to modify Chakra's theme.
+    ThemeColors:
+      additionalProperties: true
+      type: object
     TokenType:
       type: string
       enum:

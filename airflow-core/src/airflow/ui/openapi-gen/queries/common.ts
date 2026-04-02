@@ -143,9 +143,10 @@ export const UseDagRunServiceGetUpstreamAssetEventsKeyFn = ({ dagId, dagRunId }:
 export type DagRunServiceGetDagRunsDefaultResponse = Awaited<ReturnType<typeof DagRunService.getDagRuns>>;
 export type DagRunServiceGetDagRunsQueryResult<TData = DagRunServiceGetDagRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagRunServiceGetDagRunsKey = "DagRunServiceGetDagRuns";
-export const UseDagRunServiceGetDagRunsKeyFn = ({ bundleVersion, confContains, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
+export const UseDagRunServiceGetDagRunsKeyFn = ({ bundleVersion, confContains, consumingAssetPattern, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }: {
   bundleVersion?: string;
   confContains?: string;
+  consumingAssetPattern?: string;
   dagId: string;
   dagIdPattern?: string;
   dagVersion?: number[];
@@ -181,7 +182,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = ({ bundleVersion, confContains, d
   updatedAtGte?: string;
   updatedAtLt?: string;
   updatedAtLte?: string;
-}, queryKey?: Array<unknown>) => [useDagRunServiceGetDagRunsKey, ...(queryKey ?? [{ bundleVersion, confContains, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }])];
+}, queryKey?: Array<unknown>) => [useDagRunServiceGetDagRunsKey, ...(queryKey ?? [{ bundleVersion, confContains, consumingAssetPattern, dagId, dagIdPattern, dagVersion, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, offset, orderBy, partitionKeyPattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runType, startDateGt, startDateGte, startDateLt, startDateLte, state, triggeringUserNamePattern, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte }])];
 export type DagRunServiceWaitDagRunUntilFinishedDefaultResponse = Awaited<ReturnType<typeof DagRunService.waitDagRunUntilFinished>>;
 export type DagRunServiceWaitDagRunUntilFinishedQueryResult<TData = DagRunServiceWaitDagRunUntilFinishedDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagRunServiceWaitDagRunUntilFinishedKey = "DagRunServiceWaitDagRunUntilFinished";
@@ -822,16 +823,34 @@ export type DashboardServiceDagStatsDefaultResponse = Awaited<ReturnType<typeof 
 export type DashboardServiceDagStatsQueryResult<TData = DashboardServiceDagStatsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDashboardServiceDagStatsKey = "DashboardServiceDagStats";
 export const UseDashboardServiceDagStatsKeyFn = (queryKey?: Array<unknown>) => [useDashboardServiceDagStatsKey, ...(queryKey ?? [])];
-export type DeadlinesServiceGetDagRunDeadlinesDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getDagRunDeadlines>>;
-export type DeadlinesServiceGetDagRunDeadlinesQueryResult<TData = DeadlinesServiceGetDagRunDeadlinesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useDeadlinesServiceGetDagRunDeadlinesKey = "DeadlinesServiceGetDagRunDeadlines";
-export const UseDeadlinesServiceGetDagRunDeadlinesKeyFn = ({ dagId, dagRunId, limit, offset, orderBy }: {
+export type DeadlinesServiceGetDeadlinesDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getDeadlines>>;
+export type DeadlinesServiceGetDeadlinesQueryResult<TData = DeadlinesServiceGetDeadlinesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDeadlinesServiceGetDeadlinesKey = "DeadlinesServiceGetDeadlines";
+export const UseDeadlinesServiceGetDeadlinesKeyFn = ({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy }: {
   dagId: string;
   dagRunId: string;
+  deadlineTimeGt?: string;
+  deadlineTimeGte?: string;
+  deadlineTimeLt?: string;
+  deadlineTimeLte?: string;
+  lastUpdatedAtGt?: string;
+  lastUpdatedAtGte?: string;
+  lastUpdatedAtLt?: string;
+  lastUpdatedAtLte?: string;
+  limit?: number;
+  missed?: boolean;
+  offset?: number;
+  orderBy?: string[];
+}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDeadlinesKey, ...(queryKey ?? [{ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy }])];
+export type DeadlinesServiceGetDagDeadlineAlertsDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getDagDeadlineAlerts>>;
+export type DeadlinesServiceGetDagDeadlineAlertsQueryResult<TData = DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDeadlinesServiceGetDagDeadlineAlertsKey = "DeadlinesServiceGetDagDeadlineAlerts";
+export const UseDeadlinesServiceGetDagDeadlineAlertsKeyFn = ({ dagId, limit, offset, orderBy }: {
+  dagId: string;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagRunDeadlinesKey, ...(queryKey ?? [{ dagId, dagRunId, limit, offset, orderBy }])];
+}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagDeadlineAlertsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy }])];
 export type StructureServiceStructureDataDefaultResponse = Awaited<ReturnType<typeof StructureService.structureData>>;
 export type StructureServiceStructureDataQueryResult<TData = StructureServiceStructureDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useStructureServiceStructureDataKey = "StructureServiceStructureData";
@@ -880,13 +899,13 @@ export const UseGridServiceGetGridRunsKeyFn = ({ dagId, limit, offset, orderBy, 
   state?: string[];
   triggeringUser?: string;
 }, queryKey?: Array<unknown>) => [useGridServiceGetGridRunsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runType, state, triggeringUser }])];
-export type GridServiceGetGridTiSummariesDefaultResponse = Awaited<ReturnType<typeof GridService.getGridTiSummaries>>;
-export type GridServiceGetGridTiSummariesQueryResult<TData = GridServiceGetGridTiSummariesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useGridServiceGetGridTiSummariesKey = "GridServiceGetGridTiSummaries";
-export const UseGridServiceGetGridTiSummariesKeyFn = ({ dagId, runId }: {
+export type GridServiceGetGridTiSummariesStreamDefaultResponse = Awaited<ReturnType<typeof GridService.getGridTiSummariesStream>>;
+export type GridServiceGetGridTiSummariesStreamQueryResult<TData = GridServiceGetGridTiSummariesStreamDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useGridServiceGetGridTiSummariesStreamKey = "GridServiceGetGridTiSummariesStream";
+export const UseGridServiceGetGridTiSummariesStreamKeyFn = ({ dagId, runIds }: {
   dagId: string;
-  runId: string;
-}, queryKey?: Array<unknown>) => [useGridServiceGetGridTiSummariesKey, ...(queryKey ?? [{ dagId, runId }])];
+  runIds?: string[];
+}, queryKey?: Array<unknown>) => [useGridServiceGetGridTiSummariesStreamKey, ...(queryKey ?? [{ dagId, runIds }])];
 export type GanttServiceGetGanttDataDefaultResponse = Awaited<ReturnType<typeof GanttService.getGanttData>>;
 export type GanttServiceGetGanttDataQueryResult<TData = GanttServiceGetGanttDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGanttServiceGetGanttDataKey = "GanttServiceGetGanttData";
@@ -897,14 +916,18 @@ export const UseGanttServiceGetGanttDataKeyFn = ({ dagId, runId }: {
 export type CalendarServiceGetCalendarDefaultResponse = Awaited<ReturnType<typeof CalendarService.getCalendar>>;
 export type CalendarServiceGetCalendarQueryResult<TData = CalendarServiceGetCalendarDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useCalendarServiceGetCalendarKey = "CalendarServiceGetCalendar";
-export const UseCalendarServiceGetCalendarKeyFn = ({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte }: {
+export const UseCalendarServiceGetCalendarKeyFn = ({ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }: {
   dagId: string;
   granularity?: "hourly" | "daily";
   logicalDateGt?: string;
   logicalDateGte?: string;
   logicalDateLt?: string;
   logicalDateLte?: string;
-}, queryKey?: Array<unknown>) => [useCalendarServiceGetCalendarKey, ...(queryKey ?? [{ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte }])];
+  partitionDateGt?: string;
+  partitionDateGte?: string;
+  partitionDateLt?: string;
+  partitionDateLte?: string;
+}, queryKey?: Array<unknown>) => [useCalendarServiceGetCalendarKey, ...(queryKey ?? [{ dagId, granularity, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, partitionDateGt, partitionDateGte, partitionDateLt, partitionDateLte }])];
 export type TeamsServiceListTeamsDefaultResponse = Awaited<ReturnType<typeof TeamsService.listTeams>>;
 export type TeamsServiceListTeamsQueryResult<TData = TeamsServiceListTeamsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTeamsServiceListTeamsKey = "TeamsServiceListTeams";

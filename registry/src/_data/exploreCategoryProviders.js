@@ -20,14 +20,11 @@
 const providersData = require("./providers.json");
 const exploreCategories = require("./exploreCategories");
 
-const MAX_PROVIDERS_PER_CATEGORY = 6;
-
 module.exports = function () {
   const map = {};
   for (const category of exploreCategories) {
     const matched = [];
     for (const provider of providersData.providers) {
-      if (matched.length >= MAX_PROVIDERS_PER_CATEGORY) break;
       for (const keyword of category.keywords) {
         if (
           provider.id.includes(keyword) ||

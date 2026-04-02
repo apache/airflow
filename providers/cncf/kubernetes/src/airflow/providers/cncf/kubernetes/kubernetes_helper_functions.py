@@ -30,9 +30,8 @@ from slugify import slugify
 from sqlalchemy import select
 from urllib3.exceptions import HTTPError
 
-from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey

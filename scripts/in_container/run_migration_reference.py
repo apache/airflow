@@ -34,6 +34,7 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow import __version__ as airflow_version
+from airflow.providers.edge3 import __version__ as edge3_version
 from airflow.providers.fab import __version__ as fab_version
 from airflow.utils.db import _get_alembic_config
 
@@ -44,6 +45,7 @@ console = Console(width=400, color_system="standard")
 
 airflow_version = re.match(r"(\d+\.\d+\.\d+).*", airflow_version).group(1)  # type: ignore
 fab_version = re.match(r"(\d+\.\d+\.\d+).*", fab_version).group(1)  # type: ignore
+edge3_version = re.match(r"(\d+\.\d+\.\d+).*", edge3_version).group(1)  # type: ignore
 project_root = Path(__file__).parents[2].resolve()
 
 
@@ -86,7 +88,11 @@ def update_doc(file, data, app):
 def has_version(content, app):
     if app == "airflow":
         return re.search(r"^airflow_version\s*=.*", content, flags=re.MULTILINE) is not None
-    return re.search(r"^fab_version\s*=.*", content, flags=re.MULTILINE) is not None
+    if app == "fab":
+        return re.search(r"^fab_version\s*=.*", content, flags=re.MULTILINE) is not None
+    if app == "edge3":
+        return re.search(r"^edge3_version\s*=.*", content, flags=re.MULTILINE) is not None
+    raise ValueError(f"Unknown app: {app}")
 
 
 def insert_version(old_content, file, app):
@@ -97,13 +103,22 @@ def insert_version(old_content, file, app):
             old_content,
             flags=re.MULTILINE,
         )
-    else:
+    elif app == "fab":
         new_content = re.sub(
             r"(^depends_on.*)",
             lambda x: f'{x.group(1)}\nfab_version = "{fab_version}"',
             old_content,
             flags=re.MULTILINE,
         )
+    elif app == "edge3":
+        new_content = re.sub(
+            r"(^depends_on.*)",
+            lambda x: f'{x.group(1)}\nedge3_version = "{edge3_version}"',
+            old_content,
+            flags=re.MULTILINE,
+        )
+    else:
+        raise ValueError(f"Unknown app: {app}")
     file.write_text(new_content)
 
 
@@ -134,17 +149,31 @@ def get_revisions(app="airflow") -> Iterable[Script]:
         config = _get_alembic_config()
         script = ScriptDirectory.from_config(config)
         yield from script.walk_revisions()
-    else:
+    elif app == "fab":
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
         script = FABDBManager(session="").get_script_object()
         yield from script.walk_revisions()
+    elif app == "edge3":
+        from airflow.providers.edge3.models.db import EdgeDBManager
+
+        script = EdgeDBManager(session="").get_script_object()
+        yield from script.walk_revisions()
+    else:
+        raise ValueError(f"Unknown app: {app}")
 
 
 def update_docs(revisions: Iterable[Script], app="airflow"):
     doc_data = []
     for rev in revisions:
-        app_revision = rev.module.airflow_version if app == "airflow" else rev.module.fab_version
+        if app == "airflow":
+            app_revision = rev.module.airflow_version
+        elif app == "fab":
+            app_revision = rev.module.fab_version
+        elif app == "edge3":
+            app_revision = rev.module.edge3_version
+        else:
+            raise ValueError(f"Unknown app: {app}")
         doc_data.append(
             dict(
                 revision=wrap_backticks(rev.revision) + revision_suffix(rev),
@@ -155,6 +184,8 @@ def update_docs(revisions: Iterable[Script], app="airflow"):
         )
     if app == "fab":
         filepath = project_root / "providers" / "fab" / "docs" / "migrations-ref.rst"
+    elif app == "edge3":
+        filepath = project_root / "providers" / "edge3" / "docs" / "migrations-ref.rst"
     else:
         filepath = project_root / "airflow-core" / "docs" / "migrations-ref.rst"
 
@@ -183,12 +214,18 @@ def ensure_filenames_are_sorted(revisions, app):
     renames = []
     is_branched = False
     unmerged_heads = []
-    for idx, rev in enumerate(revisions):
+    # edge3 migrations started from 1
+    start_index = 1 if app == "edge3" else 0
+    for idx, rev in enumerate(revisions, start_index):
         mod_path = Path(rev.module.__file__)
         if app == "airflow":
             version = rev.module.airflow_version.split(".")[0:3]  # only first 3 tokens
-        else:
+        elif app == "fab":
             version = rev.module.fab_version.split(".")[0:3]  # only first 3 tokens
+        elif app == "edge3":
+            version = rev.module.edge3_version.split(".")[0:3]  # only first 3 tokens
+        else:
+            raise ValueError(f"Unknown app: {app}")
         correct_mod_basename = ensure_mod_prefix(mod_path.name, idx, version)
         if mod_path.name != correct_mod_basename:
             renames.append((mod_path, Path(mod_path.parent, correct_mod_basename)))
@@ -242,7 +279,7 @@ def correct_mismatching_revision_nums(revisions: Iterable[Script]):
 
 
 if __name__ == "__main__":
-    apps = ["airflow", "fab"]
+    apps = ["airflow", "fab", "edge3"]
     for app in apps:
         console.print(f"[bright_blue]Updating migration reference for {app}")
         revisions = list(reversed(list(get_revisions(app))))

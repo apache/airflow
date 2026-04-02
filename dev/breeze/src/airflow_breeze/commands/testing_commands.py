@@ -114,6 +114,7 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import (
     TASK_SDK_INTEGRATION_TESTS_ROOT_PATH,
+    are_all_test_paths_excluded,
     file_name_from_test_type,
     generate_args_for_pytest,
     run_docker_compose_tests,
@@ -206,6 +207,15 @@ def _run_test(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
         sys.exit(1)
+    if are_all_test_paths_excluded(
+        test_group=shell_params.test_group,
+        test_type=shell_params.test_type,
+        python_version=python_version,
+        skip_db_tests=shell_params.skip_db_tests,
+        parallel_test_types_list=shell_params.parallel_test_types_list,
+        integration=shell_params.integration,
+    ):
+        return 0, f"Skipped test, no tests needed: {shell_params.test_type}"
     compose_project_name, project_name = _get_project_names(shell_params)
     env = shell_params.env_variables_for_docker_commands
     down_cmd = [
@@ -251,7 +261,7 @@ def _run_test(
     # Which might be the case if we are ignoring some providers during compatibility checks
     pytest_args_before_skip = pytest_args
     pytest_args = [arg for arg in pytest_args if f"--ignore={arg}" not in pytest_args]
-    # Double check: If no test is leftover we can skip running the test
+    # If no test directory is left (all positional args were excluded/ignored), skip
     if pytest_args_before_skip != pytest_args and pytest_args[0].startswith("--"):
         return 0, f"Skipped test, no tests needed: {shell_params.test_type}"
     run_cmd.extend(pytest_args)

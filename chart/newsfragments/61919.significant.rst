@@ -1,0 +1,1 @@
+``workers.extraPorts`` section is now deprecated in favor of ``workers.celery.extraPorts``. Please update your configuration accordingly.
