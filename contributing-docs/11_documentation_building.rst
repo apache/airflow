@@ -31,7 +31,9 @@ Documentation in separate distributions:
 * ``airflow-core/docs`` - documentation for Airflow Core
 * ``providers/**/docs`` - documentation for Providers
 * ``chart/docs`` - documentation for Helm Chart
-* ``task-sdk/docs`` - documentation for Task SDK (new format not yet published)
+* ``task-sdk/docs`` - documentation for Task SDK (new format not yet published on the site). The
+  ``breeze workflow-run publish-docs`` steps in ``dev/README_RELEASE_AIRFLOW.md`` only publish
+  ``apache-airflow`` and ``docker-stack`` documentation; Task SDK docs are not part of that workflow yet.
 * ``airflow-ctl/docs`` - documentation for Airflow CLI (future)
 
 Documentation for general overview and summaries not connected with any specific distribution:
