@@ -684,7 +684,7 @@ class AssetEventOperations:
         if before:
             common_params["before"] = before.isoformat()
         common_params["ascending"] = ascending
-        if limit:
+        if limit is not None:
             common_params["limit"] = limit
         extra_params: list[tuple[str, str]] = []
         if extra:

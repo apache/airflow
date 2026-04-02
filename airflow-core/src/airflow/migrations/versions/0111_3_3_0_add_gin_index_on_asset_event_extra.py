@@ -44,7 +44,7 @@ def upgrade():
     if conn.dialect.name == "postgresql":
         op.execute(
             text(
-                "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_asset_event_extra_gin "
+                "CREATE INDEX IF NOT EXISTS idx_asset_event_extra_gin "
                 "ON asset_event USING GIN (extra jsonb_ops)"
             )
         )
@@ -54,4 +54,4 @@ def downgrade():
     """Remove GIN index on asset_event.extra."""
     conn = op.get_bind()
     if conn.dialect.name == "postgresql":
-        op.execute(text("DROP INDEX CONCURRENTLY IF EXISTS idx_asset_event_extra_gin"))
+        op.execute(text("DROP INDEX IF EXISTS idx_asset_event_extra_gin"))

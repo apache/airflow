@@ -63,10 +63,12 @@ class JsonContains(ColumnElement):
     Dialect-aware JSON containment check.
 
     Compiles to ``@>`` on PostgreSQL (GIN-indexable), ``JSON_CONTAINS`` on
-    MySQL, and per-key ``JSON_EXTRACT`` comparisons on SQLite.
+    MySQL, and per-key ``json_extract`` comparisons on SQLite.
+
+    All dialects use bound parameters to avoid SQL injection.
     """
 
-    inherit_cache = True
+    inherit_cache = False
     type = NullType()
 
     def __init__(self, column, kv_dict: dict[str, str]):
@@ -76,27 +78,35 @@ class JsonContains(ColumnElement):
 
 @compiles(JsonContains, "postgresql")
 def _pg_json_contains(element, compiler, **kw):
-    col = compiler.process(element.column, **kw)
-    val = json.dumps(element.kv_dict).replace("'", "''")
-    return f"({col})::jsonb @> '{val}'::jsonb"
+    from sqlalchemy import bindparam, cast, literal
+
+    col = cast(element.column, JSONB)
+    param = literal(json.dumps(element.kv_dict)).cast(JSONB)
+    expr = col.contains(param)
+    return compiler.process(expr, **kw)
 
 
 @compiles(JsonContains, "mysql")
 def _mysql_json_contains(element, compiler, **kw):
+    from sqlalchemy import bindparam, func, literal
+
     col = compiler.process(element.column, **kw)
-    val = json.dumps(element.kv_dict).replace("'", "''")
-    return f"JSON_CONTAINS({col}, '{val}') = 1"
+    param = bindparam(None, json.dumps(element.kv_dict), expanding=False)
+    expr = func.JSON_CONTAINS(element.column, param)
+    return compiler.process(expr == 1, **kw)
 
 
 @compiles(JsonContains)
 def _default_json_contains(element, compiler, **kw):
-    col = compiler.process(element.column, **kw)
+    from sqlalchemy import and_, bindparam, func, literal
+
     clauses = []
     for k, v in element.kv_dict.items():
-        safe_k = k.replace("'", "''")
-        safe_v = v.replace("'", "''")
-        clauses.append(f"JSON_EXTRACT({col}, '$.{safe_k}') = '{safe_v}'")
-    return "(" + " AND ".join(clauses) + ")"
+        path = f"$.{k}"
+        clauses.append(func.json_extract(element.column, literal(path)) == literal(v))
+    if len(clauses) == 1:
+        return compiler.process(clauses[0], **kw)
+    return compiler.process(and_(*clauses), **kw)
 
 
 class UtcDateTime(TypeDecorator):

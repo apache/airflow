@@ -45,7 +45,7 @@ def _get_asset_events_through_sql_clauses(
 ) -> AssetEventsResponse:
     order_by_clause = AssetEvent.timestamp.asc() if ascending else AssetEvent.timestamp.desc()
     asset_events_query = select(AssetEvent).join(join_clause).where(where_clause).order_by(order_by_clause)
-    if limit:
+    if limit is not None:
         asset_events_query = asset_events_query.limit(limit)
     asset_events = session.scalars(asset_events_query)
     return AssetEventsResponse.model_validate(
@@ -78,9 +78,16 @@ def _parse_extra_params(extra: list[str] | None) -> dict[str, str]:
     """Parse repeated ``key=value`` query params into a dict."""
     result: dict[str, str] = {}
     for item in extra or []:
-        if "=" in item:
-            k, v = item.split("=", 1)
-            result[k] = v
+        if "=" not in item:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "reason": "Invalid parameter",
+                    "message": f"Invalid extra parameter format: {item!r}. Expected 'key=value'.",
+                },
+            )
+        k, v = item.split("=", 1)
+        result[k] = v
     return result
 
 
@@ -152,10 +159,9 @@ def get_asset_event_by_asset_alias(
         where_clause = and_(where_clause, AssetEvent.timestamp >= after)
     if before:
         where_clause = and_(where_clause, AssetEvent.timestamp <= before)
-    for item in extra:
-        if "=" in item:
-            k, v = item.split("=", 1)
-            where_clause = and_(where_clause, AssetEvent.extra[k].as_string() == v)
+    extra_dict = _parse_extra_params(extra)
+    if extra_dict:
+        where_clause = and_(where_clause, JsonContains(AssetEvent.extra, extra_dict))
 
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.source_aliases,

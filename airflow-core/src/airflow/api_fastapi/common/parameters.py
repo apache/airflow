@@ -312,9 +312,13 @@ def json_kv_filter_factory(
     ) -> _JsonKVFilter:
         kv_dict: dict[str, str] = {}
         for item in values:
-            if "=" in item:
-                k, v = item.split("=", 1)
-                kv_dict[k] = v
+            if "=" not in item:
+                raise HTTPException(
+                    status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid {param_name} parameter format: {item!r}. Expected 'key=value'.",
+                )
+            k, v = item.split("=", 1)
+            kv_dict[k] = v
         return _JsonKVFilter(attribute, kv_dict or None)
 
     return depends_json_kv
