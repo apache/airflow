@@ -35,6 +35,7 @@ from airflow.sdk._shared.configuration.parser import (
     configure_parser_from_configuration_description,
 )
 from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
+from airflow.sdk.log import mask_secret
 
 log = logging.getLogger(__name__)
 
@@ -205,8 +206,6 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
 
     def mask_secrets(self) -> None:
         """Register sensitive configuration values with the SDK secrets masker."""
-        from airflow.sdk.log import mask_secret
-
         for section, key in self.sensitive_config_values:
             try:
                 with self.suppress_future_warnings():

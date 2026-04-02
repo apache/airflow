@@ -233,8 +233,8 @@ class TestSupervisor:
                 supervise(**kw)
 
     @pytest.mark.enable_redact
-    def test_supervise_remasks_config_secrets_after_reset(self):
-        """Config-level secrets survive reset_secrets_masker() inside supervise().
+    def test_supervise_remasks_config_secrets_after_reset(self, client_with_ti_start):
+        """Config-level secrets are re-registered before supervise() launches the subprocess.
 
         Regression test for https://github.com/apache/airflow/issues/63921
         """
@@ -243,31 +243,78 @@ class TestSupervisor:
 
         expected_secrets = {
             ("api", "secret_key"): "shared-api-secret",
+            ("webserver", "secret_key"): "shared-web-secret",
             ("api_auth", "jwt_secret"): "jwt-super-secret",
         }
 
-        with conf_vars(expected_secrets):
-            conf.mask_secrets()
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="async",
+            dag_id="super_basic_deferred_run",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+        call_order: list[str] = []
 
+        class FakeProcess:
+            final_state = TaskInstanceState.SUCCESS
+
+            def wait(self):
+                return 0
+
+        original_mask_secrets = conf.mask_secrets
+        original_reset_secrets_masker = reset_secrets_masker
+
+        def tracked_mask_secrets():
+            call_order.append("mask")
+            original_mask_secrets()
+
+        def tracked_reset_secrets_masker():
+            call_order.append("reset")
+            original_reset_secrets_masker()
+
+        def fake_start(**_kwargs):
             observed_secrets = {
                 ("api", "secret_key"): conf.get("api", "secret_key", suppress_warnings=True),
-                ("webserver", "secret_key"): conf.get("webserver", "secret_key", suppress_warnings=True),
                 ("api_auth", "jwt_secret"): conf.get("api_auth", "jwt_secret", suppress_warnings=True),
             }
+            webserver_secret = conf.get("webserver", "secret_key", suppress_warnings=True)
 
-            for secret in observed_secrets.values():
+            assert observed_secrets == {
+                ("api", "secret_key"): expected_secrets[("api", "secret_key")],
+                ("api_auth", "jwt_secret"): expected_secrets[("api_auth", "jwt_secret")],
+            }
+            for secret in (*observed_secrets.values(), webserver_secret):
                 assert redact(secret) == "***"
 
-            reset_secrets_masker()
-            for secret in observed_secrets.values():
-                assert redact(secret) == secret, "reset_secrets_masker should clear all patterns"
+            call_order.append("start")
+            return FakeProcess()
 
-            conf.mask_secrets()
-
-            for (section, key), secret in observed_secrets.items():
-                assert redact(secret) == "***", (
-                    f"Config secret {section}/{key} should be masked after conf.mask_secrets()"
+        with (
+            conf_vars(expected_secrets),
+            patch("airflow.sdk.execution_time.supervisor._make_process_nondumpable"),
+            patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", return_value=[]),
+            patch("airflow.sdk.execution_time.supervisor.ActivitySubprocess.start", side_effect=fake_start),
+            patch(
+                "airflow.sdk._shared.secrets_masker.reset_secrets_masker",
+                side_effect=tracked_reset_secrets_masker,
+            ),
+            patch.object(conf, "mask_secrets", side_effect=tracked_mask_secrets),
+        ):
+            assert (
+                supervise(
+                    ti=ti,
+                    bundle_info=bundle_info,
+                    dag_rel_path="super_basic_deferred_run.py",
+                    token="",
+                    client=client_with_ti_start,
                 )
+                == 0
+            )
+
+        assert call_order == ["reset", "mask", "start"]
 
 
 @pytest.mark.usefixtures("disable_capturing")
