@@ -112,14 +112,12 @@ def trigger_dag_run(
             },
         )
 
-    # TODO: TriggerDagRunOperator also calls this route but creates MANUAL runs.
-    #  Consider a dedicated run type for operator-triggered runs.
-    if dm.allowed_run_types is not None and DagRunType.MANUAL not in dm.allowed_run_types:
+    if dm.allowed_run_types is not None and DagRunType.OPERATOR_TRIGGERED not in dm.allowed_run_types:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail={
                 "reason": "denied_run_type",
-                "message": f"Dag with dag_id '{dag_id}' does not allow manual runs",
+                "message": f"Dag with dag_id '{dag_id}' does not allow operator-triggered runs",
             },
         )
 
@@ -127,6 +125,7 @@ def trigger_dag_run(
         trigger_dag(
             dag_id=dag_id,
             run_id=run_id,
+            run_type=DagRunType.OPERATOR_TRIGGERED,
             conf=payload.conf,
             logical_date=payload.logical_date,
             triggered_by=DagRunTriggeredByType.OPERATOR,
