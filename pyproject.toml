@@ -108,7 +108,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon>=9.0.0"
 ]
 "apache.cassandra" = [
-    "apache-airflow-providers-apache-cassandra>=3.7.0"
+    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
 ]
 "apache.drill" = [
     "apache-airflow-providers-apache-drill>=2.8.1"
@@ -168,7 +168,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-celery>=3.8.3"
 ]
 "cloudant" = [
-    "apache-airflow-providers-cloudant>=4.0.1; python_version !=\"3.9\""
+    "apache-airflow-providers-cloudant>=4.0.1",
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=9.0.0"
