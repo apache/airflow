@@ -16,42 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Flex, Heading, HStack, Link, Separator, Skeleton, Text, VStack } from "@chakra-ui/react";
-import dayjs from "dayjs";
+import { Badge, Box, Button, Flex, Heading, HStack, Separator, Skeleton, VStack } from "@chakra-ui/react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
-import { Link as RouterLink } from "react-router-dom";
 
 import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
-import type { DeadlineResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import Time from "src/components/Time";
 import { useAutoRefresh } from "src/utils";
+
+import { AllDeadlinesModal } from "./AllDeadlinesModal";
+import { DeadlineRow } from "./DeadlineRow";
 
 const LIMIT = 5;
 
-const DeadlineRow = ({ deadline }: { readonly deadline: DeadlineResponse }) => (
-  <HStack justifyContent="space-between" px={2} py={1.5} width="100%">
-    <VStack alignItems="flex-start" gap={0}>
-      <Link asChild color="fg.info" fontSize="sm" fontWeight="bold">
-        <RouterLink to={`/dags/${deadline.dag_id}/runs/${deadline.dag_run_id}`}>
-          {deadline.dag_run_id}
-        </RouterLink>
-      </Link>
-      {deadline.alert_name !== undefined && deadline.alert_name !== null && deadline.alert_name !== "" ? (
-        <Text color="fg.muted" fontSize="xs">
-          {deadline.alert_name}
-        </Text>
-      ) : undefined}
-    </VStack>
-    <Time datetime={deadline.deadline_time} fontSize="sm" />
-  </HStack>
-);
+type DagDeadlinesProps = {
+  readonly dagId: string;
+  readonly endDate: string;
+  readonly startDate: string;
+};
 
-export const DagDeadlines = ({ dagId }: { readonly dagId: string }) => {
+export const DagDeadlines = ({ dagId, endDate, startDate }: DagDeadlinesProps) => {
   const { t: translate } = useTranslation("dag");
   const refetchInterval = useAutoRefresh({ dagId });
-  const now = dayjs().toISOString();
+  const [modalOpen, setModalOpen] = useState<"missed" | "pending" | null>(null);
 
   const {
     data: pendingData,
@@ -61,7 +49,7 @@ export const DagDeadlines = ({ dagId }: { readonly dagId: string }) => {
     {
       dagId,
       dagRunId: "~",
-      deadlineTimeGte: now,
+      deadlineTimeGte: endDate,
       limit: LIMIT,
       missed: false,
       orderBy: ["deadline_time"],
@@ -69,8 +57,6 @@ export const DagDeadlines = ({ dagId }: { readonly dagId: string }) => {
     undefined,
     { refetchInterval },
   );
-
-  const last24h = dayjs().subtract(24, "hour").toISOString();
 
   const {
     data: missedData,
@@ -80,7 +66,8 @@ export const DagDeadlines = ({ dagId }: { readonly dagId: string }) => {
     {
       dagId,
       dagRunId: "~",
-      lastUpdatedAtGte: last24h,
+      lastUpdatedAtGte: startDate,
+      lastUpdatedAtLte: endDate,
       limit: LIMIT,
       missed: true,
       orderBy: ["-last_updated_at"],
@@ -134,6 +121,19 @@ export const DagDeadlines = ({ dagId }: { readonly dagId: string }) => {
                 {pendingDeadlines.map((dl) => (
                   <DeadlineRow deadline={dl} key={dl.id} />
                 ))}
+                {(pendingData?.total_entries ?? 0) > LIMIT ? (
+                  <Button
+                    mt={2}
+                    onClick={() => setModalOpen("pending")}
+                    size="xs"
+                    variant="ghost"
+                    width="100%"
+                  >
+                    {translate("overview.deadlines.viewAll", {
+                      count: pendingData?.total_entries,
+                    })}
+                  </Button>
+                ) : undefined}
               </VStack>
             )}
           </Box>
@@ -162,11 +162,39 @@ export const DagDeadlines = ({ dagId }: { readonly dagId: string }) => {
                 {missedDeadlines.map((dl) => (
                   <DeadlineRow deadline={dl} key={dl.id} />
                 ))}
+                {(missedData?.total_entries ?? 0) > LIMIT ? (
+                  <Button
+                    mt={2}
+                    onClick={() => setModalOpen("missed")}
+                    size="xs"
+                    variant="ghost"
+                    width="100%"
+                  >
+                    {translate("overview.deadlines.viewAll", {
+                      count: missedData?.total_entries,
+                    })}
+                  </Button>
+                ) : undefined}
               </VStack>
             )}
           </Box>
         ) : undefined}
       </Flex>
+
+      <AllDeadlinesModal
+        dagId={dagId}
+        endDate={endDate}
+        missed={modalOpen === "missed"}
+        onClose={() => setModalOpen(null)}
+        open={modalOpen !== null}
+        refetchInterval={refetchInterval}
+        startDate={startDate}
+        title={
+          modalOpen === "missed"
+            ? translate("overview.deadlines.recentlyMissed")
+            : translate("overview.deadlines.pending")
+        }
+      />
     </Box>
   );
 };

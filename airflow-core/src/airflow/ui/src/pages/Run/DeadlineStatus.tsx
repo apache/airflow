@@ -31,14 +31,20 @@ type DeadlineStatusProps = {
 export const DeadlineStatus = ({ dagId, dagRunId }: DeadlineStatusProps) => {
   const { t: translate } = useTranslation("dag");
 
-  const { data: deadlineData } = useDeadlinesServiceGetDeadlines({
+  const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines({
     dagId,
     dagRunId,
     limit: 10,
     orderBy: ["deadline_time"],
   });
 
-  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
+  const { data: alertData, isLoading: isLoadingAlerts } = useDeadlinesServiceGetDagDeadlineAlerts({
+    dagId,
+  });
+
+  if (isLoadingDeadlines || isLoadingAlerts) {
+    return undefined;
+  }
 
   const deadlines = deadlineData?.deadlines ?? [];
   const hasAlerts = (alertData?.total_entries ?? 0) > 0;

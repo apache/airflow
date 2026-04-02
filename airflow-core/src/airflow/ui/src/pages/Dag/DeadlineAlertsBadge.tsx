@@ -17,10 +17,11 @@
  * under the License.
  */
 import { Box, Button, HStack, Separator, Text, VStack } from "@chakra-ui/react";
+import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiClock } from "react-icons/fi";
 
-import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
+import { useDeadlinesServiceGetDeadlines, useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { Popover } from "src/components/ui";
 import { renderDuration } from "src/utils";
@@ -67,10 +68,18 @@ export const DeadlineAlertsBadge = ({ dagId }: { readonly dagId: string }) => {
   const { t: translate } = useTranslation("dag");
 
   const { data } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
+  const { data: missedData } = useDeadlinesServiceGetDeadlines({
+    dagId,
+    dagRunId: "~",
+    lastUpdatedAtGte: dayjs().subtract(24, "hour").toISOString(),
+    limit: 1,
+    missed: true,
+  });
 
-  const alerts = data?.deadline_alerts ?? [];
+  const alerts = (data?.total_entries ?? 0) > 0 ? data?.deadline_alerts : [];
+  const hasMissed = (missedData?.total_entries ?? 0) > 0;
 
-  if (alerts.length === 0) {
+  if (!alerts || alerts.length === 0) {
     return undefined;
   }
 
@@ -78,7 +87,7 @@ export const DeadlineAlertsBadge = ({ dagId }: { readonly dagId: string }) => {
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
       <Popover.Trigger asChild>
-        <Button size="xs" variant="outline">
+        <Button color={hasMissed ? "fg.error" : "fg.info"} size="xs" variant="outline">
           <FiClock />
           {translate("deadlineAlerts.count", { count: alerts.length })}
         </Button>

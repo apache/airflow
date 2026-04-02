@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
+import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
@@ -44,6 +45,9 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
+
+  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
+  const hasDeadlineAlerts = (alertData?.total_entries ?? 0) > 0;
 
   const { isPending, mutate } = usePatchDagRun({
     dagId,
@@ -141,10 +145,14 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
               />
             ),
           },
-          {
-            label: translate("dag:deadlineStatus.label"),
-            value: <DeadlineStatus dagId={dagId} dagRunId={dagRunId} />,
-          },
+          ...(hasDeadlineAlerts
+            ? [
+                {
+                  label: translate("dag:deadlineStatus.label"),
+                  value: <DeadlineStatus dagId={dagId} dagRunId={dagRunId} />,
+                },
+              ]
+            : []),
         ]}
         title={dagRun.dag_run_id}
       />

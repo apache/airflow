@@ -30,7 +30,6 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { CALENDAR_GRANULARITY_KEY, CALENDAR_VIEW_MODE_KEY } from "src/constants/localStorage";
 
-import { CalendarDeadlines } from "./CalendarDeadlines";
 import { CalendarLegend } from "./CalendarLegend";
 import { DailyCalendarView } from "./DailyCalendarView";
 import { HourlyCalendarView } from "./HourlyCalendarView";
@@ -255,7 +254,6 @@ export const Calendar = () => {
           </HStack>
         )}
       </Box>
-      <CalendarDeadlines dagId={dagId} endDate={lte} startDate={gte} />
     </Box>
   );
 };

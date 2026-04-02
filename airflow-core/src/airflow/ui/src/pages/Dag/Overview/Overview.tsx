@@ -148,7 +148,9 @@ export const Overview = () => {
           />
         ) : undefined}
       </HStack>
-      {dagId === undefined ? undefined : <DagDeadlines dagId={dagId} />}
+      {dagId === undefined ? undefined : (
+        <DagDeadlines dagId={dagId} endDate={endDate} startDate={startDate} />
+      )}
       <Suspense fallback={<Skeleton height="100px" width="full" />}>
         <FailedLogs failedTasks={failedTasks} />
       </Suspense>

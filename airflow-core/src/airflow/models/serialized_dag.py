@@ -579,8 +579,18 @@ class SerializedDagModel(Base):
 
                 if deadline_uuid_mapping is not None:
                     # All deadlines matched — reuse the UUIDs to preserve hash.
-                    # Clear the mapping since the alert rows already exist in the DB;
-                    # no need to delete and recreate identical records.
+                    # Update name/description in case they changed (they don't affect
+                    # the definition match or the hash, so existing rows won't be
+                    # recreated, but they must stay current in the DB).
+                    for uuid_str, deadline_data in deadline_uuid_mapping.items():
+                        session.execute(
+                            update(DeadlineAlertModel)
+                            .where(DeadlineAlertModel.id == UUID(uuid_str))
+                            .values(
+                                name=deadline_data.get(DeadlineAlertFields.NAME),
+                                description=deadline_data.get(DeadlineAlertFields.DESCRIPTION),
+                            )
+                        )
                     dag.data["dag"]["deadline"] = existing_deadline_uuids
                     deadline_uuid_mapping = {}
                 else:
