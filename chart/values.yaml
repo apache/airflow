@@ -2751,7 +2751,7 @@ dagProcessor:
   podDisruptionBudget:
     enabled: false
 
-    # PDB configuration (minAvailable and maxUnavailable are mutually exclusive)
+    # PDB configuration (`minAvailable` and `maxUnavailable` are mutually exclusive)
     config:
       maxUnavailable: 1
       # minAvailable: 1
