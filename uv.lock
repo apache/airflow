@@ -6638,7 +6638,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "openai", extras = ["datalib"], specifier = ">=1.66.0" },
+    { name = "openai", extras = ["datalib"], specifier = ">=2.37.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -7351,6 +7351,10 @@ dependencies = [
 google = [
     { name = "apache-airflow-providers-google" },
 ]
+kerberos = [
+    { name = "krb5" },
+    { name = "smbprotocol", extra = ["kerberos"] },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -7369,9 +7373,11 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
+    { name = "krb5", marker = "extra == 'kerberos'" },
     { name = "smbprotocol", specifier = ">=1.5.0" },
+    { name = "smbprotocol", extras = ["kerberos"], marker = "extra == 'kerberos'", specifier = ">=1.5.0" },
 ]
-provides-extras = ["google"]
+provides-extras = ["google", "kerberos"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -21936,6 +21942,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/33/76/c32681e925fc859578d4e41e4bd3ef7e2b9e7d06141f703eec032875b28a/smbprotocol-1.16.1.tar.gz", hash = "sha256:ad7a31662792817c6da3629a3cfb96a51d8213e993ebd0c0a7ee750d2b1f8ec8", size = 186164, upload-time = "2026-04-02T03:01:28.961Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/43/8acc58e24f78af82300a8ebdd457face4c6e4b27f7b52885a239724d3e21/smbprotocol-1.16.1-py3-none-any.whl", hash = "sha256:0f9c35b2a0103314da06aecaffa8821f060a9773ad82cc0d7f29130083d598b4", size = 126532, upload-time = "2026-04-02T03:01:27.718Z" },
+]
+
+[package.optional-dependencies]
+kerberos = [
+    { name = "pyspnego", extra = ["kerberos"] },
 ]
 
 [[package]]

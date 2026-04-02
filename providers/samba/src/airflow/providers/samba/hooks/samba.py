@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import smbclient
 
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 if TYPE_CHECKING:
     import smbprotocol.connection
@@ -43,6 +43,8 @@ class SambaHook(BaseHook):
         the connection is used in its place.
     :param share_type:
         An optional share type name. If this is unset then it will assume a posix share type.
+    :param auth_protocol:
+        An optional authentication protocol. If this is unset then it defaults to negotiate.
     """
 
     conn_name_attr = "samba_conn_id"
@@ -50,22 +52,50 @@ class SambaHook(BaseHook):
     conn_type = "samba"
     hook_name = "Samba"
 
+    VALID_AUTH_PROTOCOLS = {"negotiate", "ntlm", "kerberos"}
+
     def __init__(
         self,
         samba_conn_id: str = default_conn_name,
         share: str | None = None,
         share_type: Literal["posix", "windows"] | None = None,
+        auth_protocol: Literal["negotiate", "ntlm", "kerberos"] | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(samba_conn_id)
+        extra = conn.extra_dejson
 
-        if not conn.login:
+        legacy_auth = extra.get("auth")
+        legacy_auth_protocol = (
+            legacy_auth if isinstance(legacy_auth, str) and legacy_auth in self.VALID_AUTH_PROTOCOLS else None
+        )
+        self._auth_protocol: str = (
+            auth_protocol or extra.get("auth_protocol") or legacy_auth_protocol or "negotiate"
+        )
+        if self._auth_protocol not in self.VALID_AUTH_PROTOCOLS:
+            raise ValueError(
+                f"Invalid auth_protocol '{self._auth_protocol}'. "
+                f"Must be one of {sorted(self.VALID_AUTH_PROTOCOLS)}."
+            )
+
+        uses_kerberos = self._auth_protocol == "kerberos"
+
+        if uses_kerberos:
+            try:
+                import krb5  # noqa: F401
+            except ImportError:
+                raise AirflowOptionalProviderFeatureException(
+                    "Kerberos authentication requires the 'krb5' package. "
+                    "Install it with: pip install 'apache-airflow-providers-samba[kerberos]'"
+                )
+
+        if not conn.login and not uses_kerberos:
             self.log.info("Login not provided")
 
-        if not conn.password:
+        if not conn.password and not uses_kerberos:
             self.log.info("Password not provided")
 
-        self._share_type = share_type or conn.extra_dejson.get("share_type", "posix")
+        self._share_type = share_type or extra.get("share_type", "posix")
         if self._share_type not in {"posix", "windows"}:
             self._share_type = "posix"
             self.log.warning(
@@ -77,11 +107,12 @@ class SambaHook(BaseHook):
         self._host = conn.host
         self._share = share or conn.schema
         self._connection_cache = connection_cache
-        self._conn_kwargs = {
+        self._conn_kwargs: dict[str, Any] = {
             "username": conn.login,
             "password": conn.password,
             "port": conn.port or 445,
             "connection_cache": connection_cache,
+            "auth_protocol": self._auth_protocol,
         }
 
     def __enter__(self):
@@ -325,12 +356,22 @@ class SambaHook(BaseHook):
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
         from flask_babel import lazy_gettext
-        from wtforms import StringField
+        from wtforms import SelectField, StringField
 
         return {
             "share_type": StringField(
                 label=lazy_gettext("Share Type"),
                 description="The share OS type (`posix` or `windows`). Used to determine the formatting of file and folder paths.",
                 default="posix",
-            )
+            ),
+            "auth_protocol": SelectField(
+                label=lazy_gettext("Auth Protocol"),
+                description=(
+                    "Authentication protocol: `negotiate` (auto-select, default), "
+                    "`ntlm`, or `kerberos`. When using `kerberos`, the system's "
+                    "Kerberos ticket cache is used and username/password are optional."
+                ),
+                choices=["negotiate", "ntlm", "kerberos"],
+                default="negotiate",
+            ),
         }
