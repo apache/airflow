@@ -53,6 +53,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import shlex
 from typing import Any, TypedDict
 
 logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ class SkillDef(TypedDict):
     params: dict[str, SkillParam]
 
 
-class BreezieContext:
+class BreezeContext:
     """Detect whether code is running in Breeze container or on host."""
 
     @staticmethod
@@ -161,7 +162,7 @@ class BreezieContext:
         Raises:
             ValueError: If ``skill_id`` is unknown or required parameters are missing.
         """
-        is_breeze = BreezieContext.is_in_breeze(force_context=force_context)
+        is_breeze = BreezeContext.is_in_breeze(force_context=force_context)
         context = "breeze" if is_breeze else "host"
 
         # Define all available skills
@@ -215,12 +216,16 @@ class BreezieContext:
 
         # Substitute parameters
         command: str = command_template
-        for param_name, param_value in kwargs.items():
+        for param_name, _ in params.items():
             placeholder = "{" + param_name + "}"
-            command = command.replace(placeholder, str(param_value))
+            if param_name in kwargs:
+                command = command.replace(placeholder, shlex.quote(str(kwargs[param_name])))
+            else:
+                command = command.replace(placeholder, "")
 
-        # Handle optional parameters that weren't provided
+        # Handle optional parameters that weren't provided and clean up extra spaces
         command = command.replace("{--target module}", "").replace("{module}", "")
+        command = " ".join(command.split())
 
         logger.debug(
             "Generated command for skill_id=%r context=%s kwargs=%r: %s",
@@ -230,6 +235,10 @@ class BreezieContext:
             command,
         )
         return command
+
+
+# Backwards compatibility alias
+BreezieContext = BreezeContext
 
 
 # For backwards compatibility, keep the old function
@@ -247,7 +256,7 @@ def detect_context(force_context: str | None = None) -> str:
     str
         ``"breeze"`` or ``"host"``.
     """
-    return "breeze" if BreezieContext.is_in_breeze(force_context=force_context) else "host"
+    return "breeze" if BreezeContext.is_in_breeze(force_context=force_context) else "host"
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:

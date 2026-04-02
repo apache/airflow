@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
-from ci.prek.breeze_context import BreezieContext
+from ci.prek.breeze_context import BreezeContext
 
 
 class TestEdgeCases:
@@ -35,7 +35,7 @@ class TestEdgeCases:
         with patch.dict(os.environ, {"SSH_CONNECTION": "1"}, clear=True):
             with patch("os.path.exists", return_value=False):
                 with patch("os.path.isdir", return_value=False):
-                    assert BreezieContext.is_in_breeze() is False
+                    assert BreezeContext.is_in_breeze() is False
 
     def test_context_detects_symlink_marker(self) -> None:
         """If dockerenv marker exists (even via symlink), detect Breeze."""
@@ -43,10 +43,12 @@ class TestEdgeCases:
             with patch("os.path.exists") as mock_exists:
                 mock_exists.return_value = True
                 with patch("os.path.isdir", return_value=False):
-                    assert BreezieContext.is_in_breeze() is True
+                    assert BreezeContext.is_in_breeze() is True
 
     def test_parameter_substitution_handles_quotes_spaces(self) -> None:
-        """Command template substitution should preserve special characters."""
+        """Command template substitution should preserve special characters via escaping."""
+        import shlex
+
         test_path = "tests/unit/my file's test.py"
-        cmd = BreezieContext.get_command("run-unit-tests", test_path=test_path)
-        assert test_path in cmd
+        cmd = BreezeContext.get_command("run-unit-tests", test_path=test_path)
+        assert shlex.quote(test_path) in cmd

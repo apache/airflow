@@ -26,19 +26,14 @@ This script is used by the project's prek/pre-commit pipeline to ensure that:
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
 from pathlib import Path
 
 try:
     import yaml
 except ImportError:
-    import sys
-
     print("PyYAML is required for validate_skills.py. Install with `pip install pyyaml`.")
     sys.exit(1)
-
-logger = logging.getLogger(__name__)
 
 SKILLS_DIR = Path(".agents/skills")
 
@@ -62,6 +57,9 @@ def validate_skill(skill_dir: Path) -> list[str]:
         if end_comment == -1:
             break
         stripped = stripped[end_comment + 3 :].lstrip()
+
+    # Normalize newlines to \n to support CRLF (Windows) checkouts
+    stripped = stripped.replace("\r\n", "\n")
 
     if not stripped.startswith("---\n"):
         errors.append(f"Missing YAML frontmatter at start of {skill_md}")
