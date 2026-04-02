@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, BulkBody
 from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody
 from airflow.api_fastapi.core_api.services.public.task_instances import BulkTaskInstanceService
@@ -413,11 +414,11 @@ class TestCategorizeEntities(TestTaskInstanceEndpoint):
                 "airflow.api_fastapi.core_api.services.public.task_instances.get_auth_manager"
             ) as mock_get_auth_manager,
         ):
-            auth_manager = mock.Mock(spec=["is_authorized_dag"])
+            auth_manager = mock.create_autospec(BaseAuthManager, instance=True, spec_set=True)
             auth_manager.is_authorized_dag.return_value = True
             mock_get_auth_manager.return_value = auth_manager
             specific_map_index_task_keys, all_map_index_task_keys = service._categorize_entities(
-                entities, results
+                entities, results, method="PUT", action_name="update"
             )
 
         assert specific_map_index_task_keys == expected_specific_keys

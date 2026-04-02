@@ -5506,8 +5506,6 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     BASH_DAG_ID = "example_bash_operator"
     BASH_TASK_ID = "also_run_this"
     WILDCARD_ENDPOINT = "/dags/~/dagRuns/~/taskInstances"
-    RESTRICTED_BUNDLE_NAME = "restricted-bundle"
-    RESTRICTED_TEAM_NAME = "restricted-team"
 
     @pytest.fixture(autouse=True)
     def clean_db(self, session):
@@ -6171,6 +6169,8 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 )
 
     def test_bulk_task_instances_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
+        restricted_bundle_name = "restricted-bundle-update"
+        restricted_team_name = "restricted-team-update"
         self.create_task_instances(
             session,
             task_instances=[{"task_id": self.BASH_TASK_ID, "state": State.RUNNING}],
@@ -6183,17 +6183,15 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
             dag_id=self.DAG_ID,
             update_extras=True,
         )
-
-        restricted_bundle = DagBundleModel(name=self.RESTRICTED_BUNDLE_NAME)
-        restricted_team = Team(name=self.RESTRICTED_TEAM_NAME)
+        restricted_bundle = DagBundleModel(name=restricted_bundle_name)
+        restricted_team = Team(name=restricted_team_name)
         restricted_bundle.teams.append(restricted_team)
         session.add_all([restricted_bundle, restricted_team])
-
         session.flush()
         session.execute(
             update(DagModel)
             .where(DagModel.dag_id == self.BASH_DAG_ID)
-            .values(bundle_name=self.RESTRICTED_BUNDLE_NAME)
+            .values(bundle_name=restricted_bundle_name)
         )
         session.commit()
 
@@ -6241,6 +6239,79 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         assert response.json()["update"]["errors"] == [
             {
                 "error": f"User is not authorized to update task instances for DAG '{self.BASH_DAG_ID}'",
+                "status_code": 403,
+            }
+        ]
+
+    def test_bulk_delete_rejects_unauthorized_dag_ids_from_request_body(self, test_client, session):
+        restricted_bundle_name = "restricted-bundle-delete"
+        restricted_team_name = "restricted-team-delete"
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.BASH_TASK_ID, "state": State.SUCCESS}],
+            dag_id=self.BASH_DAG_ID,
+            update_extras=True,
+        )
+        self.create_task_instances(
+            session,
+            task_instances=[{"task_id": self.TASK_ID, "state": State.SUCCESS}],
+            dag_id=self.DAG_ID,
+            update_extras=True,
+        )
+        restricted_bundle = DagBundleModel(name=restricted_bundle_name)
+        restricted_team = Team(name=restricted_team_name)
+        restricted_bundle.teams.append(restricted_team)
+        session.add_all([restricted_bundle, restricted_team])
+        session.flush()
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == self.BASH_DAG_ID)
+            .values(bundle_name=restricted_bundle_name)
+        )
+        session.commit()
+
+        auth_manager = test_client.app.state.auth_manager
+        token = auth_manager._get_token_signer().generate(
+            auth_manager.serialize_user(
+                SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
+            )
+        )
+        with (
+            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
+            TestClient(
+                test_client.app,
+                headers={"Authorization": f"Bearer {token}"},
+                base_url=str(test_client.base_url),
+            ) as limited_test_client,
+        ):
+            response = limited_test_client.patch(
+                self.WILDCARD_ENDPOINT,
+                json={
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "dag_id": self.BASH_DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.BASH_TASK_ID,
+                                },
+                                {
+                                    "dag_id": self.DAG_ID,
+                                    "dag_run_id": self.RUN_ID,
+                                    "task_id": self.TASK_ID,
+                                },
+                            ],
+                        }
+                    ]
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json()["delete"]["success"] == [f"{self.DAG_ID}.{self.RUN_ID}.{self.TASK_ID}[-1]"]
+        assert response.json()["delete"]["errors"] == [
+            {
+                "error": f"User is not authorized to delete task instances for DAG '{self.BASH_DAG_ID}'",
                 "status_code": 403,
             }
         ]

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Literal
 
 import structlog
 from fastapi import HTTPException, Query, status
@@ -204,6 +205,8 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         self,
         entities: Sequence[str | BulkTaskInstanceBody],
         results: BulkActionResponse,
+        method: Literal["PUT", "DELETE"],
+        action_name: str,
     ) -> tuple[set[tuple[str, str, str, int]], set[tuple[str, str, str]]]:
         """
         Validate entities and categorize them into specific and all map index update sets.
@@ -236,7 +239,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             if dag_id not in dag_authorization_cache:
                 team_name = DagModel.get_team_name(dag_id, session=self.session)
                 dag_authorization_cache[dag_id] = get_auth_manager().is_authorized_dag(
-                    method="PUT",
+                    method=method,
                     access_entity=DagAccessEntity.TASK_INSTANCE,
                     details=DagDetails(id=dag_id, team_name=team_name),
                     user=self.user,
@@ -244,7 +247,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             if not dag_authorization_cache[dag_id]:
                 results.errors.append(
                     {
-                        "error": f"User is not authorized to update task instances for DAG '{dag_id}'",
+                        "error": f"User is not authorized to {action_name} task instances for DAG '{dag_id}'",
                         "status_code": status.HTTP_403_FORBIDDEN,
                     }
                 )
@@ -339,7 +342,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         """Bulk Update Task Instances."""
         # Validate and categorize entities into specific and all map index update sets
         update_specific_map_index_task_keys, update_all_map_index_task_keys = self._categorize_entities(
-            action.entities, results
+            action.entities, results, method="PUT", action_name=action.action
         )
 
         try:
@@ -441,7 +444,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         """Bulk delete task instances."""
         # Validate and categorize entities into specific and all map index delete sets
         delete_specific_map_index_task_keys, delete_all_map_index_task_keys = self._categorize_entities(
-            action.entities, results
+            action.entities, results, method="DELETE", action_name=action.action
         )
 
         try:
