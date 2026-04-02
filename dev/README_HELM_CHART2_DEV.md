@@ -28,6 +28,7 @@
 - [Committers / PMCs](#committers--pmcs)
   - [Merging PRs targeted for Airflow Helm Chart 2.X](#merging-prs-targeted-for-airflow-helm-chart-2x)
   - [What do we backport to `chart/v1-2x-test` branch?](#what-do-we-backport-to-chartv1-2x-test-branch)
+  - [How to backport PR with `cherry-picker` CLI](#how-to-backport-pr-with-cherry-picker-cli)
   - [Merging PRs for Airflow Chart 1.2x.x](#merging-prs-for-airflow-chart-12xx)
 - [Milestones for PR](#milestones-for-pr)
   - [Set Airflow Helm Chart 2.0.0](#set-airflow-helm-chart-200)
@@ -109,6 +110,7 @@ We will not backport new features or refactorings.
 * **Refactorings in active areas** do not cherry-pick.
 * **New features** do not cherry-pick.
 
+## [How to backport PR with `cherry-picker` CLI](README.md#how-to-backport-pr-with-cherry-picker-cli)
 
 ## Merging PRs for Airflow Chart 1.2x.x
 

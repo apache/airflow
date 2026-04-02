@@ -115,6 +115,7 @@ class TUIAction(Enum):
     ACTION_FLAG = "flag"
     ACTION_LLM = "llm"
     ACTION_AUTHOR_INFO = "author_info"
+    SEARCH = "search"
 
 
 class _FocusPanel(Enum):
@@ -328,6 +329,8 @@ def _read_tui_key(*, timeout: float | None = None) -> TUIAction | MouseEvent | s
         return TUIAction.ACTION_LLM
     if ch == "i":
         return TUIAction.ACTION_AUTHOR_INFO
+    if ch == "/":
+        return TUIAction.SEARCH
     # Ctrl-C
     if ch == "\x03":
         return TUIAction.QUIT
@@ -355,6 +358,12 @@ class PRListEntry:
         self.llm_attempts: int = 0  # number of LLM attempts (including retries)
         # Author scoring (populated when author profile is fetched)
         self.author_scoring: dict | None = None
+        # File paths changed by this PR (populated from diff)
+        self.file_paths: list[str] | None = None
+        # Cross-references found in PR body
+        self.cross_refs: list[int] | None = None
+        # Overlapping PRs (PR number -> list of shared files)
+        self.overlapping_prs: dict[int, list[str]] | None = None
 
 
 class TriageTUI:
@@ -734,8 +743,6 @@ class TriageTUI:
                 llm_text = "[red]error[/]"
             elif entry.llm_status == "disabled":
                 llm_text = "[dim]disabled[/]"
-            elif entry.llm_status == "pending":
-                llm_text = "[dim]queued[/]"
             else:
                 llm_text = "[dim]—[/]"
 
@@ -915,6 +922,28 @@ class TriageTUI:
             if len(pr.labels) > 8:
                 label_text += f" (+{len(pr.labels) - 8} more)"
             lines.append(f"Labels: {label_text}")
+
+        # Cross-references
+        if entry.cross_refs:
+            lines.append("")
+            ref_links = [
+                f"[link=https://github.com/{self.github_repository}/issues/{n}]#{n}[/link]"
+                for n in entry.cross_refs[:10]
+            ]
+            lines.append(f"References: {', '.join(ref_links)}")
+
+        # Overlapping PRs (other open PRs touching the same files)
+        if entry.overlapping_prs:
+            lines.append("")
+            lines.append(f"[yellow]Overlapping PRs ({len(entry.overlapping_prs)}):[/]")
+            for opr_num, shared_files in list(entry.overlapping_prs.items())[:5]:
+                opr_link = (
+                    f"[link=https://github.com/{self.github_repository}/pull/{opr_num}]#{opr_num}[/link]"
+                )
+                files_text = ", ".join(f.rsplit("/", 1)[-1] for f in shared_files[:3])
+                if len(shared_files) > 3:
+                    files_text += f" +{len(shared_files) - 3} more"
+                lines.append(f"  {opr_link}: {files_text}")
 
         # Assessment / flagging details (summary and violations)
         assessment = self._assessments.get(pr.number)
@@ -1260,14 +1289,14 @@ class TriageTUI:
         if self._focus in (_FocusPanel.DIFF, _FocusPanel.DETAIL):
             nav_lines = [
                 "[bold]j/↓[/] Down  [bold]k/↑[/] Up  [bold]PgDn[/] Page",
-                f"[bold]Tab[/] → {next_panel}  [bold]🖱[/] Scroll",
+                f"[bold]Tab[/] → {next_panel}  [bold]/[/] Search  [bold]🖱[/] Scroll",
                 "[bold]Esc/q[/] Quit",
             ]
         else:
             nav_lines = [
                 "[bold]j/↓[/] Down  [bold]k/↑[/] Up  [bold]q[/] Quit",
                 f"[bold]n[/] Next pg  [bold]p[/] Prev pg  [bold]Tab[/] → {next_panel}",
-                "[bold]🖱[/] Click row / Scroll panels",
+                "[bold]/[/] Search  [bold]🖱[/] Click row / Scroll panels",
             ]
         nav_text = "\n".join(nav_lines)
         nav_panel = Panel(nav_text, title="Nav", border_style="dim", padding=(0, 1))
@@ -1698,6 +1727,63 @@ class TriageTUI:
         sys.stdout.write("\033[?25h")  # restore cursor
         sys.stdout.flush()
 
+    def search_jump(self) -> bool:
+        """Show a search prompt at the bottom of the screen.
+
+        The user types a PR number or text. Pressing Enter jumps to the first
+        matching entry. Pressing Escape cancels. Returns True if the cursor moved.
+        """
+        width, height = _get_terminal_size()
+        prompt = "/ Jump to PR #: "
+        query = ""
+
+        while True:
+            # Draw prompt on the last row
+            display = f"{prompt}{query}_"
+            sys.stdout.write(f"\033[{height};1H\033[2K{display}")
+            sys.stdout.flush()
+
+            ch = _read_raw_input(timeout=None)
+            if ch is None or ch == "\x1b":
+                # Escape or timeout — cancel
+                break
+            if ch in ("\r", "\n"):
+                # Enter — search
+                break
+            if ch in ("\x7f", "\x08"):
+                # Backspace
+                query = query[:-1]
+                continue
+            if ch == "\x03":
+                # Ctrl-C — cancel
+                break
+            if len(ch) == 1 and ch.isprintable():
+                query += ch
+
+        # Clear the prompt line
+        sys.stdout.write(f"\033[{height};1H\033[2K")
+        sys.stdout.flush()
+
+        if not query:
+            return False
+
+        # Match by PR number only
+        try:
+            target_num = int(query.lstrip("#"))
+        except ValueError:
+            return False
+
+        for idx, entry in enumerate(self.entries):
+            if entry.pr.number == target_num:
+                self.cursor = idx
+                # Put the matched entry at the top of the visible list
+                self.scroll_offset = idx
+                # Switch focus to PR list so the selection is highlighted
+                self._focus = _FocusPanel.PR_LIST
+                return True
+
+        return False
+
     def run_interactive(
         self, *, timeout: float | None = None
     ) -> tuple[PRListEntry | None, TUIAction | str | None]:
@@ -1774,6 +1860,10 @@ class TriageTUI:
                 if entry and not entry.action_taken and key in self.get_available_actions(entry):
                     return entry, key
                 return None, key
+            if key == TUIAction.SEARCH:
+                if self.search_jump():
+                    return None, TUIAction.UP
+                return None, key
             # Ignore other keys in diff focus
             return None, key
 
@@ -1822,6 +1912,8 @@ class TriageTUI:
                 entry = self.get_selected_entry()
                 if entry and not entry.action_taken and key in self.get_available_actions(entry):
                     return entry, key
+                return None, key
+            if key == TUIAction.SEARCH:
                 return None, key
             # Ignore other keys in detail focus
             return None, key
@@ -1881,6 +1973,10 @@ class TriageTUI:
             entry = self.get_selected_entry()
             if entry and not entry.action_taken and key in self.get_available_actions(entry):
                 return entry, key
+            return None, key
+        if key == TUIAction.SEARCH:
+            if self.search_jump():
+                return None, TUIAction.UP  # signal cursor moved
             return None, key
         # Unknown key — return it for caller to handle
         return self.get_selected_entry(), key

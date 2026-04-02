@@ -193,6 +193,9 @@ class BaseOperations:
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
 
     def execute_list(self, *, path, data_model, offset=0, limit=50, params=None):
+        if limit <= 0:
+            raise ValueError(f"limit must be a positive integer, got {limit}")
+
         shared_params = {"limit": limit, **(params or {})}
 
         def safe_validate(content: bytes) -> BaseModel:
