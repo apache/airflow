@@ -223,6 +223,9 @@ def inject_parent_job_information_into_glue_arguments(script_args: dict, context
         return script_args
 
     parent_props = _get_parent_job_information_as_spark_properties(context)
+    if not parent_props:
+        return script_args
+
     new_conf_parts = " --conf ".join(f"{k}={v}" for k, v in parent_props.items())
 
     combined_conf = f"{existing_conf} --conf {new_conf_parts}" if existing_conf else new_conf_parts
