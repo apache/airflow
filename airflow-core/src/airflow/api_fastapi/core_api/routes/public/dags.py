@@ -370,11 +370,11 @@ def patch_dags(
             owners,
             editable_dags_filter,
         ],
-    )
+    ).subquery()
 
     session.execute(
         update(DagModel)
-        .where(DagModel.dag_id.in_(filtered_dag_ids))
+        .where(DagModel.dag_id.in_(select(filtered_dag_ids.c.dag_id)))
         .values(is_paused=patch_body.is_paused)
         .execution_options(synchronize_session="fetch")
     )
