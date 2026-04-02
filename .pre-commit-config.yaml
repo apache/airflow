@@ -481,7 +481,7 @@ repos:
         files: Dockerfile.*$
         pass_filenames: true
         require_serial: true
-      - id: check-airflow--bug-report-template
+      - id: check-airflow-bug-report-template
         name: Sort airflow-bug-report provider list
         language: python
         files: ^\.github/ISSUE_TEMPLATE/1-airflow_bug_report\.yml$

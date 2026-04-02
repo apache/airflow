@@ -219,8 +219,8 @@ body:
     attributes:
       label: Official Helm Chart version
       description: >
-        What Apache Airflow Helm Chart version are you using?if the issue category
-        isn't "Helm chart" select "Not Applicable".
+        What Apache Airflow Helm Chart version are you using? If the issue category
+                isn't "Helm chart", select "Not Applicable".
       multiple: false
       options:
         - "Not Applicable"
@@ -269,7 +269,7 @@ body:
       label: Docker Image customizations
       description: What are the specific modification you've made in your image?
       placeholder: >
-        Enter "Not Applicable" if the issue type isn't "Helm chart".
+        If you have not customized your Docker image, you can enter "Not Applicable".
         Did you extend or customise the official Airflow image? Did you add any packages? Maybe
         you can share a link to your image, or copy the Dockerfile and `docker build` commands
         you used to build the image? Make sure to surround the code you paste with ``` ```.
