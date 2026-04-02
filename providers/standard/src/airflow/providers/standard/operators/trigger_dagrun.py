@@ -23,7 +23,7 @@ import json
 import time
 from collections.abc import Sequence
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, overload
 
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
@@ -44,6 +44,7 @@ from airflow.providers.common.compat.sdk import (
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.sdk.definitions.param import is_arg_set
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -479,8 +480,21 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
 
-def _validate_datetime_param(name: str, value):
-    if value is NOTSET:
+@overload
+def _validate_datetime_param(name: str, value: ArgNotSet) -> ArgNotSet: ...
+@overload
+def _validate_datetime_param(name: str, value: None) -> None: ...
+@overload
+def _validate_datetime_param(name: str, value: str) -> str: ...
+@overload
+def _validate_datetime_param(name: str, value: datetime.datetime) -> datetime.datetime: ...
+
+
+def _validate_datetime_param(
+    name: str,
+    value: str | datetime.datetime | None | ArgNotSet,
+) -> str | datetime.datetime | None | ArgNotSet:
+    if not is_arg_set(value):
         return NOTSET
     if value is None or isinstance(value, (str, datetime.datetime)):
         return value
@@ -489,8 +503,17 @@ def _validate_datetime_param(name: str, value):
     )
 
 
-def _parse_datetime_param(value: str | datetime.datetime | None):
+@overload
+def _parse_datetime_param(value: None) -> None: ...
+@overload
+def _parse_datetime_param(value: datetime.datetime) -> datetime.datetime: ...
+@overload
+def _parse_datetime_param(value: str) -> datetime.datetime: ...
+
+
+def _parse_datetime_param(
+    value: str | datetime.datetime | None,
+) -> datetime.datetime | None:
     if value is None or isinstance(value, datetime.datetime):
         return value
-    if isinstance(value, str):
-        return timezone.parse(value)
+    return timezone.parse(value)
