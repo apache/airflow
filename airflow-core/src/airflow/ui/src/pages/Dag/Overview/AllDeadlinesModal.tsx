@@ -86,8 +86,8 @@ export const AllDeadlinesModal = ({
   };
 
   return (
-    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="sm">
-      <Dialog.Content>
+    <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="lg">
+      <Dialog.Content backdrop p={4}>
         <Dialog.Header>
           <Heading size="sm">{title}</Heading>
         </Dialog.Header>
