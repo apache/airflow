@@ -45,6 +45,8 @@ def is_inside_breeze() -> bool:
         return True
     if Path("/.dockerenv").exists():
         return True
+    if Path("/.containerenv").exists():
+        return True
     if Path("/opt/airflow").exists():
         return True
     return False
@@ -89,6 +91,21 @@ WORKFLOWS: dict[str, dict[str, str]] = {
         "host": "git {args}",
         "breeze": "ERROR: git operations must run on host",
         "note": "All git operations run on host only",
+    },
+    "stage-changes": {
+        "host": "git add {file_path}",
+        "breeze": "ERROR: git operations must run on host",
+        "note": "Stage files for commit — always runs on host before prek",
+    },
+    "system-verify": {
+        "host": "breeze start-airflow --integration {integration}",
+        "breeze": "pytest {dag_test_path} -xvs",
+        "note": "Full system verification — start Airflow on host, run DAG tests inside Breeze",
+    },
+    "force-context-override": {
+        "host": "AIRFLOW_BREEZE_CONTAINER=true {command}",
+        "breeze": "{command}",
+        "note": "Override context detection for testing — sets explicit env marker",
     },
 }
 
