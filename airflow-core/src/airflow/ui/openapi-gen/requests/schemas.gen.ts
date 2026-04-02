@@ -1383,6 +1383,18 @@ export const $ClearTaskInstancesBody = {
             type: 'boolean',
             title: 'Prevent Running Task',
             default: false
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 1000
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
         }
     },
     additionalProperties: false,
@@ -4459,6 +4471,108 @@ export const $LastAssetEventResponse = {
     type: 'object',
     title: 'LastAssetEventResponse',
     description: 'Last asset event response serializer.'
+} as const;
+
+export const $MaterializeAssetBody = {
+    properties: {
+        dag_run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Id'
+        },
+        data_interval_start: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Data Interval Start'
+        },
+        data_interval_end: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Data Interval End'
+        },
+        logical_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date'
+        },
+        run_after: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run After'
+        },
+        conf: {
+            anyOf: [
+                {
+                    additionalProperties: true,
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Conf'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        },
+        partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Partition Key'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    title: 'MaterializeAssetBody',
+    description: 'Materialize asset request.'
 } as const;
 
 export const $PatchTaskInstanceBody = {
@@ -8896,25 +9010,7 @@ export const $Theme = {
     properties: {
         tokens: {
             additionalProperties: {
-                additionalProperties: {
-                    additionalProperties: {
-                        additionalProperties: {
-                            '$ref': '#/components/schemas/OklchColor'
-                        },
-                        propertyNames: {
-                            const: 'value'
-                        },
-                        type: 'object'
-                    },
-                    propertyNames: {
-                        enum: ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
-                    },
-                    type: 'object'
-                },
-                propertyNames: {
-                    const: 'brand'
-                },
-                type: 'object'
+                '$ref': '#/components/schemas/ThemeColors'
             },
             propertyNames: {
                 const: 'colors'
@@ -8964,6 +9060,11 @@ export const $Theme = {
     required: ['tokens'],
     title: 'Theme',
     description: "JSON to modify Chakra's theme."
+} as const;
+
+export const $ThemeColors = {
+    additionalProperties: true,
+    type: 'object'
 } as const;
 
 export const $TokenType = {

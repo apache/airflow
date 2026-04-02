@@ -21,6 +21,7 @@ import contextlib
 import json
 import logging
 import os
+import shlex
 import stat
 import tempfile
 from typing import Any
@@ -157,7 +158,7 @@ class GitHook(BaseHook):
             return
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
-            askpass_script.write(f"#!/bin/sh\necho '{self.private_key_passphrase}'\n")
+            askpass_script.write(f"#!/bin/sh\necho {shlex.quote(self.private_key_passphrase)}\n")
             askpass_script.flush()
             os.chmod(askpass_script.name, stat.S_IRWXU)
 

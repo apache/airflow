@@ -508,8 +508,18 @@ data:
   # type: Opaque
   # data:
   #   connection: base64_encoded_connection_string
+  #
+  # The secret must contain a key ``connection`` with a base64-encoded
+  # SQLAlchemy connection string, e.g.:
+  #
+  #   postgresql+psycopg2://airflow:password@postgres/airflow
 
   metadataSecretName: ~
+  # If not set, falls back to metadataSecretName. The secret must contain a key
+  # ``connection`` with a base64-encoded connection string, e.g.:
+  #
+  #   postgresql+psycopg2://user:password@host/db
+  #
   resultBackendSecretName: ~
   brokerUrlSecretName: ~
 
@@ -545,6 +555,17 @@ data:
 # Fernet key settings
 # Note: fernetKey can only be set during install, not upgrade
 fernetKey: ~
+# If set, the secret must contain a key ``fernet-key`` with a base64-encoded
+# Fernet key value. Example secret:
+#
+#   kind: Secret
+#   apiVersion: v1
+#   metadata:
+#     name: custom-fernet-key-secret
+#   type: Opaque
+#   data:
+#     fernet-key: <base64_encoded_fernet_key>
+#
 fernetKeySecretName: ~
 # Add custom annotations to the fernet key secret
 fernetKeySecretAnnotations: {}
@@ -553,18 +574,52 @@ fernetKeySecretAnnotations: {}
 apiSecretKey: ~
 # Add custom annotations to the api secret
 apiSecretAnnotations: {}
+# If set, the secret must contain a key ``api-secret-key`` with a base64-encoded
+# API secret key value. Example secret:
+#
+#   kind: Secret
+#   apiVersion: v1
+#   metadata:
+#     name: custom-api-secret
+#   type: Opaque
+#   data:
+#     api-secret-key: <base64_encoded_api_secret_key>
+#
 apiSecretKeySecretName: ~
 
 # Secret key used to encode and decode JWTs: `[api_auth] jwt_secret` in airflow.cfg
 jwtSecret: ~
 # Add custom annotations to the JWT secret
 jwtSecretAnnotations: {}
+# If set, the secret must contain a key ``jwt-secret`` with a base64-encoded
+# JWT secret value. Example secret:
+#
+#   kind: Secret
+#   apiVersion: v1
+#   metadata:
+#     name: custom-jwt-secret
+#   type: Opaque
+#   data:
+#     jwt-secret: <base64_encoded_jwt_secret>
+#
 jwtSecretName: ~
 
 # Flask secret key for Airflow <3 Webserver: `[webserver] secret_key` in airflow.cfg
 webserverSecretKey: ~
 # Add custom annotations to the webserver secret
 webserverSecretAnnotations: {}
+# Deprecated in favor of apiSecretKeySecretName (Airflow 3+).
+# If set, the secret must contain a key ``webserver-secret-key`` with a
+# base64-encoded secret key value. Example secret:
+#
+#   kind: Secret
+#   apiVersion: v1
+#   metadata:
+#     name: custom-webserver-secret
+#   type: Opaque
+#   data:
+#     webserver-secret-key: <base64_encoded_secret_key>
+#
 webserverSecretKeySecretName: ~
 
 # In order to use kerberos you need to create secret containing the keytab file
@@ -722,10 +777,10 @@ workers:
     # (deprecated, use `workers.celery.podDisruptionBudget.config` instead)
     config:
       # minAvailable and maxUnavailable are mutually exclusive
-      # (deprecated, use `workers.celery.podDisruptionBudget.config.maxUnavailable` instead)
       maxUnavailable: 1
-      # (deprecated, use `workers.celery.podDisruptionBudget.config.minAvailable` instead)
+      # (deprecated, use `workers.celery.podDisruptionBudget.config.maxUnavailable` instead)
       # minAvailable: 1
+      # (deprecated, use `workers.celery.podDisruptionBudget.config.minAvailable` instead)
 
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
   serviceAccount:
@@ -967,6 +1022,10 @@ workers:
 
   # This setting tells kubernetes that its ok to evict when it wants to scale a node down.
   # It is used by Airflow Celery workers and pod-template-file.
+  # (deprecated, use
+  #   workers.celery.safeToEvict or/and
+  #   workers.kubernetes.safeToEvict
+  # instead)
   safeToEvict: false
 
   # Launch additional containers into Airflow Celery worker
@@ -996,14 +1055,19 @@ workers:
   #       readOnly: true
 
   # Expose additional ports of Airflow Celery workers. These can be used for additional metric collection.
+  # (deprecated, use workers.celery.extraPorts instead)
   extraPorts: []
 
   # Select certain nodes for Airflow Celery worker pods and pods created with pod-template-file
   # (deprecated, use workers.celery.nodeSelector or/and workers.kubernetes.nodeSelector instead)
   nodeSelector: {}
 
+  # (deprecated, use workers.celery.runtimeClassName and/or workers.kubernetes.runtimeClassName instead)
   runtimeClassName: ~
+
+  # (deprecated, use workers.celery.priorityClassName and/or workers.kubernetes.priorityClassName instead)
   priorityClassName: ~
+
   affinity: {}
   # Default Airflow Celery worker affinity is:
   #  podAntiAffinity:
@@ -1016,7 +1080,9 @@ workers:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
+
   # hostAliases to use in Airflow Celery worker pods and pods created with pod-template-file
+  # (deprecated, use workers.celery.nodeSelector and/or workers.kubernetes.nodeSelector instead)
   # See:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
   hostAliases: []
@@ -1321,8 +1387,29 @@ workers:
     # Grace period for tasks to finish after SIGTERM is sent from kubernetes
     terminationGracePeriodSeconds: ~
 
+    # This setting tells kubernetes that its ok to evict when it wants to scale a node down
+    safeToEvict: ~
+
+    # Expose additional ports of Airflow Celery workers. These can be used for additional metric collection.
+    extraPorts: []
+
     # Select certain nodes for Airflow Celery worker pods
     nodeSelector: {}
+
+    runtimeClassName: ~
+
+    priorityClassName: ~
+
+    # hostAliases to use in Airflow Celery worker pods
+    # See:
+    # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+    hostAliases: []
+    # - ip: "127.0.0.2"
+    #   hostnames:
+    #   - "test.hostname.one"
+    # - ip: "127.0.0.3"
+    #   hostnames:
+    #   - "test.hostname.two"
 
   kubernetes:
     # Command to use in pod-template-file (templated)
@@ -1391,8 +1478,26 @@ workers:
     # Grace period for tasks to finish after SIGTERM is sent from kubernetes
     terminationGracePeriodSeconds: ~
 
+    # This setting tells kubernetes that its ok to evict when it wants to scale a node down
+    safeToEvict: ~
+
     # Select certain nodes for pods created with pod-template-file
     nodeSelector: {}
+
+    runtimeClassName: ~
+
+    priorityClassName: ~
+
+    # hostAliases to use in pods created with pod-template-file
+    # See:
+    # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+    hostAliases: []
+    # - ip: "127.0.0.2"
+    #   hostnames:
+    #   - "test.hostname.one"
+    # - ip: "127.0.0.3"
+    #   hostnames:
+    #   - "test.hostname.two"
 
 # Airflow scheduler settings
 scheduler:
@@ -2776,7 +2881,17 @@ flower:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
-  # A secret containing the connection
+  # If set, the secret must contain a key ``connection`` with a base64-encoded
+  # Flower basic auth connection string (user:password). Example secret:
+  #
+  #   kind: Secret
+  #   apiVersion: v1
+  #   metadata:
+  #     name: custom-flower-secret
+  #   type: Opaque
+  #   data:
+  #     connection: <base64_encoded_user_password>
+  #
   secretName: ~
   # Add custom annotations to the flower secret
   secretAnnotations: {}
@@ -3430,10 +3545,10 @@ databaseCleanup:
   # Run every week on Sunday at midnight (templated).
   schedule: "0 0 * * 0"
   # Command to use when running the database cleanup cronjob (templated).
-  command:
-    - "bash"
+  command: ~
   # Args to use when running the database cleanup cronjob (templated).
   args:
+    - "bash"
     - "-c"
     - >-
       CLEAN_TS=$(date -d "-{{ .Values.databaseCleanup.retentionDays }} days" +"%Y-%m-%dT%H:%M:%S");
@@ -3567,7 +3682,7 @@ config:
     dag_bundle_config_list: '{{ include "dag_bundle_config_list" . }}'
   elasticsearch:
     json_format: 'True'
-    log_id_template: "{dag_id}_{task_id}_{execution_date}_{try_number}"
+    log_id_template: "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
   elasticsearch_configs:
     max_retries: 3
     timeout: 30

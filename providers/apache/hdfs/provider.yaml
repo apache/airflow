@@ -24,12 +24,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1769460507
+source-date-epoch: 1774298372
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.11.4
   - 4.11.3
   - 4.11.2
   - 4.11.1
@@ -94,6 +95,9 @@ hooks:
   - integration-name: WebHDFS
     python-modules:
       - airflow.providers.apache.hdfs.hooks.webhdfs
+
+logging:
+  - airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsTaskHandler
 
 connection-types:
   - hook-class-name: airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook

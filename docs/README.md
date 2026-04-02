@@ -79,7 +79,7 @@ There are a few repositories under `apache` organization that are used to build 
 We have two S3 buckets where we can publish the documentation generated from the `apache-airflow` repository:
 
 * `s3://live-docs-airflow-apache-org/docs/` - live, [official documentation](https://airflow.apache.org/docs/)
-* `s3://staging-docs-airflow-apache-org/docs/` - staging documentation [official documentation](https://staging-airflow.apache.org/docs/)
+* `s3://staging-docs-airflow-apache-org/docs/` - staging documentation [official documentation](https://airflow.staged.apache.org/docs/)
 
 Note that those S3 buckets are not served directly to Apache Server, but they are served via Cloudfront
 in order to provide caching and automated resolution of folders into index.html files.

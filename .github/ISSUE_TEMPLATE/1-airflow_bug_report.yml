@@ -25,40 +25,38 @@ body:
         [Security Reporting Guidelines](https://github.com/apache/airflow/blob/main/.github/SECURITY.md)
         instead.
         <br clear='left'/>"
-      # yamllint enable rule:line-length
-  - type: dropdown
+  - type: input
     attributes:
       label: Apache Airflow version
       description: >
-        Select your Airflow version.
+        Enter your Airflow version.
         **Please note:** Airflow 2.x is in limited support (critical and security fixes only), and reaches
         EOL on April 22, 2026 - see the
         [Airflow 2 EOL page]
         (https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html)
         for more information.
-      multiple: false
-      options:
-        - "3.1.8"
-        - "2.11.X"
-        - "main (development)"
-        - "Other Airflow 3 version (please specify below)"
+        Remember, you are encouraged to test with the latest release or on the `main` branch to verify your issue still exists, especially if
+        your version is at least a minor version older than the [current stable release](https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html#version-life-cycle).
+    # yamllint enable rule:line-length
+      placeholder: Run `airflow version` and paste the output here
     validations:
       required: true
-  - type: input
-    attributes:
-      label: If "Other Airflow 3 version" selected, which one?
-      # yamllint disable rule:line-length
-      description: >
-        On what 3.X version of Airflow are you currently experiencing the issue? Remember, you are encouraged to
-        test with the latest release or on the `main` branch to verify your issue still exists, especially if
-        your version is at least a minor version older than the [current stable release](https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html#version-life-cycle).
-      # yamllint enable rule:line-length
   - type: textarea
     attributes:
-      label: What happened?
-      description: Describe what happened.
+      label: What happened and how to reproduce it?
+      description: >
+        Describe what happened and please make sure you provide a
+        reproducible step-by-step case of how to reproduce the problem as
+        minimally and precisely as possible.
       placeholder: >
-        Please provide the context in which the problem occurred and explain what happened
+        Please provide the context in which the problem occurred and keep
+        in mind we do not have access to your cluster or DAGs. Remember that
+        non-reproducible issues will be closed! Opening a discussion is
+        recommended as a first step. Feel free to use the following template:
+        **Issue Description **
+        < describe your issue >
+        **Steps to reproduce:**
+        < detailed steps to reproduce >
     validations:
       required: true
   - type: textarea
@@ -70,26 +68,11 @@ body:
         the fragment of logs showing the exact error messages or wrong behaviour and screenshots for
         UI problems or YouTube link to a video of you demonstrating the problem. You can include files by
         dragging and dropping them here.
-  - type: textarea
-    attributes:
-      label: How to reproduce
-      description: >
-        What should we do to reproduce the problem? If you are not able to provide a reproducible case,
-        please open a [discussion](https://github.com/apache/airflow/discussions) instead.
-      placeholder: >
-        Please make sure you provide a reproducible step-by-step case of how to reproduce the problem
-        as minimally and precisely as possible. Keep in mind we do not have access to your cluster or DAGs.
-        Remember that non-reproducible issues will be closed! Opening a discussion is recommended as a
-        first step.
-    validations:
-      required: true
   - type: input
     attributes:
       label: Operating System
       description: What Operating System are you using?
       placeholder: "You can get it via `cat /etc/os-release` for example"
-    validations:
-      required: true
   - type: textarea
     attributes:
       label: Versions of Apache Airflow Providers
@@ -113,8 +96,6 @@ body:
         - "Amazon (AWS) MWAA"
         - "Microsoft ADF Managed Airflow"
         - "Other"
-    validations:
-      required: true
   - type: textarea
     attributes:
       label: Deployment details

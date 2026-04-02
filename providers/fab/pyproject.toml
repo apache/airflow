@@ -25,14 +25,14 @@ requires = [
     "packaging==26.0",
     "pathspec==1.0.4",
     "pluggy==1.6.0",
-    "tomli==2.4.0; python_version < '3.11'",
+    "tomli==2.4.1; python_version < '3.11'",
     "trove-classifiers==2026.1.14.14",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-fab"
-version = "3.5.0"
+version = "3.6.0"
 description = "Provider package apache-airflow-providers-fab for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -103,6 +103,14 @@ dependencies = [
 "kerberos" = [
     "kerberos>=1.3.0",
 ]
+"oauth" = [
+    # authlib is required by the FAB security manager when AUTH_OAUTH is enabled.
+    # It is used for OAuth provider registration (authlib.integrations.flask_client.OAuth)
+    # and JWT validation (authlib.jose.JsonWebKey / authlib.jose.jwt).
+    # flask-appbuilder ships authlib as its own optional [oauth] extra; we expose it
+    # here so that ``pip install apache-airflow-providers-fab[oauth]`` pulls it in.
+    "authlib>=1.0.0",
+]
 
 [dependency-groups]
 dev = [
@@ -113,6 +121,7 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "kerberos>=1.3.0",
     "requests_kerberos>=0.14.0",
+    "authlib>=1.0.0",
 ]
 
 # To build docs:
@@ -141,8 +150,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.5.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.5.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-fab/3.6.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

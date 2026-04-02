@@ -47,7 +47,7 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComResponse,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
@@ -161,7 +161,7 @@ class TestClient:
 
         err = exc_info.value
         assert err.args == ("Server returned error",)
-        assert err.detail == {"detail": {"message": "Invalid input"}}
+        assert err.detail == {"message": "Invalid input"}
 
         # Check that the error is picklable
         pickled = pickle.dumps(err)
@@ -171,7 +171,7 @@ class TestClient:
 
         # Test that unpickled error has the same attributes as the original
         assert unpickled.response.json() == {"detail": {"message": "Invalid input"}}
-        assert unpickled.detail == {"detail": {"message": "Invalid input"}}
+        assert unpickled.detail == {"message": "Invalid input"}
         assert unpickled.response.status_code == 404
         assert unpickled.request.url == "http://error"
 
@@ -332,6 +332,53 @@ class TestTaskInstanceOperations:
             resp = client.task_instances.start(ti_id, 100, start_date)
             assert resp == ti_context
             assert call_count == 3
+
+    def test_task_instance_start_already_running(self):
+        """Test that start() raises TaskAlreadyRunningError when TI is already running."""
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(
+                    409,
+                    json={
+                        "detail": {
+                            "reason": "invalid_state",
+                            "message": "TI was not in a state where it could be marked as running",
+                            "previous_state": "running",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(TaskAlreadyRunningError, match="already running"):
+            client.task_instances.start(ti_id, 100, datetime(2024, 10, 31, tzinfo=timezone.utc))
+
+    @pytest.mark.parametrize("previous_state", ["failed", "success", "skipped"])
+    def test_task_instance_start_other_invalid_states(self, previous_state):
+        """Test that start() raises ServerResponseError for non-running invalid states."""
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(
+                    409,
+                    json={
+                        "detail": {
+                            "reason": "invalid_state",
+                            "message": "TI was not in a state where it could be marked as running",
+                            "previous_state": previous_state,
+                        }
+                    },
+                )
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError):
+            client.task_instances.start(ti_id, 100, datetime(2024, 10, 31, tzinfo=timezone.utc))
 
     @pytest.mark.parametrize(
         "state", [state for state in TerminalTIState if state != TerminalTIState.SUCCESS]
@@ -1627,10 +1674,8 @@ class TestDagsOperations:
 
         assert exc_info.value.response.status_code == 404
         assert exc_info.value.detail == {
-            "detail": {
-                "message": "The Dag with dag_id: `missing_dag` was not found",
-                "reason": "not_found",
-            }
+            "message": "The Dag with dag_id: `missing_dag` was not found",
+            "reason": "not_found",
         }
 
     def test_get_server_error(self):

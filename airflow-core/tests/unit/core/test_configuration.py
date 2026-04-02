@@ -45,7 +45,13 @@ from airflow.configuration import (
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import (
+    CFG_FALLBACK_CONFIG_OPTIONS,
+    PROVIDER_METADATA_CONFIG_OPTIONS,
+    PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK,
+    conf_vars,
+    create_fresh_airflow_config,
+)
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
 from unit.utils.test_config import (
@@ -64,6 +70,9 @@ conf.deprecated_options[("scheduler", "parsing_cleanup_interval")] = (
     "deactivate_stale_dags_interval",
     "2.5.0",
 )
+# Invalidate cached properties that depend on deprecated_options, since they may have been
+# computed during airflow initialization before the entries above were added.
+conf.invalidate_cache()
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -1873,50 +1882,182 @@ def test_sensitive_values():
 
 
 @skip_if_force_lowest_dependencies_marker
-def test_restore_and_reload_provider_configuration():
+def test_provider_configuration_toggle_with_context_manager():
+    """Test that make_sure_configuration_loaded toggles provider config on/off."""
     from airflow.settings import conf
 
-    assert conf.providers_configuration_loaded is True
+    assert conf._use_providers_configuration is True
+    # With providers enabled, the provider value is returned via the fallback lookup chain.
     assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
-    conf.restore_core_default_configuration()
-    assert conf.providers_configuration_loaded is False
-    # built-in pre-2-7 celery executor
-    assert conf.get("celery", "celery_app_name") == "airflow.executors.celery_executor"
-    conf.load_providers_configuration()
-    assert conf.providers_configuration_loaded is True
+
+    with conf.make_sure_configuration_loaded(with_providers=False):
+        assert conf._use_providers_configuration is False
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape("section/key [celery/celery_app_name] not found in config"),
+        ):
+            conf.get("celery", "celery_app_name")
+    # After the context manager exits, provider config is restored.
+    assert conf._use_providers_configuration is True
     assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
 
 
 @skip_if_force_lowest_dependencies_marker
-def test_error_when_contributing_to_existing_section():
+def test_provider_sections_do_not_overlap_with_core():
+    """Test that provider config sections don't overlap with core configuration sections."""
     from airflow.settings import conf
 
-    with conf.make_sure_configuration_loaded(with_providers=True):
-        assert conf.providers_configuration_loaded is True
-        assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
-        conf.restore_core_default_configuration()
-        assert conf.providers_configuration_loaded is False
-        conf.configuration_description["celery"] = {
-            "description": "Celery Executor configuration",
-            "options": {
-                "celery_app_name": {
-                    "default": "test",
-                }
-            },
-        }
-        conf._default_values.add_section("celery")
-        conf._default_values.set("celery", "celery_app_name", "test")
-        assert conf.get("celery", "celery_app_name") == "test"
-        # patching restoring_core_default_configuration to avoid reloading the defaults
-        with patch.object(conf, "restore_core_default_configuration"):
+    core_sections = set(conf._configuration_description.keys())
+    provider_sections = set(conf._provider_metadata_configuration_description.keys())
+    overlap = core_sections & provider_sections
+    assert not overlap, (
+        f"Provider configuration sections overlap with core sections: {overlap}. "
+        "Providers must only add new sections, not contribute to existing ones."
+    )
+
+
+@skip_if_force_lowest_dependencies_marker
+class TestProviderConfigPriority:
+    """Tests that conf.get and conf.has_option respect provider metadata and cfg fallbacks with correct priority."""
+
+    @pytest.mark.parametrize(
+        ("section", "option", "expected"),
+        PROVIDER_METADATA_CONFIG_OPTIONS,
+        ids=[f"{s}.{o}" for s, o, _ in PROVIDER_METADATA_CONFIG_OPTIONS],
+    )
+    def test_get_returns_provider_metadata_value(self, section, option, expected):
+        """conf.get returns provider metadata (provider.yaml) values."""
+        from airflow.settings import conf
+
+        assert conf.get(section, option) == expected
+
+    @pytest.mark.parametrize(
+        ("section", "option", "expected"),
+        CFG_FALLBACK_CONFIG_OPTIONS,
+        ids=[f"{s}.{o}" for s, o, _ in CFG_FALLBACK_CONFIG_OPTIONS],
+    )
+    def test_cfg_fallback_has_expected_value(self, section, option, expected):
+        """provider_config_fallback_defaults.cfg contains expected default values."""
+        from airflow.settings import conf
+
+        assert conf.get_from_provider_cfg_config_fallback_defaults(section, option) == expected
+
+    @pytest.mark.parametrize(
+        ("section", "option", "expected"),
+        PROVIDER_METADATA_CONFIG_OPTIONS,
+        ids=[f"{s}.{o}" for s, o, _ in PROVIDER_METADATA_CONFIG_OPTIONS],
+    )
+    def test_has_option_true_for_provider_metadata(self, section, option, expected):
+        """conf.has_option returns True for options defined in provider metadata."""
+        from airflow.settings import conf
+
+        assert conf.has_option(section, option) is True
+
+    @pytest.mark.parametrize(
+        ("section", "option", "expected"),
+        CFG_FALLBACK_CONFIG_OPTIONS,
+        ids=[f"{s}.{o}" for s, o, _ in CFG_FALLBACK_CONFIG_OPTIONS],
+    )
+    def test_has_option_true_for_cfg_fallback(self, section, option, expected):
+        """conf.has_option returns True for options in provider_config_fallback_defaults.cfg."""
+        from airflow.settings import conf
+
+        assert conf.has_option(section, option) is True
+
+    def test_has_option_false_for_nonexistent_option(self):
+        """conf.has_option returns False for options not in any source."""
+        from airflow.settings import conf
+
+        assert conf.has_option("celery", "totally_nonexistent_option_xyz") is False
+
+    @pytest.mark.parametrize(
+        ("section", "option", "metadata_value", "cfg_value"),
+        PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK,
+        ids=[f"{s}.{o}" for s, o, _, _ in PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK],
+    )
+    def test_provider_metadata_overrides_cfg_fallback(self, section, option, metadata_value, cfg_value):
+        """Provider metadata values take priority over provider_config_fallback_defaults.cfg values."""
+        from airflow.settings import conf
+
+        assert conf.get(section, option) == metadata_value
+        assert conf.get_from_provider_cfg_config_fallback_defaults(section, option) == cfg_value
+
+    @pytest.mark.parametrize(
+        ("section", "option", "metadata_value", "cfg_value"),
+        PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK,
+        ids=[f"{s}.{o}" for s, o, _, _ in PROVIDER_METADATA_OVERRIDES_CFG_FALLBACK],
+    )
+    def test_get_default_value_priority(self, section, option, metadata_value, cfg_value):
+        """get_default_value checks provider metadata before cfg fallback."""
+        from airflow.settings import conf
+
+        assert conf.get_default_value(section, option) == metadata_value
+
+    @pytest.mark.parametrize(
+        ("section", "option", "expected"),
+        CFG_FALLBACK_CONFIG_OPTIONS + PROVIDER_METADATA_CONFIG_OPTIONS,
+        ids=[f"{s}.{o}" for s, o, _ in CFG_FALLBACK_CONFIG_OPTIONS + PROVIDER_METADATA_CONFIG_OPTIONS],
+    )
+    def test_providers_disabled_dont_get_cfg_defaults_or_provider_metadata(self, section, option, expected):
+        """With providers disabled, conf.get raises for provider-only options."""
+        test_conf = create_fresh_airflow_config()
+        with test_conf.make_sure_configuration_loaded(with_providers=False):
             with pytest.raises(
                 AirflowConfigException,
-                match="The provider apache-airflow-providers-celery is attempting to contribute "
-                "configuration section celery that has already been added before. "
-                "The source of it: Airflow's core package",
+                match=re.escape(f"section/key [{section}/{option}] not found in config"),
             ):
-                conf.load_providers_configuration()
-        assert conf.get("celery", "celery_app_name") == "test"
+                test_conf.get(section, option)
+
+    def test_provider_section_absent_when_providers_disabled(self):
+        """Provider-contributed sections are excluded from configuration_description when providers disabled."""
+        test_conf = create_fresh_airflow_config()
+        with test_conf.make_sure_configuration_loaded(with_providers=False):
+            desc = test_conf.configuration_description
+            provider_only_sections = set(test_conf._provider_metadata_configuration_description.keys())
+            for section in provider_only_sections:
+                if section not in test_conf._configuration_description:
+                    assert section not in desc
+
+    @pytest.mark.parametrize(
+        ("section", "option", "expected"),
+        CFG_FALLBACK_CONFIG_OPTIONS,
+        ids=[f"{s}.{o}" for s, o, _ in CFG_FALLBACK_CONFIG_OPTIONS],
+    )
+    def test_has_option_returns_false_for_cfg_fallback_when_providers_disabled(
+        self, section, option, expected
+    ):
+        """With providers disabled, conf.has_option returns False for cfg-fallback-only options."""
+        test_conf = create_fresh_airflow_config()
+        with test_conf.make_sure_configuration_loaded(with_providers=False):
+            assert test_conf.has_option(section, option) is False
+
+    @pytest.mark.parametrize(
+        ("section", "option", "expected"),
+        PROVIDER_METADATA_CONFIG_OPTIONS,
+        ids=[f"{s}.{o}" for s, o, _ in PROVIDER_METADATA_CONFIG_OPTIONS],
+    )
+    def test_has_option_returns_false_for_provider_metadata_when_providers_disabled(
+        self, section, option, expected
+    ):
+        """With providers disabled, conf.has_option returns False for provider-metadata-only options."""
+        test_conf = create_fresh_airflow_config()
+        with test_conf.make_sure_configuration_loaded(with_providers=False):
+            assert test_conf.has_option(section, option) is False
+
+    def test_env_var_overrides_provider_values(self):
+        """Environment variables override both provider metadata and cfg fallback values."""
+        from airflow.settings import conf
+
+        with mock.patch.dict("os.environ", {"AIRFLOW__CELERY__CELERY_APP_NAME": "env_override"}):
+            assert conf.get("celery", "celery_app_name") == "env_override"
+
+    def test_user_config_overrides_provider_values(self):
+        """User-set config values (airflow.cfg) override provider defaults."""
+        from airflow.settings import conf
+
+        custom_value = "my_custom.celery_executor"
+        with conf_vars({("celery", "celery_app_name"): custom_value}):
+            assert conf.get("celery", "celery_app_name") == custom_value
 
 
 # Technically it's not a DB test, but we want to make sure it's not interfering with xdist non-db tests

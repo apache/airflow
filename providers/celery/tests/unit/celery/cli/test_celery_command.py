@@ -30,10 +30,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.configuration import conf
 from airflow.executors import executor_loader
 from airflow.providers.celery.cli import celery_command
 from airflow.providers.celery.cli.celery_command import _bundle_cleanup_main, _run_stale_bundle_cleanup
+from airflow.providers.common.compat.sdk import conf
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
@@ -142,6 +142,7 @@ class TestWorkerStart:
     @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations")
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @conf_vars({("celery", "pool"): "prefork"})
     def test_worker_started_with_required_arguments(self, mock_celery_app, mock_popen, mock_locations):
         pid_file = "pid_file"
         mock_locations.return_value = (pid_file, None, None, None)

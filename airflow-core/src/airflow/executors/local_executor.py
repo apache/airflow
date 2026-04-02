@@ -149,6 +149,7 @@ def _execute_work(log: Logger, workload: workloads.ExecuteTask, team_conf) -> No
         token=workload.token,
         server=team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
         log_path=workload.log_path,
+        subprocess_logs_to_stdout=True,
     )
 
 

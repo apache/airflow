@@ -345,6 +345,7 @@ def set_xcom(
         ),
     ] = None,
     map_index: Annotated[int, Query()] = -1,
+    dag_result: Annotated[bool, Query(description="Whether this XCom is a dag result")] = False,
     mapped_length: Annotated[
         int | None, Query(description="Number of mapped tasks this value expands into")
     ] = None,
@@ -397,6 +398,7 @@ def set_xcom(
             dag_id=dag_id,
             map_index=map_index,
             serialize=False,
+            dag_result=dag_result,
             session=session,
         )
     except ValueError as e:
