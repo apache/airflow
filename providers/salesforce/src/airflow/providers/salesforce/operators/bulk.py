@@ -124,7 +124,7 @@ class SalesforceBulkOperator(BaseOperator):
         obj = bulk.__getattr__(self.object_name)
         if self.operation == "upsert":
             return cast(
-                list,
+                "list",
                 obj.upsert(
                     data=payload,
                     external_id_field=self.external_id_field,
@@ -133,7 +133,7 @@ class SalesforceBulkOperator(BaseOperator):
                 ),
             )
         return cast(
-            list,
+            "list",
             getattr(obj, self.operation)(
                 data=payload,
                 batch_size=self.batch_size,
