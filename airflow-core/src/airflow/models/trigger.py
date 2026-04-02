@@ -477,13 +477,15 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
 
         next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
 
-    # Add event to the plain dict, then serialize everything together. This ensures that the event is properly
-    # nested inside __var__ in the final serde serialized structure.
+    # Add event to the plain dict, then serialize everything together so nested
+    # non-primitive values get proper serde encoding.
     if TYPE_CHECKING:
         assert isinstance(next_kwargs, dict)
     next_kwargs["event"] = event.payload
 
-    # re-serialize the entire dict using serde to ensure consistent structure
+    # Re-serialize using serde. The Execution API version converter
+    # (ModifyDeferredTaskKwargsToJsonValue) handles converting this to
+    # BaseSerialization format when serving old workers.
     task_instance.next_kwargs = serialize(next_kwargs)
 
     # Remove ourselves as its trigger
