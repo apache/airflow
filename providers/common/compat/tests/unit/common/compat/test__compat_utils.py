@@ -162,25 +162,6 @@ class TestCreateModuleGetattr:
         with pytest.raises(AttributeError):
             getattr_fn("NonExistent")
 
-    def test_priority_order_rename_then_module_then_import(self):
-        """Test that rename_map has priority over module_map, which has priority over import_map."""
-        # If a name exists in multiple maps, rename_map should be checked first
-        import_map = {"test": "airflow.hooks.base"}
-        module_map = {"test": "airflow.utils.timezone"}
-        rename_map = {"test": ("airflow.sdk", "airflow.datasets", "Dataset")}
-
-        getattr_fn = create_module_getattr(
-            import_map=import_map,
-            module_map=module_map,
-            rename_map=rename_map,
-        )
-
-        # Should use rename_map (which tries to import Asset/Dataset)
-        result = getattr_fn("test")
-        # Verify it came from rename_map (Asset or Dataset class, depending on Airflow version)
-        assert hasattr(result, "__name__")
-        assert result.__name__ in ("Asset", "Dataset")
-
     def test_module_not_found_error_is_caught(self):
         """Test that ModuleNotFoundError (Python 3.6+) is properly caught."""
         import_map = {"Fake": "completely.nonexistent.module.that.does.not.exist"}

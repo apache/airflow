@@ -30,6 +30,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow import settings
+from airflow._shared.template_rendering import truncate_rendered_value
 from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
 from airflow.models import DagRun
@@ -124,13 +125,14 @@ class TestRenderedTaskInstanceFields:
             pytest.param(datetime(2018, 12, 6, 10, 55), "2018-12-06 10:55:00+00:00", id="datetime"),
             pytest.param(
                 "a" * 5000,
-                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {('a' * 5000)[: max_length - 79]!r}... ",
+                truncate_rendered_value("a" * 5000, conf.getint("core", "max_templated_field_length")),
                 id="large_string",
             ),
             pytest.param(
                 LargeStrObject(),
-                f"Truncated. You can change this behaviour in "
-                f"[core]max_templated_field_length. {str(LargeStrObject())[: max_length - 79]!r}... ",
+                truncate_rendered_value(
+                    str(LargeStrObject()), conf.getint("core", "max_templated_field_length")
+                ),
                 id="large_object",
             ),
         ],

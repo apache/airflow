@@ -21,9 +21,8 @@ import hashlib
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import String, inspect, select
+from sqlalchemy import String, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column
-from sqlalchemy.orm.attributes import NO_VALUE
 
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
@@ -46,60 +45,73 @@ class DBDagBag:
     """
 
     def __init__(self, load_op_links: bool = True) -> None:
-        self._dags: dict[UUID, SerializedDAG] = {}  # dag_version_id to dag
+        self._dags: dict[UUID, SerializedDagModel] = {}  # dag_version_id to dag
         self.load_op_links = load_op_links
 
-    def _read_dag(self, serdag: SerializedDagModel) -> SerializedDAG | None:
-        serdag.load_op_links = self.load_op_links
-        if dag := serdag.dag:
-            self._dags[serdag.dag_version_id] = dag
+    def _read_dag(self, serialized_dag_model: SerializedDagModel) -> SerializedDAG | None:
+        serialized_dag_model.load_op_links = self.load_op_links
+        if dag := serialized_dag_model.dag:
+            self._dags[serialized_dag_model.dag_version_id] = serialized_dag_model
         return dag
 
-    def _get_dag(self, version_id: UUID, session: Session) -> SerializedDAG | None:
-        if dag := self._dags.get(version_id):
-            return dag
-        dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
-        if not dag_version:
-            return None
-        if not (serdag := dag_version.serialized_dag):
-            return None
-        return self._read_dag(serdag)
+    def get_serialized_dag_model(self, version_id: UUID, session: Session) -> SerializedDagModel | None:
+        """
+        Return the SerializedDagModel for a given dag version id.
+
+        This will first consult the in-memory cache keyed by the dag version id. If the
+        model is not cached, the database is queried for a corresponding :class:`DagVersion`
+        and its associated :class:`SerializedDagModel`.
+
+        :param version_id: The UUID of the dag version to look up.
+        :param session: SQLAlchemy session used to query the database.
+        :return: The serialized DAG model if found either in the cache or the database; ``None``
+                 is returned when no :class:`DagVersion` exists for the given ``version_id`` or
+                 when that :class:`DagVersion` does not have an associated :class:`SerializedDagModel`.
+        :rtype: SerializedDagModel | None
+
+        Note: If a serialized dag model is found in the database it will be stored in the
+        internal cache (``self._dags``) before being returned.
+        """
+        if not (serialized_dag_model := self._dags.get(version_id)):
+            dag_version = session.get(DagVersion, version_id, options=[joinedload(DagVersion.serialized_dag)])
+            if not dag_version or not (serialized_dag_model := dag_version.serialized_dag):
+                return None
+            self._read_dag(serialized_dag_model)
+        return serialized_dag_model
+
+    def get_dag(self, version_id: UUID, session: Session) -> SerializedDAG | None:
+        if serialized_dag_model := self.get_serialized_dag_model(version_id=version_id, session=session):
+            return serialized_dag_model.dag
+        return None
 
     @staticmethod
-    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion | None:
+    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> UUID | None:
         if not dag_run.bundle_version:
             if dag_version := DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session):
-                return dag_version
+                return dag_version.id
 
-        # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
-        info: Any = inspect(dag_run)
-        if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
-            # Relationship is already loaded, safe to access
-            return dag_run.created_dag_version
-
-        # Relationship not loaded, fetch it explicitly from current session
-        return session.get(DagVersion, dag_run.created_dag_version_id)
+        return dag_run.created_dag_version_id
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> SerializedDAG | None:
-        if version := self._version_from_dag_run(dag_run=dag_run, session=session):
-            return self._get_dag(version_id=version.id, session=session)
+        if version_id := self._version_from_dag_run(dag_run=dag_run, session=session):
+            return self.get_dag(version_id=version_id, session=session)
         return None
 
     def iter_all_latest_version_dags(self, *, session: Session) -> Generator[SerializedDAG, None, None]:
         """Walk through all latest version dags available in the database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        for sdm in session.scalars(select(SerializedDagModel)):
-            if dag := self._read_dag(sdm):
+        for serialized_dag_model in session.scalars(select(SerializedDagModel)):
+            if dag := self._read_dag(serialized_dag_model):
                 yield dag
 
     def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> SerializedDAG | None:
         """Get the latest version of a dag by its id."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        if not (serdag := SerializedDagModel.get(dag_id, session=session)):
+        if not (serialized_dag_model := SerializedDagModel.get(dag_id, session=session)):
             return None
-        return self._read_dag(serdag)
+        return self._read_dag(serialized_dag_model)
 
 
 def generate_md5_hash(context):

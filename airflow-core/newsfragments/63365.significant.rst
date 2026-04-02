@@ -1,0 +1,9 @@
+Structured JSON logging for all API server output
+
+The new ``json_logs`` option under the ``[logging]`` section makes Airflow
+produce all its output as newline-delimited JSON (structured logs) instead of
+human-readable formatted logs. This covers the API server (gunicorn/uvicorn),
+including access logs, warnings, and unhandled exceptions.
+
+Not all components support this yet — notably ``airflow celery worker`` but
+any non-JSON output when ``json_logs`` is enabled will be treated as a bug.

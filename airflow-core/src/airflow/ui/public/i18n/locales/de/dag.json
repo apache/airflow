@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "Auf Letzten zurücksetzen",
       "toggleGroup": "Gruppen umschalten"
-    }
+    },
+    "runTypeLegend": "Legende für Lauf-Typen"
   },
   "header": {
     "buttons": {
@@ -120,6 +121,15 @@
     },
     "graphDirection": {
       "label": "Richtung des Graph"
+    },
+    "showVersionIndicator": {
+      "label": "Versionsindikator anzeigen",
+      "options": {
+        "hideAll": "Alle ausblenden",
+        "showAll": "Alle anzeigen",
+        "showBundleVersion": "Bündelversion anzeigen",
+        "showDagVersion": "Dag-Version anzeigen"
+      }
     },
     "taskStreamFilter": {
       "activeFilter": "Aktiver Filter",

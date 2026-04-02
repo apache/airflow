@@ -21,7 +21,7 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeGuard
+from typing import TYPE_CHECKING, Any, Literal, TypeGuard
 
 import attrs
 import methodtools
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
-    from airflow.task.priority_strategy import PriorityWeightStrategy
+    from airflow.sdk.types import WeightRuleParam
     from airflow.triggers.base import StartTriggerArgs
 
 ValidationSource = Literal["expand"] | Literal["partial"]
@@ -214,8 +214,8 @@ class OperatorPartial:
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
-        from airflow.providers.standard.utils.skipmixin import SkipMixin
         from airflow.sdk import BaseSensorOperator
+        from airflow.sdk.bases.skipmixin import SkipMixin
 
         self._expand_called = True
         ensure_xcomarg_return_value(expand_input.value)
@@ -226,6 +226,16 @@ class OperatorPartial:
         task_group = partial_kwargs.pop("task_group")
         start_date = partial_kwargs.pop("start_date", None)
         end_date = partial_kwargs.pop("end_date", None)
+        start_from_trigger = (
+            partial_kwargs["start_from_trigger"]
+            if "start_from_trigger" in partial_kwargs
+            else getattr(self.operator_class, "start_from_trigger", False)
+        )
+        start_trigger_args = (
+            partial_kwargs["start_trigger_args"]
+            if "start_trigger_args" in partial_kwargs
+            else getattr(self.operator_class, "start_trigger_args", None)
+        )
 
         try:
             operator_name = self.operator_class.custom_operator_name  # type: ignore
@@ -259,8 +269,8 @@ class OperatorPartial:
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
             # TODO: Move these to task SDK's BaseOperator and remove getattr
-            start_trigger_args=getattr(self.operator_class, "start_trigger_args", None),
-            start_from_trigger=bool(getattr(self.operator_class, "start_from_trigger", False)),
+            start_trigger_args=start_trigger_args,
+            start_from_trigger=start_from_trigger,
         )
         return op
 
@@ -324,10 +334,6 @@ class MappedOperator(AbstractOperator):
 
     This should be a name to call ``getattr()`` on.
     """
-
-    HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
-        ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
-    )
 
     def __hash__(self):
         return id(self)
@@ -555,11 +561,11 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["priority_weight"] = value
 
     @property
-    def weight_rule(self) -> PriorityWeightStrategy:
+    def weight_rule(self) -> WeightRuleParam:
         return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
 
     @weight_rule.setter
-    def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
+    def weight_rule(self, value: WeightRuleParam) -> None:
         self.partial_kwargs["weight_rule"] = value
 
     @property

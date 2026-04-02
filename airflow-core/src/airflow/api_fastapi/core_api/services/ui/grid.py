@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable
+from typing import Any
 
 import structlog
 
@@ -32,15 +33,22 @@ from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 log = structlog.get_logger(logger_name=__name__)
 
 
-def _merge_node_dicts(current, new) -> None:
+def _merge_node_dicts(current: list[dict[str, Any]], new: list[dict[str, Any]] | None) -> None:
+    """Merge node dictionaries from different DAG versions, handling structure changes."""
+    # Handle None case - can occur when merging old DAG versions
+    # where a TaskGroup was converted to a task or vice versa
+    if new is None:
+        return
+
     current_nodes_by_id = {node["id"]: node for node in current}
     for node in new:
         node_id = node["id"]
         current_node = current_nodes_by_id.get(node_id)
         if current_node is not None:
-            # if we have children, merge those as well
-            if current_node.get("children"):
-                _merge_node_dicts(current_node["children"], node.get("children", []))
+            # Only merge children if current node already has children
+            # This preserves the structure of the latest DAG version
+            if current_node.get("children") is not None:
+                _merge_node_dicts(current_node["children"], node.get("children"))
         else:
             current.append(node)
             current_nodes_by_id[node_id] = node
@@ -64,11 +72,18 @@ def _get_aggs_for_node(detail):
         max_end_date = max(x["end_date"] for x in detail if x["end_date"])
     except ValueError:
         max_end_date = None
+
+    dag_version_numbers = [
+        x.get("dag_version_number") for x in detail if x.get("dag_version_number") is not None
+    ]
+    dag_version_number = max(dag_version_numbers) if dag_version_numbers else None
+
     return {
         "state": agg_state(states),
         "min_start_date": min_start_date,
         "max_end_date": max_end_date,
         "child_states": dict(Counter(states)),
+        "dag_version_number": dag_version_number,
     }
 
 

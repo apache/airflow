@@ -27,6 +27,53 @@
 Changelog
 ---------
 
+9.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add return value to Slack operators for XCom (#63397)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate 'thread_ts' requires single channel in 'SlackAPIFileOperator' (#63523)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
+9.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add thread_ts parameter to Slack operators for thread replies (#62289)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add display_filename parameter to SlackAPIFileOperator (#62112)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``[Part 3] Migrate connection UI metadata to YAML for more providers (#62165)``
+
 9.6.2
 .....
 

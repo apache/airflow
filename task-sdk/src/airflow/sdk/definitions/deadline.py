@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import logging
+from abc import ABC
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
-from airflow.sdk.definitions.callback import AsyncCallback, Callback
+from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -29,7 +30,111 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-DeadlineReferenceTypes: TypeAlias = tuple[type[ReferenceModels.BaseDeadlineReference], ...]
+# Field name used in serialization - must be in sync with SerializedReferenceModels.REFERENCE_TYPE_FIELD
+REFERENCE_TYPE_FIELD = "reference_type"
+
+
+class BaseDeadlineReference(ABC):
+    """
+    Base class for all Deadline Reference implementations.
+
+    This is a lightweight SDK class for DAG authoring. It only handles serialization.
+    The actual evaluation logic (_evaluate_with) is in Core's SerializedReferenceModels.
+
+    For custom deadline references, users should inherit from this class and implement
+    _evaluate_with() with deferred Core imports (imports inside the method body).
+    """
+
+    @property
+    def reference_name(self) -> str:
+        """Return the class name as the reference identifier."""
+        return self.__class__.__name__
+
+    def serialize_reference(self) -> dict[str, Any]:
+        """
+        Serialize this reference type into a dictionary representation.
+
+        Override this method in subclasses if additional data is needed for serialization.
+        """
+        return {REFERENCE_TYPE_FIELD: self.reference_name}
+
+    @classmethod
+    def deserialize_reference(cls, reference_data: dict[str, Any]) -> BaseDeadlineReference:
+        """
+        Deserialize a reference type from its dictionary representation.
+
+        :param reference_data: Dictionary containing serialized reference data.
+        """
+        return cls()
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, BaseDeadlineReference):
+            return NotImplemented
+        return self.serialize_reference() == other.serialize_reference()
+
+    def __hash__(self) -> int:
+        return hash(frozenset(self.serialize_reference().items()))
+
+
+class DagRunLogicalDateDeadline(BaseDeadlineReference):
+    """A deadline that returns a DagRun's logical date."""
+
+
+class DagRunQueuedAtDeadline(BaseDeadlineReference):
+    """A deadline that returns when a DagRun was queued."""
+
+
+@dataclass
+class FixedDatetimeDeadline(BaseDeadlineReference):
+    """A deadline that always returns a fixed datetime."""
+
+    _datetime: datetime
+
+    def serialize_reference(self) -> dict[str, Any]:
+        return {
+            REFERENCE_TYPE_FIELD: self.reference_name,
+            "datetime": self._datetime.timestamp(),
+        }
+
+    @classmethod
+    def deserialize_reference(cls, reference_data: dict[str, Any]) -> FixedDatetimeDeadline:
+        from airflow._shared.timezones import timezone
+
+        return cls(_datetime=timezone.from_timestamp(reference_data["datetime"]))
+
+
+@dataclass
+class AverageRuntimeDeadline(BaseDeadlineReference):
+    """A deadline that calculates the average runtime from past DAG runs."""
+
+    DEFAULT_LIMIT = 10
+    max_runs: int
+    min_runs: int | None = None
+
+    def __post_init__(self):
+        if self.min_runs is None:
+            self.min_runs = self.max_runs
+        if self.min_runs < 1:
+            raise ValueError("min_runs must be at least 1")
+
+    def serialize_reference(self) -> dict[str, Any]:
+        return {
+            REFERENCE_TYPE_FIELD: self.reference_name,
+            "max_runs": self.max_runs,
+            "min_runs": self.min_runs,
+        }
+
+    @classmethod
+    def deserialize_reference(cls, reference_data: dict[str, Any]) -> AverageRuntimeDeadline:
+        max_runs = reference_data.get("max_runs", cls.DEFAULT_LIMIT)
+        min_runs = reference_data.get("min_runs", max_runs)
+        if min_runs < 1:
+            raise ValueError("min_runs must be at least 1")
+        return cls(max_runs=max_runs, min_runs=min_runs)
+
+
+DeadlineReferenceType: TypeAlias = BaseDeadlineReference
+DeadlineReferenceTypes: TypeAlias = tuple[type[BaseDeadlineReference], ...]
 
 
 class DeadlineAlert:
@@ -44,7 +149,7 @@ class DeadlineAlert:
         self.reference = reference
         self.interval = interval
 
-        if not isinstance(callback, AsyncCallback):
+        if not isinstance(callback, (AsyncCallback, SyncCallback)):
             raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
         self.callback = callback
 
@@ -118,33 +223,31 @@ class DeadlineReference:
 
         # Deadlines that should be created when the DagRun is created.
         DAGRUN_CREATED: DeadlineReferenceTypes = (
-            ReferenceModels.DagRunLogicalDateDeadline,
-            ReferenceModels.FixedDatetimeDeadline,
-            ReferenceModels.AverageRuntimeDeadline,
+            DagRunLogicalDateDeadline,
+            FixedDatetimeDeadline,
+            AverageRuntimeDeadline,
         )
 
         # Deadlines that should be created when the DagRun is queued.
-        DAGRUN_QUEUED: DeadlineReferenceTypes = (ReferenceModels.DagRunQueuedAtDeadline,)
+        DAGRUN_QUEUED: DeadlineReferenceTypes = (DagRunQueuedAtDeadline,)
 
         # All DagRun-related deadline types.
         DAGRUN: DeadlineReferenceTypes = DAGRUN_CREATED + DAGRUN_QUEUED
 
-    from airflow.models.deadline import ReferenceModels
-
-    DAGRUN_LOGICAL_DATE: DeadlineReferenceType = ReferenceModels.DagRunLogicalDateDeadline()
-    DAGRUN_QUEUED_AT: DeadlineReferenceType = ReferenceModels.DagRunQueuedAtDeadline()
+    DAGRUN_LOGICAL_DATE: DeadlineReferenceType = DagRunLogicalDateDeadline()
+    DAGRUN_QUEUED_AT: DeadlineReferenceType = DagRunQueuedAtDeadline()
 
     @classmethod
     def AVERAGE_RUNTIME(cls, max_runs: int = 0, min_runs: int | None = None) -> DeadlineReferenceType:
         if max_runs == 0:
-            max_runs = cls.ReferenceModels.AverageRuntimeDeadline.DEFAULT_LIMIT
+            max_runs = AverageRuntimeDeadline.DEFAULT_LIMIT
         if min_runs is None:
             min_runs = max_runs
-        return cls.ReferenceModels.AverageRuntimeDeadline(max_runs, min_runs)
+        return AverageRuntimeDeadline(max_runs, min_runs)
 
     @classmethod
-    def FIXED_DATETIME(cls, datetime: datetime) -> DeadlineReferenceType:
-        return cls.ReferenceModels.FixedDatetimeDeadline(datetime)
+    def FIXED_DATETIME(cls, dt: datetime) -> DeadlineReferenceType:
+        return FixedDatetimeDeadline(dt)
 
     # TODO: Remove this once other deadline types exist.
     #   This is a temporary reference type used only in tests to verify that
@@ -152,16 +255,16 @@ class DeadlineReference:
     #   It should be replaced with a real non-dagrun deadline type when one is available.
     _TEMPORARY_TEST_REFERENCE = type(
         "TemporaryTestDeadlineForTypeChecking",
-        (DeadlineReferenceType,),
-        {"_evaluate_with": lambda self, **kwargs: datetime.now()},
+        (BaseDeadlineReference,),
+        {"serialize_reference": lambda self: {REFERENCE_TYPE_FIELD: "TemporaryTestDeadlineForTypeChecking"}},
     )()
 
     @classmethod
     def register_custom_reference(
         cls,
-        reference_class: type[ReferenceModels.BaseDeadlineReference],
+        reference_class: type[BaseDeadlineReference],
         deadline_reference_type: DeadlineReferenceTypes | None = None,
-    ) -> type[ReferenceModels.BaseDeadlineReference]:
+    ) -> type[BaseDeadlineReference]:
         """
         Register a custom deadline reference class.
 
@@ -169,18 +272,18 @@ class DeadlineReference:
         :param deadline_reference_type: A DeadlineReference.TYPES for when the deadline should be evaluated ("DAGRUN_CREATED",
             "DAGRUN_QUEUED", etc.); defaults to DeadlineReference.TYPES.DAGRUN_CREATED
         """
-        from airflow.models.deadline import ReferenceModels
-
         # Default to DAGRUN_CREATED if no deadline_reference_type specified
         if deadline_reference_type is None:
             deadline_reference_type = cls.TYPES.DAGRUN_CREATED
 
         # Validate the reference class inherits from BaseDeadlineReference
-        if not issubclass(reference_class, ReferenceModels.BaseDeadlineReference):
+        # Accept both sdk and core base classes for backward compatibility for now
+        from airflow.models.deadline import ReferenceModels
+
+        if not issubclass(reference_class, (BaseDeadlineReference, ReferenceModels.BaseDeadlineReference)):
             raise ValueError(f"{reference_class.__name__} must inherit from BaseDeadlineReference")
 
-        # Register the new reference with ReferenceModels and DeadlineReference for discoverability
-        setattr(ReferenceModels, reference_class.__name__, reference_class)
+        # Register the new reference with DeadlineReference for discoverability
         setattr(cls, reference_class.__name__, reference_class())
         logger.info("Registered DeadlineReference %s", reference_class.__name__)
 
@@ -203,29 +306,36 @@ class DeadlineReference:
 
 def deadline_reference(
     deadline_reference_type: DeadlineReferenceTypes | None = None,
-) -> Callable[[type[ReferenceModels.BaseDeadlineReference]], type[ReferenceModels.BaseDeadlineReference]]:
+) -> Callable[[type[BaseDeadlineReference]], type[BaseDeadlineReference]]:
     """
     Decorate a class to register a custom deadline reference.
 
     Usage:
         @deadline_reference()
-        class MyCustomReference(ReferenceModels.BaseDeadlineReference):
+        class MyCustomReference(BaseDeadlineReference):
             # By default, evaluate_with will be called when a new dagrun is created.
             def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-                # Put your business logic here
+                # Put your business logic here (use deferred imports for Core types)
+                from airflow.models import DagRun
                 return some_datetime
 
+            def serialize_reference(self) -> dict:
+                return {"reference_type": self.reference_name}
+
         @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
-        class MyQueuedRef(ReferenceModels.BaseDeadlineReference):
+        class MyQueuedRef(BaseDeadlineReference):
             # Optionally, you can specify when you want it calculated by providing a DeadlineReference.TYPES
             def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
                  # Put your business logic here
                 return some_datetime
+
+            def serialize_reference(self) -> dict:
+                return {"reference_type": self.reference_name}
     """
 
     def decorator(
-        reference_class: type[ReferenceModels.BaseDeadlineReference],
-    ) -> type[ReferenceModels.BaseDeadlineReference]:
+        reference_class: type[BaseDeadlineReference],
+    ) -> type[BaseDeadlineReference]:
         DeadlineReference.register_custom_reference(reference_class, deadline_reference_type)
         return reference_class
 

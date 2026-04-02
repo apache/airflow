@@ -362,11 +362,10 @@ def create_artifacts_with_hatch(source_date_epoch: int):
     console_print("[info]Creating artifacts with hatch")
     shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
     AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
-    env_copy = os.environ.copy()
-    env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    hatch_env = {"SOURCE_DATE_EPOCH": str(source_date_epoch), "PATH": os.environ["PATH"]}
     # Build Airflow packages
     run_command(
-        ["hatch", "build", "-c", "-t", "custom", "-t", "sdist", "-t", "wheel"], check=True, env=env_copy
+        ["hatch", "build", "-c", "-t", "custom", "-t", "sdist", "-t", "wheel"], check=True, env=hatch_env
     )
     # Build Task SDK packages
     run_command(

@@ -31,6 +31,17 @@
                 "removed"
             ]
         },
+        "lifecycle": {
+            "description": "Provider lifecycle stage per AIP-95. New providers start in incubation, graduate to production, and may be marked mature (stable interface, exempt from activity-based deprecation) or deprecated.",
+            "type": "string",
+            "enum": [
+                "incubation",
+                "production",
+                "mature",
+                "deprecated"
+            ],
+            "default": "production"
+        },
         "build-system": {
             "description": "Build-system of provider: Defaults to flit_core but also can be hatchling.",
             "type": "string",
@@ -73,28 +84,35 @@
                         "type": "string"
                     },
                     "tags": {
-                        "description": "List of tags describing the integration. While we're using RST, only one tag is supported per integration.",
+                        "description": "List of tags describing the integration.",
                         "type": "array",
                         "items": {
                             "type": "string",
                             "enum": [
+                                "ai",
+                                "ai-inference",
                                 "alibaba",
                                 "apache",
                                 "aws",
                                 "azure",
                                 "dbt",
+                                "embeddings",
                                 "gcp",
+                                "generative-ai",
                                 "gmp",
                                 "google",
                                 "kafka",
+                                "llm",
+                                "machine-learning",
+                                "openai",
                                 "protocol",
                                 "service",
                                 "software",
+                                "text-generation",
                                 "yandex"
                             ]
                         },
-                        "minItems": 1,
-                        "maxItems": 1
+                        "minItems": 1
                     }
                 },
                 "additionalProperties": false,
@@ -524,6 +542,13 @@
         "executors": {
             "type": "array",
             "description": "Executor class names",
+            "items": {
+                "type": "string"
+            }
+        },
+        "db-managers": {
+            "type": "array",
+            "description": "DB manager class names",
             "items": {
                 "type": "string"
             }

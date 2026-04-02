@@ -34,9 +34,6 @@ def minimal_app_for_auth_api():
         skip_all_except=[
             "init_appbuilder",
             "init_api_auth",
-            "init_api_auth_provider",
-            "init_api_connexion",
-            "init_api_error_handlers",
             "init_airflow_session_interface",
             "init_appbuilder_views",
         ]
@@ -44,10 +41,6 @@ def minimal_app_for_auth_api():
     def factory():
         with conf_vars(
             {
-                (
-                    "fab",
-                    "auth_backends",
-                ): "unit.fab.auth_manager.api_endpoints.remote_user_api_auth_backend,airflow.providers.fab.auth_manager.api.auth.backend.session",
                 (
                     "core",
                     "auth_manager",

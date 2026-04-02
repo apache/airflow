@@ -150,8 +150,6 @@ class GenericTransfer(BaseOperator):
         if self._rows_processor:
             rows = self._rows_processor(rows, **context)
 
-        self.log.info("Inserting %d rows into %s", len(rows), self.destination_conn_id)
-
         self.destination_hook.insert_rows(table=self.destination_table, rows=rows, **self.insert_args)
 
     def execute(self, context: Context):

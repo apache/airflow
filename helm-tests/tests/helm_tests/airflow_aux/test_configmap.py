@@ -50,23 +50,13 @@ class TestConfigmap:
         assert annotations.get("key") == "value"
         assert annotations.get("key-two") == "value-two"
 
-    @pytest.mark.parametrize(
-        ("af_version", "secret_key", "secret_key_name", "expected"),
-        [
-            ("3.0.0", None, None, False),
-            ("2.2.0", None, None, True),
-            ("2.2.0", "foo", None, False),
-            ("2.2.0", None, "foo", False),
-            ("2.1.3", None, None, False),
-            ("2.1.3", "foo", None, False),
-        ],
-    )
-    def test_default_airflow_local_settings(self, af_version, secret_key, secret_key_name, expected):
+    @pytest.mark.parametrize(("af_version", "expected"), [("3.0.0", False), ("2.11.0", True)])
+    def test_default_airflow_local_settings(self, af_version, expected):
         docs = render_chart(
             values={
                 "airflowVersion": af_version,
-                "webserverSecretKey": secret_key,
-                "webserverSecretKeySecretName": secret_key_name,
+                "webserverSecretKey": None,
+                "webserverSecretKeySecretName": None,
             },
             show_only=["templates/configmaps/configmap.yaml"],
         )
@@ -103,13 +93,12 @@ class TestConfigmap:
     @pytest.mark.parametrize(
         ("executor", "af_version", "should_be_created"),
         [
-            ("KubernetesExecutor", "1.10.11", False),
-            ("KubernetesExecutor", "1.10.12", True),
-            ("KubernetesExecutor", "2.0.0", True),
-            ("CeleryExecutor", "1.10.11", False),
-            ("CeleryExecutor", "2.0.0", False),
-            ("CeleryExecutor,KubernetesExecutor", "2.0.0", True),
-            ("CeleryExecutor,KubernetesExecutor", "1.10.11", False),
+            ("KubernetesExecutor", "2.11.0", True),
+            ("KubernetesExecutor", "3.0.0", True),
+            ("CeleryExecutor", "2.11.0", False),
+            ("CeleryExecutor", "3.0.0", False),
+            ("CeleryExecutor,KubernetesExecutor", "2.11.0", True),
+            ("CeleryExecutor,KubernetesExecutor", "3.0.0", True),
         ],
     )
     def test_pod_template_created(self, executor, af_version, should_be_created):
@@ -208,7 +197,7 @@ metadata:
     @pytest.mark.parametrize(
         ("airflow_version", "enabled"),
         [
-            ("2.10.4", False),
+            ("2.11.0", False),
             ("3.0.0", True),
         ],
     )
@@ -225,8 +214,8 @@ metadata:
     @pytest.mark.parametrize(
         ("airflow_version", "enabled"),
         [
-            ("2.10.4", False),
-            ("2.10.4", True),
+            ("2.11.0", False),
+            ("2.11.0", True),
             ("3.0.0", False),
             ("3.0.0", True),
         ],
@@ -254,7 +243,7 @@ metadata:
                 "http://release-name-api-server:8080/execution/",
             ),
             (
-                "2.9.0",
+                "2.11.0",
                 None,
                 None,
                 None,
@@ -302,7 +291,7 @@ metadata:
             assert f"\nexecution_api_server_url = {expected_execution_url}\n" in config
         else:
             assert "execution_api_server_url" not in config, (
-                "execution_api_server_url should not be set for Airflow 2.x versions"
+                "execution_api_server_url should not be set for Airflow 2.11 versions"
             )
 
     @pytest.mark.parametrize(

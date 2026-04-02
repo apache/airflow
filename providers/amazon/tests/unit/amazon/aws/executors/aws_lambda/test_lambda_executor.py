@@ -36,7 +36,7 @@ from airflow.version import version as airflow_version_str
 
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -1028,3 +1028,88 @@ class TestAwsLambdaExecutor:
             "Terminating Lambda executor. In-flight tasks cannot be stopped."
         )
         assert len(mock_executor.running_tasks) == 1
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+")
+    def test_team_config(self):
+        """Test that the executor uses team-specific configuration when provided via self.conf."""
+        from unittest.mock import patch
+
+        # Team name to be used throughout
+        team_name = "team_a"
+        # Patch environment to include two sets of configs for the Lambda executor. One that is related to a
+        # team and one that is not. Then we will create two executors (one with a team and one without) and
+        # ensure the correct configs are used.
+        config_overrides = [
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.FUNCTION_NAME}", "global-function"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.QUEUE_URL}", "global-queue-url"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.DLQ_URL}", "global-dlq-url"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.QUALIFIER}", "global-qualifier"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.REGION_NAME}", "us-west-1"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.AWS_CONN_ID}", "aws_default"),
+            (f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.MAX_INVOKE_ATTEMPTS}", "3"),
+            (
+                f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP}",
+                "False",
+            ),
+            # Team Config
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.FUNCTION_NAME}",
+                "team_a_function",
+            ),
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.QUEUE_URL}",
+                "team_a_queue_url",
+            ),
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.DLQ_URL}",
+                "team_a_dlq_url",
+            ),
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.QUALIFIER}",
+                "team_a_qualifier",
+            ),
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.REGION_NAME}",
+                "us-west-2",
+            ),
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.MAX_INVOKE_ATTEMPTS}",
+                "5",
+            ),
+            (
+                f"AIRFLOW__{team_name}___{CONFIG_GROUP_NAME}__{AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP}",
+                "True",
+            ),
+        ]
+        with patch("os.environ", {key.upper(): value for key, value in config_overrides}):
+            # Create a team-specific executor
+            team_executor = AwsLambdaExecutor(team_name=team_name)
+
+            assert team_executor.lambda_function_name == "team_a_function"
+            assert team_executor.sqs_queue_url == "team_a_queue_url"
+            assert team_executor.dlq_url == "team_a_dlq_url"
+            assert team_executor.qualifier == "team_a_qualifier"
+            assert team_executor.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.MAX_INVOKE_ATTEMPTS) == "5"
+            assert team_executor.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.REGION_NAME) == "us-west-2"
+            assert team_executor.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.AWS_CONN_ID) == "aws_default"
+            assert (
+                team_executor.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP)
+                == "True"
+            )
+
+            # Now create an executor without a team and ensure the global configs are used
+            global_executor = AwsLambdaExecutor()
+
+            assert global_executor.lambda_function_name == "global-function"
+            assert global_executor.sqs_queue_url == "global-queue-url"
+            assert global_executor.dlq_url == "global-dlq-url"
+            assert global_executor.qualifier == "global-qualifier"
+            assert global_executor.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.MAX_INVOKE_ATTEMPTS) == "3"
+            assert global_executor.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.REGION_NAME) == "us-west-1"
+            assert (
+                global_executor.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.AWS_CONN_ID) == "aws_default"
+            )
+            assert (
+                global_executor.conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP)
+                == "False"
+            )

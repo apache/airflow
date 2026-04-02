@@ -32,7 +32,6 @@ from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, 
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
-from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
@@ -226,16 +225,18 @@ class Connection(Base, LoggingMixin):
     def _parse_from_uri(self, uri: str):
         schemes_count_in_uri = uri.count("://")
         if schemes_count_in_uri > 2:
-            raise AirflowException(f"Invalid connection string: {uri}.")
+            raise AirflowException("Invalid connection string.")
         host_with_protocol = schemes_count_in_uri == 2
         uri_parts = urlsplit(uri)
-        conn_type = uri_parts.scheme
-        self.conn_type = self._normalize_conn_type(conn_type)
-        rest_of_the_url = uri.replace(f"{conn_type}://", ("" if host_with_protocol else "//"))
+        self._prenormalized_conn_type = uri_parts.scheme
+        self.conn_type = self._normalize_conn_type(self._prenormalized_conn_type)
+        rest_of_the_url = uri.replace(
+            f"{self._prenormalized_conn_type}://", ("" if host_with_protocol else "//")
+        )
         if host_with_protocol:
             uri_splits = rest_of_the_url.split("://", 1)
             if "@" in uri_splits[0] or ":" in uri_splits[0]:
-                raise AirflowException(f"Invalid connection string: {uri}.")
+                raise AirflowException("Invalid connection string.")
         uri_parts = urlsplit(rest_of_the_url)
         protocol = uri_parts.scheme if host_with_protocol else None
         host = _parse_netloc_to_hostname(uri_parts)
@@ -274,10 +275,11 @@ class Connection(Base, LoggingMixin):
 
         Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
         """
-        if self.conn_type and "_" in self.conn_type:
+        conn_type = getattr(self, "_prenormalized_conn_type", self.conn_type) or ""
+        if "_" in conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
-                self.conn_type,
+                conn_type,
             )
 
         if self.conn_type:
@@ -527,6 +529,8 @@ class Connection(Base, LoggingMixin):
                 if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
                     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
                 raise
+
+        from airflow.configuration import conf, ensure_secrets_loaded
 
         if team_name and not conf.getboolean("core", "multi_team"):
             raise ValueError(

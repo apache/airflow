@@ -20,6 +20,7 @@ import { useSearchParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
+import { tableSortKey } from "src/constants/localStorage";
 import { useConfig } from "src/queries/useConfig";
 
 import { searchParamsToState, stateToSearchParams } from "./searchParams";
@@ -30,10 +31,7 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
   const location = useLocation();
   const pageName = location.pathname;
 
-  const [sorting, setSorting] = useLocalStorage<TableState["sorting"]>(
-    `${pageName.replaceAll("/", "-").slice(1)}-table-sort`,
-    [],
-  );
+  const [sorting, setSorting] = useLocalStorage<TableState["sorting"]>(tableSortKey(pageName), []);
 
   const pageSize = useConfig("fallback_page_limit") as number;
 

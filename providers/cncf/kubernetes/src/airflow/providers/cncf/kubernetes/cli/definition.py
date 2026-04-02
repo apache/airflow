@@ -28,8 +28,8 @@ from airflow.cli.cli_config import (
     lazy_load_command,
     positive_int,
 )
-from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     import argparse
@@ -68,6 +68,12 @@ ARG_MIN_PENDING_MINUTES = Arg(
     ),
 )
 
+ARG_TEAM = Arg(
+    ("--team",),
+    default=None,
+    help="Team name for multi-team configuration. When set, team-specific config overrides are applied.",
+)
+
 # CLI Commands
 KUBERNETES_COMMANDS = (
     ActionCommand(
@@ -85,7 +91,7 @@ KUBERNETES_COMMANDS = (
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
         func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
-        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_COMPAT, ARG_OUTPUT_PATH, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_COMPAT, ARG_OUTPUT_PATH, ARG_TEAM, ARG_VERBOSE),
     ),
 )
 

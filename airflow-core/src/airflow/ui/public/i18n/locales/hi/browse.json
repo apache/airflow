@@ -12,11 +12,35 @@
     "title": "ऑडिट लॉग"
   },
   "xcom": {
+    "add": {
+      "error": "XCom जोड़ने में विफल",
+      "errorTitle": "त्रुटि",
+      "success": "XCom सफलतापूर्वक जोड़ा गया",
+      "successTitle": "XCom जोड़ा गया",
+      "title": "XCom जोड़ें"
+    },
     "columns": {
       "dag": "डैग",
       "key": "कुंजी",
       "value": "मान"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "XCom हटाने में विफल",
+      "errorTitle": "त्रुटि",
+      "success": "XCom सफलतापूर्वक हटा दिया गया",
+      "successTitle": "XCom हटा दिया गया",
+      "title": "XCom हटाएं",
+      "warning": "क्या आप वाकई इस XCom को हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।"
+    },
+    "edit": {
+      "error": "XCom अपडेट करने में विफल",
+      "errorTitle": "त्रुटि",
+      "success": "XCom सफलतापूर्वक अपडेट किया गया",
+      "successTitle": "XCom अपडेट किया गया",
+      "title": "XCom संपादित करें"
+    },
+    "key": "कुंजी",
+    "title": "XCom",
+    "value": "मान"
   }
 }

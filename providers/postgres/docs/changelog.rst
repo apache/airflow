@@ -27,6 +27,52 @@
 Changelog
 ---------
 
+6.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add validation for missing host and cluster/workgroup identifier in aws iam token retrieval (#61965)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+6.6.1
+.....
+
+Misc
+~~~~
+
+* ``Migrate postgres connection UI metadata to YAML (#62445)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add Hook Level Lineage to SQL hooks (#61535)``
+* ``Added validation for missing redshift connection host in postgres hook openlineage (#60918)``
+
+Misc
+~~~~
+
+* ``Bump min sqlalchemy version to 1.4.54 (#62299)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+
 6.5.4
 .....
 

@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-redis"
-version = "4.4.2"
+version = "4.4.3"
 description = "Provider package apache-airflow-providers-redis for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
@@ -107,8 +108,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-redis/4.4.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-redis/4.4.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-redis/4.4.3"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-redis/4.4.3/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -170,7 +170,8 @@ class HttpToGCSOperator(BaseOperator):
         """Create and return an GCSHook."""
         return GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list[str]:
+        """Return List of destination URIs (gs://bucket_name/object_name) for uploaded file."""
         self.log.info("Calling HTTP method")
         response = self.http_hook.run(
             endpoint=self.endpoint, data=self.data, headers=self.headers, extra_options=self.extra_options
@@ -191,3 +192,5 @@ class HttpToGCSOperator(BaseOperator):
             cache_control=self.cache_control,
             user_project=self.user_project,
         )
+
+        return [f"gs://{self.bucket_name}/{self.object_name}"]

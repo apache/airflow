@@ -179,7 +179,7 @@ class FileSyntaxError(NamedTuple):
     message: str
 
     def __str__(self):
-        return f"{self.message}. Line number: s{str(self.line_no)},"
+        return f"{self.message}. Line number: {str(self.line_no)},"
 
 
 class AirflowFileParseException(AirflowException):
@@ -295,6 +295,10 @@ class DeserializationError(Exception):
             super().__init__("Missing Dag ID in serialized Dag")
         else:
             super().__init__(f"An unexpected error occurred while trying to deserialize Dag '{dag_id}'")
+
+
+class DagRunTypeNotAllowed(AirflowException):
+    """Raised when a Dag does not allow the requested run type."""
 
 
 class AirflowClearRunningTaskException(AirflowException):

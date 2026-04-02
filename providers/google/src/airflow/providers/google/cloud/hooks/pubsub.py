@@ -165,7 +165,7 @@ class PubSubHook(GoogleBaseHook):
                     b64decode(message["data"])
                     warnings.warn(
                         "The base 64 encoded string as 'data' field has been deprecated. "
-                        "You should pass bytestring (utf-8 encoded).",
+                        "You should pass bytestring (utf-8 encoded). Planned removal date: October 5, 2026.",
                         AirflowProviderDeprecationWarning,
                         stacklevel=4,
                     )

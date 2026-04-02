@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pendulum
 import pytest
 from sqlalchemy import select
@@ -204,7 +206,7 @@ def expected_secondary_component_response(asset2_id):
 class TestGetDependencies:
     @pytest.mark.usefixtures("make_primary_connected_component")
     def test_should_response_200(self, test_client, expected_primary_component_response):
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             response = test_client.get("/dependencies")
         assert response.status_code == 200
 
@@ -240,7 +242,7 @@ class TestGetDependencies:
     @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
     def test_with_node_id_filter(self, test_client, node_id, expected_response_fixture, request):
         expected_response = request.getfixturevalue(expected_response_fixture)
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             response = test_client.get("/dependencies", params={"node_id": node_id})
         assert response.status_code == 200
 
@@ -258,7 +260,7 @@ class TestGetDependencies:
             (asset1_id, expected_primary_component_response),
             (asset2_id, expected_secondary_component_response),
         ):
-            with assert_queries_count(5):
+            with assert_queries_count(6):
                 response = test_client.get("/dependencies", params={"node_id": f"asset:{asset_id}"})
             assert response.status_code == 200
 
@@ -332,3 +334,68 @@ class TestGetDependencies:
         # Non-asset node_id
         response = test_client.get("/dependencies", params={"dependency_type": "data", "node_id": "dag:test"})
         assert response.status_code == 400
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={"upstream", "downstream"},
+    )
+    @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
+    def test_scheduling_dependencies_respects_readable_dags_filter(self, _, test_client):
+        response = test_client.get("/dependencies")
+        assert response.status_code == 200
+
+        result = response.json()
+        dag_node_ids = {node["id"] for node in result["nodes"] if node["type"] == "dag"}
+        expected_present = ["dag:upstream", "dag:downstream"]
+        expected_absent = [
+            "dag:other_dag",
+            "dag:external_trigger_dag_id",
+            "dag:upstream_secondary",
+            "dag:downstream_secondary",
+        ]
+        for node_id in expected_present:
+            assert node_id in dag_node_ids
+        for node_id in expected_absent:
+            assert node_id not in dag_node_ids
+
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_present", "expected_absent"),
+        [
+            (
+                {"upstream"},
+                ["task:upstream__SEPARATOR__task2"],
+                [],
+            ),
+            (
+                {"downstream"},
+                [],
+                ["task:upstream__SEPARATOR__task2"],
+            ),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    @pytest.mark.usefixtures("make_primary_connected_component")
+    def test_data_dependencies_respects_readable_dags_filter(
+        self,
+        mock_get_authorized_dag_ids,
+        test_client,
+        asset1_id,
+        readable_dags,
+        expected_present,
+        expected_absent,
+    ):
+        mock_get_authorized_dag_ids.return_value = readable_dags
+
+        response = test_client.get(
+            "/dependencies",
+            params={"node_id": f"asset:{asset1_id}", "dependency_type": "data"},
+        )
+        assert response.status_code == 200
+
+        result = response.json()
+        nodes_by_id = {node["id"] for node in result["nodes"]}
+        assert f"asset:{asset1_id}" in nodes_by_id
+        for node_id in expected_present:
+            assert node_id in nodes_by_id
+        for node_id in expected_absent:
+            assert node_id not in nodes_by_id

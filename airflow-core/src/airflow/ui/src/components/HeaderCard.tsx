@@ -37,7 +37,7 @@ export const HeaderCard = ({ actions, icon, state, stats, subTitle, title }: Pro
   const { t: translate } = useTranslation();
 
   return (
-    <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} p={2}>
+    <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} data-testid="header-card" p={2}>
       <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
         <Flex alignItems="center" flexWrap="wrap" gap={2}>
           <Heading size="xl">{icon}</Heading>

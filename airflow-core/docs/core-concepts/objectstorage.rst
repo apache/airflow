@@ -314,7 +314,7 @@ External Integrations
 ---------------------
 
 Many other projects, like DuckDB, Apache Iceberg etc, can make use of the object storage abstraction. Often this is
-done by passing the underlying ``fsspec`` implementation. For this this purpose ``ObjectStoragePath`` exposes
+done by passing the underlying ``fsspec`` implementation. For this purpose ``ObjectStoragePath`` exposes
 the ``fs`` property. For example, the following works with ``duckdb`` so that the connection details from Airflow
 are used to connect to s3 and a parquet file, indicated by a ``ObjectStoragePath``, is read:
 

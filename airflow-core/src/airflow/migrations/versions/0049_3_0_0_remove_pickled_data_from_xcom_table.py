@@ -47,7 +47,7 @@ def upgrade():
     # 1. Create an archived table (`_xcom_archive`) to store the current "pickled" data in the xcom table
     # 2. Extract and archive the pickled data using the condition
     # 3. Delete the pickled data from the xcom table so that we can update the column type
-    # 4. Sanitize NaN values in JSON (convert to string)
+    # 4. Sanitize non-standard JSON tokens (NaN, Infinity, -Infinity) to quoted strings
     # 5. Update the XCom.value column type to JSON from LargeBinary/LongBlob
 
     conn = op.get_bind()
@@ -112,18 +112,24 @@ def upgrade():
     # Delete the pickled data from the xcom table so that we can update the column type
     conn.execute(text(f"DELETE FROM xcom WHERE value IS NOT NULL AND {condition}"))
 
-    # Update the values from nan to nan string
+    # Sanitize non-standard JSON tokens (NaN, Infinity, -Infinity) to quoted strings.
+    # These are valid Python float representations but illegal in strict JSON; they must
+    # be quoted before the column type is changed to JSON/JSONB.
     if dialect == "postgresql":
-        # Replace NaN in JSON value positions (after :, , or [)
-        # This explicitly matches JSON structure, not relying on word boundaries
         conn.execute(
             text(r"""
                 UPDATE xcom
                 SET value = convert_to(
                     regexp_replace(
                         convert_from(value, 'UTF8'),
-                        '([:,\[]\s*)NaN(\s*[,}\]])',
-                        '\1"nan"\2',
+                        -- Group 1 captures the preceding delimiter (:, comma, or [)
+                        -- or ^ for a bare scalar value (the entire XCom value is just NaN).
+                        -- A lookahead is used for the closing delimiter instead of a
+                        -- consuming group so that consecutive tokens in an array
+                        -- (e.g. [NaN, Infinity]) are each matched independently.
+                        -- NaN and Infinity are done in the same query to avoid another table scan.
+                        '([:,\[]\s*|^)(NaN|-?Infinity)(?=\s*[,}\]]|$)',
+                        '\1"\2"',
                         'g'
                     ),
                     'UTF8'
@@ -143,16 +149,19 @@ def upgrade():
             """
         )
     elif dialect == "mysql":
-        # Replace NaN in JSON value positions (after :, , or [)
-        # Use alternation with proper grouping for MySQL compatibility
         conn.execute(
             text("""
                 UPDATE xcom
                 SET value = CONVERT(
                     REGEXP_REPLACE(
                         CONVERT(value USING utf8mb4),
-                        '(:|,|\\\\[)[ ]*NaN[ ]*([,}\\]])',
-                        '\\\\1"nan"\\\\2',
+                        -- Same lookahead strategy as PostgreSQL (see above).
+                        -- Python string escaping: \\\\[ → SQL \\[ → regex \\[ → literal [
+                        -- and \\\\] inside the character class → SQL \\] → regex \\] → literal ]
+                        -- The 'c' flag enforces case-sensitive matching (NaN ≠ nan).
+                        -- NaN and Infinity are done in the same query to avoid another table scan.
+                        '(:|,|\\\\[|^)[ ]*(NaN|-?Infinity)(?=[ ]*[,}\\\\]]|$)',
+                        '$1"$2"',
                         1,
                         0,
                         'c'
@@ -171,7 +180,23 @@ def upgrade():
         conn.execute(
             text("""
                 UPDATE xcom
-                SET value = CAST(REPLACE(CAST(value AS TEXT), 'NaN', '"nan"') AS BLOB)
+                SET value = CAST(
+                    REPLACE(
+                        REPLACE(
+                            -- Step 1: replace NaN first so it doesn't interfere with Infinity.
+                            REPLACE(CAST(value AS TEXT), 'NaN', '"NaN"'),
+                            -- Step 2: replace Infinity (also matches the Infinity in -Infinity,
+                            -- turning -Infinity into -"Infinity").
+                            'Infinity', '"Infinity"'
+                        ),
+                        -- Step 3: fix the -"Infinity" artifact left by step 2.
+                        '-"Infinity"', '"-Infinity"'
+                    ) AS BLOB)
+                -- NOTE: SQLite lacks REGEXP_REPLACE, so plain REPLACE is used.
+                -- This is a substring operation and will incorrectly alter XCom values
+                -- that contain the literal text 'NaN' or 'Infinity' inside a JSON string
+                -- (e.g. {"msg": "NaN detected"}).  In practice such values are rare and
+                -- SQLite is not recommended for production deployments.
                 WHERE value IS NOT NULL AND hex(substr(value, 1, 1)) != '80'
             """)
         )

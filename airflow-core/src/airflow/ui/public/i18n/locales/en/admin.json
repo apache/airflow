@@ -120,7 +120,8 @@
       "includeDeferred": "Include Deferred",
       "nameMaxLength": "Name can contain a maximum of 256 characters",
       "nameRequired": "Name is required",
-      "slots": "Slots"
+      "slots": "Slots",
+      "slotsHelperText": "Use -1 for unlimited slots."
     },
     "noPoolsFound": "No pools found",
     "pool_one": "Pool",

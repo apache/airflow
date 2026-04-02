@@ -419,9 +419,6 @@ You can read more about those extras in the
 `extras reference <https://airflow.apache.org/docs/apache-airflow/stable/extra-packages-ref.html>`_.
 
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
-
-
 -----
 
 You can now check how to update Airflow's `metadata database <14_metadata_database_updates.rst>`__ if you need

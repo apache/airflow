@@ -296,12 +296,21 @@ When you execute that code you will see:
 
 This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.
 
+.. _best_practices/code_quality_and_linting:
+
 Code Quality and Linting
 ------------------------
 
-Maintaining high code quality is essential for the reliability and maintainability of your Airflow workflows. Utilizing linting tools can help identify potential issues and enforce coding standards. One such tool is ``ruff``, a fast Python linter that now includes specific rules for Airflow.
+Maintaining high code quality is essential for the reliability and maintainability of your Airflow workflows.
+The following points summarize how this relates to Ruff:
 
-ruff assists in detecting deprecated features and patterns that may affect your migration to Airflow 3.0. For instance, it includes rules prefixed with ``AIR`` to flag potential issues. The full list is detailed in `Airflow (AIR) <https://docs.astral.sh/ruff/rules/#airflow-air>`_.
+1. This page documents Airflow best practices. Some of those practices are also supported by Ruff ``AIR`` rules,
+   which help detect and enforce Airflow-specific best practices, including deprecated patterns and migration issues.
+   The full list is available in
+   `Airflow (AIR) <https://docs.astral.sh/ruff/rules/#airflow-air>`_.
+2. If you want to suggest a new Airflow best practice and add a matching Ruff ``AIR`` rule, follow the contributor
+   process described in
+   `Proposing Airflow Best Practices and Ruff AIR Rules <https://github.com/apache/airflow/blob/main/contributing-docs/24_proposing_best_practices_and_air_rules.rst>`_.
 
 Installing and Using ruff
 -------------------------
@@ -310,7 +319,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.15.1"
+      pip install "ruff>=0.15.8"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
@@ -846,6 +855,8 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
 
 .. code-block:: python
 
+    from airflow.sdk import Connection
+
     conn = Connection(
         conn_type="gcpssh",
         login="cat",
@@ -853,7 +864,7 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
     )
     conn_uri = conn.get_uri()
     with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
-        assert "cat" == Connection.get_connection_from_secrets("my_conn").login
+        assert "cat" == Connection.get("my_conn").login
 
 Metadata DB maintenance
 ^^^^^^^^^^^^^^^^^^^^^^^

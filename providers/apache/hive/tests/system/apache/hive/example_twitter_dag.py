@@ -78,7 +78,7 @@ def transfer_to_db():
 with DAG(
     dag_id=DAG_ID,
     default_args={
-        "owner": "Ekhtiar",
+        "owner": "airflow",
         "retries": 1,
     },
     schedule="@daily",

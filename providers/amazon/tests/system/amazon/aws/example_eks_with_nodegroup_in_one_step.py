@@ -116,8 +116,8 @@ with DAG(
     )
 
     start_pod = EksPodOperator(
-        task_id="start_pod",
-        pod_name="test_pod",
+        task_id="run_pod",
+        pod_name="run_pod",
         cluster_name=cluster_name,
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "echo Test Airflow; date"],

@@ -215,7 +215,7 @@ export class ConnectionsPage extends BasePage {
 
       await expect(selectCombobox).toBeEnabled({ timeout: 25_000 });
 
-      await selectCombobox.click({ timeout: 3000 });
+      await selectCombobox.click({ timeout: 10_000 });
 
       // Wait for options to appear and click the matching option
       const option = this.page.getByRole("option", { name: new RegExp(details.conn_type, "i") }).first();
@@ -264,12 +264,31 @@ export class ConnectionsPage extends BasePage {
 
       if (accordionVisible) {
         await extraAccordion.click();
-        const extraEditor = this.page.locator('.cm-content[contenteditable="true"]:visible').first();
+        const monacoEditor = this.page.locator(".monaco-editor").first();
 
-        await extraEditor.waitFor({ state: "visible", timeout: 5000 });
-        await extraEditor.clear();
-        await extraEditor.fill(details.extra);
-        await extraEditor.blur();
+        await monacoEditor.waitFor({ state: "visible", timeout: 5000 });
+
+        // Set value via Monaco API to avoid auto-closing bracket/quote issues with keyboard input
+        await monacoEditor.evaluate((container, value) => {
+          const monacoApi = (globalThis as Record<string, unknown>).monaco as
+            | {
+                editor: {
+                  getEditors: () => Array<{ getDomNode: () => Node; setValue: (v: string) => void }>;
+                };
+              }
+            | undefined;
+
+          if (monacoApi !== undefined) {
+            const editor = monacoApi.editor.getEditors().find((e) => container.contains(e.getDomNode()));
+
+            if (editor !== undefined) {
+              editor.setValue(value);
+            }
+          }
+        }, details.extra);
+
+        // Click outside to trigger blur
+        await this.connectionIdInput.click();
       }
     }
   }

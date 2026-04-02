@@ -228,7 +228,7 @@ def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
     For example timedelta(seconds=3752) would become `1h:2M:32s`.
     If the time is less than a second, the return will be `<1s`.
     """
-    if not td_object:
+    if td_object is None:
         return None
     if isinstance(td_object, dt.timedelta):
         delta = relativedelta() + td_object

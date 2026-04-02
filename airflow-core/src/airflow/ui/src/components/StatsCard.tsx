@@ -55,6 +55,7 @@ export const StatsCard = ({
       borderWidth={1}
       color="fg.emphasized"
       cursor="pointer"
+      data-testid="stats-card"
       p={2}
     >
       <StateBadge colorPalette={colorScheme} mr={2} state={state}>

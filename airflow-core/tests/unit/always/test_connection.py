@@ -595,7 +595,8 @@ class TestConnection:
             "AIRFLOW_CONN_TEST_URI": "postgresql://username:password%21@ec2.compute.com:5432/the_database",
         },
     )
-    def test_using_env_var(self):
+    @mock.patch("airflow.sdk.execution_time.context._mask_connection_secrets")
+    def test_using_env_var(self, mock_mask_conn):
         from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
         conn = SqliteHook.get_connection(conn_id="test_uri")
@@ -605,7 +606,7 @@ class TestConnection:
         assert conn.password == "password!"
         assert conn.port == 5432
 
-        self.mask_secret.assert_has_calls([mock.call("password!"), mock.call(quote("password!"))])
+        mock_mask_conn.assert_called_once()
 
     @mock.patch.dict(
         "os.environ",

@@ -21,83 +21,37 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class DagRunsTabPage extends BasePage {
   public readonly markRunAsButton: Locator;
-  public readonly nextPageButton: Locator;
-  public readonly prevPageButton: Locator;
   public readonly runsTable: Locator;
   public readonly tableRows: Locator;
   public readonly triggerButton: Locator;
 
-  private currentDagId?: string;
-  private currentLimit?: number;
-
   public constructor(page: Page) {
     super(page);
-    this.markRunAsButton = page.locator('[data-testid="mark-run-as-button"]').first();
-    this.nextPageButton = page.locator('[data-testid="next"]');
-    this.prevPageButton = page.locator('[data-testid="prev"]');
-    this.runsTable = page.locator('[data-testid="table-list"]');
-    this.tableRows = this.runsTable.locator("tbody tr");
-    this.triggerButton = page.locator('[data-testid="trigger-dag-button"]');
+    this.markRunAsButton = page.getByTestId("mark-run-as-button").first();
+    this.runsTable = page.getByTestId("table-list");
+    this.tableRows = this.runsTable.locator("tbody").getByRole("row");
+    this.triggerButton = page.getByTestId("trigger-dag-button");
   }
 
-  public async clickNextPage(): Promise<void> {
-    await this.waitForRunsTableToLoad();
-    const firstRunLink = this.tableRows.first().locator("a[href*='/runs/']").first();
-
-    await expect(firstRunLink).toBeVisible();
-    const firstRunId = await firstRunLink.textContent();
-
-    if (firstRunId === null || firstRunId === "") {
-      throw new Error("Could not get first run ID before pagination");
-    }
-
-    await this.nextPageButton.click();
-    await expect(this.tableRows.first()).not.toContainText(firstRunId, { timeout: 10_000 });
-    await this.ensureUrlParams();
-  }
-
-  public async clickPrevPage(): Promise<void> {
-    await this.waitForRunsTableToLoad();
-    const firstRunLink = this.tableRows.first().locator("a[href*='/runs/']").first();
-
-    await expect(firstRunLink).toBeVisible();
-    const firstRunId = await firstRunLink.textContent();
-
-    if (firstRunId === null || firstRunId === "") {
-      throw new Error("Could not get first run ID before pagination");
-    }
-
-    await this.prevPageButton.click();
-    await expect(this.tableRows.first()).not.toContainText(firstRunId, { timeout: 10_000 });
-    await this.ensureUrlParams();
+  private static escapeRegExp(value: string): string {
+    return value.replaceAll(/[$()*+.?[\\\]^{|}]/g, "\\$&");
   }
 
   public async clickRunAndVerifyDetails(): Promise<void> {
-    const firstRunLink = this.tableRows.first().locator("a[href*='/runs/']").first();
+    const firstRunLink = this.tableRows.first().getByRole("link").first();
 
     await expect(firstRunLink).toBeVisible({ timeout: 10_000 });
     await firstRunLink.click();
-    await this.page.waitForURL(/.*\/dags\/.*\/runs\/[^/]+$/, { timeout: 15_000 });
+    await expect(this.page).toHaveURL(/.*\/dags\/.*\/runs\/[^/]+$/, { timeout: 15_000 });
     await expect(this.markRunAsButton).toBeVisible({ timeout: 10_000 });
   }
 
   public async clickRunsTab(): Promise<void> {
-    const runsTab = this.page.locator('a[href$="/runs"]');
+    const runsTab = this.page.getByRole("link", { exact: true, name: "Runs" });
 
     await expect(runsTab).toBeVisible({ timeout: 10_000 });
     await runsTab.click();
-    await this.page.waitForURL(/.*\/dags\/[^/]+\/runs/, { timeout: 15_000 });
-    await this.waitForRunsTableToLoad();
-  }
-
-  public async clickRunsTabWithPageSize(dagId: string, pageSize: number): Promise<void> {
-    this.currentDagId = dagId;
-    this.currentLimit = pageSize;
-
-    await this.navigateTo(`/dags/${dagId}/runs?offset=0&limit=${pageSize}`);
-    await this.page.waitForURL(/.*\/dags\/[^/]+\/runs.*offset=0&limit=/, {
-      timeout: 15_000,
-    });
+    await expect(this.page).toHaveURL(/.*\/dags\/[^/]+\/runs/, { timeout: 15_000 });
     await this.waitForRunsTableToLoad();
   }
 
@@ -105,19 +59,20 @@ export class DagRunsTabPage extends BasePage {
     const currentUrl = new URL(this.page.url());
 
     currentUrl.searchParams.set("state", state.toLowerCase());
+
+    const responsePromise = this.page.waitForResponse(
+      (response) => response.url().includes("dagRuns") && response.request().method() === "GET",
+      { timeout: 15_000 },
+    );
+
     await this.navigateTo(currentUrl.pathname + currentUrl.search);
-    await this.page.waitForURL(/.*state=.*/, { timeout: 15_000 });
+    await responsePromise;
+    await expect(this.page).toHaveURL(/.*state=.*/, { timeout: 15_000 });
     await this.waitForRunsTableToLoad();
-  }
-
-  public async getRowCount(): Promise<number> {
-    await this.waitForRunsTableToLoad();
-
-    return this.tableRows.count();
   }
 
   public async markRunAs(state: "failed" | "success"): Promise<void> {
-    const stateBadge = this.page.locator('[data-testid="state-badge"]').first();
+    const stateBadge = this.page.getByTestId("state-badge").first();
 
     await expect(stateBadge).toBeVisible({ timeout: 10_000 });
     const currentState = await stateBadge.textContent();
@@ -129,9 +84,16 @@ export class DagRunsTabPage extends BasePage {
     await expect(this.markRunAsButton).toBeVisible({ timeout: 10_000 });
     await this.markRunAsButton.click();
 
-    const stateOption = this.page.locator(`[data-testid="mark-run-as-${state}"]`);
+    const stateOption = this.page.getByTestId(`mark-run-as-${state}`);
 
     await expect(stateOption).toBeVisible({ timeout: 5000 });
+
+    if (await stateOption.isDisabled()) {
+      await this.page.keyboard.press("Escape");
+
+      return;
+    }
+
     await stateOption.click();
 
     const confirmButton = this.page.getByRole("button", { name: "Confirm" });
@@ -150,14 +112,21 @@ export class DagRunsTabPage extends BasePage {
   }
 
   public async navigateToDag(dagId: string): Promise<void> {
-    await this.navigateTo(`/dags/${dagId}`);
-    await this.page.waitForURL(`**/dags/${dagId}**`, { timeout: 15_000 });
-    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
+    await expect(async () => {
+      await this.navigateTo(`/dags/${dagId}`);
+      await expect(this.page).toHaveURL(new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}`), {
+        timeout: 5000,
+      });
+      await expect(this.triggerButton).toBeVisible({ timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public async navigateToRunDetails(dagId: string, runId: string): Promise<void> {
     await this.navigateTo(`/dags/${dagId}/runs/${runId}`);
-    await this.page.waitForURL(`**/dags/${dagId}/runs/${runId}**`, { timeout: 15_000 });
+    await expect(this.page).toHaveURL(
+      new RegExp(`/dags/${DagRunsTabPage.escapeRegExp(dagId)}/runs/${DagRunsTabPage.escapeRegExp(runId)}`),
+      { timeout: 15_000 },
+    );
     await expect(this.markRunAsButton).toBeVisible({ timeout: 15_000 });
   }
 
@@ -165,8 +134,15 @@ export class DagRunsTabPage extends BasePage {
     const currentUrl = new URL(this.page.url());
 
     currentUrl.searchParams.set("run_id_pattern", pattern);
+
+    const responsePromise = this.page.waitForResponse(
+      (response) => response.url().includes("dagRuns") && response.request().method() === "GET",
+      { timeout: 15_000 },
+    );
+
     await this.navigateTo(currentUrl.pathname + currentUrl.search);
-    await this.page.waitForURL(/.*run_id_pattern=.*/, { timeout: 15_000 });
+    await responsePromise;
+    await expect(this.page).toHaveURL(/.*run_id_pattern=.*/, { timeout: 15_000 });
     await this.waitForRunsTableToLoad();
   }
 
@@ -207,16 +183,13 @@ export class DagRunsTabPage extends BasePage {
 
     const rows = this.tableRows;
 
-    await expect(rows).not.toHaveCount(0);
+    await expect(rows).not.toHaveCount(0, { timeout: 10_000 });
 
-    const rowCount = await rows.count();
+    const nonMatchingRows = rows.filter({
+      hasNot: this.page.getByTestId("state-badge").getByText(new RegExp(expectedState, "i")),
+    });
 
-    for (let i = 0; i < Math.min(rowCount, 5); i++) {
-      const stateBadge = rows.nth(i).locator('[data-testid="state-badge"]');
-
-      await expect(stateBadge).toBeVisible();
-      await expect(stateBadge).toContainText(expectedState, { ignoreCase: true });
-    }
+    await expect(nonMatchingRows).toHaveCount(0, { timeout: 10_000 });
   }
 
   public async verifyRunDetailsDisplay(): Promise<void> {
@@ -224,12 +197,12 @@ export class DagRunsTabPage extends BasePage {
 
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
 
-    const runIdLink = firstRow.locator("a[href*='/runs/']").first();
+    const runIdLink = firstRow.getByRole("link").first();
 
     await expect(runIdLink).toBeVisible();
     await expect(runIdLink).not.toBeEmpty();
 
-    const stateBadge = firstRow.locator('[data-testid="state-badge"]');
+    const stateBadge = firstRow.getByTestId("state-badge");
 
     await expect(stateBadge).toBeVisible();
 
@@ -239,10 +212,10 @@ export class DagRunsTabPage extends BasePage {
   }
 
   public async verifyRunsExist(): Promise<void> {
-    const runLinks = this.runsTable.locator("a[href*='/runs/']");
+    const firstRow = this.tableRows.first();
 
-    await expect(runLinks.first()).toBeVisible({ timeout: 30_000 });
-    await expect(runLinks).not.toHaveCount(0);
+    await expect(firstRow).toBeVisible({ timeout: 30_000 });
+    await expect(this.tableRows).not.toHaveCount(0);
   }
 
   public async verifySearchResults(pattern: string): Promise<void> {
@@ -250,45 +223,21 @@ export class DagRunsTabPage extends BasePage {
 
     const rows = this.tableRows;
 
-    await expect(rows).not.toHaveCount(0);
+    await expect(rows).not.toHaveCount(0, { timeout: 10_000 });
 
-    const count = await rows.count();
+    const nonMatchingRows = rows.filter({
+      hasNot: this.page.getByRole("link").getByText(new RegExp(pattern, "i")),
+    });
 
-    for (let i = 0; i < Math.min(count, 5); i++) {
-      const runIdLink = rows.nth(i).locator("a[href*='/runs/']").first();
-
-      await expect(runIdLink).toContainText(pattern, { ignoreCase: true });
-    }
+    await expect(nonMatchingRows).toHaveCount(0, { timeout: 10_000 });
   }
 
   public async waitForRunsTableToLoad(): Promise<void> {
     await expect(this.runsTable).toBeVisible({ timeout: 10_000 });
 
-    const dataLink = this.runsTable.locator("a[href*='/runs/']").first();
+    const firstRow = this.tableRows.first();
     const noDataMessage = this.page.getByText(/no.*dag.*runs.*found/i);
 
-    await expect(dataLink.or(noDataMessage)).toBeVisible({ timeout: 30_000 });
-  }
-
-  private async ensureUrlParams(): Promise<void> {
-    if (this.currentLimit === undefined || this.currentDagId === undefined) {
-      return;
-    }
-
-    const currentUrl = this.page.url();
-    const url = new URL(currentUrl);
-    const hasLimit = url.searchParams.has("limit");
-    const hasOffset = url.searchParams.has("offset");
-
-    if (hasLimit && !hasOffset) {
-      url.searchParams.set("offset", "0");
-      await this.navigateTo(url.pathname + url.search);
-      await this.waitForRunsTableToLoad();
-    } else if (!hasLimit && !hasOffset) {
-      url.searchParams.set("offset", "0");
-      url.searchParams.set("limit", String(this.currentLimit));
-      await this.navigateTo(url.pathname + url.search);
-      await this.waitForRunsTableToLoad();
-    }
+    await expect(firstRow.or(noDataMessage)).toBeVisible({ timeout: 30_000 });
   }
 }

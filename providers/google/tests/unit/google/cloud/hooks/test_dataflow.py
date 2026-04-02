@@ -28,6 +28,11 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
+
+# TODO: Remove below skip once beam provider changed to ready state
+pytest.importorskip("apache-beam", reason="apache-beam package suspended due to grpcio limitation")
+
+
 from google.cloud.dataflow_v1beta3 import (
     GetJobMetricsRequest,
     GetJobRequest,

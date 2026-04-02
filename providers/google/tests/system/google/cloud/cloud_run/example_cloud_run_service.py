@@ -35,6 +35,8 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+REGION = "europe-west1"
+SERVICE_NAME = f"cloudrun-service-{ENV_ID}".replace("_", "-")
 
 
 # [START howto_operator_cloud_run_service_creation]
@@ -60,9 +62,10 @@ with DAG(
     create_cloud_run_service = CloudRunCreateServiceOperator(
         task_id="create-cloud-run-service",
         project_id=PROJECT_ID,
-        region="us-central1",
+        region=REGION,
         service=_create_service(),
-        service_name="cloudrun-system-test-service",
+        service_name=SERVICE_NAME,
+        use_regional_endpoint=False,
     )
     # [END howto_operator_cloud_run_create_service]
 
@@ -70,8 +73,9 @@ with DAG(
     delete_cloud_run_service = CloudRunDeleteServiceOperator(
         task_id="delete-cloud-run-service",
         project_id=PROJECT_ID,
-        region="us-central1",
-        service_name="cloudrun-system-test-service",
+        region=REGION,
+        service_name=SERVICE_NAME,
+        use_regional_endpoint=False,
         dag=dag,
     )
     # [END howto_operator_cloud_run_delete_service]

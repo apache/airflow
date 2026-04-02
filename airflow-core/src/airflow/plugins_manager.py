@@ -39,7 +39,7 @@ from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager
-    from airflow.partition_mapper.base import PartitionMapper
+    from airflow.partition_mappers.base import PartitionMapper
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.timetables.base import Timetable
 

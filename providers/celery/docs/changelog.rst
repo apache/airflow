@@ -27,6 +27,67 @@
 Changelog
 ---------
 
+3.17.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set task name for 2.11.X path (#63746)``
+* ``Fix misaligned 'queued_tasks' types in hybrid executors (#63744)``
+* ``Add gc.freeze to minimize memory usage in celery worker (#62212)``
+* ``Warn about hardcoded 24h visibility_timeout that kills long-running Celery tasks (#62869)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Refactor: remove modules that are supposed to be removed in Airflow 3.2 (#62927)``
+* ``Make test_celery_integration runnable (#64153)``
+* ``Update celery provider conf imports to use common compat SDK (#64134)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``remove useless mock db (#63740)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
+3.17.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Ensure Celery tasks are registered at worker startup (main) (#63110)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Celery: explicitly specify 'psycopg2' in driverless postgres URLs (#62159)``
+* ``Executor Synchronous callback workload (#61153)``
+* ``Enable multi-team in Celery executor (#62534)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``docs(celery): fix wrong link in cli (#62460)``
+* ``Fix Celery worker crash on macOS due to unpicklable local function (#62655)``
+
+Misc
+~~~~
+
+* ``Insert a team_name similar to team conf for 2.X compat (#61923)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+
 3.16.0
 ......
 

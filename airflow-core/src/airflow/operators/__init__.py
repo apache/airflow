@@ -65,8 +65,8 @@ __deprecated_classes = {
         "SmoothOperator": "airflow.providers.standard.operators.smooth.SmoothOperator",
     },
     "branch": {
-        "BranchMixIn": "airflow.providers.standard.operators.branch.BranchMixIn",
-        "BaseBranchOperator": "airflow.providers.standard.operators.branch.BaseBranchOperator",
+        "BranchMixIn": "airflow.sdk.bases.branch.BranchMixIn",
+        "BaseBranchOperator": "airflow.sdk.bases.branch.BaseBranchOperator",
     }
 
 }

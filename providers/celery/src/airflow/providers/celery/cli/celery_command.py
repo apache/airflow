@@ -35,9 +35,9 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 
@@ -122,6 +122,16 @@ def _serve_logs(skip_serve_logs: bool = False):
             sub_proc.terminate()
 
 
+def _bundle_cleanup_main(check_interval):
+    """Entry point for the stale bundle cleanup subprocess."""
+    from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+
+    mgr = BundleUsageTrackingManager()
+    while True:
+        time.sleep(check_interval)
+        mgr.remove_stale_bundle_versions()
+
+
 @contextmanager
 def _run_stale_bundle_cleanup():
     """Start stale bundle cleanup sub-process."""
@@ -136,19 +146,11 @@ def _run_stale_bundle_cleanup():
         with suppress(BaseException):
             yield
         return
-    from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 
     log.info("starting stale bundle cleanup process")
     sub_proc = None
-
-    def bundle_cleanup_main():
-        mgr = BundleUsageTrackingManager()
-        while True:
-            time.sleep(check_interval)
-            mgr.remove_stale_bundle_versions()
-
     try:
-        sub_proc = Process(target=bundle_cleanup_main)
+        sub_proc = Process(target=_bundle_cleanup_main, args=(check_interval,))
         sub_proc.start()
         yield
     finally:

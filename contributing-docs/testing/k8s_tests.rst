@@ -25,7 +25,9 @@ deploy and run the cluster tests in our repository and into Breeze development e
 KinD has a really nice ``kind`` tool that you can use to interact with the cluster. Run ``kind --help`` to
 learn more.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 K8S test environment
 --------------------

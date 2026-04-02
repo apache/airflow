@@ -41,6 +41,8 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
 )
+from airflow.models.log import Log
+from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
@@ -200,11 +202,7 @@ class AssetManager(LoggingMixin):
             )
         )
         if not asset_model:
-            msg = f"AssetModel {asset} not found; cannot create asset event."
-            cls.logger().warning(msg)
-            # if there is a task_instance, write to task log
-            if task_instance is not None and hasattr(task_instance, "log"):
-                task_instance.log.warning(msg)
+            cls.logger().warning("AssetModel %s not found; cannot create asset event.", asset)
             return None
 
         if not asset_model.active:
@@ -296,6 +294,7 @@ class AssetManager(LoggingMixin):
             dags_to_queue=dags_to_queue,
             partition_key=partition_key,
             event=asset_event,
+            task_instance=task_instance,
             session=session,
         )
         return asset_event
@@ -340,28 +339,25 @@ class AssetManager(LoggingMixin):
         dags_to_queue: set[DagModel],
         partition_key: str | None,
         event: AssetEvent,
+        task_instance: TaskInstance | None,
         session: Session,
     ) -> None:
-        log.debug("dags to queue", dags_to_queue=dags_to_queue)
-
+        log.debug("Dags to queue", dags_to_queue=dags_to_queue)
         if not dags_to_queue:
             return None
 
-        # TODO: AIP-76 there may be a better way to identify that timetable is partition-driven
-        #  https://github.com/apache/airflow/issues/58445
-        partition_dags = [x for x in dags_to_queue if x.timetable_summary == "Partitioned Asset"]
-
+        partition_dags = [x for x in dags_to_queue if x.timetable_partitioned is True]
         cls._queue_partitioned_dags(
             asset_id=asset_id,
             partition_dags=partition_dags,
             event=event,
             partition_key=partition_key,
+            task_instance=task_instance,
             session=session,
         )
 
         non_partitioned_dags = dags_to_queue.difference(partition_dags)  # don't double process
-
-        if not non_partitioned_dags:
+        if not non_partitioned_dags or partition_key is not None:
             return None
 
         # Possible race condition: if multiple dags or multiple (usually
@@ -379,22 +375,37 @@ class AssetManager(LoggingMixin):
     @classmethod
     def _queue_partitioned_dags(
         cls,
+        *,
         asset_id: int,
         partition_dags: Iterable[DagModel],
         event: AssetEvent,
         partition_key: str | None,
+        task_instance: TaskInstance | None,
         session: Session,
     ) -> None:
         if partition_dags and not partition_key:
-            # TODO: AIP-76 how to best ensure users can see this? Probably add Log record.
-            #  https://github.com/apache/airflow/issues/59060
+            prefix = "Listening Dags are partition-aware but the run has no partition key"
             log.warning(
-                "Listening dags are partition-aware but run has no partition key",
+                prefix,
                 listening_dags=[x.dag_id for x in partition_dags],
                 asset_id=asset_id,
                 run_id=event.source_run_id,
                 dag_id=event.source_dag_id,
                 task_id=event.source_task_id,
+            )
+            msg = (
+                f"{prefix} (listening_dags={[x.dag_id for x in partition_dags]}, "
+                f"asset_id={asset_id}, "
+                f"run_id={event.source_run_id}, "
+                f"dag_id={event.source_dag_id}, "
+                f"task_id={event.source_task_id})"
+            )
+            session.add(
+                Log(
+                    event="missing partition key",
+                    extra=msg,
+                    task_instance=task_instance,
+                )
             )
             return
 
@@ -403,29 +414,72 @@ class AssetManager(LoggingMixin):
                 assert partition_key is not None
             from airflow.models.serialized_dag import SerializedDagModel
 
-            serdag = SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)
-            if not serdag:
+            if not (serdag := SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)):
                 raise RuntimeError(f"Could not find serialized dag for dag_id={target_dag.dag_id}")
+
             timetable = serdag.dag.timetable
             if TYPE_CHECKING:
                 assert isinstance(timetable, PartitionedAssetTimetable)
-            target_key = timetable.partition_mapper.to_downstream(partition_key)
 
-            apdr = cls._get_or_create_apdr(
-                target_key=target_key,
-                target_dag=target_dag,
-                asset_id=asset_id,
-                session=session,
-            )
-            log_record = PartitionedAssetKeyLog(
-                asset_id=asset_id,
-                asset_event_id=event.id,
-                asset_partition_dag_run_id=apdr.id,
-                source_partition_key=partition_key,
-                target_dag_id=target_dag.dag_id,
-                target_partition_key=target_key,
-            )
-            session.add(log_record)
+            if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
+                raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
+
+            try:
+                # We'll need to catch every possible exception happen when mapping partition_key.
+                target_key = timetable.get_partition_mapper(
+                    name=asset_model.name, uri=asset_model.uri
+                ).to_downstream(partition_key)
+            except Exception as err:
+                log.exception(
+                    "Could not map partition key for asset in target Dag. "
+                    "This likely indicates the target Dag's partition mapper "
+                    "is misconfigured, or does not support this partition key.",
+                    partition_key=partition_key,
+                    asset=asset_model,
+                    target_dag=target_dag,
+                )
+                log_extra = (
+                    f"Could not map partition_key '{partition_key}' for asset "
+                    f"(name='{asset_model.name}', uri='{asset_model.uri}') in target Dag "
+                    f"'{target_dag.dag_id}'. This likely indicates that the partition "
+                    f"mapper in the target Dag is misconfigured or does not support this "
+                    f"partition key.\n{type(err).__name__}: {err}"
+                )
+                session.add(
+                    Log(
+                        event="failed to map partition_key",
+                        extra=log_extra,
+                        task_instance=task_instance,
+                    )
+                )
+                continue
+
+            if is_container(target_key):
+                # TODO (AIP-76): This never happens now. When we implement
+                # one-to-many partition key mapping, this should also add a
+                # config to cap the iterable size so the scheduler does not
+                # blow up with an incorrectly implemented PartitionMapper.
+                target_keys: Iterable[str] = target_key
+            else:
+                target_keys = [target_key]
+            del target_key
+
+            for target_key in target_keys:
+                apdr = cls._get_or_create_apdr(
+                    target_key=target_key,
+                    target_dag=target_dag,
+                    asset_id=asset_id,
+                    session=session,
+                )
+                log_record = PartitionedAssetKeyLog(
+                    asset_id=asset_id,
+                    asset_event_id=event.id,
+                    asset_partition_dag_run_id=apdr.id,
+                    source_partition_key=partition_key,
+                    target_dag_id=target_dag.dag_id,
+                    target_partition_key=target_key,
+                )
+                session.add(log_record)
 
     @classmethod
     def _get_or_create_apdr(

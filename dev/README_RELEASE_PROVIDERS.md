@@ -259,7 +259,12 @@ changelogs. If there are, you need to add them to PR and classify the changes ma
 * if needed adjust version of provider - in changelog and provider.yaml, in case the new
   change changes classification of the upgrade (patchlevel/minor/major)
 
-Commit the changes and merge the PR, be careful to do it quickly so that no new PRs are merged for
+Commit the changes and create the PR. You need to apply the following labels to the PR:
+
+* `skip common compat check`
+* `allow provider dependency bump`
+
+Once approved, merge it, be careful to do it quickly so that no new PRs are merged for
 providers in the meantime - if they are, you will miss them in the changelog.
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
@@ -578,7 +583,11 @@ email.
 export VOTE_DURATION_IN_HOURS=72
 export IS_SHORTEN_VOTE=$([ $VOTE_DURATION_IN_HOURS -ge 72 ] && echo "false" || echo "true")
 export SHORTEN_VOTE_TEXT="This is a shortened ($VOTE_DURATION_IN_HOURS hours vote) as agreed by policy set it https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm"
-export VOTE_END_TIME=$(LANG=en_US.UTF-8 TZ=UTC date -v+"${VOTE_DURATION_IN_HOURS}"H "+%B %d, %Y %H:%M %p")
+if [ "$OS" = "Darwin" ]; then  # MacOS (BSD date)
+  export VOTE_END_TIME=$(date -u -v "+${VOTE_DURATION_IN_HOURS}H" -v "+10M" +'%Y-%m-%d %H:%M')
+else  # Linux
+  export VOTE_END_TIME=$(date --utc -d "now + $VOTE_DURATION_IN_HOURS hours + 10 minutes" +'%Y-%m-%d %H:%M')
+fi
 export RELEASE_MANAGER_NAME="RELEASE_MANAGER_NAME_HERE"
 export GITHUB_ISSUE_LINK="LINK_TO_GITHUB_ISSUE"
 ```
@@ -838,10 +847,10 @@ Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (un
 You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
-wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
-echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
-tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz -O /tmp/apache-rat-0.18-bin.tar.gz
+echo "315b16536526838237c42b5e6b613d29adc77e25a6e44a866b2b7f8b162e03d3629d49c9faea86ceb864a36b2c42838b8ce43d6f2db544e961f2259e242748f4  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
@@ -853,13 +862,14 @@ rm -rf /tmp/apache/airflow-providers-src && mkdir -p /tmp/apache-airflow-provide
 Run the check:
 
 ```shell script
-java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-providers-src/.rat-excludes /tmp/apache-airflow-providers-src/ | grep -E "! |INFO: "
+cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-providers-src/.rat-excludes
+java -jar /tmp/apache-rat-0.18/apache-rat-0.18.jar --input-exclude-file /tmp/apache-airflow-providers-src/.rat-excludes /tmp/apache-airflow-providers-src/ | grep -E "! |INFO: "
 ```
 
 You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
 
 ```
-INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Apache Creadur RAT 0.18 (Apache Software Foundation)
 INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
 INFO: Excluding MISC collection.
 INFO: Excluding HIDDEN_DIR collection.
@@ -1037,8 +1047,10 @@ After you are in Breeze:
 pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
-NOTE! You should `Ctrl-C` and restart the connections to restart airflow components and make sure new
-Provider distributions is used.
+NOTE! After installing the provider package, restart the Airflow components so the new provider is loaded.
+If you started Breeze with `breeze start-airflow`, in the terminal multiplexer (mprocs or tmux)
+use the keyboard shortcuts to **stop** and then **start** each managed component:
+**scheduler**, **api_server**, **triggerer**, and **dag_processor**.
 
 ### Building your own docker image
 
@@ -1329,6 +1341,13 @@ Or if you just want to publish a few selected providers, you can run:
 There is also a manual way of running the workflows (see at the end of the document, this should normally
 not be needed unless there is some problem with workflow automation above)
 
+> [!NOTE]
+> The **Provider Registry** at `airflow.apache.org/registry/` is rebuilt automatically as part of the
+> `publish-docs-to-s3.yml` workflow (it calls `registry-build.yml` as a post-publish job). The registry
+> extracts metadata from `provider.yaml` files and PyPI, so it picks up new/updated providers without
+> manual intervention. If you need to rebuild the registry independently, trigger the `registry-build.yml`
+> workflow manually. See [`registry/README.md`](../registry/README.md) for details.
+
 ## Update providers metadata
 
 Create PR and open it to be merged:
@@ -1398,8 +1417,9 @@ Trying to send HTML content will result in failure.
 ## Send announcements about security issues fixed in the release
 
 The release manager should review and mark as READY all the security issues fixed in the release.
-Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
-at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+Such issues can be listed under the `Next wave of providers` milestone in [security issues](https://github.com/airflow-s/airflow-s/issues?q=is%3Aissue%20state%3Aopen%20milestone%3A%22Next%20wave%20of%20providers%22).
+Go through the list of these issues and check for each of them the fix has been released as part of this release.
+Then the release manager should announce the issues via the CVE management tool at https://cveprocess.apache.org/.
 
 Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
 URL to the announcement published automatically by the CVE management tool.

@@ -33,7 +33,7 @@ from airflow.cli.cli_config import (
     GroupCommand,
     lazy_load_command,
 )
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     import argparse
@@ -232,7 +232,7 @@ CELERY_CLI_COMMANDS = [
         help="Celery components",
         description=(
             "Start celery components. Works only when using CeleryExecutor. For more information, "
-            "see https://airflow.apache.org/docs/apache-airflow/stable/executor/celery.html"
+            "see https://airflow.apache.org/docs/apache-airflow-providers-celery/stable/celery_executor.html"
         ),
         subcommands=CELERY_COMMANDS,
     ),
