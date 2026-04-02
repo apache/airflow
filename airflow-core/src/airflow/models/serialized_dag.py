@@ -502,6 +502,8 @@ class SerializedDagModel(Base):
         for uuid_str, deadline_data in uuid_mapping.items():
             alert = DeadlineAlertModel(
                 id=UUID(uuid_str),
+                name=deadline_data.get(DeadlineAlertFields.NAME),
+                description=deadline_data.get(DeadlineAlertFields.DESCRIPTION),
                 reference=deadline_data[DeadlineAlertFields.REFERENCE],
                 interval=deadline_data[DeadlineAlertFields.INTERVAL],
                 callback_def=deadline_data[DeadlineAlertFields.CALLBACK],
