@@ -25,6 +25,8 @@ from unittest import mock
 
 import pytest
 from opentelemetry.metrics import MeterProvider
+from opentelemetry.sdk.metrics._internal.aggregation import ExponentialBucketHistogramAggregation
+from opentelemetry.sdk.metrics.view import View
 
 from airflow_shared.observability.common import get_otel_data_exporter
 from airflow_shared.observability.exceptions import InvalidStatsNameException
@@ -418,6 +420,18 @@ class TestOtelMetrics:
                 == f"opentelemetry.exporter.otlp.proto.{expected_exporter_module}.metric_exporter"
             )
 
+    @mock.patch("airflow_shared.observability.metrics.otel_logger.metrics")
+    @mock.patch("airflow_shared.observability.metrics.otel_logger.MeterProvider")
+    def test_get_otel_logger_uses_exponential_histogram_view(self, mock_provider, mock_metrics):
+        get_otel_logger(host="localhost", port=4318)
+
+        call_kwargs = mock_provider.call_args.kwargs
+        views = call_kwargs["views"]
+        assert len(views) == 1
+        view = views[0]
+        assert isinstance(view, View)
+        assert isinstance(view._aggregation, ExponentialBucketHistogramAggregation)
+
     def test_atexit_flush_on_process_exit(self):
         """
         Run a process that initializes a logger, creates a stat and then exits.
@@ -425,8 +439,11 @@ class TestOtelMetrics:
         The logger initialization registers an atexit hook.
         Test that the hook runs and flushes the created stat at shutdown.
         """
-        test_module_name = "tests.observability.metrics.test_otel_logger"
-        function_call_str = f"import {test_module_name} as m; m.mock_service_run()"
+        function_call_str = (
+            "from airflow_shared.observability.metrics.otel_logger import get_otel_logger; "
+            "logger = get_otel_logger(debug=True); "
+            "logger.incr('my_test_stat')"
+        )
 
         proc = subprocess.run(
             [sys.executable, "-c", function_call_str],

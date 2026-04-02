@@ -26,10 +26,12 @@ from typing import TYPE_CHECKING
 
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics._internal.aggregation import ExponentialBucketHistogramAggregation
 from opentelemetry.sdk.metrics._internal.export import (
     ConsoleMetricExporter,
     PeriodicExportingMetricReader,
 )
+from opentelemetry.sdk.metrics.view import View
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 from ..common import get_otel_data_exporter
@@ -428,6 +430,15 @@ def get_otel_logger(
     stat_name_handler: Callable[[str], str] | None = None,
     statsd_influxdb_enabled: bool = False,
 ) -> SafeOtelLogger:
+    """
+    Build and return a :class:`SafeOtelLogger` backed by a configured :class:`MeterProvider`.
+
+    Histogram instruments (used for ``timing()`` / ``timer()`` metrics) are aggregated with
+    :class:`~opentelemetry.sdk.metrics._internal.aggregation.ExponentialBucketHistogramAggregation`
+    so that bucket boundaries adapt automatically to the observed data range.  This avoids
+    the need to hand-tune explicit bucket boundaries for metrics that span very different
+    scales (milliseconds to hours).
+    """
     otel_env_config = load_metrics_env_config()
 
     effective_service_name: str = otel_env_config.service_name or service_name or "airflow"
@@ -465,6 +476,12 @@ def get_otel_logger(
         MeterProvider(
             resource=resource,
             metric_readers=readers,
+            views=[
+                View(
+                    instrument_type=metrics.Histogram,
+                    aggregation=ExponentialBucketHistogramAggregation(),
+                )
+            ],
             shutdown_on_exit=False,
         ),
     )
