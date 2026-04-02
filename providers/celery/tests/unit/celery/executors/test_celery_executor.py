@@ -54,6 +54,8 @@ from tests_common.test_utils.version_compat import (
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.executors.base_executor import ExecutorConf
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator, timezone
 else:
@@ -884,31 +886,78 @@ class TestAmqpsSslConfig:
         assert "broker_use_ssl" not in config
 
 
-class TestCeleryConfigOptionsOverride:
-    """Tests for celery_config_options being applied in create_celery_app()."""
+class TestCreateCeleryAppTeamIsolation:
+    """Tests for create_celery_app() multi-team config isolation."""
 
-    def test_celery_config_options_applied_in_create_celery_app(self):
-        """Test that celery_config_options overrides are merged into create_celery_app() config."""
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+")
+    def test_custom_celery_config_options_applied(self):
+        """User-provided celery_config_options (non-default) should be merged into team config."""
         custom_config = {"worker_concurrency": 42, "broker_url": "redis://custom:6379/0"}
+        custom_path = "my_custom_module.CELERY_CONFIG"
 
-        original_has_option = conf.has_option
+        team_conf = ExecutorConf(team_name="team_alpha")
+        original_get = team_conf.get
 
-        def mock_has_option(section, key, **kwargs):
+        def mock_get(section, key, **kwargs):
             if section == "celery" and key == "celery_config_options":
-                return True
-            return original_has_option(section, key, **kwargs)
+                return custom_path
+            return original_get(section, key, **kwargs)
+
+        mock_module = mock.MagicMock()
+        mock_module.CELERY_CONFIG = custom_config
 
         with (
-            mock.patch.object(conf, "has_option", side_effect=mock_has_option),
-            mock.patch.object(conf, "getimport", return_value=custom_config),
+            mock.patch.object(team_conf, "get", side_effect=mock_get),
+            mock.patch.object(celery_executor_utils, "import_module", return_value=mock_module),
         ):
-            celery_app = celery_executor_utils.create_celery_app(conf)
-            # The custom config should override defaults
+            celery_app = celery_executor_utils.create_celery_app(team_conf)
             assert celery_app.conf.worker_concurrency == 42
             assert celery_app.conf.broker_url == "redis://custom:6379/0"
 
-    def test_create_celery_app_works_without_celery_config_options(self):
-        """Test that create_celery_app() works when celery_config_options is not set."""
-        # Should not raise — uses defaults from get_default_celery_config()
-        celery_app = celery_executor_utils.create_celery_app(conf)
-        assert celery_app is not None
+    def test_default_celery_config_options_skipped_via_identity_check(self):
+        """When celery_config_options resolves to DEFAULT_CELERY_CONFIG (same object),
+        it must be skipped — re-applying it would overwrite team-specific config
+        since DEFAULT_CELERY_CONFIG is built from global conf."""
+        original_get = conf.get
+        # Path just needs a dot for rpartition and attr name matching DEFAULT_CELERY_CONFIG.
+        # import_module is mocked to return default_celery module regardless of path.
+        celery_config_path = "any.module.DEFAULT_CELERY_CONFIG"
+
+        def mock_get(section, key, **kwargs):
+            if section == "celery" and key == "celery_config_options":
+                return celery_config_path
+            return original_get(section, key, **kwargs)
+
+        with (
+            mock.patch.object(conf, "get", side_effect=mock_get),
+            mock.patch.object(celery_executor_utils, "import_module") as mock_import,
+        ):
+            mock_import.return_value = default_celery
+            celery_app = celery_executor_utils.create_celery_app(conf)
+            # import_module called (path is non-None), but override skipped (same object)
+            mock_import.assert_called_once()
+            default_config = default_celery.get_default_celery_config(conf)
+            assert celery_app.conf.broker_url == default_config["broker_url"]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+")
+    def test_team_specific_broker_not_overwritten(self):
+        """Team-specific BROKER_URL set via ExecutorConf must survive create_celery_app()."""
+        team_conf = ExecutorConf(team_name="team_alpha")
+
+        original_get = team_conf.get
+
+        def mock_team_get(section, key, **kwargs):
+            if section == "celery" and key == "BROKER_URL":
+                return "amqps://team-alpha-rabbit:5671//"
+            return original_get(section, key, **kwargs)
+
+        with mock.patch.object(team_conf, "get", side_effect=mock_team_get):
+            celery_app = celery_executor_utils.create_celery_app(team_conf)
+            assert celery_app.conf.broker_url == "amqps://team-alpha-rabbit:5671//"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="ExecutorConf requires Airflow 3.2+")
+    def test_team_app_name_includes_team_name(self):
+        """Each team gets a unique Celery app name for broker isolation."""
+        team_conf = ExecutorConf(team_name="team_beta")
+        celery_app = celery_executor_utils.create_celery_app(team_conf)
+        assert "team_beta" in celery_app.main

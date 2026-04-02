@@ -31,6 +31,7 @@ import subprocess
 import sys
 import traceback
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
+from importlib import import_module
 from concurrent.futures import ProcessPoolExecutor
 from functools import cache
 from typing import TYPE_CHECKING, Any
@@ -124,7 +125,10 @@ def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
     :param team_conf: ExecutorConf instance with team-specific configuration, or global conf
     :return: Celery app instance
     """
-    from airflow.providers.celery.executors.default_celery import get_default_celery_config
+    from airflow.providers.celery.executors.default_celery import (
+        DEFAULT_CELERY_CONFIG,
+        get_default_celery_config,
+    )
 
     celery_app_name = team_conf.get("celery", "CELERY_APP_NAME")
 
@@ -138,10 +142,13 @@ def create_celery_app(team_conf: ExecutorConf | AirflowConfigParser) -> Celery:
 
     config = get_default_celery_config(team_conf)
 
-    # Apply celery_config_options override if explicitly configured
-    if conf.has_option("celery", "celery_config_options"):
-        user_config = conf.getimport("celery", "celery_config_options")
-        if isinstance(user_config, dict):
+    # Apply user-provided celery_config_options on top of team config.
+    # Skip if it resolves to DEFAULT_CELERY_CONFIG (built from global conf, not team-aware).
+    configured_path = team_conf.get("celery", "celery_config_options", fallback=None)
+    if configured_path:
+        module_path, _, attr_name = configured_path.rpartition(".")
+        user_config = getattr(import_module(module_path), attr_name)
+        if user_config is not DEFAULT_CELERY_CONFIG and isinstance(user_config, dict):
             config.update(user_config)
 
     celery_app = Celery(celery_app_name, config_source=config)
