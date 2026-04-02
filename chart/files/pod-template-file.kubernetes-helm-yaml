@@ -219,8 +219,8 @@ spec:
   {{- if or .Values.workers.kubernetes.priorityClassName .Values.workers.priorityClassName }}
   priorityClassName: {{ .Values.workers.kubernetes.priorityClassName | default .Values.workers.priorityClassName }}
   {{- end }}
-  {{- if .Values.workers.runtimeClassName }}
-  runtimeClassName: {{ .Values.workers.runtimeClassName }}
+  {{- if or .Values.workers.kubernetes.runtimeClassName .Values.workers.runtimeClassName }}
+  runtimeClassName: {{ .Values.workers.kubernetes.runtimeClassName | default .Values.workers.runtimeClassName }}
   {{- end }}
   imagePullSecrets: {{- include "image_pull_secrets" . | nindent 4 }}
   {{- if or .Values.workers.kubernetes.hostAliases .Values.workers.hostAliases }}

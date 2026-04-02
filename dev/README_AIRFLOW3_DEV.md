@@ -72,6 +72,17 @@ If you want to have a fix backported to 3.2.x please add (or request to add) "ba
 When preparing a new 3.2.x release, the release manager will sync the `v3-2-test` branch to `v3-2-stable` and cut the release from the stable branch.
 PRs should **never** target `v3-2-stable` directly unless explicitly instructed by the release manager.
 
+> [!TIP]
+> **Shortcut for first RC candidates:** When preparing the first RC candidate for a new minor release
+> (e.g., 3.2.0rc1), it is unlikely to be approved on the first attempt — bugs are typically found during
+> RC testing. In this case, the release manager can prepare the RC directly from the `v3-X-test` branch
+> without opening a PR to `v3-X-stable`. This saves the overhead of creating and managing a PR that will
+> likely need additional changes before GA. However, when using this shortcut, the release manager **must**
+> verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
+> check this at:
+> https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml?query=event%3Apush+branch%3Av3-2-test
+> (adjust the branch filter for the relevant `v3-X-test` branch).
+
 ## Developing for Airflow 3
 
 PRs should target `main` branch.
@@ -241,64 +252,7 @@ The action should create a new PR with the cherry-picked commit and add a commen
 successful (or when it fails). If automatic backporting fails because of conflicts, you have to revert to
 manual backporting using `cherry-picker` CLI.
 
-## How to backport PR with `cherry-picker` CLI
-
-Backporting via CLI might be more convenient for some users. Also it is necessary if you want to backport
-PR that has conflicts. It also allows to backport commit to multiple branches in the same command.
-
-To backport PRs to any branch (for example: v2-11-test), you can use the following command:
-
-It's easiest to install it (and keep cherry-picker up-to-date) using `uv tool`:
-
-```bash
-uv tool install cherry-picker
-````
-
-And upgrade it with:
-
-```bash
-uv tool upgrade cherry-picker
-```
-
-Then, in order to backport a commit to a branch, you can use the following command:
-
-```bash
-cherry_picker COMMIT_SHA BRANCH_NAME1 [BRANCH_NAME2 ...]
-```
-
-This will create a new branch with the cherry-picked commit and open a PR against the target branch in
-your browser.
-
-If the GH_AUTH environment variable is set in your command line, the cherry-picker automatically creates a new pull request when there are no conflicts. To set GH_AUTH, use the token from your GitHub repository.
-
-To set GH_AUTH run this:
-
-```bash
-export GH_AUTH={token}
-```
-
-Sometimes it might result with conflict. In such case, you should manually resolve the conflicts.
-Some IDEs like IntelliJ has a fantastic conflict resolution tool - just follow `Git -> Resolve conflicts`
-menu after you get the conflict. But you can also resolve the conflicts manually; see [How conflicts are
-are presented](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented) and
-[How to resolve conflicts](https://git-scm.com/docs/git-merge#_how_to_resolve_conflicts) for more details.
-
-```bash
-cherry_picker --status  # Should show if all conflicts are resolved
-cherry_picker --continue  # Should continue cherry-picking process
-```
-
-> [!WARNING]
-> Sometimes, when you stop cherry-picking process in the middle, you might end up with your repo in a bad
-> state and cherry-picker might print this message:
->
-> > 🐍 🍒 ⛏
-> >
-> > You're not inside a cpython repo right now! 🙅
->
-> You should then run `cherry-picker --abort` to clean up the mess and start over. If that does not work
-> you might need to run `git config --local --remove-section cherry-picker` to clean up the configuration
-> stored in `.git/config`.
+## [How to backport PR with `cherry-picker` CLI](README.md#how-to-backport-pr-with-cherry-picker-cli)
 
 ## Merging PRs for Airflow 2.11.x
 

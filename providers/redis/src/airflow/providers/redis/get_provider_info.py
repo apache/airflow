@@ -84,5 +84,5 @@ def get_provider_info():
                 },
             }
         ],
-        "logging": ["airflow.providers.redis.redis_task_handler.RedisTaskHandler"],
+        "logging": ["airflow.providers.redis.log.redis_task_handler.RedisTaskHandler"],
     }
