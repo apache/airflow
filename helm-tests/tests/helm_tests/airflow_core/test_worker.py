@@ -2330,6 +2330,74 @@ class TestWorkerService:
 class TestWorkerServiceAccount:
     """Tests worker service account."""
 
+    def test_should_not_create_worker_service_account_for_local_executor(self):
+        docs = render_chart(
+            values={
+                "executor": "LocalExecutor",
+                "workers": {"serviceAccount": {"create": True}},
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+            "KubernetesExecutor",
+            "LocalKubernetesExecutor",
+        ],
+    )
+    def test_should_create_worker_service_account_for_specific_executors(self, executor):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {"serviceAccount": {"create": True}},
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 1
+        assert jmespath.search("kind", docs[0]) == "ServiceAccount"
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_override_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+    def test_override_name(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "serviceAccount": {"create": True, "name": "test"},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("metadata.name", docs[0]) == "test"
+
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
@@ -2344,56 +2412,3 @@ class TestWorkerServiceAccount:
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
-
-    @pytest.mark.parametrize(
-        ("executor", "creates_service_account"),
-        [
-            ("LocalExecutor", False),
-            ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
-            ("CeleryExecutor,KubernetesExecutor", True),
-            ("KubernetesExecutor", True),
-            ("LocalKubernetesExecutor", True),
-        ],
-    )
-    def test_should_create_worker_service_account_for_specific_executors(
-        self, executor, creates_service_account
-    ):
-        docs = render_chart(
-            values={
-                "executor": executor,
-                "workers": {
-                    "serviceAccount": {"create": True},
-                    "labels": {"test_label": "test_label_value"},
-                },
-            },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
-        )
-        if creates_service_account:
-            assert jmespath.search("kind", docs[0]) == "ServiceAccount"
-            assert "test_label" in jmespath.search("metadata.labels", docs[0])
-            assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
-        else:
-            assert docs == []
-
-    def test_default_automount_service_account_token(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "serviceAccount": {"create": True},
-                },
-            },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
-        )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
-
-    def test_overridden_automount_service_account_token(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
-                },
-            },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
-        )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
