@@ -26,9 +26,11 @@ from sqlalchemy.orm import Session
 
 from airflow.providers.fab.auth_manager.models import (
     Action,
+    Group,
     Permission,
     Resource,
     Role,
+    User,
 )
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
@@ -196,13 +198,14 @@ class TestFabAirflowSecurityManagerOverride:
     def test_update_user_clears_cached_permissions(self):
         sm = EmptySecurityManager()
         user = Mock(
+            spec=User,
             id=1,
-            roles=[Mock(id=2)],
-            groups=[Mock(id=3)],
+            roles=[Mock(spec=Role, id=2)],
+            groups=[Mock(spec=Group, id=3)],
             _perms={("can_read", "DAG")},
         )
-        existing_user = Mock(roles=[Mock(id=4)], groups=[Mock(id=5)])
-        merged_user = Mock(_perms={("can_edit", "DAG")})
+        existing_user = Mock(spec=User, roles=[Mock(spec=Role, id=4)], groups=[Mock(spec=Group, id=5)])
+        merged_user = Mock(spec=User, _perms={("can_edit", "DAG")})
         mock_session = Mock(spec=Session)
         mock_session.get.return_value = existing_user
         mock_session.merge.return_value = merged_user

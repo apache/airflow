@@ -2022,7 +2022,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 if rotate_session_id:
                     self._rotate_session_id()
                 self.update_user_auth_stat(user)
-                self.session.refresh(user)
+                self.session.expire(user, ["roles", "groups"])
                 self._reset_user_permissions_cache(user)
                 return user
             return None
