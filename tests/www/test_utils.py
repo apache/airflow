@@ -142,6 +142,21 @@ class TestUtils:
             current_page=0, total_pages=4, sorting_key="dag_id", sorting_direction="asc"
         )
 
+    @pytest.mark.parametrize("lastrun", ["failed", "running"])
+    def test_generate_pager_preserves_lastrun_in_page_links(self, lastrun):
+        """Pagination hrefs must keep lastrun so filters survive page changes (e.g. failed DAGs)."""
+        html_str = utils.generate_pages(
+            current_page=1,
+            num_of_pages=4,
+            lastrun=lastrun,
+        )
+        dom = BeautifulSoup(html_str, "html.parser")
+        for a in dom.find_all("a", href=True):
+            href = a["href"]
+            if href.startswith("?"):
+                query = parse_qs(href[1:])
+                assert query.get("lastrun") == [lastrun], href
+
     def test_params_no_values(self):
         """Should return an empty string if no params are passed"""
         assert "" == utils.get_params()
@@ -163,6 +178,10 @@ class TestUtils:
             "search": ["bash_"],
             "status": ["active"],
         } == parse_qs(query)
+
+    def test_params_lastrun(self):
+        query = utils.get_params(page=2, lastrun="failed")
+        assert parse_qs(query) == {"page": ["2"], "lastrun": ["failed"]}
 
     def test_params_escape(self):
         assert "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E" == utils.get_params(
