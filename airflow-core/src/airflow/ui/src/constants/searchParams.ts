@@ -56,6 +56,7 @@ export enum SearchParamsKeys {
   LOGICAL_DATE_RANGE = "logical_date_range",
   MAP_INDEX = "map_index",
   MAPPED = "mapped",
+  MISSED = "missed",
   NAME_PATTERN = "name_pattern",
   NEEDS_REVIEW = "needs_review",
   OFFSET = "offset",

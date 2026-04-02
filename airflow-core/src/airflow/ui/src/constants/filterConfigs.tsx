@@ -206,6 +206,16 @@ export const useFilterConfigs = () => {
       min: -1,
       type: FilterTypes.NUMBER,
     },
+    [SearchParamsKeys.MISSED]: {
+      icon: <MdCheckCircle />,
+      label: translate("browse:deadlines.filters.status"),
+      options: [
+        { label: translate("browse:deadlines.filters.statusOptions.all"), value: "" },
+        { label: translate("browse:deadlines.filters.statusOptions.pending"), value: "false" },
+        { label: translate("browse:deadlines.filters.statusOptions.missed"), value: "true" },
+      ],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.NAME_PATTERN]: {
       hotkeyDisabled: true,
       icon: <TaskIcon />,
