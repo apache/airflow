@@ -100,7 +100,8 @@ def build_reproduction_command_from_context(
         # emit the appropriate side only when explicitly provided.
         if param.is_flag and param.secondary_opts:
             if source in _EXPLICIT_SOURCES:
-                flag = param.opts[0] if value else param.secondary_opts[0]
+                # Prefer long-form alias for both sides of the flag pair.
+                flag = param.opts[-1] if value else param.secondary_opts[-1]
                 argv.append(flag)
             continue
 
