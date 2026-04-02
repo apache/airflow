@@ -195,3 +195,73 @@ def inject_transport_information_into_spark_properties(properties: dict, context
         return properties
 
     return {**properties, **_get_transport_information_as_spark_properties()}
+
+
+def inject_parent_job_information_into_glue_arguments(script_args: dict, context: Context) -> dict:
+    """
+    Inject parent job information into Glue job arguments if not already present.
+
+    Glue jobs pass Spark properties via the ``--conf`` key in the script_args dict.
+    Multiple Spark conf properties are combined into the ``--conf`` key value with
+    ``' --conf '`` as separator between each property assignment.
+
+    Args:
+        script_args: Glue job script arguments dict (maps to boto3 ``Arguments``).
+        context: The context containing task instance information.
+
+    Returns:
+        Modified script_args dict with OpenLineage parent job information injected, if applicable.
+    """
+    existing_conf = script_args.get("--conf", "")
+
+    if "spark.openlineage.parent" in existing_conf:
+        log.info(
+            "Some OpenLineage properties with parent job information are already present "
+            "in Glue job arguments. Skipping the injection of OpenLineage "
+            "parent job information into Glue job arguments."
+        )
+        return script_args
+
+    parent_props = _get_parent_job_information_as_spark_properties(context)
+    if not parent_props:
+        return script_args
+
+    new_conf_parts = " --conf ".join(f"{k}={v}" for k, v in parent_props.items())
+
+    combined_conf = f"{existing_conf} --conf {new_conf_parts}" if existing_conf else new_conf_parts
+    return {**script_args, "--conf": combined_conf}
+
+
+def inject_transport_information_into_glue_arguments(script_args: dict, context: Context) -> dict:
+    """
+    Inject transport information into Glue job arguments if not already present.
+
+    Glue jobs pass Spark properties via the ``--conf`` key in the script_args dict.
+    Multiple Spark conf properties are combined into the ``--conf`` key value with
+    ``' --conf '`` as separator between each property assignment.
+
+    Args:
+        script_args: Glue job script arguments dict (maps to boto3 ``Arguments``).
+        context: The context containing task instance information.
+
+    Returns:
+        Modified script_args dict with OpenLineage transport information injected, if applicable.
+    """
+    existing_conf = script_args.get("--conf", "")
+
+    if "spark.openlineage.transport" in existing_conf:
+        log.info(
+            "Some OpenLineage properties with transport information are already present "
+            "in Glue job arguments. Skipping the injection of OpenLineage "
+            "transport information into Glue job arguments."
+        )
+        return script_args
+
+    transport_props = _get_transport_information_as_spark_properties()
+    if not transport_props:
+        return script_args
+
+    new_conf_parts = " --conf ".join(f"{k}={v}" for k, v in transport_props.items())
+
+    combined_conf = f"{existing_conf} --conf {new_conf_parts}" if existing_conf else new_conf_parts
+    return {**script_args, "--conf": combined_conf}
