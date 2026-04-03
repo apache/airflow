@@ -67,25 +67,22 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
     }
   };
 
-  const handleToggleGroupOnLinkClick = (groupNodeId?: string) => {
+  const onClick = (event: MouseEvent<HTMLSpanElement>) => {
+    const groupNodeId = event.currentTarget.dataset.groupId;
+
     if (groupNodeId === undefined || groupNodeId === "") {
       return;
     }
 
     const id = groupNodeId;
     const isViewingSameGroup = typeof groupId === "string" && groupId === id;
-    const isOpen = openGroupIds.includes(id);
 
     if (isViewingSameGroup) {
       toggleGroupId(id);
-
-      return;
     }
-
-    if (!isOpen) {
-      setOpenGroupIds([...new Set([...openGroupIds, id])]);
-    }
+    onRowClick?.();
   };
+
 
   const search = searchParams.toString();
 
