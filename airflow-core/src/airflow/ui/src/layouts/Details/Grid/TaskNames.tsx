@@ -126,12 +126,8 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
             {node.isGroup ? (
               <Link asChild data-testid={node.id} display="block" width="100%">
                 <RouterLink
-                  onClick={() => {
-                    handleToggleGroupOnLinkClick(node.id);
-                    if (onRowClick) {
-                      onRowClick();
-                    }
-                  }}
+                  data-group-id={node.id}
+                  onClick={onClick}
                   replace
                   style={{ outline: "none" }}
                   to={{
