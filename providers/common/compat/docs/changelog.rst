@@ -25,6 +25,21 @@
 Changelog
 ---------
 
+1.14.2
+......
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Remove usage of deprecated module airflow.security.permissions (#63335)``
+* ``Remove remaining session query usages (#62758)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``refactor: remove modules that are supposed to be removed in Airflow 3.2 (#62927)``
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 1.14.1
 ......
 

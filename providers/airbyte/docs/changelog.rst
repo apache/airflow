@@ -27,6 +27,25 @@ Changelog
 ---------
 
 
+5.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add submit_reset_connection func (#63578)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix typo in debug message for 'AirbyteTriggerSyncOperator' (#64084)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
 5.3.3
 .....
 

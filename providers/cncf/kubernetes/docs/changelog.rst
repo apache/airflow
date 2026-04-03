@@ -27,10 +27,49 @@
 Changelog
 ---------
 
+10.15.0
+.......
+
 .. warning::
    ``KubernetesJobOperator`` no longer supports setting ``parallelism = 0`` with ``wait_until_job_complete=True``.
    Previously this would create a job that would never complete and always fail the task.
    Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
+
+Features
+~~~~~~~~
+
+* ``Add runtime_class_name to KubernetesPodOperator (#63952)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add application name as env var to driver and executor pods for SparkKubernetesOperator (#64015)``
+* ``Deleting spark job before raising exception "Job took too long to start" in start_spark_job method (#63824) (#63922)``
+* ``Add cancel_on_kill and safe_to_cancel support to KubernetesPodOperator and trigger (#62401)``
+* ``Fix misaligned 'queued_tasks' types in hybrid executors (#63744)``
+* ``Use joinable manager queues (#63789)``
+* ``K8s unicode log read (#63673)``
+* ``K8s executor - ensure pods cleaned up (#61839)``
+* ``Apply verify_ssl=False to returned ApiClient in KubernetesHook (#63478)``
+* ``Fix KubernetesJobOperator failing when pods are deleted after job completion (#63569)``
+* ``Fix KubernetesPodOperator XCom sidecar hang on Alpine (#58931)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix mypy errors in kubernetes, fab, google, and amazon providers (#63947)``
+* ``Relax 'kubernetes_asyncio<<36.0.0' (#64144)``
+* ``Clarify reattach order of 'find_spark_job' in 'SparkKubernetesOperator' (#64186)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typos and spelling (#64139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
 
 10.14.0
 .......

@@ -73,7 +73,7 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.10.12
+ARG AIRFLOW_UV_VERSION=0.11.2
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -1417,6 +1417,14 @@ EOF
 COPY <<"EOF" /entrypoint_prod.sh
 #!/usr/bin/env bash
 AIRFLOW_COMMAND="${1:-}"
+AIRFLOW_COMMAND_TO_RUN="${AIRFLOW_COMMAND}"
+if [[ "${AIRFLOW_COMMAND}" == "airflow" ]]; then
+    AIRFLOW_COMMAND_TO_RUN="${2:-}"
+elif [[ "${AIRFLOW_COMMAND}" =~ ^(bash|sh)$ ]] \
+    && [[ "${2:-}" == "-c" ]] \
+    && [[ "${3:-}" =~ (^|[[:space:]])(exec[[:space:]]+)?airflow[[:space:]]+(scheduler|dag-processor|triggerer|api-server)([[:space:]]|$) ]]; then
+    AIRFLOW_COMMAND_TO_RUN="${BASH_REMATCH[3]}"
+fi
 
 set -euo pipefail
 
@@ -1668,7 +1676,8 @@ readonly CONNECTION_CHECK_SLEEP_TIME
 
 create_system_user_if_missing
 set_pythonpath_for_root_user
-if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]] \
+    && [[ ${AIRFLOW_COMMAND_TO_RUN} =~ ^(scheduler|dag-processor|triggerer|api-server)$ ]]; then
     wait_for_airflow_db
 fi
 

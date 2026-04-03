@@ -257,7 +257,7 @@ def get_asset_triggered_next_run_info(
     """
     Get next run info for a list of dag_ids.
 
-    Given a list of dag_ids, get string representing how close any that are asset triggered are
+    Given a list of dag_ids, get string representing how close any that are asset triggered are to
     their next run, e.g. "1 of 2 assets updated".
     """
     from airflow.models.asset import AssetDagRunQueue as ADRQ, DagScheduleAssetReference
@@ -588,7 +588,7 @@ class DagModel(Base):
     def deactivate_deleted_dags(
         cls,
         bundle_name: str,
-        rel_filelocs: list[str],
+        rel_filelocs: Collection[str],
         session: Session = NEW_SESSION,
     ) -> bool:
         """
@@ -600,6 +600,7 @@ class DagModel(Base):
         :return: True if any DAGs were marked as stale, False otherwise
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
+        rel_filelocs = set(rel_filelocs)
         dag_models = session.scalars(
             select(cls)
             .where(

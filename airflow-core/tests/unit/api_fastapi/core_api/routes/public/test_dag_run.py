@@ -40,6 +40,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
+    clear_db_assets,
     clear_db_connections,
     clear_db_dag_bundles,
     clear_db_dags,
@@ -130,6 +131,7 @@ def setup(request, dag_maker, session=None):
     clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
+    clear_db_assets()
 
     if "no_setup" in request.keywords:
         return
@@ -218,6 +220,34 @@ def setup(request, dag_maker, session=None):
     session.merge(ti1)
     session.merge(ti2)
     session.merge(dag_maker.dag_model)
+    session.commit()
+
+    asset1 = AssetModel(name="sales", uri="s3://bucket/sales")
+    asset2 = AssetModel(name="customer", uri="s3://bucket/customer")
+    session.add_all([asset1, asset2])
+    session.flush()
+
+    event1 = AssetEvent(
+        asset_id=asset1.id,
+        source_dag_id="source_dag",
+        source_run_id="source_run",
+        source_task_id="source_task",
+    )
+    event2 = AssetEvent(
+        asset_id=asset2.id,
+        source_dag_id="source_dag",
+        source_run_id="source_run",
+        source_task_id="source_task",
+    )
+    session.add_all([event1, event2])
+    session.flush()
+
+    dag_run1 = session.scalar(select(DagRun).filter(DagRun.id == dag_run1.id))
+    dag_run2 = session.scalar(select(DagRun).filter(DagRun.id == dag_run2.id))
+
+    dag_run1.consumed_asset_events.append(event1)
+    dag_run2.consumed_asset_events.append(event2)
+
     session.commit()
 
 
@@ -710,6 +740,21 @@ class TestGetDagRuns:
             ),  # Test for debug key
             ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID]),  # Test for the key "version"
             ("~", {"conf_contains": "nonexistent_key"}, []),  # Test for a key that doesn't exist
+            # Test consuming_asset_pattern filter
+            ("~", {"consuming_asset_pattern": "sales"}, [DAG1_RUN1_ID]),  # Filter by asset name
+            ("~", {"consuming_asset_pattern": "s3://bucket/sales"}, [DAG1_RUN1_ID]),  # Filter by asset URI
+            ("~", {"consuming_asset_pattern": "customer"}, [DAG1_RUN2_ID]),  # Filter by another asset
+            (
+                "~",
+                {"consuming_asset_pattern": "s3://bucket/customer"},
+                [DAG1_RUN2_ID],
+            ),  # Filter by customer URI
+            (
+                "~",
+                {"consuming_asset_pattern": "s3://bucket"},
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),  # Partial URI match
+            ("~", {"consuming_asset_pattern": "nonexistent_asset"}, []),  # Non-existent asset returns empty
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -2079,3 +2124,35 @@ class TestWaitDagRun:
         assert response.status_code == 200
         data = response.json()
         assert data == {"state": DagRunState.SUCCESS, "results": {"task_1": '"result_1"'}}
+
+    def test_should_respond_403_when_user_lacks_xcom_permission(self, test_client):
+        from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+
+        with mock.patch(
+            "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
+            autospec=True,
+        ) as mock_get_auth_manager:
+            mock_get_auth_manager.return_value.is_authorized_dag.return_value = False
+
+            response = test_client.get(
+                f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+                params={"interval": "1", "result": "task_1"},
+            )
+
+            assert response.status_code == 403
+            mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
+                method="GET",
+                access_entity=DagAccessEntity.XCOM,
+                details=DagDetails(id=DAG1_ID),
+                user=mock.ANY,
+            )
+
+    def test_should_respond_200_without_result_when_user_lacks_xcom_permission(self, test_client):
+        """Waiting without result parameter should not require XCom permissions."""
+        response = test_client.get(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+            params={"interval": "1"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data == {"state": DagRunState.SUCCESS}

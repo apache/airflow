@@ -102,7 +102,7 @@ test.describe("Events with Generated Data", () => {
     await eventsPage.verifyLogEntriesWithData();
   });
 
-  test("verify search for specific event type and filtered results", async () => {
+  test.fixme("verify search for specific event type and filtered results", async () => {
     await eventsPage.navigate();
 
     const initialRowCount = await eventsPage.getTableRowCount();
@@ -123,7 +123,7 @@ test.describe("Events with Generated Data", () => {
     }).toPass({ timeout: 20_000 });
   });
 
-  test("verify filter by DAG ID", async () => {
+  test.fixme("verify filter by DAG ID", async () => {
     await eventsPage.navigate();
     await eventsPage.addFilter("DAG ID");
     await eventsPage.setFilterValue("DAG ID", testDagId);

@@ -147,10 +147,15 @@ class HITLOperator(BaseOperator):
         """
         Validate the `params` attribute of the instance.
 
+        Note: Value validation (e.g., required fields, schema) is intentionally skipped here
+        because HITLOperator params represent form fields that are filled by a human at runtime.
+        Values do not exist at Dag parse time, so validating them in ``__init__`` would cause
+        a ``ParamValidationError`` for any param without a default. Value validation happens
+        in ``validate_params_input`` after the human submits the form.
+
         Raises:
-            ValueError: If `"_options"` key is present in `params`, which is not allowed.
+            ValueError: If ``"_options"`` key is present in ``params``, which is not allowed.
         """
-        self.params.validate()
         if "_options" in self.params:
             raise ValueError('"_options" is not allowed in params')
 

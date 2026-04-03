@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-papermill``
 
-Release: ``3.12.1``
+Release: ``3.12.2``
 
 
 `Papermill <https://github.com/nteract/papermill>`__
@@ -36,7 +36,7 @@ This is a provider package for ``papermill`` provider. All classes for this prov
 are in ``airflow.providers.papermill`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.12.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.12.2/>`_.
 
 Installation
 ------------
@@ -45,23 +45,24 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-papermill``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-==========================================  =====================================
+==========================================  =================================================================
 PIP package                                 Version required
-==========================================  =====================================
+==========================================  =================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``papermill[all]``                          ``>=2.6.0``
 ``scrapbook[all]``                          ``>=0.5.0``
 ``ipykernel``                               ``>=6.29.4``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``nbconvert``                               ``>=7.16.1``
-==========================================  =====================================
+==========================================  =================================================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -82,14 +83,5 @@ Dependent package                                                               
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
 ==================================================================================================================  =================
 
-Optional dependencies
-----------------------
-
-=================  ==========================================
-Extra              Dependencies
-=================  ==========================================
-``common.compat``  ``apache-airflow-providers-common-compat``
-=================  ==========================================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.12.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.12.2/changelog.html>`_.

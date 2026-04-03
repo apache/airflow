@@ -31,7 +31,7 @@ export class PoolsPage extends BasePage {
   public constructor(page: Page) {
     super(page);
     this.addPoolButton = page.getByRole("button", { name: "Add Pool" });
-    this.cardList = page.locator('[data-testid="card-list"]');
+    this.cardList = page.getByTestId("card-list");
     this.searchInput = page.getByPlaceholder("Search Pools");
   }
 
@@ -42,17 +42,17 @@ export class PoolsPage extends BasePage {
 
     await expect(dialog).toBeVisible({ timeout: 10_000 });
 
-    const nameInput = dialog.locator('input[name="name"]');
+    const nameInput = dialog.getByLabel("Name");
 
     await nameInput.fill(name);
 
-    const slotsInput = dialog.locator('input[type="number"]');
+    const slotsInput = dialog.getByLabel("Slots");
 
     await slotsInput.fill("");
     await slotsInput.fill(String(slots));
 
     if (description !== undefined && description !== "") {
-      const descriptionInput = dialog.locator("textarea");
+      const descriptionInput = dialog.getByLabel("Description");
 
       await descriptionInput.fill(description);
     }
@@ -68,7 +68,10 @@ export class PoolsPage extends BasePage {
 
     await saveButton.click();
     await responsePromise;
-    await this.page.waitForLoadState("networkidle");
+    await Promise.any([
+      expect(dialog).toBeHidden({ timeout: 10_000 }),
+      expect(dialog).toHaveAttribute("data-state", "closed", { timeout: 10_000 }),
+    ]);
   }
 
   public async deletePool(poolName: string): Promise<void> {
@@ -90,7 +93,10 @@ export class PoolsPage extends BasePage {
 
     await confirmDeleteButton.click();
     await responsePromise;
-    await this.page.waitForLoadState("networkidle");
+    await Promise.any([
+      expect(confirmDialog).toBeHidden({ timeout: 10_000 }),
+      expect(confirmDialog).toHaveAttribute("data-state", "closed", { timeout: 10_000 }),
+    ]);
   }
 
   public async editPoolSlots(poolName: string, newSlots: number): Promise<void> {
@@ -103,7 +109,7 @@ export class PoolsPage extends BasePage {
 
     await expect(dialog).toBeVisible({ timeout: 10_000 });
 
-    const slotsInput = dialog.locator('input[type="number"]');
+    const slotsInput = dialog.getByLabel("Slots");
 
     await slotsInput.fill("");
     await slotsInput.fill(String(newSlots));
@@ -119,7 +125,10 @@ export class PoolsPage extends BasePage {
 
     await saveButton.click();
     await responsePromise;
-    await this.page.waitForLoadState("networkidle");
+    await Promise.any([
+      expect(dialog).toBeHidden({ timeout: 10_000 }),
+      expect(dialog).toHaveAttribute("data-state", "closed", { timeout: 10_000 }),
+    ]);
   }
 
   public getPoolCard(poolName: string): Locator {
@@ -129,21 +138,16 @@ export class PoolsPage extends BasePage {
   public async navigate(): Promise<void> {
     await this.navigateTo(PoolsPage.poolsUrl);
     await this.page.waitForURL("**/pools", { timeout: 15_000 });
-    await this.page.waitForLoadState("networkidle");
+    await expect(this.cardList).toBeVisible({ timeout: 15_000 });
   }
 
   public async verifyPoolExists(poolName: string): Promise<void> {
-    await this.page.waitForLoadState("networkidle");
-
     const poolText = this.cardList.getByText(poolName, { exact: false });
 
     await expect(poolText.first()).toBeVisible({ timeout: 10_000 });
   }
 
   public async verifyPoolNotExists(poolName: string): Promise<void> {
-    await this.page.waitForLoadState("networkidle");
-    await this.page.waitForTimeout(1000);
-
     const poolText = this.cardList.getByText(poolName, { exact: true });
 
     await expect(poolText).toBeHidden({ timeout: 10_000 });
@@ -159,8 +163,6 @@ export class PoolsPage extends BasePage {
   }
 
   public async verifyPoolSlots(poolName: string, expectedSlots: number): Promise<void> {
-    await this.page.waitForLoadState("networkidle");
-
     const slotsText = this.cardList.getByText(`${poolName} (${expectedSlots} Slots)`, { exact: false });
 
     await expect(slotsText.first()).toBeVisible({ timeout: 10_000 });

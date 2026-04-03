@@ -24,7 +24,7 @@ from fastapi.responses import RedirectResponse
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
 from airflow.providers.fab.auth_manager.api_fastapi.routes.router import auth_router
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin

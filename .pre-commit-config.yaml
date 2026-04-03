@@ -256,7 +256,7 @@ repos:
           (?x)
           ^\.pre-commit-config\.yaml$|
           ^\.github/\.pre-commit-config\.yaml$|
-          ^scripts/ci/prek/update_installers_and_prek\.py$
+          ^scripts/ci/prek/upgrade_important_versions\.py$
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
@@ -448,7 +448,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.7']
+        additional_dependencies: ['ruff==0.15.8']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -469,6 +469,7 @@ repos:
           ^clients/gen/go\.sh$|
           ^\.gitmodules$|
           ^airflow-core/src/airflow/ui/openapi-gen/|
+          ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/openapi-gen/|
           ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
           .*/dist/.*|
           \.go$|
