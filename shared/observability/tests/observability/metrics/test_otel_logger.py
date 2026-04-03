@@ -446,3 +446,30 @@ class TestOtelMetrics:
 def mock_service_run():
     logger = get_otel_logger(debug=True)
     logger.incr("my_test_stat")
+
+
+class TestOtelForkSafety:
+    def test_get_otel_logger_resets_meter_provider_guard(self):
+        """
+        Verify that get_otel_logger() can set a new MeterProvider even when the
+        OTel SDK's Once() guard has already been triggered (simulating a forked child
+        process that inherited the parent's state).
+        """
+        import opentelemetry.metrics._internal as _metrics_internal
+
+        # Simulate the state a forked child inherits: Once._done=True from parent
+        _metrics_internal._METER_PROVIDER_SET_ONCE._done = True
+        original_provider = _metrics_internal._METER_PROVIDER
+
+        try:
+            logger = get_otel_logger(debug=True)
+
+            # The guard should have been reset and a new provider set
+            assert _metrics_internal._METER_PROVIDER is not None
+            assert _metrics_internal._METER_PROVIDER is not original_provider
+            # The logger should be functional
+            assert isinstance(logger, SafeOtelLogger)
+        finally:
+            # Clean up: reset for other tests
+            _metrics_internal._METER_PROVIDER_SET_ONCE._done = False
+            _metrics_internal._METER_PROVIDER = None
