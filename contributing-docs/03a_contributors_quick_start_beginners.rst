@@ -71,13 +71,16 @@ Option A – Breeze on Your Laptop
 
 2. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
 
-.. code-block:: text
+.. code-block:: bash
 
     # For IntelliJ IDEA and PyCharm
     uv run dev/ide_setup/setup_idea.py
 
     # For VS Code
     uv run dev/ide_setup/setup_vscode.py
+
+    # For creating a Separate branch
+    git checkout -b <docs-typo/your-task>
 
 3.  **Start the development container** (first run builds the image)
 
@@ -126,7 +129,6 @@ For more on testing, see the `Testing Guide <09_testing.rst>`_.
 
 .. code-block:: bash
 
-    git checkout -b docs-typo
     git commit -am "fix typo in README"
     git push -u origin docs-typo
 
