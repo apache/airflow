@@ -587,6 +587,195 @@ class TestGlueJobOperator:
         assert xcom_calls[0][1]["value"] == "existing_run_123"
 
 
+class TestGlueJobOperatorOpenLineageInjection:
+    """Tests for OpenLineage parent job info and transport info injection in GlueJobOperator."""
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.glue.inject_parent_job_information_into_glue_arguments"
+    )
+    def test_inject_parent_job_info_called_when_enabled(
+        self, mock_inject_parent, mock_initialize_job, mock_get_conn
+    ):
+        mock_inject_parent.side_effect = lambda args, ctx: {
+            **args,
+            "--conf": "spark.openlineage.parentJobNamespace=ns",
+        }
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            iam_role_name="my_test_role",
+            wait_for_completion=False,
+            openlineage_inject_parent_job_info=True,
+        )
+        context = mock.MagicMock()
+        glue.execute(context)
+
+        mock_inject_parent.assert_called_once()
+        call_args = mock_initialize_job.call_args[0][0]
+        assert "--conf" in call_args
+        assert "spark.openlineage.parentJobNamespace=ns" in call_args["--conf"]
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.glue.inject_parent_job_information_into_glue_arguments"
+    )
+    def test_inject_parent_job_info_not_called_when_disabled(
+        self, mock_inject_parent, mock_initialize_job, mock_get_conn
+    ):
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            iam_role_name="my_test_role",
+            wait_for_completion=False,
+            openlineage_inject_parent_job_info=False,
+        )
+        glue.execute(mock.MagicMock())
+
+        mock_inject_parent.assert_not_called()
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.glue.inject_transport_information_into_glue_arguments"
+    )
+    def test_inject_transport_info_called_when_enabled(
+        self, mock_inject_transport, mock_initialize_job, mock_get_conn
+    ):
+        mock_inject_transport.side_effect = lambda args, ctx: {
+            **args,
+            "--conf": "spark.openlineage.transport.type=http",
+        }
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            iam_role_name="my_test_role",
+            wait_for_completion=False,
+            openlineage_inject_transport_info=True,
+        )
+        context = mock.MagicMock()
+        glue.execute(context)
+
+        mock_inject_transport.assert_called_once()
+        call_args = mock_initialize_job.call_args[0][0]
+        assert "--conf" in call_args
+        assert "spark.openlineage.transport.type=http" in call_args["--conf"]
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.glue.inject_parent_job_information_into_glue_arguments"
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.glue.inject_transport_information_into_glue_arguments"
+    )
+    def test_inject_both_parent_and_transport_info(
+        self, mock_inject_transport, mock_inject_parent, mock_initialize_job, mock_get_conn
+    ):
+        mock_inject_parent.side_effect = lambda args, ctx: {
+            **args,
+            "--conf": "spark.openlineage.parentJobNamespace=ns",
+        }
+        mock_inject_transport.side_effect = lambda args, ctx: {
+            **args,
+            "--conf": args.get("--conf", "") + " --conf spark.openlineage.transport.type=http",
+        }
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            iam_role_name="my_test_role",
+            wait_for_completion=False,
+            openlineage_inject_parent_job_info=True,
+            openlineage_inject_transport_info=True,
+        )
+        glue.execute(mock.MagicMock())
+
+        mock_inject_parent.assert_called_once()
+        mock_inject_transport.assert_called_once()
+        call_args = mock_initialize_job.call_args[0][0]
+        assert "spark.openlineage.parentJobNamespace=ns" in call_args["--conf"]
+        assert "spark.openlineage.transport.type=http" in call_args["--conf"]
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.glue.inject_parent_job_information_into_glue_arguments"
+    )
+    def test_inject_parent_job_info_preserves_existing_script_args(
+        self, mock_inject_parent, mock_initialize_job, mock_get_conn
+    ):
+        mock_inject_parent.side_effect = lambda args, ctx: {
+            **args,
+            "--conf": "spark.openlineage.parentJobNamespace=ns",
+        }
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            iam_role_name="my_test_role",
+            wait_for_completion=False,
+            openlineage_inject_parent_job_info=True,
+            script_args={"--my-arg": "my-value"},
+        )
+        glue.execute(mock.MagicMock())
+
+        call_args = mock_initialize_job.call_args[0][0]
+        assert call_args["--my-arg"] == "my-value"
+        assert "--conf" in call_args
+
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch(
+        "airflow.providers.amazon.aws.operators.glue.inject_parent_job_information_into_glue_arguments"
+    )
+    def test_inject_parent_job_info_with_resume_on_retry(
+        self, mock_inject_parent, mock_initialize_job, mock_get_conn
+    ):
+        """OL injection is applied before task UUID is added; both end up in the args passed to initialize_job."""
+        mock_inject_parent.side_effect = lambda args, ctx: {
+            **args,
+            "--conf": "spark.openlineage.parentJobNamespace=ns",
+        }
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            iam_role_name="my_test_role",
+            wait_for_completion=False,
+            openlineage_inject_parent_job_info=True,
+            resume_glue_job_on_retry=True,
+        )
+
+        mock_ti = mock.MagicMock()
+        mock_ti.xcom_pull.return_value = None  # no previous run
+        context = {"ti": mock_ti}
+        glue.execute(context)
+
+        mock_inject_parent.assert_called_once()
+        # The injected OL arg and the task UUID arg should both be present
+        call_args = mock_initialize_job.call_args[0][0]
+        assert "--conf" in call_args
+        assert GlueJobOperator.TASK_UUID_ARG in call_args
+
+
 class TestGlueDataQualityOperator:
     RULE_SET_NAME = "TestRuleSet"
     RULE_SET = 'Rules=[ColumnLength "review_id" = 15]'
