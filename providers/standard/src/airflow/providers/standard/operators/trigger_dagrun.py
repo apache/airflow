@@ -43,8 +43,7 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
-from airflow.sdk.definitions.param import is_arg_set
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, is_arg_set
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
