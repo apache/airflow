@@ -1889,7 +1889,7 @@ class TestTriggererJobRunner:
     @patch.object(TriggerRunnerSupervisor, "start")
     def test_execute_sets_server_process_context(self, mock_supervisor_start, session, monkeypatch):
         """_execute marks triggerer as server context for secrets backend detection."""
-        mock_supervisor = MagicMock()
+        mock_supervisor = MagicMock(spec=TriggerRunnerSupervisor)
         mock_supervisor._exit_code = 0
         mock_supervisor_start.return_value = mock_supervisor
 
