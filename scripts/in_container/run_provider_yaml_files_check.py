@@ -77,7 +77,7 @@ if __name__ != "__main__":
 
 PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH.joinpath("airflow", "provider.yaml.schema.json")
 PROVIDER_ISSUE_TEMPLATE_PATH = AIRFLOW_ROOT_PATH.joinpath(
-    ".github", "ISSUE_TEMPLATE", "3-airflow_providers_bug_report.yml"
+    ".github", "ISSUE_TEMPLATE", "1-airflow_bug_report.yml"
 )
 CORE_INTEGRATIONS = ["SQL", "Local"]
 

@@ -48,8 +48,8 @@ async function globalTeardown() {
         timeout: 10_000,
       });
     } catch (error) {
-      console.warn(
-        `[e2e teardown] Failed to re-pause DAG ${dagId}: ${error instanceof Error ? error.message : String(error)}`,
+      console.debug(
+        `[e2e teardown] Could not re-pause DAG ${dagId}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
