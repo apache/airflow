@@ -16,84 +16,45 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from "@playwright/test";
-import { AUTH_FILE, testConfig } from "playwright.config";
-import { DagsPage } from "tests/e2e/pages/DagsPage";
-import { XComsPage } from "tests/e2e/pages/XComsPage";
+import { expect } from "tests/e2e/fixtures";
+import { test } from "tests/e2e/fixtures/xcom-data";
 
 test.describe("XComs Page", () => {
   test.setTimeout(60_000);
 
-  let xcomsPage: XComsPage;
-  const testDagId = testConfig.xcomDag.id;
-  const testXComKey = "return_value";
-  const triggerCount = 2;
+  // xcomRunsData is triggered once per worker via beforeEach.
+  // eslint-disable-next-line @typescript-eslint/no-empty-function -- triggers worker-scoped data fixture
+  test.beforeEach(async ({ xcomRunsData: _data }) => {});
 
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(3 * 60 * 1000);
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const setupDagsPage = new DagsPage(page);
-    const setupXComsPage = new XComsPage(page);
-
-    for (let i = 0; i < triggerCount; i++) {
-      const dagRunId = await setupDagsPage.triggerDag(testDagId);
-
-      await setupDagsPage.verifyDagRunStatus(testDagId, dagRunId);
-    }
-
-    await setupXComsPage.navigate();
-    await page.waitForFunction(
-      (minCount) => {
-        const table = document.querySelector('[data-testid="table-list"]');
-
-        if (!table) {
-          return false;
-        }
-        const rows = table.querySelectorAll("tbody tr");
-
-        return rows.length >= minCount;
-      },
-      triggerCount,
-      { timeout: 120_000 },
-    );
-
-    await context.close();
-  });
-
-  test.beforeEach(({ page }) => {
-    xcomsPage = new XComsPage(page);
-  });
-
-  test("verify XComs table renders", async () => {
+  test("verify XComs table renders", async ({ xcomsPage }) => {
     await xcomsPage.navigate();
     await expect(xcomsPage.xcomsTable).toBeVisible();
   });
 
-  test("verify XComs table displays data", async () => {
+  test("verify XComs table displays data", async ({ xcomsPage }) => {
     await xcomsPage.navigate();
     await xcomsPage.verifyXComsExist();
   });
 
-  test("verify XCom details display correctly", async () => {
+  test("verify XCom details display correctly", async ({ xcomsPage }) => {
     await xcomsPage.navigate();
     await xcomsPage.verifyXComDetailsDisplay();
   });
 
-  test("verify XCom values can be viewed", async () => {
+  test("verify XCom values can be viewed", async ({ xcomsPage }) => {
     await xcomsPage.navigate();
     await xcomsPage.verifyXComValuesDisplayed();
   });
 
-  test("verify expand/collapse functionality", async () => {
+  test("verify expand/collapse functionality", async ({ xcomsPage }) => {
     await xcomsPage.verifyExpandCollapse();
   });
 
-  test("verify filtering by key pattern", async () => {
-    await xcomsPage.verifyKeyPatternFiltering(testXComKey);
+  test("verify filtering by key pattern", async ({ xcomRunsData, xcomsPage }) => {
+    await xcomsPage.verifyKeyPatternFiltering(xcomRunsData.xcomKey);
   });
 
-  test("verify filtering by DAG display name", async () => {
-    await xcomsPage.verifyDagDisplayNameFiltering(testDagId);
+  test("verify filtering by DAG display name", async ({ xcomRunsData, xcomsPage }) => {
+    await xcomsPage.verifyDagDisplayNameFiltering(xcomRunsData.dagId);
   });
 });
