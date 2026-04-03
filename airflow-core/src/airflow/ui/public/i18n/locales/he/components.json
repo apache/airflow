@@ -100,7 +100,8 @@
     "taskCount_one": "משימה אחת",
     "taskCount_other": "{{count}} משימות",
     "taskCount_two": "שתי משימות",
-    "taskGroup": "קבוצת משימות"
+    "taskGroup": "קבוצת משימות",
+    "triggerDagRun": "TriggerDagRunOperator"
   },
   "limitedList": "+ {{count}} נוספים",
   "limitedList.allItems": "כל {{count}} הפריטים:",

@@ -92,7 +92,8 @@
     "otherDagRuns": "+Weitere Dag Läufe",
     "taskCount_one": "{{count}} Task",
     "taskCount_other": "{{count}} Tasks",
-    "taskGroup": "Task Gruppe"
+    "taskGroup": "Task Gruppe",
+    "triggerDagRun": "TriggerDagRunOperator"
   },
   "limitedList": "+{{count}} mehr",
   "limitedList.allItems": "Alle {{count}} Einträge:",

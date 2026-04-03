@@ -93,7 +93,8 @@
     "otherDagRuns": "+अन्य डैग रन्स",
     "taskCount_one": "{{count}} टास्क",
     "taskCount_other": "{{count}} टास्क्स",
-    "taskGroup": "टास्क ग्रुप"
+    "taskGroup": "टास्क ग्रुप",
+    "triggerDagRun": "TriggerDagRunOperator"
   },
   "limitedList": "+{{count}} और",
   "limitedList.allItems": "सभी {{count}} आइटम:",

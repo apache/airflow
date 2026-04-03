@@ -90,7 +90,8 @@
     "otherDagRuns": "+その他の Dag 実行",
     "taskCount_one": "{{count}} 個のタスク",
     "taskCount_other": "{{count}} 個のタスク",
-    "taskGroup": "タスクグループ"
+    "taskGroup": "タスクグループ",
+    "triggerDagRun": "TriggerDagRunOperator"
   },
   "limitedList": "その他 +{{count}} 件",
   "limitedList.allItems": "全 {{count}} 件:",

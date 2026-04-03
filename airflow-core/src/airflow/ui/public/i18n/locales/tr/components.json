@@ -93,7 +93,8 @@
     "otherDagRuns": "+Diğer Dag Çalıştırmaları",
     "taskCount_one": "{{count}} Görev",
     "taskCount_other": "{{count}} Görev",
-    "taskGroup": "Görev Grubu"
+    "taskGroup": "Görev Grubu",
+    "triggerDagRun": "TriggerDagRunOperator"
   },
   "limitedList": "+{{count}} daha",
   "limitedList.allItems": "Tüm {{count}} öğeler:",

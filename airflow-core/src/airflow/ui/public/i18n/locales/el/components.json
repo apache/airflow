@@ -85,7 +85,8 @@
     "otherDagRuns": "+Άλλες Εκτελέσεις Dag",
     "taskCount_one": "{{count}} Εργασία",
     "taskCount_other": "{{count}} Εργασίες",
-    "taskGroup": "Ομάδα Εργασιών"
+    "taskGroup": "Ομάδα Εργασιών",
+    "triggerDagRun": "TriggerDagRunOperator"
   },
   "limitedList": "+{{count}} ακόμα",
   "logs": {

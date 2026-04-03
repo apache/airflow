@@ -99,7 +99,8 @@
     "taskCount_one": "{{count}} Task",
     "taskCount_other": "{{count}} Tasks",
     "taskCount_zero": "Nessun task",
-    "taskGroup": "Task Group"
+    "taskGroup": "Task Group",
+    "triggerDagRun": "TriggerDagRunOperator"
   },
   "limitedList": "+{{count}} altro",
   "limitedList.allItems": "Tutti i {{count}} elementi:",

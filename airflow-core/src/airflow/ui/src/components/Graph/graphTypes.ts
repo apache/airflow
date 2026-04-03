@@ -24,6 +24,7 @@ import { DefaultNode } from "./DefaultNode";
 import Edge from "./Edge";
 import { JoinNode } from "./JoinNode";
 import { TaskNode } from "./TaskNode";
+import { TriggerNode } from "./TriggerNode";
 
 export const nodeTypes = {
   asset: AssetNode,
@@ -33,7 +34,9 @@ export const nodeTypes = {
   "asset-uri-ref": DefaultNode,
   dag: DagNode,
   join: JoinNode,
+  sensor: DefaultNode,
   task: TaskNode,
+  trigger: TriggerNode,
 };
 
 export const edgeTypes = { custom: Edge };
