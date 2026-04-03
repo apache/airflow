@@ -1729,9 +1729,15 @@ class TestTriggererJobRunner:
     @patch.object(TriggerRunnerSupervisor, "start")
     def test_execute_sets_server_process_context(self, mock_supervisor_start, session, monkeypatch):
         """_execute marks triggerer as server context for secrets backend detection."""
-        mock_supervisor = MagicMock(spec=TriggerRunnerSupervisor)
-        mock_supervisor._exit_code = 0
-        mock_supervisor_start.return_value = mock_supervisor
+        captured_context = {}
+
+        def capture_env(*args, **kwargs):
+            captured_context["value"] = os.environ.get("_AIRFLOW_PROCESS_CONTEXT")
+            mock_supervisor = MagicMock(spec=TriggerRunnerSupervisor)
+            mock_supervisor._exit_code = 0
+            return mock_supervisor
+
+        mock_supervisor_start.side_effect = capture_env
 
         job = Job()
         session.add(job)
@@ -1744,10 +1750,11 @@ class TestTriggererJobRunner:
             patch.object(job_runner, "register_signals"),
             patch("airflow.jobs.triggerer_job_runner.Stats.initialize"),
         ):
-            result = job_runner._execute()
+            job_runner._execute()
 
-        assert result == 0
-        assert os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server"
+        assert captured_context["value"] == "server"
+        # Verify env var is restored after _execute() returns.
+        assert os.environ.get("_AIRFLOW_PROCESS_CONTEXT") is None
 
 
 class TestTriggererMessageTypes:
