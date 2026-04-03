@@ -229,7 +229,7 @@ def test_convert_env_vars_mixed_v1envvar_and_dict_raises():
     env_vars = [k8s.V1EnvVar(name="A", value="1"), {"name": "B", "value": "2"}]
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        with pytest.raises(AirflowException, match="only V1EnvVar instances or only dicts"):
+        with pytest.raises(ValueError, match="only V1EnvVar instances or only dicts"):
             convert_env_vars(env_vars)
     assert len(w) == 0
 

@@ -128,11 +128,9 @@ def convert_env_vars(
         return env_vars  # type: ignore[return-value]
     if not env_vars:
         return []
-    all_v1 = all(isinstance(x, k8s.V1EnvVar) for x in env_vars)
-    all_dict = all(isinstance(x, dict) for x in env_vars)
-    if all_v1:
+    if all(isinstance(x, k8s.V1EnvVar) for x in env_vars):
         return env_vars
-    if all_dict:
+    if all(isinstance(x, dict) for x in env_vars):
         warnings.warn(
             "Passing env_vars as a list of {'name': ..., 'value': ...} dicts is deprecated; "
             "this shape was not a documented first-class API. Use dict[str, str] "
@@ -142,7 +140,7 @@ def convert_env_vars(
             stacklevel=2,
         )
         return [_env_var_dict_to_v1(d, i) for i, d in enumerate(env_vars)]
-    raise AirflowException(
+    raise ValueError(
         "env_vars list must contain only V1EnvVar instances or only dicts, not a mixture of types."
     )
 
