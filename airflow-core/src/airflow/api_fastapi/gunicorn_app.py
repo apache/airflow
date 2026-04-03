@@ -73,12 +73,14 @@ class AirflowUvicornWorker(UvicornWorker):
     which would override any structlog configuration applied before gunicorn starts.
     Setting ``log_config=None`` prevents that. ``access_log=False`` disables uvicorn's
     built-in access logger because ``HttpAccessLogMiddleware`` handles access logging.
+    ``date_header=False`` prevents duplicate Date headers when Flask WSGI middleware is used.
     """
 
     CONFIG_KWARGS = {
         **UvicornWorker.CONFIG_KWARGS,
         "log_config": None,
         "access_log": False,
+        "date_header": False,
     }
 
 

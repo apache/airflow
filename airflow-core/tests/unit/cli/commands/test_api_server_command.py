@@ -197,6 +197,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "log_level": "info",
                     "proxy_headers": args.proxy_headers,
                     "log_config": None,
+                    "date_header": False,
                     **expected_additional_kwargs,
                 },
             )
@@ -251,6 +252,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             log_level="info",
             proxy_headers=False,
             log_config=None,
+            date_header=False,
         )
 
         if demonize:

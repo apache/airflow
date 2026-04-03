@@ -167,7 +167,9 @@ def init_error_handlers(app: FastAPI) -> None:
 def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
     from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
+    from airflow.api_fastapi.common.remove_duplicate_date_header import RemoveDuplicateDateHeaderMiddleware
 
+    app.add_middleware(RemoveDuplicateDateHeaderMiddleware)
     app.add_middleware(JWTRefreshMiddleware)
     if conf.getboolean("core", "simple_auth_manager_all_admins"):
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware

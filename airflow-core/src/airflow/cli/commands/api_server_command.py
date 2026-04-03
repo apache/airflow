@@ -124,6 +124,8 @@ def _run_api_server_with_uvicorn(
         "proxy_headers": proxy_headers,
         # Prevent uvicorn from overriding our structlog-based logging setup.
         "log_config": None,
+        # Disable uvicorn's Date header to avoid duplicates with Flask's WSGI middleware.
+        "date_header": False,
     }
     if args.log_config and args.log_config != "-":
         # The [api/log_config] is migrated from [api/access_logfile] and [api/access_logfile] defaults to "-" for stdout for Gunicorn.
