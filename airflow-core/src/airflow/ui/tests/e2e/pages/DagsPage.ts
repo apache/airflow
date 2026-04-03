@@ -58,9 +58,9 @@ export class DagsPage extends BasePage {
     this.stateElement = page.getByTestId("dag-run-state");
     this.searchBox = page.getByRole("textbox", { name: /search/i });
     this.searchInput = page.getByPlaceholder("Search DAGs");
-    this.operatorFilter = page.getByRole("combobox").filter({ hasText: /operator/i });
-    this.triggerRuleFilter = page.getByRole("combobox").filter({ hasText: /trigger/i });
-    this.retriesFilter = page.getByRole("combobox").filter({ hasText: /retr/i });
+    this.operatorFilter = page.getByTestId("operator-filter");
+    this.triggerRuleFilter = page.getByTestId("trigger-rule-filter");
+    this.retriesFilter = page.getByTestId("retries-filter");
     // View toggle buttons
     this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
@@ -269,7 +269,7 @@ export class DagsPage extends BasePage {
 
   public async navigateToDagTasks(dagId: string): Promise<void> {
     await expect(async () => {
-      await this.page.goto(`/dags/${dagId}/tasks`);
+      await this.safeGoto(`/dags/${dagId}/tasks`);
       await expect(
         this.page
           .locator("th")
@@ -364,7 +364,7 @@ export class DagsPage extends BasePage {
    */
   public async verifyDagDetails(dagName: string): Promise<void> {
     await expect(async () => {
-      await this.page.goto(`/dags/${dagName}/details`, { waitUntil: "domcontentloaded" });
+      await this.safeGoto(`/dags/${dagName}/details`, { waitUntil: "domcontentloaded" });
       await expect(this.page.getByRole("heading", { name: dagName })).toBeVisible({ timeout: 30_000 });
     }).toPass({ intervals: [2000], timeout: 60_000 });
   }
@@ -391,7 +391,7 @@ export class DagsPage extends BasePage {
       return;
     }
 
-    await this.page.goto(DagsPage.getDagRunDetailsUrl(dagName, dagRunId), {
+    await this.safeGoto(DagsPage.getDagRunDetailsUrl(dagName, dagRunId), {
       timeout: 15_000,
       waitUntil: "domcontentloaded",
     });

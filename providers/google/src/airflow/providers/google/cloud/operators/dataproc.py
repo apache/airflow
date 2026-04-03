@@ -669,7 +669,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
                 "Please provide cluster_config object using `cluster_config` parameter. "
                 "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
-                "method to obtain cluster object.",
+                "method to obtain cluster object. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )

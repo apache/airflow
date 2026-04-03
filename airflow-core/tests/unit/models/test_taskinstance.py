@@ -2653,6 +2653,26 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     assert ti.max_tries == expected_max_tries
 
 
+@pytest.mark.parametrize(
+    ("weight_rule", "expected_weight"),
+    [
+        pytest.param("downstream", 10 + 5, id="downstream-sums-descendants"),
+        pytest.param("upstream", 10, id="upstream-no-ancestors"),
+        pytest.param("absolute", 10, id="absolute-self-only"),
+    ],
+)
+def test_refresh_from_task_with_non_serialized_operator(weight_rule, expected_weight):
+    """Regression: TaskInstance must work with non-serialized operators whose weight_rule is a WeightRule enum."""
+    with DAG(dag_id="test_dag"):
+        root = EmptyOperator(task_id="root", priority_weight=10, weight_rule=weight_rule)
+        child = EmptyOperator(task_id="child", priority_weight=5)
+        root >> child
+
+    ti = TI(root, run_id=None, dag_version_id=mock.MagicMock())
+
+    assert ti.priority_weight == expected_weight
+
+
 def test_defer_task_returns_false_when_no_start_from_trigger(create_task_instance):
     session = mock.MagicMock()
     ti = create_task_instance(
@@ -2748,6 +2768,67 @@ def test_defer_task_with_trigger_timeout(create_task_instance):
     # Check trigger_timeout is set correctly (within a small tolerance)
     expected_timeout = now + timeout
     assert abs((ti.trigger_timeout - expected_timeout).total_seconds()) < 5
+
+
+@pytest.mark.parametrize(
+    ("initial_state", "initial_try_number", "expected_try_number", "msg"),
+    [
+        (TaskInstanceState.DEFERRED, 1, 2, "try_number should increment if state is not UP_FOR_RESCHEDULE"),
+        (
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            5,
+            5,
+            "try_number should NOT increment if state is UP_FOR_RESCHEDULE",
+        ),
+    ],
+)
+def test_defer_task_try_number_increment_on_state(
+    create_task_instance, initial_state, initial_try_number, expected_try_number, msg
+):
+    """
+    Test that defer_task increments try_number only if the pre-deferral state is not UP_FOR_RESCHEDULE.
+    """
+    from airflow.triggers.base import StartTriggerArgs
+
+    session = mock.MagicMock()
+
+    ti = create_task_instance(
+        dag_id="test_defer_task_try_number",
+        task_id="test_defer_task_try_number_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={},
+        ),
+    )
+    ti.state = initial_state
+    ti.try_number = initial_try_number
+    ti.defer_task(session=session)
+    assert ti.try_number == expected_try_number, msg
+
+
+class TestTaskInstanceRelationships:
+    @pytest.mark.parametrize(
+        "attr",
+        ["rendered_task_instance_fields", "hitl_detail"],
+    )
+    def test_noload_relationships_raise_without_joinedload(self, dag_maker, session, attr):
+        """Accessing lazy='raise' relationships without joinedload should raise."""
+        from sqlalchemy.exc import InvalidRequestError
+
+        with dag_maker("test_dag", session=session):
+            EmptyOperator(task_id="task_1")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task_1")
+        session.merge(ti)
+        session.commit()
+
+        loaded_ti = session.scalar(select(TaskInstance).where(TaskInstance.id == ti.id))
+
+        with pytest.raises(InvalidRequestError):
+            getattr(loaded_ti, attr)
 
 
 class TestTaskInstanceRecordTaskMapXComPush:

@@ -96,9 +96,7 @@ dependencies = [
     "dill>=0.2.2",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.129.0",
     "uvicorn>=0.37.0",
-    # Starlette 1.0.0 breaks the API server. Needs more investigation
-    # https://github.com/apache/airflow/issues/64116
-    "starlette>=0.45.0,<1",
+    "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
@@ -248,6 +246,7 @@ exclude = [
 "../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
 "../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/_shared/secrets_backend"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
+"../shared/serialization/src/airflow_shared/serialization" = "src/airflow/_shared/serialization"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
 "../shared/listeners/src/airflow_shared/listeners" = "src/airflow/_shared/listeners"
 "../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/_shared/plugins_manager"
@@ -330,6 +329,7 @@ shared_distributions = [
     "apache-airflow-shared-observability",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-serialization",
     "apache-airflow-shared-timezones",
     "apache-airflow-shared-plugins-manager",
     "apache-airflow-shared-providers-discovery",

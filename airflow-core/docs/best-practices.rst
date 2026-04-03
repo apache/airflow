@@ -296,6 +296,8 @@ When you execute that code you will see:
 
 This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.
 
+.. _best_practices/code_quality_and_linting:
+
 Code Quality and Linting
 ------------------------
 
@@ -317,7 +319,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.15.7"
+      pip install "ruff>=0.15.8"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
