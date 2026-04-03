@@ -333,3 +333,232 @@ def test_dagrun_dep(mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun
         ti.xcom_push.assert_called_with(key="past_depends_met", value=True)
     else:
         ti.xcom_push.assert_not_called()
+
+
+class TestDependsOnPreviousTasks:
+    """Tests for the depends_on_previous_tasks feature."""
+
+    @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
+    @patch("airflow.models.dagrun.DagRun.get_previous_dagrun")
+    def test_not_set_passes(self, mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun):
+        """When depends_on_previous_tasks is not set, the dep should pass."""
+        task = Mock(
+            spec=BaseOperator,
+            task_id="test_task",
+            depends_on_past=False,
+            depends_on_previous_tasks=None,
+            dag=Mock(catchup=False),
+            start_date=None,
+        )
+        dagrun = Mock(backfill_id=None, logical_date=datetime(2016, 1, 3), dag_id="test_dag")
+        ti = Mock(task=task, task_id="test_task", **{"get_dagrun.return_value": dagrun})
+
+        dep_context = DepContext(ignore_depends_on_past=False)
+        dep = PrevDagrunDep()
+        assert dep.is_met(ti=ti, dep_context=dep_context)
+
+    @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
+    @patch("airflow.models.dagrun.DagRun.get_previous_dagrun")
+    def test_all_succeeded_passes(self, mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun):
+        """When all listed tasks succeeded in prev run, the dep should pass."""
+        task = Mock(
+            spec=BaseOperator,
+            task_id="C",
+            depends_on_past=False,
+            depends_on_previous_tasks=["D", "E"],
+            dag=Mock(catchup=False),
+            start_date=None,
+        )
+        prev_dagrun = Mock(logical_date=datetime(2016, 1, 2))
+        mock_get_previous_dagrun.return_value = prev_dagrun
+        dagrun = Mock(backfill_id=None, logical_date=datetime(2016, 1, 3), dag_id="test_dag")
+        ti = Mock(
+            task=task,
+            task_id="C",
+            **{"get_dagrun.return_value": dagrun, "xcom_push.return_value": None},
+        )
+
+        dep_context = DepContext(ignore_depends_on_past=False)
+        dep = PrevDagrunDep()
+        with patch.multiple(
+            dep,
+            _has_tis=Mock(return_value=True),
+            _count_unsuccessful_tis=Mock(return_value=0),
+        ):
+            assert dep.is_met(ti=ti, dep_context=dep_context)
+
+    @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
+    @patch("airflow.models.dagrun.DagRun.get_previous_dagrun")
+    def test_one_failed_blocks(self, mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun):
+        """When one listed task failed in prev run, the dep should fail."""
+        task = Mock(
+            spec=BaseOperator,
+            task_id="C",
+            depends_on_past=False,
+            depends_on_previous_tasks=["D", "E"],
+            dag=Mock(catchup=False),
+            start_date=None,
+        )
+        prev_dagrun = Mock(logical_date=datetime(2016, 1, 2))
+        mock_get_previous_dagrun.return_value = prev_dagrun
+        dagrun = Mock(backfill_id=None, logical_date=datetime(2016, 1, 3), dag_id="test_dag")
+        ti = Mock(
+            task=task,
+            task_id="C",
+            **{"get_dagrun.return_value": dagrun, "xcom_push.return_value": None},
+        )
+
+        dep_context = DepContext(ignore_depends_on_past=False)
+        dep = PrevDagrunDep()
+
+        def count_unsuccessful(dagrun, task_id, *, session):
+            return 1 if task_id == "D" else 0
+
+        with patch.multiple(
+            dep,
+            _has_tis=Mock(return_value=True),
+            _count_unsuccessful_tis=count_unsuccessful,
+        ):
+            assert not dep.is_met(ti=ti, dep_context=dep_context)
+
+    @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
+    @patch("airflow.models.dagrun.DagRun.get_previous_dagrun")
+    def test_first_run_passes(self, mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun):
+        """No previous dagrun (first run) should pass."""
+        task = Mock(
+            spec=BaseOperator,
+            task_id="C",
+            depends_on_past=False,
+            depends_on_previous_tasks=["D"],
+            dag=Mock(catchup=False),
+            start_date=None,
+        )
+        mock_get_previous_dagrun.return_value = None
+        dagrun = Mock(backfill_id=None, logical_date=datetime(2016, 1, 3), dag_id="test_dag")
+        ti = Mock(
+            task=task,
+            task_id="C",
+            **{"get_dagrun.return_value": dagrun, "xcom_push.return_value": None},
+        )
+
+        dep_context = DepContext(ignore_depends_on_past=False)
+        dep = PrevDagrunDep()
+        assert dep.is_met(ti=ti, dep_context=dep_context)
+
+    @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
+    @patch("airflow.models.dagrun.DagRun.get_previous_dagrun")
+    def test_context_ignore_bypasses(self, mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun):
+        """ignore_depends_on_past=True should bypass depends_on_previous_tasks check."""
+        task = Mock(
+            spec=BaseOperator,
+            task_id="C",
+            depends_on_past=False,
+            depends_on_previous_tasks=["D"],
+            dag=Mock(catchup=False),
+            start_date=None,
+        )
+        dagrun = Mock(backfill_id=None, logical_date=datetime(2016, 1, 3), dag_id="test_dag")
+        ti = Mock(
+            task=task,
+            task_id="C",
+            **{"get_dagrun.return_value": dagrun, "xcom_push.return_value": None},
+        )
+
+        dep_context = DepContext(ignore_depends_on_past=True)
+        dep = PrevDagrunDep()
+        assert dep.is_met(ti=ti, dep_context=dep_context)
+
+    @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
+    @patch("airflow.models.dagrun.DagRun.get_previous_dagrun")
+    def test_skipped_is_ok(self, mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun):
+        """SKIPPED tasks in prev run should be treated as successful."""
+        task = Mock(
+            spec=BaseOperator,
+            task_id="C",
+            depends_on_past=False,
+            depends_on_previous_tasks=["D"],
+            dag=Mock(catchup=False),
+            start_date=None,
+        )
+        prev_dagrun = Mock(logical_date=datetime(2016, 1, 2))
+        mock_get_previous_dagrun.return_value = prev_dagrun
+        dagrun = Mock(backfill_id=None, logical_date=datetime(2016, 1, 3), dag_id="test_dag")
+        ti = Mock(
+            task=task,
+            task_id="C",
+            **{"get_dagrun.return_value": dagrun, "xcom_push.return_value": None},
+        )
+
+        dep_context = DepContext(ignore_depends_on_past=False)
+        dep = PrevDagrunDep()
+        # _count_unsuccessful_tis returns 0 for SKIPPED tasks (they're in _SUCCESSFUL_STATES)
+        with patch.multiple(
+            dep,
+            _has_tis=Mock(return_value=True),
+            _count_unsuccessful_tis=Mock(return_value=0),
+        ):
+            assert dep.is_met(ti=ti, dep_context=dep_context)
+
+    @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
+    @patch("airflow.models.dagrun.DagRun.get_previous_dagrun")
+    def test_task_not_in_prev_run_fails(self, mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun):
+        """A listed task not found in the previous dagrun should fail."""
+        task = Mock(
+            spec=BaseOperator,
+            task_id="C",
+            depends_on_past=False,
+            depends_on_previous_tasks=["D"],
+            dag=Mock(catchup=False),
+            start_date=None,
+        )
+        prev_dagrun = Mock(logical_date=datetime(2016, 1, 2))
+        mock_get_previous_dagrun.return_value = prev_dagrun
+        dagrun = Mock(backfill_id=None, logical_date=datetime(2016, 1, 3), dag_id="test_dag")
+        ti = Mock(
+            task=task,
+            task_id="C",
+            **{"get_dagrun.return_value": dagrun, "xcom_push.return_value": None},
+        )
+
+        dep_context = DepContext(ignore_depends_on_past=False)
+        dep = PrevDagrunDep()
+        with patch.multiple(
+            dep,
+            _has_tis=Mock(return_value=False),
+            _count_unsuccessful_tis=Mock(return_value=0),
+        ):
+            assert not dep.is_met(ti=ti, dep_context=dep_context)
+
+
+class TestDependsOnPreviousTasksValidation:
+    """Tests for mutual exclusivity validation."""
+
+    def test_conflicts_with_depends_on_past(self):
+        """Setting both depends_on_previous_tasks and depends_on_past should raise."""
+        with pytest.raises(ValueError, match="cannot be combined"):
+            BaseOperator(
+                task_id="test",
+                depends_on_past=True,
+                depends_on_previous_tasks=["A"],
+            )
+
+    def test_conflicts_with_wait_for_downstream(self):
+        """Setting both depends_on_previous_tasks and wait_for_downstream should raise."""
+        with pytest.raises(ValueError, match="cannot be combined"):
+            BaseOperator(
+                task_id="test",
+                wait_for_downstream=True,
+                depends_on_previous_tasks=["A"],
+            )
+
+    def test_standalone_is_valid(self):
+        """Setting only depends_on_previous_tasks should be valid."""
+        dag = DAG("test_dag", schedule=timedelta(days=1), start_date=datetime(2016, 1, 1))
+        task = BaseOperator(
+            task_id="test",
+            dag=dag,
+            depends_on_previous_tasks=["A", "B"],
+        )
+        assert task.depends_on_previous_tasks == ["A", "B"]
+        assert task.depends_on_past is False
+        assert task.wait_for_downstream is False

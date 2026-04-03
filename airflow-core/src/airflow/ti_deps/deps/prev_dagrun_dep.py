@@ -135,7 +135,9 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason=reason)
             return
 
-        if not ti.task.depends_on_past:
+        depends_on_previous_tasks = getattr(ti.task, "depends_on_previous_tasks", None)
+
+        if not ti.task.depends_on_past and not depends_on_previous_tasks:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="The task did not have depends_on_past set.")
             return
@@ -178,6 +180,26 @@ class PrevDagrunDep(BaseTIDep):
         ):
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
+            return
+
+        # depends_on_previous_tasks (mutually exclusive with depends_on_past)
+        if depends_on_previous_tasks:
+            for prev_task_id in depends_on_previous_tasks:
+                if not self._has_tis(last_dagrun, prev_task_id, session=session):
+                    yield self._failing_status(
+                        reason=f"depends_on_previous_tasks requires task '{prev_task_id}' "
+                        f"but it was not found in the previous dagrun."
+                    )
+                    return
+                unsuccessful = self._count_unsuccessful_tis(last_dagrun, prev_task_id, session=session)
+                if unsuccessful > 0:
+                    yield self._failing_status(
+                        reason=f"depends_on_previous_tasks requires task '{prev_task_id}' "
+                        f"to have succeeded in the previous dagrun, "
+                        f"but it has {unsuccessful} unsuccessful instance(s)."
+                    )
+                    return
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             return
 
         if not self._has_tis(last_dagrun, ti.task_id, session=session):
