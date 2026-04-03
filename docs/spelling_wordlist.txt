@@ -1643,6 +1643,7 @@ sudo
 sudoers
 summarization
 superclass
+superset
 sur
 svg
 swappable

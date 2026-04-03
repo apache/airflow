@@ -1613,6 +1613,7 @@ class TestStringifiedDAGs:
             "_task_display_name": None,
             "allow_nested_operators": True,
             "depends_on_past": False,
+            "depends_on_previous_tasks": None,
             "do_xcom_push": True,
             "doc": None,
             "doc_json": None,
