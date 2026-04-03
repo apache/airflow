@@ -11,7 +11,7 @@
       },
       {
         "context": "breeze",
-        "command": "echo \"Already inside Breeze \u2014 no setup needed\"",
+        "command": "echo \"You are already inside the Breeze development container. Do NOT run 'breeze' commands here. Instead, use the existing tmux panes or run 'stop_airflow' followed by 'start_airflow' inside this shell if you need to restart Airflow services.\"",
         "preferred": true
       }
     ],
@@ -91,21 +91,21 @@
   {
     "id": "build-docs",
     "category": "documentation",
-    "description": "Build Airflow documentation. Pass package to build only that provider's docs (much faster). Runs via breeze on host or inside breeze.",
+    "description": "Build Airflow documentation. Pass package to build only that provider's docs (much faster). Uses ``uv run --group docs build-docs`` on the host and Breeze inside the container or as a fallback.",
     "steps": [
       {
         "context": "host",
-        "command": "breeze build-docs",
+        "command": "uv run --group docs build-docs {package}",
         "preferred": true
       },
       {
         "context": "host",
-        "command": "breeze build-docs --package-filter {package}",
+        "command": "breeze build-docs {package}",
         "preferred": false
       },
       {
         "context": "breeze",
-        "command": "breeze build-docs",
+        "command": "breeze build-docs {package}",
         "preferred": true
       }
     ],

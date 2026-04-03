@@ -95,7 +95,7 @@ of the tmux panes and hit Enter
    :category: environment
    :description: Start the Airflow Breeze development environment. Only run on the host — never nest breeze inside breeze.
    :local: breeze start-airflow
-   :breeze: echo "Already inside Breeze — no setup needed"
+   :breeze: echo "You are already inside the Breeze development container. Do NOT run 'breeze' commands here. Instead, use the existing tmux panes or run 'stop_airflow' followed by 'start_airflow' inside this shell if you need to restart Airflow services."
    :expected-output: Airflow webserver is ready
 
 **Working with DAGs in Breeze:**

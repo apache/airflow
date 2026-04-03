@@ -108,12 +108,12 @@ def test_scenario_db_test_always_uses_breeze_on_host(monkeypatch):
 
     cmd = get_command(
         "run-db-test",
-        test_path="airflow-core/tests/models/test_dag.py",
+        test_path="airflow-core/tests/unit/models/test_dag.py",
     )
 
     assert "breeze run pytest" in cmd, f"DB tests must always use breeze on host, got: {cmd}"
     assert "uv run" not in cmd, "uv must never be used for DB tests"
-    assert "airflow-core/tests/models/test_dag.py" in cmd
+    assert "airflow-core/tests/unit/models/test_dag.py" in cmd
 
 
 # ---------------------------------------------------------------------------

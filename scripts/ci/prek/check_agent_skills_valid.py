@@ -33,15 +33,13 @@ import re
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+# Ensure the scripts/ directory is on sys.path so this script works when
+# invoked directly (e.g. as a prek hook) without the package being installed.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-# Must mirror AGENT_SKILLS_RST_FILES in context_detect.py exactly.
-AGENT_SKILLS_RST_FILES: list[Path] = [
-    REPO_ROOT / "contributing-docs" / "03a_contributors_quick_start_beginners.rst",
-    REPO_ROOT / "contributing-docs" / "08_static_code_checks.rst",
-    REPO_ROOT / "contributing-docs" / "11_documentation_building.rst",
-    REPO_ROOT / "contributing-docs" / "testing" / "unit_tests.rst",
-]
+from ci.prek.context_detect import AGENT_SKILLS_RST_FILES
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _DIRECTIVE_RE = re.compile(r"^\.\.\s+agent-skill::\s*$")
 _OPTION_RE = re.compile(r"^\s+:([^:]+):\s+(.+)$")

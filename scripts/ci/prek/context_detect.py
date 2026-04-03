@@ -91,12 +91,12 @@ def get_context() -> str:
     """Return 'breeze' if running inside the Breeze container, else 'host'.
 
     Detection priority:
-      1. AIRFLOW_BREEZE_CONTAINER env var
+      1. BREEZE env var (set by Breeze via shell_params.py)
       2. /.dockerenv file (set by Docker runtime)
       3. /opt/airflow directory (Breeze mount point)
       4. default: host
     """
-    if os.environ.get("AIRFLOW_BREEZE_CONTAINER"):
+    if os.environ.get("BREEZE"):
         return "breeze"
     if Path("/.dockerenv").exists():
         return "breeze"
@@ -310,6 +310,7 @@ def check_skills_json_drift(
 def get_command(
     skill_id: str,
     rst_paths: list[Path] = AGENT_SKILLS_RST_FILES,
+    context: str | None = None,
     **kwargs: str,
 ) -> str:
     """Return the correct command for skill_id in the current context.
@@ -318,6 +319,9 @@ def get_command(
     If any kwarg value is 'false' and the skill has a non-preferred (fallback)
     step for the current context, the fallback step is used instead.
 
+    Args:
+        context: Override the detected context ('host' or 'breeze'). Defaults to auto-detection.
+
     Raises:
         FileNotFoundError: if any source RST file does not exist.
         KeyError: if skill_id is not found.
@@ -325,7 +329,7 @@ def get_command(
     """
     skills = _load_skills(rst_paths=rst_paths)
     skill = _find_skill(skill_id, skills)
-    ctx = get_context()
+    ctx = context if context is not None else get_context()
 
     context_steps = [s for s in skill["steps"] if s["context"] in (ctx, "either")]
 
@@ -473,31 +477,14 @@ def main() -> int:
         params[k.strip()] = v.strip()
 
     context = args.context or get_context()
-    ctx_steps = [s for s in skill["steps"] if s["context"] in (context, "either")]
-    if not ctx_steps:
-        available = sorted({s["context"] for s in skill["steps"]})
-        print(
-            f"ERROR: skill '{args.skill_id}' has no steps for context '{context}'. Requires: {available}",
-            file=sys.stderr,
-        )
+    try:
+        # Delegate resolution and substitution (including fallback semantics)
+        # to the shared get_command() implementation so CLI and API stay in sync.
+        command = get_command(args.skill_id, context=context, **params)
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
         return 1
-
-    preferred = next((s for s in ctx_steps if s.get("preferred", True)), ctx_steps[0])
-    fallback_steps = [s for s in ctx_steps if not s.get("preferred", True)]
-
-    def substitute(cmd: str) -> str:
-        for k, v in params.items():
-            cmd = cmd.replace(f"{{{k}}}", v)
-        return cmd
-
-    command = substitute(preferred["command"])
     print(command)
-
-    if fallback_steps:
-        print(
-            f"# fallback (if system deps missing): {substitute(fallback_steps[0]['command'])}",
-            file=sys.stderr,
-        )
     if skill["expected_output"]:
         print(f"# success signal: {skill['expected_output']}", file=sys.stderr)
     if skill["prereqs"]:
