@@ -93,8 +93,8 @@ Setup your project
               alt="modules.xml">
         </div>
 
-   Script options
-   ==============
+ Script options
+ ==============
 
    ``--python VERSION``
      Choose the Python minor version for the virtualenv (e.g. ``3.12``).  The version is passed
@@ -200,8 +200,8 @@ Setup your project
 
       $ uv run dev/ide_setup/setup_idea.py --multi-module --python 3.12 --exclude providers
 
-   What the script generates
-   =========================
+What the script generates
+=========================
 
    * ``.idea/airflow.iml`` — root module definition with source roots (single-module mode) or
      exclude-only root module (multi-module mode).

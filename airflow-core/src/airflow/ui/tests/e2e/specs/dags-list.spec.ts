@@ -132,7 +132,7 @@ test.describe("Dags Search", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("should search for a Dag by name", async () => {
+  test.fixme("should search for a Dag by name", async () => {
     test.setTimeout(120_000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();

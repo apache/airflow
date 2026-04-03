@@ -457,6 +457,13 @@ class ExternalTaskSensor(BaseSensorOperator):
                     method_name="execute_complete",
                 )
             else:
+                # TODO: Remove this block when Airflow 2 support is dropped
+                if self.check_existence and not self._has_checked_existence:
+                    from airflow.utils.session import create_session
+
+                    with create_session() as session:
+                        self._check_for_existence(session=session)
+
                 self.defer(
                     timeout=datetime.timedelta(seconds=timeout_value) if timeout_value else None,
                     trigger=WorkflowTrigger(

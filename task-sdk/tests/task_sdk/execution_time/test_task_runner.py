@@ -3082,7 +3082,7 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
 
         with mock.patch.object(XCom, "set") as mock_xcom_set:
-            _xcom_push(runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, 7)
+            _xcom_push(runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=7)
             mock_xcom_set.assert_called_once_with(
                 key=BaseXCom.XCOM_RETURN_KEY,
                 value=result,
@@ -3090,6 +3090,7 @@ class TestXComAfterTaskExecution:
                 task_id=runtime_ti.task_id,
                 run_id=runtime_ti.run_id,
                 map_index=runtime_ti.map_index,
+                dag_result=False,
                 _mapped_length=7,
             )
 
@@ -3158,6 +3159,7 @@ class TestXComAfterTaskExecution:
             task_id="pull_task",
             run_id="test_run",
             map_index=-1,
+            dag_result=False,
             _mapped_length=None,
         )
 
@@ -4718,3 +4720,24 @@ class TestTaskInstanceMetrics:
                 tags={**stats_tags, "operator": "PythonOperator"},
             )
             mock_stats.incr.assert_any_call("ti_failures", tags=stats_tags)
+
+
+def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):
+    with DAG(dag_id="test_dag_add_result") as dag:
+        task = PythonOperator(task_id="t", python_callable=lambda: 123)
+        dag.add_result(task.output)
+
+    ti = create_runtime_ti(task=task)
+    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    mock_supervisor_comms.send.assert_any_call(
+        SetXCom(
+            key="return_value",
+            value=123,
+            dag_id="test_dag_add_result",
+            run_id="test_run",
+            task_id="t",
+            map_index=-1,
+            dag_result=True,
+        )
+    )

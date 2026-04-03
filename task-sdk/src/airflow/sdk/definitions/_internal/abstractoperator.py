@@ -26,7 +26,7 @@ from collections.abc import (
     Iterable,
     Iterator,
 )
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from airflow.sdk import TriggerRule, WeightRule
 from airflow.sdk.configuration import conf
@@ -113,29 +113,7 @@ class AbstractOperator(Templater, DAGNode):
     _on_failure_fail_dagrun = False
     is_setup: bool = False
     is_teardown: bool = False
-
-    HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
-        (
-            "log",
-            "dag",  # We show dag_id, don't need to show this too
-            "node_id",  # Duplicates task_id
-            "task_group",  # Doesn't have a useful repr, no point showing in UI
-            "inherits_from_empty_operator",  # impl detail
-            "inherits_from_skipmixin",  # impl detail
-            # Decide whether to start task execution from triggerer
-            "start_trigger_args",
-            "start_from_trigger",
-            # For compatibility with TG, for operators these are just the current task, no point showing
-            "roots",
-            "leaves",
-            # These lists are already shown via *_task_ids
-            "upstream_list",
-            "downstream_list",
-            # Not useful, implementation detail, already shown elsewhere
-            "global_operator_extra_link_dict",
-            "operator_extra_link_dict",
-        )
-    )
+    returns_dag_result: bool = False
 
     @property
     def is_async(self) -> bool:

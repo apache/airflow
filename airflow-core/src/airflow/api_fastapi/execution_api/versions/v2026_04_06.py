@@ -118,6 +118,34 @@ class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
         schema(TIDeferredStatePayload).field("next_kwargs").had(type=dict[str, Any]),
     )
 
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def convert_next_kwargs_to_base_serialization(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """
+        Convert next_kwargs from SDK serde format to BaseSerialization format for old workers.
+
+        Old workers (task-sdk < 1.2) only know BaseSerialization.deserialize(), which requires
+        dicts wrapped as {"__type": "dict", "__var": {...}}. SDK serde produces plain dicts that
+        BaseSerialization cannot parse, causing KeyError on __var.
+
+        We must deserialize SDK serde first to recover native Python objects (datetime,
+        timedelta, etc.), then re-serialize with BaseSerialization so old workers get
+        proper typed values instead of raw {"__classname__": ...} dicts.
+        """
+        next_kwargs = response.body.get("next_kwargs")
+        if next_kwargs is None:
+            return
+
+        from airflow.sdk.serde import deserialize
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        try:
+            plain = deserialize(next_kwargs)
+        except (ImportError, KeyError, AttributeError, TypeError):
+            # Already in BaseSerialization format (rolling upgrade, old data in DB)
+            return
+
+        response.body["next_kwargs"] = BaseSerialization.serialize(plain)
+
 
 class RemoveUpstreamMapIndexesField(VersionChange):
     """Remove upstream_map_indexes field from TIRunContext - now computed by Task SDK."""

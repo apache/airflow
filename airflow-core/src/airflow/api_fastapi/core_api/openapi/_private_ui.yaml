@@ -587,9 +587,15 @@ paths:
     get:
       tags:
       - Deadlines
-      summary: Get Dag Run Deadlines
-      description: Get all deadlines for a specific DAG run.
-      operationId: get_dag_run_deadlines
+      summary: Get Deadlines
+      description: 'Get deadlines for a DAG run.
+
+
+        This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve
+        Deadlines for all
+
+        DAGs and DAG runs.'
+      operationId: get_deadlines
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -631,13 +637,93 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, deadline_time,
-            created_at, alert_name`'
+            created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`'
           default:
           - deadline_time
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, deadline_time,
-          created_at, alert_name`'
+          created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`'
+      - name: missed
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Missed
+      - name: deadline_time_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Gte
+      - name: deadline_time_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Gt
+      - name: deadline_time_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Lte
+      - name: deadline_time_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deadline Time Lt
+      - name: last_updated_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Gte
+      - name: last_updated_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Gt
+      - name: last_updated_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Lte
+      - name: last_updated_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Updated At Lt
       responses:
         '200':
           description: Successful Response
@@ -645,6 +731,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeadlineCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/{dag_id}/deadlineAlerts:
+    get:
+      tags:
+      - Deadlines
+      summary: Get Dag Deadline Alerts
+      description: Get all deadline alerts defined on a DAG.
+      operationId: get_dag_deadline_alerts
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, created_at,
+            name, interval`'
+          default:
+          - created_at
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, created_at, name,
+          interval`'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeadlineAlertCollectionResponse'
         '404':
           content:
             application/json:
@@ -2031,6 +2191,7 @@ components:
       - backfill
       - scheduled
       - manual
+      - operator_triggered
       - asset_triggered
       - asset_materialization
       title: DagRunType
@@ -2121,6 +2282,57 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
+    DeadlineAlertCollectionResponse:
+      properties:
+        deadline_alerts:
+          items:
+            $ref: '#/components/schemas/DeadlineAlertResponse'
+          type: array
+          title: Deadline Alerts
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - deadline_alerts
+      - total_entries
+      title: DeadlineAlertCollectionResponse
+      description: DeadlineAlert Collection serializer for responses.
+    DeadlineAlertResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        reference_type:
+          type: string
+          title: Reference Type
+        interval:
+          type: number
+          title: Interval
+          description: Interval in seconds between deadline evaluations.
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - reference_type
+      - interval
+      - created_at
+      title: DeadlineAlertResponse
+      description: DeadlineAlert serializer for responses.
     DeadlineCollectionResponse:
       properties:
         deadlines:
@@ -2154,6 +2366,12 @@ components:
           type: string
           format: date-time
           title: Created At
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
         alert_name:
           anyOf:
           - type: string
@@ -2170,6 +2388,8 @@ components:
       - deadline_time
       - missed
       - created_at
+      - dag_id
+      - dag_run_id
       title: DeadlineResponse
       description: Deadline serializer for responses.
     EdgeResponse:
