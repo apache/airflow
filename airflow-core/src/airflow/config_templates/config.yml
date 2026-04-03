@@ -1841,7 +1841,7 @@ api:
         versions. When the limit is reached the least-recently-used version is evicted.
         The scheduler does not use this setting — its cache is naturally bounded by the
         number of active DAGs.
-      version_added: 3.2.0
+      version_added: 3.2.1
       type: integer
       example: ~
       default: "4096"
