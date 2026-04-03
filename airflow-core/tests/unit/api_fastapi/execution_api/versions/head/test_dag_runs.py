@@ -60,6 +60,7 @@ class TestDagRunTrigger:
         dag_run = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
         assert dag_run.conf == {"key1": "value1"}
         assert dag_run.logical_date == logical_date
+        assert dag_run.run_type == DagRunType.OPERATOR_TRIGGERED
 
     def test_trigger_dag_run_with_partition_key(self, client, session, dag_maker):
         dag_id = "test_trigger_dag_run_partition_key"
@@ -130,7 +131,7 @@ class TestDagRunTrigger:
         }
 
     def test_trigger_dag_run_denied_run_type(self, client, session, dag_maker):
-        """Test that a Dag with allowed_run_types excluding 'manual' cannot be triggered."""
+        """Test that a Dag with denied operator run type cannot be triggered."""
         dag_id = "test_trigger_dag_run_denied"
         run_id = "test_run_id"
         logical_date = timezone.datetime(2025, 2, 20)
@@ -151,7 +152,34 @@ class TestDagRunTrigger:
         assert response.status_code == 400
         assert response.json() == {
             "detail": {
-                "message": f"Dag with dag_id '{dag_id}' does not allow manual runs",
+                "message": f"Dag with dag_id '{dag_id}' does not allow operator-triggered runs",
+                "reason": "denied_run_type",
+            }
+        }
+
+    def test_trigger_dag_run_manual_denied_for_operator(self, client, session, dag_maker):
+        """Test that MANUAL-only allowed_run_types rejects operator-triggered runs."""
+        dag_id = "test_trigger_dag_run_manual_allowed"
+        run_id = "test_run_id"
+        logical_date = timezone.datetime(2025, 2, 20)
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == dag_id).values(allowed_run_types=["manual"])
+        )
+        session.commit()
+
+        response = client.post(
+            f"/execution/dag-runs/{dag_id}/{run_id}",
+            json={"logical_date": logical_date.isoformat()},
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": {
+                "message": f"Dag with dag_id '{dag_id}' does not allow operator-triggered runs",
                 "reason": "denied_run_type",
             }
         }
