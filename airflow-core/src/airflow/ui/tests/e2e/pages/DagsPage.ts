@@ -286,12 +286,9 @@ export class DagsPage extends BasePage {
     const currentNames = await this.getDagNames();
 
     const responsePromise = this.page
-      .waitForResponse(
-        (resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200,
-        {
-          timeout: 30_000,
-        },
-      )
+      .waitForResponse((resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200, {
+        timeout: 30_000,
+      })
       .catch(() => {
         /* API might be cached */
       });
