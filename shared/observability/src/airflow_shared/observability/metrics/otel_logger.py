@@ -433,6 +433,20 @@ def get_otel_logger(
         )
         readers.append(export_to_console)
 
+    # Reset the OTel SDK's MeterProvider state before setting a new one.
+    # This is necessary because the SDK uses a Once() guard that only allows
+    # set_meter_provider() to succeed once per process. When Airflow forks a
+    # subprocess for task execution, the child inherits the parent's Once._done=True
+    # state, causing set_meter_provider() to silently fail. The child then uses the
+    # parent's stale MeterProvider whose export thread is dead after fork, and
+    # task-level metrics (e.g. ti.finish) are lost.
+    # stats.py already detects the PID mismatch and only calls this function in
+    # forked children that need a fresh provider, so this reset is safe.
+    import opentelemetry.metrics._internal as _metrics_internal
+
+    _metrics_internal._METER_PROVIDER_SET_ONCE._done = False
+    _metrics_internal._METER_PROVIDER = None
+
     metrics.set_meter_provider(
         MeterProvider(
             resource=resource,
