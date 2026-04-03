@@ -31,9 +31,9 @@ import subprocess
 import sys
 import traceback
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
-from importlib import import_module
 from concurrent.futures import ProcessPoolExecutor
 from functools import cache
+from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from celery import Celery, states as celery_states
