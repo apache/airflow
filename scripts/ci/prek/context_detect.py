@@ -480,7 +480,7 @@ def main() -> int:
     try:
         # Delegate resolution and substitution (including fallback semantics)
         # to the shared get_command() implementation so CLI and API stay in sync.
-        command = get_command(args.skill_id, context=context, **params)
+        command = get_command(args.skill_id, AGENT_SKILLS_RST_FILES, context=context, **params)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
