@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 import structlog
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.exc import NoInspectionAvailable
+from sqlalchemy.exc import NoInspectionAvailable, SQLAlchemyError
 from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel  # noqa: TC001
@@ -125,7 +125,7 @@ class DagRunContext(BaseModel):
                 "consumed_asset_events",
                 list(events) if events is not None else [],
             )
-        except Exception:
+        except SQLAlchemyError:
             log.warning(
                 "DagRunContext failed to access consumed_asset_events; reloading DagRun from DB.",
                 exc_info=True,
