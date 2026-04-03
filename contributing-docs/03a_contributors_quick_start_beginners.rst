@@ -79,10 +79,13 @@ Option A – Breeze on Your Laptop
     # For VS Code
     uv run dev/ide_setup/setup_vscode.py
 
-    # For creating a Separate branch
-    git checkout -b <docs-typo/your-task>
+3. Create a branch for your change
 
-3.  **Start the development container** (first run builds the image)
+.. code-block:: bash
+
+    git checkout -b <your-branch-name>
+
+4.  **Start the development container** (first run builds the image)
 
 .. code-block:: bash
 
@@ -105,15 +108,15 @@ of the tmux panes and hit Enter
 
 This flag enables configuration to load example DAGs when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
 
-4.  **Make a tiny change** – e.g. fix a typo in docs
+5.  **Make a tiny change** – e.g. fix a typo in docs
 
-5.  **Run local checks**
+6.  **Run local checks**
 
 .. code-block:: bash
 
     prek --all-files
 
-6.  **Run tests**
+7.  **Run tests**
 
 Run tests related to your change **before** pushing:
 
@@ -125,14 +128,14 @@ Run tests related to your change **before** pushing:
 Run ``breeze testing --help`` to see all available test groups.
 For more on testing, see the `Testing Guide <09_testing.rst>`_.
 
-7.  **Commit & push**
+8.  **Commit & push**
 
 .. code-block:: bash
 
     git commit -am "fix typo in README"
-    git push -u origin docs-typo
+    git push -u origin <your-branch-name>
 
-8.  **Open the PR** – GitHub shows a "Compare & pull request" button.
+9.  **Open the PR** – GitHub shows a "Compare & pull request" button.
 
 *Syncing your branch*
 
