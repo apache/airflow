@@ -91,6 +91,13 @@ By default, Dag runs that have not been run since the last data interval are not
 
 If you set ``catchup=True`` in the Dag, the scheduler will kick off a Dag Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
+.. note::
+
+    If any tasks in the Dag have ``depends_on_past=True`` or
+    ``depends_on_previous_tasks`` set, catchup runs will be executed
+    sequentially to honor cross-run dependencies. See
+    :ref:`concepts:depends-on-past` and :ref:`concepts:depends-on-previous-tasks`.
+
 If your Dag is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
 then you will want to turn catchup off, which is the default setting or can be done explicitly by setting ``catchup=False`` in the Dag definition, if the default config has been changed for your Airflow environment.
 

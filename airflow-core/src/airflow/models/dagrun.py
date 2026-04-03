@@ -1113,6 +1113,9 @@ class DagRun(Base, LoggingMixin):
                     bool(self.tis)
                     and all(not getattr(t.task, "depends_on_past", False) for t in self.tis if t.task)
                     and all(
+                        not getattr(t.task, "depends_on_previous_tasks", None) for t in self.tis if t.task
+                    )
+                    and all(
                         getattr(t.task, "max_active_tis_per_dag", None) is None for t in self.tis if t.task
                     )
                     and all(

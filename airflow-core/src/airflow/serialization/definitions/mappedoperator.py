@@ -215,6 +215,10 @@ class SerializedMappedOperator(DAGNode):
         return self._get_partial_kwargs_or_operator_default("wait_for_downstream")
 
     @property
+    def depends_on_previous_tasks(self) -> Collection[str] | None:
+        return self._get_partial_kwargs_or_operator_default("depends_on_previous_tasks")
+
+    @property
     def retries(self) -> int:
         return self._get_partial_kwargs_or_operator_default("retries")
 

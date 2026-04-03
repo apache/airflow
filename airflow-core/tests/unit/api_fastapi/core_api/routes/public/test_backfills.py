@@ -344,12 +344,12 @@ class TestCreateBackfill(TestBackfillEndpoint):
             if run_backwards:
                 assert (
                     response.json().get("detail")
-                    == "Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True."
+                    == "Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True or depends_on_previous_tasks is set."
                 )
             else:
                 assert (
                     response.json().get("detail")
-                    == "Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
+                    == "Dag has tasks for which depends_on_past=True or depends_on_previous_tasks is set. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
 
     @pytest.mark.parametrize(
@@ -796,12 +796,12 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             if run_backwards:
                 assert (
                     response.json().get("detail")
-                    == "Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True."
+                    == "Backfill cannot be run in reverse when the Dag has tasks where depends_on_past=True or depends_on_previous_tasks is set."
                 )
             else:
                 assert (
                     response.json().get("detail")
-                    == "Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
+                    == "Dag has tasks for which depends_on_past=True or depends_on_previous_tasks is set. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
 
 

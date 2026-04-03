@@ -603,6 +603,7 @@ BASEOPERATOR_ARGS_EXPECTED_TYPES = {
     "retries": int,
     "retry_exponential_backoff": (int, float),
     "depends_on_past": bool,
+    "depends_on_previous_tasks": (list, tuple, type(None)),
     "ignore_first_depends_on_past": bool,
     "wait_for_past_depends_before_skipping": bool,
     "wait_for_downstream": bool,
@@ -706,6 +707,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param depends_on_past: when set to true, task instances will run
         sequentially and only if the previous instance has succeeded or has been skipped.
         The task instance for the start_date is allowed to run.
+    :param depends_on_previous_tasks: when set to a non-empty list of task IDs,
+        this task will only be scheduled if all the listed tasks in the previous dag_run
+        have completed successfully (or been skipped). The first dag_run is never blocked.
+        Cannot be combined with depends_on_past or wait_for_downstream.
+        To replicate depends_on_past=True behavior, include the current task's own
+        task_id in the list (e.g., a task with task_id="C" using
+        depends_on_previous_tasks=["C", "D"] will wait for both task C and task D
+        from the previous dagrun to succeed before running).
     :param wait_for_past_depends_before_skipping: when set to true, if the task instance
         should be marked as skipped, and depends_on_past is true, the ti will stay on None state
         waiting the task of the previous run
@@ -873,6 +882,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     start_date: datetime | None = None
     end_date: datetime | None = None
     depends_on_past: bool = False
+    depends_on_previous_tasks: Collection[str] | None = None
     ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST
     wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING
     wait_for_downstream: bool = False
@@ -955,6 +965,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "start_date",
         "end_date",
         "depends_on_past",
+        "depends_on_previous_tasks",
         "wait_for_downstream",
         "priority_weight",
         "execution_timeout",
@@ -1030,6 +1041,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         depends_on_past: bool = False,
+        depends_on_previous_tasks: Collection[str] | None = None,
         ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
         wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
         wait_for_downstream: bool = False,
@@ -1164,11 +1176,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.trigger_rule: TriggerRule = TriggerRule(trigger_rule)
 
         self.depends_on_past: bool = depends_on_past
+        self.depends_on_previous_tasks: Collection[str] | None = (
+            list(depends_on_previous_tasks) if depends_on_previous_tasks else None
+        )
         self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
         self.wait_for_past_depends_before_skipping: bool = wait_for_past_depends_before_skipping
         self.wait_for_downstream: bool = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
+
+        if self.depends_on_previous_tasks and (self.depends_on_past or self.wait_for_downstream):
+            raise ValueError(
+                f"Task '{self.task_id}': 'depends_on_previous_tasks' cannot be combined with "
+                f"'depends_on_past' or 'wait_for_downstream'. Use 'depends_on_previous_tasks' "
+                f"to specify all cross-run task dependencies explicitly."
+            )
 
         # Converted by setattr
         self.retry_delay = retry_delay  # type: ignore[assignment]
