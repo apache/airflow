@@ -49,7 +49,7 @@ Documentation in separate distributions:
 * `airflow-core/docs` - documentation for Airflow Core
 * `providers/**/docs` - documentation for Providers
 * `chart/docs` - documentation for the Helm Chart
-* `task-sdk/docs` - documentation for Task SDK (new format not yet published)
+* `task-sdk/docs` - documentation for Task SDK (new format not yet published through the release manager workflow)
 * `airflow-ctl/docs` - documentation for Airflow CLI
 
 Documentation for a general overview and summaries not connected with any specific distribution:
@@ -143,9 +143,12 @@ the auto-detection.
 The person who triggers the build (release manager) should specify the tag name of the docs to be published
 and the list of documentation packages to be published. Usually it is:
 
-* Airflow: `apache-airflow docker-stack task-sdk apache-airflow-ctl`
+* Airflow: `apache-airflow docker-stack apache-airflow-ctl`
 * Helm chart: `helm-chart`
 * Providers: `provider_id1 provider_id2` or `all providers` if all providers should be published.
+
+Task SDK docs are intentionally not listed here yet. The documentation sources live in `task-sdk/docs`,
+but that new-format documentation is not part of the release manager publishing workflow at the moment.
 
 Optionally - specifically if we run `all-providers` and the release manager wants to exclude some providers,
 they can specify documentation packages to exclude. Leaving "no-docs-excluded" will publish all packages
