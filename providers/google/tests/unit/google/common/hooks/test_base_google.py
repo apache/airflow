@@ -580,25 +580,28 @@ class TestGoogleBaseHook:
             # Should use param quota project, not connection quota project
             mock_creds.with_quota_project.assert_called_once_with("test-quota-project")
 
-    def test_quota_project_invalid_format(self):
-        """Test validation of quota project ID format."""
-        invalid_ids = [
+    @pytest.mark.parametrize(
+        "invalid_id",
+        [
             "UPPERCASE",  # Must be lowercase
             "special@chars",  # Invalid characters
             "ab-cd",  # Too short
             "a" + "b" * 30,  # Too long
             "1starts-with-number",  # Must start with letter
-            "", #Empty-String
-        ]
-
-        for invalid_id in invalid_ids:
-            mock_creds = mock.MagicMock()
-            mock_creds.with_quota_project.return_value = mock_creds
-            with mock.patch(MODULE_NAME + ".GoogleBaseHook.get_credentials_and_project_id", return_value=(mock_creds, None)):
-                hook = GoogleBaseHook(quota_project_id=invalid_id)
-                with pytest.raises((TypeError, ValueError)):
-                    hook.get_credentials()
-
+            "",  # Empty string
+        ],
+    )
+    def test_quota_project_invalid_format(self, invalid_id):
+        """Test validation of quota project ID format."""
+        mock_creds = mock.MagicMock()
+        mock_creds.with_quota_project.return_value = mock_creds
+        with mock.patch(
+            MODULE_NAME + ".GoogleBaseHook.get_credentials_and_project_id",
+            return_value=(mock_creds, None),
+        ):
+            hook = GoogleBaseHook(quota_project_id=invalid_id)
+            with pytest.raises((TypeError, ValueError)):
+                hook.get_credentials()
 
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
         self.instance.extras = {

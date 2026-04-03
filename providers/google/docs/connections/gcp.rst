@@ -123,22 +123,20 @@ Scopes (comma separated)
 
 
 Quota Project ID (optional)
----------------------------
+    The Google Cloud project ID to use for API quota and billing purposes. This is useful
+    when using a shared service account but want to attribute quota/billing to a different
+    project. If not specified, no separate quota project is configured on the credentials
+    and Google Cloud's default behavior applies. Must be a valid GCP project ID (lowercase
+    letters, digits, hyphens, 6–30 characters, starting with a letter).
 
-The Google Cloud project ID to use for API quota and billing purposes. This is useful
-when using a shared service account but want to attribute quota/billing to a different
-project. If not specified, no separate quota project is configured on the credentials and Google Cloud's default behavior applies. Must be a
-valid GCP project ID (lowercase letters, digits, hyphens, 6–30 characters, starting
-with a letter).
+    .. note::
 
-.. note::
+        If using anonymous credentials, quota project logic is ignored.
 
-    If using anonymous credentials, quota project logic is ignored.
+    .. warning::
 
-.. warning::
-
-    Ensure the service account has permission to use the specified quota project.
-    Invalid or unauthorized quota project IDs will result in an error.
+        Ensure the service account has permission to use the specified quota project.
+        Invalid or unauthorized quota project IDs will result in an error.
 
 Number of Retries
     Integer, number of times to retry with randomized

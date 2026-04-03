@@ -25,6 +25,7 @@ import functools
 import json
 import logging
 import os
+import re
 import tempfile
 from collections.abc import Callable, Generator, Sequence
 from contextlib import ExitStack, contextmanager
@@ -121,6 +122,24 @@ def is_refresh_credentials_exception(exception: Exception) -> bool:
     if isinstance(exception, RefreshError):
         return "Unable to acquire impersonated credentials" in str(exception)
     return False
+
+
+def is_valid_gcp_project_id(project_id: str) -> bool:
+    """
+    Validate a Google Cloud Project ID format.
+
+    A valid project ID must:
+
+    - Be 6 to 30 characters long
+    - Start with a lowercase letter
+    - Contain only lowercase letters, digits, and hyphens
+    - Not end with a hyphen
+
+    :param project_id: The project ID string to validate.
+    :return: True if the project ID is valid, False otherwise.
+    """
+    pattern = re.compile(r"^[a-z][a-z0-9\-]{4,28}[a-z0-9]$")
+    return bool(pattern.match(project_id))
 
 
 class retry_if_temporary_quota(tenacity.retry_if_exception):
@@ -261,9 +280,7 @@ class GoogleBaseHook(BaseHook):
             "is_anonymous": BooleanField(
                 lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
             ),
-            "quota_project_id": StringField(
-                lazy_gettext("Quota Project ID"), widget=BS3TextFieldWidget()
-            ),
+            "quota_project_id": StringField(lazy_gettext("Quota Project ID"), widget=BS3TextFieldWidget()),
         }
 
     @classmethod
@@ -278,6 +295,7 @@ class GoogleBaseHook(BaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        quota_project_id: str | None = None,
         **kwargs,
     ) -> None:
         """
@@ -287,12 +305,14 @@ class GoogleBaseHook(BaseHook):
         :param impersonation_chain: Optional service account to impersonate using short-term
             credentials.
         :param quota_project_id: Optional Project ID to use for quota/billing purposes.
-            If None, no separate quota project is configured and the default behavior of the credentials is used.
+            If None, no separate quota project is configured and the default behavior of the
+            credentials is used.
         :param kwargs: Additional arguments to pass to parent constructor.
         """
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.quota_project_id = quota_project_id
         self.extras: dict = self.get_connection(self.gcp_conn_id).extra_dejson
         self._cached_credentials: Credentials | None = None
         self._cached_project_id: str | None = None
