@@ -1173,8 +1173,7 @@ workers:
   #         requests:
   #           storage: "20Gi"
 
-  # Use workers.celery.schedulerName and/or workers.kubernetes.schedulerName to separate value
-  # between Celery workers and pod-template-file
+  # (deprecated, use `workers.celery.schedulerName` and/or `workers.kubernetes.schedulerName` instead)
   schedulerName: ~
 
   celery:
