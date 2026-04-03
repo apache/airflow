@@ -16,18 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from unittest.mock import Mock, patch
 
 import pytest
 from kubernetes.client import models as k8s
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     _convert_from_dict,
     _convert_kube_model_object,
     convert_affinity,
     convert_configmap,
     convert_env_vars,
-    convert_env_vars_from_list_of_dicts,
     convert_env_vars_or_raise_error,
     convert_image_pull_secrets,
     convert_pod_runtime_info_env,
@@ -143,7 +144,10 @@ def test_convert_port_normal_value(mock_convert_kube_model_object):
 def test_convert_env_vars_with_dict():
     # Normal value input case test
     env_vars = {"FOO": "bar", "BAZ": "qux"}
-    result = convert_env_vars(env_vars)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        result = convert_env_vars(env_vars)
+    assert len(w) == 0
     expected_result = [k8s.V1EnvVar(name="FOO", value="bar"), k8s.V1EnvVar(name="BAZ", value="qux")]
 
     assert isinstance(result, list)
@@ -155,27 +159,110 @@ def test_convert_env_vars_with_list():
     # Normal value input case test
     env_vars = [k8s.V1EnvVar(name="FOO", value="bar"), k8s.V1EnvVar(name="BAZ", value="qux")]
 
-    result = convert_env_vars(env_vars)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        result = convert_env_vars(env_vars)
+    assert len(w) == 0
     assert result == env_vars
 
 
-# testcase of convert_env_vars_from_list_of_dicts() function
-def test_convert_env_vars_from_list_of_dicts_normal_value():
-    env_vars_list_of_dict = [{"name": "ENV1", "value": "value1"}, {"name": "ENV2", "value": "value2"}]
-    result = convert_env_vars_from_list_of_dicts(env_vars_list_of_dict)
+def test_convert_env_vars_empty_list():
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert convert_env_vars([]) == []
+    assert len(w) == 0
 
-    assert isinstance(result, list)
-    assert len(result) == 2
-    assert result[0].name == "ENV1"
-    assert result[0].value == "value1"
-    assert result[1].name == "ENV2"
-    assert result[1].value == "value2"
+
+def test_convert_env_vars_list_of_simple_dicts_emits_deprecation():
+    env_vars = [{"name": "FOO", "value": "bar"}, {"name": "BAZ", "value": "qux"}]
+    with pytest.warns(AirflowProviderDeprecationWarning, match="list of"):
+        result = convert_env_vars(env_vars)
+    expected = [k8s.V1EnvVar(name="FOO", value="bar"), k8s.V1EnvVar(name="BAZ", value="qux")]
+    assert result == expected
+
+
+def test_convert_env_vars_list_of_dicts_allows_none_value():
+    env_vars = [{"name": "EMPTY", "value": None}]
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        result = convert_env_vars(env_vars)
+    assert len(result) == 1
+    assert result[0].name == "EMPTY"
+    assert result[0].value is None
+
+
+def test_convert_env_vars_list_dict_missing_value_key_raises():
+    env_vars = [{"name": "ONLY_NAME"}]
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.raises(AirflowException, match=r"Invalid env_vars\[0\]"):
+            convert_env_vars(env_vars)
+
+
+def test_convert_env_vars_list_dict_missing_name_raises():
+    env_vars = [{"value": "x"}]
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.raises(AirflowException, match=r"Invalid env_vars\[0\]"):
+            convert_env_vars(env_vars)
+
+
+def test_convert_env_vars_list_dict_empty_name_raises():
+    env_vars = [{"name": "", "value": "x"}]
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.raises(AirflowException, match=r"Invalid env_vars\[0\]"):
+            convert_env_vars(env_vars)
+
+
+def test_convert_env_vars_list_dict_non_string_name_raises():
+    env_vars = [{"name": 123, "value": "x"}]
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.raises(AirflowException, match=r"Invalid env_vars\[0\]"):
+            convert_env_vars(env_vars)
+
+
+def test_convert_env_vars_list_second_dict_invalid_raises():
+    env_vars = [{"name": "A", "value": "1"}, {"oops": True}]
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.raises(AirflowException, match=r"Invalid env_vars\[1\]"):
+            convert_env_vars(env_vars)
+
+
+def test_convert_env_vars_mixed_v1envvar_and_dict_raises():
+    env_vars = [k8s.V1EnvVar(name="A", value="1"), {"name": "B", "value": "2"}]
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        with pytest.raises(AirflowException, match="only V1EnvVar instances or only dicts"):
+            convert_env_vars(env_vars)
+    assert len(w) == 0
+
+
+def test_convert_env_vars_list_of_dicts_value_from_secret_ref():
+    # Kubernetes OpenAPI / client deserialization expects camelCase keys here.
+    env_vars = [
+        {
+            "name": "SECRET_ENV",
+            "valueFrom": {
+                "secretKeyRef": {
+                    "name": "mysecret",
+                    "key": "username",
+                }
+            },
+        }
+    ]
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        result = convert_env_vars(env_vars)
+    assert len(result) == 1
+    assert result[0].name == "SECRET_ENV"
+    assert result[0].value is None
+    assert result[0].value_from is not None
+    assert result[0].value_from.secret_key_ref.name == "mysecret"
 
 
 # testcase of convert_env_vars_or_raise_error() function
 def test_convert_env_vars_or_raise_error_normal_value():
     env_vars_dict = {"ENV1": "value1", "ENV2": "value2"}
-    result = convert_env_vars_or_raise_error(env_vars_dict)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        result = convert_env_vars_or_raise_error(env_vars_dict)
+    assert len(w) == 0
 
     assert isinstance(result, list)
     assert len(result) == 2
@@ -187,7 +274,10 @@ def test_convert_env_vars_or_raise_error_normal_value():
 
 def test_convert_env_vars_or_raise_error_list_value():
     env_vars_list = [k8s.V1EnvVar(name="ENV1", value="value1"), k8s.V1EnvVar(name="ENV2", value="value2")]
-    result = convert_env_vars_or_raise_error(env_vars_list)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        result = convert_env_vars_or_raise_error(env_vars_list)
+    assert len(w) == 0
 
     assert isinstance(result, list)
     assert len(result) == 2
@@ -198,10 +288,24 @@ def test_convert_env_vars_or_raise_error_list_value():
     assert result == env_vars_list
 
 
+def test_convert_env_vars_or_raise_error_list_of_dicts():
+    env_vars = [{"name": "ENV1", "value": "value1"}, {"name": "ENV2", "value": "value2"}]
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        result = convert_env_vars_or_raise_error(env_vars)
+    assert len(result) == 2
+    assert result[0].name == "ENV1"
+    assert result[0].value == "value1"
+    assert result[1].name == "ENV2"
+    assert result[1].value == "value2"
+
+
 def test_convert_env_vars_or_raise_error_invalid_type():
     invalid_input = 123
-    with pytest.raises(AirflowException) as exc_info:
-        convert_env_vars_or_raise_error(invalid_input)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        with pytest.raises(AirflowException) as exc_info:
+            convert_env_vars_or_raise_error(invalid_input)
+    assert len(w) == 0
 
     assert str(exc_info.value) == f"Expected dict or list, got {type(invalid_input)}"
 
