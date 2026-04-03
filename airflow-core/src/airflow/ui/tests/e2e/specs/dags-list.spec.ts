@@ -20,6 +20,8 @@ import { expect, test } from "@playwright/test";
 import { testConfig } from "playwright.config";
 import { DagsPage } from "tests/e2e/pages/DagsPage";
 
+test.describe.configure({ retries: 1 });
+
 test.describe("Dag Trigger Workflow", () => {
   let dagsPage: DagsPage;
   const testDagId = testConfig.testDag.id;

@@ -286,9 +286,12 @@ export class DagsPage extends BasePage {
     const currentNames = await this.getDagNames();
 
     const responsePromise = this.page
-      .waitForResponse((resp: Response) => resp.url().includes("/dags") && resp.status() === 200, {
-        timeout: 30_000,
-      })
+      .waitForResponse(
+        (resp: Response) => resp.url().includes("/api/v2/dags") && resp.status() === 200,
+        {
+          timeout: 30_000,
+        },
+      )
       .catch(() => {
         /* API might be cached */
       });
@@ -414,9 +417,9 @@ export class DagsPage extends BasePage {
           return status;
         },
         {
-          intervals: [10_000],
+          intervals: [5000],
           message: `Dag run did not complete within the allowed time: ${dagRunId}`,
-          timeout: 7 * 60 * 1000,
+          timeout: 4 * 60 * 1000,
         },
       )
       .toBe("success");
@@ -529,9 +532,16 @@ export class DagsPage extends BasePage {
     const fallbackTable = this.page.locator("table");
 
     // Wait for any of these elements to appear
-    await expect(cardList.or(tableList).or(noDagFound).or(fallbackTable)).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect
+      .poll(
+        async () =>
+          (await cardList.isVisible().catch(() => false)) ||
+          (await tableList.isVisible().catch(() => false)) ||
+          (await noDagFound.isVisible().catch(() => false)) ||
+          (await fallbackTable.isVisible().catch(() => false)),
+        { timeout: 30_000 },
+      )
+      .toBe(true);
 
     // If empty state is shown, consider the list as successfully rendered
     if (await noDagFound.isVisible().catch(() => false)) {
