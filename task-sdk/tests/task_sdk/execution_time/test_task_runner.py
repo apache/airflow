@@ -134,7 +134,6 @@ from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
     _defer_task,
-    _execute_task,
     _make_task_span,
     _push_xcom_if_needed,
     _xcom_push,
