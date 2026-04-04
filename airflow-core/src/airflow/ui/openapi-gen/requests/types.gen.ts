@@ -1985,9 +1985,6 @@ export type EdgeResponse = {
     is_source_asset?: boolean | null;
 };
 
-/**
- * Define a menu item that can be added to the menu by auth managers or plugins.
- */
 export type ExtraMenuItem = {
     text: string;
     href: string;

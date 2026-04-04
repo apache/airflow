@@ -8125,8 +8125,7 @@ export const $ExtraMenuItem = {
     },
     type: 'object',
     required: ['text', 'href'],
-    title: 'ExtraMenuItem',
-    description: 'Define a menu item that can be added to the menu by auth managers or plugins.'
+    title: 'ExtraMenuItem'
 } as const;
 
 export const $GanttResponse = {
