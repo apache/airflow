@@ -1184,7 +1184,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # Reset the counter on success
             self.failed_heartbeats = 0
         except ServerResponseError as e:
-            if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.CONFLICT}:
+            if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.GONE, HTTPStatus.CONFLICT}:
                 log.error(
                     "Server indicated the task shouldn't be running anymore",
                     detail=e.detail,
@@ -1339,7 +1339,14 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)
         elif isinstance(msg, SetXCom):
             self.client.xcoms.set(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
+                msg.dag_id,
+                msg.run_id,
+                msg.task_id,
+                msg.key,
+                msg.value,
+                msg.map_index,
+                dag_result=msg.dag_result,
+                mapped_length=msg.mapped_length,
             )
         elif isinstance(msg, DeleteXCom):
             self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)

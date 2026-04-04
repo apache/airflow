@@ -71,6 +71,8 @@ ChartJS.register(
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
+  readonly runAfterGte?: string | undefined;
+  readonly runAfterLte?: string | undefined;
   readonly runType?: DagRunType | undefined;
   readonly triggeringUser?: string | undefined;
 };
@@ -79,7 +81,7 @@ const CHART_PADDING = 36;
 const CHART_ROW_HEIGHT = 20;
 const MIN_BAR_WIDTH = 10;
 
-export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) => {
+export const Gantt = ({ dagRunState, limit, runAfterGte, runAfterLte, runType, triggeringUser }: Props) => {
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const [searchParams] = useSearchParams();
   const { openGroupIds } = useOpenGroups();
@@ -114,6 +116,8 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
     dagRunState,
     limit,
+    runAfterGte,
+    runAfterLte,
     runType,
     triggeringUser,
   });
@@ -208,7 +212,7 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
     translate,
   });
 
-  if (runId === "") {
+  if (runId === "" || (!isLoading && !selectedRun)) {
     return undefined;
   }
 

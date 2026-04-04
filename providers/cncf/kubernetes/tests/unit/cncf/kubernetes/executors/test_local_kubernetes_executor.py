@@ -22,11 +22,11 @@ from unittest import mock
 import pytest
 
 from airflow.callbacks.callback_requests import CallbackRequest
-from airflow.configuration import conf
 from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import (
     LocalKubernetesExecutor,
 )
+from airflow.providers.common.compat.sdk import conf
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 

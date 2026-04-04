@@ -252,64 +252,7 @@ The action should create a new PR with the cherry-picked commit and add a commen
 successful (or when it fails). If automatic backporting fails because of conflicts, you have to revert to
 manual backporting using `cherry-picker` CLI.
 
-## How to backport PR with `cherry-picker` CLI
-
-Backporting via CLI might be more convenient for some users. Also it is necessary if you want to backport
-PR that has conflicts. It also allows to backport commit to multiple branches in the same command.
-
-To backport PRs to any branch (for example: v2-11-test), you can use the following command:
-
-It's easiest to install it (and keep cherry-picker up-to-date) using `uv tool`:
-
-```bash
-uv tool install cherry-picker
-````
-
-And upgrade it with:
-
-```bash
-uv tool upgrade cherry-picker
-```
-
-Then, in order to backport a commit to a branch, you can use the following command:
-
-```bash
-cherry_picker COMMIT_SHA BRANCH_NAME1 [BRANCH_NAME2 ...]
-```
-
-This will create a new branch with the cherry-picked commit and open a PR against the target branch in
-your browser.
-
-If the GH_AUTH environment variable is set in your command line, the cherry-picker automatically creates a new pull request when there are no conflicts. To set GH_AUTH, use the token from your GitHub repository.
-
-To set GH_AUTH run this:
-
-```bash
-export GH_AUTH={token}
-```
-
-Sometimes it might result with conflict. In such case, you should manually resolve the conflicts.
-Some IDEs like IntelliJ has a fantastic conflict resolution tool - just follow `Git -> Resolve conflicts`
-menu after you get the conflict. But you can also resolve the conflicts manually; see [How conflicts are
-are presented](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented) and
-[How to resolve conflicts](https://git-scm.com/docs/git-merge#_how_to_resolve_conflicts) for more details.
-
-```bash
-cherry_picker --status  # Should show if all conflicts are resolved
-cherry_picker --continue  # Should continue cherry-picking process
-```
-
-> [!WARNING]
-> Sometimes, when you stop cherry-picking process in the middle, you might end up with your repo in a bad
-> state and cherry-picker might print this message:
->
-> > 🐍 🍒 ⛏
-> >
-> > You're not inside a cpython repo right now! 🙅
->
-> You should then run `cherry-picker --abort` to clean up the mess and start over. If that does not work
-> you might need to run `git config --local --remove-section cherry-picker` to clean up the configuration
-> stored in `.git/config`.
+## [How to backport PR with `cherry-picker` CLI](README.md#how-to-backport-pr-with-cherry-picker-cli)
 
 ## Merging PRs for Airflow 2.11.x
 
