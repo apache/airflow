@@ -18,7 +18,6 @@
 -->
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-
 **Table of contents**
 
 - [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
@@ -85,9 +84,10 @@ and security team should be pinged to review and resolve them.
 
 The first step of a release is to work out what is being included. This differs based on whether it is a major/minor or a patch release.
 
-- For a _major_ or _minor_ release, you want to include everything in `main` at the time of release; you'll turn this into a new release branch as part of the rest of the process.
+- For a *major* or *minor* release, you want to include everything in `main` at the time of release; you'll turn this into a new release branch as part of the rest of the process.
 
-- For a _patch_ release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
+- For a *patch* release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
+
 
 ## i18n workflow
 
@@ -155,6 +155,7 @@ Subject:
 
 Body (assuming delegation to another committer):
 
+
 ```shell script
 cat <<EOF
 Hey fellow Airflowers,
@@ -186,8 +187,8 @@ EOF
 When it is time to cut the RC, you should:
 
 1. Generate an additional completeness output:
-   a. If there are incomplete locales that were also incomplete in the previous major/minor release, please contact the code owner and ask them to act according to section "Relinquishing translation/code ownership" in the i18n policy (section 6.4).
-   b. If there are other incomplete locales, please write it as a reminder for the next major/minor release.
+  a. If there are incomplete locales that were also incomplete in the previous major/minor release, please contact the code owner and ask them to act according to section "Relinquishing translation/code ownership" in the i18n policy (section 6.4).
+  b. If there are other incomplete locales, please write it as a reminder for the next major/minor release.
 2. Post the final completeness output on the same thread.
 
 ### Applying an i18n translation freeze
@@ -245,8 +246,8 @@ If the freeze gets extended beyond the originally announced date, you should pos
 When it is time to cut the RC, you should:
 
 1. Generate an additional completeness output:
-   a. If there are incomplete locales that were also incomplete in the previous completeness output, please contact the code owner and ask them to act according to section "Relinquishing translation/code ownership" in the i18n policy (section 6.4).
-   b. If there are other incomplete locales, please write it as a reminder for the next major/minor release.
+  a. If there are incomplete locales that were also incomplete in the previous completeness output, please contact the code owner and ask them to act according to section "Relinquishing translation/code ownership" in the i18n policy (section 6.4).
+  b. If there are other incomplete locales, please write it as a reminder for the next major/minor release.
 2. Create a PR for setting the flag back to `False`.
 3. Post on the same thread that the freeze is lifted, and share the final completeness output.
 
@@ -317,6 +318,7 @@ to reflect the tentative release date of Airflow. All the Cadwyn migrations in b
 should be collapsed.
 
 Refer https://github.com/apache/airflow/pull/49116 as a good example.
+
 
 ## Reviewing cherry-picked PRs and assigning labels
 
@@ -425,25 +427,25 @@ uv tool install -e ./dev/breeze
 
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 
-  ```shell script
-  breeze release-management create-minor-branch --version-branch ${VERSION_BRANCH}
-  ```
+    ```shell script
+    breeze release-management create-minor-branch --version-branch ${VERSION_BRANCH}
+    ```
 
 - Check out the 'test' branch
 
-  ```shell script
-  git checkout v${VERSION_BRANCH}-test
-  git reset --hard origin/v${VERSION_BRANCH}-test
-  ```
+    ```shell script
+    git checkout v${VERSION_BRANCH}-test
+    git reset --hard origin/v${VERSION_BRANCH}-test
+    ```
 
 - Create a new branch from v${VERSION_BRANCH}-test
 
-  ```shell script
-  git checkout -b ${SYNC_BRANCH}
-  ```
+    ```shell script
+    git checkout -b ${SYNC_BRANCH}
+    ```
 
-  We sync this new branch to the stable branch so that people would continue to backport PRs to the test branch
-  while the RC is being voted. The new branch must be in sync with where you cut it off from the test branch.
+    We sync this new branch to the stable branch so that people would continue to backport PRs to the test branch
+    while the RC is being voted. The new branch must be in sync with where you cut it off from the test branch.
 
 - Switch to the new branch in .github/workflows/ci-notification.yml `workflow-status` matrix
 - Set the Airflow version in `airflow-core/src/airflow/__init__.py` (without the RC tag).
@@ -463,9 +465,9 @@ uv tool install -e ./dev/breeze
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Create `backport-to-vX-Y-test` label:
 
-  ```shell script
-  gh label create 'backport-to-vX-Y-test' --repo apache/airflow --description 'Backport to vX-Y-test' --color 0e8a16
-  ```
+    ```shell script
+    gh label create 'backport-to-vX-Y-test' --repo apache/airflow --description 'Backport to vX-Y-test' --color 0e8a16
+    ```
 
 - Update `.github/boring-cyborg.yml` and add `backport-to-vX-Y-test` auto-assignment for the new branch.
 - Update `.github/` configuration on `main` to add the new `vX-Y-test` branch (you can use the
@@ -479,9 +481,10 @@ uv tool install -e ./dev/breeze
 
   Preview with:
 
-  ```shell script
-  towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir airflow-core --config airflow-core/newsfragments/config.toml
-  ```
+    ```shell script
+    towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir airflow-core --config airflow-core/newsfragments/config.toml
+    ```
+
 
   Then remove the `--draft` flag to have towncrier build the release notes for real.
 
@@ -511,43 +514,43 @@ uv tool install -e ./dev/breeze
 
 - When the PR is approved (or when using the shortcut above), install `dev/breeze` in a virtualenv:
 
-  ```shell script
-  uv pip install -e ./dev/breeze
-  ```
+    ```shell script
+    uv pip install -e ./dev/breeze
+    ```
 
 - Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC.
-  You can generate the token by following [this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
+    You can generate the token by following [this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
 
-  ```shell script
-  export GITHUB_TOKEN="my_token"
-  ```
+    ```shell script
+    export GITHUB_TOKEN="my_token"
+    ```
 
 - Start the release candidate process by running the below command (If you have not generated a key yet, generate it by following instructions on
-  http://www.apache.org/dev/openpgp.html#key-gen-generate-key):
+    http://www.apache.org/dev/openpgp.html#key-gen-generate-key):
 
-  ```shell script
-  git checkout main
-  git pull # Ensure that the script is up-to-date
-  breeze release-management start-rc-process \
-      --version ${VERSION_RC} \
-      --previous-version ${PREVIOUS_VERSION} \
-      --task-sdk-version ${TASK_SDK_VERSION_RC} \
-      --sync-branch ${SYNC_BRANCH}
-  ```
+    ```shell script
+    git checkout main
+    git pull # Ensure that the script is up-to-date
+    breeze release-management start-rc-process \
+        --version ${VERSION_RC} \
+        --previous-version ${PREVIOUS_VERSION} \
+        --task-sdk-version ${TASK_SDK_VERSION_RC} \
+        --sync-branch ${SYNC_BRANCH}
+   ```
 
-  **Testing the start-rc-process command:**
-  Before running the actual release command, you can safely test it using:
+   **Testing the start-rc-process command:**
+   Before running the actual release command, you can safely test it using:
 
-  ```shell script
-  # Test with dry-run (shows what would be executed without doing it)
-  breeze release-management start-rc-process \
-      --version ${VERSION_RC} \
-      --previous-version ${PREVIOUS_VERSION} \
-      --task-sdk-version ${TASK_SDK_VERSION_RC} \
-      --sync-branch ${SYNC_BRANCH} \
-      --remote-name upstream \
-      --dry-run
-  ```
+   ```shell script
+   # Test with dry-run (shows what would be executed without doing it)
+   breeze release-management start-rc-process \
+       --version ${VERSION_RC} \
+       --previous-version ${PREVIOUS_VERSION} \
+       --task-sdk-version ${TASK_SDK_VERSION_RC} \
+       --sync-branch ${SYNC_BRANCH} \
+       --remote-name upstream \
+       --dry-run
+   ```
 
 - Create issue in github for testing the release using this subject:
 
@@ -561,7 +564,7 @@ uv tool install -e ./dev/breeze
 
   ```shell script
     breeze release-management generate-issue-content-core --previous-release ${PREVIOUS_VERSION} --current-release ${VERSION_RC}
-  ```
+    ```
 
 ## Publish release candidate documentation (staging)
 
@@ -657,9 +660,9 @@ Production Docker images should be manually prepared and pushed by the release m
 who has access to Airflow's DockerHub. Note that we started releasing a multi-platform build, so you need
 to have an environment prepared to build multi-platform images. You can achieve it with:
 
-- GitHub Actions Manual Job (easiest)
-- Emulation (very slow)
-- Hardware builders if you have both AMD64 and ARM64 hardware locally
+* GitHub Actions Manual Job (easiest)
+* Emulation (very slow)
+* Hardware builders if you have both AMD64 and ARM64 hardware locally
 
 Building the image is triggered by running the
 [Release PROD Images](https://github.com/apache/airflow/actions/workflows/release_dockerhub_image.yml) workflow.
@@ -788,11 +791,11 @@ At least 3 (+1) votes should be recorded in accordance to
 
 The legal checks include:
 
-- verifying if packages can be reproducibly built from sources
-- checking if the packages are present in the right dist folder on svn
-- verifying if all the sources have correct licences
-- verifying if release manager signed the releases with the right key
-- verifying if all the checksums are valid for the release
+* verifying if packages can be reproducibly built from sources
+* checking if the packages are present in the right dist folder on svn
+* verifying if all the sources have correct licences
+* verifying if release manager signed the releases with the right key
+* verifying if all the checksums are valid for the release
 
 ## Reproducible package check
 
@@ -819,8 +822,8 @@ breeze release-management prepare-tarball --tarball-type apache_airflow --versio
 ```
 
 The `prepare-*-distributions` by default will use Dockerized approach and building of the packages
-will be done in a docker container. However, if you have `hatch` installed locally you can use
-`--use-local-hatch` flag and it will build and use docker image that has `hatch` installed.
+will be done in a docker container.  However, if you have  `hatch` installed locally you can use
+`--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
 breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch --version-suffix ""
@@ -867,6 +870,8 @@ In case the files are different, you should see:
 Binary files apache_airflow-2.9.0.tar.gz and .../apache_airflow-2.9.0.tar.gz differ
 ```
 
+
+
 ## SVN check
 
 The files should be present in the sub-folder of
@@ -874,9 +879,9 @@ The files should be present in the sub-folder of
 
 The following files should be present (9 files):
 
-- -source.tar.gz + .asc + .sha512
-- .tar.gz + .asc + .sha512
-- -py3-none-any.whl + .asc + .sha512
+* -source.tar.gz + .asc + .sha512
+* .tar.gz + .asc + .sha512
+* -py3-none-any.whl + .asc + .sha512
 
 As a PMC member, you should be able to clone the SVN repository
 or update it if you already checked it out:
@@ -971,6 +976,7 @@ For example:
 ! /CODE_OF_CONDUCT.md
 ```
 
+
 ## Signature check
 
 Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
@@ -1028,7 +1034,7 @@ that the signatures are correct. Do not worry about the "not certified with a tr
 warning. Most of the certificates used by release managers are self-signed, and that's why you get this
 warning. By importing the key either from the server in the previous step or from the
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
-this is a valid key already. To suppress the warning you may edit the key's trust level
+this is a valid key already.  To suppress the warning you may edit the key's trust level
 by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
@@ -1148,10 +1154,10 @@ If you want to run the automated cross-check, use `breeze release-management ver
 
 What the automation does (high level):
 
-- Validates expected SVN files, signatures, checksums, Apache RAT licenses, and reproducible builds.
-- Uses a detached git worktree for reproducible builds so it can build from the release tag without
+* Validates expected SVN files, signatures, checksums, Apache RAT licenses, and reproducible builds.
+* Uses a detached git worktree for reproducible builds so it can build from the release tag without
   changing your current checkout (and still use the latest Breeze code).
-- Fails early if the SVN working copy is locked (to avoid hanging on `svn` commands).
+* Fails early if the SVN working copy is locked (to avoid hanging on `svn` commands).
 
 If the automation output disagrees with your manual verification, treat the manual results as authoritative and
 report the discrepancy.
@@ -1180,6 +1186,7 @@ breeze release-management verify-rc-by-pmc \
   --path-to-airflow-svn ~/asf-dist/dev/airflow \
   --checks signatures,checksums
 ```
+
 
 # Verify the release candidate by Contributors
 
@@ -1224,6 +1231,7 @@ Airflow 2.7.0, you need to have celery provider installed to run Airflow with Ce
 breeze start-airflow --use-airflow-version 3.1.3rc1 --python 3.10 --backend postgres \
   --executor CeleryExecutor --airflow-extras "celery,google,amazon"
 ```
+
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
 that the Airflow works as you expected.
@@ -1297,8 +1305,10 @@ breeze release-management start-release \
 
 Note: The `--task-sdk-version` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
 
-4. Make sure to update Airflow version in `v3-*-test` branch after cherry-picking to X.Y.1 in
-   `airflow/__init__.py`
+
+4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
+   ``airflow/__init__.py``
+
 
 ## Manually prepare production Docker Image
 
@@ -1307,10 +1317,10 @@ Building the image is triggered by running the
 
 When you trigger it you need to pass:
 
-- Airflow Version
-- Optional "true" in skip latest field if you do not want to re-tag the latest image
+* Airflow Version
+* Optional "true" in skip latest field if you do not want to re-tag the latest image
 
-Make sure you use `v3-*-test` branch to run the workflow.
+Make sure you use ``v3-*-test`` branch to run the workflow.
 
 ![Release prod image](images/release_prod_image.png)
 
@@ -1397,7 +1407,7 @@ should be updated, also Fastly cache will be invalidated.
 ## Notify developers of release
 
 - Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
-  the artifacts have been published:
+the artifacts have been published:
 
 Subject:
 
@@ -1471,7 +1481,7 @@ Create a new release on GitHub with the release notes and assets from the releas
 
 Before closing the milestone on GitHub, make sure that all PR marked for it are either part of the release (was cherry picked) or
 postponed to the next release, then close the milestone. Create the next one if it hasn't been already (it probably has been).
-Update the new milestone in the [_Currently we are working on_ issue](https://github.com/apache/airflow/issues/10176)
+Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.
 
 ## Close the testing status issue
@@ -1498,8 +1508,7 @@ EOF
 
 ## Announce about the release in social media
 
----
-
+------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
 ```shell
@@ -1517,14 +1526,14 @@ EOF
 
 Post on social media about the release:
 
-- LinkedIn: https://www.linkedin.com/company/apache-airflow/
-- Fosstodon: https://fosstodon.org/@airflow
-- Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
 
 Make sure to attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.
 
----
+------------------------------------------------------------------------------------------------------------
 
 ## Update `main` with the latest release details
 
@@ -1554,11 +1563,12 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
 
 - Get a diff between the released versions and the current local file on `main` branch:
 
-  ```shell script
-  ./dev/validate_version_added_fields_in_config.py
-  ```
+    ```shell script
+    ./dev/validate_version_added_fields_in_config.py
+    ```
 
 - Update `airflow/config_templates/config.yml` with the details, and commit it.
+
 
 ## API clients
 
@@ -1591,8 +1601,9 @@ To determine if you should release API clients, you can run from the airflow rep
 According to the policy above, if we have to release clients:
 
 - Follow the specific release process for each API client:
-  - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
-  - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)
+
+    - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
+    - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)
 
 # Additional processes
 
@@ -1605,9 +1616,9 @@ branch, for example when there are html layout changes or typo fixes, or formatt
 
 In this case the process is as follows:
 
-- When you want to re-publish `3.X.Y` docs, create (or pull if already created) `3.X.Y-docs` branch
-- Cherry-pick changes you want to add and push to the main `apache/airflow` repo
-- Run the publishing workflow.
+* When you want to re-publish `3.X.Y` docs, create (or pull if already created) `3.X.Y-docs` branch
+* Cherry-pick changes you want to add and push to the main `apache/airflow` repo
+* Run the publishing workflow.
 
 In case you are releasing latest released version of Airflow (which should be most of the cases), run this:
 
