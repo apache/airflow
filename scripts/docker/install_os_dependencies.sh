@@ -401,8 +401,24 @@ function install_golang() {
 }
 
 function install_rustup() {
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-        sh -s -- -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A rustup_targets=(
+        [amd64]="x86_64-unknown-linux-gnu"
+        [arm64]="aarch64-unknown-linux-gnu"
+    )
+    local target="${rustup_targets[${arch}]}"
+    if [[ -z "${target}" ]]; then
+        echo "Unsupported architecture for rustup: ${arch}"
+        exit 1
+    fi
+    local base_url="https://static.rust-lang.org/rustup/dist/${target}"
+    curl --proto '=https' --tlsv1.2 -sSf "${base_url}/rustup-init" -o /tmp/rustup-init
+    curl --proto '=https' --tlsv1.2 -sSf "${base_url}/rustup-init.sha256" -o /tmp/rustup-init.sha256
+    cd /tmp && sha256sum --check rustup-init.sha256
+    chmod +x /tmp/rustup-init
+    /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    rm -f /tmp/rustup-init /tmp/rustup-init.sha256
 }
 
 function apt_clean() {
