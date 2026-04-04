@@ -200,8 +200,8 @@
     "roles": "Rollen",
     "users": "Gebruikers"
   },
-  "selected": "Geselecteerd",
   "selectLanguage": "Selecteer taal",
+  "selected": "Geselecteerd",
   "showDetailsPanel": "Details weergeven",
   "signedInAs": "Ingelogd als",
   "source": {
