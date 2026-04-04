@@ -27,10 +27,11 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionHookMetaData,
     StandardHookFields,
 )
+from airflow.providers_manager import HookInfo, ProvidersManager
 from airflow.serialization.definitions.param import SerializedParam
 
 if TYPE_CHECKING:
-    from airflow.providers_manager import ConnectionFormWidgetInfo, HookInfo
+    from airflow.providers_manager import ConnectionFormWidgetInfo
 
 log = logging.getLogger(__name__)
 
@@ -124,8 +125,6 @@ class HookMetaService:
     ]:
         """Get hooks with all details w/o FAB needing to be installed."""
         from unittest import mock
-
-        from airflow.providers_manager import ProvidersManager
 
         def mock_lazy_gettext(txt: str) -> str:
             """Mock for flask_babel.lazy_gettext."""
@@ -225,19 +224,16 @@ class HookMetaService:
     @staticmethod
     @cache
     def hook_meta_data() -> list[ConnectionHookMetaData]:
-        hooks, connection_form_widgets, field_behaviours = HookMetaService._get_hooks_with_mocked_fab()
-        result: list[ConnectionHookMetaData] = []
-        widgets = HookMetaService._convert_extra_fields(connection_form_widgets)
-        for hook_key, hook_info in hooks.items():
-            if not hook_info:
-                continue
-            hook_meta = ConnectionHookMetaData(
-                connection_type=hook_key,
-                hook_class_name=hook_info.hook_class_name,
-                default_conn_name=None,  # TODO: later
-                hook_name=hook_info.hook_name,
-                standard_fields=HookMetaService._make_standard_fields(field_behaviours.get(hook_key)),
-                extra_fields=widgets.get(hook_key),
+        pm = ProvidersManager()
+        widgets = HookMetaService._convert_extra_fields(pm._connection_form_widgets_from_metadata)
+        return [
+            ConnectionHookMetaData(
+                connection_type=meta.connection_type,
+                hook_class_name=meta.hook_class_name,
+                default_conn_name=None,
+                hook_name=meta.hook_name,
+                standard_fields=HookMetaService._make_standard_fields(meta.field_behaviour),
+                extra_fields=widgets.get(meta.connection_type),
             )
-            result.append(hook_meta)
-        return result
+            for meta in pm.iter_connection_type_hook_ui_metadata()
+        ]

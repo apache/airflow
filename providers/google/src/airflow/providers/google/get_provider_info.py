@@ -1380,6 +1380,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.google.common.hooks.base_google.GoogleBaseHook",
+                "hook-name": "Google Cloud",
                 "connection-type": "google_cloud_platform",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
@@ -1438,18 +1439,22 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook",
+                "hook-name": "Google Dataprep",
                 "connection-type": "dataprep",
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook",
+                "hook-name": "Google Cloud SQL",
                 "connection-type": "gcpcloudsql",
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
+                "hook-name": "Google Cloud SQL Database",
                 "connection-type": "gcpcloudsqldb",
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook",
+                "hook-name": "Google Bigquery",
                 "connection-type": "gcpbigquery",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
@@ -1519,6 +1524,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook",
+                "hook-name": "Google Cloud SSH",
                 "connection-type": "gcpssh",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "login", "password", "port", "extra"],
@@ -1528,10 +1534,12 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook",
+                "hook-name": "LevelDB",
                 "connection-type": "leveldb",
             },
             {
                 "hook-class-name": "airflow.providers.google.ads.hooks.ads.GoogleAdsHook",
+                "hook-name": "Google Ads",
                 "connection-type": "google_ads",
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "login", "schema", "port"],
@@ -1553,6 +1561,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.looker.LookerHook",
+                "hook-name": "Google Looker",
                 "connection-type": "gcp_looker",
             },
         ],

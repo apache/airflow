@@ -85,4 +85,5 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.odbc.hooks.odbc.OdbcHook
+    hook-name: "ODBC"
     connection-type: odbc

@@ -137,6 +137,7 @@ config:
 
 connection-types:
   - hook-class-name: airflow.providers.standard.hooks.filesystem.FSHook
+    hook-name: "File (path)"
     connection-type: fs
     ui-field-behaviour:
       hidden-fields:
@@ -154,6 +155,7 @@ connection-types:
             - string
             - 'null'
   - hook-class-name: airflow.providers.standard.hooks.package_index.PackageIndexHook
+    hook-name: "Package Index (Python)"
     connection-type: package_index
     ui-field-behaviour:
       hidden-fields:
