@@ -155,6 +155,9 @@ SOCKET_CLEANUP_TIMEOUT: float = conf.getfloat("workers", "socket_cleanup_timeout
 # like listeners after task is complete.
 TASK_OVERTIME_THRESHOLD: float = conf.getfloat("core", "task_success_overtime")
 
+# Seconds to wait after SIGTERM before escalating to SIGKILL on execution timeout
+SIGKILL_GRACE_PERIOD: float = 5.0
+
 SERVER_TERMINATED = "SERVER_TERMINATED"
 
 # These are the task instance states that require some additional information to transition into.
@@ -1170,11 +1173,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
         elapsed_time = time.monotonic() - self._task_execution_start_time
 
-        # Check if we've exceeded the execution timeout
         if elapsed_time > self._execution_timeout_seconds:
-            # Grace period for SIGKILL after SIGTERM (5 seconds)
-            SIGKILL_GRACE_PERIOD = 5.0
-
             if self._timeout_sigterm_sent_at is None:
                 # First timeout - send SIGTERM
                 log.warning(

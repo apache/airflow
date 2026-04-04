@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import signal
 import time
 from unittest.mock import MagicMock, patch
@@ -137,8 +138,6 @@ class TestExecutionTimeout:
         assert "TaskExecutionTimeout" in json_str
 
         # Deserialize
-        import json
-
         data = json.loads(json_str)
         assert data["timeout_seconds"] == 15.5
         assert data["type"] == "TaskExecutionTimeout"
@@ -240,6 +239,7 @@ class TestExecutionTimeoutIntegration:
             "Expected timeout message in logs"
         )
 
+    @pytest.mark.slow
     def test_timeout_escalates_to_sigkill(self, monkeypatch, client_with_ti_start):
         """Test that supervisor sends SIGKILL if SIGTERM doesn't work."""
         import os
@@ -249,8 +249,12 @@ class TestExecutionTimeoutIntegration:
         from uuid6 import uuid7
 
         from airflow.sdk.api.datamodels._generated import TaskInstance
+        from airflow.sdk.execution_time import supervisor
         from airflow.sdk.execution_time.comms import CommsDecoder, TaskExecutionTimeout
         from airflow.sdk.execution_time.supervisor import ActivitySubprocess
+
+        # Use a short grace period so the test doesn't wait 5+ seconds for SIGKILL
+        monkeypatch.setattr(supervisor, "SIGKILL_GRACE_PERIOD", 0.5)
 
         def subprocess_main():
             # Get startup message
@@ -289,9 +293,9 @@ class TestExecutionTimeoutIntegration:
         # Should be killed with SIGKILL
         assert rc != 0
 
-        # Should complete in ~15-17 seconds
-        # (1s timeout + 5s heartbeat delay + 5s SIGTERM grace + 5s SIGKILL check delay)
-        assert elapsed < 18, f"Task took {elapsed}s, expected ~15s for SIGKILL escalation"
+        # Should complete in ~7-9 seconds with short grace period
+        # (1s timeout + heartbeat delay + 0.5s SIGTERM grace + heartbeat check delay)
+        assert elapsed < 12, f"Task took {elapsed}s, expected <12s for SIGKILL escalation"
 
     def test_no_timeout_task_completes_normally(self, monkeypatch, client_with_ti_start):
         """Test that tasks without timeout complete normally."""
