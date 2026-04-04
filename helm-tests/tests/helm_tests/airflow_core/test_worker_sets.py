@@ -2431,8 +2431,24 @@ class TestWorkerSets:
                 "celery": {"enableDefault": False, "sets": [{"name": "set1"}]},
             },
             {
+                "celery": {
+                    "extraPorts": [{"name": "test-extra-port", "containerPort": 10}],
+                    "enableDefault": False,
+                    "sets": [{"name": "set1"}],
+                },
+            },
+            {
                 "extraPorts": [{"name": "test", "containerPort": 1}],
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {"name": "set1", "extraPorts": [{"name": "test-extra-port", "containerPort": 10}]}
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "extraPorts": [{"name": "test", "containerPort": 1}],
                     "enableDefault": False,
                     "sets": [
                         {"name": "set1", "extraPorts": [{"name": "test-extra-port", "containerPort": 10}]}
@@ -2500,6 +2516,13 @@ class TestWorkerSets:
                     "sets": [{"name": "set1", "runtimeClassName": "test-class"}],
                 },
             },
+            {
+                "celery": {
+                    "runtimeClassName": "test",
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "runtimeClassName": "test-class"}],
+                },
+            },
         ],
     )
     def test_overwrite_runtime_class_name(self, workers_values):
@@ -2522,6 +2545,13 @@ class TestWorkerSets:
             {
                 "priorityClassName": "test",
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "priorityClassName": "test-class"}],
+                },
+            },
+            {
+                "celery": {
+                    "priorityClassName": "test",
                     "enableDefault": False,
                     "sets": [{"name": "set1", "priorityClassName": "test-class"}],
                 },
@@ -2733,6 +2763,15 @@ class TestWorkerSets:
             {
                 "hostAliases": [{"ip": "192.168.0.0", "hostnames": ["test"]}],
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {"name": "set1", "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]}
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "hostAliases": [{"ip": "192.168.0.0", "hostnames": ["test"]}],
                     "enableDefault": False,
                     "sets": [
                         {"name": "set1", "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]}

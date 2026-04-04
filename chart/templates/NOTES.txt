@@ -629,10 +629,42 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.runtimeClassName) }}
+
+ DEPRECATION WARNING:
+    `workers.runtimeClassName` has been renamed to `workers.celery.runtimeClassName`/`workers.kubernetes.runtimeClassName`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.priorityClassName) }}
+
+ DEPRECATION WARNING:
+    `workers.priorityClassName` has been renamed to `workers.celery.priorityClassName`/`workers.kubernetes.priorityClassName`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.workers.nodeSelector) }}
 
  DEPRECATION WARNING:
     `workers.nodeSelector` has been renamed to `workers.celery.nodeSelector`/`workers.kubernetes.nodeSelector`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.extraPorts) }}
+
+ DEPRECATION WARNING:
+    `workers.extraPorts` has been renamed to `workers.celery.extraPorts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.hostAliases) }}
+
+ DEPRECATION WARNING:
+    `workers.hostAliases` has been renamed to `workers.celery.hostAliases`/`workers.kubernetes.hostAliases`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Field, Heading, HStack, VStack, Text } from "@chakra-ui/react";
+import { Button, Field, Heading, HStack, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,14 +36,15 @@ import type {
   AssetEventResponse,
   AssetResponse,
   DAGRunResponse,
+  MaterializeAssetBody,
   EdgeResponse,
 } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { JsonEditor } from "src/components/JsonEditor";
+import TriggerDAGForm from "src/components/TriggerDag/TriggerDAGForm";
+import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 import { Dialog, toaster } from "src/components/ui";
-import { Checkbox } from "src/components/ui/Checkbox";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
-import { useTogglePause } from "src/queries/useTogglePause";
 
 type Props = {
   readonly asset: AssetResponse;
@@ -55,7 +56,6 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
   const { t: translate } = useTranslation(["assets", "components"]);
   const [eventType, setEventType] = useState("manual");
   const [extraError, setExtraError] = useState<string | undefined>();
-  const [unpause, setUnpause] = useState(true);
   const [extra, setExtra] = useState("{}");
   const [partitionKey, setPartitionKey] = useState<string | undefined>(undefined);
   const queryClient = useQueryClient();
@@ -93,6 +93,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
   const onSuccess = async (response: AssetEventResponse | DAGRunResponse) => {
     setExtra("{}");
     setExtraError(undefined);
+    setPartitionKey(undefined);
     onClose();
 
     let queryKeys = [UseAssetServiceGetAssetEventsKeyFn({ assetId: asset.id }, [{ assetId: asset.id }])];
@@ -127,11 +128,9 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     enabled: Boolean(upstreamDagId),
   });
 
-  const { mutate: togglePause } = useTogglePause({ dagId: dag?.dag_id ?? upstreamDagId ?? "" });
-
   const {
     error: manualError,
-    isPending,
+    isPending: isManualPending,
     mutate: createAssetEvent,
   } = useAssetServiceCreateAssetEvent({ onSuccess });
   const {
@@ -142,27 +141,40 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     onSuccess,
   });
 
-  const handleSubmit = () => {
-    if (eventType === "materialize") {
-      if (unpause && dag?.is_paused) {
-        togglePause({
-          dagId: dag.dag_id,
-          requestBody: {
-            is_paused: false,
-          },
-        });
-      }
-      materializeAsset({ assetId: asset.id });
-    } else {
-      createAssetEvent({
-        requestBody: {
-          asset_id: asset.id,
-          extra: JSON.parse(extra) as Record<string, unknown>,
-          partition_key: partitionKey ?? null,
-        },
-      });
-    }
+  const handleMaterializeSubmit = (dagRunRequestBody: DagRunTriggerParams) => {
+    const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<string, unknown>;
+    const logicalDate = dagRunRequestBody.logicalDate ? new Date(dagRunRequestBody.logicalDate) : undefined;
+    const dataIntervalStart = dagRunRequestBody.dataIntervalStart
+      ? new Date(dagRunRequestBody.dataIntervalStart)
+      : undefined;
+    const dataIntervalEnd = dagRunRequestBody.dataIntervalEnd
+      ? new Date(dagRunRequestBody.dataIntervalEnd)
+      : undefined;
+
+    const requestBody: MaterializeAssetBody = {
+      conf: parsedConfig,
+      dag_run_id: dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId,
+      data_interval_end: dataIntervalEnd?.toISOString() ?? null,
+      data_interval_start: dataIntervalStart?.toISOString() ?? null,
+      logical_date: logicalDate?.toISOString() ?? null,
+      note: dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note,
+      partition_key: dagRunRequestBody.partitionKey ?? null,
+    };
+
+    materializeAsset({
+      assetId: asset.id,
+      requestBody,
+    });
   };
+
+  const handleManualSubmit = () =>
+    createAssetEvent({
+      requestBody: {
+        asset_id: asset.id,
+        extra: JSON.parse(extra) as Record<string, unknown>,
+        partition_key: partitionKey ?? null,
+      },
+    });
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
@@ -204,36 +216,47 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
             </HStack>
           </RadioCardRoot>
           {eventType === "manual" ? (
+            <Field.Root mt={6}>
+              <Field.Label fontSize="md">{translate("createEvent.manual.extra")}</Field.Label>
+              <JsonEditor onChange={validateAndPrettifyJson} value={extra} />
+              <Text color="fg.error">{extraError}</Text>
+            </Field.Root>
+          ) : undefined}
+          {eventType === "manual" ? (
             <>
-              <Field.Root mt={6}>
-                <Field.Label fontSize="md">{translate("createEvent.manual.extra")}</Field.Label>
-                <JsonEditor onChange={validateAndPrettifyJson} value={extra} />
-                <Text color="fg.error">{extraError}</Text>
-              </Field.Root>
               <Field.Root mt={6}>
                 <Field.Label fontSize="md">{translate("common:dagRun.partitionKey")}</Field.Label>
                 <JsonEditor onChange={setPartitionKey} value={partitionKey} />
-                <Text color="fg.error">{extraError}</Text>
               </Field.Root>
+              <ErrorAlert error={manualError} />
             </>
           ) : undefined}
-          {eventType === "materialize" && dag?.is_paused ? (
-            <Checkbox checked={unpause} colorPalette="brand" onChange={() => setUnpause(!unpause)}>
-              {translate("createEvent.materialize.unpauseDag", { dagName: dag.dag_display_name })}
-            </Checkbox>
+          {eventType === "materialize" && dag !== undefined && upstreamDagId !== undefined ? (
+            <TriggerDAGForm
+              dagDisplayName={dag.dag_display_name}
+              dagId={upstreamDagId}
+              error={materializeError}
+              hasSchedule={dag.timetable_summary !== null}
+              isPartitioned={dag.timetable_partitioned}
+              isPaused={dag.is_paused}
+              isPending={isMaterializePending}
+              onSubmitTrigger={handleMaterializeSubmit}
+              open={open}
+            />
           ) : undefined}
-          <ErrorAlert error={eventType === "manual" ? manualError : materializeError} />
         </Dialog.Body>
-        <Dialog.Footer>
-          <Button
-            colorPalette="brand"
-            disabled={Boolean(extraError)}
-            loading={isPending || isMaterializePending}
-            onClick={handleSubmit}
-          >
-            <FiPlay /> {translate("createEvent.button")}
-          </Button>
-        </Dialog.Footer>
+        {eventType === "manual" ? (
+          <Dialog.Footer>
+            <Button
+              colorPalette="brand"
+              disabled={Boolean(extraError)}
+              loading={isManualPending}
+              onClick={handleManualSubmit}
+            >
+              <FiPlay /> {translate("createEvent.button")}
+            </Button>
+          </Dialog.Footer>
+        ) : undefined}
       </Dialog.Content>
     </Dialog.Root>
   );

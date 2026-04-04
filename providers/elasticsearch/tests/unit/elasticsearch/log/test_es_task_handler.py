@@ -636,7 +636,6 @@ class TestElasticsearchRemoteLogIO:
 
     def test_es_read_builds_expected_query(self, ti):
         self.elasticsearch_io.client = Mock()
-        self.elasticsearch_io.client.count.return_value = {"count": 1}
         self.elasticsearch_io.client.search.return_value = _build_es_search_response(
             {
                 "event": "hello",
@@ -655,7 +654,7 @@ class TestElasticsearchRemoteLogIO:
 
         response = self.elasticsearch_io._es_read(log_id, 2, ti)
 
-        self.elasticsearch_io.client.count.assert_called_once_with(index="airflow-logs-*", query=query)
+        self.elasticsearch_io.client.count.assert_not_called()
         self.elasticsearch_io.client.search.assert_called_once_with(
             index="airflow-logs-*",
             query=query,
@@ -666,19 +665,18 @@ class TestElasticsearchRemoteLogIO:
         assert response is not None
         assert response.hits[0].event == "hello"
 
-    def test_es_read_returns_none_when_count_is_zero(self, ti):
+    def test_es_read_returns_none_when_search_returns_empty(self, ti):
         self.elasticsearch_io.client = Mock()
-        self.elasticsearch_io.client.count.return_value = {"count": 0}
+        self.elasticsearch_io.client.search.return_value = _build_es_search_response()
 
         log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
         response = self.elasticsearch_io._es_read(log_id, 0, ti)
 
         assert response is None
-        self.elasticsearch_io.client.search.assert_not_called()
 
     def test_es_read_propagates_missing_index(self, ti):
         self.elasticsearch_io.client = Mock()
-        self.elasticsearch_io.client.count.side_effect = elasticsearch.exceptions.NotFoundError(
+        self.elasticsearch_io.client.search.side_effect = elasticsearch.exceptions.NotFoundError(
             404,
             "IndexMissingException[[missing] missing]",
             {},
@@ -690,7 +688,6 @@ class TestElasticsearchRemoteLogIO:
 
     def test_es_read_logs_and_returns_none_on_search_error(self, ti):
         self.elasticsearch_io.client = Mock()
-        self.elasticsearch_io.client.count.return_value = {"count": 1}
         self.elasticsearch_io.client.search.side_effect = RuntimeError("boom")
 
         log_id = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)

@@ -142,6 +142,7 @@ class TestWorkerStart:
     @mock.patch("airflow.providers.celery.cli.celery_command.setup_locations")
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @conf_vars({("celery", "pool"): "prefork"})
     def test_worker_started_with_required_arguments(self, mock_celery_app, mock_popen, mock_locations):
         pid_file = "pid_file"
         mock_locations.return_value = (pid_file, None, None, None)

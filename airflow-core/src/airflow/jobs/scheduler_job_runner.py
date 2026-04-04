@@ -71,7 +71,7 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
-from airflow.models.backfill import Backfill
+from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.callback import Callback, CallbackType, ExecutorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -1861,8 +1861,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
         now = timezone.utcnow()
         # todo: AIP-78 simplify this function to an update statement
+        initializing_cutoff = now - timedelta(minutes=2)
         query = select(Backfill).where(
             Backfill.completed_at.is_(None),
+            # Guard: backfill must have at least one association,
+            # otherwise it is still being set up (see #61375).
+            # Allow cleanup of orphaned backfills older than 2 minutes
+            # that failed during initialization and never got any associations.
+            or_(
+                exists(select(BackfillDagRun.id).where(BackfillDagRun.backfill_id == Backfill.id)),
+                Backfill.created_at < initializing_cutoff,
+            ),
             ~exists(
                 select(DagRun.id).where(
                     and_(DagRun.backfill_id == Backfill.id, DagRun.state.in_(unfinished_states))

@@ -258,10 +258,12 @@ popd
 
   ```shell
   # First clone the repo
-  svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+  cd ${AIRFLOW_REPO_ROOT}/..
+  [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+  svn update --set-depth=infinity asf-dist/dev/airflow
 
   # Create new folder for the release
-  cd airflow-dev/helm-chart
+  cd asf-dist/dev/airflow/helm-chart
   svn mkdir ${VERSION}${VERSION_SUFFIX}
 
   # Move the artifacts to svn folder
@@ -358,7 +360,11 @@ EOF
 ```
 
 ```shell
-export VOTE_END_TIME=$(date --utc -d "now + 72 hours + 10 minutes" +'%Y-%m-%d %H:%M')
+if [ "$OS" = "Darwin" ]; then  # MacOS (BSD date)
+  export VOTE_END_TIME=$(date -u -v "+${VOTE_DURATION_IN_HOURS}H" -v "+10M" +'%Y-%m-%d %H:%M')
+else  # Linux
+  export VOTE_END_TIME=$(date --utc -d "now + $VOTE_DURATION_IN_HOURS hours + 10 minutes" +'%Y-%m-%d %H:%M')
+fi
 export TIME_DATE_URL="to?iso=$(date --utc -d "now + 72 hours + 10 minutes" +'%Y%m%dT%H%M')&p0=136&font=cursive"
 ```
 
@@ -508,7 +514,7 @@ VERSION_SUFFIX= breeze release-management prepare-helm-chart-package
 As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
-cd ..
+cd ${AIRFLOW_REPO_ROOT}/..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/dev/airflow
 ```
@@ -552,7 +558,7 @@ You can run this command to do it for you (including checksum verification for y
 ```shell script
 # Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512
 wget -q https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz -O /tmp/apache-rat-0.18-bin.tar.gz
-echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
+echo "315b16536526838237c42b5e6b613d29adc77e25a6e44a866b2b7f8b162e03d3629d49c9faea86ceb864a36b2c42838b8ce43d6f2db544e961f2259e242748f4  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
 tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
 ```
 
@@ -707,6 +713,20 @@ upgrading the Chart or installing by overriding default of `values.yaml`.
 
 # Publish the final release
 
+Re-establish your shell like when prepared
+
+```shell
+# Set Version
+export VERSION=1.1.0
+export VERSION_SUFFIX=rc1
+
+# Set AIRFLOW_REPO_ROOT to the path of your git repo
+export AIRFLOW_REPO_ROOT=$(pwd -P)
+
+breeze k8s setup-env
+breeze k8s shell
+```
+
 ## Summarize the voting for the release
 
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
@@ -760,21 +780,20 @@ the binaries again, and gives a clearer history in the svn commit logs):
 
 ```shell
 # First clone the repo
-export VERSION=1.1.0
-export VERSION_SUFFIX=rc1
-svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
+cd ${AIRFLOW_REPO_ROOT}/..
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/release/airflow
 
 # Create new folder for the release
-cd airflow-release/helm-chart
+cd asf-dist/release/airflow/helm-chart
 export AIRFLOW_SVN_RELEASE_HELM=$(pwd -P)
 svn mkdir ${VERSION}
 cd ${VERSION}
 
 # Move the artifacts to svn folder & commit (don't copy or copy & remove - index.yaml)
-for f in ../../../airflow-dev/helm-chart/${VERSION}${VERSION_SUFFIX}/*; do svn cp $f ${$(basename $f)/}; done
+for f in ../../../../dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}/*; do svn cp $f $(basename $f); done
 svn rm index.yaml
 svn commit -m "Release Airflow Helm Chart Check ${VERSION} from ${VERSION}${VERSION_SUFFIX}"
-
 ```
 
 Verify that the packages appear in [Airflow Helm Chart](https://dist.apache.org/repos/dist/release/airflow/helm-chart/).
@@ -829,7 +848,11 @@ cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
 helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/${VERSION}"
 rm airflow-${VERSION}.tgz
 mv index.yaml landing-pages/site/static/index.yaml
-git add p . # leave the license at the top
+git checkout -b feature/new-chart-release-${VERSION}
+git add .
+# Note: commit will re-add the license at the top, need to add another time
+git commit -m "Add Apache Airflow Helm Chart Release ${VERSION} to chart index file"
+git add .
 git commit -m "Add Apache Airflow Helm Chart Release ${VERSION} to chart index file"
 git push
 # and finally open a PR
@@ -841,7 +864,7 @@ workflow in `airflow-site` is triggered automatically by the push to `main` and 
 You can check the latest chart version that is in the `index.yaml` with:
 
 ```shell
-curl -s https://airflow.apache.org/index.yaml | yq e '.entries.airflow[0].version' -
+curl -s https://airflow.apache.org/index.yaml | yq '.entries.airflow[0].version' -
 ```
 
 You can see when ArtifactHUB will next check for a new version by logging in and going to the [ArtifactHUB control panel](https://artifacthub.io/control-panel/repositories).
@@ -916,7 +939,16 @@ Update "Announcements" page at the [Official Airflow website](https://airflow.ap
 
 Create a new release on GitHub with the release notes and assets from the release svn.
 
+- Create a new release in https://github.com/apache/airflow/releases/new ("Draft new release" button)
+- Select the tag, e.g. `helm-chart/1.20.0`
+- Use title: Apache Airflow Helm Chart 1.20.0
+- Copy the release notes RST from the release. Need to convert all headings with `^^^^^` as underline to H1 in markdown with a `#` as prefix and all headings with `"""""` as underline to H2 in markdown with a `##` prefix.
+- Use binaries (all chart files, signatures and source tar) from the SVN
+- Click on "Publish release"
+
 ## Close the milestone
+
+Use: https://github.com/apache/airflow/milestones
 
 Before closing the milestone on GitHub, make sure that all PR marked for it are either part of the release (was cherry picked) or
 postponed to the next release, then close the milestone. Create the next one if it hasn't been already (it probably has been).
@@ -926,6 +958,12 @@ make sure to update the last updated timestamp as well.
 ## Close the testing status issue
 
 Don't forget to thank the folks who tested and close the issue tracking the testing status.
+
+```
+Thank you everyone. New Helm-Chart is released.
+
+I invite everyone to help improve the chart for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aissue%20state%3Aopen%20label%3Aarea%3Ahelm-chart).
+```
 
 ## Update issue template with the new release
 
@@ -990,7 +1028,7 @@ It is probably ok if we leave last 2 versions on release svn repo too.
 
 ```shell
 # http://www.apache.org/legal/release-policy.html#when-to-archive
-cd airflow-release/helm-chart
+cd cd ${AIRFLOW_REPO_ROOT}/asf-dist/release/airflow/helm-chart
 export PREVIOUS_VERSION=1.0.0
 svn rm ${PREVIOUS_VERSION}
 svn commit -m "Remove old Helm Chart release: ${PREVIOUS_VERSION}"

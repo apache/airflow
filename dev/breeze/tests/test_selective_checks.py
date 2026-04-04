@@ -1256,6 +1256,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "false",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="S3 remote logging changes enable only S3 e2e",
@@ -1267,6 +1268,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "false",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Elasticsearch remote logging changes enable only Elasticsearch e2e",
@@ -1278,6 +1280,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "false",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Elasticsearch helper changes enable Elasticsearch e2e",
@@ -1289,6 +1292,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Shared remote logging changes enable both remote logging e2e jobs",
@@ -1300,6 +1304,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Shared logging library changes enable both remote logging e2e jobs",
@@ -1348,6 +1353,53 @@ def test_full_test_needed_when_pyproject_toml_changes(
         files=files,
         github_event=GithubEvents.PULL_REQUEST,
         commit_ref=commit_ref,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("files", "github_event", "expected_outputs"),
+    [
+        pytest.param(
+            ("README.md",),
+            GithubEvents.PULL_REQUEST,
+            {
+                "run-unit-tests": "false",
+                "ci-image-build": "false",
+                "docs-build": "false",
+            },
+            id="Only .md file changed in PR - no tests needed",
+        ),
+        pytest.param(
+            ("requirements.txt", "NOTICE.txt"),
+            GithubEvents.PULL_REQUEST,
+            {
+                "run-unit-tests": "false",
+                "ci-image-build": "false",
+                "docs-build": "false",
+            },
+            id="Only .txt files changed in PR - no tests needed",
+        ),
+        pytest.param(
+            ("README.md", "airflow-core/src/airflow/api.py"),
+            GithubEvents.PULL_REQUEST,
+            {
+                "run-unit-tests": "true",
+                "ci-image-build": "true",
+            },
+            id="Mixed .md and source file changed - tests needed",
+        ),
+    ],
+)
+def test_text_non_doc_files_do_not_trigger_tests(
+    files: tuple[str, ...], github_event: str, expected_outputs: dict[str, str]
+):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=github_event,
+        pr_labels=(),
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
@@ -1581,6 +1633,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "run-mypy": "true",
                     "mypy-checks": ALL_MYPY_CHECKS,
+                    "run-ui-e2e-tests": "true",
                 },
                 id="Everything should run including all providers when full tests are needed "
                 "but with single python and kubernetes if no version label is set",
@@ -1864,44 +1917,44 @@ def test_expected_output_pull_request_v2_7(
             (),
             "main",
             {
-                "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
-                "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
-                "ci-image-build": "true",
-                "prod-image-build": "true",
-                "run-helm-tests": "true",
-                "run-unit-tests": "true",
-                "docs-build": "true",
-                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
-                "skip-prek-hooks": ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED,
+                "selected-providers-list-as-string": None,
+                "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                "ci-image-build": "false",
+                "prod-image-build": "false",
+                "run-helm-tests": "false",
+                "run-unit-tests": "false",
+                "skip-providers-tests": "true",
+                "docs-build": "false",
+                "docs-list-as-string": None,
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                "run-mypy": "true",
-                "mypy-checks": ALL_MYPY_CHECKS,
+                "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED,
+                "core-test-types-list-as-strings-in-json": None,
+                "run-mypy": "false",
+                "mypy-checks": "[]",
             },
-            id="All tests run on push even if unimportant file changed",
+            id="No tests run on push if only text non-doc files changed",
         ),
         pytest.param(
             ("INTHEWILD.md",),
             (),
             "v2-3-stable",
             {
-                "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
-                "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
-                "ci-image-build": "true",
-                "prod-image-build": "true",
+                "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                "ci-image-build": "false",
+                "prod-image-build": "false",
                 "run-helm-tests": "false",
-                "run-unit-tests": "true",
-                "docs-build": "true",
-                "skip-prek-hooks": All_SKIPPED_COMMITS_IF_NON_MAIN_BRANCH,
-                "docs-list-as-string": "apache-airflow docker-stack",
+                "run-unit-tests": "false",
+                "skip-providers-tests": "true",
+                "docs-build": "false",
+                "docs-list-as-string": None,
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
-                "run-mypy": "true",
-                "mypy-checks": ALL_MYPY_CHECKS_EXCEPT_PROVIDERS,
+                "core-test-types-list-as-strings-in-json": None,
+                "run-mypy": "false",
+                "mypy-checks": "[]",
             },
-            id="All tests except Providers and Helm run on push"
-            " even if unimportant file changed in non-main branch",
+            id="No tests run on push if only text non-doc files changed in non-main branch",
         ),
         pytest.param(
             ("airflow-core/src/airflow/api.py",),
@@ -1922,6 +1975,7 @@ def test_expected_output_pull_request_v2_7(
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy": "true",
                 "mypy-checks": ALL_MYPY_CHECKS,
+                "run-ui-e2e-tests": "false",
             },
             id="All tests run on push if core file changed",
         ),

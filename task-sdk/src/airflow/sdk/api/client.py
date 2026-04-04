@@ -529,14 +529,18 @@ class XComOperations:
         key: str,
         value,
         map_index: int | None = None,
+        *,
+        dag_result: bool = False,
         mapped_length: int | None = None,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
-        params = {}
+        params: dict[str, Any] = {}
+        if dag_result:
+            params["dag_result"] = dag_result
         if map_index is not None and map_index >= 0:
-            params = {"map_index": map_index}
+            params["map_index"] = map_index
         if mapped_length is not None and mapped_length >= 0:
             params["mapped_length"] = mapped_length
         self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params, json=value)
@@ -554,9 +558,10 @@ class XComOperations:
         map_index: int | None = None,
     ) -> OKResponse:
         """Delete a XCom with given key via the API server."""
-        params = {}
         if map_index is not None and map_index >= 0:
             params = {"map_index": map_index}
+        else:
+            params = {}
         self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
