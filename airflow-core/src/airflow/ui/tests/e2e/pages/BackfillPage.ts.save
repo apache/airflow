@@ -390,7 +390,9 @@ export class BackfillPage extends BasePage {
 
   public async openBackfillDialog(): Promise<void> {
     await this.triggerButton.click({ timeout: 15_000 });
-    await this.backfillModeRadio.click({ timeout: 10_000 });
+    await this.backfillModeRadio.waitFor({ state: "visible", timeout: 30_000 });
+    await this.page.waitForTimeout(500); 
+    await this.backfillModeRadio.click({ timeout: 20_000 });
     await expect(this.backfillFromDateInput).toBeVisible({ timeout: 10_000 });
   }
 
