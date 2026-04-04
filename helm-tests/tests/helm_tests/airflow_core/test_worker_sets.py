@@ -1205,46 +1205,100 @@ class TestWorkerSets:
 
         assert jmespath.search("[*].metadata.name", docs) == expected
 
-    def test_overwrite_service_account_automount_service_account_token_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "serviceAccount": {"automountServiceAccountToken": False}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"create": False}}],
                 }
             },
-            show_only=["templates/workers/worker-serviceaccount.yaml"],
-        )
-
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
-
-    def test_overwrite_service_account_create_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "serviceAccount": {"create": False}}],
-                    },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "serviceAccount": {"create": True},
+                    "sets": [{"name": "test", "serviceAccount": {"create": False}}],
                 }
             },
+            {
+                "serviceAccount": {"create": True},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"create": False}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_service_account_create_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
 
         assert len(docs) == 0
 
-    def test_overwrite_service_account_name(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "serviceAccount": {"name": "test"}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"automountServiceAccountToken": False}}],
                 }
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "serviceAccount": {"automountServiceAccountToken": True},
+                    "sets": [{"name": "test", "serviceAccount": {"automountServiceAccountToken": False}}],
+                }
+            },
+            {
+                "serviceAccount": {"automountServiceAccountToken": True},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"automountServiceAccountToken": False}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_service_account_automount_service_account_token_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"name": "test"}}],
+                }
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "serviceAccount": {"name": "nontest"},
+                    "sets": [{"name": "test", "serviceAccount": {"name": "test"}}],
+                }
+            },
+            {
+                "serviceAccount": {"name": "nontest"},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"name": "test"}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_service_account_name(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
 
@@ -1261,6 +1315,13 @@ class TestWorkerSets:
                 "serviceAccount": {"annotations": {"echo": "test"}},
                 "celery": {
                     "enableDefault": False,
+                    "sets": [{"name": "test", "serviceAccount": {"annotations": {"test": "echo"}}}],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "serviceAccount": {"annotations": {"echo": "test"}},
                     "sets": [{"name": "test", "serviceAccount": {"annotations": {"test": "echo"}}}],
                 },
             },

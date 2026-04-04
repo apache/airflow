@@ -124,6 +124,105 @@ class TestServiceAccountAnnotations:
             ),
             (
                 {
+                    "workers": {
+                        "celery": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            }
+                        },
+                    },
+                },
+                "templates/workers/worker-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "workers": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "worker": "example",
+                            },
+                        },
+                        "celery": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            }
+                        },
+                    },
+                },
+                "templates/workers/worker-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "executor": "KubernetesExecutor",
+                    "workers": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "worker",
+                            },
+                        },
+                        "kubernetes": {"serviceAccount": {"create": True}},
+                    },
+                },
+                "templates/workers/worker-kubernetes-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "executor": "KubernetesExecutor",
+                    "workers": {
+                        "kubernetes": {
+                            "serviceAccount": {
+                                "create": True,
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            }
+                        },
+                    },
+                },
+                "templates/workers/worker-kubernetes-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "executor": "KubernetesExecutor",
+                    "workers": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "worker": "example",
+                            },
+                        },
+                        "kubernetes": {
+                            "serviceAccount": {
+                                "create": True,
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            }
+                        },
+                    },
+                },
+                "templates/workers/worker-kubernetes-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
                     "flower": {
                         "enabled": True,
                         "serviceAccount": {

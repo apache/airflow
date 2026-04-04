@@ -413,6 +413,38 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not .Values.workers.serviceAccount.automountServiceAccountToken }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.automountServiceAccountToken` has been renamed to `workers.celery.serviceAccount.automountServiceAccountToken`/`workers.kubernetes.serviceAccount.automountServiceAccountToken`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.workers.serviceAccount.create }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.create` has been renamed to `workers.celery.serviceAccount.create`/`workers.kubernetes.serviceAccount.create`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.serviceAccount.name) }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.name` has been renamed to `workers.celery.serviceAccount.name`/`workers.kubernetes.serviceAccount.name`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.serviceAccount.annotations) }}
+
+ DEPRECATION WARNING:
+    `workers.serviceAccount.annotations` has been renamed to `workers.celery.serviceAccount.annotations`/`workers.kubernetes.serviceAccount.annotations`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if .Values.workers.keda.enabled }}
 
  DEPRECATION WARNING:

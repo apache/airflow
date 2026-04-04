@@ -771,18 +771,35 @@ workers:
       # minAvailable: 1
 
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.serviceAccount` and/or `workers.kubernetes.serviceAccount` instead)
   serviceAccount:
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.automountServiceAccountToken` and/or
+    #   `workers.kubernetes.serviceAccount.automountServiceAccountToken`
+    # instead)
     automountServiceAccountToken: true
 
     # Specifies whether a ServiceAccount should be created
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.create` and/or
+    #   `workers.kubernetes.serviceAccount.create`
+    # instead)
     create: true
 
     # The name of the ServiceAccount to use.
     # If not set and `create` is 'true', a name is generated using the release name
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.name` and/or
+    #   `workers.kubernetes.serviceAccount.name`
+    # instead)
     name: ~
 
     # Annotations to add to worker Kubernetes Service Account.
+    # (deprecated, use
+    #   `workers.celery.serviceAccount.annotations` and/or
+    #   `workers.kubernetes.serviceAccount.annotations`
+    # instead)
     annotations: {}
 
   # Allow KEDA autoscaling for Airflow Celery workers
@@ -1265,6 +1282,21 @@ workers:
         maxUnavailable: ~
         # minAvailable: ~
 
+    # Create ServiceAccount for Airflow Celery workers
+    serviceAccount:
+      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      automountServiceAccountToken: ~
+
+      # Specifies whether a ServiceAccount should be created
+      create: ~
+
+      # The name of the ServiceAccount to use.
+      # If not set and `create` is 'true', a name is generated using the release name
+      name: ~
+
+      # Annotations to add to worker Kubernetes Service Account.
+      annotations: {}
+
     # Allow KEDA autoscaling for Airflow Celery workers
     keda:
       enabled: ~
@@ -1458,6 +1490,29 @@ workers:
 
     # Container level Lifecycle Hooks definition for pods created with pod-template-file
     containerLifecycleHooks: {}
+
+    # Create ServiceAccount for pods created with pod-template-file
+    # When this section is specified, the Service Account is created from
+    # 'templates/workers/worker-kubernetes-serviceaccount.yaml' file
+    serviceAccount:
+      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+      # If not specified, the `workers.serviceAccount.automountServiceAccountToken` value will be taken
+      automountServiceAccountToken: ~
+
+      # Specifies whether a ServiceAccount should be created.
+      # If not specified, the ServiceAccount will be generated and used from
+      # 'templates/workers/worker-serviceaccount.yaml' file if `workers.serviceAccount.create`
+      # will be 'true'
+      create: ~
+
+      # The name of the ServiceAccount to use.
+      # If not set and `create` is 'true', a name is generated using the release name
+      # with Kubernetes dedicated name
+      name: ~
+
+      # Annotations to add to worker Kubernetes Service Account.
+      # If not specified, the `workers.serviceAccount.annotations` value will be taken
+      annotations: {}
 
     # Kerberos sidecar configuration for pods created with pod-template-file
     kerberosSidecar:
