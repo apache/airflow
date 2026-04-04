@@ -1,19 +1,12 @@
-/**
- * Tests for NothingFoundInfo component
- *
- * Ensures external documentation links use correct security attributes:
- * - target="_blank"
- * - rel="noopener noreferrer"
- */
-
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
+import { Wrapper } from "src/utils/Wrapper";
 import { NothingFoundInfo } from "./NothingFoundInfo";
 
 describe("NothingFoundInfo", () => {
   it("should have correct external link attributes", () => {
-    render(<NothingFoundInfo />);
+    render(<NothingFoundInfo />, { wrapper: Wrapper });
 
     const link = screen.getByRole("link");
 
