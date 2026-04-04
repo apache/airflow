@@ -165,9 +165,9 @@ For CLI usage, run the command below:
 .. code-block:: bash
 
     airflow backfill create --dag-id DAG_ID \
-        --start-date START_DATE \
-        --end-date END_DATE \
-        --reprocessing-behavior failed \
+        --from-date START_DATE \
+        --to-date END_DATE \
+        --reprocess-behavior failed \
         --max-active-runs 3 \
         --run-backwards \
         --dag-run-conf '{"my": "param"}'
@@ -271,7 +271,8 @@ Example of a parameterized Dag:
 
     parameterized_task = BashOperator(
         task_id="parameterized_task",
-        bash_command="echo value: {{ dag_run.conf['conf1'] }}",
+        bash_command="echo \"here is the message: '$message'\"",
+        env={"message": '{{ dag_run.conf["message"] if dag_run else "" }}'},
         dag=dag,
     )
 

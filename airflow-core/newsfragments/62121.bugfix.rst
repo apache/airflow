@@ -1,1 +1,0 @@
-Elasticsearch is now fully compatible with remote logging along side with apache-airflow-providers-elasticsearch>=6.5.0. Please review elasticsearch provider release notes for more information https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.5.0/changelog.html

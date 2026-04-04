@@ -49,6 +49,31 @@ passed to any pydantic-ai ``Agent``, including via
     but you are not locked in.
 
 
+Using Toolsets Directly with PydanticAI
+---------------------------------------
+
+Toolsets are standard pydantic-ai ``AbstractToolset`` implementations with no
+dependency on ``AgentOperator`` or ``@task.agent``. You can use them anywhere
+you can run Python within Airflow -- ``@task`` functions, ``PythonOperator``
+callables, or any custom operator's ``execute()`` method -- by creating a
+``pydantic_ai.Agent`` yourself:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_pydantic_ai_hook.py
+    :language: python
+    :start-after: [START howto_task_with_toolsets]
+    :end-before: [END howto_task_with_toolsets]
+
+This works because toolsets resolve Airflow connections lazily via
+``BaseHook.get_connection()``, which is available in any task execution
+context.
+
+This approach gives you full control over the agent lifecycle -- you can call
+``agent.run_sync()`` multiple times, swap models at runtime, or combine
+results from several agents in a single task. The tradeoff is that you lose
+the durable execution (step-level caching with retry replay), HITL review
+integration, and automatic tool call logging that ``AgentOperator`` provides.
+
+
 ``HookToolset``
 ---------------
 
@@ -256,7 +281,7 @@ Using Multiple MCP Servers
     AgentOperator(
         task_id="multi_mcp",
         prompt="Get the weather in London and run a calculation",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         toolsets=[
             MCPToolset(mcp_conn_id="weather_mcp", tool_prefix="weather"),
             MCPToolset(mcp_conn_id="code_runner_mcp", tool_prefix="code"),
@@ -276,7 +301,7 @@ server instances directly — no Airflow connection needed:
     AgentOperator(
         task_id="direct_mcp",
         prompt="What tools are available?",
-        llm_conn_id="pydantic_ai_default",
+        llm_conn_id="pydanticai_default",
         toolsets=[
             MCPServerStreamableHTTP("http://localhost:3001/mcp"),
             MCPServerStdio("uvx", args=["mcp-run-python"]),

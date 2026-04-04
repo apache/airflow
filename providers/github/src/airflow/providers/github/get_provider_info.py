@@ -47,6 +47,14 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.github.hooks.github.GithubHook",
                 "connection-type": "github",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "extra"],
+                    "relabeling": {
+                        "host": "GitHub Enterprise URL (Optional)",
+                        "password": "GitHub Access Token",
+                    },
+                    "placeholders": {"host": "https://{hostname}/api/v3 (for GitHub Enterprise)"},
+                },
             }
         ],
     }

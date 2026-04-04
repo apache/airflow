@@ -26,6 +26,14 @@ module.exports = function(eleventyConfig) {
   // Copy public directory contents to root of output
   eleventyConfig.addPassthroughCopy({ "public": "/" });
 
+  // Vendor swagger-ui from node_modules (external CDN blocked by Apache Infra CSP)
+  eleventyConfig.addPassthroughCopy({
+    "node_modules/swagger-ui-dist/swagger-ui.css": "vendor/swagger-ui/swagger-ui.css",
+  });
+  eleventyConfig.addPassthroughCopy({
+    "node_modules/swagger-ui-dist/swagger-ui-bundle.js": "vendor/swagger-ui/swagger-ui-bundle.js",
+  });
+
   // Watch CSS and JS for changes
   eleventyConfig.addWatchTarget("src/css/");
   eleventyConfig.addWatchTarget("src/js/");

@@ -264,6 +264,37 @@ async def test_jwt_generate_validate_roundtrip_with_jwks(private_key, algorithm,
         assert await validator.avalidated_claims(token)
 
 
+@pytest.mark.parametrize("private_key", ["rsa_private_key", "ed25519_private_key"], indirect=True)
+async def test_jwt_validate_roundtrip_with_jwks_and_guess_algorithm(private_key, tmp_path: pathlib.Path):
+    jwk_content = json.dumps({"keys": [key_to_jwk_dict(private_key, "custom-kid")]})
+
+    jwks = tmp_path.joinpath("jwks.json")
+    await anyio.Path(jwks).write_text(jwk_content)
+
+    priv_key = tmp_path.joinpath("key.pem")
+    await anyio.Path(priv_key).write_bytes(key_to_pem(private_key))
+
+    with conf_vars(
+        {
+            ("api_auth", "trusted_jwks_url"): str(jwks),
+            ("api_auth", "jwt_kid"): "custom-kid",
+            ("api_auth", "jwt_issuer"): "http://my-issuer.localdomain",
+            ("api_auth", "jwt_private_key_path"): str(priv_key),
+            ("api_auth", "jwt_algorithm"): "GUESS",
+            ("api_auth", "jwt_secret"): "",
+        }
+    ):
+        gen = JWTGenerator(audience="airflow1", valid_for=300)
+        token = gen.generate({"sub": "test"})
+
+        validator = JWTValidator(
+            audience="airflow1",
+            leeway=0,
+            **get_sig_validation_args(make_secret_key_if_needed=False),
+        )
+        assert await validator.avalidated_claims(token)
+
+
 class TestRevokeToken:
     pytestmark = [pytest.mark.db_test]
 

@@ -277,26 +277,12 @@ and mark those as well. You can accomplish this by running the following command
 ./dev/airflow-github needs-categorization 2.3.2 HEAD
 ```
 
-Often you also want to cherry-pick changes related to CI and development tools, to include the latest
-stability fixes in CI and improvements in development tools. Usually you can see the list of such
-changes via (this will exclude already merged changes):
-
-```shell
-git fetch apache
-git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
-git log --oneline --decorate apache/v2-2-stable..apache/main -- Dockerfile* scripts breeze* .github/ setup* dev | grep -vf /tmp/merged
-```
-
-Most of those PRs should be marked with `changelog:skip` label, so that they are excluded from the
-user-facing changelog as they only matter for developers of Airflow. We have a tool
-that allows to easily review the cherry-picked PRs and mark them with the right label - see below.
-
-You also likely want to cherry-pick some of the latest doc changes in order to bring clarification and
+You are likely want to cherry-pick some of the latest doc changes in order to bring clarification and
 explanations added to the documentation. Usually you can see the list of such changes via:
 
 ```shell
 git fetch apache
-git log --oneline apache/v3-1-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline apache/v3-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
 git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
 ```
 
@@ -384,13 +370,13 @@ git show --format=tformat:"" --stat --name-only $(cat /tmp/doc-only-changes.txt)
 Then if you see suspicious file (example airflow/sensors/base.py) you can find details on where they came from:
 
 ```shell
-git log apache/v3-1-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
+git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | xargs git show
 ```
 
 And the URL to the PR it comes from:
 
 ```shell
-git log apache/v3-1-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
+git log apache/v3-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp/doc-only-changes.txt | \
     xargs -n 1 git log --oneline --max-count=1 | \
     sed s'/.*(#\([0-9]*\))$/https:\/\/github.com\/apache\/airflow\/pull\/\1/'
 ```
@@ -461,17 +447,35 @@ uv tool install -e ./dev/breeze
     We sync this new branch to the stable branch so that people would continue to backport PRs to the test branch
     while the RC is being voted. The new branch must be in sync with where you cut it off from the test branch.
 
+- Switch to the new branch in .github/workflows/ci-notification.yml `workflow-status` matrix
 - Set the Airflow version in `airflow-core/src/airflow/__init__.py` (without the RC tag).
 - Set the Task SDK version in `task-sdk/src/airflow/sdk/__init__.py` (without the RC tag)
-- Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
+- Those two steps below are temporary - until we finally split task-sdk and airflow-core:
+  - Update the Task SDK version `>=` part in `airflow-core/pyproject.toml` to `==` TASK_SDK_VERSION without RC
+  - Update the Task SDK version `>=` part in `pyproject.toml` to `==` TASK_SDK_VERSION without RC
 - Run `git commit` without a message to update versions in `docs`.
 - Add supported Airflow version to `./scripts/ci/prek/supported_versions.py` and let prek do the job again.
 - Replace the versions in `README.md` about installation and verify that installation instructions work fine.
+- Update the build status badge in `README.md` to point to the new `vX-Y-test` branch (the `3.x` row in the
+  build status table). The `uv run dev/update_github_branch_config.py X Y` script does this automatically.
 - Add entry for default python version to `PROVIDERS_COMPATIBILITY_TESTS_MATRIX` in `src/airflow_breeze/global_constants.py`
   with the new Airflow version, and empty exclusion for providers. This list should be updated later when providers
   with minimum version for the next version of Airflow will be added in the future.
 - Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
   the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
+- Create `backport-to-vX-Y-test` label:
+
+    ```shell script
+    gh label create 'backport-to-vX-Y-test' --repo apache/airflow --description 'Backport to vX-Y-test' --color 0e8a16
+    ```
+
+- Update `.github/boring-cyborg.yml` and add `backport-to-vX-Y-test` auto-assignment for the new branch.
+- Update `.github/` configuration on `main` to add the new `vX-Y-test` branch (you can use the
+  `uv run dev/update_github_branch_config.py X Y` helper script for this). The following files need updating:
+  - `.github/dependabot.yml` — add `target-branch: vX-Y-test` entries for github-actions, pip, and npm ecosystems.
+  - `.github/workflows/milestone-tag-assistant.yml` — add `vX-Y-test` to the push branches list.
+  - `.github/workflows/basic-tests.yml` — update the release-management dry-run commands to test the new version.
+  - `.github/workflows/ci-notification.yml` — switch the `workflow-status` matrix branch to the new branch.
 - Commit the above changes with the message `Update version to ${VERSION}`.
 - Build the release notes:
 
@@ -497,10 +501,21 @@ uv tool install -e ./dev/breeze
 
 - PR from the 'test' branch to the 'stable' branch
 
-- When the PR is approved, install `dev/breeze` in a virtualenv:
+> [!TIP]
+> **Shortcut for first RC candidates:** When preparing the first RC candidate for a new minor release
+> (e.g., 3.2.0rc1), it is unlikely to be approved on the first attempt — bugs are typically found during
+> RC testing. In this case, the release manager can prepare the RC directly from the `v3-X-test` branch
+> without opening a PR to `v3-X-stable`. This saves the overhead of creating and managing a PR that will
+> likely need additional changes before GA. However, when using this shortcut, the release manager **must**
+> verify that the `v3-X-test` push CI action ("Tests" workflow) has succeeded before cutting the RC. You can
+> check this at:
+> https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml?query=event%3Apush+branch%3Av3-2-test
+> (adjust the branch filter for the relevant `v3-X-test` branch).
+
+- When the PR is approved (or when using the shortcut above), install `dev/breeze` in a virtualenv:
 
     ```shell script
-    pip install -e ./dev/breeze
+    uv pip install -e ./dev/breeze
     ```
 
 - Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC.
@@ -903,10 +918,10 @@ Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (un
 You can run this command to do it for you (including checksum verification for your own security):
 
 ```shell script
-# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz.sha512
-wget -q https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz -O /tmp/apache-rat-0.17-bin.tar.gz
-echo "32848673dc4fb639c33ad85172dfa9d7a4441a0144e407771c9f7eb6a9a0b7a9b557b9722af968500fae84a6e60775449d538e36e342f786f20945b1645294a0  /tmp/apache-rat-0.17-bin.tar.gz" | sha512sum -c -
-tar -xzf /tmp/apache-rat-0.17-bin.tar.gz -C /tmp
+# Checksum value is taken from https://downloads.apache.org/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz.sha512
+wget -q https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz -O /tmp/apache-rat-0.18-bin.tar.gz
+echo "315b16536526838237c42b5e6b613d29adc77e25a6e44a866b2b7f8b162e03d3629d49c9faea86ceb864a36b2c42838b8ce43d6f2db544e961f2259e242748f4  /tmp/apache-rat-0.18-bin.tar.gz" | sha512sum -c -
+tar -xzf /tmp/apache-rat-0.18-bin.tar.gz -C /tmp
 ```
 
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
@@ -919,13 +934,13 @@ Run the check:
 
 ```shell script
 cp ${AIRFLOW_REPO_ROOT}/.rat-excludes /tmp/apache-airflow-src/.rat-excludes
-java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
+java -jar /tmp/apache-rat-0.18/apache-rat-0.18.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
 ```
 
 You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
 
 ```
-INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Apache Creadur RAT 0.18 (Apache Software Foundation)
 INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
 INFO: Excluding MISC collection.
 INFO: Excluding HIDDEN_DIR collection.
@@ -1313,7 +1328,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.10 3.11 3.12 3.13
+for PYTHON in 3.10 3.11 3.12 3.13 3.14
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}

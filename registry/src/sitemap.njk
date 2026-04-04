@@ -8,6 +8,7 @@ eleventyExcludeFromCollections: true
   <url><loc>https://airflow.apache.org/registry/providers/</loc></url>
   <url><loc>https://airflow.apache.org/registry/explore/</loc></url>
   <url><loc>https://airflow.apache.org/registry/stats/</loc></url>
+  <url><loc>https://airflow.apache.org/registry/api-explorer/</loc></url>
   {%- for provider in providers.providers %}
   <url><loc>https://airflow.apache.org/registry/providers/{{ provider.id }}/{{ provider.version }}/</loc></url>
   {%- endfor %}

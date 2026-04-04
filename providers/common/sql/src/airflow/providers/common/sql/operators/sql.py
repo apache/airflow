@@ -1360,7 +1360,7 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         database: str | None = None,
         columns: Iterable[str] | None = None,
         ignored_columns: Iterable[str] | None = None,
-        rows: list[Any] | XComArg | None = None,
+        rows: list[Any] | Iterable[Any] | XComArg | None = None,
         rows_processor: Callable[..., list[Any]] | None = None,
         # rows_processor is called as rows_processor(rows, **context);
         # context keys vary, so Callable[..., list[Any]] is intentional.
@@ -1405,11 +1405,9 @@ class SQLInsertRowsOperator(BaseSQLOperator):
             return [column for column in self.columns if column not in self.ignored_columns]
         return self.columns
 
-    def _insert_rows(self, rows: list[Any], context: Context):
+    def _insert_rows(self, rows: Any | Iterable[Any], context: Context):
         if self._rows_processor:
             rows = self._rows_processor(rows, **context)
-
-        self.log.info("Inserting %d rows into %s", len(rows), self.conn_id)
 
         self.get_db_hook().insert_rows(
             table=self.table_name_with_schema,

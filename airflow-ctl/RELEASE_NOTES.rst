@@ -32,6 +32,7 @@ Bug Fixes
 
 - Fix ``airflowctl pools export`` ignoring ``--output`` table/yaml/plain (#62665)
 - Fix ``airflowctl connections import`` failure when JSON omits ``extra`` field (#62662)
+- Amend compatibility issues for airflowctl (#63388)
 
 Improvements
 ^^^^^^^^^^^^
@@ -69,13 +70,13 @@ Bug Fixes
 - Fix airflowctl auth login reporting success when keyring backend is unavailable (#61296)
 - Fix airflowctl crash when incorrect keyring password is entered (#61042)
 - Strip api-url for airflowctl auth login which fails with trailing slash (#61245)
-- Fix airflow-ctl-tests files not triggering pre-commit integration tests (#61023)
+- Fix ``airflow-ctl-tests`` files not triggering pre-commit integration tests (#61023)
 
 Improvements
 ^^^^^^^^^^^^
 
 - Print debug mode warning to stderr to avoid polluting stdout JSON output (#61302)
-- Refactor datamodel defaulting logic into dedicated method (#61236)
+- Refactor ``datamodel`` defaulting logic into dedicated method (#61236)
 - Alias run_after for XComResponse (#61443)
 - Add test for sensitive config masking in airflowctl (#60361)
 

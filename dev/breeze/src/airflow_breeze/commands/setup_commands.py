@@ -48,7 +48,7 @@ from airflow_breeze.commands.main_command import main
 from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
-from airflow_breeze.utils.console import get_console, get_stderr_console
+from airflow_breeze.utils.console import console_print, get_stderr_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS
 from airflow_breeze.utils.path_utils import (
@@ -118,12 +118,12 @@ def autocomplete(force: bool):
     detected_shell = os.environ.get("SHELL")
     detected_shell = None if detected_shell is None else detected_shell.split(os.sep)[-1]
     if detected_shell not in ["bash", "zsh", "fish"]:
-        get_console().print(f"\n[error] The shell {detected_shell} is not supported for autocomplete![/]\n")
+        console_print(f"\n[error] The shell {detected_shell} is not supported for autocomplete![/]\n")
         sys.exit(1)
-    get_console().print(f"Installing {detected_shell} completion for local user")
+    console_print(f"Installing {detected_shell} completion for local user")
     autocomplete_path = BREEZE_ROOT_PATH / "autocomplete" / f"{NAME}-complete-{detected_shell}.sh"
-    get_console().print(f"[info]Activation command script is available here: {autocomplete_path}[/]\n")
-    get_console().print(f"[warning]We need to add above script to your {detected_shell} profile.[/]\n")
+    console_print(f"[info]Activation command script is available here: {autocomplete_path}[/]\n")
+    console_print(f"[warning]We need to add above script to your {detected_shell} profile.[/]\n")
     given_answer = user_confirm(
         "Should we proceed with modifying the script?", default_answer=Answer.NO, timeout=STANDARD_TIMEOUT
     )
@@ -140,7 +140,7 @@ def autocomplete(force: bool):
             # Include steps for fish shell
             script_path = str(Path("~").expanduser() / f".config/fish/completions/{NAME}.fish")
             if os.path.exists(script_path) and not force:
-                get_console().print(
+                console_print(
                     "\n[warning]Autocompletion is already setup. Skipping. "
                     "You can force autocomplete installation by adding --force/]\n"
                 )
@@ -157,7 +157,7 @@ def autocomplete(force: bool):
             command_to_execute = f". {autocomplete_path}"
             write_to_shell(command_to_execute=command_to_execute, script_path=script_path, force_setup=force)
     elif given_answer == Answer.NO:
-        get_console().print(
+        console_print(
             "\nPlease follow the https://click.palletsprojects.com/en/8.1.x/shell-completion/ "
             "to setup autocompletion for breeze manually if you want to use it.\n"
         )
@@ -171,17 +171,15 @@ def autocomplete(force: bool):
 def version():
     """Print information about version of apache-airflow-breeze."""
 
-    get_console().print(ASCIIART, style=ASCIIART_STYLE)
-    get_console().print(f"\n[info]Breeze version: {VERSION}[/]")
-    get_console().print(f"[info]Breeze installed from: {get_installation_airflow_sources()}[/]")
-    get_console().print(f"[info]Used Airflow sources : {get_used_airflow_sources()}[/]\n")
+    console_print(ASCIIART, style=ASCIIART_STYLE)
+    console_print(f"\n[info]Breeze version: {VERSION}[/]")
+    console_print(f"[info]Breeze installed from: {get_installation_airflow_sources()}[/]")
+    console_print(f"[info]Used Airflow sources : {get_used_airflow_sources()}[/]\n")
     if get_verbose():
-        get_console().print(
+        console_print(
             f"[info]Installation sources config hash : {get_installation_sources_config_metadata_hash()}[/]"
         )
-        get_console().print(
-            f"[info]Used sources config hash         : {get_used_sources_setup_metadata_hash()}[/]"
-        )
+        console_print(f"[info]Used sources config hash         : {get_used_sources_setup_metadata_hash()}[/]")
 
 
 @setup_group.command(name="config")
@@ -220,44 +218,44 @@ def change_config(
     if asciiart is not None:
         if asciiart:
             delete_cache(asciiart_file)
-            get_console().print("[info]Enable ASCIIART[/]")
+            console_print("[info]Enable ASCIIART[/]")
         else:
             touch_cache_file(asciiart_file)
-            get_console().print("[info]Disable ASCIIART[/]")
+            console_print("[info]Disable ASCIIART[/]")
     if cheatsheet is not None:
         if cheatsheet:
             delete_cache(cheatsheet_file)
-            get_console().print("[info]Enable Cheatsheet[/]")
+            console_print("[info]Enable Cheatsheet[/]")
         elif cheatsheet is not None:
             touch_cache_file(cheatsheet_file)
-            get_console().print("[info]Disable Cheatsheet[/]")
+            console_print("[info]Disable Cheatsheet[/]")
     if colour is not None:
         if colour:
             delete_cache(colour_file)
-            get_console().print("[info]Enable Colour[/]")
+            console_print("[info]Enable Colour[/]")
         elif colour is not None:
             touch_cache_file(colour_file)
-            get_console().print("[info]Disable Colour[/]")
+            console_print("[info]Disable Colour[/]")
 
     def get_suppress_status(file: str):
         return "disabled" if check_if_cache_exists(file) else "enabled"
 
-    get_console().print()
-    get_console().print("[info]Current configuration:[/]")
-    get_console().print()
-    get_console().print(f"[info]* Python: {python}[/]")
-    get_console().print(f"[info]* Backend: {backend}[/]")
-    get_console().print(f"[info]* Postgres version: {postgres_version}[/]")
-    get_console().print(f"[info]* MySQL version: {mysql_version}[/]")
-    get_console().print(f"[info]* Terminal multiplexer: {terminal_multiplexer}[/]")
-    get_console().print(f"[info]* Auth Manager: {auth_manager}[/]")
-    get_console().print(f"[info]* LLM Model: {llm_model}[/]")
-    get_console().print()
-    get_console().print(f"[info]* ASCIIART: {get_suppress_status(asciiart_file)}[/]")
-    get_console().print(f"[info]* Cheatsheet: {get_suppress_status(cheatsheet_file)}[/]")
-    get_console().print()
-    get_console().print(f"[info]* Colour: {get_suppress_status(colour_file)}[/]")
-    get_console().print()
+    console_print()
+    console_print("[info]Current configuration:[/]")
+    console_print()
+    console_print(f"[info]* Python: {python}[/]")
+    console_print(f"[info]* Backend: {backend}[/]")
+    console_print(f"[info]* Postgres version: {postgres_version}[/]")
+    console_print(f"[info]* MySQL version: {mysql_version}[/]")
+    console_print(f"[info]* Terminal multiplexer: {terminal_multiplexer}[/]")
+    console_print(f"[info]* Auth Manager: {auth_manager}[/]")
+    console_print(f"[info]* LLM Model: {llm_model}[/]")
+    console_print()
+    console_print(f"[info]* ASCIIART: {get_suppress_status(asciiart_file)}[/]")
+    console_print(f"[info]* Cheatsheet: {get_suppress_status(cheatsheet_file)}[/]")
+    console_print()
+    console_print(f"[info]* Colour: {get_suppress_status(colour_file)}[/]")
+    console_print()
 
 
 def dedent_help(dictionary: dict[str, Any]) -> None:
@@ -316,7 +314,7 @@ def dict_hash(dictionary: dict[str, Any], dedent_help_strings: bool = True, sort
     try:
         encoded = json.dumps(dictionary, sort_keys=True, default=vars).encode()
     except TypeError:
-        get_console().print(dictionary)
+        console_print(dictionary)
         raise
     dhash.update(encoded)
     return dhash.hexdigest()
@@ -338,7 +336,7 @@ def validate_params_for_command(command_params, command):
                         options_command_map[opt] = [[command, name]]
                     else:
                         # same flag used in same command
-                        get_console().print(
+                        console_print(
                             f"[error] {opt} short flag has duplicate short hand commands under command(s): "
                             f"{'breeze ' + command} for parameters "
                             f"{options_command_map[opt][0][1]} and {name}\n"
@@ -391,10 +389,10 @@ def get_command_hash_dict() -> dict[str, str]:
                 try:
                     subcommand_rich_click_dict = options[f"breeze {command} {subcommand}"]
                 except KeyError:
-                    get_console().print(
+                    console_print(
                         f"[error]The `breeze {command} {subcommand}` is missing in rich-click options[/]"
                     )
-                    get_console().print(
+                    console_print(
                         "[info]Please add it to rich_click.OPTION_GROUPS "
                         "via one of the `*_commands_config.py` "
                         "files in `dev/breeze/src/airflow_breeze/commands`[/]"
@@ -418,7 +416,7 @@ def write_to_shell(command_to_execute: str, script_path: str, force_setup: bool)
     if not skip_check:
         if BREEZE_COMMENT in script_path_file.read_text():
             if not force_setup:
-                get_console().print(
+                console_print(
                     "\n[warning]Autocompletion is already setup. Skipping. "
                     "You can force autocomplete installation by adding --force[/]\n"
                 )
@@ -427,13 +425,13 @@ def write_to_shell(command_to_execute: str, script_path: str, force_setup: bool)
             remove_autogenerated_code(script_path)
     text = ""
     if script_path_file.exists():
-        get_console().print(f"\nModifying the {script_path} file!\n")
-        get_console().print(f"\nCopy of the original file is held in {script_path}.bak !\n")
+        console_print(f"\nModifying the {script_path} file!\n")
+        console_print(f"\nCopy of the original file is held in {script_path}.bak !\n")
         if not get_dry_run():
             backup(script_path_file)
             text = script_path_file.read_text()
     else:
-        get_console().print(f"\nCreating the {script_path} file!\n")
+        console_print(f"\nCreating the {script_path} file!\n")
     if not get_dry_run():
         script_path_file.write_text(
             text
@@ -444,10 +442,8 @@ def write_to_shell(command_to_execute: str, script_path: str, force_setup: bool)
             + END_LINE
         )
     else:
-        get_console().print(f"[info]The autocomplete script would be added to {script_path}[/]")
-    get_console().print(
-        f"\n[warning]Please exit and re-enter your shell or run:[/]\n\n   source {script_path}\n"
-    )
+        console_print(f"[info]The autocomplete script would be added to {script_path}[/]")
+    console_print(f"\n[warning]Please exit and re-enter your shell or run:[/]\n\n   source {script_path}\n")
     return True
 
 
@@ -556,7 +552,7 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
     if regenerate_all_commands:
         for command, hash_txt in new_hash_dict.items():
             (BREEZE_IMAGES_PATH / f"output_{'_'.join(command.split(':'))}.txt").write_text(hash_txt)
-        get_console().print("\n[info]New hash of breeze commands written\n")
+        console_print("\n[info]New hash of breeze commands written\n")
     return 1
 
 
@@ -598,7 +594,7 @@ def find_options_in_options_list(option: str, option_list: list[list[str]]) -> i
 def errors_detected_in_params(command: str, subcommand: str | None, command_dict: dict[str, Any]) -> bool:
     import rich_click
 
-    get_console().print(
+    console_print(
         f"[info]Checking if params are in groups for specified command :{command}"
         + (f" {subcommand}." if subcommand else ".")
     )
@@ -606,11 +602,11 @@ def errors_detected_in_params(command: str, subcommand: str | None, command_dict
     options = rich_click.rich_click.OPTION_GROUPS
     rich_click_key = "breeze " + command + (f" {subcommand}" if subcommand else "")
     if rich_click_key not in options:
-        get_console().print(
+        console_print(
             f"[error]The command `{rich_click_key}` not found in dictionaries "
             f"defined in rich click configuration."
         )
-        get_console().print(f"[warning]Please add it to the `{command_path_config(command)}`.")
+        console_print(f"[warning]Please add it to the `{command_path_config(command)}`.")
         return True
     rich_click_param_groups = options[rich_click_key]
     defined_param_names = [
@@ -623,12 +619,12 @@ def errors_detected_in_params(command: str, subcommand: str | None, command_dict
                 if index is not None:
                     del defined_param_names[index]
                 else:
-                    get_console().print(
+                    console_print(
                         f"[error]Parameter `{param}` is not defined as option in {command_path(command)} in "
                         f"`{rich_click_key}`, but is present in the "
                         f"`{rich_click_key}` group in `{command_path_config(command)}`."
                     )
-                    get_console().print(
+                    console_print(
                         "[warning]Please remove it from there or add parameter in "
                         "the command. NOTE! This error might be printed when the option is"
                         "added twice in the command definition!."
@@ -640,12 +636,12 @@ def errors_detected_in_params(command: str, subcommand: str | None, command_dict
             del defined_param_names[index]
     if defined_param_names:
         for param in defined_param_names:
-            get_console().print(
+            console_print(
                 f"[error]Parameter `{param}` is defined in `{command_path(command)}` in "
                 f"`{rich_click_key}`, but does not belong to any group options "
                 f"in `{rich_click_key}` group in `{command_path_config(command)}` and is not common."
             )
-            get_console().print("[warning]Please add it to relevant group or create new group there.")
+            console_print("[warning]Please add it to relevant group or create new group there.")
         errors_detected = True
     return errors_detected
 
@@ -745,7 +741,7 @@ def _insert_documentation(file_path: Path, content: list[str], header: str, foot
 @option_verbose
 @option_dry_run
 def synchronize_local_mounts():
-    get_console().print("[info]Synchronizing local mounts between python files and docker compose yamls.[/]")
+    console_print("[info]Synchronizing local mounts between python files and docker compose yamls.[/]")
     mounts_header = (
         "        # START automatically generated volumes from "
         "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
@@ -765,4 +761,4 @@ def synchronize_local_mounts():
             ]
         )
     _insert_documentation(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH, volumes, mounts_header, mounts_footer)
-    get_console().print("[success]Synchronized local mounts.[/]")
+    console_print("[success]Synchronized local mounts.[/]")

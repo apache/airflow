@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import argparse
 from argparse import BooleanOptionalAction
 from textwrap import dedent
 
@@ -288,6 +289,22 @@ class TestCommandFactory:
 
 
 class TestCliConfigMethods:
+    def test_add_to_parser_drops_type_for_boolean_optional_action(self):
+        """Test add_to_parser removes type for BooleanOptionalAction."""
+        parser = argparse.ArgumentParser()
+        arg = Arg(
+            flags=("--run-backwards",),
+            action=BooleanOptionalAction,
+            default=False,
+            help="run_backwards for backfill operation",
+            type=bool,
+        )
+
+        arg.add_to_parser(parser)
+
+        assert parser.parse_args(["--run-backwards"]).run_backwards is True
+        assert parser.parse_args(["--no-run-backwards"]).run_backwards is False
+
     def test_merge_commands(self, no_op_method):
         """Test the merge_commands method."""
         # Create two Command objects with different names and help texts

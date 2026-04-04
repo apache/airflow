@@ -71,7 +71,7 @@ Option A – Breeze on Your Laptop
 
 2. Setup your idea workspace to detect project src/ and tests/ folders as source roots.
 
-.. code-block:: text
+.. code-block:: bash
 
     # For IntelliJ IDEA and PyCharm
     uv run dev/ide_setup/setup_idea.py
@@ -79,7 +79,13 @@ Option A – Breeze on Your Laptop
     # For VS Code
     uv run dev/ide_setup/setup_vscode.py
 
-3.  **Start the development container** (first run builds the image)
+3. Create a branch for your change
+
+.. code-block:: bash
+
+    git checkout -b <your-branch-name>
+
+4.  **Start the development container** (first run builds the image)
 
 .. code-block:: bash
 
@@ -87,7 +93,7 @@ Option A – Breeze on Your Laptop
 
 The command starts a shell and launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals. To know more about tmux commands,
-check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at |http://localhost:28080| with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
+check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at `http://localhost:28080 <http://localhost:28080>`_ with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
 of the tmux panes and hit Enter
 
 **Working with DAGs in Breeze:**
@@ -102,23 +108,34 @@ of the tmux panes and hit Enter
 
 This flag enables configuration to load example DAGs when starting Airflow, which is useful for exploring Airflow's capabilities and testing.
 
-4.  **Make a tiny change** – e.g. fix a typo in docs
+5.  **Make a tiny change** – e.g. fix a typo in docs
 
-5.  **Run local checks**
+6.  **Run local checks**
 
 .. code-block:: bash
 
     prek --all-files
 
-6.  **Commit & push**
+7.  **Run tests**
+
+Run tests related to your change **before** pushing:
 
 .. code-block:: bash
 
-    git checkout -b docs-typo
-    git commit -am "fix typo in README"
-    git push -u origin docs-typo
+    # Example: run core tests
+    breeze testing core-tests
 
-7.  **Open the PR** – GitHub shows a "Compare & pull request" button.
+Run ``breeze testing --help`` to see all available test groups.
+For more on testing, see the `Testing Guide <09_testing.rst>`_.
+
+8.  **Commit & push**
+
+.. code-block:: bash
+
+    git commit -am "fix typo in README"
+    git push -u origin <your-branch-name>
+
+9.  **Open the PR** – GitHub shows a "Compare & pull request" button.
 
 *Syncing your branch*
 

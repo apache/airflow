@@ -28,6 +28,9 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
 from uuid import UUID
 
 import structlog
+from opentelemetry import context, trace
+from opentelemetry.trace import StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
     Enum,
@@ -59,6 +62,7 @@ from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.traces import new_dagrun_trace_carrier, override_ids
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
@@ -72,12 +76,10 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.observability.trace import Trace
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
-from airflow.utils.dates import datetime_to_nano
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
@@ -92,19 +94,17 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
-from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from typing import Literal, TypeAlias
 
-    from opentelemetry.sdk.trace import Span
     from pydantic import NonNegativeInt
     from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import Case, ColumnElement
 
-    from airflow._shared.observability.traces.base_tracer import EmptySpan
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
     from airflow.models.dag_version import DagVersion
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
@@ -119,6 +119,8 @@ if TYPE_CHECKING:
 RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
 log = structlog.get_logger(__name__)
+
+tracer = trace.get_tracer(__name__)
 
 
 class TISchedulingDecision(NamedTuple):
@@ -153,8 +155,6 @@ class DagRun(Base, LoggingMixin):
     external trigger (i.e. manual runs).
     """
 
-    active_spans = ThreadSafeDict()
-
     __tablename__ = "dag_run"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -163,7 +163,7 @@ class DagRun(Base, LoggingMixin):
     logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    _state: Mapped[str] = mapped_column("state", String(50), default=DagRunState.QUEUED)
+    _state: Mapped[str | None] = mapped_column("state", String(50), default=DagRunState.QUEUED, nullable=True)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     creating_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     run_type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -187,14 +187,18 @@ class DagRun(Base, LoggingMixin):
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
-    log_template_id: Mapped[int] = mapped_column(
+    log_template_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
         default=select(func.max(LogTemplate.__table__.c.id)),
+        nullable=True,
     )
-    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(
-        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
+    # This is nullable because it's too costly to migrate dagruns created prior
+    # to this column's addition (Airflow 3.2.0). If you want a reasonable
+    # meaningful non-null value, use ``dr.created_at or dr.run_after``.
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=True, default=timezone.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=True
     )
     # Keeps track of the number of times the dagrun had been cleared.
     # This number is incremented only when the DagRun is re-Queued,
@@ -312,6 +316,10 @@ class DagRun(Base, LoggingMixin):
     _ti_dag_versions = association_proxy("task_instances", "dag_version")
     _tih_dag_versions = association_proxy("task_instances_histories", "dag_version")
 
+    # Can be set by manual prefetch, such as attach_dag_versions_to_runs()
+    # as an alternative to traversing all TI/TIH ORM relationships. Maps version_id -> DagVersion.
+    _prefetched_dag_version_ids: dict[UUID, DagVersion] | None = None
+
     def __init__(
         self,
         dag_id: str | None = None,
@@ -368,7 +376,8 @@ class DagRun(Base, LoggingMixin):
         self.triggered_by = triggered_by
         self.triggering_user_name = triggering_user_name
         self.scheduled_by_job_id = None
-        self.context_carrier = {}
+        self.context_carrier: dict[str, str] = new_dagrun_trace_carrier()
+
         if not isinstance(partition_key, str | None):
             raise ValueError(
                 f"Expected partition_key to be a `str` or `None` but got `{partition_key.__class__.__name__}`"
@@ -387,6 +396,8 @@ class DagRun(Base, LoggingMixin):
     def validate_run_id(self, key: str, run_id: str) -> str | None:
         if not run_id:
             return None
+        if ".." in run_id and not airflow_conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
+            raise ValueError(f"The run_id '{run_id}' must not contain '..' to prevent path traversal")
         if re.match(RUN_ID_REGEX, run_id):
             return run_id
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
@@ -397,18 +408,41 @@ class DagRun(Base, LoggingMixin):
         )
 
     @property
+    def dag_run_data(self) -> DRDataModel:
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
+
+        return DRDataModel(
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            logical_date=self.logical_date,
+            data_interval_start=self.data_interval_start,
+            data_interval_end=self.data_interval_end,
+            run_after=self.run_after,
+            start_date=self.start_date or timezone.utcnow(),
+            end_date=self.end_date,
+            run_type=DagRunType(self.run_type),
+            state=self.state,
+            conf=self.conf,
+            consumed_asset_events=[],
+            partition_key=self.partition_key,
+        )
+
+    @property
     def dag_versions(self) -> list[DagVersion]:
         """Return the DAG versions associated with the TIs of this DagRun."""
         # when the dag is in a versioned bundle, we keep the dag version fixed
         if self.bundle_version:
             return [self.created_dag_version] if self.created_dag_version is not None else []
-        dag_versions = [
-            dv
-            for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
-            if dv is not None
-        ]
-        sorted_ = sorted(dag_versions, key=lambda dv: dv.id)
-        return sorted_
+
+        if self._prefetched_dag_version_ids is not None:
+            dag_version_objects = list(self._prefetched_dag_version_ids.values())
+        else:
+            dag_version_objects = [
+                dv
+                for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
+                if dv is not None
+            ]
+        return sorted(dag_version_objects, key=lambda dv: dv.id)
 
     @property
     def version_number(self) -> int | None:
@@ -460,10 +494,6 @@ class DagRun(Base, LoggingMixin):
     @property
     def stats_tags(self) -> dict[str, str]:
         return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
-
-    @classmethod
-    def set_active_spans(cls, active_spans: ThreadSafeDict):
-        cls.active_spans = active_spans
 
     def get_state(self):
         return self._state
@@ -1019,131 +1049,40 @@ class DagRun(Base, LoggingMixin):
         leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
         return leaf_tis
 
-    def set_dagrun_span_attrs(self, span: Span | EmptySpan):
-        if self._state == DagRunState.FAILED:
-            span.set_attribute("airflow.dag_run.error", True)
+    def _emit_dagrun_span(self, state: DagRunState):
+        # just to be safe
+        if not isinstance(self.context_carrier, dict):
+            return
 
-        # Explicitly set the value type to Union[...] to avoid a mypy error.
-        attributes: dict[str, AttributeValueType] = {
-            "airflow.category": "DAG runs",
-            "airflow.dag_run.dag_id": str(self.dag_id),
-            "airflow.dag_run.logical_date": str(self.logical_date),
-            "airflow.dag_run.run_id": str(self.run_id),
-            "airflow.dag_run.queued_at": str(self.queued_at),
-            "airflow.dag_run.run_start_date": str(self.start_date),
-            "airflow.dag_run.run_end_date": str(self.end_date),
-            "airflow.dag_run.run_duration": str(
-                (self.end_date - self.start_date).total_seconds() if self.start_date and self.end_date else 0
-            ),
-            "airflow.dag_run.state": str(self._state),
-            "airflow.dag_run.run_type": str(self.run_type),
-            "airflow.dag_run.data_interval_start": str(self.data_interval_start),
-            "airflow.dag_run.data_interval_end": str(self.data_interval_end),
-            "airflow.dag_run.conf": str(self.conf),
-        }
-        if span.is_recording():
-            span.add_event(name="airflow.dag_run.queued", timestamp=datetime_to_nano(self.queued_at))
-            span.add_event(name="airflow.dag_run.started", timestamp=datetime_to_nano(self.start_date))
-            span.add_event(name="airflow.dag_run.ended", timestamp=datetime_to_nano(self.end_date))
-        span.set_attributes(attributes)
-
-    def start_dr_spans_if_needed(self, tis: list[TI]):
-        # If there is no value in active_spans, then the span hasn't already been started.
-        if self.active_spans is not None and self.active_spans.get("dr:" + str(self.id)) is None:
-            if self.span_status == SpanStatus.NOT_STARTED or self.span_status == SpanStatus.NEEDS_CONTINUANCE:
-                dr_span = None
-                continue_ti_spans = False
-                if self.span_status == SpanStatus.NOT_STARTED:
-                    dr_span = Trace.start_root_span(
-                        span_name=f"{self.dag_id}",
-                        component="dag",
-                        start_time=self.queued_at,  # This is later converted to nano.
-                        start_as_current=False,
-                    )
-                elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
-                    # Use the existing context_carrier to set the initial dag_run span as the parent.
-                    parent_context = Trace.extract(self.context_carrier)
-                    with Trace.start_child_span(
-                        span_name="new_scheduler", parent_context=parent_context
-                    ) as s:
-                        s.set_attribute("trace_status", "continued")
-
-                    dr_span = Trace.start_child_span(
-                        span_name=f"{self.dag_id}_continued",
-                        parent_context=parent_context,
-                        component="dag",
-                        # No start time
-                        start_as_current=False,
-                    )
-                    # After this span is started, the context_carrier will be replaced by the new one.
-                    # New task span will use this span as the parent.
-                    continue_ti_spans = True
-                carrier = Trace.inject()
-                self.context_carrier = carrier
-                self.span_status = SpanStatus.ACTIVE
-                # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
-                self.active_spans.set("dr:" + str(self.id), dr_span)
-                self.log.debug(
-                    "DagRun span has been started and the injected context_carrier is: %s",
-                    self.context_carrier,
-                )
-                # Start TI spans that also need continuance.
-                if continue_ti_spans:
-                    new_dagrun_context = Trace.extract(self.context_carrier)
-                    for ti in tis:
-                        if ti.span_status == SpanStatus.NEEDS_CONTINUANCE:
-                            ti_span = Trace.start_child_span(
-                                span_name=f"{ti.task_id}_continued",
-                                parent_context=new_dagrun_context,
-                                start_as_current=False,
-                            )
-                            ti_carrier = Trace.inject()
-                            ti.context_carrier = ti_carrier
-                            ti.span_status = SpanStatus.ACTIVE
-                            self.active_spans.set(f"ti:{ti.id}", ti_span)
-            else:
-                self.log.debug(
-                    "Found span_status '%s', while updating state for dag_run '%s'",
-                    self.span_status,
-                    self.run_id,
-                )
-
-    def end_dr_span_if_needed(self):
-        if self.active_spans is not None:
-            active_span = self.active_spans.get("dr:" + str(self.id))
-            if active_span is not None:
-                self.log.debug(
-                    "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
-                    active_span.get_span_context().span_id,
-                    self.dag_id,
-                    self.run_id,
-                    self.state,
-                )
-
-                self.set_dagrun_span_attrs(span=active_span)
-                active_span.end(end_time=datetime_to_nano(self.end_date))
-                # Remove the span from the dict.
-                self.active_spans.delete("dr:" + str(self.id))
-                self.span_status = SpanStatus.ENDED
-            else:
-                if self.span_status == SpanStatus.ACTIVE:
-                    # Another scheduler has started the span.
-                    # Update the DB SpanStatus to notify the owner to end it.
-                    self.span_status = SpanStatus.SHOULD_END
-                elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
-                    # This is a corner case where the scheduler exited gracefully
-                    # while the dag_run was almost done.
-                    # Since it reached this point, the dag has finished but there has been no time
-                    # to create a new span for the current scheduler.
-                    # There is no need for more spans, update the status on the db.
-                    self.span_status = SpanStatus.ENDED
-                else:
-                    self.log.debug(
-                        "No active span has been found for dag_id: %s, run_id: %s, state: %s",
-                        self.dag_id,
-                        self.run_id,
-                        self.state,
-                    )
+        ctx = TraceContextTextMapPropagator().extract(self.context_carrier)
+        span = trace.get_current_span(context=ctx)
+        span_context = span.get_span_context()
+        with override_ids(span_context.trace_id, span_context.span_id):
+            attributes: dict[str, str] = {
+                "airflow.dag_id": str(self.dag_id),
+                "airflow.dag_run.run_id": self.run_id,
+            }
+            if self.start_date:
+                attributes["airflow.dag_run.start_date"] = str(self.start_date)
+            if self.end_date:
+                attributes["airflow.dag_run.end_date"] = str(self.end_date)
+            if self.queued_at:
+                attributes["airflow.dag_run.queued_at"] = str(self.queued_at)
+            if self.created_at:
+                attributes["airflow.dag_run.created_at"] = str(self.created_at)
+            if self.logical_date:
+                attributes["airflow.dag_run.logical_date"] = str(self.logical_date)
+            if self.partition_key:
+                attributes["airflow.dag_run.partition_key"] = str(self.partition_key)
+            span = tracer.start_span(
+                name=f"dag_run.{self.dag_id}",
+                start_time=int((self.queued_at or self.start_date or timezone.utcnow()).timestamp() * 1e9),
+                attributes=attributes,
+                context=context.Context(),
+            )
+            status_code = StatusCode.OK if state == DagRunState.SUCCESS else StatusCode.ERROR
+            span.set_status(status_code)
+            span.end()
 
     @provide_session
     def update_state(
@@ -1302,9 +1241,6 @@ class DagRun(Base, LoggingMixin):
 
         # finally, if the leaves aren't done, the dag is still running
         else:
-            # It might need to start TI spans as well.
-            self.start_dr_spans_if_needed(tis=tis)
-
             self.set_state(DagRunState.RUNNING)
 
         if self._state == DagRunState.FAILED or self._state == DagRunState.SUCCESS:
@@ -1331,10 +1267,8 @@ class DagRun(Base, LoggingMixin):
                 self.data_interval_start,
                 self.data_interval_end,
             )
-
-            self.end_dr_span_if_needed()
-
             session.flush()
+            self._emit_dagrun_span(state=self.state)
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)
         self._emit_duration_stats_for_finished_state()
@@ -1444,7 +1378,6 @@ class DagRun(Base, LoggingMixin):
     ):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
-            DagRun as DRDataModel,
             TaskInstance as TIDataModel,
             TIRunContext,
         )
@@ -1454,27 +1387,11 @@ class DagRun(Base, LoggingMixin):
             last_ti_model = TIDataModel.model_validate(relevant_ti, from_attributes=True)
             task = dag.get_task(relevant_ti.task_id)
 
-            dag_run_data = DRDataModel(
-                dag_id=self.dag_id,
-                run_id=self.run_id,
-                logical_date=self.logical_date,
-                data_interval_start=self.data_interval_start,
-                data_interval_end=self.data_interval_end,
-                run_after=self.run_after,
-                start_date=self.start_date or timezone.utcnow(),
-                end_date=self.end_date,
-                run_type=DagRunType(self.run_type),
-                state=self.state,
-                conf=self.conf,
-                consumed_asset_events=[],
-                partition_key=self.partition_key,
-            )
-
             runtime_ti = RuntimeTaskInstance.model_construct(
                 **last_ti_model.model_dump(exclude_unset=True),
                 task=task,
                 _ti_context_from_server=TIRunContext(
-                    dag_run=dag_run_data,
+                    dag_run=self.dag_run_data,
                     max_tries=relevant_ti.max_tries,
                     variables=[],
                     connections=[],
@@ -1872,7 +1789,11 @@ class DagRun(Base, LoggingMixin):
                 created_counts[task.task_type] += 1
                 for map_index in indexes:
                     yield TI.insert_mapping(
-                        self.run_id, task, map_index=map_index, dag_version_id=dag_version_id
+                        self.run_id,
+                        task,
+                        map_index=map_index,
+                        dag_version_id=dag_version_id,
+                        dag_run=self,
                     )
 
             creator = create_ti_mapping
@@ -2065,11 +1986,21 @@ class DagRun(Base, LoggingMixin):
         # tasks using EmptyOperator and without on_execute_callback / on_success_callback
         empty_ti_ids: list[UUID] = []
         schedulable_ti_ids: list[UUID] = []
+        reschedule_ti_ids: set[UUID] = set()
         debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
         expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
         for ti in schedulable_tis:
-            if ti.is_schedulable:
+            if not ti.is_schedulable:
+                empty_ti_ids.append(ti.id)
+            # The defer_task method will check "start_trigger_args" to see whether the operator
+            # start execution from triggerer. If so, we'll also check "start_from_trigger"
+            # to see whether this feature is turned on and defer this task.
+            # If not, we'll add this "ti" into "schedulable_ti_ids" and later
+            # execute it to run in the worker.
+            elif not ti.defer_task(session=session):
                 schedulable_ti_ids.append(ti.id)
+                if ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+                    reschedule_ti_ids.add(ti.id)
                 if debug_try_number_check:
                     expected_try_number_by_ti_id[ti.id] = (
                         ti.try_number
@@ -2078,28 +2009,27 @@ class DagRun(Base, LoggingMixin):
                         ti.try_number,
                         ti.state,
                     )
-            # Check "start_trigger_args" to see whether the operator supports
-            # start execution from triggerer. If so, we'll check "start_from_trigger"
-            # to see whether this feature is turned on and defer this task.
-            # If not, we'll add this "ti" into "schedulable_ti_ids" and later
-            # execute it to run in the worker.
-            # TODO TaskSDK: This is disabled since we haven't figured out how
-            # to render start_from_trigger in the scheduler. If we need to
-            # render the value in a worker, it kind of defeats the purpose of
-            # this feature (which is to save a worker process if possible).
-            # elif task.start_trigger_args is not None:
-            #     if task.expand_start_from_trigger(context=ti.get_template_context()):
-            #         ti.start_date = timezone.utcnow()
-            #         if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-            #             ti.try_number += 1
-            #         ti.defer_task(exception=None, session=session)
-            #     else:
-            #         schedulable_ti_ids.append(ti.id)
-            else:
-                empty_ti_ids.append(ti.id)
 
         count = 0
-
+        # Don't only check if the TI.id is in id_chunk
+        # but also check if the TI.state is in the schedulable states.
+        # Plus, a scheduled empty operator should not be scheduled again.
+        non_null_schedulable_states = tuple(s for s in SCHEDULEABLE_STATES if s is not None)
+        schedulable_state_clause = or_(
+            TI.state.is_(None),
+            TI.state.in_(non_null_schedulable_states),
+        )
+        # Use TI.id (not TI.state) in the CASE to decide try_number. MySQL evaluates
+        # SET left-to-right, so referencing TI.state here would see the already-updated
+        # value if state is assigned first. TI.id is never modified in the SET clause.
+        next_try_number = (
+            case(
+                (TI.id.in_(reschedule_ti_ids), TI.try_number),
+                else_=TI.try_number + 1,
+            )
+            if reschedule_ti_ids
+            else TI.try_number + 1
+        )
         if schedulable_ti_ids:
             schedulable_ti_ids_chunks = chunks(
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
@@ -2107,17 +2037,11 @@ class DagRun(Base, LoggingMixin):
             for id_chunk in schedulable_ti_ids_chunks:
                 result = session.execute(
                     update(TI)
-                    .where(TI.id.in_(id_chunk))
+                    .where(TI.id.in_(id_chunk), schedulable_state_clause)
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
-                        try_number=case(
-                            (
-                                or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
-                                TI.try_number + 1,
-                            ),
-                            else_=TI.try_number,
-                        ),
+                        try_number=next_try_number,
                     )
                     .execution_options(synchronize_session=False)
                 )
@@ -2161,13 +2085,13 @@ class DagRun(Base, LoggingMixin):
             for id_chunk in dummy_ti_ids_chunks:
                 result = session.execute(
                     update(TI)
-                    .where(TI.id.in_(id_chunk))
+                    .where(TI.id.in_(id_chunk), schedulable_state_clause)
                     .values(
                         state=TaskInstanceState.SUCCESS,
                         start_date=timezone.utcnow(),
                         end_date=timezone.utcnow(),
                         duration=0,
-                        try_number=TI.try_number + 1,
+                        try_number=next_try_number,
                     )
                     .execution_options(
                         synchronize_session=False,

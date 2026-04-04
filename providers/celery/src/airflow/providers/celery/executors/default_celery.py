@@ -25,10 +25,9 @@ import re
 import ssl
 from typing import Any
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 log = logging.getLogger(__name__)
 
@@ -58,6 +57,13 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
     if "visibility_timeout" not in broker_transport_options:
         if _broker_supports_visibility_timeout(broker_url):
             broker_transport_options["visibility_timeout"] = 86400
+            log.warning(
+                "No visibility_timeout configured in [celery_broker_transport_options]. "
+                "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
+                "will be redelivered by the broker, which terminates the original task. "
+                "If you have long-running tasks, increase this value in your Airflow configuration: "
+                "[celery_broker_transport_options] visibility_timeout = <seconds>"
+            )
 
     if "sentinel_kwargs" in broker_transport_options:
         try:
@@ -135,7 +141,7 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
 
     try:
         if celery_ssl_active:
-            if broker_url and "amqp://" in broker_url:
+            if broker_url and re.search(r"amqps?://", broker_url):
                 broker_use_ssl = {
                     "keyfile": team_conf.get("celery", "SSL_KEY"),
                     "certfile": team_conf.get("celery", "SSL_CERT"),

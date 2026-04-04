@@ -107,7 +107,7 @@ def agent_task(
     Usage::
 
         @task.agent(
-            llm_conn_id="pydantic_ai_default",
+            llm_conn_id="pydanticai_default",
             system_prompt="You are a data analyst.",
             toolsets=[SQLToolset(db_conn_id="postgres_default")],
         )

@@ -23,7 +23,6 @@ from argparse import Namespace
 from contextlib import contextmanager
 from multiprocessing import Process
 
-from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
@@ -53,7 +52,7 @@ def _run_scheduler_job(args) -> None:
 @providers_configuration_loaded
 def scheduler(args: Namespace):
     """Start Airflow Scheduler."""
-    print(settings.HEADER)
+    cli_utils.print_banner()
 
     if args.only_idle and args.num_runs <= 0:
         raise SystemExit("The --only-idle flag requires --num-runs to be set to a positive number.")

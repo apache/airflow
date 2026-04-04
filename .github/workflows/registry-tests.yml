@@ -49,16 +49,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: "Setup Python"
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
-        with:
-          python-version: "3.12"  # 3.11+ required for stdlib tomllib
-
       - name: "Install uv"
-        run: python -m pip install uv
-
-      - name: "Install test dependencies"
-        run: uv pip install --system pytest pyyaml
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+        with:
+          python-version: "3.12"
 
       - name: "Run registry extraction tests"
-        run: pytest dev/registry/tests/ -v -o "addopts="
+        run: cd dev/registry && uv run --group dev pytest tests/ -v

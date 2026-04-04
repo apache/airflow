@@ -26,6 +26,8 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -52,6 +54,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetEventResponse,
     AssetResponse,
     CreateAssetEventsBody,
+    MaterializeAssetBody,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
 )
@@ -385,6 +388,7 @@ def materialize_asset(
     dag_bag: DagBagDep,
     user: GetUserDep,
     session: SessionDep,
+    body: MaterializeAssetBody | None = None,
 ) -> DAGRunResponse:
     """Materialize an asset by triggering a DAG run that produces it."""
     dag_id_it = iter(
@@ -404,6 +408,17 @@ def materialize_asset(
             f"More than one DAG materializes asset with ID: {asset_id}",
         )
 
+    if not get_auth_manager().is_authorized_dag(
+        method="POST",
+        access_entity=DagAccessEntity.RUN,
+        details=DagDetails(id=dag_id),
+        user=user,
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"User is not authorized to trigger a run for DAG: {dag_id} that materializes this asset",
+        )
+
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
     if dag.allowed_run_types is not None and DagRunType.ASSET_MATERIALIZATION not in dag.allowed_run_types:
@@ -412,17 +427,19 @@ def materialize_asset(
             f"Dag with dag_id: '{dag_id}' does not allow asset materialization runs",
         )
 
+    params = (body or MaterializeAssetBody()).validate_context(dag)
     return dag.create_dagrun(
-        run_id=dag.timetable.generate_run_id(
-            run_type=DagRunType.ASSET_MATERIALIZATION,
-            run_after=(run_after := timezone.coerce_datetime(timezone.utcnow())),
-            data_interval=None,
-        ),
-        run_after=run_after,
+        run_id=params["run_id"],
+        logical_date=params["logical_date"],
+        data_interval=params["data_interval"],
+        run_after=params["run_after"],
+        conf=params["conf"],
         run_type=DagRunType.ASSET_MATERIALIZATION,
         triggered_by=DagRunTriggeredByType.REST_API,
         triggering_user_name=user.get_name(),
         state=DagRunState.QUEUED,
+        partition_key=params["partition_key"],
+        note=params["note"],
         session=session,
     )
 

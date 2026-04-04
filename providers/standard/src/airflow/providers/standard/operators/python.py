@@ -579,9 +579,30 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
         if self.op_args or self.op_kwargs:
             self.log.info("Use %r as serializer.", self.serializer)
-            file.write_bytes(
-                self.pickling_library.dumps({"args": self.op_args, "kwargs": resolve_proxies(self.op_kwargs)})
-            )
+            resolved_kwargs = resolve_proxies(self.op_kwargs)
+            try:
+                file.write_bytes(
+                    self.pickling_library.dumps({"args": self.op_args, "kwargs": resolved_kwargs})
+                )
+            except Exception:
+                # Identify which specific kwarg(s) failed to serialize so the
+                # user gets a clear error instead of an opaque PicklingError.
+                bad_keys: list[str] = []
+                for key, value in resolved_kwargs.items():
+                    try:
+                        self.pickling_library.dumps(value)
+                    except Exception:
+                        bad_keys.append(key)
+                if bad_keys:
+                    raise AirflowException(
+                        f"Failed to serialize op_kwargs. The following keys contain objects that "
+                        f"cannot be pickled: {bad_keys}. This often happens when "
+                        f"render_template_as_native_obj=True and templates like '{{{{ ti }}}}' "
+                        f"resolve to live Airflow objects instead of strings. Use string "
+                        f"representations or pass only the specific attributes you need "
+                        f"(e.g. '{{{{ ti.task_id }}}}', '{{{{ ti.run_id }}}}')."
+                    )
+                raise
 
     def _write_string_args(self, file: Path):
         file.write_text("\n".join(map(str, self.string_args)))

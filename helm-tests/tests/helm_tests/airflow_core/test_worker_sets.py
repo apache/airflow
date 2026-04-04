@@ -2149,6 +2149,22 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "resources": {
+                        "requests": {"cpu": "10m", "memory": "20Mi"},
+                    },
+                    "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "resources": {
+                                "limits": {"cpu": "3m", "memory": "4Mi"},
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_resources(self, values):
@@ -2161,36 +2177,59 @@ class TestWorkerSets:
             "limits": {"cpu": "3m", "memory": "4Mi"},
         }
 
-    def test_overwrite_termination_grace_period_seconds(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [
-                            {
-                                "name": "test",
-                                "terminationGracePeriodSeconds": 5,
-                            }
-                        ],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
                 }
             },
+            {
+                "terminationGracePeriodSeconds": 20,
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
+                },
+            },
+            {
+                "celery": {
+                    "terminationGracePeriodSeconds": 20,
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "terminationGracePeriodSeconds": 5}],
+                }
+            },
+        ],
+    )
+    def test_overwrite_termination_grace_period_seconds(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0]) == 5
 
-    def test_overwrite_safe_to_evict_enable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "set1", "safeToEvict": True}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"celery": {"enableDefault": False, "sets": [{"name": "set1", "safeToEvict": True}]}},
+            {
+                "celery": {
+                    "safeToEvict": False,
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "safeToEvict": True}],
                 }
             },
+            {
+                "safeToEvict": False,
+                "celery": {"enableDefault": False, "sets": [{"name": "set1", "safeToEvict": True}]},
+            },
+        ],
+    )
+    def test_overwrite_safe_to_evict_enable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -2201,17 +2240,25 @@ class TestWorkerSets:
             == "true"
         )
 
-    def test_overwrite_safe_to_evict_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
                     "safeToEvict": True,
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "set1", "safeToEvict": False}],
-                    },
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "safeToEvict": False}],
                 }
             },
+            {
+                "safeToEvict": True,
+                "celery": {"enableDefault": False, "sets": [{"name": "set1", "safeToEvict": False}]},
+            },
+        ],
+    )
+    def test_overwrite_safe_to_evict_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -2384,8 +2431,24 @@ class TestWorkerSets:
                 "celery": {"enableDefault": False, "sets": [{"name": "set1"}]},
             },
             {
+                "celery": {
+                    "extraPorts": [{"name": "test-extra-port", "containerPort": 10}],
+                    "enableDefault": False,
+                    "sets": [{"name": "set1"}],
+                },
+            },
+            {
                 "extraPorts": [{"name": "test", "containerPort": 1}],
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {"name": "set1", "extraPorts": [{"name": "test-extra-port", "containerPort": 10}]}
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "extraPorts": [{"name": "test", "containerPort": 1}],
                     "enableDefault": False,
                     "sets": [
                         {"name": "set1", "extraPorts": [{"name": "test-extra-port", "containerPort": 10}]}
@@ -2420,6 +2483,13 @@ class TestWorkerSets:
                     "sets": [{"name": "set1", "nodeSelector": {"name": "test-node"}}],
                 },
             },
+            {
+                "celery": {
+                    "nodeSelector": {"test": "name"},
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "nodeSelector": {"name": "test-node"}}],
+                },
+            },
         ],
     )
     def test_overwrite_node_selector(self, workers_values):
@@ -2446,6 +2516,13 @@ class TestWorkerSets:
                     "sets": [{"name": "set1", "runtimeClassName": "test-class"}],
                 },
             },
+            {
+                "celery": {
+                    "runtimeClassName": "test",
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "runtimeClassName": "test-class"}],
+                },
+            },
         ],
     )
     def test_overwrite_runtime_class_name(self, workers_values):
@@ -2468,6 +2545,13 @@ class TestWorkerSets:
             {
                 "priorityClassName": "test",
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "set1", "priorityClassName": "test-class"}],
+                },
+            },
+            {
+                "celery": {
+                    "priorityClassName": "test",
                     "enableDefault": False,
                     "sets": [{"name": "set1", "priorityClassName": "test-class"}],
                 },
@@ -2679,6 +2763,15 @@ class TestWorkerSets:
             {
                 "hostAliases": [{"ip": "192.168.0.0", "hostnames": ["test"]}],
                 "celery": {
+                    "enableDefault": False,
+                    "sets": [
+                        {"name": "set1", "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]}
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "hostAliases": [{"ip": "192.168.0.0", "hostnames": ["test"]}],
                     "enableDefault": False,
                     "sets": [
                         {"name": "set1", "hostAliases": [{"ip": "127.0.0.2", "hostnames": ["test.hostname"]}]}

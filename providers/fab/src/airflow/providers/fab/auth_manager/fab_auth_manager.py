@@ -52,10 +52,9 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagModel, Pool, Variable
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
@@ -88,10 +87,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
-from airflow.providers.fab.www.utils import (
-    get_fab_action_from_method_map,
-    get_method_from_fab_action_map,
-)
+from airflow.providers.fab.www.utils import get_fab_action_from_method_map
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -267,16 +263,29 @@ class FabAuthManager(BaseAuthManager[User]):
 
     @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
+        user_id = int(token["sub"])
+
+        def _fetch_user() -> User:
+            try:
+                return self.session.scalars(select(User).where(User.id == user_id)).one()
+            except NoResultFound:
+                raise ValueError(f"User with id {token['sub']} not found")
+
         try:
-            return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
-        except NoResultFound:
-            raise ValueError(f"User with id {token['sub']} not found")
+            return _fetch_user()
         except SQLAlchemyError:
             # Discard the poisoned scoped session so the next request gets a
             # fresh connection from the pool instead of a PendingRollbackError.
             with suppress(Exception):
                 self.session.remove()
-            raise
+            try:
+                return _fetch_user()
+            except SQLAlchemyError:
+                # If retry also fails, remove the scoped session again to keep
+                # future requests from reusing a broken transaction state.
+                with suppress(Exception):
+                    self.session.remove()
+                raise
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
@@ -511,15 +520,11 @@ class FabAuthManager(BaseAuthManager[User]):
         )
         roles = user_query.roles
 
-        map_fab_action_name_to_method_name = get_method_from_fab_action_map()
+        fab_action = get_fab_action_from_method_map().get(method)
         resources = set()
         for role in roles:
             for permission in role.permissions:
-                action = permission.action.name
-                if (
-                    action in map_fab_action_name_to_method_name
-                    and map_fab_action_name_to_method_name[action] == method
-                ):
+                if permission.action.name == fab_action:
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
                         return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
@@ -545,7 +550,7 @@ class FabAuthManager(BaseAuthManager[User]):
         :param session: the session
         """
         rows = session.execute(select(Pool.pool)).scalars().all()
-        return set(rows)
+        return {r for r in rows if r is not None}
 
     @provide_session
     def get_authorized_variables(

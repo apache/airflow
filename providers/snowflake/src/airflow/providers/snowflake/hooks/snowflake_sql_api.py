@@ -50,10 +50,15 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     In combination with aiohttp, make post request to submit SQL statements for execution,
     poll to check the status of the execution of a statement. Fetch query results asynchronously.
 
-    This hook requires the snowflake_conn_id connection. This hooks mainly uses account, schema, database,
-    warehouse, and an authentication mechanism from one of below:
-    1. JWT Token generated from private_key_file or private_key_content. Other inputs can be defined in the connection or hook instantiation.
-    2. OAuth Token generated from the refresh_token, client_id and client_secret specified in the connection
+    This hook requires the snowflake_conn_id connection. This hook mainly uses account, schema, database,
+    warehouse, and an authentication mechanism from one of the following:
+
+    1. JWT Token generated from ``private_key_file`` or ``private_key_content``. Other inputs can be
+       defined in the connection or hook instantiation.
+    2. OAuth Token generated from the ``refresh_token``, ``client_id`` and ``client_secret`` specified
+       in the connection.
+    3. PAT (Programmatic Access Token): set ``authenticator`` to ``programmatic_access_token`` in the
+       connection extras and put the PAT value in the connection ``password`` field.
 
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
@@ -212,7 +217,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
-        """Form auth headers based on either OAuth token or JWT token from private key."""
+        """Form auth headers based on OAuth token, PAT, or JWT token from private key."""
         conn_config = self._get_conn_params()
 
         # Use OAuth if refresh_token and client_id and client_secret are provided
@@ -220,16 +225,31 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             [conn_config.get("refresh_token"), conn_config.get("client_id"), conn_config.get("client_secret")]
         ):
             oauth_token = self.get_oauth_token(conn_config=conn_config)
-            headers = {
+            return {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {oauth_token}",
                 "Accept": "application/json",
                 "User-Agent": "snowflakeSQLAPI/1.0",
                 "X-Snowflake-Authorization-Token-Type": "OAUTH",
             }
-            return headers
 
-        # Alternatively, get the JWT token from the connection details and the private key
+        # Use PAT (Programmatic Access Token) when authenticator is set to programmatic_access_token
+        if conn_config.get("authenticator") == "programmatic_access_token":
+            pat = conn_config.get("password")
+            if not pat:
+                raise AirflowException(
+                    "Programmatic Access Token (PAT) authentication requires the connection password "
+                    "field to contain the PAT token value."
+                )
+            return {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {pat}",
+                "Accept": "application/json",
+                "User-Agent": "snowflakeSQLAPI/1.0",
+                "X-Snowflake-Authorization-Token-Type": "PROGRAMMATIC_ACCESS_TOKEN",
+            }
+
+        # Fall back to JWT token from the connection details and the private key
         if not self.private_key:
             self.private_key = self.get_private_key()
 
@@ -241,14 +261,13 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             renewal_delay=self.token_renewal_delta,
         ).get_token()
 
-        headers = {
+        return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
             "User-Agent": "snowflakeSQLAPI/1.0",
             "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
         }
-        return headers
 
     def get_oauth_token(
         self,

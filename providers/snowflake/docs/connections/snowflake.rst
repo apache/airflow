@@ -78,6 +78,10 @@ Extra (optional)
     * ``host``: Target Snowflake hostname to connect to (e.g., for local testing with LocalStack).
     * ``port``: Target Snowflake port to connect to (e.g., for local testing with LocalStack).
     * ``ocsp_fail_open``: Specify `ocsp_fail_open <https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect#label-python-ocsp-choosing-fail-open-or-fail-close-mode>`_.
+    * ``proxy_host``: Proxy hostname to use for connecting to Snowflake.
+    * ``proxy_port``: Proxy port to use for connecting to Snowflake.
+    * ``proxy_user``: Proxy username for authentication with the proxy server.
+    * ``proxy_password``: Proxy password for authentication with the proxy server.
 
 URI format example
 ^^^^^^^^^^^^^^^^^^

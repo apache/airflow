@@ -24,9 +24,7 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import (
     initialize_breeze_prek,
     run_command_via_breeze_shell,

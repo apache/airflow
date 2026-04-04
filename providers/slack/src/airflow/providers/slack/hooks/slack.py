@@ -310,6 +310,12 @@ class SlackHook(BaseHook):
         else:
             channels_to_share = [None]
 
+        if thread_ts is not None and len(channels_to_share) > 1:
+            raise ValueError(
+                "thread_ts cannot be used with multiple channels. "
+                "A thread belongs to a single channel; specify exactly one channel when replying in a thread."
+            )
+
         responses = []
         for channel in channels_to_share:
             responses.append(

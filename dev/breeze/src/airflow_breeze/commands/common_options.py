@@ -35,6 +35,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_TERMINAL_MULTIPLEXERS,
     ALLOWED_TTY,
     ALLOWED_USE_AIRFLOW_VERSIONS,
+    ALLOWED_WORKER_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_ALL_INTEGRATIONS,
     AUTOCOMPLETE_CORE_INTEGRATIONS,
@@ -116,8 +117,20 @@ option_backend = click.option(
     help="Database backend to use. Default is 'sqlite'. "
     "If 'none' is chosen, Breeze will start with an invalid database configuration — "
     "no database will be available, and any attempt to run Airflow will fail. "
-    "Use 'none' only for specific non-DB test cases.",
+    "Use 'none' only for specific non-DB test cases. "
+    "If 'custom' is chosen, no database container will be started and you must provide "
+    "your own database connection via AIRFLOW__DATABASE__SQL_ALCHEMY_CONN environment variable. "
+    "Only officially supported backends (postgres, mysql, sqlite) are tested.",
     envvar="BACKEND",
+)
+option_custom_db_url = click.option(
+    "--custom-db-url",
+    type=str,
+    default=None,
+    help="SQLAlchemy connection URL for the custom database backend. "
+    "Only used when --backend=custom is selected. "
+    "Falls back to the AIRFLOW__DATABASE__SQL_ALCHEMY_CONN environment variable if not provided.",
+    envvar="AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
 )
 option_builder = click.option(
     "--builder",
@@ -590,6 +603,13 @@ option_platform_single = click.option(
     type=BetterChoice(SINGLE_PLATFORMS),
 )
 
+option_worker_types = click.option(
+    "--worker-type",
+    help="Start a specific worker",
+    type=BetterChoice(ALLOWED_WORKER_TYPES),
+    multiple=True,
+    envvar="WORKER_TYPE",
+)
 
 # UI E2E Testing Options
 

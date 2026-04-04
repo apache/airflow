@@ -16,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+from unittest.mock import Mock
+
 import pytest
 import time_machine
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.sdk.definitions.deadline import BaseDeadlineReference, DeadlineReference
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 
 from tests_common.test_utils import db
@@ -172,3 +176,55 @@ class TestDeadlineAlert:
         nonexistent_uuid = "00000000-0000-7000-8000-000000000000"
         with pytest.raises(NoResultFound, match="No DeadlineAlert found"):
             DeadlineAlert.get_by_id(nonexistent_uuid, session=session)
+
+    def test_serialized_custom_reference_kwargs_handling(self):
+        """Test that SerializedCustomReference properly filters and validates kwargs."""
+
+        class StrictCustomRef(BaseDeadlineReference):
+            reference_name = "StrictCustomRef"
+            required_kwargs = {"dag_id", "run_id"}
+
+            def _evaluate_with(self, *, session, dag_id, run_id):
+                return timezone.utcnow()
+
+        inner_ref = StrictCustomRef()
+        inner_ref._evaluate_with = Mock(return_value=timezone.utcnow())
+
+        wrapper = SerializedReferenceModels.SerializedCustomReference(inner_ref)
+
+        wrapper.evaluate_with(
+            session=None,
+            interval=timedelta(hours=1),
+            dag_id="test_dag",
+            run_id="test_run",
+            extra_param="should_be_filtered",
+        )
+
+        inner_ref._evaluate_with.assert_called_once_with(session=None, dag_id="test_dag", run_id="test_run")
+
+        # try calling with missing required parameters
+        with pytest.raises(ValueError, match="missing required parameters: run_id"):
+            wrapper.evaluate_with(
+                session=None,
+                interval=timedelta(hours=1),
+                dag_id="test_dag",
+            )
+
+    def test_core_deadline_reference_treated_as_builtins(self):
+        """Test that refs from airflow.models.deadline are still treated as builtins."""
+        from airflow.models.deadline import ReferenceModels
+        from airflow.serialization.encoders import encode_deadline_reference
+
+        ref = ReferenceModels.DagRunLogicalDateDeadline()
+        serialized = encode_deadline_reference(ref)
+
+        assert "__class_path" not in serialized
+        assert serialized["reference_type"] == "DagRunLogicalDateDeadline"
+
+    def test_is_builtin_reference(self):
+        """Test that is_builtin_reference correctly identifies built-in vs custom references."""
+        assert SerializedReferenceModels.is_builtin_reference("DagRunLogicalDateDeadline") is True
+        assert SerializedReferenceModels.is_builtin_reference("DagRunQueuedAtDeadline") is True
+        assert SerializedReferenceModels.is_builtin_reference("AverageRuntimeDeadline") is True
+
+        assert SerializedReferenceModels.is_builtin_reference("MyCustomRef") is False

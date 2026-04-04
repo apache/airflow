@@ -133,7 +133,7 @@ def read_allowed_kubernetes_versions() -> list[str]:
     raise RuntimeError("ALLOWED_KUBERNETES_VERSIONS not found in global_constants.py")
 
 
-def pre_process_files(files: list[str]) -> list[str]:
+def pre_process_mypy_files(files: list[str]) -> list[str]:
     """Pre-process files passed to mypy.
 
     * Exclude conftest.py files and __init__.py files
@@ -449,6 +449,35 @@ def get_imports_from_file(file_path: Path, *, only_top_level: bool) -> list[str]
                 imports.append(fullname)
 
     return imports
+
+
+def get_remote_for_main() -> str:
+    """
+    Return the remote name to use when fetching main.
+    Prefers the remote that points to apache/airflow; otherwise uses origin.
+    """
+    result = subprocess.run(
+        ["git", "remote", "-v"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return "origin"
+
+    apache_remote = None
+    origin_remote = None
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            name, url = parts[0], parts[1]
+            if "apache/airflow" in url:
+                apache_remote = name
+                break
+            if name == "origin":
+                origin_remote = name
+
+    return apache_remote or origin_remote or "origin"
 
 
 def retrieve_gh_token(*, token: str | None = None, description: str, scopes: str) -> str:

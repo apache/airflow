@@ -69,10 +69,13 @@ export class DagCalendarTab extends BasePage {
     for (let i = 0; i < count; i++) {
       const cell = this.activeCells.nth(i);
 
-      await cell.hover();
-      await expect(this.tooltip).toBeVisible({ timeout: 20_000 });
+      let text = "";
 
-      const text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
+      await expect(async () => {
+        await cell.hover({ force: true });
+        await expect(this.tooltip).toBeVisible({ timeout: 3000 });
+        text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
+      }).toPass({ intervals: [500], timeout: 20_000 });
 
       if (text.includes("success")) states.push("success");
       if (text.includes("failed")) states.push("failed");
@@ -83,7 +86,10 @@ export class DagCalendarTab extends BasePage {
   }
 
   public async navigateToCalendar(dagId: string) {
-    await this.page.goto(`/dags/${dagId}/calendar`);
+    await expect(async () => {
+      await this.safeGoto(`/dags/${dagId}/calendar`);
+      await this.page.getByTestId("dag-calendar-root").waitFor({ state: "visible", timeout: 5000 });
+    }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForCalendarReady();
   }
 

@@ -459,7 +459,7 @@ class GKECreateClusterOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         for deprecated_field, replacement in deprecated_body_fields_with_replacement:
             if self._body_field(deprecated_field):
                 warnings.warn(
-                    f"The body field '{deprecated_field}' is deprecated. Use '{replacement}' instead.",
+                    f"The body field '{deprecated_field}' is deprecated. Use '{replacement}' instead. Planned removal date: October 5, 2026.",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )

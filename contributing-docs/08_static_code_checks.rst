@@ -26,7 +26,9 @@ for the first time.
 
 You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environment.
 
-**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
 
 Prek hooks
 ----------
@@ -273,22 +275,6 @@ Manual prek hooks
 Most of the checks we run are configured to run automatically when you commit the code or push PR. However,
 there are some checks that are not run automatically and you need to run them manually. You can run
 them manually by running ``prek --stage manual <hook-id>``.
-
-Special pin-versions prek
--------------------------
-
-There is a separate prek ``pin-versions`` prek hook which is used to pin versions of
-GitHub Actions in the CI workflows.
-
-This action requires ``GITHUB_TOKEN`` to be set, otherwise you might hit the rate limits with GitHub API, it
-It is not run automatically when you commit the code but in runs as a separate job in the CI.
-However, you can run it manually by running:
-
-.. code-block:: bash
-
-    export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
-    prek --all-files --stage manual --verbose pin-versions
-
 
 Mypy checks
 -----------

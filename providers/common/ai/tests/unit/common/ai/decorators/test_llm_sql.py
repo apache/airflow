@@ -44,7 +44,7 @@ class TestLLMSQLDecoratedOperator:
         """The user's callable return value becomes the LLM prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("SELECT 1")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt_fn():
             return "Get all users"
@@ -76,7 +76,7 @@ class TestLLMSQLDecoratedOperator:
         """op_kwargs are resolved by the callable to build the prompt."""
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result("SELECT 1")
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt_fn(table_name):
             return f"Get all rows from {table_name}"

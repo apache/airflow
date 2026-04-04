@@ -354,8 +354,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
         def webapp(request: Request, rest_of_path: str):
             return templates.TemplateResponse(
+                request,
                 "/index.html",
-                {"request": request, "backend_server_base_url": request.base_url.path},
+                {"backend_server_base_url": request.base_url.path},
                 media_type="text/html",
             )
 
@@ -433,7 +434,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def _print_output(output: str):
-        name = "Simple auth manager"
-        colorized_name = colored(f"{name:10}", "white")
-        for line in output.splitlines():
-            print(f"{colorized_name} | {line.strip()}")
+        if conf.getboolean("logging", "json_logs", fallback=False):
+            for line in output.splitlines():
+                log.info(line.strip())
+        else:
+            name = "Simple auth manager"
+            colorized_name = colored(f"{name:10}", "white")
+            for line in output.splitlines():
+                print(f"{colorized_name} | {line.strip()}")

@@ -140,7 +140,7 @@ class LLMSchemaCompareOperator(LLMOperator):
         if self.db_conn_ids and not self.table_names:
             raise ValueError("'table_names' is required when using 'db_conn_ids'.")
 
-        total_sources = len(self.db_conn_ids) + len(self.data_sources)
+        total_sources = len(self.db_conn_ids) * len(self.table_names) + len(self.data_sources)
         if total_sources < 2:
             raise ValueError(
                 "Provide at-least two combinations of 'db_conn_ids' and 'table_names' or 'data_sources' "

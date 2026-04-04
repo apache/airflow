@@ -473,6 +473,15 @@ def get_provider_info():
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/ray.rst"],
                 "tags": ["gcp"],
             },
+            {
+                "integration-name": "Google Bid Manager API",
+                "external-doc-url": "https://developers.google.com/bid-manager",
+                "logo": "/docs/integration-logos/Google-Search-Ads360.png",
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-google/operators/marketing_platform/bid_manager.rst"
+                ],
+                "tags": ["gmp"],
+            },
         ],
         "operators": [
             {
@@ -694,6 +703,10 @@ def get_provider_info():
                 "integration-name": "Google Ray",
                 "python-modules": ["airflow.providers.google.cloud.operators.ray"],
             },
+            {
+                "integration-name": "Google Bid Manager API",
+                "python-modules": ["airflow.providers.google.marketing_platform.operators.bid_manager"],
+            },
         ],
         "sensors": [
             {
@@ -779,6 +792,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Tasks",
                 "python-modules": ["airflow.providers.google.cloud.sensors.tasks"],
+            },
+            {
+                "integration-name": "Google Bid Manager API",
+                "python-modules": ["airflow.providers.google.marketing_platform.sensors.bid_manager"],
             },
         ],
         "filesystems": ["airflow.providers.google.cloud.fs.gcs"],
@@ -1061,6 +1078,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Ray",
                 "python-modules": ["airflow.providers.google.cloud.hooks.ray"],
+            },
+            {
+                "integration-name": "Google Bid Manager API",
+                "python-modules": ["airflow.providers.google.marketing_platform.hooks.bid_manager"],
             },
         ],
         "bundles": [
@@ -1414,6 +1435,10 @@ def get_provider_info():
                         "schema": {"type": ["boolean", "null"], "default": False},
                     },
                 },
+            },
+            {
+                "hook-class-name": "airflow.providers.google.cloud.hooks.spanner.SpannerHook",
+                "connection-type": "gcpspanner",
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook",

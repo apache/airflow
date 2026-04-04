@@ -29,15 +29,16 @@
     return html.style.colorScheme || 'dark';
   }
 
-  // Update icon visibility based on current theme
-  function updateIcons() {
+  // Update icon visibility and swagger-ui dark mode class
+  function updateTheme() {
     const isLight = getCurrentTheme() === 'light';
     if (sunIcon) sunIcon.style.display = isLight ? 'block' : 'none';
     if (moonIcon) moonIcon.style.display = isLight ? 'none' : 'block';
+    html.classList.toggle('dark-mode', !isLight);
   }
 
-  // Initialize icons on load
-  updateIcons();
+  // Initialize on load
+  updateTheme();
 
   // Toggle theme
   if (themeToggle) {
@@ -47,7 +48,7 @@
 
       html.style.colorScheme = newTheme;
       localStorage.setItem('theme', newTheme);
-      updateIcons();
+      updateTheme();
     });
   }
 })();

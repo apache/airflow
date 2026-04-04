@@ -103,6 +103,12 @@
     "notFound": "Seite nicht gefunden",
     "title": "Fehler"
   },
+  "errors": {
+    "forbidden": {
+      "description": "Sie haben keine Berechtigung, diese Aktion auszuführen.",
+      "title": "Zugriff verweigert"
+    }
+  },
   "expand": {
     "collapse": "Einklappen",
     "expand": "Ausklappen",
@@ -128,6 +134,7 @@
     "selectDateRange": "Zeitraum auswählen",
     "startTime": "Startzeitpunkt"
   },
+  "generateToken": "Zugriffstoken erzeugen",
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
@@ -171,6 +178,7 @@
   "reset": "Zurücksetzen",
   "runId": "Lauf Id",
   "runTypes": {
+    "asset_materialization": "Datenset (Asset) Materialisierung",
     "asset_triggered": "Durch Datenset (Asset) ausgelöst",
     "backfill": "Nachträglich Aufgefüllt",
     "manual": "Manuell",
@@ -191,6 +199,7 @@
     "users": "Benutzer"
   },
   "selectLanguage": "Sprache wählen",
+  "selected": "Ausgewählt",
   "showDetailsPanel": "Detailansicht einblenden",
   "signedInAs": "Angemeldet als",
   "source": {
@@ -291,11 +300,25 @@
     "utc": "UTC (Koordinierte Weltzeit)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Fehler beim Zurücksetzen von {{resourceName}}",
+      "success": {
+        "description": "{{count}} von {{resourceName}} wurden erfolgreich zurückgesetzt. Schlüsselwerte: {{keys}}",
+        "title": "Zurücksetzen von {{resourceName}} gestartet"
+      }
+    },
     "bulkDelete": {
       "error": "Massenlöschung von {{resourceName}} fehlgeschlagen",
       "success": {
         "description": "{{count}} von {{resourceName}} wurden erfolgreich gelöscht. Schlüsselwerte: {{keys}}",
         "title": "Massenlöschung von {{resourceName}} gestartet"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Fehler beim Aktualisieren von {{resourceName}}",
+      "success": {
+        "description": "{{count}} von {{resourceName}} wurden erfolgreich aktualisiert. Schlüsselwerte: {{keys}}",
+        "title": "Aktualisierung von {{resourceName}} gestartet"
       }
     },
     "create": {
@@ -327,10 +350,26 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "API-Token",
+    "cliToken": "CLI-Token",
+    "errorDescription": "Beim Erzeugen des Tokens ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+    "errorTitle": "Token-Erzeugung fehlgeschlagen",
+    "generate": "Erzeugen",
+    "selectType": "Wählen Sie den Typ des zu erzeugenden Tokens.",
+    "title": "Zugriffstoken erzeugen",
+    "tokenExpiresIn": "Dieser Token läuft in {{duration}} ab.",
+    "tokenGenerated": "Ihr Token wurde erzeugt.",
+    "tokenShownOnce": "Dieser Token wird nur einmal angezeigt. Kopieren Sie ihn jetzt."
+  },
   "total": "Gesamt {{state}}",
   "triggered": "Ausgelöst",
   "tryNumber": "Versuch Nummer",
   "user": "Benutzer",
+  "validation": {
+    "mustBeAtLeast": "Muss mindestens einen Wert von {{min}} haben.",
+    "mustBeValidNumber": "Muss eine gültige Zahl sein."
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Buchstabe {{hotkey}} drücken um den Zeilenumbruch umzuschalten",

@@ -125,6 +125,10 @@ class TestLLMSchemaCompareOperator:
                 id="one_db_conn_plus_one_datasource",
             ),
             pytest.param(
+                {"db_conn_ids": ["postgres_default"], "table_names": ["orders", "customers"]},
+                id="one_db_conn_plus_two_tables",
+            ),
+            pytest.param(
                 {
                     "db_conn_ids": ["postgres_default", "snowflake_default"],
                     "table_names": ["orders"],

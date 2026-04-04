@@ -684,7 +684,7 @@ class FileTaskHandler(logging.Handler):
 
             # skip log stream until the last position
             if metadata and "log_pos" in metadata:
-                islice(out_stream, metadata["log_pos"])
+                out_stream = islice(out_stream, metadata["log_pos"], None)
             else:
                 # first time reading log, add messages before interleaved log stream
                 out_stream = chain(header, out_stream)
@@ -694,7 +694,6 @@ class FileTaskHandler(logging.Handler):
                 "log_pos": log_pos,
             }
 
-    @staticmethod
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance | TaskInstanceHistory):
         pod_override = getattr(ti.executor_config, "pod_override", None)

@@ -64,7 +64,7 @@ class TestLLMBranchOperator:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = "task_a"
 
         op = LLMBranchOperator(
@@ -93,7 +93,7 @@ class TestLLMBranchOperator:
         mock_agent.run_sync.return_value = _make_mock_run_result(
             [downstream_enum.task_a, downstream_enum.task_c]
         )
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = ["task_a", "task_c"]
 
         op = LLMBranchOperator(
@@ -118,7 +118,7 @@ class TestLLMBranchOperator:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(
             task_id="test",
@@ -130,7 +130,7 @@ class TestLLMBranchOperator:
 
         op.execute(MagicMock())
 
-        call_kwargs = mock_hook_cls.return_value.create_agent.call_args
+        call_kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args
         assert call_kwargs.kwargs["instructions"] == "Route tickets to the right team."
 
     @patch.object(LLMBranchOperator, "do_branch")
@@ -143,7 +143,7 @@ class TestLLMBranchOperator:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.billing)
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMBranchOperator(
             task_id="test",
@@ -154,7 +154,7 @@ class TestLLMBranchOperator:
 
         op.execute(MagicMock())
 
-        output_type = mock_hook_cls.return_value.create_agent.call_args.kwargs["output_type"]
+        output_type = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["output_type"]
         assert {m.value for m in output_type} == {"billing", "auth", "general"}
 
     def test_execute_raises_on_no_downstream_tasks(self):

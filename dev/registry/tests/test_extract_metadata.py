@@ -26,7 +26,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from extract_metadata import (
-    count_modules_by_type,
     determine_airflow_versions,
     extract_integrations_as_categories,
     fetch_provider_inventory,
@@ -35,7 +34,9 @@ from extract_metadata import (
     find_related_providers,
     module_path_to_file_path,
     parse_pyproject_toml,
+    read_connection_urls,
     read_inventory,
+    resolve_connection_docs_url,
 )
 
 
@@ -96,43 +97,6 @@ class TestExtractIntegrationsAsCategories:
         }
         categories = extract_integrations_as_categories(yaml_data)
         assert len(categories) == 1
-
-
-# ---------------------------------------------------------------------------
-# count_modules_by_type
-# ---------------------------------------------------------------------------
-class TestCountModulesByType:
-    def test_empty_yaml_returns_all_zero(self):
-        counts = count_modules_by_type({})
-        assert len(counts) == 11
-        assert all(v == 0 for v in counts.values())
-
-    def test_operators_only(self):
-        yaml_data = {
-            "operators": [
-                {"python-modules": ["mod1", "mod2"]},
-                {"python-modules": ["mod3"]},
-            ]
-        }
-        counts = count_modules_by_type(yaml_data)
-        assert counts["operator"] == 3
-        assert counts["hook"] == 0
-
-    def test_mixed_module_types(self):
-        yaml_data = {
-            "operators": [{"python-modules": ["op1"]}],
-            "hooks": [{"python-modules": ["h1", "h2"]}],
-            "transfers": [{"source": "a", "target": "b"}],
-            "notifications": ["notifier.Class"],
-            "task-decorators": [{"name": "my_task", "class-name": "mod.func"}],
-        }
-        counts = count_modules_by_type(yaml_data)
-        assert counts["operator"] == 1
-        assert counts["hook"] == 2
-        assert counts["transfer"] == 1
-        assert counts["notifier"] == 1
-        assert counts["decorator"] == 1
-        assert counts["sensor"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -457,3 +421,150 @@ class TestFetchProviderInventory:
         result = fetch_provider_inventory("apache-airflow-providers-amazon", cache_dir=cache_dir)
         assert result is not None
         assert result.read_bytes() == new_content
+
+
+# ---------------------------------------------------------------------------
+# read_connection_urls
+# ---------------------------------------------------------------------------
+class TestReadConnectionUrls:
+    @staticmethod
+    def _make_inventory(tmp_path: Path, entries: list[str]) -> Path:
+        import zlib
+
+        inv_path = tmp_path / "objects.inv"
+        header = (
+            b"# Sphinx inventory version 2\n"
+            b"# Project: test\n"
+            b"# Version: 1.0\n"
+            b"# The remainder of this file is compressed using zlib.\n"
+        )
+        body = "\n".join(entries).encode("utf-8")
+        with inv_path.open("wb") as f:
+            f.write(header)
+            f.write(zlib.compress(body))
+        return inv_path
+
+    def test_parses_std_label_entries(self, tmp_path):
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "howto/connection:kubernetes std:label -1 connections/kubernetes.html#howto-connection-kubernetes Kubernetes cluster Connection",
+            ],
+        )
+        result = read_connection_urls(inv_path)
+        assert result == {"kubernetes": "connections/kubernetes.html"}
+
+    def test_parses_std_doc_entries(self, tmp_path):
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "connections/tableau std:doc -1 connections/tableau.html Tableau Connection",
+            ],
+        )
+        result = read_connection_urls(inv_path)
+        assert result == {"tableau": "connections/tableau.html"}
+
+    def test_label_takes_precedence_over_doc(self, tmp_path):
+        """When both std:label and std:doc exist for the same key, label wins."""
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "howto/connection:aws std:label -1 connections/aws.html#howto-connection-aws AWS Connection",
+                "connections/aws std:doc -1 connections/aws.html AWS Connection",
+            ],
+        )
+        result = read_connection_urls(inv_path)
+        assert result["aws"] == "connections/aws.html"
+
+    def test_skips_sub_section_labels(self, tmp_path):
+        """Labels like howto/connection:gcp:configuring_the_connection are sub-sections, not top-level."""
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "howto/connection:gcp std:label -1 connections/gcp.html#howto-connection-gcp GCP Connection",
+                "howto/connection:gcp:configuring_the_connection std:label -1 connections/gcp.html#sub Configuring",
+            ],
+        )
+        result = read_connection_urls(inv_path)
+        assert result == {"gcp": "connections/gcp.html"}
+
+    def test_skips_connections_index(self, tmp_path):
+        """The connections/index doc should not appear in the map."""
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "connections/index std:doc -1 connections/index.html Connection Types",
+                "connections/kafka std:doc -1 connections/kafka.html Kafka Connection",
+            ],
+        )
+        result = read_connection_urls(inv_path)
+        assert "index" not in result
+        assert result == {"kafka": "connections/kafka.html"}
+
+    def test_ignores_unrelated_entries(self, tmp_path):
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "airflow.providers.amazon.hooks.s3.S3Hook py:class 1 api.html#$ -",
+                "some_module py:module 1 mod.html -",
+            ],
+        )
+        result = read_connection_urls(inv_path)
+        assert result == {}
+
+    def test_empty_inventory(self, tmp_path):
+        inv_path = self._make_inventory(tmp_path, [])
+        result = read_connection_urls(inv_path)
+        assert result == {}
+
+    def test_multiple_connection_types(self, tmp_path):
+        """Amazon-style provider with multiple connection pages."""
+        inv_path = self._make_inventory(
+            tmp_path,
+            [
+                "howto/connection:aws std:label -1 connections/aws.html#howto-connection-aws AWS",
+                "howto/connection:emr std:label -1 connections/emr.html#howto-connection-emr EMR",
+                "howto/connection:redshift std:label -1 connections/redshift.html#howto-connection-redshift Redshift",
+                "connections/athena std:doc -1 connections/athena.html Athena",
+            ],
+        )
+        result = read_connection_urls(inv_path)
+        assert result["aws"] == "connections/aws.html"
+        assert result["emr"] == "connections/emr.html"
+        assert result["redshift"] == "connections/redshift.html"
+        assert result["athena"] == "connections/athena.html"
+
+
+# ---------------------------------------------------------------------------
+# resolve_connection_docs_url
+# ---------------------------------------------------------------------------
+class TestResolveConnectionDocsUrl:
+    BASE = "https://airflow.apache.org/docs/apache-airflow-providers-google/stable"
+
+    def test_exact_match(self):
+        conn_map = {"kubernetes": "connections/kubernetes.html"}
+        url = resolve_connection_docs_url("kubernetes", conn_map, self.BASE)
+        assert url == f"{self.BASE}/connections/kubernetes.html"
+
+    def test_fallback_to_connections_dir(self):
+        conn_map = {"kubernetes": "connections/kubernetes.html"}
+        url = resolve_connection_docs_url("unknown_type", conn_map, self.BASE)
+        assert url == f"{self.BASE}/connections/"
+
+    def test_empty_map_falls_back_to_connections_dir(self):
+        url = resolve_connection_docs_url("aws", {}, self.BASE)
+        assert url == f"{self.BASE}/connections/"
+
+    def test_google_bigquery_resolves(self):
+        """gcpbigquery conn_type should resolve to bigquery.html, not index."""
+        conn_map = {
+            "gcp": "connections/gcp.html",
+            "gcpbigquery": "connections/bigquery.html",
+        }
+        url = resolve_connection_docs_url("gcpbigquery", conn_map, self.BASE)
+        assert url == f"{self.BASE}/connections/bigquery.html"
+
+    def test_tableau_resolves(self):
+        conn_map = {"tableau": "connections/tableau.html"}
+        url = resolve_connection_docs_url("tableau", conn_map, self.BASE)
+        assert url == f"{self.BASE}/connections/tableau.html"

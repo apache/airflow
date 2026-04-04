@@ -145,6 +145,8 @@ def publish_versions(s3_bucket: str, providers_json_path: Path | None = None) ->
 
         # If the declared latest isn't deployed yet, use the highest deployed version.
         effective_latest = latest if latest in versions else versions[0]
+        if effective_latest not in versions:
+            raise ValueError(f"latest version {effective_latest!r} not in versions list for {pid}")
         data = {"versions": versions, "latest": effective_latest}
         key = (
             f"{prefix}/api/providers/{pid}/versions.json" if prefix else f"api/providers/{pid}/versions.json"

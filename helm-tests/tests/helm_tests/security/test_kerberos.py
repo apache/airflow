@@ -155,6 +155,20 @@ class TestKerberos:
 
         assert jmespath.search('data."kerberos.keytab"', docs[0]) == "dGVzdGtleXRhYg=="
 
+    def test_kerberos_keytab_secret_unavailable_when_keberos_disabled(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "kerberos": {
+                    "enabled": False,
+                    "keytabBase64Content": "dGVzdGtleXRhYg==",
+                },
+            },
+            show_only=["templates/secrets/kerberos-keytab-secret.yaml"],
+        )
+
+        assert len(docs) == 0
+
     def test_kerberos_keytab_secret_unavailable_when_not_specified(self):
         docs = render_chart(
             values={

@@ -2723,150 +2723,6 @@ main {
 }
 
 /* Stats */
-.provider-detail-page header .stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-3);
-  margin-bottom: var(--space-6);
-}
-
-@media (min-width: 640px) {
-  .provider-detail-page header .stats {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .provider-detail-page header .stats {
-    grid-template-columns: repeat(6, 1fr);
-  }
-}
-
-.provider-detail-page header .stat {
-  background: rgb(from var(--bg-secondary) r g b / 0.5);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
-}
-
-.provider-detail-page header .stat-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-1);
-}
-
-.provider-detail-page header .stat.operator {
-  border: 1px solid rgb(from var(--color-operator) r g b / 0.2);
-}
-
-.provider-detail-page header .stat.hook {
-  border: 1px solid rgb(from var(--color-hook) r g b / 0.2);
-}
-
-.provider-detail-page header .stat.sensor {
-  border: 1px solid rgb(from var(--color-sensor) r g b / 0.2);
-}
-
-.provider-detail-page header .stat.trigger {
-  border: 1px solid rgb(from var(--color-trigger) r g b / 0.2);
-}
-
-.provider-detail-page header .stat.transfer {
-  border: 1px solid rgb(from var(--color-transfer) r g b / 0.2);
-}
-
-.provider-detail-page header .stat.bundle {
-  border: 1px solid rgb(from var(--color-bundle) r g b / 0.2);
-}
-
-.provider-detail-page header .stat.total {
-  border: 1px solid rgb(from var(--accent-primary) r g b / 0.2);
-}
-
-.provider-detail-page header .stat .icon {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-xs);
-  font-weight: var(--font-bold);
-}
-
-.provider-detail-page header .stat.operator .icon {
-  background: rgb(from var(--color-operator) r g b / 0.2);
-  color: var(--color-operator);
-}
-
-.provider-detail-page header .stat.hook .icon {
-  background: rgb(from var(--color-hook) r g b / 0.2);
-  color: var(--color-hook);
-}
-
-.provider-detail-page header .stat.sensor .icon {
-  background: rgb(from var(--color-sensor) r g b / 0.2);
-  color: var(--color-sensor);
-}
-
-.provider-detail-page header .stat.trigger .icon {
-  background: rgb(from var(--color-trigger) r g b / 0.2);
-  color: var(--color-trigger);
-}
-
-.provider-detail-page header .stat.transfer .icon {
-  background: rgb(from var(--color-transfer) r g b / 0.2);
-  color: var(--color-transfer);
-}
-
-.provider-detail-page header .stat.bundle .icon {
-  background: rgb(from var(--color-bundle) r g b / 0.2);
-  color: var(--color-bundle);
-}
-
-.provider-detail-page header .stat.total .icon {
-  background: rgb(from var(--accent-primary) r g b / 0.2);
-  color: var(--accent-primary);
-}
-
-.provider-detail-page header .stat .count {
-  font-size: var(--text-xl);
-  font-weight: var(--font-bold);
-}
-
-.provider-detail-page header .stat.operator .count {
-  color: var(--color-operator);
-}
-
-.provider-detail-page header .stat.hook .count {
-  color: var(--color-hook);
-}
-
-.provider-detail-page header .stat.sensor .count {
-  color: var(--color-sensor);
-}
-
-.provider-detail-page header .stat.trigger .count {
-  color: var(--color-trigger);
-}
-
-.provider-detail-page header .stat.transfer .count {
-  color: var(--color-transfer);
-}
-
-.provider-detail-page header .stat.bundle .count {
-  color: var(--color-bundle);
-}
-
-.provider-detail-page header .stat.total .count {
-  color: var(--accent-primary);
-}
-
-.provider-detail-page header .stat .label {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-}
-
 /* Header Footer */
 .provider-detail-page header .footer {
   display: flex;
@@ -4366,3 +4222,9 @@ main {
 .error-links a:hover {
   opacity: 0.9;
 }
+
+/* API Explorer (swagger-ui inside site layout) */
+.api-explorer-page .swagger-ui .topbar,
+.api-explorer-page .swagger-ui .scheme-container { display: none; }
+.api-explorer-page .swagger-ui .info { margin: var(--space-4) 0; }
+.api-explorer-page { padding-bottom: var(--space-8); }

@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 
 import pendulum
 from aiohttp import ClientSession as ClientSession
+from asgiref.sync import sync_to_async
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -1336,6 +1337,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         configuration: dict,
         run_after: pendulum.DateTime | datetime | None = None,
         force_rerun: bool = False,
+        try_number: int | None = None,
     ) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
@@ -1361,6 +1363,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             job_id_timestamp = pendulum.now("UTC")
 
         job_id = f"airflow_{dag_id}_{task_id}_{job_id_timestamp.isoformat()}_{uniqueness_suffix}"
+        if try_number:
+            job_id += f"_{try_number}"
         return re.sub(r"[:\-+.]", "_", job_id)
 
     def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime | datetime | None:
@@ -2089,7 +2093,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     ) -> BigQueryJob | UnknownJob:
         """Get BigQuery job by its ID, project ID and location."""
         sync_hook = await self.get_sync_hook()
-        job = sync_hook.get_job(job_id=job_id, project_id=project_id, location=location)
+        job = await sync_to_async(sync_hook.get_job)(job_id=job_id, project_id=project_id, location=location)
         return job
 
     async def get_job_status(

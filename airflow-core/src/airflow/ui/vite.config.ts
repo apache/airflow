@@ -44,6 +44,12 @@ export default defineConfig({
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
   server: {
     cors: true, // Only used by the dev server.
+    proxy: {
+      "/hitl-review": {
+        changeOrigin: true,
+        target: "http://localhost:28080",
+      },
+    },
   },
   test: {
     coverage: {

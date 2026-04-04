@@ -200,6 +200,24 @@ class TestSlackAPIPostOperator:
             },
         )
 
+    @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
+    def test_execute_returns_api_response(self, mock_hook):
+        """Test that execute returns Slack API response data for XCom."""
+        mock_response = mock.MagicMock()
+        mock_response.data = {"ok": True, "ts": "1234567890.123456", "channel": "C1234567890"}
+        mock_hook.return_value.call.return_value = mock_response
+
+        op = SlackAPIPostOperator(
+            task_id="slack",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channel=self.test_channel,
+            text=self.test_text,
+        )
+        result = op.execute({})
+
+        assert result == {"ok": True, "ts": "1234567890.123456", "channel": "C1234567890"}
+        assert result["ts"] == "1234567890.123456"
+
 
 class TestSlackAPIFileOperator:
     def setup_method(self):
@@ -368,3 +386,35 @@ class TestSlackAPIFileOperator:
                 snippet_type=None,
                 thread_ts="1234567890.123456",
             )
+
+    def test_execute_returns_api_response(self):
+        """Test that execute returns Slack API response data for XCom."""
+        mock_response = [mock.MagicMock()]
+        mock_response[0].data = {
+            "ok": True,
+            "ts": "1234567890.123456",
+            "channel": "C1234567890",
+            "file": {"id": "F1234567890"},
+        }
+
+        op = SlackAPIFileOperator(
+            task_id="slack",
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
+            channels="#test-channel",
+            content="test-content",
+        )
+        with mock.patch(
+            "airflow.providers.slack.operators.slack.SlackHook.send_file_v1_to_v2",
+            return_value=mock_response,
+        ):
+            result = op.execute({})
+
+        expected = {
+            "ok": True,
+            "ts": "1234567890.123456",
+            "channel": "C1234567890",
+            "file": {"id": "F1234567890"},
+        }
+        assert result == [expected]
+        assert result[0]["ts"] == "1234567890.123456"
+        assert result[0]["file"]["id"] == "F1234567890"

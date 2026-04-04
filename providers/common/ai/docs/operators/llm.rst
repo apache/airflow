@@ -29,7 +29,7 @@ The operator sends a prompt to an LLM via
 returns the output as XCom.
 
 .. seealso::
-    :ref:`Connection configuration <howto/connection:pydantic_ai>`
+    :ref:`Connection configuration <howto/connection:pydanticai>`
 
 Basic Usage
 -----------

@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1773070067
+source-date-epoch: 1774298274
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.24.0
   - 9.23.0
   - 9.22.0
   - 9.21.0
@@ -941,8 +942,8 @@ connection-types:
         login: AWS Access Key ID
         password: AWS Secret Access Key
       placeholders:
-        login: AKIAIOSFODNN7EXAMPLE
-        password: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+        login: YOUR_AWS_ACCESS_KEY_ID
+        password: YOUR_AWS_SECRET_ACCESS_KEY
         extra: |
           {
             "region_name": "us-east-1",
@@ -951,7 +952,7 @@ connection-types:
             "role_arn": "arn:aws:iam::123456789098:role/role-name",
             "assume_role_method": "assume_role",
             "assume_role_kwargs": {"RoleSessionName": "airflow"},
-            "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",
+            "aws_session_token": "YOUR_AWS_SESSION_TOKEN",
             "endpoint_url": "http://localhost:4566"
           }
   - hook-class-name: airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook
@@ -1014,8 +1015,8 @@ connection-types:
         login: AWS Access Key ID
         password: AWS Secret Access Key
       placeholders:
-        login: AKIAIOSFODNN7EXAMPLE
-        password: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+        login: YOUR_AWS_ACCESS_KEY_ID
+        password: YOUR_AWS_SECRET_ACCESS_KEY
         extra: |
           {
             "aws_domain": "amazonaws.com",
@@ -1028,12 +1029,13 @@ connection-types:
             "role_arn": "arn:aws:iam::123456789098:role/role-name",
             "assume_role_method": "assume_role",
             "assume_role_kwargs": {"RoleSessionName": "airflow"},
-            "aws_session_token": "AQoDYXdzEJr...EXAMPLETOKEN",
+            "aws_session_token": "YOUR_AWS_SESSION_TOKEN",
             "endpoint_url": "http://localhost:4566"
           }
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
+  - airflow.providers.amazon.aws.notifications.ses.SesNotifier
   - airflow.providers.amazon.aws.notifications.sns.SnsNotifier
   - airflow.providers.amazon.aws.notifications.sqs.SqsNotifier
 
@@ -1400,6 +1402,8 @@ config:
         default: ~
 
 executors:
+  - airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor
+  - airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor
   - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor
 
 auth-managers:

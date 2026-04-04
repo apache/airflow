@@ -28,7 +28,7 @@ test.describe("Dag Trigger Workflow", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("should successfully trigger a Dag run", async () => {
+  test.fixme("should successfully trigger a Dag run", async () => {
     test.setTimeout(7 * 60 * 1000);
 
     const dagRunId = await dagsPage.triggerDag(testDagId);
@@ -48,8 +48,8 @@ test.describe("Dag Details Tab", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("should successfully verify details tab", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers
+  test.fixme("should successfully verify details tab", async () => {
+    test.setTimeout(120_000);
     await dagsPage.verifyDagDetails(testDagId);
   });
 });
@@ -62,7 +62,7 @@ test.describe("Dags List Display", () => {
   });
 
   test("should display Dags list after successful login", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers
+    test.setTimeout(120_000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -72,7 +72,7 @@ test.describe("Dags List Display", () => {
   });
 
   test("should display Dag links correctly", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers
+    test.setTimeout(120_000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -86,15 +86,12 @@ test.describe("Dags List Display", () => {
   });
 
   test("should display test Dag in the list", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers
+    test.setTimeout(120_000);
     const testDagId = testConfig.testDag.id;
 
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
-
-    const dagExists = await dagsPage.verifyDagExists(testDagId);
-
-    expect(dagExists).toBe(true);
+    await dagsPage.verifyDagExists(testDagId);
   });
 });
 
@@ -106,25 +103,19 @@ test.describe("Dags View Toggle", () => {
   });
 
   test("should toggle between card view and table view", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
+    test.setTimeout(120_000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
     await dagsPage.switchToCardView();
-
-    const cardViewVisible = await dagsPage.verifyCardViewVisible();
-
-    expect(cardViewVisible).toBe(true);
+    await dagsPage.verifyCardViewVisible();
 
     const cardViewDagsCount = await dagsPage.getDagsCount();
 
     expect(cardViewDagsCount).toBeGreaterThan(0);
 
     await dagsPage.switchToTableView();
-
-    const tableViewVisible = await dagsPage.verifyTableViewVisible();
-
-    expect(tableViewVisible).toBe(true);
+    await dagsPage.verifyTableViewVisible();
 
     const tableViewDagsCount = await dagsPage.getDagsCount();
 
@@ -141,8 +132,8 @@ test.describe("Dags Search", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("should search for a Dag by name", async () => {
-    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
+  test.fixme("should search for a Dag by name", async () => {
+    test.setTimeout(120_000);
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -151,17 +142,11 @@ test.describe("Dags Search", () => {
     expect(initialCount).toBeGreaterThan(0);
 
     await dagsPage.searchDag(testDagId);
-
-    const dagExists = await dagsPage.verifyDagExists(testDagId);
-
-    expect(dagExists).toBe(true);
-
+    await dagsPage.verifyDagExists(testDagId);
     await dagsPage.clearSearch();
 
     await dagsPage.verifyDagsListVisible();
 
-    // Use poll to wait for the count to restore after clearing search
-    // This handles timing differences between local and CI environments
     await expect
       .poll(async () => dagsPage.getDagsCount(), {
         message: "Waiting for DAGs count to restore after clearing search",

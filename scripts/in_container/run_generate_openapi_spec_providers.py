@@ -36,7 +36,6 @@ class ProviderDef(NamedTuple):
     prefix: str
 
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 ProvidersManager().initialize_providers_configuration()
 
 

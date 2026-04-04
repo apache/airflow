@@ -54,7 +54,7 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
     :param azure_conn_id: The Airflow WASB connection used for azure blob credentials.
     :param teradata_table: The name of the teradata table to which the data is transferred.(templated)
     :param teradata_conn_id: The connection ID used to connect to Teradata
-        :ref:`Teradata connection <howto/connection:Teradata>`
+        :ref:`Teradata connection <howto/connection:teradata>`
     :param teradata_authorization_name: The name of Teradata Authorization Database Object,
         is used to control who can access an Azure Blob object store.
         Refer to

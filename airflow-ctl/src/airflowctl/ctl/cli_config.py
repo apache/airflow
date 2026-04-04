@@ -152,7 +152,10 @@ class Arg:
                     return self._is_valid_directory(parser, x)
 
                 self.kwargs["type"] = type
-        parser.add_argument(*self.flags, **self.kwargs)
+        kwargs = self.kwargs.copy()
+        if kwargs.get("action") is argparse.BooleanOptionalAction:
+            kwargs.pop("type", None)
+        parser.add_argument(*self.flags, **kwargs)
 
     def _is_valid_directory(self, parser, arg):
         if not os.path.isdir(arg):

@@ -61,6 +61,25 @@ class TestPluralHandling:
         assert "message_many" in expanded
         assert "message_other" in expanded
 
+    def test_expand_plural_keys_only_expands_when_en_has_count_placeholder(self):
+        # When en has error_one without {{count}}, we must not require error_other
+        keys = {"error_one"}
+        en_key_to_value = {"error_one": "1 Error"}
+        expanded = expand_plural_keys(keys, "pt", en_key_to_value)
+        assert "error_one" in expanded
+        assert "error_other" not in expanded
+
+    def test_expand_plural_keys_expands_when_en_has_count_placeholder(self):
+        # Polish has 4 plural forms (_one, _few, _many, _other). Input has only _one and _other;
+        # expansion must add _few and _many so the test verifies the expansion logic ran.
+        keys = {"warning_one", "warning_other"}
+        en_key_to_value = {"warning_one": "1 Warning", "warning_other": "{{count}} Warnings"}
+        expanded = expand_plural_keys(keys, "pl", en_key_to_value)
+        assert "warning_one" in expanded
+        assert "warning_other" in expanded
+        assert "warning_few" in expanded
+        assert "warning_many" in expanded
+
 
 class TestFlattenKeys:
     def test_flatten_simple_dict(self):
@@ -112,7 +131,7 @@ class TestCompareKeys:
 
             assert "test.json" in summary
             assert summary["test.json"].missing_keys.get("de", []) == []
-            assert summary["test.json"].extra_keys.get("de", []) == []
+            assert summary["test.json"].unused_keys.get("de", []) == []
         finally:
             ui_commands.LOCALES_DIR = original_locales_dir
 
@@ -171,16 +190,50 @@ class TestCompareKeys:
             summary, missing_counts = compare_keys(locale_files)
 
             assert "test.json" in summary
-            assert "extra" in summary["test.json"].extra_keys.get("de", [])
+            assert "extra" in summary["test.json"].unused_keys.get("de", [])
+        finally:
+            ui_commands.LOCALES_DIR = original_locales_dir
+
+    def test_compare_keys_optional_plural_unused_when_no_count(self, tmp_path):
+        """Plural variant of EN base with no {{count}} in EN is reported as unused."""
+        en_dir = tmp_path / "en"
+        en_dir.mkdir()
+        de_dir = tmp_path / "de"
+        de_dir.mkdir()
+
+        # EN has only error_one (no {{count}}), so error_other is never used at runtime
+        en_data = {"dagWarnings": {"error_one": "1 Error"}}
+        de_data = {"dagWarnings": {"error_one": "1 Fehler", "error_other": "{{count}} Fehler"}}
+
+        (en_dir / "test.json").write_text(json.dumps(en_data))
+        (de_dir / "test.json").write_text(json.dumps(de_data))
+
+        import airflow_breeze.commands.ui_commands as ui_commands
+
+        original_locales_dir = ui_commands.LOCALES_DIR
+        ui_commands.LOCALES_DIR = tmp_path
+
+        try:
+            locale_files = [
+                LocaleFiles(locale="en", files=["test.json"]),
+                LocaleFiles(locale="de", files=["test.json"]),
+            ]
+            summary, _ = compare_keys(locale_files)
+
+            # EN base has no {{count}}, so error_other is not required and is unused
+            assert "dagWarnings.error_other" in summary["test.json"].unused_keys.get("de", [])
         finally:
             ui_commands.LOCALES_DIR = original_locales_dir
 
 
 class TestLocaleSummary:
     def test_locale_summary_creation(self):
-        summary = LocaleSummary(missing_keys={"de": ["key1", "key2"]}, extra_keys={"de": ["key3"]})
+        summary = LocaleSummary(
+            missing_keys={"de": ["key1", "key2"]},
+            unused_keys={"de": ["key3"]},
+        )
         assert summary.missing_keys == {"de": ["key1", "key2"]}
-        assert summary.extra_keys == {"de": ["key3"]}
+        assert summary.unused_keys == {"de": ["key3"]}
 
 
 class TestLocaleFiles:
@@ -255,7 +308,7 @@ class TestAddMissingTranslations:
         try:
             summary = LocaleSummary(
                 missing_keys={"de": ["farewell"]},
-                extra_keys={"de": []},
+                unused_keys={"de": []},
             )
             add_missing_translations("de", {"test.json": summary})
 
@@ -267,9 +320,9 @@ class TestAddMissingTranslations:
             ui_commands.LOCALES_DIR = original_locales_dir
 
 
-class TestRemoveExtraTranslations:
-    def test_remove_extra_translations(self, tmp_path):
-        from airflow_breeze.commands.ui_commands import remove_extra_translations
+class TestRemoveUnusedTranslations:
+    def test_remove_unused_translations(self, tmp_path):
+        from airflow_breeze.commands.ui_commands import remove_unused_translations
 
         de_dir = tmp_path / "de"
         de_dir.mkdir()
@@ -285,11 +338,11 @@ class TestRemoveExtraTranslations:
         try:
             summary = LocaleSummary(
                 missing_keys={"de": []},
-                extra_keys={"de": ["extra"]},
+                unused_keys={"de": ["extra"]},
             )
-            remove_extra_translations("de", {"test.json": summary})
+            remove_unused_translations("de", {"test.json": summary})
 
-            # Check that the extra key was removed
+            # Check that the unused key was removed
             de_data_updated = json.loads((de_dir / "test.json").read_text())
             assert "extra" not in de_data_updated
             assert "greeting" in de_data_updated
@@ -330,7 +383,7 @@ class TestNaturalSorting:
         try:
             summary = LocaleSummary(
                 missing_keys={"de": list(en_data.keys())},
-                extra_keys={"de": []},
+                unused_keys={"de": []},
             )
             add_missing_translations("de", {"test.json": summary})
 

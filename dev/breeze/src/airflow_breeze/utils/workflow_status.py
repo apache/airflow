@@ -51,7 +51,7 @@ def workflow_status(
         "--repo",
         "apache/airflow",
         "--json",
-        "conclusion,url",
+        "conclusion,url,databaseId",
     ]
     result = subprocess.run(
         cmd,
@@ -71,6 +71,33 @@ def workflow_status(
     return run_info
 
 
+def get_failed_jobs(run_id: int) -> list[str]:
+    """Get list of failed job names from a workflow run."""
+    cmd = [
+        "gh",
+        "run",
+        "view",
+        str(run_id),
+        "--repo",
+        "apache/airflow",
+        "--json",
+        "jobs",
+        "--jq",
+        '[.jobs[] | select(.conclusion == "failure") | .name] | sort | .[]',
+    ]
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        console.print(f"[red]Error fetching failed jobs: {result.stderr}[/red]")
+        return []
+
+    return [line.strip() for line in result.stdout.strip().splitlines() if line.strip()]
+
+
 if __name__ == "__main__":
     branch = os.environ.get("workflow_branch")
     workflow_id = os.environ.get("workflow_id")
@@ -84,6 +111,13 @@ if __name__ == "__main__":
     data: list[dict] = workflow_status(branch, workflow_id)
     conclusion = data[0].get("conclusion")
     url = data[0].get("url")
+    run_id = data[0].get("databaseId")
+
+    failed_jobs: list[str] = []
+    if conclusion == "failure" and run_id:
+        console.print(f"[blue]Fetching failed jobs for run {run_id}[/blue]")
+        failed_jobs = get_failed_jobs(run_id)
+        console.print(f"[blue]Failed jobs: {failed_jobs}[/blue]")
 
     if os.environ.get("GITHUB_OUTPUT") is None:
         console.print("[red]GITHUB_OUTPUT environment variable is not set. Cannot write output.[/red]")
@@ -92,3 +126,6 @@ if __name__ == "__main__":
     with open(os.environ["GITHUB_OUTPUT"], "a") as f:
         f.write(f"conclusion={conclusion}\n")
         f.write(f"run-url={url}\n")
+        f.write(f"run-id={run_id}\n")
+        failed_jobs_str = "\n".join(failed_jobs)
+        f.write(f"failed-jobs<<EOF\n{failed_jobs_str}\nEOF\n")

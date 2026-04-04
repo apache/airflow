@@ -26,11 +26,9 @@ If any version returns non-200 the hook fails with instructions.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import console, read_allowed_kubernetes_versions
 
 PROBE_URL_TEMPLATE = "https://airflow.apache.org/k8s-schemas/v{version}-standalone-strict/configmap-v1.json"

@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 import json
+import sqlite3
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -29,6 +31,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
@@ -69,6 +72,31 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
     },
     "required": ["sql"],
 }
+
+_POSTGRES_RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = ()
+with suppress(ImportError):
+    import psycopg2.errors as _psycopg2_errors
+
+    _POSTGRES_RETRYABLE_EXCEPTIONS += (
+        _psycopg2_errors.UndefinedColumn,
+        _psycopg2_errors.UndefinedTable,
+    )
+
+with suppress(ImportError):
+    from psycopg import errors as _psycopg3_errors
+
+    _POSTGRES_RETRYABLE_EXCEPTIONS += (
+        _psycopg3_errors.UndefinedColumn,
+        _psycopg3_errors.UndefinedTable,
+    )
+
+_SQLALCHEMY_RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = ()
+with suppress(ImportError):
+    from sqlalchemy.exc import (
+        ProgrammingError as _SQLAlchemyProgrammingError,
+    )
+
+    _SQLALCHEMY_RETRYABLE_EXCEPTIONS = (_SQLAlchemyProgrammingError,)
 
 
 class SQLToolset(AbstractToolset[Any]):
@@ -204,7 +232,14 @@ class SQLToolset(AbstractToolset[Any]):
             _validate_sql(sql)
 
         hook = self._get_db_hook()
-        rows = hook.get_records(sql)
+        try:
+            rows = hook.get_records(sql)
+        except Exception as e:
+            if self._is_retryable_query_error(hook, e):
+                raise ModelRetry(
+                    f"error: {e!s}, Use get_schema and list_tables tools for more details."
+                ) from e
+            raise
         # Fetch column names from cursor description.
         col_names: list[str] | None = None
         if hook.last_description:
@@ -222,6 +257,24 @@ class SQLToolset(AbstractToolset[Any]):
             output["truncated"] = True
             output["max_rows"] = self._max_rows
         return json.dumps(output, default=str)
+
+    @staticmethod
+    def _is_retryable_query_error(hook: DbApiHook, error: Exception) -> bool:
+        check_error = getattr(error, "orig", error)
+        conn_type = getattr(hook, "conn_type", None)
+        if conn_type == "postgres":
+            return bool(_POSTGRES_RETRYABLE_EXCEPTIONS) and isinstance(
+                check_error, _POSTGRES_RETRYABLE_EXCEPTIONS
+            )
+        if conn_type == "sqlite":
+            if isinstance(check_error, sqlite3.OperationalError):
+                message = str(check_error).lower()
+                return "no such column" in message or "no such table" in message
+            return False
+        if _SQLALCHEMY_RETRYABLE_EXCEPTIONS and isinstance(error, _SQLALCHEMY_RETRYABLE_EXCEPTIONS):
+            return True
+        # TODO: Add support for other databases.
+        return False
 
     def _check_query(self, sql: str) -> str:
         try:

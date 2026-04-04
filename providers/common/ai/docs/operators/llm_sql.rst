@@ -27,7 +27,7 @@ The operator generates SQL but does not execute it. The generated query is retur
 as XCom and can be passed to ``SQLExecuteQueryOperator`` or used in downstream tasks.
 
 .. seealso::
-    :ref:`Connection configuration <howto/connection:pydantic_ai>`
+    :ref:`Connection configuration <howto/connection:pydanticai>`
 
 Basic Usage
 -----------

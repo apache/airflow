@@ -67,6 +67,19 @@ XCOM_JOB_ID_KEY = "job_id"
 XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 XCOM_STATEMENT_ID_KEY = "statement_id"
 
+# Mapping from Airflow TriggerRule to Databricks RunIf condition.
+# Only non-default rules are included; ALL_SUCCESS is the Databricks default
+# and is omitted to keep the task JSON minimal.
+_TRIGGER_RULE_TO_DATABRICKS_RUN_IF: dict[str, str] = {
+    "all_failed": "ALL_FAILED",
+    "all_done": "ALL_DONE",
+    "one_success": "AT_LEAST_ONE_SUCCESS",
+    "one_failed": "AT_LEAST_ONE_FAILED",
+    "none_failed": "NONE_FAILED",
+    "none_failed_min_one_success": "NONE_FAILED",
+    "always": "ALL_DONE",
+}
+
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     """
@@ -210,8 +223,17 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
                 method_name=DEFER_METHOD_NAME,
             )
         else:
-            if run_state.is_successful:
-                log.info("%s completed successfully.", operator.task_id)
+            failed_tasks = extract_failed_task_errors(hook, run_info, run_state)
+            operator.execute_complete(
+                context=context,
+                event={
+                    "run_id": operator.run_id,
+                    "run_page_url": run_page_url,
+                    "run_state": run_state.to_json(),
+                    "repair_run": getattr(operator, "repair_run", False),
+                    "errors": failed_tasks,
+                },
+            )
 
 
 def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) -> None:
@@ -1329,7 +1351,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         """Retrieve the Databricks task corresponding to the current Airflow task."""
         if self.databricks_run_id is None:
             raise ValueError("Databricks job not yet launched. Please run launch_notebook_job first.")
-        tasks = self._hook.get_run(self.databricks_run_id)["tasks"]
+        tasks = self._hook.get_run_tasks(self.databricks_run_id)
 
         # Because the task_key remains the same across multiple runs, and the Databricks API does not return
         # tasks sorted by their attempts/start time, we sort the tasks by start time. This ensures that we
@@ -1347,6 +1369,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     ) -> dict[str, object]:
         """Convert the operator to a Databricks workflow task that can be a task in a workflow."""
         base_task_json = self._get_task_base_json()
+
         result = {
             "task_key": self.databricks_task_key,
             "depends_on": [
@@ -1356,6 +1379,26 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             ],
             **base_task_json,
         }
+
+        trigger_rule_value = (
+            self.trigger_rule.value if hasattr(self.trigger_rule, "value") else str(self.trigger_rule)
+        )
+        databricks_run_if = _TRIGGER_RULE_TO_DATABRICKS_RUN_IF.get(trigger_rule_value)
+        if databricks_run_if:
+            self.log.info(
+                "Mapping Airflow trigger_rule '%s' to Databricks run_if '%s' for task '%s'",
+                trigger_rule_value,
+                databricks_run_if,
+                self.task_id,
+            )
+            result["run_if"] = databricks_run_if
+        else:
+            self.log.info(
+                "No Databricks run_if mapping for Airflow trigger_rule '%s' on task '%s'; "
+                "using Databricks default (ALL_SUCCESS)",
+                trigger_rule_value,
+                self.task_id,
+            )
 
         if self.existing_cluster_id and self.job_cluster_key:
             raise ValueError(
@@ -1382,7 +1425,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self.log.info("Check the task run in Databricks: %s", run_page_url)
         run_state = RunState(**run["state"])
         self.log.info(
-            "Current state of the the databricks task %s is %s",
+            "Current state of the databricks task %s is %s",
             self.databricks_task_key,
             run_state.life_cycle_state,
         )

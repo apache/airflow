@@ -49,7 +49,7 @@ class TestLLMBranchDecoratedOperator:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.positive)
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = "positive"
 
         def my_prompt():
@@ -92,7 +92,7 @@ class TestLLMBranchDecoratedOperator:
 
         mock_agent = MagicMock(spec=["run_sync"])
         mock_agent.run_sync.return_value = _make_mock_run_result(downstream_enum.task_a)
-        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         def my_prompt(ticket_type):
             return f"Route this {ticket_type} ticket"

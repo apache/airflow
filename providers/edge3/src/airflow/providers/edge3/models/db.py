@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import inspect
 
@@ -27,11 +28,24 @@ from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
 from airflow.utils.db_manager import BaseDBManager
 
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Inspector
+
+try:
+    from airflow.utils.db_manager import _callable_accepts_use_migration_files
+except ImportError:
+    # Older Airflow versions do not have this helper; those versions also do not
+    # accept use_migration_files on BaseDBManager methods, so always return False.
+    def _callable_accepts_use_migration_files(callable_: Any) -> bool:
+        return False
+
+
 PACKAGE_DIR = Path(__file__).parents[1]
 
 _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.0": "9d34dfc2de06",
-    "3.2.0": "b3c4d5e6f7a8",
+    "3.2.0": "8c275b6fbaa8",
+    "3.4.0": "a09c3ee8e1d3",
 }
 
 
@@ -46,7 +60,7 @@ class EdgeDBManager(BaseDBManager):
     supports_table_dropping = True
     revision_heads_map = _REVISION_HEADS_MAP
 
-    def initdb(self):
+    def initdb(self, use_migration_files: bool = False):
         """
         Initialize the database, handling pre-alembic installations.
 
@@ -55,13 +69,22 @@ class EdgeDBManager(BaseDBManager):
         stamp to the first revision and run the incremental upgrade so every
         migration is applied rather than jumping straight to head.
         """
+        # Older Airflow's BaseDBManager.upgradedb() does not accept use_migration_files.
+        _umf_kwargs: dict = (
+            {"use_migration_files": use_migration_files}
+            if _callable_accepts_use_migration_files(self.upgradedb)
+            else {}
+        )
+
         db_exists = self.get_current_revision()
         if db_exists:
-            self.upgradedb()
+            self.upgradedb(**_umf_kwargs)
         else:
             from airflow import settings
 
-            existing_tables = set(inspect(settings.engine).get_table_names())
+            engine = settings.engine
+            inspector: Inspector | None = inspect(engine) if engine is not None else None
+            existing_tables = set(inspector.get_table_names()) if inspector is not None else set()
             if any(table in existing_tables for table in self.metadata.tables):
                 script = self.get_script_object()
                 base_revision = next(r.revision for r in script.walk_revisions() if r.down_revision is None)
@@ -69,7 +92,9 @@ class EdgeDBManager(BaseDBManager):
                 from alembic import command
 
                 command.stamp(config, base_revision)
-                self.upgradedb()
+                self.upgradedb(**_umf_kwargs)
+            elif use_migration_files:
+                self.upgradedb(**_umf_kwargs)
             else:
                 self.create_db_from_orm()
 
@@ -104,7 +129,7 @@ def check_db_manager_config() -> None:
     Should be called whenever the edge3 provider is active so operators are alerted
     early if the required database configuration is missing.
     """
-    from airflow.configuration import conf
+    from airflow.providers.common.compat.sdk import conf
     from airflow.providers_manager import ProvidersManager
 
     fqcn = f"{EdgeDBManager.__module__}.{EdgeDBManager.__name__}"

@@ -100,8 +100,9 @@ def init_views(app: FastAPI) -> None:
     @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
     def webapp(request: Request, rest_of_path: str):
         return templates.TemplateResponse(
+            request,
             "/index.html",
-            {"request": request, "backend_server_base_url": request.base_url.path},
+            {"backend_server_base_url": request.base_url.path},
             media_type="text/html",
         )
 
@@ -165,6 +166,7 @@ def init_error_handlers(app: FastAPI) -> None:
 
 def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+    from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 
     app.add_middleware(JWTRefreshMiddleware)
     if conf.getboolean("core", "simple_auth_manager_all_admins"):
@@ -172,8 +174,10 @@ def init_middlewares(app: FastAPI) -> None:
 
         app.add_middleware(SimpleAllAdminMiddleware)
 
-    # The GzipMiddleware should be the last middleware added as https://github.com/apache/airflow/issues/60165 points out.
-    # Compress responses greater than 1kB with optimal compression level as 5
-    # with level ranging from 1 to 9 with 1 (fastest, least compression)
-    # and 9 (slowest, most compression)
+    # GZipMiddleware must be inside HttpAccessLogMiddleware so that access logs capture
+    # the full end-to-end duration including compression time.
+    # See https://github.com/apache/airflow/issues/60165
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+    # HttpAccessLogMiddleware must be outermost (added last) so it times the full
+    # request lifecycle including all inner middleware.
+    app.add_middleware(HttpAccessLogMiddleware)

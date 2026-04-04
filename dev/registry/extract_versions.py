@@ -47,6 +47,7 @@ from pathlib import Path
 from typing import Any
 
 import tomllib
+from registry_contract_models import validate_provider_version_metadata
 
 try:
     import yaml
@@ -54,6 +55,8 @@ except ImportError:
     print("ERROR: PyYAML required. Install with: pip install pyyaml")
     sys.exit(1)
 
+from extract_metadata import fetch_provider_inventory, read_connection_urls, resolve_connection_docs_url
+from registry_tools.types import MODULE_LEVEL_SECTIONS, TYPE_SUFFIXES
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 PROVIDERS_DIR = AIRFLOW_ROOT / "providers"
@@ -203,14 +206,7 @@ def extract_modules_from_yaml(
     else:
         base_source_url = f"https://github.com/apache/airflow/blob/{tag}/providers/src"
 
-    type_patterns = {
-        "operator": ["Operator", "Command"],
-        "hook": ["Hook"],
-        "sensor": ["Sensor"],
-        "trigger": ["Trigger"],
-        "transfer": ["Operator", "Transfer"],
-        "bundle": ["Bundle"],
-    }
+    type_patterns = TYPE_SUFFIXES
 
     def get_category(integration_name: str) -> str:
         cat_id = integration_name.lower().replace(" ", "-").replace("(", "").replace(")", "")
@@ -277,14 +273,7 @@ def extract_modules_from_yaml(
         )
 
     # Module-level sections (each group has integration-name + python-modules)
-    MODULE_SECTIONS = {
-        "operators": "operator",
-        "hooks": "hook",
-        "sensors": "sensor",
-        "triggers": "trigger",
-        "bundles": "bundle",
-    }
-    for yaml_key, mod_type in MODULE_SECTIONS.items():
+    for yaml_key, mod_type in MODULE_LEVEL_SECTIONS.items():
         for group in provider_yaml.get(yaml_key, []):
             integration = group.get("integration-name", "")
             category = get_category(integration)
@@ -379,13 +368,21 @@ def extract_version_data(
     if layout == "old" and not pyproject_data["dependencies"]:
         pyproject_data["dependencies"] = provider_yaml.get("dependencies", [])
 
-    # Connection types
+    # Connection types — resolve per-conn_type docs URLs from Sphinx inventory
+    package_name = provider_yaml.get("package-name", f"apache-airflow-providers-{provider_id}")
+    base_docs_url = f"https://airflow.apache.org/docs/{package_name}/stable"
+    conn_url_map: dict[str, str] = {}
+    inv_path = fetch_provider_inventory(package_name)
+    if inv_path:
+        conn_url_map = read_connection_urls(inv_path)
     connection_types = []
     for ct in provider_yaml.get("connection-types", []):
+        conn_type = ct.get("connection-type", "")
         connection_types.append(
             {
-                "conn_type": ct.get("connection-type", ""),
+                "conn_type": conn_type,
                 "hook_class": ct.get("hook-class-name", ""),
+                "docs_url": resolve_connection_docs_url(conn_type, conn_url_map, base_docs_url),
             }
         )
 
@@ -393,17 +390,19 @@ def extract_version_data(
     modules = extract_modules_from_yaml(provider_yaml, tag, layout, dir_path, provider_id, version)
     module_counts = count_modules(modules)
 
-    return {
-        "provider_id": provider_id,
-        "version": version,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "requires_python": pyproject_data["requires_python"],
-        "dependencies": pyproject_data["dependencies"],
-        "optional_extras": pyproject_data["optional_extras"],
-        "connection_types": connection_types,
-        "module_counts": module_counts,
-        "modules": modules,
-    }
+    return validate_provider_version_metadata(
+        {
+            "provider_id": provider_id,
+            "version": version,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "requires_python": pyproject_data["requires_python"],
+            "dependencies": pyproject_data["dependencies"],
+            "optional_extras": pyproject_data["optional_extras"],
+            "connection_types": connection_types,
+            "module_counts": module_counts,
+            "modules": modules,
+        }
+    )
 
 
 def extract_and_write_version_data(provider_id: str, version: str, dir_path: str) -> dict[str, Any] | None:

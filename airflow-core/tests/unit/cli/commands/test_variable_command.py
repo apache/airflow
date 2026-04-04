@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import redirect_stdout
+from io import StringIO
 
 import pytest
 import yaml
@@ -231,6 +233,96 @@ class TestCliVariables:
         """Test variable_list command"""
         # Test command is received
         variable_command.variables_list(self.parser.parse_args(["variables", "list"]))
+
+    def test_variables_list_show_values(self):
+        """Test variables list with --show-values flag shows actual values."""
+        # Create test variables
+        Variable.set("test_key1", "test_value1")
+        Variable.set("test_key2", "test_value2")
+
+        args = self.parser.parse_args(["variables", "list", "--output", "json", "--show-values"])
+        with redirect_stdout(StringIO()) as stdout_io:
+            variable_command.variables_list(args)
+            output = stdout_io.getvalue()
+
+        # Parse JSON output and verify values are shown
+        data = json.loads(output)
+        assert len(data) >= 2
+        key_value_map = {item["key"]: item["val"] for item in data}
+        assert "test_value1" in key_value_map["test_key1"]
+        assert "test_value2" in key_value_map["test_key2"]
+
+    def test_variables_list_hide_sensitive(self):
+        """Test variables list with --hide-sensitive masks all values."""
+        # Create test variables
+        Variable.set("test_key1", "test_value1")
+        Variable.set("test_key2", "test_value2")
+
+        args = self.parser.parse_args(
+            ["variables", "list", "--output", "json", "--show-values", "--hide-sensitive"]
+        )
+        with redirect_stdout(StringIO()) as stdout_io:
+            variable_command.variables_list(args)
+            output = stdout_io.getvalue()
+
+        # Parse JSON output and verify values are masked
+        data = json.loads(output)
+        assert len(data) >= 2
+        for item in data:
+            if "test_key" in item["key"]:
+                assert item["val"] == "***"
+
+    def test_variables_list_hide_sensitive_without_show_values_fails(self):
+        """--hide-sensitive without --show-values should fail."""
+        args = self.parser.parse_args(["variables", "list", "--hide-sensitive"])
+        with pytest.raises(SystemExit, match="--hide-sensitive can only be used with --show-values"):
+            variable_command.variables_list(args)
+
+    def test_variables_list_default_hides_values(self):
+        """By default, variables list should only show keys, not values."""
+        Variable.set("test_key1", "test_value1")
+        Variable.set("test_key2", "test_value2")
+
+        args = self.parser.parse_args(["variables", "list", "--output", "json"])
+        with redirect_stdout(StringIO()) as stdout_io:
+            variable_command.variables_list(args)
+            output = stdout_io.getvalue()
+
+        data = json.loads(output)
+        assert len(data) >= 2
+        for item in data:
+            if "test_key" in item["key"]:
+                assert "val" not in item
+
+    def test_variables_list_edge_cases(self):
+        """Test variables list with None and empty values."""
+        Variable.set("empty_var", "")
+        Variable.set("none_var", None)
+        Variable.set("normal_var", "normal_value")
+
+        args = self.parser.parse_args(["variables", "list", "--output", "json", "--show-values"])
+        with redirect_stdout(StringIO()) as stdout_io:
+            variable_command.variables_list(args)
+            output = stdout_io.getvalue()
+
+        data = json.loads(output)
+        key_value_map = {item["key"]: item["val"] for item in data}
+
+        assert key_value_map["empty_var"] == ""
+        assert key_value_map["none_var"] == "None"
+        assert key_value_map["normal_var"] == "normal_value"
+
+        args = self.parser.parse_args(
+            ["variables", "list", "--output", "json", "--show-values", "--hide-sensitive"]
+        )
+        with redirect_stdout(StringIO()) as stdout_io:
+            variable_command.variables_list(args)
+            output = stdout_io.getvalue()
+
+        data = json.loads(output)
+        for item in data:
+            if item["key"] in ["empty_var", "none_var", "normal_var"]:
+                assert item["val"] == "***"
 
     def test_variables_delete(self):
         """Test variable_delete command"""
