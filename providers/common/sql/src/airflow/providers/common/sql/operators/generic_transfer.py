@@ -31,6 +31,31 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
+def _emit_transfer_heartbeat(log, context: Context | None, *, page_detail: str) -> None:
+    """
+    Best-effort heartbeat so the scheduler does not treat long transfers as dead.
+
+    Uses ``ti.heartbeat()`` or ``ti.update_heartbeat()`` when available (depending
+    on execution context / Airflow version).
+    """
+    if not context:
+        return
+    ti = context.get("ti")
+    if ti is None:
+        ti = context.get("task_instance")
+    if ti is None:
+        return
+    for method_name in ("heartbeat", "update_heartbeat"):
+        hb = getattr(ti, method_name, None)
+        if callable(hb):
+            hb()
+            log.debug(
+                "Sent task instance heartbeat after %s to avoid scheduler heartbeat timeout.",
+                page_detail,
+            )
+            return
+
+
 class GenericTransfer(BaseOperator):
     """
     Moves data from a connection to another.
@@ -40,6 +65,22 @@ class GenericTransfer(BaseOperator):
     `insert_rows` method.
 
     This is meant to be used on small-ish datasets that fit in memory.
+
+    .. note::
+        For long-running transfers (roughly longer than a few minutes), tune Airflow
+        so the scheduler does not terminate the task for missing heartbeats:
+
+        - ``[scheduler] task_instance_heartbeat_timeout`` — set higher than the
+          longest expected continuous blocking phase (e.g. ``3600`` for one hour).
+        - ``[celery_broker_transport_options] visibility_timeout`` — must exceed
+          your maximum task duration when using CeleryExecutor (e.g. ``43200`` for
+          12 hours).
+        - ``[scheduler] task_instance_heartbeat_sec`` — how often the worker
+          heartbeats the task; lower values (e.g. ``60``) reduce the risk of a
+          single long blocking section exceeding the timeout.
+
+        This operator also emits a heartbeat after each page or SQL batch when the
+        execution context exposes ``ti.heartbeat()`` or ``ti.update_heartbeat()``.
 
     :param sql: SQL query to execute against the source database. (templated)
     :param destination_table: target table. (templated)
@@ -172,11 +213,16 @@ class GenericTransfer(BaseOperator):
                 self.sql = [self.sql]
 
             self.log.info("Extracting data from %s", self.source_conn_id)
-            for sql in self.sql:
+            for i, sql in enumerate(self.sql, start=1):
                 self.log.info("Executing: \n %s", sql)
 
                 rows = self.source_hook.get_records(sql)
                 self._insert_rows(rows=rows, context=context)
+                _emit_transfer_heartbeat(
+                    self.log,
+                    context,
+                    page_detail=f"SQL batch {i} of {len(self.sql)}",
+                )
 
     def execute_complete(
         self,
@@ -206,6 +252,11 @@ class GenericTransfer(BaseOperator):
                 context["ti"].xcom_push(key="offset", value=offset)
 
                 self._insert_rows(rows=rows, context=context)
+                _emit_transfer_heartbeat(
+                    self.log,
+                    context,
+                    page_detail=f"paginated transfer (next offset {offset})",
+                )
 
                 self.defer(
                     trigger=SQLExecuteQueryTrigger(

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import inspect
 from contextlib import closing
 from datetime import datetime, timedelta
@@ -35,7 +36,11 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 
 from tests_common.test_utils.compat import GenericTransfer
-from tests_common.test_utils.operators.run_deferrable import execute_operator, mock_context
+from tests_common.test_utils.operators.run_deferrable import (
+    deferrable_operator,
+    execute_operator,
+    mock_context,
+)
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 try:
@@ -423,6 +428,29 @@ class TestGenericTransfer:
             **INSERT_ARGS,
             **{"rows": [[3, 4], [13, 14]], "table": "NEW_HR.EMPLOYEES"},
         }
+
+    def test_heartbeat_called_during_paginated_transfer(self):
+        """Heartbeats run after each page so long transfers are not killed by the scheduler."""
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
+                operator = GenericTransfer(
+                    task_id="transfer_table",
+                    source_conn_id="my_source_conn_id",
+                    destination_conn_id="my_destination_conn_id",
+                    sql="SELECT * FROM HR.EMPLOYEES",
+                    destination_table="NEW_HR.EMPLOYEES",
+                    page_size=1000,
+                    insert_args=INSERT_ARGS,
+                    execution_timeout=timedelta(hours=1),
+                )
+
+                context = mock_context(task=operator)
+                heartbeat = MagicMock()
+                context["ti"].heartbeat = heartbeat
+
+                asyncio.run(deferrable_operator(context, operator))
+
+        assert heartbeat.call_count == 2
 
     def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_method(self):
         """
