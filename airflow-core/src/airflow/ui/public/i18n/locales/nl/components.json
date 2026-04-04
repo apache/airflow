@@ -46,7 +46,6 @@
   },
   "dagWarnings": {
     "error_one": "1 fout",
-    "error_other": "{{count}} fouten",
     "errorAndWarning": "1 fout en {{warningText}}",
     "warning_one": "1 waarschuwing",
     "warning_other": "{{count}} waarschuwingen"

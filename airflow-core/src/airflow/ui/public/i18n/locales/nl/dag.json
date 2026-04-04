@@ -45,7 +45,8 @@
     "buttons": {
       "resetToLatest": "Reset naar laatste",
       "toggleGroup": "Groepen omschakelen"
-    }
+    },
+    "runTypeLegend": "Run type legenda"
   },
   "header": {
     "buttons": {

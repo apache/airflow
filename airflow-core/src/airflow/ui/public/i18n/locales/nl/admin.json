@@ -120,7 +120,8 @@
       "includeDeferred": "Deferred meetellen",
       "nameMaxLength": "Naam mag maximaal 256 karakters bevatten",
       "nameRequired": "Naam is verplicht",
-      "slots": "Slots"
+      "slots": "Slots",
+      "slotsHelperText": "Gebruik -1 voor een onbeperkt aantal slots."
     },
     "noPoolsFound": "Geen pools gevonden",
     "pool_one": "Pool",
