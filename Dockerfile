@@ -123,6 +123,7 @@ AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
+RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
 
 if [[ "${1}" == "runtime" ]]; then
@@ -501,18 +502,24 @@ function install_rustup() {
         [amd64]="x86_64-unknown-linux-gnu"
         [arm64]="aarch64-unknown-linux-gnu"
     )
+    declare -A rustup_sha256s=(
+        # https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/{target}/rustup-init.sha256
+        [amd64]="4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+        [arm64]="9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792"
+    )
     local target="${rustup_targets[${arch}]}"
+    local rustup_sha256="${rustup_sha256s[${arch}]}"
     if [[ -z "${target}" ]]; then
         echo "Unsupported architecture for rustup: ${arch}"
         exit 1
     fi
-    local base_url="https://static.rust-lang.org/rustup/dist/${target}"
-    curl --proto '=https' --tlsv1.2 -sSf "${base_url}/rustup-init" -o /tmp/rustup-init
-    curl --proto '=https' --tlsv1.2 -sSf "${base_url}/rustup-init.sha256" -o /tmp/rustup-init.sha256
-    cd /tmp && sha256sum --check rustup-init.sha256
+    curl --proto '=https' --tlsv1.2 -sSf \
+        "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${target}/rustup-init" \
+        -o /tmp/rustup-init
+    echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
     chmod +x /tmp/rustup-init
     /tmp/rustup-init -y --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
-    rm -f /tmp/rustup-init /tmp/rustup-init.sha256
+    rm -f /tmp/rustup-init
 }
 
 function apt_clean() {
