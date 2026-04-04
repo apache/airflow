@@ -31,7 +31,9 @@ Documentation in separate distributions:
 * ``airflow-core/docs`` - documentation for Airflow Core
 * ``providers/**/docs`` - documentation for Providers
 * ``chart/docs`` - documentation for Helm Chart
-* ``task-sdk/docs`` - documentation for Task SDK (new format not yet published)
+* ``task-sdk/docs`` - documentation for Task SDK (new format). 
+  Task SDK docs are available on the documentation site, but are not currently
+  published via the ``publish-docs`` workflow.
 * ``airflow-ctl/docs`` - documentation for Airflow CLI (future)
 
 Documentation for general overview and summaries not connected with any specific distribution:

@@ -587,11 +587,15 @@ The command does the following:
 3. Triggers S3 to GitHub Sync
 
 ```shell script
-breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow docker-stack task-sdk
+breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> apache-airflow docker-stack
 
 # Example for RC
-breeze workflow-run publish-docs --ref ${VERSION_RC} --site-env staging apache-airflow docker-stack task-sdk
+breeze workflow-run publish-docs --ref ${VERSION_RC} --site-env staging apache-airflow docker-stack
 ```
+
+> **Note:** Task SDK documentation is available on the documentation site, but is not
+> published via the `publish-docs` workflow yet. Pass only `apache-airflow` and
+> `docker-stack` here; do not include `task-sdk` until the workflow supports it.
 
 The `--ref` parameter should be the tag of the release candidate you are publishing.
 
@@ -620,7 +624,7 @@ previous version of the distribution). Example:
 breeze workflow-run publish-docs --ref 3.0.3 --site-env staging \
   --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d,e61e9618bdd6be8213d277b1427f67079fcb1d9b \
   --skip-write-to-stable-folder \
-  apache-airflow docker-stack task-sdk
+  apache-airflow docker-stack
 ```
 
 ### Manually using GitHub Actions
@@ -634,8 +638,10 @@ The release manager publishes the documentation using GitHub Actions workflow
 the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
 manually to be `live` or `staging`.
 
-You should specify 'apache-airflow docker-stack task-sdk' passed as packages to be
-built.
+You should specify `apache-airflow docker-stack` as the packages to be built.
+
+Task SDK docs are available on the documentation site, but are not published
+via this workflow yet.
 
 After that step, the provider documentation should be available under https://airflow.stage.apache.org//
 URL (RC PyPI packages are build with the staging urls) but stable links and drop-down boxes are not updated yet.
@@ -1360,7 +1366,7 @@ The command does the following:
 
 ```shell script
 # Example for final release
-breeze workflow-run publish-docs --ref ${VERSION} --site-env live apache-airflow docker-stack task-sdk
+breeze workflow-run publish-docs --ref ${VERSION} --site-env live apache-airflow docker-stack
 ```
 
 The `--ref` parameter should be the tag of the final version you are publishing.
