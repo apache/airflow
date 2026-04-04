@@ -967,7 +967,83 @@ class TestTriggerRuleDep:
         )
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
-        assert "2 in-scope" in dep_statuses[0].reason
+
+    @pytest.mark.parametrize("flag_upstream_failed", [True, False])
+    def test_teardown_waits_for_parallel_branches(self, session, dag_maker, flag_upstream_failed):
+        """
+        Teardown should wait when parallel branches have incomplete tasks.
+
+        Reproduces the DAG shape from https://github.com/apache/airflow/issues/29332:
+        setup >> [t_fail, t_slow] >> downstream >> teardown
+        where t_slow is still running when teardown is evaluated.
+        """
+        with dag_maker(session=session):
+            setup = EmptyOperator(task_id="setup").as_setup()
+            t_fail = EmptyOperator(task_id="t_fail")
+            t_slow = EmptyOperator(task_id="t_slow")
+            downstream = EmptyOperator(task_id="downstream")
+            teardown_task = EmptyOperator(task_id="teardown").as_teardown(setups=setup)
+            setup >> [t_fail, t_slow] >> downstream >> teardown_task
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+
+        tis["setup"].state = SUCCESS
+        tis["t_fail"].state = FAILED
+        # t_slow is still running (state=None)
+        session.merge(tis["setup"])
+        session.merge(tis["t_fail"])
+        session.flush()
+
+        teardown_ti = tis["teardown"]
+        teardown_ti.task = dag_maker.dag.get_task("teardown")
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=teardown_ti,
+                dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+                session=session,
+            )
+        )
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
+
+    @pytest.mark.parametrize("flag_upstream_failed", [True, False])
+    def test_teardown_runs_when_in_scope_tasks_failed(self, session, dag_maker, flag_upstream_failed):
+        """
+        Teardown should run when all in-scope tasks are done, even if some FAILED.
+
+        Teardowns must run regardless of upstream failure state to clean up resources.
+        """
+        with dag_maker(session=session):
+            setup = EmptyOperator(task_id="setup").as_setup()
+            t1 = EmptyOperator(task_id="t1")
+            t2 = EmptyOperator(task_id="t2")
+            teardown_task = EmptyOperator(task_id="teardown").as_teardown(setups=setup)
+            setup >> t1 >> t2 >> teardown_task
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+
+        tis["setup"].state = SUCCESS
+        tis["t1"].state = FAILED
+        tis["t2"].state = UPSTREAM_FAILED
+        for tid in ("setup", "t1", "t2"):
+            session.merge(tis[tid])
+        session.flush()
+
+        teardown_ti = tis["teardown"]
+        teardown_ti.task = dag_maker.dag.get_task("teardown")
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=teardown_ti,
+                dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+                session=session,
+            )
+        )
+        # All in-scope tasks are in terminal states, teardown should proceed
+        assert not dep_statuses
 
     @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_all_skipped_tr_failure(

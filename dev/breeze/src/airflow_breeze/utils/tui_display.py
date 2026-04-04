@@ -34,6 +34,7 @@ from airflow_breeze.utils.confirm import _has_tty
 from airflow_breeze.utils.console import get_theme
 
 if TYPE_CHECKING:
+    from airflow_breeze.utils.github import PRAssessment
     from airflow_breeze.utils.pr_models import PRData
 
 
@@ -114,6 +115,8 @@ class TUIAction(Enum):
     ACTION_READY = "ready"
     ACTION_FLAG = "flag"
     ACTION_LLM = "llm"
+    ACTION_AUTHOR_INFO = "author_info"
+    SEARCH = "search"
 
 
 class _FocusPanel(Enum):
@@ -325,6 +328,10 @@ def _read_tui_key(*, timeout: float | None = None) -> TUIAction | MouseEvent | s
         return TUIAction.ACTION_RERUN
     if ch == "l":
         return TUIAction.ACTION_LLM
+    if ch == "i":
+        return TUIAction.ACTION_AUTHOR_INFO
+    if ch == "/":
+        return TUIAction.SEARCH
     # Ctrl-C
     if ch == "\x03":
         return TUIAction.QUIT
@@ -350,6 +357,14 @@ class PRListEntry:
         self.llm_submit_time: float = 0.0  # monotonic time when actually started running
         self.llm_duration: float = 0.0  # actual measured LLM execution time in seconds
         self.llm_attempts: int = 0  # number of LLM attempts (including retries)
+        # Author scoring (populated when author profile is fetched)
+        self.author_scoring: dict | None = None
+        # File paths changed by this PR (populated from diff)
+        self.file_paths: list[str] | None = None
+        # Cross-references found in PR body
+        self.cross_refs: list[int] | None = None
+        # Overlapping PRs (PR number -> list of shared files)
+        self.overlapping_prs: dict[int, list[str]] | None = None
 
 
 class TriageTUI:
@@ -394,7 +409,7 @@ class TriageTUI:
         self._detail_visible_lines: int = 20
         self._detail_pr_number: int | None = None  # track which PR's details are built
         # Assessment data for flagged PRs (PR number → assessment)
-        self._assessments: dict[int, object] = {}
+        self._assessments: dict[int, PRAssessment] = {}
         # Focus state — which panel receives keyboard navigation
         self._focus: _FocusPanel = _FocusPanel.PR_LIST
         # Track previous cursor to detect PR changes for diff auto-fetch
@@ -470,7 +485,7 @@ class TriageTUI:
                             self.scroll_offset = self.cursor - self._visible_rows + 1
                     break
 
-    def set_assessments(self, assessments: dict[int, object]) -> None:
+    def set_assessments(self, assessments: dict[int, PRAssessment]) -> None:
         """Set assessment data for flagged PRs (PR number → PRAssessment)."""
         self._assessments = assessments
 
@@ -729,8 +744,6 @@ class TriageTUI:
                 llm_text = "[red]error[/]"
             elif entry.llm_status == "disabled":
                 llm_text = "[dim]disabled[/]"
-            elif entry.llm_status == "pending":
-                llm_text = "[dim]queued[/]"
             else:
                 llm_text = "[dim]—[/]"
 
@@ -785,9 +798,51 @@ class TriageTUI:
 
         # Author
         author_url = f"https://github.com/{self.github_repository}/pulls/{pr.author_login}"
-        lines.append(
+        author_line = (
             f"Author: [bold][link={author_url}]{pr.author_login}[/link][/] ([dim]{pr.author_association}[/])"
         )
+        scoring = entry.author_scoring if entry else None
+        if scoring:
+            tier = scoring.get("contributor_tier", "")
+            risk = scoring.get("risk_level", "")
+            tier_colors = {
+                "established": "green",
+                "regular": "cyan",
+                "occasional": "yellow",
+                "attempted": "red",
+                "new": "red",
+            }
+            risk_colors = {"low": "green", "medium": "yellow", "high": "red"}
+            parts = []
+            if tier:
+                parts.append(f"[{tier_colors.get(tier, 'dim')}]{tier}[/]")
+            if risk and risk != "low":
+                parts.append(f"risk:[{risk_colors.get(risk, 'dim')}]{risk}[/]")
+            repo_rate = scoring.get("repo_merge_rate", 0)
+            if repo_rate > 0:
+                rc = "green" if repo_rate >= 0.5 else "yellow" if repo_rate >= 0.3 else "red"
+                parts.append(f"[{rc}]{repo_rate:.0%}[/] merged")
+            if parts:
+                author_line += f"  {' | '.join(parts)}"
+        lines.append(author_line)
+
+        # Maintainer review decisions
+        if pr.review_decisions:
+            maintainer_assocs = {"COLLABORATOR", "MEMBER", "OWNER"}
+            maintainer_reviews = [
+                r for r in pr.review_decisions if r.reviewer_association in maintainer_assocs
+            ]
+            if maintainer_reviews:
+                approved = [r for r in maintainer_reviews if r.state == "APPROVED"]
+                changes_requested = [r for r in maintainer_reviews if r.state == "CHANGES_REQUESTED"]
+                review_parts: list[str] = []
+                if approved:
+                    names = ", ".join(r.reviewer_login for r in approved)
+                    review_parts.append(f"[green]{len(approved)} approved[/] ({names})")
+                if changes_requested:
+                    names = ", ".join(r.reviewer_login for r in changes_requested)
+                    review_parts.append(f"[red]{len(changes_requested)} changes requested[/] ({names})")
+                lines.append(f"Maintainer reviews: {' | '.join(review_parts)}")
 
         # Timestamps
         lines.append(
@@ -886,6 +941,28 @@ class TriageTUI:
             if len(pr.labels) > 8:
                 label_text += f" (+{len(pr.labels) - 8} more)"
             lines.append(f"Labels: {label_text}")
+
+        # Cross-references
+        if entry.cross_refs:
+            lines.append("")
+            ref_links = [
+                f"[link=https://github.com/{self.github_repository}/issues/{n}]#{n}[/link]"
+                for n in entry.cross_refs[:10]
+            ]
+            lines.append(f"References: {', '.join(ref_links)}")
+
+        # Overlapping PRs (other open PRs touching the same files)
+        if entry.overlapping_prs:
+            lines.append("")
+            lines.append(f"[yellow]Overlapping PRs ({len(entry.overlapping_prs)}):[/]")
+            for opr_num, shared_files in list(entry.overlapping_prs.items())[:5]:
+                opr_link = (
+                    f"[link=https://github.com/{self.github_repository}/pull/{opr_num}]#{opr_num}[/link]"
+                )
+                files_text = ", ".join(f.rsplit("/", 1)[-1] for f in shared_files[:3])
+                if len(shared_files) > 3:
+                    files_text += f" +{len(shared_files) - 3} more"
+                lines.append(f"  {opr_link}: {files_text}")
 
         # Assessment / flagging details (summary and violations)
         assessment = self._assessments.get(pr.number)
@@ -1231,14 +1308,14 @@ class TriageTUI:
         if self._focus in (_FocusPanel.DIFF, _FocusPanel.DETAIL):
             nav_lines = [
                 "[bold]j/↓[/] Down  [bold]k/↑[/] Up  [bold]PgDn[/] Page",
-                f"[bold]Tab[/] → {next_panel}  [bold]🖱[/] Scroll",
+                f"[bold]Tab[/] → {next_panel}  [bold]/[/] Search  [bold]🖱[/] Scroll",
                 "[bold]Esc/q[/] Quit",
             ]
         else:
             nav_lines = [
                 "[bold]j/↓[/] Down  [bold]k/↑[/] Up  [bold]q[/] Quit",
                 f"[bold]n[/] Next pg  [bold]p[/] Prev pg  [bold]Tab[/] → {next_panel}",
-                "[bold]🖱[/] Click row / Scroll panels",
+                "[bold]/[/] Search  [bold]🖱[/] Click row / Scroll panels",
             ]
         nav_text = "\n".join(nav_lines)
         nav_panel = Panel(nav_text, title="Nav", border_style="dim", padding=(0, 1))
@@ -1264,6 +1341,7 @@ class TriageTUI:
             direct_parts: list[str] = []
             direct_parts.append("[bold]o[/] Open")
             direct_parts.append("[bold]s[/] Skip")
+            direct_parts.append("[bold]i[/] Author")
             available = self.get_available_actions(entry)
             if available:
                 if self.review_mode:
@@ -1548,6 +1626,183 @@ class TriageTUI:
         # Ignore other mouse events
         return None
 
+    def render_author_overlay(self, profile: dict) -> None:
+        """Render a full-screen overlay with detailed author information.
+
+        Blocks until the user presses any key to dismiss.
+        """
+        from rich.console import Console
+        from rich.panel import Panel
+
+        width, height = _get_terminal_size()
+
+        login = profile.get("login", "unknown")
+        tier = profile.get("contributor_tier", "")
+        risk = profile.get("risk_level", "")
+        repo_rate = profile.get("repo_merge_rate", 0)
+        global_rate = profile.get("global_merge_rate", 0)
+        age_days = profile.get("account_age_days", 0)
+
+        tier_colors = {
+            "established": "green",
+            "regular": "cyan",
+            "occasional": "yellow",
+            "attempted": "red",
+            "new": "red",
+        }
+        risk_colors = {"low": "green", "medium": "yellow", "high": "red"}
+
+        lines: list[str] = []
+        lines.append(f"[bold]Account age:[/] {profile.get('account_age', 'unknown')} ({age_days} days)")
+        lines.append("")
+
+        # PR stats table
+        repo_total = profile.get("repo_total_prs", 0)
+        repo_merged = profile.get("repo_merged_prs", 0)
+        repo_closed = profile.get("repo_closed_prs", 0)
+        rc = "green" if repo_rate >= 0.5 else "yellow" if repo_rate >= 0.3 else "red"
+
+        global_total = profile.get("global_total_prs", 0)
+        global_merged = profile.get("global_merged_prs", 0)
+        global_closed = profile.get("global_closed_prs", 0)
+        gc = "green" if global_rate >= 0.5 else "yellow" if global_rate >= 0.3 else "red"
+
+        lines.append(
+            f"[bold]This repo:[/]  {repo_total} PRs, "
+            f"[green]{repo_merged} merged[/], "
+            f"[red]{repo_closed} closed[/], "
+            f"rate [{rc}]{repo_rate:.0%}[/]"
+        )
+        lines.append(
+            f"[bold]All GitHub:[/] {global_total} PRs, "
+            f"[green]{global_merged} merged[/], "
+            f"[red]{global_closed} closed[/], "
+            f"rate [{gc}]{global_rate:.0%}[/]"
+        )
+        lines.append("")
+
+        # Scoring
+        tc = tier_colors.get(tier, "dim")
+        rkc = risk_colors.get(risk, "dim")
+        lines.append(f"[bold]Contributor tier:[/] [{tc}]{tier}[/]")
+        lines.append(f"[bold]Risk level:[/] [{rkc}]{risk}[/]")
+        lines.append("")
+
+        # Contributed repos
+        repos = profile.get("contributed_repos", [])
+        contrib_total = profile.get("contributed_repos_total", 0)
+        if repos:
+            lines.append(f"[bold]Contributed to ({contrib_total} repos):[/]")
+            for repo in repos:
+                stars = repo.get("stars", 0)
+                star_text = f" ({stars} stars)" if stars else ""
+                lines.append(f"  [link={repo['url']}]{repo['name']}[/link]{star_text}")
+        else:
+            lines.append("[dim]No public repo contributions found[/]")
+
+        lines.append("")
+        lines.append("[dim]Press any key to close[/]")
+
+        author_url = f"https://github.com/{login}"
+        panel_width = min(width - 8, 70)
+        panel_height = min(height - 6, len(lines) + 4)
+        panel = Panel(
+            "\n".join(lines),
+            title=f"[bold][link={author_url}]{login}[/link][/] — Contributor Profile",
+            border_style=self._accent_bold,
+            height=panel_height,
+            width=panel_width,
+        )
+
+        # Render the panel into a string buffer
+        buf = io.StringIO()
+        buf_console = Console(
+            file=buf, force_terminal=True, color_system="standard", width=panel_width, theme=get_theme()
+        )
+        buf_console.print(panel)
+        panel_lines = buf.getvalue().split("\n")
+
+        # Calculate centering offsets
+        top_offset = max(1, (height - panel_height) // 2)
+        left_offset = max(1, (width - panel_width) // 2)
+        # Background fill: blank line the full width of the overlay area
+        blank_line = " " * (panel_width + 2)
+
+        # Save cursor, hide it, then draw overlay lines at centered position
+        out = "\033[?25l"  # hide cursor
+        # First paint a solid background block to cover TUI content behind
+        for row in range(top_offset, top_offset + panel_height + 1):
+            out += f"\033[{row};{left_offset}H{blank_line}"
+        # Then draw the panel lines on top
+        for i, pline in enumerate(panel_lines):
+            if pline:
+                row = top_offset + i
+                out += f"\033[{row};{left_offset}H {pline}"
+        sys.stdout.write(out)
+        sys.stdout.flush()
+
+        # Wait for any key to dismiss
+        _read_raw_input(timeout=None)
+        sys.stdout.write("\033[?25h")  # restore cursor
+        sys.stdout.flush()
+
+    def search_jump(self) -> bool:
+        """Show a search prompt at the bottom of the screen.
+
+        The user types a PR number or text. Pressing Enter jumps to the first
+        matching entry. Pressing Escape cancels. Returns True if the cursor moved.
+        """
+        width, height = _get_terminal_size()
+        prompt = "/ Jump to PR #: "
+        query = ""
+
+        while True:
+            # Draw prompt on the last row
+            display = f"{prompt}{query}_"
+            sys.stdout.write(f"\033[{height};1H\033[2K{display}")
+            sys.stdout.flush()
+
+            ch = _read_raw_input(timeout=None)
+            if ch is None or ch == "\x1b":
+                # Escape or timeout — cancel
+                break
+            if ch in ("\r", "\n"):
+                # Enter — search
+                break
+            if ch in ("\x7f", "\x08"):
+                # Backspace
+                query = query[:-1]
+                continue
+            if ch == "\x03":
+                # Ctrl-C — cancel
+                break
+            if len(ch) == 1 and ch.isprintable():
+                query += ch
+
+        # Clear the prompt line
+        sys.stdout.write(f"\033[{height};1H\033[2K")
+        sys.stdout.flush()
+
+        if not query:
+            return False
+
+        # Match by PR number only
+        try:
+            target_num = int(query.lstrip("#"))
+        except ValueError:
+            return False
+
+        for idx, entry in enumerate(self.entries):
+            if entry.pr.number == target_num:
+                self.cursor = idx
+                # Put the matched entry at the top of the visible list
+                self.scroll_offset = idx
+                # Switch focus to PR list so the selection is highlighted
+                self._focus = _FocusPanel.PR_LIST
+                return True
+
+        return False
+
     def run_interactive(
         self, *, timeout: float | None = None
     ) -> tuple[PRListEntry | None, TUIAction | str | None]:
@@ -1615,11 +1870,18 @@ class TriageTUI:
                 if selected:
                     return selected[0], key
                 return None, key
+            # Author info — always available
+            if key == TUIAction.ACTION_AUTHOR_INFO:
+                return self.get_selected_entry(), key
             # Direct action keys — pass through if available for this PR
             if isinstance(key, TUIAction) and key.name.startswith("ACTION_"):
                 entry = self.get_selected_entry()
                 if entry and not entry.action_taken and key in self.get_available_actions(entry):
                     return entry, key
+                return None, key
+            if key == TUIAction.SEARCH:
+                if self.search_jump():
+                    return None, TUIAction.UP
                 return None, key
             # Ignore other keys in diff focus
             return None, key
@@ -1661,11 +1923,16 @@ class TriageTUI:
                 if selected:
                     return selected[0], key
                 return None, key
+            # Author info — always available
+            if key == TUIAction.ACTION_AUTHOR_INFO:
+                return self.get_selected_entry(), key
             # Direct action keys
             if isinstance(key, TUIAction) and key.name.startswith("ACTION_"):
                 entry = self.get_selected_entry()
                 if entry and not entry.action_taken and key in self.get_available_actions(entry):
                     return entry, key
+                return None, key
+            if key == TUIAction.SEARCH:
                 return None, key
             # Ignore other keys in detail focus
             return None, key
@@ -1717,11 +1984,18 @@ class TriageTUI:
                 entry.action_taken = "skipped"
                 self.move_cursor(1)
             return entry, key
+        # Author info — always available
+        if key == TUIAction.ACTION_AUTHOR_INFO:
+            return self.get_selected_entry(), key
         # Direct action keys — pass through if available for this PR
         if isinstance(key, TUIAction) and key.name.startswith("ACTION_"):
             entry = self.get_selected_entry()
             if entry and not entry.action_taken and key in self.get_available_actions(entry):
                 return entry, key
+            return None, key
+        if key == TUIAction.SEARCH:
+            if self.search_jump():
+                return None, TUIAction.UP  # signal cursor moved
             return None, key
         # Unknown key — return it for caller to handle
         return self.get_selected_entry(), key

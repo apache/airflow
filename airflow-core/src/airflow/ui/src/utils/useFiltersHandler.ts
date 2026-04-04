@@ -60,6 +60,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.BODY_SEARCH
   | SearchParamsKeys.BUNDLE_VERSION
   | SearchParamsKeys.CONF_CONTAINS
+  | SearchParamsKeys.CONSUMING_ASSET_PATTERN
   | SearchParamsKeys.CREATED_AT_RANGE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID

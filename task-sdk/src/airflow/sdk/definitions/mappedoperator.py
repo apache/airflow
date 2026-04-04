@@ -21,7 +21,7 @@ import contextlib
 import copy
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeGuard
+from typing import TYPE_CHECKING, Any, Literal, TypeGuard
 
 import attrs
 import methodtools
@@ -334,10 +334,6 @@ class MappedOperator(AbstractOperator):
 
     This should be a name to call ``getattr()`` on.
     """
-
-    HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
-        ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
-    )
 
     def __hash__(self):
         return id(self)
