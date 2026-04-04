@@ -24,73 +24,23 @@ import {
   HStack,
   IconButton,
   Input,
-  type NumberInputValueChangeDetails,
   Portal,
   Separator,
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FiFilter, FiInfo } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { useStructureServiceStructureData } from "openapi/queries";
-import type { NodeResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
 import { Menu } from "src/components/ui/Menu";
-import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput";
-import { SearchParamsKeys } from "src/constants/searchParams";
-import { taskInstanceStateOptions } from "src/constants/stateOptions";
-import useSelectedVersion from "src/hooks/useSelectedVersion";
-import { AttrSelectFilter } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilter";
-import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilterMulti";
 
-const collectOperators = (nodes: Array<NodeResponse>): Array<string> => {
-  const operators = new Set<string>();
-
-  const walk = (nodeList: Array<NodeResponse>) => {
-    for (const node of nodeList) {
-      if (node.operator !== undefined && node.operator !== null) {
-        operators.add(node.operator);
-      }
-      if (node.children) {
-        walk(node.children);
-      }
-    }
-  };
-
-  walk(nodes);
-
-  return [...operators].sort();
-};
-
-const collectTaskGroups = (nodes: Array<NodeResponse>): Array<string> => {
-  const groups: Array<string> = [];
-
-  const walk = (nodeList: Array<NodeResponse>) => {
-    for (const node of nodeList) {
-      if (node.children) {
-        groups.push(node.id);
-        walk(node.children);
-      }
-    }
-  };
-
-  walk(nodes);
-
-  return groups.sort();
-};
-
-type Props = {
-  readonly dagView: "graph" | "grid";
-};
-
-export const TaskStreamFilter = ({ dagView }: Props) => {
-  const { t: translate } = useTranslation(["common", "components", "dag", "tasks"]);
-  const { dagId = "", runId, taskId: currentTaskId } = useParams();
+export const TaskStreamFilter = () => {
+  const { t: translate } = useTranslation(["common", "dag"]);
+  const { taskId: currentTaskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedVersion = useSelectedVersion();
 
   const filterRoot = searchParams.get("root") ?? undefined;
   const includeUpstream = searchParams.get("upstream") === "true";
@@ -98,43 +48,7 @@ export const TaskStreamFilter = ({ dagView }: Props) => {
   const depth = searchParams.get("depth") ?? undefined;
   const mode = searchParams.get("mode") ?? "static";
 
-  // Graph task filters
-  const { data: graphData } = useStructureServiceStructureData(
-    { dagId, versionNumber: selectedVersion },
-    undefined,
-    { enabled: dagView === "graph" && selectedVersion !== undefined },
-  );
-  const graphNodes = useMemo(() => graphData?.nodes ?? [], [graphData?.nodes]);
-  const allOperators = useMemo(() => collectOperators(graphNodes), [graphNodes]);
-  const allTaskGroups = useMemo(() => collectTaskGroups(graphNodes), [graphNodes]);
-
-  const selectedOperators = searchParams.getAll(SearchParamsKeys.OPERATOR);
-  const selectedTaskGroups = searchParams.getAll(SearchParamsKeys.TASK_GROUP);
-  const selectedStates = searchParams.getAll(SearchParamsKeys.STATE);
-  const selectedMapped = searchParams.get(SearchParamsKeys.MAPPED) ?? undefined;
-  const mapIndexParam = searchParams.get(SearchParamsKeys.MAP_INDEX) ?? "";
-  const durationGteParam = searchParams.get(SearchParamsKeys.DURATION_GTE) ?? "";
-
-  const stateValues = useMemo(
-    () => taskInstanceStateOptions.items.filter((item) => item.value !== "all").map((item) => item.value),
-    [],
-  );
-
-  const mappedValues = [
-    { key: "true", label: translate("tasks:mapped") },
-    { key: "false", label: translate("tasks:notMapped") },
-  ];
-
-  const hasTaskFilters =
-    dagView === "graph" &&
-    (selectedOperators.length > 0 ||
-      selectedTaskGroups.length > 0 ||
-      selectedStates.length > 0 ||
-      selectedMapped !== undefined ||
-      mapIndexParam !== "" ||
-      durationGteParam !== "");
-
-  const hasActiveFilter = includeUpstream || includeDownstream || hasTaskFilters;
+  const hasActiveFilter = includeUpstream || includeDownstream;
   const isCurrentTaskTheRoot = currentTaskId === filterRoot;
   const bothActive = isCurrentTaskTheRoot && includeUpstream && includeDownstream;
   const activeUpstream = isCurrentTaskTheRoot && includeUpstream && !includeDownstream;
@@ -186,42 +100,6 @@ export const TaskStreamFilter = ({ dagView }: Props) => {
     } else {
       searchParams.delete("depth");
     }
-    setSearchParams(searchParams);
-  };
-
-  const handleMultiChange = (key: string) => (values: Array<string> | undefined) => {
-    searchParams.delete(key);
-    values?.forEach((val) => searchParams.append(key, val));
-    setSearchParams(searchParams);
-  };
-
-  const handleSingleChange = (key: string) => (value: string | undefined) => {
-    searchParams.delete(key);
-    if (value !== undefined) {
-      searchParams.set(key, value);
-    }
-    setSearchParams(searchParams);
-  };
-
-  const handleNumberChange =
-    (key: string, condition: (n: number) => boolean) => (details: NumberInputValueChangeDetails) => {
-      if (condition(details.valueAsNumber)) {
-        searchParams.set(key, details.value);
-      } else {
-        searchParams.delete(key);
-      }
-      setSearchParams(searchParams);
-    };
-
-  const clearAllTaskFilters = () => {
-    [
-      SearchParamsKeys.OPERATOR,
-      SearchParamsKeys.TASK_GROUP,
-      SearchParamsKeys.STATE,
-      SearchParamsKeys.MAPPED,
-      SearchParamsKeys.MAP_INDEX,
-      SearchParamsKeys.DURATION_GTE,
-    ].forEach((key) => searchParams.delete(key));
     setSearchParams(searchParams);
   };
 
@@ -410,91 +288,6 @@ export const TaskStreamFilter = ({ dagView }: Props) => {
                   {translate("dag:panel.taskStreamFilter.clearFilter")}
                 </Button>
               </Menu.Item>
-            ) : undefined}
-
-            {dagView === "graph" ? (
-              <>
-                <Separator my={2} />
-                <Text fontSize="sm" fontWeight="semibold">
-                  {translate("dag:panel.graphFilters.title")}
-                </Text>
-                {allOperators.length > 1 ? (
-                  <VStack alignItems="flex-start" width="100%">
-                    <Text fontSize="xs">{translate("tasks:selectOperator")}</Text>
-                    <AttrSelectFilterMulti
-                      displayPrefix={undefined}
-                      handleSelect={handleMultiChange(SearchParamsKeys.OPERATOR)}
-                      placeholderText={translate("tasks:selectOperator")}
-                      selectedValues={selectedOperators}
-                      values={allOperators}
-                    />
-                  </VStack>
-                ) : undefined}
-                {allTaskGroups.length > 0 ? (
-                  <VStack alignItems="flex-start" width="100%">
-                    <Text fontSize="xs">{translate("dag:panel.graphFilters.selectTaskGroup")}</Text>
-                    <AttrSelectFilterMulti
-                      displayPrefix={undefined}
-                      handleSelect={handleMultiChange(SearchParamsKeys.TASK_GROUP)}
-                      placeholderText={translate("dag:panel.graphFilters.selectTaskGroup")}
-                      selectedValues={selectedTaskGroups}
-                      values={allTaskGroups}
-                    />
-                  </VStack>
-                ) : undefined}
-                <VStack alignItems="flex-start" width="100%">
-                  <Text fontSize="xs">{translate("tasks:selectMapped")}</Text>
-                  <AttrSelectFilter
-                    handleSelect={handleSingleChange(SearchParamsKeys.MAPPED)}
-                    placeholderText={translate("tasks:selectMapped")}
-                    selectedValue={selectedMapped}
-                    values={mappedValues}
-                  />
-                </VStack>
-                {runId === undefined ? undefined : (
-                  <>
-                    <VStack alignItems="flex-start" width="100%">
-                      <Text fontSize="xs">{translate("dag:panel.graphFilters.selectStatus")}</Text>
-                      <AttrSelectFilterMulti
-                        displayPrefix={undefined}
-                        handleSelect={handleMultiChange(SearchParamsKeys.STATE)}
-                        placeholderText={translate("dag:panel.graphFilters.selectStatus")}
-                        selectedValues={selectedStates}
-                        values={stateValues}
-                      />
-                    </VStack>
-                    <VStack alignItems="flex-start" width="100%">
-                      <Text fontSize="xs">{translate("dag:panel.graphFilters.mapIndex")}</Text>
-                      <NumberInputRoot
-                        min={0}
-                        onValueChange={handleNumberChange(SearchParamsKeys.MAP_INDEX, (num) => num >= 0)}
-                        size="sm"
-                        value={mapIndexParam}
-                        w="100%"
-                      >
-                        <NumberInputField placeholder={translate("dag:panel.graphFilters.mapIndex")} />
-                      </NumberInputRoot>
-                    </VStack>
-                    <VStack alignItems="flex-start" width="100%">
-                      <Text fontSize="xs">{translate("dag:panel.graphFilters.durationGte")}</Text>
-                      <NumberInputRoot
-                        min={0}
-                        onValueChange={handleNumberChange(SearchParamsKeys.DURATION_GTE, (num) => num > 0)}
-                        size="sm"
-                        value={durationGteParam}
-                        w="100%"
-                      >
-                        <NumberInputField placeholder={translate("dag:panel.graphFilters.durationGte")} />
-                      </NumberInputRoot>
-                    </VStack>
-                  </>
-                )}
-                {hasTaskFilters ? (
-                  <Button onClick={clearAllTaskFilters} size="sm" variant="outline" width="100%">
-                    {translate("dag:panel.graphFilters.clearFilters")}
-                  </Button>
-                ) : undefined}
-              </>
             ) : undefined}
           </Menu.Content>
         </Menu.Positioner>

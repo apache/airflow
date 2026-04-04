@@ -104,7 +104,15 @@ const isNodeFiltered = (node: ReactFlowNode<CustomNodeProps>, filters: GraphFilt
   }
 
   if (filters.mapIndex !== undefined) {
-    if (!isMapped) {
+    if (!isMapped || taskInstance === undefined) {
+      return true;
+    }
+    const total = Object.values(taskInstance.child_states ?? {}).reduce(
+      (acc, currentValue) => acc + currentValue,
+      0,
+    );
+
+    if (filters.mapIndex >= total) {
       return true;
     }
   }

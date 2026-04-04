@@ -28,6 +28,8 @@ export const JoinNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "join">>)
       bg="border.inverted"
       borderRadius={`${data.width}px`}
       height={`${data.height}px`}
+      opacity={data.isFiltered ? 0.2 : 1}
+      style={{ transition: "opacity 0.2s" }}
       width={`${data.width}px`}
     />
   </NodeWrapper>

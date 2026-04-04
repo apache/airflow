@@ -171,8 +171,54 @@ export const Graph = () => {
     };
   });
 
-  const nodes = useGraphFilteredNodes(nodesWithTI, graphFilters);
+  const baseFilteredNodes = useGraphFilteredNodes(nodesWithTI, graphFilters);
 
+  // IDs of task nodes that are filtered (used to determine join node visibility)
+  const taskFilteredNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+
+    for (const node of baseFilteredNodes ?? []) {
+      if (node.data.isFiltered) {
+        ids.add(node.id);
+      }
+    }
+
+    return ids;
+  }, [baseFilteredNodes]);
+
+  const nodes = useMemo(() => {
+    if (!baseFilteredNodes || taskFilteredNodeIds.size === 0) {
+      return baseFilteredNodes;
+    }
+
+    const nodeTypeMap = new Map(baseFilteredNodes.map((node) => [node.id, node.type]));
+
+    return baseFilteredNodes.map((node) => {
+      if (node.type !== "join") {
+        return node;
+      }
+
+      const connectedIds = (data?.edges ?? []).flatMap((edge) => {
+        if (edge.source === node.id) {
+          return [edge.target];
+        }
+        if (edge.target === node.id) {
+          return [edge.source];
+        }
+
+        return [];
+      });
+
+      const connectedTaskIds = connectedIds.filter((id) => nodeTypeMap.get(id) === "task");
+
+      const isFiltered =
+        connectedTaskIds.length > 0 && connectedTaskIds.every((id) => taskFilteredNodeIds.has(id));
+
+      return { ...node, data: { ...node.data, isFiltered } };
+    });
+  }, [baseFilteredNodes, taskFilteredNodeIds, data?.edges]);
+
+  // Combined filtered IDs (tasks + join nodes) used for edge opacity
   const filteredNodeIds = useMemo(() => {
     const ids = new Set<string>();
 
@@ -191,7 +237,7 @@ export const Graph = () => {
       ...edge.data,
       rest: {
         ...edge.data?.rest,
-        isFiltered: filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target),
+        isFiltered: filteredNodeIds.has(edge.source) || filteredNodeIds.has(edge.target),
         isSelected:
           taskId === edge.source ||
           taskId === edge.target ||

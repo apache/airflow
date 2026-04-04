@@ -60,6 +60,7 @@ import { useDateRangeFilter } from "src/hooks/useDateRangeFilter";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
+import { GraphTaskFilters } from "./Graph/GraphTaskFilters";
 import { RunTypeLegend } from "./Grid/RunTypeLegend";
 import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
@@ -292,7 +293,8 @@ export const PanelButtons = ({
         <ButtonGroupToggle isIcon onChange={handleDagViewChange} options={dagViewOptions} value={dagView} />
         <Flex alignItems="center" gap={1} justifyContent="space-between">
           <ToggleGroups />
-          <TaskStreamFilter dagView={dagView} />
+          <TaskStreamFilter />
+          {dagView === "graph" && <GraphTaskFilters />}
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>

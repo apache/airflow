@@ -48,7 +48,7 @@ const CustomEdge = ({ data }: Props) => {
   };
 
   return (
-    <>
+    <g opacity={rest.isFiltered ? 0.2 : 1} style={{ transition: "opacity 0.2s" }}>
       {rest.labels?.map(({ height, id, text, width, x, y }) => {
         if (y === undefined || x === undefined) {
           return undefined;
@@ -80,7 +80,7 @@ const CustomEdge = ({ data }: Props) => {
           y={(point: ElkPoint) => point.y}
         />
       ))}
-    </>
+    </g>
   );
 };
 
