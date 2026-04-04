@@ -21,9 +21,6 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     branches:
       - main
-      - v[0-9]+-[0-9]+-test
-      - v[0-9]+-[0-9]+-stable
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
     types: [opened, reopened, synchronize, labeled, unlabeled]
 
 permissions:
@@ -32,7 +29,7 @@ permissions:
 
 concurrency:
   group: check-newsfragment-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   check-newsfragment-pr-number:
