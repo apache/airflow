@@ -1256,6 +1256,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "false",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="S3 remote logging changes enable only S3 e2e",
@@ -1267,6 +1268,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "false",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Elasticsearch remote logging changes enable only Elasticsearch e2e",
@@ -1278,6 +1280,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "false",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Elasticsearch helper changes enable Elasticsearch e2e",
@@ -1289,6 +1292,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Shared remote logging changes enable both remote logging e2e jobs",
@@ -1300,6 +1304,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 {
                     "run-remote-logging-s3-e2e-tests": "true",
                     "run-remote-logging-elasticsearch-e2e-tests": "true",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                 },
                 id="Shared logging library changes enable both remote logging e2e jobs",

@@ -1081,12 +1081,10 @@ class SelectiveChecks:
             self.run_unit_tests
             or self.docs_build
             or self.run_kubernetes_tests
-            or self.run_task_sdk_integration_tests
-            or self.run_airflow_ctl_integration_tests
-            or self.run_helm_tests
             or self.run_ui_tests
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
+            or self.prod_image_build
         )
 
     @cached_property

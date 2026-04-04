@@ -442,7 +442,50 @@ class TestOtelMetrics:
             f"stderr:\n{proc.stderr}"
         )
 
+    def test_reinit_after_fork_exports_metrics(self):
+        """Calling get_otel_logger() twice (simulating post-fork re-init) should still export metrics.
+
+        Reproduces https://github.com/apache/airflow/issues/64690: the OTel SDK's Once()
+        guard on set_meter_provider() survives fork, preventing the child from setting a
+        fresh MeterProvider. The fix resets the guard before each set_meter_provider() call.
+        """
+        test_module_name = "tests.observability.metrics.test_otel_logger"
+        function_call_str = f"import {test_module_name} as m; m.mock_service_run_reinit()"
+
+        proc = subprocess.run(
+            [sys.executable, "-c", function_call_str],
+            check=False,
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+
+        assert proc.returncode == 0, f"Process failed\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+
+        assert "post_fork_stat" in proc.stdout, (
+            "Expected 'post_fork_stat' in stdout after re-initialization but it wasn't found. "
+            "This suggests set_meter_provider() failed due to the Once() guard.\n"
+            f"stdout:\n{proc.stdout}\n"
+            f"stderr:\n{proc.stderr}"
+        )
+
 
 def mock_service_run():
     logger = get_otel_logger(debug=True)
     logger.incr("my_test_stat")
+
+
+def mock_service_run_reinit():
+    """Simulate re-initialization after fork by calling get_otel_logger() twice.
+
+    The first call sets the global MeterProvider and the Once() guard.
+    The second call simulates what happens in a forked child: stats.py detects
+    a PID mismatch and calls the factory again. Without the fix, the second
+    set_meter_provider() silently fails and the child uses a stale provider.
+    """
+    # First init — sets Once._done = True
+    get_otel_logger(debug=True)
+    # Second init — simulates post-fork re-initialization
+    logger = get_otel_logger(debug=True)
+    logger.incr("post_fork_stat")

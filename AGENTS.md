@@ -94,6 +94,7 @@ UV workspace monorepo. Key paths:
 - Guard heavy type-only imports (e.g., `kubernetes.client`) with `TYPE_CHECKING` in multi-process code paths.
 - Define dedicated exception classes or use existing exceptions such as `ValueError` instead of raising the broad `AirflowException` directly. Each error case should have a specific exception type that conveys what went wrong.
 - Apache License header on all new files (prek enforces this).
+- Newsfragments are only added if a major change or breaking change is applied. This is usually coordinate during review. Please do not add newsfragments per default as in most cases this needs a reversion during review.
 
 ## Testing Standards
 
