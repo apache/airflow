@@ -1734,8 +1734,8 @@ class TestWorkerSets:
             name="test",
             values={
                 "workers": {
-                    "hpa": {"enabled": True},
                     "celery": {
+                        "hpa": {"enabled": True},
                         "enableDefault": enable_default,
                         "sets": [
                             {"name": "set1"},
@@ -1749,56 +1749,116 @@ class TestWorkerSets:
 
         assert jmespath.search("[*].metadata.name", docs) == expected
 
-    def test_overwrite_hpa_enabled(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {"enableDefault": False, "sets": [{"name": "test", "hpa": {"enabled": True}}]},
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"celery": {"enableDefault": False, "sets": [{"name": "test", "hpa": {"enabled": True}}]}},
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "hpa": {"enabled": False},
+                    "sets": [{"name": "test", "hpa": {"enabled": True}}],
                 }
             },
+            {
+                "hpa": {"enabled": False},
+                "celery": {"enableDefault": False, "sets": [{"name": "test", "hpa": {"enabled": True}}]},
+            },
+        ],
+    )
+    def test_overwrite_hpa_enabled(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
         assert len(docs) == 1
 
-    def test_overwrite_hpa_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
                     "hpa": {"enabled": True},
-                    "celery": {"enableDefault": False, "sets": [{"name": "test", "hpa": {"enabled": False}}]},
+                    "sets": [{"name": "test", "hpa": {"enabled": False}}],
                 }
             },
+            {
+                "hpa": {"enabled": True},
+                "celery": {"enableDefault": False, "sets": [{"name": "test", "hpa": {"enabled": False}}]},
+            },
+        ],
+    )
+    def test_overwrite_hpa_disable(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
         assert len(docs) == 0
 
-    def test_overwrite_hpa_min_replica_count(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "hpa": {"enabled": True, "minReplicaCount": 10}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "minReplicaCount": 10}}],
                 }
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "hpa": {"minReplicaCount": 7},
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "minReplicaCount": 10}}],
+                }
+            },
+            {
+                "hpa": {"minReplicaCount": 7},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "minReplicaCount": 10}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_hpa_min_replica_count(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
         assert jmespath.search("spec.minReplicas", docs[0]) == 10
 
-    def test_overwrite_hpa_max_replica_count(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "hpa": {"enabled": True, "maxReplicaCount": 10}}],
-                    },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "maxReplicaCount": 10}}],
                 }
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "hpa": {"maxReplicaCount": 7},
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "maxReplicaCount": 10}}],
+                }
+            },
+            {
+                "hpa": {"maxReplicaCount": 7},
+                "celery": {
+                    "enableDefault": False,
+                    "sets": [{"name": "test", "hpa": {"enabled": True, "maxReplicaCount": 10}}],
+                },
+            },
+        ],
+    )
+    def test_overwrite_hpa_max_replica_count(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
@@ -1862,6 +1922,39 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "hpa": {
+                        "metrics": [
+                            {
+                                "type": "Resource",
+                                "resource": {
+                                    "name": "memory",
+                                    "target": {"type": "Utilization", "averageUtilization": 1},
+                                },
+                            }
+                        ],
+                    },
+                    "sets": [
+                        {
+                            "name": "test",
+                            "hpa": {
+                                "enabled": True,
+                                "metrics": [
+                                    {
+                                        "type": "Resource",
+                                        "resource": {
+                                            "name": "cpu",
+                                            "target": {"type": "Utilization", "averageUtilization": 80},
+                                        },
+                                    }
+                                ],
+                            },
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_hpa_metrics(self, workers_values):
@@ -1895,6 +1988,18 @@ class TestWorkerSets:
                 "hpa": {"behavior": {"scaleUp": {"selectPolicy": "Min"}}},
                 "celery": {
                     "enableDefault": False,
+                    "sets": [
+                        {
+                            "name": "test",
+                            "hpa": {"enabled": True, "behavior": {"scaleDown": {"selectPolicy": "Max"}}},
+                        }
+                    ],
+                },
+            },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "hpa": {"behavior": {"scaleUp": {"selectPolicy": "Min"}}},
                     "sets": [
                         {
                             "name": "test",
