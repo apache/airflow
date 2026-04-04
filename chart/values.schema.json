@@ -3573,7 +3573,7 @@
                             ]
                         },
                         "serviceAccount": {
-                            "description": "Create ServiceAccount for pods created with pod-template-file. When this section is specified, the Service Account is created from 'templates/workers/worker-kubernetes-serviceaccount.yaml' file.",
+                            "description": "Create ServiceAccount for pods created with pod-template-file. When this section is specified, the Service Account is created from ``templates/workers/worker-kubernetes-serviceaccount.yaml`` file.",
                             "type": "object",
                             "properties": {
                                 "automountServiceAccountToken": {
@@ -3585,7 +3585,7 @@
                                     "default": null
                                 },
                                 "create": {
-                                    "description": "Specifies whether a ServiceAccount should be created. If not specified, the ServiceAccount will be generated and used from 'templates/workers/worker-serviceaccount.yaml' file if `workers.serviceAccount.create` will be 'true'.",
+                                    "description": "Specifies whether a ServiceAccount should be created. If not specified, the ServiceAccount will be generated and used from ``templates/workers/worker-serviceaccount.yaml`` file if ``workers.serviceAccount.create`` will be 'true'.",
                                     "type": [
                                         "boolean",
                                         "null"
