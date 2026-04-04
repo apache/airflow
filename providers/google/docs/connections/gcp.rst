@@ -16,8 +16,7 @@
     under the License.
 
 
-
-.. _howto/connection:google_cloud_platform:
+.. _howto/connection:gcp:
 
 Google Cloud Connection
 ================================
@@ -42,16 +41,16 @@ There are three ways to connect to Google Cloud using Airflow:
    the ``google-auth`` library on how to retrieve external subject tokens and exchange them for service account access
    tokens.
 
-   .. warning:: Additional permissions might be needed
+.. warning::
 
-   Connection which uses key from the Secret Manager requires that `Application Default Credentials
-   <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_ (ADC)
-   have permission to access payloads of secrets.
+  Connection which uses key from the Secret Manager requires that `Application Default Credentials
+  <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_ (ADC)
+  have permission to access payloads of secrets. Additional permissions might be needed.
 
-   .. note:: Alternative way of storing connections
+.. note::
 
-   Besides storing only key in Secret Manager there is an option for storing entire connection.
-   For more details take a look at :ref:`Google Secret Manager Backend <google_cloud_secret_manager_backend>`.
+  Besides storing only key in Secret Manager there is an option for storing entire connection.
+  For more details take a look at :ref:`Google Secret Manager Backend <google_cloud_secret_manager_backend>`.
 
 Default Connection IDs
 ----------------------
@@ -82,7 +81,7 @@ For example:
 
    export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='google-cloud-platform://'
 
-.. _howto/connection:google_cloud_platform:configuring_the_connection:
+.. _howto/connection:gcp:configuring_the_connection:
 
 Configuring the Connection
 --------------------------
@@ -127,7 +126,7 @@ Quota Project ID (optional)
     when using a shared service account but want to attribute quota/billing to a different
     project. If not specified, no separate quota project is configured on the credentials
     and Google Cloud's default behavior applies. Must be a valid GCP project ID (lowercase
-    letters, digits, hyphens, 6–30 characters, starting with a letter).
+    letters, digits, hyphens, 6-30 characters, starting with a letter).
 
     .. note::
 
@@ -186,7 +185,7 @@ Impersonation Chain
 
        export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{"conn_type": "google_cloud_platform", "extra": {"key_path": "/keys/key.json", "scope": "https://www.googleapis.com/auth/cloud-platform", "project": "airflow", "num_retries": 5}}'
 
-.. _howto/connection:google_cloud_platform:impersonation:
+.. _howto/connection:gcp:impersonation:
 
 Direct impersonation of a service account
 -----------------------------------------
@@ -367,53 +366,33 @@ example:
     }
   }'
 
-Operator / Hook parameter
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Hook parameter
+^^^^^^^^^^^^^^
 
-You can also pass the quota project directly when creating an operator or hook. This takes
+You can also pass the quota project directly when creating a hook. This takes
 precedence over the connection extras:
 
 .. code-block:: python
 
-  from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
-
-  task = BigQueryExecuteQueryOperator(
-      task_id="execute_query",
-      sql="SELECT * FROM `my_project.dataset.table`",
-      quota_project_id="your-billing-project-id",
-  )
-
-  # Or when creating a hook
   from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 
   hook = BigQueryHook(quota_project_id="your-billing-project-id")
 
 Priority
-~~~~~~~
+^^^^^^^^
 
-If a quota project is provided both in the connection extras and as an operator/hook
-parameter, the operator/hook parameter wins.
+If a quota project is provided both in the connection extras and as a hook
+parameter, the hook parameter wins.
 
 Compatibility
-~~~~~~~~~~~~~
+^^^^^^^^^^^^^
 
 This setting works with Google Cloud services that support the quota project mechanism (the
-`x-goog-user-project` header), for example:
-
-- BigQuery
-- Cloud Storage
-- Dataflow
-- Other Google Cloud APIs that accept quota project headers
+``x-goog-user-project`` header), for example BigQuery, Cloud Storage, Dataflow,
+and other Google Cloud APIs that accept quota project headers.
 
 Impact
-~~~~~~
+^^^^^^
 
 Using a quota project affects where API usage is billed, which quotas are applied, and how
 usage is reported for monitoring and auditing.
-
-Examples
-~~~~~~~~
-
-**Examples**
-
-See the example DAG: ``tests/system/providers/google/common/example_quota_project_system.py``

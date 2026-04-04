@@ -413,7 +413,8 @@ class GoogleBaseHook(BaseHook):
         if not is_valid_gcp_project_id(quota_project):
             raise ValueError(
                 f"Invalid quota_project_id '{quota_project}'. "
-                "Project IDs must be 6-30 characters long, start with a lowercase letter, and can contain only lowercase letters, digits, and hyphens."
+                "Project IDs must be 6-30 characters long, start with a lowercase letter, "
+                "and can contain only lowercase letters, digits, and hyphens."
             )
 
     def get_credentials(self) -> Credentials:
