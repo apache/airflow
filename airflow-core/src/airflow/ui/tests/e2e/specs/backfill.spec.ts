@@ -37,7 +37,7 @@ const FIXED_DATES = {
 
 // All blocks share the same Dag, so they must run serially to avoid cross-block interference.
 test.describe("Backfill", () => {
-  test.describe.configure({ mode: "serial"});
+  test.describe.configure({ mode: "serial" });
 
   test.describe("Backfill creation and validation", () => {
     test.setTimeout(120_000);
