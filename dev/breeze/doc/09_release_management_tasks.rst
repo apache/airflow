@@ -215,6 +215,31 @@ You can use Breeze to generate a Airflow core issue when you release new airflow
   :alt: Breeze generate-issue-content-core
 
 
+Airflow CTL release commands
+............................
+
+Preparing Airflow CTL distributions
+"""""""""""""""""""""""""""""""
+
+You can prepare Airflow CTL distributions using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-ctl-distributions
+
+This prepares Airflow CTL .whl package in the dist folder.
+
+Generating Airflow CTL Issue
+"""""""""""""""""""""""""""
+
+You can use Breeze to generate an Airflow CTL issue when you release new airflowctl.
+
+.. image:: ./images/output_release-management_generate-issue-content-airflowctl.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-airflowctl.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content-airflowctl
+
+
 Preparing Python Clients
 """"""""""""""""""""""""
 
