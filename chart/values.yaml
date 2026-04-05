@@ -1058,10 +1058,9 @@ workers:
   # instead)
   extraInitContainers: []
 
-  # Additional volumes and volume mounts attached to the
-  # Airflow Celery workers and pods created with pod-template-file
+  # Additional volumes attached to the Airflow Celery workers
+  # and pods created with pod-template-file
   extraVolumes: []
-  extraVolumeMounts: []
   # Mount additional volumes into workers pods. It can be templated like in the following example:
   #  extraVolumes:
   #    - name: my-templated-extra-volume
@@ -1069,7 +1068,11 @@ workers:
   #         secretName: '{{ include "my_secret_template" . }}'
   #         defaultMode: 0640
   #         optional: true
-  #
+
+  # Additional volume mounts attached to the Airflow Celery workers
+  # and pods created with pod-template-file
+  extraVolumeMounts: []
+  # Mount additional volumes into workers pods. It can be templated like in the following example:
   #  extraVolumeMounts:
   #    - name: my-templated-extra-volume
   #      mountPath: "{{ .Values.my_custom_path }}"
