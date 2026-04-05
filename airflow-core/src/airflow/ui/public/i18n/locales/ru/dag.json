@@ -122,6 +122,14 @@
     "graphDirection": {
       "label": "Направление графа"
     },
+    "graphFilters": {
+      "clearFilters": "Clear Filters",
+      "durationGte": "Min duration (s)",
+      "mapIndex": "Map index",
+      "selectStatus": "Select status",
+      "selectTaskGroup": "Select task group",
+      "title": "Task Filters"
+    },
     "showVersionIndicator": {
       "label": "Показать индикатор версии",
       "options": {

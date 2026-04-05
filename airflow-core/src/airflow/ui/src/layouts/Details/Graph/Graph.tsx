@@ -87,9 +87,8 @@ export const Graph = () => {
     return {
       durationThreshold: Number.isNaN(durationVal) ? undefined : durationVal,
       mapIndex: Number.isNaN(mapIndexVal) ? undefined : mapIndexVal,
-      mappedFilter: searchParams.get(SearchParamsKeys.MAPPED) ?? undefined,
       selectedOperators: searchParams.getAll(SearchParamsKeys.OPERATOR),
-      selectedStates: searchParams.getAll(SearchParamsKeys.STATE),
+      selectedStates: searchParams.getAll(SearchParamsKeys.TASK_STATE),
       selectedTaskGroups: searchParams.getAll(SearchParamsKeys.TASK_GROUP),
     };
   }, [searchParams]);

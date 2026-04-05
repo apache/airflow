@@ -24,7 +24,6 @@ import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 type GraphFilterValues = {
   durationThreshold?: number;
   mapIndex?: number;
-  mappedFilter?: string;
   selectedOperators: Array<string>;
   selectedStates: Array<string>;
   selectedTaskGroups: Array<string>;
@@ -34,7 +33,6 @@ const hasActiveFilters = (filters: GraphFilterValues): boolean =>
   filters.selectedOperators.length > 0 ||
   filters.selectedTaskGroups.length > 0 ||
   filters.selectedStates.length > 0 ||
-  filters.mappedFilter !== undefined ||
   filters.durationThreshold !== undefined ||
   filters.mapIndex !== undefined;
 
@@ -88,17 +86,6 @@ const isNodeFiltered = (node: ReactFlowNode<CustomNodeProps>, filters: GraphFilt
     const state = taskInstance?.state ?? "none";
 
     if (!filters.selectedStates.includes(state)) {
-      return true;
-    }
-  }
-
-  if (filters.mappedFilter !== undefined) {
-    const isMappedBool = Boolean(isMapped);
-
-    if (filters.mappedFilter === "true" && !isMappedBool) {
-      return true;
-    }
-    if (filters.mappedFilter === "false" && isMappedBool) {
       return true;
     }
   }

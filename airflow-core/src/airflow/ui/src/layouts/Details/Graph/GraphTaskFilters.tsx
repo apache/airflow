@@ -25,7 +25,8 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -37,7 +38,6 @@ import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
-import { AttrSelectFilter } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilter";
 import { AttrSelectFilterMulti } from "src/pages/Dag/Tasks/TaskFilters/AttrSelectFilterMulti";
 
 const collectOperators = (nodes: Array<NodeResponse>): Array<string> => {
@@ -93,19 +93,15 @@ export const GraphTaskFilters = () => {
 
   const selectedOperators = searchParams.getAll(SearchParamsKeys.OPERATOR);
   const selectedTaskGroups = searchParams.getAll(SearchParamsKeys.TASK_GROUP);
-  const selectedStates = searchParams.getAll(SearchParamsKeys.STATE);
-  const selectedMapped = searchParams.get(SearchParamsKeys.MAPPED) ?? undefined;
+  const selectedStates = searchParams.getAll(SearchParamsKeys.TASK_STATE);
   const mapIndexParam = searchParams.get(SearchParamsKeys.MAP_INDEX) ?? "";
   const durationGteParam = searchParams.get(SearchParamsKeys.DURATION_GTE) ?? "";
-
-  const mapIndexIsSet = mapIndexParam !== "";
 
   const hasActiveFilters =
     selectedOperators.length > 0 ||
     selectedTaskGroups.length > 0 ||
     selectedStates.length > 0 ||
-    selectedMapped !== undefined ||
-    mapIndexIsSet ||
+    mapIndexParam !== "" ||
     durationGteParam !== "";
 
   const stateValues = useMemo(
@@ -113,22 +109,9 @@ export const GraphTaskFilters = () => {
     [],
   );
 
-  const mappedValues = [
-    { key: "true", label: translate("tasks:mapped") },
-    { key: "false", label: translate("tasks:notMapped") },
-  ];
-
   const handleMultiChange = (key: string) => (values: Array<string> | undefined) => {
     searchParams.delete(key);
     values?.forEach((val) => searchParams.append(key, val));
-    setSearchParams(searchParams);
-  };
-
-  const handleSingleChange = (key: string) => (value: string | undefined) => {
-    searchParams.delete(key);
-    if (value !== undefined) {
-      searchParams.set(key, value);
-    }
     setSearchParams(searchParams);
   };
 
@@ -146,18 +129,25 @@ export const GraphTaskFilters = () => {
     [
       SearchParamsKeys.OPERATOR,
       SearchParamsKeys.TASK_GROUP,
-      SearchParamsKeys.STATE,
-      SearchParamsKeys.MAPPED,
+      SearchParamsKeys.TASK_STATE,
       SearchParamsKeys.MAP_INDEX,
       SearchParamsKeys.DURATION_GTE,
     ].forEach((key) => searchParams.delete(key));
     setSearchParams(searchParams);
   };
 
+  const [isOpen, setIsOpen] = useState(false);
+
+  useHotkeys("mod+f", () => setIsOpen(true), { preventDefault: true });
+
   const tooltipContent = translate("dag:panel.graphFilters.title");
 
   return (
-    <Menu.Root positioning={{ placement: "bottom-end" }}>
+    <Menu.Root
+      onOpenChange={({ open: nextOpen }) => setIsOpen(nextOpen)}
+      open={isOpen}
+      positioning={{ placement: "bottom-end" }}
+    >
       <Menu.Trigger asChild>
         <IconButton
           aria-label={tooltipContent}
@@ -204,26 +194,13 @@ export const GraphTaskFilters = () => {
               </VStack>
             ) : undefined}
 
-            {/* Hide mapped filter when mapIndex is set — mapIndex already implies mapped tasks */}
-            {mapIndexIsSet ? undefined : (
-              <VStack alignItems="flex-start" width="100%">
-                <Text fontSize="xs">{translate("tasks:selectMapped")}</Text>
-                <AttrSelectFilter
-                  handleSelect={handleSingleChange(SearchParamsKeys.MAPPED)}
-                  placeholderText={translate("tasks:selectMapped")}
-                  selectedValue={selectedMapped}
-                  values={mappedValues}
-                />
-              </VStack>
-            )}
-
             {runId === undefined ? undefined : (
               <>
                 <VStack alignItems="flex-start" width="100%">
                   <Text fontSize="xs">{translate("dag:panel.graphFilters.selectStatus")}</Text>
                   <AttrSelectFilterMulti
                     displayPrefix={undefined}
-                    handleSelect={handleMultiChange(SearchParamsKeys.STATE)}
+                    handleSelect={handleMultiChange(SearchParamsKeys.TASK_STATE)}
                     placeholderText={translate("dag:panel.graphFilters.selectStatus")}
                     selectedValues={selectedStates}
                     values={stateValues}

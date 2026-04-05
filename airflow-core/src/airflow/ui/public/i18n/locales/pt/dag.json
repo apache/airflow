@@ -129,6 +129,14 @@
     "graphDirection": {
       "label": "Direção do Gráfico"
     },
+    "graphFilters": {
+      "clearFilters": "Clear Filters",
+      "durationGte": "Min duration (s)",
+      "mapIndex": "Map index",
+      "selectStatus": "Select status",
+      "selectTaskGroup": "Select task group",
+      "title": "Task Filters"
+    },
     "showVersionIndicator": {
       "label": "Mostrar Indicador de Versão",
       "options": {
