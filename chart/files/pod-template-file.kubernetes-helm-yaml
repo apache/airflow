@@ -52,8 +52,8 @@ spec:
     {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
       {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 4 }}
     {{- end }}
-    {{- if .Values.workers.extraInitContainers }}
-      {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 4 }}
+    {{- if or .Values.workers.kubernetes.extraInitContainers .Values.workers.extraInitContainers }}
+      {{- tpl (toYaml (.Values.workers.kubernetes.extraInitContainers | default .Values.workers.extraInitContainers)) . | nindent 4 }}
     {{- end }}
     {{- if or .Values.workers.kubernetes.kerberosInitContainer.enabled .Values.workers.kerberosInitContainer.enabled }}
     - name: kerberos-init

@@ -2513,6 +2513,20 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "extraInitContainers": [{"name": "test", "image": "test"}],
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "extraInitContainers": [
+                                {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
+                            ],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_extra_init_containers(self, workers_values):

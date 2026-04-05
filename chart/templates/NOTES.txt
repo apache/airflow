@@ -709,6 +709,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.extraInitContainers) }}
+
+ DEPRECATION WARNING:
+    `workers.extraInitContainers` has been renamed to `workers.celery.extraInitContainers`/`workers.kubernetes.extraInitContainers`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if not (empty .Values.workers.runtimeClassName) }}
 
  DEPRECATION WARNING:

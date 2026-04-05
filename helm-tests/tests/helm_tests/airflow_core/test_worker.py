@@ -279,15 +279,34 @@ class TestWorker:
                 for m in mounts
             )
 
-    def test_should_add_extra_init_containers(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraInitContainers": [
+                    {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                ]
+            },
+            {
+                "celery": {
                     "extraInitContainers": [
                         {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
-                    ],
+                    ]
+                }
+            },
+            {
+                "extraInitContainers": [{"name": "container", "image": "repo:tag"}],
+                "celery": {
+                    "extraInitContainers": [
+                        {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
+                    ]
                 },
             },
+        ],
+    )
+    def test_should_add_extra_init_containers(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -299,13 +318,20 @@ class TestWorker:
             }
         ]
 
-    def test_should_template_extra_init_containers(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
-                },
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]},
+            {"celery": {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]}},
+            {
+                "extraInitContainers": [{"name": "container"}],
+                "celery": {"extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}]},
             },
+        ],
+    )
+    def test_should_template_extra_init_containers(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -944,13 +970,15 @@ class TestWorker:
         docs = render_chart(
             values={
                 "workers": {
-                    "extraInitContainers": [
-                        {
-                            "name": "test-init-container",
-                            "image": "test-registry/test-repo:test-tag",
-                            "restartPolicy": "Always",
-                        }
-                    ]
+                    "celery": {
+                        "extraInitContainers": [
+                            {
+                                "name": "test-init-container",
+                                "image": "test-registry/test-repo:test-tag",
+                                "restartPolicy": "Always",
+                            }
+                        ]
+                    }
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
