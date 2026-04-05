@@ -152,15 +152,24 @@ def timeout_with_traceback(seconds, message="Operation timed out"):
         raise TimeoutException(message)
 
     # Set the signal handler
-    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(seconds)
+    timeout_supported = False
+    try:
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(seconds)
+        timeout_supported = True
+    except (AttributeError, ValueError):
+        log.warning(
+            "timeout_with_traceback requires signal.SIGALRM and the main thread. "
+            "Proceeding without a timeout."
+        )
 
     try:
         yield
     finally:
-        # Cancel the alarm and restore the old handler
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old_handler)
+        if timeout_supported:
+            # Cancel the alarm and restore the old handler
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
 
 
 @provide_session

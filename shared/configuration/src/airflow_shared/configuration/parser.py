@@ -257,6 +257,7 @@ class AirflowConfigParser(ConfigParser):
         ("scheduler", "ti_metrics_interval"): ("scheduler", "running_metrics_interval", "3.2.0"),
         ("api", "fallback_page_limit"): ("api", "page_size", "3.2.0"),
         ("workers", "missing_dag_retries"): ("workers", "missing_dag_retires", "3.1.8"),
+        ("core", "execution_api_server_url"): ("workers", "execution_api_server_url", "3.0"),
     }
 
     # A mapping of new section -> (old section, since_version).

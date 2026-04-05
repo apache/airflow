@@ -21,13 +21,13 @@ name: Common AI
 description: |
   AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
-state: not-ready
+state: ready
 lifecycle: incubation
 source-date-epoch: 1770463465
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.0.1
+  - 0.1.0
 
 integrations:
   - integration-name: Common AI
@@ -62,6 +62,7 @@ plugins:
 
 connection-types:
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook
+    hook-name: "Pydantic AI"
     connection-type: pydanticai
     ui-field-behaviour:
       hidden-fields:
@@ -81,6 +82,7 @@ connection-types:
             - string
             - 'null'
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook
+    hook-name: "Pydantic AI (Azure OpenAI)"
     connection-type: pydanticai-azure
     ui-field-behaviour:
       hidden-fields:
@@ -108,6 +110,7 @@ connection-types:
             - string
             - 'null'
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIBedrockHook
+    hook-name: "Pydantic AI (AWS Bedrock)"
     connection-type: pydanticai-bedrock
     ui-field-behaviour:
       hidden-fields:
@@ -190,6 +193,7 @@ connection-types:
             - number
             - 'null'
   - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIVertexHook
+    hook-name: "Pydantic AI (Google Vertex AI)"
     connection-type: pydanticai-vertex
     ui-field-behaviour:
       hidden-fields:
@@ -251,6 +255,7 @@ connection-types:
             - string
             - 'null'
   - hook-class-name: airflow.providers.common.ai.hooks.mcp.MCPHook
+    hook-name: "MCP Server"
     connection-type: mcp
     ui-field-behaviour:
       hidden-fields:

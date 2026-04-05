@@ -177,7 +177,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cohere>=1.4.0"
 ]
 "common.ai" = [
-    "apache-airflow-providers-common-ai>=0.0.1" # Set from local provider pyproject.toml
+    "apache-airflow-providers-common-ai>=0.1.0" # Set from local provider pyproject.toml
 ]
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
@@ -421,7 +421,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cloudant>=4.0.1",
     "apache-airflow-providers-cncf-kubernetes>=9.0.0",
     "apache-airflow-providers-cohere>=1.4.0",
-    "apache-airflow-providers-common-ai>=0.0.1", # Set from local provider pyproject.toml
+    "apache-airflow-providers-common-ai>=0.1.0", # Set from local provider pyproject.toml
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -1347,7 +1347,6 @@ required-version = ">=0.9.17"
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 no-build-isolation-package = ["sphinx-redoc"]
-constraint-dependencies = ["lxml==6.0.2"]  # Remove after https://github.com/aws/amazon-redshift-python-driver/pull/272
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,

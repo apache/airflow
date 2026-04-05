@@ -17,11 +17,15 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, BulkBody
 from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody
 from airflow.api_fastapi.core_api.services.public.task_instances import BulkTaskInstanceService
+from airflow.models import DagModel
 from airflow.providers.standard.operators.bash import BashOperator
 
 from tests_common.test_utils.db import (
@@ -53,6 +57,10 @@ class TestCategorizeTaskInstances(TestTaskInstanceEndpoint):
         self.clear_db()
 
     class MockUser:
+        username = "test_user"
+        role = "admin"
+        teams = ["team1"]
+
         def get_id(self) -> str:
             return "test_user"
 
@@ -184,6 +192,10 @@ class TestExtractTaskIdentifiers(TestTaskInstanceEndpoint):
         self.clear_db()
 
     class MockUser:
+        username = "test_user"
+        role = "admin"
+        teams = ["team1"]
+
         def get_id(self) -> str:
             return "test_user"
 
@@ -260,6 +272,10 @@ class TestCategorizeEntities(TestTaskInstanceEndpoint):
         self.clear_db()
 
     class MockUser:
+        username = "test_user"
+        role = "admin"
+        teams = ["team1"]
+
         def get_id(self) -> str:
             return "test_user"
 
@@ -380,7 +396,6 @@ class TestCategorizeEntities(TestTaskInstanceEndpoint):
         expected_error_count,
     ):
         """Test _categorize_entities with different entity configurations and wildcard validation."""
-
         user = self.MockUser()
         bulk_request = BulkBody(actions=[])
         service = BulkTaskInstanceService(
@@ -393,9 +408,18 @@ class TestCategorizeEntities(TestTaskInstanceEndpoint):
         )
 
         results = BulkActionResponse()
-        specific_map_index_task_keys, all_map_index_task_keys = service._categorize_entities(
-            entities, results
-        )
+        with (
+            mock.patch.object(DagModel, "get_team_name", return_value="team1"),
+            mock.patch(
+                "airflow.api_fastapi.core_api.services.public.task_instances.get_auth_manager"
+            ) as mock_get_auth_manager,
+        ):
+            auth_manager = mock.create_autospec(BaseAuthManager, instance=True, spec_set=True)
+            auth_manager.is_authorized_dag.return_value = True
+            mock_get_auth_manager.return_value = auth_manager
+            specific_map_index_task_keys, all_map_index_task_keys = service._categorize_entities(
+                entities, results, method="PUT", action_name="update"
+            )
 
         assert specific_map_index_task_keys == expected_specific_keys
         assert all_map_index_task_keys == expected_all_keys

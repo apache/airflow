@@ -42,6 +42,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.asana.hooks.asana.AsanaHook",
+                "hook-name": "Asana",
                 "connection-type": "asana",
                 "ui-field-behaviour": {
                     "hidden-fields": ["port", "host", "login", "schema"],

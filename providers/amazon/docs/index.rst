@@ -120,6 +120,7 @@ PIP package                                 Version required
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
 ``redshift_connector``                      ``>=2.1.3``
+``redshift_connector``                      ``>=2.1.13; python_version >= "3.14"``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
 ``PyAthena``                                ``>=3.10.0``
