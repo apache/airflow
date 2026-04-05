@@ -2458,6 +2458,20 @@ class TestWorkerSets:
                     ],
                 },
             },
+            {
+                "celery": {
+                    "enableDefault": False,
+                    "extraContainers": [{"name": "test", "image": "test"}],
+                    "sets": [
+                        {
+                            "name": "set1",
+                            "extraContainers": [
+                                {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
+                            ],
+                        }
+                    ],
+                },
+            },
         ],
     )
     def test_overwrite_extra_containers(self, workers_values):

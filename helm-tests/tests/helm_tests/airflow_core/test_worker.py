@@ -135,11 +135,27 @@ class TestWorker:
 
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
-    def test_should_add_extra_containers_with_template(self):
-        docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "extraContainers": [
+                    {"name": "{{ .Chart.Name }}-test-container", "image": "test-registry/test-repo:test-tag"}
+                ]
+            },
+            {
+                "celery": {
+                    "extraContainers": [
+                        {
+                            "name": "{{ .Chart.Name }}-test-container",
+                            "image": "test-registry/test-repo:test-tag",
+                        }
+                    ]
+                }
+            },
+            {
+                "extraContainers": [{"name": "test", "image": "repo:test"}],
+                "celery": {
                     "extraContainers": [
                         {
                             "name": "{{ .Chart.Name }}-test-container",
@@ -147,6 +163,14 @@ class TestWorker:
                         }
                     ]
                 },
+            },
+        ],
+    )
+    def test_should_add_extra_containers_with_template(self, workers_values):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
