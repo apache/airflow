@@ -2106,7 +2106,6 @@ class TestRuntimeTaskInstance:
             ),
         )
 
-
     def test_xcom_pull_default_respected_when_no_map_indexes(
         self,
         create_runtime_ti,
