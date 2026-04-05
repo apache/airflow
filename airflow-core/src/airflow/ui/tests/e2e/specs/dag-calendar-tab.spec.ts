@@ -104,9 +104,7 @@ test.describe("DAG Calendar Tab", () => {
   test("verify active cells appear for DAG runs", async () => {
     await calendar.switchToHourly();
 
-    const count = await calendar.getActiveCellCount();
-
-    expect(count).toBeGreaterThan(0);
+    await expect(calendar.activeCells.first()).toBeVisible();
   });
 
   test("verify manual runs are detected", async () => {
@@ -150,13 +148,11 @@ test.describe("DAG Calendar Tab", () => {
   test("failed view reduces active cells", async () => {
     await calendar.switchToHourly();
 
-    const totalCount = await calendar.getActiveCellCount();
+    const totalCount = await calendar.activeCells.count();
 
     await calendar.switchToFailedView();
 
-    const failedCount = await calendar.getActiveCellCount();
-
-    expect(failedCount).toBeLessThan(totalCount);
+    await expect.poll(async () => calendar.activeCells.count(), { timeout: 10_000 }).toBeLessThan(totalCount);
   });
 
   test.fixme("color scale changes between total and failed view", async () => {
