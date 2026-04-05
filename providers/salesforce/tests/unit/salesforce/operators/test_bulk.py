@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest.mock import Mock, patch
+
+from airflow.providers.common.compat.sdk import AirflowException
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.salesforce.operators.bulk import SalesforceBulkOperator
 
 
@@ -119,7 +121,7 @@ class TestSalesforceBulkOperator:
         batch_size = 10000
         use_serial = True
 
-        mock_get_conn.return_value.bulk.__getattr__(object_name).insert = Mock()
+        mock_get_conn.return_value.bulk.__getattr__(object_name).insert = Mock(return_value=[])
         operator = SalesforceBulkOperator(
             task_id="bulk_insert",
             operation=operation,
@@ -152,7 +154,7 @@ class TestSalesforceBulkOperator:
         batch_size = 10000
         use_serial = True
 
-        mock_get_conn.return_value.bulk.__getattr__(object_name).update = Mock()
+        mock_get_conn.return_value.bulk.__getattr__(object_name).update = Mock(return_value=[])
         operator = SalesforceBulkOperator(
             task_id="bulk_update",
             operation=operation,
@@ -186,7 +188,7 @@ class TestSalesforceBulkOperator:
         batch_size = 10000
         use_serial = True
 
-        mock_get_conn.return_value.bulk.__getattr__(object_name).upsert = Mock()
+        mock_get_conn.return_value.bulk.__getattr__(object_name).upsert = Mock(return_value=[])
         operator = SalesforceBulkOperator(
             task_id="bulk_upsert",
             operation=operation,
@@ -221,7 +223,7 @@ class TestSalesforceBulkOperator:
         batch_size = 10000
         use_serial = True
 
-        mock_get_conn.return_value.bulk.__getattr__(object_name).delete = Mock()
+        mock_get_conn.return_value.bulk.__getattr__(object_name).delete = Mock(return_value=[])
         operator = SalesforceBulkOperator(
             task_id="bulk_delete",
             operation=operation,
@@ -254,7 +256,7 @@ class TestSalesforceBulkOperator:
         batch_size = 10000
         use_serial = True
 
-        mock_get_conn.return_value.bulk.__getattr__(object_name).hard_delete = Mock()
+        mock_get_conn.return_value.bulk.__getattr__(object_name).hard_delete = Mock(return_value=[])
         operator = SalesforceBulkOperator(
             task_id="bulk_hard_delete",
             operation=operation,
@@ -272,9 +274,8 @@ class TestSalesforceBulkOperator:
             use_serial=use_serial,
         )
 
-
     @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
-    def test_log_result_failures_warns_on_failed_records(self, mock_get_conn):
+    def test_log_result_failures_warns_on_failed_records(self, mock_get_conn, caplog):
         """
         When records come back with success=False, _log_result_failures should emit warnings
         containing the Salesforce status code and message.
@@ -286,64 +287,55 @@ class TestSalesforceBulkOperator:
                 "created": False,
                 "id": None,
                 "errors": [
-                    {
-                        "statusCode": "INVALID_FIELD",
-                        "message": "No such column \'Bad_Field\'",
-                        "fields": [],
-                    }
+                    {"statusCode": "INVALID_FIELD", "message": "No such column 'Bad_Field'", "fields": []}
                 ],
             },
         ]
-        mock_get_conn.return_value.bulk.__getattr__("Account").insert = Mock(
-            return_value=failed_result
-        )
+        mock_get_conn.return_value.bulk.__getattr__("Account").insert = Mock(return_value=failed_result)
 
         operator = SalesforceBulkOperator(
             task_id="bulk_insert_with_failure",
             operation="insert",
             object_name="Account",
             payload=[{"Name": "OK"}, {"Bad_Field": "x"}],
+            do_xcom_push=False,
         )
 
-        with pytest.raises(Exception):
-            pass
+        with caplog.at_level(logging.WARNING, logger="airflow.providers.salesforce.operators.bulk"):
+            operator.execute(context={})
 
-        result = operator.execute(context={})
-        assert result is None
+        assert "1/2 record(s) failed" in caplog.text
+        assert "INVALID_FIELD" in caplog.text
+        assert "No such column 'Bad_Field'" in caplog.text
 
     @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
-    def test_log_result_failures_no_warning_on_full_success(self, mock_get_conn):
+    def test_log_result_failures_no_warning_on_full_success(self, mock_get_conn, caplog):
         """
         When all records succeed, _log_result_failures should not emit any warnings.
         """
-        success_result = [
-            {"success": True, "created": True, "id": "001xx0000001BBB", "errors": []}
-        ]
-        mock_get_conn.return_value.bulk.__getattr__("Lead").insert = Mock(
-            return_value=success_result
-        )
+        success_result = [{"success": True, "created": True, "id": "001xx0000001BBB", "errors": []}]
+        mock_get_conn.return_value.bulk.__getattr__("Lead").insert = Mock(return_value=success_result)
 
         operator = SalesforceBulkOperator(
             task_id="bulk_insert_all_success",
             operation="insert",
             object_name="Lead",
             payload=[{"LastName": "Test"}],
+            do_xcom_push=False,
         )
 
-        result = operator.execute(context={})
-        assert result is None
+        with caplog.at_level(logging.WARNING, logger="airflow.providers.salesforce.operators.bulk"):
+            operator.execute(context={})
+
+        assert "record(s) failed" not in caplog.text
 
     @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
     def test_execute_returns_result_list_when_xcom_push(self, mock_get_conn):
         """
         execute() should return the materialised result list when do_xcom_push is True.
         """
-        success_result = [
-            {"success": True, "created": True, "id": "001xx0000001CCC", "errors": []}
-        ]
-        mock_get_conn.return_value.bulk.__getattr__("Account").insert = Mock(
-            return_value=success_result
-        )
+        success_result = [{"success": True, "created": True, "id": "001xx0000001CCC", "errors": []}]
+        mock_get_conn.return_value.bulk.__getattr__("Account").insert = Mock(return_value=success_result)
 
         operator = SalesforceBulkOperator(
             task_id="bulk_insert_xcom",
