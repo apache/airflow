@@ -82,8 +82,11 @@ COMMAND = """
             # Load credentials from secure file using (POSIX-compliant dot operator)
             . {credentials_file}
 
+            # Redirect stderr to /dev/null to prevent Python warnings, deprecation
+            # notices, or other log output from contaminating stdout. The token
+            # output must be the ONLY thing on stdout for bash parsing to work.
             output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
-                --cluster-name {eks_cluster_name} --sts-url '{sts_url}' {args} 2>&1)
+                --cluster-name {eks_cluster_name} --sts-url '{sts_url}' {args} 2>/dev/null)
 
             status=$?
 
@@ -91,11 +94,12 @@ COMMAND = """
             unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
             if [ "$status" -ne 0 ]; then
-                printf '%s' "$output" >&2
+                printf 'eks_get_token failed with exit code %s' "$status" >&2
                 exit "$status"
             fi
 
             # Use pure bash below to parse so that it's posix compliant
+            # Only the token line should be on stdout (stderr redirected above)
 
             last_line=${{output##*$'\\n'}}  # strip everything up to the last newline
 
@@ -103,6 +107,16 @@ COMMAND = """
             timestamp=${{timestamp%%,*}}  # keep up to the first comma
 
             token=${{last_line##*, token: }}  # text after ", token: "
+
+            # Validate that token was extracted — empty token means parsing failed
+            # or eks_get_token produced unexpected output. Without this check, a
+            # malformed ExecCredential is sent to the API server, resulting in a
+            # 401 with an empty user identity in the audit logs.
+            if [ -z "$token" ]; then
+                printf 'Failed to extract token from eks_get_token output. ' >&2
+                printf 'Output was: %s' "$output" >&2
+                exit 1
+            fi
 
             json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
                 "{authentication_api_version}","spec": {{}},"status": \

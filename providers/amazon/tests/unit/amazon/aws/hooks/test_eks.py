@@ -1273,6 +1273,37 @@ class TestEksHook:
             if expected_region_args:
                 assert expected_region_args in command_arg
 
+    def test_command_template_redirects_stderr(self):
+        """Verify COMMAND template redirects stderr to /dev/null to prevent
+        Python warnings/log output from contaminating stdout and breaking
+        bash token parsing. This is critical for cross-account AssumeRole
+        scenarios where the kubeconfig exec plugin must produce a clean token."""
+        from airflow.providers.amazon.aws.hooks.eks import COMMAND
+
+        # Verify stderr is redirected to /dev/null, not merged with stdout
+        assert "2>/dev/null" in COMMAND, (
+            "COMMAND must redirect stderr to /dev/null to prevent output contamination"
+        )
+        assert "2>&1" not in COMMAND, (
+            "COMMAND must not use 2>&1 — merging stderr with stdout breaks bash token parsing"
+        )
+
+    def test_command_template_validates_token(self):
+        """Verify COMMAND template validates that the token was successfully
+        extracted before producing the ExecCredential JSON. Without this check,
+        a malformed ExecCredential with an empty token is sent to the API server,
+        resulting in 401 Unauthorized with an empty user identity in audit logs."""
+        from airflow.providers.amazon.aws.hooks.eks import COMMAND
+
+        # Verify token validation check exists
+        assert 'if [ -z "$token" ]' in COMMAND, (
+            "COMMAND must validate that token is non-empty before producing ExecCredential JSON"
+        )
+        # Verify it exits with error on empty token
+        assert "exit 1" in COMMAND or 'exit "$' in COMMAND, (
+            "COMMAND must exit with error when token extraction fails"
+        )
+
 
 # Helper methods for repeated assert combinations.
 def assert_all_arn_values_are_valid(expected_arn_values, pattern, arn_under_test) -> None:
