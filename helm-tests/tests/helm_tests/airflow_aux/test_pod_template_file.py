@@ -1080,10 +1080,12 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.initContainers[-1]", docs[0]) == {
-            "name": "test-init-container",
-            "image": "test-registry/test-repo:test-tag",
-        }
+        assert jmespath.search("spec.initContainers", docs[0]) == [
+            {
+                "name": "test-init-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
 
     def test_should_template_extra_init_containers(self):
         docs = render_chart(
@@ -1096,9 +1098,11 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.initContainers[-1]", docs[0]) == {
-            "name": "release-name-test-init-container",
-        }
+        assert jmespath.search("spec.initContainers", docs[0]) == [
+            {
+                "name": "release-name-test-init-container",
+            }
+        ]
 
     @pytest.mark.parametrize(
         "workers_values",

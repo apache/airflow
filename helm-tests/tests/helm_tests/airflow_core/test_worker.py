@@ -291,10 +291,13 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
-            "name": "test-init-container",
-            "image": "test-registry/test-repo:test-tag",
-        }
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:]", docs[0]) == [
+            {
+                "name": "test-init-container",
+                "image": "test-registry/test-repo:test-tag",
+            }
+        ]
 
     def test_should_template_extra_init_containers(self):
         docs = render_chart(
@@ -306,9 +309,10 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
-            "name": "release-name-test-init-container"
-        }
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:]", docs[0]) == [
+            {"name": "release-name-test-init-container"}
+        ]
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -952,7 +956,10 @@ class TestWorker:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.initContainers[1].restartPolicy", docs[0]) == "Always"
+        # [1:] -> Skipping wait-for-airflow-migrations init container
+        assert jmespath.search("spec.template.spec.initContainers[1:] | [*].restartPolicy", docs[0]) == [
+            "Always"
+        ]
 
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),
