@@ -117,5 +117,4 @@ describe("DagVersionSelect", () => {
 
     expect(getItems(container)).toHaveLength(2);
   });
-
 });
